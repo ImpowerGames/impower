@@ -1,8 +1,8 @@
-// Integration of an orchestrated Feature. The merge gate decides whether the
+// Integration of an orchestrated parent issue. The merge gate decides whether the
 // coordinator may merge one slice's PR now; the merge itself records its
 // intent, calls GitHub with the expected head and reads the result back; and
-// the Feature's own acceptance criteria are verified on main before the
-// coordinator closes the Feature. GitHub stays the authority for PR state,
+// the parent issue's own acceptance criteria are verified on main before the
+// coordinator closes the parent issue. GitHub stays the authority for PR state,
 // heads, checks and protection: every command reads them afresh, and the run
 // record keeps only the intent, the observed outcome and the evidence.
 //
@@ -11,9 +11,9 @@
 // and GitHub's merge state. Whether a criterion's evidence really shows it is met is the
 // coordinator's judgement; the helper only refuses a criterion without any.
 //
-//   node .agents/skills/orchestrate-feature/integration.mjs <command> --option value ...
+//   node .agents/skills/orchestrate-issues/integration.mjs <command> --option value ...
 //
-// Commands: gate, merge, criteria, verify-feature, close-feature.
+// Commands: gate, merge, criteria, verify-issue, close-issue.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -21,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readFeatureScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs } from "./feature-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -50,10 +50,10 @@ const noneOutstanding = (findings) => (Array.isArray(findings) ? findings.length
 
 // --- Authority ----------------------------------------------------------------
 
-// The recorded invocation names the skill and the Feature. Whether the user
+// The recorded invocation names the skill and the parent issue. Whether the user
 // asked for orchestration or only discussed it is read from that quote by the
 // coordinator that recorded it; a quote that names neither grants nothing.
-export const invokes = (record) => /orchestrate-feature/i.test(record.invocation?.text ?? "") && new RegExp(`#${record.feature}(?![0-9])`).test(record.invocation.text);
+export const invokes = (record) => /orchestrate-issues/i.test(record.invocation?.text ?? "") && new RegExp(`#${record.issue}(?![0-9])`).test(record.invocation.text);
 
 // --- CI -------------------------------------------------------------------------
 
@@ -154,16 +154,17 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   if (record.invocation?.merging !== "coordinator") blockers.push(`the run records that the maintainer merges (merging ${record.invocation?.merging ?? "not recorded"}), so no PR of this run merges here`);
   else if (!coordinatorMerges(record)) blockers.push(`the run's recorded grant ("${record.authority?.merge}") or its quoted request ("${record.invocation?.text}") does not let the coordinator merge`);
   if (!record.checkpoints) blockers.push("checkpoints are not enabled for this run, so a merge's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
-  if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-feature and Feature #${record.feature}; only an explicit invocation grants a merge, and discussing the skill is not one`);
+  if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-issues and issue #${record.issue}; only an explicit invocation grants a merge, and discussing the skill is not one`);
   const own = record.tickets[number];
   let writers = [];
   if (own) { try { writers = writersOf(own, number); } catch (error) { writers = null; blockers.push(error.message); } }
   if (writers?.includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
-  // Scope: a sub-issue of this Feature, and its one open PR.
-  const t = snapshot.repository === record.repository && snapshot.feature?.number === record.feature ? snapshot.tickets.find((x) => x.number === number) : undefined;
-  if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) blockers.push("the snapshot is of another repository or Feature");
-  else if (!t) blockers.push(`#${number} is not a sub-issue of Feature #${record.feature} in the snapshot of ${snapshot.observedAt}`);
+  // Scope: a sub-issue of this parent issue, and its one open PR.
+  const t = snapshot.repository === record.repository && snapshot.issue?.number === record.issue ? snapshot.tickets.find((x) => x.number === number) : undefined;
+  if (snapshot.repository !== record.repository || snapshot.issue?.number !== record.issue) blockers.push("the snapshot is of another repository or parent issue");
+  else if (!t) blockers.push(`#${number} is not a sub-issue of issue #${record.issue} in the snapshot of ${snapshot.observedAt}`);
   else if (t.container) blockers.push(`#${number} is a container; its sub-issues merge their own PRs`);
+  else if (t.deliveredBy) blockers.push(`#${number} is delivered by #${t.deliveredBy.ticket}'s PR; the merge is #${t.deliveredBy.ticket}'s`);
   else if (!t.prs.some((p) => p.number === pr)) blockers.push(`PR #${pr} is not one of #${number}'s PRs in the snapshot of ${snapshot.observedAt}`);
   else if (t.prs.filter((p) => p.state === "OPEN").length > 1) blockers.push(`#${number} has open PRs ${t.prs.filter((p) => p.state === "OPEN").map((p) => `#${p.number}`).join(", ")}; which one delivers it is the maintainer's decision`);
   if (branchTicket(pull.branch) !== number) blockers.push(`PR #${pr}'s branch ${pull.branch} is not #${number}'s`);
@@ -205,7 +206,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   // verification gap keeps the PR from merging.
   if (disposition === "reviewed") {
     const report = [...(own?.results ?? [])].reverse().find((r) => Number(r.report?.pr) === pr)?.report;
-    if (!report) blockers.push(`the run record holds no writer report for PR #${pr}; read the writer's final report and record it with feature-run.mjs result`);
+    if (!report) blockers.push(`the run record holds no writer report for PR #${pr}; read the writer's final report and record it with issue-run.mjs result`);
     else {
       if (!sameCommit(report.reviewedHead, e.reviewedHead)) blockers.push(`the writer's report names ${report.reviewedHead} as its last reviewed commit, not ${e.reviewedHead}`);
       if (!noneOutstanding(report.findings)) blockers.push(`the writer's report lists outstanding findings or verification gaps: ${typeof report.findings === "string" ? report.findings : JSON.stringify(report.findings)}`);
@@ -239,22 +240,22 @@ const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.review
 
 // --- The final gate ----------------------------------------------------------
 
-// Whether this record's coordinator still owns the Feature on its state
+// Whether this record's coordinator still owns the parent issue on its state
 // branch, with this operation's intent saved there, read from the remote. A
 // takeover, or an intent that never reached the remote, refuses the call.
 export function remoteOwnership(record, opId) {
-  const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.feature, repositoriesOf(record).tickets);
-  if (!state) return [`${stateBranch(record.feature)} is missing on ${record.checkpoints.remote}`];
-  if (state.checkpoint.coordinator.session !== record.coordinator.session) return [`Feature #${record.feature} has been taken over: checkpoint ${state.checkpoint.seq} names coordinator ${state.checkpoint.coordinator.session}`];
-  if (!(state.checkpoint.operations ?? []).some((o) => o.id === opId && o.state === "intent")) return [`operation ${opId}'s intent is not on ${stateBranch(record.feature)}`];
+  const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.issue, repositoriesOf(record).tickets);
+  if (!state) return [`${stateBranch(record.issue)} is missing on ${record.checkpoints.remote}`];
+  if (state.checkpoint.coordinator.session !== record.coordinator.session) return [`issue #${record.issue} has been taken over: checkpoint ${state.checkpoint.seq} names coordinator ${state.checkpoint.coordinator.session}`];
+  if (!(state.checkpoint.operations ?? []).some((o) => o.id === opId && o.state === "intent")) return [`operation ${opId}'s intent is not on ${stateBranch(record.issue)}`];
   return [];
 }
 
 // The one sequence in front of every irreversible GitHub call, which no
-// caller orders itself. It reads ownership of the Feature and this
+// caller orders itself. It reads ownership of the parent issue and this
 // operation's saved intent from the state branch, then a fresh snapshot, then
 // the caller's premises on that snapshot (which may make reads of their own),
-// then the Feature's scope once more (its slices, then its acceptance
+// then the parent issue's scope once more (its slices, then its acceptance
 // section), then main, last; the call is made only when every read holds.
 // The scope read catches a slice or criterion that changed while the snapshot
 // and the premises' slower reads ran, which the snapshot alone would miss.
@@ -275,8 +276,8 @@ export function finalGate({ current, opId, ownership, takeSnapshot, premises, re
   } catch (error) { return { called: false, error }; }
   const judged = snapshotScope(snapshot);
   const moved = [
-    ...(scope.slices.join() === judged.slices.join() ? [] : [`the Feature's slices changed during the final checks, from ${judged.slices.join(", ") || "none"} to ${scope.slices.join(", ") || "none"}`]),
-    ...(scope.acceptanceSha256 === judged.acceptanceSha256 ? [] : ["the Feature's acceptance criteria changed during the final checks"]),
+    ...(scope.slices.join() === judged.slices.join() ? [] : [`the parent issue's slices changed during the final checks, from ${judged.slices.join(", ") || "none"} to ${scope.slices.join(", ") || "none"}`]),
+    ...(scope.acceptanceSha256 === judged.acceptanceSha256 ? [] : ["the parent issue's acceptance criteria changed during the final checks"]),
   ];
   const blockers = [...owned, ...held.blockers, ...moved, ...(now === main ? [] : [`origin/${TARGET} moved from ${main} to ${now}`])];
   if (blockers.length) return { called: false, blockers, held };
@@ -298,7 +299,7 @@ export function finalGate({ current, opId, ownership, takeSnapshot, premises, re
 // combination CI never checked, and the outcome says so.
 export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
-  if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
+  if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
   const gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
   if (!gate.admitted) return { admitted: false, merged: false, gate };
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => {
@@ -349,15 +350,20 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, ...(merged ?? {}), revision: settled.record.revision, gate };
 }
 
-// --- The Feature's acceptance -------------------------------------------------
+// --- The parent issue's acceptance -------------------------------------------------
 
 // What the run merged, and how: through this run's gate with its
 // disposition, or outside it.
 function slices(record, snapshot) {
+  // A delivered ticket's PR and merge are its deliverer's; its own list may
+  // lack that PR once tickets live apart.
+  const prOf = (t) => (t.deliveredBy?.pr ? snapshot.tickets.find((x) => x.number === t.deliveredBy.ticket)?.prs.find((p) => p.number === t.deliveredBy.pr) ?? null : null);
   return snapshot.tickets.filter((t) => !t.container).map((t) => {
-    const merged = t.prs.find((p) => p.state === "MERGED" && p.mergeCommit);
+    const viaDeliverer = prOf(t);
+    const prs = t.deliveredBy ? (viaDeliverer ? [viaDeliverer] : []) : t.prs;
+    const merged = prs.find((p) => p.state === "MERGED" && p.mergeCommit);
     const op = merged && (record.operations ?? []).find((o) => o.kind === "merge" && o.pr === merged.number && o.state === "confirmed");
-    return { number: t.number, title: t.title, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
+    return { number: t.number, title: t.title, deliveredBy: t.deliveredBy ?? null, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
   });
 }
 
@@ -368,7 +374,7 @@ function acceptances(record, snapshot) {
   return Object.entries(record.tickets).flatMap(([n, t]) => (t.checkpoints ?? []).filter((d) => d.kind === "accept-unreviewed" && d.state === "published").map((d) => ({ ticket: Number(n), pr: d.pr, id: d.id, comment: d.published.comment, head: d.head, range: d.range, merged: merged.has(d.pr) ? merged.get(d.pr) : null })));
 }
 
-const REPORT_MARK = (id) => `<!-- orchestrate-feature final report: verification ${id} -->`;
+const REPORT_MARK = (id) => `<!-- orchestrate-issues final report: verification ${id} -->`;
 export function finalReport(record, snapshot, v) {
   // A decision's comment is on its PR's review thread.
   const names = repositoriesOf(record), link = (a) => names.commentUrl(names.thread(a.pr, a.ticket), a.comment);
@@ -378,16 +384,17 @@ export function finalReport(record, snapshot, v) {
       : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
     const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, while its CI covered ${TARGET} \`${short(s.gate.ciMain ?? s.gate.originMain)}\`, so CI never ran on that combination before ${TARGET}'s own run` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
-    // The report is on the Feature, in the tickets repository, so its pull
+    // The report is on the parent issue, in the tickets repository, so its pull
     // requests name the code repository once tickets live apart; the
     // criteria and their evidence stay as the coordinator wrote them.
-    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, how + landed).replace(/\|/g, "/")} |`;
+    const by = s.deliveredBy ? `delivered by #${s.deliveredBy.ticket}'s PR: ` : "";
+    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, by + how + landed).replace(/\|/g, "/")} |`;
   });
   const accepted = acceptances(record, snapshot);
   const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)].map((line) => qualifyPrs(names, line));
   return [
     REPORT_MARK(v.id),
-    `## Final report: Feature #${record.feature}`,
+    `## Final report: issue #${record.issue}`,
     "",
     `Verdict: ${v.verdict}. Verified on ${TARGET} at \`${v.mainSha}\` at ${v.time} by coordinator \`${v.coordinator}\`, from the snapshot of ${v.snapshotAt}.`,
     "",
@@ -411,26 +418,30 @@ export function finalReport(record, snapshot, v) {
     "",
     "### Next action",
     "",
-    v.verdict === "complete" ? `None: every slice is delivered on ${TARGET} and every criterion has evidence, so this report accompanies the Feature's closure.` : `The Feature stays open. Resolve the incomplete work and the unmet criteria above, then verify again.`,
+    v.verdict === "complete" ? `None: every slice is delivered on ${TARGET} and every criterion has evidence, so this report accompanies the parent issue's closure.` : `The parent issue stays open. Resolve the incomplete work and the unmet criteria above, then verify again.`,
   ].join("\n");
 }
 
-// Records one verification of the Feature's acceptance criteria against main
+// Records one verification of the parent issue's acceptance criteria against main
 // as it is now. It is complete only when every slice is delivered on main,
 // no operation is unsettled, and every criterion is met with evidence; any
-// other verdict keeps the Feature open with its gaps named.
-export function verifyFeature(record, { snapshot, evidence, mainSha }) {
-  if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
+// other verdict keeps the parent issue open with its gaps named.
+export function verifyIssue(record, { snapshot, evidence, mainSha }) {
+  if (snapshot.repository !== record.repository || snapshot.issue?.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");
   // The criteria checked and the section the verification is bound to come
-  // from the same read of the Feature.
-  const criteria = snapshot.feature.criteria ?? [];
+  // from the same read of the parent issue.
+  const criteria = snapshot.issue.criteria ?? [];
   if (!SHA.test(mainSha ?? "")) throw new Error("The verified main commit must be a full SHA");
   if (snapshot.originMain !== mainSha) throw new Error(`The snapshot saw origin/${TARGET} at ${snapshot.originMain}, but it is now ${mainSha}; snapshot again so the tickets and ${TARGET} agree`);
-  if (!criteria.length) throw new Error(`Feature #${record.feature} lists no acceptance criteria under an Acceptance criteria heading, so nothing can be verified; ask the maintainer`);
+  // A parent is verified only against its own "Acceptance criteria" section,
+  // which the Feature and Task templates carry and the Bug template does not;
+  // merged PRs alone never complete it.
+  if (snapshot.issue.acceptanceSha256 == null) throw new Error(`Issue #${record.issue} has no "Acceptance criteria" section, so nothing can be verified and the parent issue stays open on its merged PRs alone; add a heading named Acceptance criteria with the checklist to verify, then verify again`);
+  if (!criteria.length) throw new Error(`Issue #${record.issue} lists no checklist under its "Acceptance criteria" heading, so nothing can be verified; add the criteria there, then verify again`);
   const given = evidence?.criteria;
   if (!Array.isArray(given)) throw new Error("--evidence must hold { \"criteria\": [ { \"criterion\", \"status\": \"met\" | \"unmet\", \"evidence\": [...], \"gap\" } ] }");
   const unknown = given.filter((g) => !criteria.some((c) => norm(c.text) === norm(g?.criterion)));
-  if (unknown.length) throw new Error(`The evidence names criteria the Feature does not list: ${unknown.map((g) => JSON.stringify(g?.criterion)).join(", ")}`);
+  if (unknown.length) throw new Error(`The evidence names criteria the parent issue does not list: ${unknown.map((g) => JSON.stringify(g?.criterion)).join(", ")}`);
   const rows = criteria.map((c) => {
     const matches = given.filter((g) => norm(g.criterion) === norm(c.text));
     if (matches.length !== 1) throw new Error(`The evidence ${matches.length ? `lists criterion ${c.index} ${matches.length} times` : `omits criterion ${c.index}`}: "${c.text}"`);
@@ -448,39 +459,39 @@ export function verifyFeature(record, { snapshot, evidence, mainSha }) {
   const incomplete = slices(record, snapshot).filter((s) => !s.delivered).map((s) => ({ number: s.number, action: s.state === "closed" ? `closed without a merged deliverable on ${TARGET}` : s.open.length ? `open, PR ${s.open.map((p) => `#${p}`).join(", ")} not merged` : "open with no merged PR" }));
   const unsettled = (record.operations ?? []).filter((o) => OPEN.has(o.state)).map((o) => `${operationText(o)} ${o.id} (${o.state})`);
   const verdict = !incomplete.length && !unsettled.length && rows.every((r) => r.status === "met") ? "complete" : "incomplete";
-  const v = { id: randomUUID().slice(0, 8), time: new Date().toISOString(), coordinator: record.coordinator.session, mainSha, snapshotAt: snapshot.observedAt, verdict, criteria: rows, acceptanceSha256: snapshot.feature.acceptanceSha256 ?? null, incomplete, unsettled, tickets: snapshot.tickets.filter((t) => !t.container).map((t) => t.number) };
+  const v = { id: randomUUID().slice(0, 8), time: new Date().toISOString(), coordinator: record.coordinator.session, mainSha, snapshotAt: snapshot.observedAt, verdict, criteria: rows, acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null, incomplete, unsettled, tickets: snapshot.tickets.filter((t) => !t.container).map((t) => t.number) };
   v.report = finalReport(record, snapshot, v);
   (record.verifications ??= []).push(v);
-  record.log.push({ time: v.time, event: "feature-verification", id: v.id, verdict, mainSha });
+  record.log.push({ time: v.time, event: "issue-verification", id: v.id, verdict, mainSha });
   return { id: v.id, verdict, report: v.report };
 }
 
-// Closes the Feature after a complete verification that still holds: main is
-// the commit it verified, the Feature has the acceptance section and slices
+// Closes the parent issue after a complete verification that still holds: main is
+// the commit it verified, the parent issue has the acceptance section and slices
 // it covered, each slice is still delivered and no operation is unsettled.
 // Every premise is read on a fresh snapshot, with main read last, before the
 // intent is saved; after it is saved, the final gate stands in front of both
 // GitHub writes, posting the final report (or finding it, if an earlier
 // attempt posted it) and the close call. The outcome is the issue state
 // GitHub reads back: a close that was called is failed only on GitHub's own
-// refusal, and every other result short of a closed Feature is uncertain
+// refusal, and every other result short of a closed parent issue is uncertain
 // until reconciled, since the request may still land.
-export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
+export function closeIssue(file, { coordinator, expectRevision, verification: id, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
-  if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
+  if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
   if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run, so the closure's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
   const v = (record.verifications ?? []).at(-1);
   if (!v || v.id !== id) throw new Error(`Verification ${id} is not the run's latest${v ? ` (${v.id} is)` : ""}; close only on the latest verification`);
-  if (v.verdict !== "complete") throw new Error(`Verification ${id} found the Feature incomplete (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...v.unsettled].join("; ")}); the Feature stays open`);
+  if (v.verdict !== "complete") throw new Error(`Verification ${id} found the parent issue incomplete (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...v.unsettled].join("; ")}); the parent issue stays open`);
   const gaps = (rec, snapshot, running = null) => {
-    if (snapshot.repository !== rec.repository || snapshot.feature?.number !== rec.feature) throw new Error("The snapshot is of another repository or Feature");
+    if (snapshot.repository !== rec.repository || snapshot.issue?.number !== rec.issue) throw new Error("The snapshot is of another repository or parent issue");
     return { blockers: verificationGaps(rec, snapshot, { running }) };
   };
   const before = gaps(record, takeSnapshot()).blockers;
   if (!before.length) { git.fetch(); const now = git.main(); if (now !== v.mainSha) before.push(`origin/${TARGET} is ${now}, not the verified ${v.mainSha}`); }
-  if (before.length) throw new Error(`Verification ${id} no longer holds: ${before.join("; ")}; verify the Feature again`);
-  if (client.issue(record.feature).state === "closed") throw new Error(`Feature #${record.feature} is already closed; nothing was recorded`);
-  const planned = updateRecord(file, { expectRevision, coordinator }, (r) => intent(r, { kind: "close", ticket: r.feature, pr: r.feature, expectHead: v.mainSha, evidence: `verification ${v.id}` }));
+  if (before.length) throw new Error(`Verification ${id} no longer holds: ${before.join("; ")}; verify the parent issue again`);
+  if (client.issue(record.issue).state === "closed") throw new Error(`Issue #${record.issue} is already closed; nothing was recorded`);
+  const planned = updateRecord(file, { expectRevision, coordinator }, (r) => intent(r, { kind: "close", ticket: r.issue, pr: r.issue, expectHead: v.mainSha, evidence: `verification ${v.id}` }));
   const op = planned.output;
   const notRun = (reason) => { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); }); };
   try { afterIntent?.(); }
@@ -490,12 +501,12 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   // the final gate, so the gated call is the write alone; the comment is read
   // back after it.
   let existing;
-  try { existing = client.comments(record.feature).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id))) ?? null; }
-  catch (error) { notRun(`the Feature's comments could not be read for an earlier copy of the report: ${error.message}`); throw error; }
-  const report = gated(() => existing ?? client.createComment(record.feature, v.report));
+  try { existing = client.comments(record.issue).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id))) ?? null; }
+  catch (error) { notRun(`the parent issue's comments could not be read for an earlier copy of the report: ${error.message}`); throw error; }
+  const report = gated(() => existing ?? client.createComment(record.issue, v.report));
   if (!report.called && report.error) { notRun(`the verification could not be checked again after the intent was saved: ${report.error.message}`); throw report.error; }
   if (!report.called) {
-    notRun(`while the intent was saved, ${report.blockers.join("; ")}; verify the Feature again`);
+    notRun(`while the intent was saved, ${report.blockers.join("; ")}; verify the parent issue again`);
     return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${report.blockers.join("; ")}`, comment: null };
   }
   let comment = null, problem = null, called = false, refused = false;
@@ -508,19 +519,19 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   if (comment) {
     // The close call, through the final gate again, after the report's
     // GitHub requests.
-    const close = gated(() => client.closeIssue(record.feature));
+    const close = gated(() => client.closeIssue(record.issue));
     if (!close.called && close.error) { notRun(`the verification could not be checked again before the close call: ${close.error.message}`); throw close.error; }
     if (!close.called) {
-      notRun(`after the report was posted in comment ${comment.id}, ${close.blockers.join("; ")}; that report's verification no longer holds, so verify the Feature again`);
+      notRun(`after the report was posted in comment ${comment.id}, ${close.blockers.join("; ")}; that report's verification no longer holds, so verify the parent issue again`);
       return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${close.blockers.join("; ")}`, comment };
     }
     called = true;
     if (close.error) { refused = GITHUB_REFUSAL.test(`${close.error.stderr ?? ""} ${close.error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${close.error.message}`; }
   }
   let issue = null;
-  try { issue = client.issue(record.feature); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the Feature could not be read back: ${error.message}`; }
+  try { issue = client.issue(record.issue); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the parent issue could not be read back: ${error.message}`; }
   const state = issue?.state === "closed" ? "confirmed" : !called || refused ? "failed" : "uncertain";
-  const evidence = issue?.state === "closed" ? `Feature #${record.feature} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `${issue ? `Feature #${record.feature} reads back ${issue.state}` : "the Feature was not read back"}${problem ? `: ${problem}` : called ? ": the close call returned success" : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`;
+  const evidence = issue?.state === "closed" ? `Issue #${record.issue} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `${issue ? `Issue #${record.issue} reads back ${issue.state}` : "the parent issue was not read back"}${problem ? `: ${problem}` : called ? ": the close call returned success" : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`;
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (comment) o.comment = comment; });
   return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
 }
@@ -535,7 +546,7 @@ export const GITHUB_REFUSAL = /GraphQL:|HTTP 4[0-9][0-9]/;
 export const mergeArgs = (repository, pr, head) => ["pr", "merge", String(pr), "--repo", repository, "--merge", "--match-head-commit", head];
 
 // The gate's GitHub calls, given the record: the pull request, its checks,
-// protection, main's runs and the merge on the code repository; the Feature,
+// protection, main's runs and the merge on the code repository; the parent issue,
 // its comments and its closure, and a pull request's review thread
 // (`comments(pr, ticket)`), on the tickets repository. `comments(n)` without
 // a ticket reads issue n there. A pull request closes a ticket only by a
@@ -632,9 +643,9 @@ function parse(argv) {
 const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`); return n; };
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
-// The Feature's snapshot, taken afresh each time a command needs one.
-const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record, record.checkout));
-const liveScope = (record) => () => readFeatureScope({ feature: record.feature }, githubClient(record, record.checkout));
+// The parent issue's snapshot, taken afresh each time a command needs one.
+const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
+const liveScope = (record) => () => readIssueScope({ issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
 
 export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot, scopeFor = liveScope } = {}) {
   const { command, o } = parse(argv);
@@ -652,22 +663,22 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
       return result.admitted ? { ...result, ...checkpointAfter(`the merge of PR #${pr} (${result.state})`) } : result;
     }
-    case "criteria": { const { record, client } = context(); return { feature: record.feature, criteria: parseCriteria(client.issue(record.feature).body) }; }
-    case "verify-feature": {
+    case "criteria": { const { record, client } = context(); return { issue: record.issue, criteria: parseCriteria(client.issue(record.issue).body) }; }
+    case "verify-issue": {
       const { git, snapshotNow } = context();
       const snapshot = snapshotNow(), evidence = readJson(abs(o.evidence, "evidence"));
       git.fetch();
       const mainSha = git.main();
-      const { record: next, output } = updateRecord(file(), { expectRevision: int(o.expectRevision, "expect-revision"), coordinator: o.coordinator }, (r) => verifyFeature(r, { snapshot, evidence, mainSha }));
+      const { record: next, output } = updateRecord(file(), { expectRevision: int(o.expectRevision, "expect-revision"), coordinator: o.coordinator }, (r) => verifyIssue(r, { snapshot, evidence, mainSha }));
       if (o.out) fs.writeFileSync(abs(o.out, "out"), `${output.report}\n`);
-      return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
+      return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`issue verification ${output.id} (${output.verdict})`) };
     }
-    case "close-feature": {
+    case "close-issue": {
       const { client, git, snapshotNow, scopeNow } = context();
-      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
-      return { ...result, ...checkpointAfter(`closing the Feature (${result.state})`) };
+      const result = closeIssue(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
+      return { ...result, ...checkpointAfter(`closing the parent issue (${result.state})`) };
     }
-    default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-feature|close-feature --option value ...");
+    default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-issue|close-issue --option value ...");
   }
 }
 

@@ -104,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "p=$(cat); case \"$p\" in *[wW][oO][rR][kK][tT][rR][eE][eE]*|*orchestrate-feature*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'session title hook: node is not on PATH, so the session title was not recorded' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" post || { printf '%s\\n' 'session title hook: recording the session title failed' >&2; exit 2; };; esac"
+            "command": "p=$(cat); case \"$p\" in *[wW][oO][rR][kK][tT][rR][eE][eE]*|*orchestrate-issues*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'session title hook: node is not on PATH, so the session title was not recorded' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" post || { printf '%s\\n' 'session title hook: recording the session title failed' >&2; exit 2; };; esac"
           }
         ]
       },

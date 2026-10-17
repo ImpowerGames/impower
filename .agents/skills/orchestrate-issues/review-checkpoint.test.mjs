@@ -12,7 +12,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { checkReviewRound, checkReviewerPlace, plannedReviewerPending, recoverHandoffLock, reviewAccounting, validateReviewRecovery } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
-import * as run from "./feature-run.mjs";
+import * as run from "./issue-run.mjs";
 import * as rc from "./review-checkpoint.mjs";
 
 const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "review-checkpoint-")));
@@ -42,8 +42,8 @@ try {
   const artifacts = path.join(tmp, "artifacts");
   fs.mkdirSync(artifacts);
   const recordFile = path.join(artifacts, "run.json");
-  const invocation = "Use orchestrate-feature for #40.";
-  run.initRecord({ record: recordFile, checkout, repository: "acme/widgets", feature: 40, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation }, { freeBytes: 100 * 2 ** 30 });
+  const invocation = "Use orchestrate-issues for #40.";
+  run.initRecord({ record: recordFile, checkout, repository: "acme/widgets", issue: 40, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation }, { freeBytes: 100 * 2 ** 30 });
   run.updateRecord(recordFile, { expectRevision: 1, coordinator: "local_coord" }, (r) => { r.tickets[42] = { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "high", worktree: path.join(tmp, "wt-42"), branch: "feat/42-thing", handle: { kind: "session", id: "local_writer", host: os.hostname() }, verified: true }, pending: null, history: [], results: [] }; });
   const record = () => run.readRecord(recordFile);
   const change = (fn, coordinator = "local_coord") => run.updateRecord(recordFile, { expectRevision: record().revision, coordinator }, fn).output;
@@ -155,7 +155,7 @@ try {
     nextRoundValue: "Another round now would most likely find the next instance of the same class rather than establish anything about the design.",
     rationale: "Patching each instance has not converged; the mechanism is in one place, and the repair keeps the agreed admission behavior.",
     next: "The writer replaces the inline checks with the predicate, adds the regressions, verifies, and reports; the coordinator then reassesses at this round.",
-    scope: "planDispatch's existing-work branches in feature-run.mjs and their scenario tests; no change to admission rules.",
+    scope: "planDispatch's existing-work branches in issue-run.mjs and their scenario tests; no change to admission rules.",
     verificationChange: "Two new regressions, one per inline branch, each red before the repair.",
   }));
   assert.equal(record().tickets[42].checkpoints.at(-1).state, "published");
@@ -204,7 +204,7 @@ try {
     limit: 5, limitReason: "One round on the container corrections.",
   }));
 
-  // Scenario: changed feature semantics. Round 5's reviewer argues that a
+  // Scenario: changed issue semantics. Round 5's reviewer argues that a
   // container's existing PR should be continued rather than held, which
   // changes the agreed admission behavior.
   const corrections5 = journal(5, "corrections", ["corrections", "undirected"], { head: c.round4, pending: ["undirected"], completed: { corrections: 1 }, plan: { reviewRoundLimit: 5, extendedReviewAuthorization: invocation } });
@@ -215,7 +215,7 @@ try {
   const semantics = assess({
     mechanisms: "No new mechanism: round 5 confirmed round 4's fix and found one small defect in the fix's message, now corrected.",
     regressions: "None introduced by the round-4 fix; the corrections reviewer found none in the container changes.",
-    repairOptions: "The undirected reviewer proposes continuing a container's existing PR instead of holding it, which would change the Feature's agreed admission rule.",
+    repairOptions: "The undirected reviewer proposes continuing a container's existing PR instead of holding it, which would change the parent issue's agreed admission rule.",
     residualRisk: "None beyond the open design question.",
     coverage: "Harness and regression check green on the head.",
     nextRoundValue: "Nothing until the design question is settled.",
@@ -240,7 +240,7 @@ try {
     nextRoundValue: "Another round would establish only that one message string reads correctly, which its regression already shows.",
     rationale: "The defect class converged after the repair, the last behavioral correction was independently reviewed in round 5, and the remaining change is a verified message fix.",
     next: "The coordinator marks the PR ready with this decision; any new push needs a new checkpoint.",
-    verification: ["review-checkpoint and feature-run checks green on the head", "test-suite passed on the head"],
+    verification: ["review-checkpoint and issue-run checks green on the head", "test-suite passed on the head"],
   });
   e = evidence();
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e })), /Every CI check .* must have passed: test-suite pending/);
@@ -254,7 +254,7 @@ try {
   const selfRecord = structuredClone(record());
   selfRecord.tickets[42].owner.handle.id = "local_coord";
   assert.throws(() => rc.decide(selfRecord, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /a writer never decides its own review checkpoint/);
-  // A released writer that later coordinates the Feature is still the
+  // A released writer that later coordinates the parent issue is still the
   // ticket's writer.
   const formerWriter = structuredClone(record());
   formerWriter.tickets[42].history.push({ owner: formerWriter.tickets[42].owner, released: "session archived" });
@@ -289,7 +289,7 @@ try {
   const unrecorded = structuredClone(cliHeld);
   fs.renameSync(path.join(tmp, "cli-launch-42", "out.jsonl"), path.join(tmp, "cli-launch-42", "out.archived"));
   assert.throws(() => decideAs(releasedRecord, `local_${cliSession}`), new RegExp(`local_${cliSession} wrote for #42, and is now its coordinator`), "a released writer stays known after its stream is archived");
-  const unknown = /#42's writer c1d2e3f4 has no recorded session and its stream .* cannot be read here, so whether its session wrote for the ticket is unknown; record its session with feature-run\.mjs writer-session --ticket 42 --writer c1d2e3f4/;
+  const unknown = /#42's writer c1d2e3f4 has no recorded session and its stream .* cannot be read here, so whether its session wrote for the ticket is unknown; record its session with issue-run\.mjs writer-session --ticket 42 --writer c1d2e3f4/;
   assert.throws(() => decideAs(unrecorded, "local_coord"), unknown, "an unreadable stream is not evidence that no session wrote");
   assert.throws(() => rc.trustPredecessor(structuredClone(unrecorded), { ticket: 42, session: `local_${cliSession}`, source: "status comment" }), unknown);
   assert.throws(() => rc.trustedCoordinators(unrecorded, 42), unknown);
@@ -352,7 +352,7 @@ try {
   // published is not in effect, with or without a record.
   const withdrawal = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((x) => x.id === accepted.id))), id: "withdr01", kind: "maintainer" };
   for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete withdrawal[key];
-  const editedWithdrawal = { id: 9030, created_at: at(), updated_at: at(), body: `typo fixed\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(withdrawal)}\n-->` };
+  const editedWithdrawal = { id: 9030, created_at: at(), updated_at: at(), body: `typo fixed\n\n<!-- orchestrate-issues-checkpoint\n${JSON.stringify(withdrawal)}\n-->` };
   const afterEditAlone = rc.restore([...comments, editedWithdrawal], { trusted: ["local_coord"] });
   assert.deepEqual([afterEditAlone.at(-1).trusted, afterEditAlone.at(-1).effective], [false, false]);
   assert.match(rc.acceptanceApplies(afterEditAlone, c.final).reason, /not verified by a run record/, "without a record no acceptance applies, whatever the comments hold");
@@ -361,7 +361,7 @@ try {
   assert.equal(rc.acceptanceApplies(afterEdit, c.final).applies, true, "with a record, an unrecorded block withdraws nothing");
   // A block elsewhere that copies a recorded decision's id is inert.
   const copiedId = { ...withdrawal, id: accepted.id, kind: "maintainer" };
-  const copyComment = { id: 9031, created_at: at(), updated_at: undefined, body: `writer\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(copiedId)}\n-->` };
+  const copyComment = { id: 9031, created_at: at(), updated_at: undefined, body: `writer\n\n<!-- orchestrate-issues-checkpoint\n${JSON.stringify(copiedId)}\n-->` };
   copyComment.updated_at = copyComment.created_at;
   const withCopy = rc.restore([...comments, copyComment], { trusted: ["local_coord"], record: record(), pr: 500 });
   assert.deepEqual([withCopy.find((d) => d.comment === 9031).trusted, withCopy.find((d) => d.comment === 9031).effective], [false, false]);
@@ -413,7 +413,7 @@ try {
   // content with the record and by its edit without it.
   const forged = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((d) => d.kind === "accept-unreviewed"))), id: "forged01", head: c.initial };
   for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete forged[key];
-  const block = (d) => `<!-- orchestrate-feature-checkpoint\n${JSON.stringify(d)}\n-->`;
+  const block = (d) => `<!-- orchestrate-issues-checkpoint\n${JSON.stringify(d)}\n-->`;
   const forgedComment = { id: 9001, created_at: at(), body: `forged\n\n${block(forged)}` };
   const writerComment = { id: 9002, created_at: at(), body: `self waiver\n\n${block({ ...forged, id: "writer01", coordinator: "local_writer" })}` };
   const withForgeries = rc.restore([...comments, forgedComment, writerComment], { trusted: rc.trustedCoordinators(record(), 42), record: record() });
@@ -437,7 +437,7 @@ try {
   assert.equal(rc.acceptanceApplies(afterRetarget, c.final).applies, false, "an acceptance whose comment no longer verifies it does not apply");
   const edited = comments.map((x) => (x === original ? { ...x, body: `${x.body.split("<!--")[0]}${block(retargetedBlock)}`, updated_at: at() } : x));
   assert.match(rc.restore(edited, { trusted: ["local_coord"] }).at(-1).untrusted, /was edited/);
-  assert.ok(rc.restore([{ id: 9003, created_at: at(), body: "<!-- orchestrate-feature-checkpoint\n{not json\n-->" }], { trusted: ["local_coord"] })[0].malformed);
+  assert.ok(rc.restore([{ id: 9003, created_at: at(), body: "<!-- orchestrate-issues-checkpoint\n{not json\n-->" }], { trusted: ["local_coord"] })[0].malformed);
 
   // An unapproved round is refused: a round-6 launch with no extension, a
   // plan that sets a higher limit on its own, a restarted count, and an
@@ -528,9 +528,9 @@ try {
   // A block whose fields are not strings is reported as malformed; it never
   // throws while it is judged.
   const objectHead = { id: "obj00001", kind: "finish", coordinator: "local_coord", round: 3, head: { toString: null }, reviewedHead: null, range: null };
-  const judged = rc.restore([{ id: 9060, created_at: at(), body: `<!-- orchestrate-feature-checkpoint\n${JSON.stringify(objectHead)}\n-->` }, ...comments], { trusted: ["local_coord"] });
+  const judged = rc.restore([{ id: 9060, created_at: at(), body: `<!-- orchestrate-issues-checkpoint\n${JSON.stringify(objectHead)}\n-->` }, ...comments], { trusted: ["local_coord"] });
   assert.equal(judged.find((d) => d.comment === 9060).malformed, "no head or reviewed head");
-  assert.equal(judged.filter((d) => !d.malformed).length, comments.filter((x) => x.body.includes("orchestrate-feature-checkpoint")).length, "every other decision still restores");
+  assert.equal(judged.filter((d) => !d.malformed).length, comments.filter((x) => x.body.includes("orchestrate-issues-checkpoint")).length, "every other decision still restores");
 
   // A report the coordinator posted for a reviewer is named by the journal's
   // report-posted row, and counts like any other report.
@@ -578,8 +578,8 @@ try {
   const T = (n) => `2026-10-14T00:00:0${n}.000Z`;
   const minimal = (decisions) => ({ coordinator: { session: "local_coord" }, previousCoordinators: [], tickets: { 42: { checkpoints: decisions } } });
   const blockOf = (d) => { const { state, published, blockSha256, ...rest } = d; return rest; };
-  const recorded = (fields, comment, posted) => { const d = { version: 1, coordinator: "local_coord", feature: 40, ticket: 42, pr: 500, reviewedHead: c.round2, head: c.round3, range: null, ...fields }; return { ...d, state: comment ? "published" : "intent", ...(comment && { published: { comment, time: posted } }), blockSha256: rc.blockHash(d) }; };
-  const commentFor = (d, id, posted) => ({ id, created_at: posted, updated_at: posted, body: `### decision\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(blockOf(d))}\n-->` });
+  const recorded = (fields, comment, posted) => { const d = { version: 1, coordinator: "local_coord", issue: 40, ticket: 42, pr: 500, reviewedHead: c.round2, head: c.round3, range: null, ...fields }; return { ...d, state: comment ? "published" : "intent", ...(comment && { published: { comment, time: posted } }), blockSha256: rc.blockHash(d) }; };
+  const commentFor = (d, id, posted) => ({ id, created_at: posted, updated_at: posted, body: `### decision\n\n<!-- orchestrate-issues-checkpoint\n${JSON.stringify(blockOf(d))}\n-->` });
   const launch4 = { startedRound: 4, launches: [{ file: "j4", round: 4, time: T(5), reviewerId: "u" }], completions: [], plans: [], changedPlans: [] };
   const extension = recorded({ id: "ext00001", kind: "extend", round: 3, limit: 4, authority: invocation, time: T(1) }, 801, T(2));
   const hold = recorded({ id: "hold0001", kind: "maintainer", round: 3, time: T(3) }, 802, T(4));
@@ -617,13 +617,13 @@ try {
   // A former coordinator that also wrote for the ticket is not trusted on it.
   twoTickets.previousCoordinators = [{ session: "local_writer" }];
   assert.deepEqual([rc.trustedCoordinators(twoTickets, 42).includes("local_writer"), rc.trustedCoordinators(twoTickets, 43).includes("local_writer")], [false, true]);
-  const writerExtension = { id: 9050, created_at: at(), body: `writer\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify({ ...JSON.parse(JSON.stringify(withdrawal)), id: "wext0001", kind: "extend", round: 5, limit: 6, authority: invocation, coordinator: "local_writer" })}\n-->` };
+  const writerExtension = { id: 9050, created_at: at(), body: `writer\n\n<!-- orchestrate-issues-checkpoint\n${JSON.stringify({ ...JSON.parse(JSON.stringify(withdrawal)), id: "wext0001", kind: "extend", round: 5, limit: 6, authority: invocation, coordinator: "local_writer" })}\n-->` };
   assert.equal(rc.restore([writerExtension], { trusted: rc.trustedCoordinators(twoTickets, 42), record: twoTickets }).at(-1).trusted, false);
 
   // A takeover keeps every decision, and the new coordinator trusts its
   // predecessor's; the round count and limits come back unchanged.
   const takeoverFile = path.join(artifacts, "takeover.json");
-  run.initRecord({ record: takeoverFile, checkout, repository: "acme/widgets", feature: 40, coordinator: "local_next", harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "high", invocation, takeover: true, observations: { sessions: { local_coord: { state: "archived" } } } }, { freeBytes: 100 * 2 ** 30 });
+  run.initRecord({ record: takeoverFile, checkout, repository: "acme/widgets", issue: 40, coordinator: "local_next", harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "high", invocation, takeover: true, observations: { sessions: { local_coord: { state: "archived" } } } }, { freeBytes: 100 * 2 ** 30 });
   const next = run.readRecord(takeoverFile);
   assert.deepEqual(next.tickets[42].checkpoints.map((d) => [d.kind, d.round, d.state]), record().tickets[42].checkpoints.map((d) => [d.kind, d.round, d.state]));
   assert.deepEqual(rc.trustedCoordinators(next, 42), ["local_next", "local_coord"]);
@@ -644,7 +644,7 @@ try {
   fs.renameSync(oneAside, corrections3.dir);
 
   // A successor with none of its predecessor's records names the predecessor
-  // from the Feature's status. The predecessor's decisions then count for
+  // from the parent issue's status. The predecessor's decisions then count for
   // round accounting, but none is verified, so no acceptance applies until
   // the successor decides and publishes its own. A forged block naming the
   // predecessor gains nothing more, and the ticket's writer is never a
@@ -656,7 +656,7 @@ try {
   assert.throws(() => rc.trustPredecessor(structuredClone(fresh), { ticket: 42, session: "local_writer", source: "status comment" }), /wrote for #42/);
   assert.throws(() => rc.trustPredecessor(structuredClone(fresh), { ticket: 42, session: "local_fresh", source: "status comment" }), /this coordinator/);
   assert.throws(() => rc.trustPredecessor(structuredClone(fresh), { ticket: 42, session: "local_coord" }), /--source/);
-  rc.trustPredecessor(fresh, { ticket: 42, session: "local_coord", source: "Feature #40 status comment naming local_coord" });
+  rc.trustPredecessor(fresh, { ticket: 42, session: "local_coord", source: "Issue #40 status comment naming local_coord" });
   const resumedFresh = rc.restore([...comments, forgedComment, writerComment], { trusted: rc.trustedCoordinators(fresh, 42), record: fresh });
   assert.deepEqual(resumedFresh.filter((d) => d.trusted).map((d) => [d.id === "forged01" ? "forged" : d.kind, d.verified]), [["repair", false], ["extend", false], ["extend", false], ["maintainer", false], ["accept-unreviewed", false], ["forged", false]]);
   assert.equal(resumedFresh.find((d) => d.id === "writer01").trusted, false);
@@ -748,7 +748,7 @@ try {
   assert.equal(main(["acceptance-check", "--record", takeoverFile, "--pr", "500"]).applies, true);
   assert.match(main(["acceptance-check", "--repo", "acme/widgets", "--checkout", checkout, "--pr", "500", "--trust", "local_coord"]).reason, /not verified by a run record that published it/);
   assert.throws(() => main(["restore", "--repo", "acme/widgets", "--checkout", checkout, "--pr", "500"]), /Name the trusted coordinators/);
-  main(["trust-predecessor", "--record", takeoverFile, "--coordinator", "local_next", "--expect-revision", String(run.readRecord(takeoverFile).revision), "--ticket", "42", "--session", "local_older", "--source", "Feature #40 status comment"]);
+  main(["trust-predecessor", "--record", takeoverFile, "--coordinator", "local_next", "--expect-revision", String(run.readRecord(takeoverFile).revision), "--ticket", "42", "--session", "local_older", "--source", "Issue #40 status comment"]);
   assert.ok(rc.trustedCoordinators(run.readRecord(takeoverFile), 42).includes("local_older"));
   assert.throws(() => main(["trust-predecessor", "--record", takeoverFile, "--coordinator", "local_next", "--expect-revision", String(run.readRecord(takeoverFile).revision), "--ticket", "42", "--session", "local_writer", "--source", "x"]), /wrote for #42/);
 
@@ -819,7 +819,7 @@ try {
   assert.deepEqual(octo.commits.map((x) => [x.sha, x.merge ?? null]), [[octopus, "other"]]);
   assert.ok(octo.diff.includes("+unreviewed surprise"), "an octopus merge's correction is in the inspected diff");
 
-  // Two recorded workflow scenarios from this Feature's own run, with the
+  // Two recorded workflow scenarios from this parent issue's own run, with the
   // evidence the coordinator had at each checkpoint. In both, one mechanism
   // kept producing findings, and the recorded choice is a root-cause repair
   // or a simplification, then one bounded round, rather than another round
@@ -873,7 +873,7 @@ try {
   shared.decideHere("pr-1819-shape-round-3-root-cause-repair", "repair", {
     mechanisms: "Of 25 blocking findings in rounds 1 to 3, about 15 were in deciding which PR-published decisions count when writers and coordinators post under one account, and about 8 in re-deriving the launcher's round accounting from its journals: planned reviewer sets, count-form rounds, missing journals, coordinator-posted reports, reserved launches and execution drain. The journal class produced findings in every round (3, 3, 2), each fixed where it was reported.",
     regressions: "Round 1's import command introduced four of round 2's findings; round 2's supersession fix left a damaged-block instance found in round 3. Round 3's journal findings were not regressions but further instances of the same class.",
-    repairOptions: "Export the launcher's own reader (launch evidence and round accounting) from scripts/agent-handoff.mjs, make lock recovery and the checkpoint both read through it, and delete the checkpoint's reimplementation. One implementation ends the class; it widens the PR into scripts/ without changing the launcher's behavior or the Feature's.",
+    repairOptions: "Export the launcher's own reader (launch evidence and round accounting) from scripts/agent-handoff.mjs, make lock recovery and the checkpoint both read through it, and delete the checkpoint's reimplementation. One implementation ends the class; it widens the PR into scripts/ without changing the launcher's behavior or the parent issue's.",
     residualRisk: "The repair touches the launcher; a behavior change there would affect every review. Three rules from round 3's corrections are still unreviewed.",
     coverage: "Every existing launcher test stays green, and a new regression shows the checkpoint and the launcher agree on planned, completed, retried and reserved reviewers for the same journals.",
     nextRoundValue: "Another round on the current code would most likely find the next journal-reading instance, as round 3 found three, without showing convergence; a round after the repair can establish whether the shared reader holds.",
@@ -921,7 +921,7 @@ try {
   inferred.decideHere("pr-1818-shape-round-4-simplification", "repair", {
     mechanisms: "Across four rounds the findings went 15, 7, 5 and 8, and nearly all sit in one coverage inference: deciding that every unfinished change on a source machine is pushed and retrievable. The count rose again in round 4, so the inference is not converging.",
     regressions: "Round 4's findings include cases introduced by round 3's corrections to the same inference, each narrowing it further.",
-    repairOptions: "Remove the inference instead of narrowing it again: report every dirty or unpushed location as possibly holding work only there. This is simpler, matches the Feature's design, which prefers an honest limitation to a recovery claim, and keeps the agreed behavior (a handoff never claims to have recovered what it cannot prove).",
+    repairOptions: "Remove the inference instead of narrowing it again: report every dirty or unpushed location as possibly holding work only there. This is simpler, matches the parent issue's design, which prefers an honest limitation to a recovery claim, and keeps the agreed behavior (a handoff never claims to have recovered what it cannot prove).",
     residualRisk: "A handoff may list locations that hold nothing unique; that costs the receiving coordinator a check, not lost work.",
     coverage: "The scratch-remote checks change to assert the reported limitation for each dirty or unpushed location.",
     nextRoundValue: "Another round on the inference would find its next case, as each of the last three did; acceptance would ship a mechanism whose failure mode is false assurance.",
@@ -949,7 +949,7 @@ try {
   assert.throws(() => validateReviewRecovery({ reviewRoundLimit: 4, completedReviewRound: 3, reviewedHead: c.round2, finalCorrections: true }), /explicit user authorization/);
   assert.throws(() => checkReviewRound(4, 3, false), /1..3/);
   assert.throws(() => checkReviewRound(3, 3, true), /require explicit user direction/);
-  assert.match(fs.readFileSync(new URL("./feature-run.mjs", import.meta.url), "utf8"), /default three-round cap/);
+  assert.match(fs.readFileSync(new URL("./issue-run.mjs", import.meta.url), "utf8"), /default three-round cap/);
   assert.equal(traces.length, 10);
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

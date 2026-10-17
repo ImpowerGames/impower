@@ -266,16 +266,16 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   const records = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-orch-"));
   const record = path.join(records, "run.json");
   const title = "ORCH #1775: resumable feature orchestration";
-  const init = `node .agents/skills/orchestrate-feature/feature-run.mjs init --record "${record}" --checkout C:/work/impower --repo acme/widgets --feature 1775 --coordinator local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d --harness claude --coordinator-mode bypassPermissions --slug resumable-feature-orchestration`;
+  const init = `node .agents/skills/orchestrate-issues/issue-run.mjs init --record "${record}" --checkout C:/work/impower --repo acme/widgets --issue 1775 --coordinator local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d --harness claude --coordinator-mode bypassPermissions --slug resumable-feature-orchestration`;
   const at = (session, command, cwd = repo) => ({ ...shell(session, command), cwd });
   assert.equal(afterTool(at("orch", init), "claude"), null, "an init that wrote no record records nothing");
   assert.equal(gate(at("orch", "git status"), "claude"), null);
-  fs.writeFileSync(record, JSON.stringify({ version: 1, revision: 1, feature: 1775, title, coordinator: { session: "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" } }));
-  assert.equal(afterTool(at("orch", `node .agents/skills/orchestrate-feature/feature-run.mjs plan --record "${record}" --snapshot s.json`), "claude"), null, "only the command that writes the record names the title");
+  fs.writeFileSync(record, JSON.stringify({ version: 2, revision: 1, issue: 1775, title, coordinator: { session: "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" } }));
+  assert.equal(afterTool(at("orch", `node .agents/skills/orchestrate-issues/issue-run.mjs plan --record "${record}" --snapshot s.json`), "claude"), null, "only the command that writes the record names the title");
   const told = afterTool(at("orch", init), "claude");
   assert.match(told, new RegExp(title));
   assert.match(told, /set_session_title/);
-  for (const [command, cwd] of [["git status", repo], ["Get-ChildItem", os.tmpdir()], [`node .agents/skills/orchestrate-feature/feature-run.mjs plan --record "${record}"`, repo]]) {
+  for (const [command, cwd] of [["git status", repo], ["Get-ChildItem", os.tmpdir()], [`node .agents/skills/orchestrate-issues/issue-run.mjs plan --record "${record}"`, repo]]) {
     assert.match(gate(at("orch", command, cwd), "claude"), new RegExp(title), `${command} in ${cwd} waits for the rename`);
   }
   assert.equal(gate(at("not-orch", "git status"), "claude"), null, "another session is unaffected");
@@ -294,7 +294,7 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   afterTool(rename("orch", "Another session's name", undefined, "local_other"), "claude");
   assert.equal(afterTool(at("orch", init), "claude"), null);
   // A takeover in a new session records the carried title; without a rename tool the acknowledgement clears it.
-  const resume = `node .agents/skills/orchestrate-feature/checkpoint.mjs resume --record ${record.replaceAll("\\", "/")} --checkout C:/work/impower --repo acme/widgets --feature 1775`;
+  const resume = `node .agents/skills/orchestrate-issues/checkpoint.mjs resume --record ${record.replaceAll("\\", "/")} --checkout C:/work/impower --repo acme/widgets --issue 1775`;
   const codexTold = afterTool(at("orch-next", resume), "codex");
   assert.match(codexTold, new RegExp(title));
   const orchAck = codexTold.match(/`(node [^`]+ confirm [^`]+)`/)?.[1];
@@ -306,7 +306,7 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(gate(at("orch-next", "git status"), "codex"), null);
   assert.equal(afterTool(at("orch-next", resume), "codex"), null, "an acknowledged title is not asked again");
   // A record without an orchestration title records nothing.
-  fs.writeFileSync(record, JSON.stringify({ version: 1, revision: 1, feature: 1775, coordinator: { session: "x" } }));
+  fs.writeFileSync(record, JSON.stringify({ version: 2, revision: 1, issue: 1775, coordinator: { session: "x" } }));
   assert.equal(afterTool(at("orch-plain", init), "claude"), null);
   fs.rmSync(records, { recursive: true, force: true });
 }
@@ -338,8 +338,8 @@ assert.equal(run(claudePre.hooks[0].command, "{broken").status, 2, "a broken gat
 {
   const records = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-native-"));
   const record = path.join(records, "run.json");
-  fs.writeFileSync(record, JSON.stringify({ version: 1, revision: 1, feature: 1814, title: "ORCH #1814: coordinator contact", coordinator: { session: "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" } }));
-  const init = { ...shell("native-orch", `node .agents/skills/orchestrate-feature/feature-run.mjs init --record "${record}" --checkout "${repo}" --repo acme/widgets --feature 1814`), cwd: repo, hook_event_name: "PostToolUse" };
+  fs.writeFileSync(record, JSON.stringify({ version: 2, revision: 1, issue: 1814, title: "ORCH #1814: coordinator contact", coordinator: { session: "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" } }));
+  const init = { ...shell("native-orch", `node .agents/skills/orchestrate-issues/issue-run.mjs init --record "${record}" --checkout "${repo}" --repo acme/widgets --issue 1814`), cwd: repo, hook_event_name: "PostToolUse" };
   assert.ok(!JSON.stringify(init).toLowerCase().includes("worktree"), "the event names no worktree");
   out = run(postShell.hooks[0].command, init);
   assert.equal(out.status, 0, out.stderr);

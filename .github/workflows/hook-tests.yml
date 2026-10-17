@@ -97,7 +97,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     # Windows took 12m on Git 2.55 and passed 15m on Git 2.56, whose git-heavy
-    # orchestrate-feature checks run 20-50% slower; allow that margin.
+    # orchestrate-issues checks run 20-50% slower; allow that margin.
     timeout-minutes: ${{ matrix.os == 'windows-latest' && 25 || 15 }}
     steps:
       - uses: actions/checkout@v4

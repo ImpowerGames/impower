@@ -18,10 +18,10 @@ import { fileURLToPath } from "node:url";
 import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 import { preflight } from "../../../scripts/writer-route-preflight.mjs";
 import { testShell } from "../drive-web-editor/redgreen.mjs";
-import * as run from "./feature-run.mjs";
+import * as run from "./issue-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const script = path.join(here, "feature-run.mjs");
+const script = path.join(here, "issue-run.mjs");
 const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "writer-contact-")));
 console.log(`scratch: ${tmp}`);
 const defaults = run.readWriterDefaults();
@@ -41,18 +41,18 @@ const scenario = (name, fn) => {
 };
 
 try {
-  const fresh = (name, { feature = 300, harness = "claude", coordinator = COORDINATOR, coordinatorMode = "bypassPermissions", model = harness === "claude" ? "claude-opus-5-5" : "gpt-6.1-sol" } = {}) => {
+  const fresh = (name, { issue = 300, harness = "claude", coordinator = COORDINATOR, coordinatorMode = "bypassPermissions", model = harness === "claude" ? "claude-opus-5-5" : "gpt-6.1-sol" } = {}) => {
     const dir = path.join(tmp, name);
     fs.mkdirSync(path.join(dir, "artifacts"), { recursive: true });
     git(tmp, "init", "-q", "-b", "main", dir);
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "artifacts", "run.json");
-    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", feature, coordinator, harness, coordinatorModel: model, coordinatorEffort: "high", coordinatorMode, slug: "resumable-feature-orchestration", invocation: `Use orchestrate-feature for #${feature}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue, coordinator, harness, coordinatorModel: model, coordinatorEffort: "high", coordinatorMode, slug: "resumable-feature-orchestration", invocation: `Use orchestrate-issues for #${issue}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     const change = (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator }, fn).output;
     return { dir, file, artifacts: path.join(dir, "artifacts"), change, coordinator };
   };
   const ticket = (number, more = {}) => ({ number, title: `ticket ${number}`, state: "open", parent: 300, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [], ...more });
-  const snapshotOf = (tickets, feature = 300) => ({ repository: "acme/widgets", feature: { number: feature, state: "open" }, originMain: "abc", tickets });
+  const snapshotOf = (tickets, issue = 300) => ({ repository: "acme/widgets", issue: { number: issue, state: "open" }, originMain: "abc", tickets });
   const available = (route, model, numbers) => ({ route, model, verdicts: numbers.map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) });
   const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [], ...more });
   const entryOf = (plan, n) => plan.tickets.find((t) => t.number === n);
@@ -91,7 +91,7 @@ try {
   const NEXT = "local_4d5e6f7a-8b9c-4d0e-8f1a-2b3c4d5e6f7a";
   const takeOver = (w) => {
     const file = path.join(w.f.artifacts, "takeover.json");
-    run.initRecord({ record: file, checkout: w.f.dir, repository: "acme/widgets", feature: 300, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: file, checkout: w.f.dir, repository: "acme/widgets", issue: 300, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     return { file, change: (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: NEXT }, fn).output, plan: (n, now) => entryOf(run.planDispatch({ record: run.readRecord(file), snapshot: w.snap, preflights: w.pre, freeBytes: 100 * GB, defaults, census: () => [], ...(now && { now }) }), n) };
   };
 
@@ -126,7 +126,7 @@ try {
     git(tmp, "init", "-q", "-b", "main", dir);
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const record = path.join(tmp, "cli-init.json");
-    const cli = (...extra) => spawnSync(process.execPath, [script, "init", "--record", record, "--checkout", dir, "--repo", "acme/widgets", "--feature", "300", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--invocation", "Use orchestrate-feature for #300.", "--merging", "maintainer", ...extra], { encoding: "utf8", windowsHide: true });
+    const cli = (...extra) => spawnSync(process.execPath, [script, "init", "--record", record, "--checkout", dir, "--repo", "acme/widgets", "--issue", "300", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--invocation", "Use orchestrate-issues for #300.", "--merging", "maintainer", ...extra], { encoding: "utf8", windowsHide: true });
     const scratch = cli("--coordinator", "657afe2b-179f-4eb0-a92a-640ec593032a", "--coordinator-mode", "bypassPermissions", "--slug", "resumable-feature-orchestration");
     assert.equal(scratch.status, 1);
     assert.match(scratch.stderr, /local_<uuid>/);
@@ -146,17 +146,17 @@ try {
     const blocked = entryOf(planOf(f, snap, { preflights: pre }), 311);
     assert.equal(blocked.action, "blocked-route");
     assert.match(blocked.reason, /coordinator runs in auto permission mode, not bypassPermissions/);
-    run.initRecord({ record: f.file, checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: f.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: f.file, checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: f.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     assert.equal(run.readRecord(f.file).coordinator.permissionMode, "bypassPermissions");
     assert.equal(entryOf(planOf(f, snap, { preflights: pre }), 311).action, "dispatch");
   });
 
   scenario("a record without a title takes one when init runs again, and keeps it after", () => {
     const f = fresh("title-later");
-    const again = (slug) => run.initRecord({ record: f.file, checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: f.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug, invocation: "Use orchestrate-feature for #300." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    const again = (slug) => run.initRecord({ record: f.file, checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: f.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug, invocation: "Use orchestrate-issues for #300." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     f.change((r) => { delete r.title; });
     assert.equal(again("later-title").record.title, "ORCH #300: later title");
-    assert.equal(again("another-title").record.title, "ORCH #300: later title", "the Feature keeps the title it was given");
+    assert.equal(again("another-title").record.title, "ORCH #300: later title", "the parent issue keeps the title it was given");
   });
 
   // --- Briefs on every route ------------------------------------------------
@@ -168,7 +168,7 @@ try {
           const model = vendor === "claude" ? "claude-opus-5-5" : "gpt-6.1-sol";
           const f = fresh(`brief-${harness}-${route.route}`, { harness, coordinator });
           const rec = run.readRecord(f.file);
-          const planFile = write(`brief-${harness}-${route.route}.json`, { runId: rec.runId, repository: rec.repository, feature: rec.feature, revision: rec.revision, coordinator, tickets: [{ number: 321, title: "ticket 321", action: "dispatch", route: route.route, model, effort: "medium" }] });
+          const planFile = write(`brief-${harness}-${route.route}.json`, { runId: rec.runId, repository: rec.repository, issue: rec.issue, revision: rec.revision, coordinator, tickets: [{ number: 321, title: "ticket 321", action: "dispatch", route: route.route, model, effort: "medium" }] });
           f.change((r) => run.claim(r, { plan: planFile, ticket: 321, worktree: path.join(f.dir, "wt-321"), branch: "fix/321-thing", artifactParent: f.artifacts }));
           const text = run.brief(run.readRecord(f.file), planFile, 321, [], defaults);
           const how = route.reports[harness];
@@ -567,7 +567,7 @@ try {
     assert.ok(named(t.file, NEXT), "after the contact the brief names the new coordinator");
     const THIRD = "local_5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b";
     const third = path.join(w.f.artifacts, "second-takeover.json");
-    run.initRecord({ record: third, checkout: w.f.dir, repository: "acme/widgets", feature: 300, coordinator: THIRD, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { [NEXT]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: third, checkout: w.f.dir, repository: "acme/widgets", issue: 300, coordinator: THIRD, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", takeover: true, observations: { sessions: { [NEXT]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     assert.ok(named(third, THIRD) && !run.brief(run.readRecord(third), null, 374, [], defaults).includes(NEXT), "after a second takeover it names the third");
     w.end(owner);
   });
@@ -615,7 +615,7 @@ try {
   // --- The periodic check-in --------------------------------------------------
 
   scenario("the check-in job is scheduled at 30 minutes, recorded with the command that recreates it, and expires after seven days", () => {
-    const f = fresh("check-in", { feature: 1775 });
+    const f = fresh("check-in", { issue: 1775 });
     const snap = snapshotOf([ticket(361)], 1775);
     const missing = planOf(f, snap);
     assert.equal(missing.checkIn.state, "missing");
@@ -626,7 +626,7 @@ try {
     const [a, b] = spec.cron.split(" ")[0].split(",").map(Number);
     assert.equal(b - a, 30, "the job fires every 30 minutes");
     assert.ok(spec.prompt.includes(f.file) && spec.prompt.includes("references/writer-reports.md"), "the job's prompt names the record and the wake routine");
-    assert.equal(spec.command, `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record '${f.file}'`);
+    assert.equal(spec.command, `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${f.file}'`);
     assert.ok(spec.capability.includes("CronCreate"), "the capability comes from the runner configuration");
     f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults }));
     const recorded = run.readRecord(f.file).checkIn;
@@ -643,15 +643,15 @@ try {
   });
 
   scenario("a coordinator taking over finds the check-in to recreate, and its recorded command schedules a working job", () => {
-    const f = fresh("check-in-takeover", { feature: 1775 });
+    const f = fresh("check-in-takeover", { issue: 1775 });
     const snap = snapshotOf([ticket(362)], 1775);
     f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults }));
     const takeoverFile = path.join(f.artifacts, "takeover.json");
     const NEXT = "local_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
-    run.initRecord({ record: takeoverFile, checkout: f.dir, repository: "acme/widgets", feature: 1775, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #1775.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: takeoverFile, checkout: f.dir, repository: "acme/widgets", issue: 1775, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #1775.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     const carried = run.readRecord(takeoverFile);
     assert.deepEqual([carried.checkIn.job, carried.checkIn.state, carried.title], [null, "recreate on this coordinator's runner", "ORCH #1775: resumable feature orchestration"]);
-    assert.equal(carried.checkIn.command, `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record '${takeoverFile}'`);
+    assert.equal(carried.checkIn.command, `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${takeoverFile}'`);
     assert.equal(run.planDispatch({ record: carried, snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [] }).checkIn.state, "recreate");
     const printed = run.main(["schedule", "--record", takeoverFile], { defaults });
     const scheduled = [];
