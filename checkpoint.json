@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 208,
-  "previous": "9b860fbfbe58d7f4931465e3251851d12b14da73",
+  "seq": 209,
+  "previous": "880d4ecb825da1a753ba1a2b78dc1fc08fc21b4b",
   "snapshotParents": [],
-  "time": "2026-10-17T16:48:10.513Z",
+  "time": "2026-10-17T16:50:48.324Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 221,
+    "recordRevision": 222,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -7242,6 +7242,199 @@
       "mergedOnto": "555e5300ae7b7b8483394ad36c4d6967fa740d55",
       "baseMoved": false,
       "onMain": true
+    },
+    {
+      "id": "9711dd68",
+      "kind": "merge",
+      "ticket": 1924,
+      "pr": 1993,
+      "expectHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
+      "state": "intent",
+      "time": "2026-10-17T16:50:46.291Z",
+      "evidence": "admitted as reviewed",
+      "gate": {
+        "disposition": "reviewed",
+        "reviewedHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
+        "completedRound": 6,
+        "mergedSince": [],
+        "originMain": "006d924c192a2299e3398e308b6172b4540d4115",
+        "ciMain": "006d924c192a2299e3398e308b6172b4540d4115",
+        "containsMain": true,
+        "mainCi": {
+          "verdict": "green",
+          "head": "006d924c192a2299e3398e308b6172b4540d4115",
+          "run": 39044457876,
+          "conclusion": "success",
+          "url": "https://github.com/ImpowerGames/impower/actions/runs/39044457876"
+        },
+        "checks": [
+          {
+            "name": "changes / detect",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "build",
+            "workflow": "Build VS Code Extension",
+            "result": "passed"
+          },
+          {
+            "name": "linked-issue",
+            "workflow": "Check Linked Issue",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "notifier",
+            "workflow": "Agent Notification Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "driver-changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "impower-dev",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "tsc",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "packages/jsonrpc",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/opfs-workspace",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-editor-protocol",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-engine (1/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-engine (2/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-morph",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-web-player (1/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-web-player (2/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (1/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (2/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (3/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (4/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown-document-views",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown-language-server",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "vscode-sparkdown",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks",
+            "workflow": "Hook Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "notifier-tests",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "Luau corpus gate",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "typecheck",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks",
+            "workflow": "Hook Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "test-suite",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration",
+            "workflow": "Hook Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "hook-tests",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          }
+        ]
+      }
     }
   ],
   "decisions": [
@@ -7384,7 +7577,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T16:48:09.753Z",
+      "observedAt": "2026-10-17T16:50:47.567Z",
       "held": true,
       "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -8225,13 +8418,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T05:15:37.339Z",
-      "event": "answered",
-      "ticket": 1374,
-      "id": "1330b629",
-      "deliveryId": "97f5114e"
-    },
-    {
       "time": "2026-10-17T05:15:46.265Z",
       "event": "check-in",
       "outcome": "maintainer handed #1374 to this run: #1374 attached under #1904 (status comment 6229776134), invocation re-recorded, PR #1402 closed as superseded, writer session local_06fee41a adopted on claude-desktop and verified, PR #2022 extended to round 4 (decision 0f12aa4d, comment 6230032946), answer delivered; #1906 round 3 found incomplete (launch-axg-1 blocked, executionDrained false): writer resumed with request 19d362c9's answer to take the item-6 value-scope repair, relaunch axg as round 3 attempt 2 and resend; #1924 running round 4; ORCH #1961 cutover window agreed 18 to 30 hours out"
@@ -8961,6 +9147,13 @@
       "time": "2026-10-17T16:48:08.453Z",
       "event": "check-in",
       "outcome": "#1924 round 6 clean at the reviewed head fe4cd193e: decided finish (decision 115f05db, comment 6236955744), stored the final report, resumed the writer to mark PR #1993 ready through ordinary readiness; merge through the gate follows its confirmation; #1907 and #1977 then dispatch"
+    },
+    {
+      "time": "2026-10-17T16:50:46.291Z",
+      "event": "operation-intent",
+      "id": "9711dd68",
+      "kind": "merge",
+      "pr": 1993
     }
   ]
 }
