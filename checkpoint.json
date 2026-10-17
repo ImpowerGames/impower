@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 138,
-  "previous": "cc533ee88c53e3f4f9c82983204fbd1456c9d023",
+  "seq": 139,
+  "previous": "3a84d227d40a2661674fc3de8e39278a31876d28",
   "snapshotParents": [],
-  "time": "2026-10-17T06:16:41.127Z",
+  "time": "2026-10-17T06:16:52.550Z",
   "kind": "auto",
-  "transition": "the intent to ready PR #2015",
+  "transition": "the outcome of operation c0f55d7a",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 127,
+    "recordRevision": 128,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3909,9 +3909,10 @@
       "ticket": 1966,
       "pr": 2015,
       "expectHead": "0ce68b477e72852e265ea00656ce216e181137e7",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T06:16:38.739Z",
-      "evidence": "acceptance afa4eb6f (comment 6230585096) applies to head 0ce68b477 per acceptance-check"
+      "evidence": "gh pr ready 2015 succeeded; gh pr view read back isDraft false at head 0ce68b477e72852e265ea00656ce216e181137e7; ready comment posted",
+      "settled": "2026-10-17T06:16:50.208Z"
     }
   ],
   "decisions": [
@@ -4014,7 +4015,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T06:16:40.105Z",
+      "observedAt": "2026-10-17T06:16:51.540Z",
       "held": true,
       "head": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
       "remoteHead": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
@@ -4028,7 +4029,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T06:16:40.105Z",
+      "observedAt": "2026-10-17T06:16:51.540Z",
       "held": true,
       "head": "0ce68b477e72852e265ea00656ce216e181137e7",
       "remoteHead": "0ce68b477e72852e265ea00656ce216e181137e7",
@@ -4333,13 +4334,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T22:53:06.428Z",
-      "event": "operation-intent",
-      "id": "3000849c",
-      "kind": "ready",
-      "pr": 1975
-    },
     {
       "time": "2026-10-16T22:53:31.312Z",
       "event": "operation-outcome",
@@ -5085,6 +5079,12 @@
       "id": "c0f55d7a",
       "kind": "ready",
       "pr": 2015
+    },
+    {
+      "time": "2026-10-17T06:16:50.208Z",
+      "event": "operation-outcome",
+      "id": "c0f55d7a",
+      "state": "confirmed"
     }
   ]
 }

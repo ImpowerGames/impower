@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 138 (this commit), 2026-10-17T06:16:41.127Z, after the intent to ready PR #2015. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 139 (this commit), 2026-10-17T06:16:52.550Z, after the outcome of operation c0f55d7a. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,7 +12,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1965
 
 - claude-cli claude-opus-5-5 at high, process 34904 on DESKTOP-726EO47
-- as of 2026-10-17T06:16:40.105Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-17T06:16:51.540Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1966
 
@@ -24,7 +24,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-2015/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 6f5769ab5, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["undirected"]), last event finished
 - review job pr-2015/round-5/launch-undirected-1 on DESKTOP-726EO47: round 5 reviewed 51a6a7c0c, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 5 (planned ["undirected"]), last event finished
 - review job pr-2015/round-6/launch-undirected-1 on DESKTOP-726EO47: round 6 reviewed 37679545e, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 6 (planned ["undirected"]), last event finished
-
-## Unsettled operations
-
-- c0f55d7a: ready of PR #2015 at 0ce68b477e72852e265ea00656ce216e181137e7, intent; settle it with checkpoint.mjs reconcile-operations before any retry
