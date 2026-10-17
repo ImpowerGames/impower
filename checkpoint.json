@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 178,
-  "previous": "09f6640b774bab8a23d46f66a7e866ecb48d529b",
+  "seq": 179,
+  "previous": "0aed8eaa86a5c66838d9840d253eeeb7e16b4ca0",
   "snapshotParents": [],
-  "time": "2026-10-17T09:03:32.149Z",
+  "time": "2026-10-17T09:03:38.709Z",
   "kind": "auto",
-  "transition": "claim of #1967",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 164,
@@ -4845,7 +4845,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:03:32.148Z",
+      "observedAt": "2026-10-17T09:03:38.709Z",
       "held": true,
       "exists": false
     }
@@ -4853,7 +4853,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T09:03:25.482Z",
+    "at": "2026-10-17T09:03:38.708Z",
     "tickets": [
       {
         "number": 1962,
@@ -4887,9 +4887,9 @@
       },
       {
         "number": 1967,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8 on claude-cli has no confirmed outcome; run reconcile before any retry"
       }
     ],
     "remaining": [
