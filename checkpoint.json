@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 65,
-  "previous": "823d29fc053345bd58e0d55d822e293b9a21bafd",
+  "seq": 66,
+  "previous": "7a5df33c5372d7693f2039d7682a237325317499",
   "snapshotParents": [],
-  "time": "2026-10-17T02:02:08.207Z",
+  "time": "2026-10-17T02:07:30.466Z",
   "kind": "auto",
-  "transition": "answered of #1966",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 59,
@@ -1749,7 +1749,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T02:02:06.677Z",
+      "observedAt": "2026-10-17T02:07:28.973Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -1948,12 +1948,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:02:06.677Z",
+      "observedAt": "2026-10-17T02:07:28.973Z",
       "held": true,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 2015,
       "reviewJobs": [
         {
@@ -2104,7 +2104,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T01:58:04.097Z",
+    "at": "2026-10-17T02:07:28.971Z",
     "tickets": [
       {
         "number": 1962,
@@ -2114,9 +2114,9 @@
       },
       {
         "number": 1963,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 2009,
-        "reason": "process 51820 started 639277885124225254 is running"
+        "reason": "process 51820 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1963-c7b0d9e3-f7ae-4c8a-ae6a-e1ef52a07fba\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1964,
@@ -2132,9 +2132,9 @@
       },
       {
         "number": 1966,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 2015,
-        "reason": "process 11732 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1966-c7aabe5c-2e64-4947-a879-3c9cc12af4eb\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 52916 started 639277993122047392 is running"
       },
       {
         "number": 1967,
