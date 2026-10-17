@@ -270,11 +270,12 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(";")]);
   });
 
-  test("before `continue` in a loop: the error, and `continue` stays a statement", () => {
+  // `continue` is a name where a value can stand, as Luau reads it (#1906).
+  test("before `continue` in a loop: `continue` is the list's value", () => {
     const { errorMessages } = collectDiagnostics(
       "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
     );
-    expect(errorMessages).toEqual([missingValue("continue")]);
+    expect(errorMessages).toEqual([]);
   });
 
   test("before the `=`, an unindented if expression after the targets' comma is a missing binding name", () => {

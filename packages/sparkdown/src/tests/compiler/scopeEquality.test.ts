@@ -153,6 +153,15 @@ const TARGETED: Record<string, string> = {
   "unread-stray-then-1596": "function f(c)\nthen\nend\nAfter.\n",
   "unread-if-expression-after-comment-1647":
     "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
+  // A name with a non-ASCII letter ends where both engines agree: a struct
+  // key, a scene name, and an ASCII Luau name a non-ASCII letter follows
+  // (#1266, #1906).
+  "non-ascii-names-1266":
+    "theme t with\n  g:\n    名 = 2\n    tail = 3\nend\nscene 場面\n  Hello.\nend\nfunction f()\n  local x名 = 1\nend\n",
+  // Reserved words are never names, structural words are names outside
+  // their shape, and closers only close (#1906).
+  "token-classes-1906":
+    "function f(c)\n  local style, match, queue, continue = 1, 2, 3, 4\n  local y = style + match + queue + continue\n  if match then y = layout end\n  if match == (2)then y = 2 end\n  while y == (0)do y = 1 end\n  repeat\n    repeat y = (y + 1)until true\n  until y > 2\n  local z =\n    if c then 1 else 2\n  do local w = (1)end\n  if c then\n    while c do y = 1 else y = 2 end\n  end\n  return y\nend\n",
   // A statement rule open at a character it cannot read: vscode-textmate
   // passes over it inside the rule, and the tree ends the rule there and
   // reads it as an unread token of the body.

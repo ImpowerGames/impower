@@ -18,7 +18,6 @@ export const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = new Set([
     "LuauGotoStatement",
     "LuauLabel",
     "LuauFunctionDefinition",
-    "LuauUntilStatement",
     "LuauSparkdownExplicitStatement",
     "LuauSparkdownExplicitBlockStatement",
   ]),

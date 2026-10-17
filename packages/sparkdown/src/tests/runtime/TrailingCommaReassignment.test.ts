@@ -173,7 +173,6 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     `function f()\n  local a, g = 0, 0\n  a, g = 1,\n${lines}\n  return a\nend\nValue {f()}.\n`;
   test.each([
     ["break", inLoop("break"), "break"],
-    ["continue", inLoop("continue"), "continue"],
     ["goto", inBody("  goto done\n  ::done::"), "goto"],
     ["a label", inBody("  ::done::"), ":"],
     ["do", inBody("  do\n    a = 2\n  end"), "do"],
@@ -192,6 +191,15 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
   ])("before %s: the error", (_name, source, got) => {
     const { errorMessages } = collectDiagnostics(source);
     expect(errorMessages).toEqual([missingValue(got)]);
+  });
+
+  // `continue` is a name where a value can stand, as Luau reads it (#1906),
+  // so it is the list's second value.
+  test("before `continue`: `continue` is the second value", () => {
+    const { errorMessages } = collectDiagnostics(inLoop("continue"));
+    expect(errorMessages).toEqual([]);
+    const source = inLoop("continue").replace("local a, g = 0, 0", "local a, g, continue = 0, 0, 7").replace("return a", "return g");
+    expect(makeRuntimeStoryFromSource(source).story.ContinueMaximally()).toBe("Value 7.\n");
   });
 });
 

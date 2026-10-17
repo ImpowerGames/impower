@@ -382,6 +382,9 @@ const DECLARATION_STATEMENTS = nodeNameSet([
   "LuauAnimation",
   "LuauTheme",
   "LuauMorph",
+  // The rest of a `repeat` statement, after the `until` its loop took.
+  "LuauUntilCondition",
+  "LuauStrayUntilStatement",
 ]);
 
 // Whether `name` is a node that starts a statement in a block, or a `;`

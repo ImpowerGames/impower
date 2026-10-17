@@ -221,9 +221,17 @@ const getLocalScope = (
   // `local a = ` is in the initializer.
   const text = read(definition.from, definition.to);
   const trimmed = text.trimEnd();
+  // An `=` that ends its line reads its value from a later line: its
+  // operation holds the line break (`LuauAssignmentLineBreak`). When no
+  // value followed, the definition ends with that line break, and a cursor
+  // anywhere up to its end is still in the initializer.
+  const lastPart = definition.getChild(`${definition.name}_content`)?.lastChild;
+  const operation = lastPart?.getChild(`${lastPart.name}_content`)?.lastChild;
+  const valueLineBreak = type === "var" &&
+    operation?.getChild(`${operation.name}_content`)?.lastChild?.name === "LuauAssignmentLineBreak";
   let start = type === "function"
     ? name.to
-    : text.slice(trimmed.length).includes("\n")
+    : !valueLineBreak && text.slice(trimmed.length).includes("\n")
       ? definition.from + trimmed.length
       : definition.to;
   // A union member line after a comment line, or an intersection member
@@ -293,7 +301,7 @@ const getLocalScope = (
     while (after && (after.name === "Newline" || after.name.endsWith("Whitespace"))) {
       after = after.nextSibling;
     }
-    if (after && isExplicitRuleName(after.name, "LuauUntilStatement")) {
+    if (after && isExplicitRuleName(after.name, "LuauUntilCondition")) {
       to = after.to;
     }
   }

@@ -2745,7 +2745,6 @@ local baz = foo[bar]
       },
       {
         module: "Module/Backend",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         local Types = require(script.Types)
         type Fiber = Types.Fiber
@@ -3987,7 +3986,6 @@ return {}
       },
       {
         module: "game/library",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local Worker = require(game.worker)
 
