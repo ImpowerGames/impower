@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 98,
-  "previous": "4faa174f622b1541bdc12ee0fb33a4624e67fcf1",
+  "seq": 99,
+  "previous": "ab38142420e450f2ec8478796bbd22075c9680bc",
   "snapshotParents": [],
-  "time": "2026-10-17T01:17:35.448Z",
+  "time": "2026-10-17T04:06:54.831Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 101,
@@ -1930,12 +1930,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T01:17:33.711Z",
+      "observedAt": "2026-10-17T04:06:53.076Z",
       "held": true,
-      "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
-      "remoteHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
+      "head": "08f0761a40aa945501dbc48da53b1ab31662bbb0",
+      "remoteHead": "08f0761a40aa945501dbc48da53b1ab31662bbb0",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 34752
+      },
       "pr": 1995,
       "reviewJobs": [
         {
@@ -2058,6 +2062,123 @@
           "commentIds": [
             6227523977
           ]
+        },
+        {
+          "job": "pr-1995/round-2/launch-axg-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-axg",
+            "reviewerId": "axg",
+            "attempt": 1,
+            "plannedReviewers": [
+              "axg",
+              "undirected"
+            ],
+            "head": "28104b74f26049c17cf3018b0748466e618196c6",
+            "completedRoundReviewers": {
+              "gram": 1,
+              "ax": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-17T01:45:20.298Z"
+          },
+          "round": 2,
+          "reviewerId": "axg",
+          "attempt": 1,
+          "reviewedHead": "28104b74f26049c17cf3018b0748466e618196c6",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "axg": 1
+          },
+          "plannedRoundReviewers": [
+            "axg",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6228226010
+          ]
+        },
+        {
+          "job": "pr-1995/round-2/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "axg",
+              "undirected"
+            ],
+            "head": "43efd1fb0e495743a6ce5027abd69bcbcd696f9b",
+            "completedRoundReviewers": {
+              "axg": 1
+            },
+            "time": "2026-10-17T02:11:30.019Z"
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "43efd1fb0e495743a6ce5027abd69bcbcd696f9b",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "axg": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "axg",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6228684372
+          ]
+        },
+        {
+          "job": "pr-1995/round-3/launch-axg-1",
+          "lastEvent": "blocked",
+          "attempted": {
+            "round": 3,
+            "step": "review-axg",
+            "reviewerId": "axg",
+            "attempt": 1,
+            "plannedReviewers": [
+              "axg",
+              "undirected"
+            ],
+            "head": "776041e309ec96e045d268ac8d3422a1502d2a7c",
+            "completedRoundReviewers": {
+              "axg": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-17T03:29:07.386Z"
+          }
+        },
+        {
+          "job": "pr-1995/round-3/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "axg",
+              "undirected"
+            ],
+            "head": "08f0761a40aa945501dbc48da53b1ab31662bbb0",
+            "completedRoundReviewers": {
+              "axg": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-17T03:57:44.815Z"
+          }
         }
       ]
     },
@@ -2066,12 +2187,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T01:17:33.711Z",
+      "observedAt": "2026-10-17T04:06:53.076Z",
       "held": true,
-      "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
-      "remoteHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
+      "head": "0bed5815578cb7daa1641cd650bf749da3241bbc",
+      "remoteHead": "0bed5815578cb7daa1641cd650bf749da3241bbc",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1993,
       "reviewJobs": [
         {
@@ -2271,6 +2392,82 @@
           "commentIds": [
             6227819767
           ]
+        },
+        {
+          "job": "pr-1993/round-3/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "5b818c0403fe4e665659d4df76cc80a846a9d55d",
+            "completedRoundReviewers": {
+              "ax": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-17T01:36:56.952Z"
+          },
+          "round": 3,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "5b818c0403fe4e665659d4df76cc80a846a9d55d",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6228135105
+          ]
+        },
+        {
+          "job": "pr-1993/round-3/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "ec8189c6174afb75a6decd9ea8809e91c0a78158",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-17T01:59:44.196Z"
+          },
+          "round": 3,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "ec8189c6174afb75a6decd9ea8809e91c0a78158",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6228403392
+          ]
         }
       ]
     }
@@ -2278,13 +2475,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T01:00:56.280Z",
+    "at": "2026-10-17T04:06:53.074Z",
     "tickets": [
       {
         "number": 984,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 08f0761a40aa945501dbc48da53b1ab31662bbb0 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1002,
@@ -2302,7 +2499,7 @@
         "number": 1102,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 08f0761a40aa945501dbc48da53b1ab31662bbb0 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1121,
@@ -2314,7 +2511,7 @@
         "number": 1195,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 08f0761a40aa945501dbc48da53b1ab31662bbb0 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1197,
@@ -2368,7 +2565,7 @@
         "number": 1209,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 08f0761a40aa945501dbc48da53b1ab31662bbb0 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1243,
@@ -2380,7 +2577,7 @@
         "number": 1247,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 08f0761a40aa945501dbc48da53b1ab31662bbb0 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1248,
@@ -2410,7 +2607,7 @@
         "number": 1266,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 08f0761a40aa945501dbc48da53b1ab31662bbb0 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1290,
@@ -2434,31 +2631,31 @@
         "number": 1329,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at 0bed5815578cb7daa1641cd650bf749da3241bbc has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1341,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 08f0761a40aa945501dbc48da53b1ab31662bbb0 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1343,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at 0bed5815578cb7daa1641cd650bf749da3241bbc has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1344,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at 0bed5815578cb7daa1641cd650bf749da3241bbc has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1369,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at 0bed5815578cb7daa1641cd650bf749da3241bbc has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1596,
@@ -2504,9 +2701,9 @@
       },
       {
         "number": 1908,
-        "action": "merge-gate",
-        "pr": 1996,
-        "reason": "PR #1996 is ready at 855be21068d55f6f5dc050ed31c7d704b065698b; process 52132 now belongs to another process and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1909,
@@ -2516,9 +2713,9 @@
       },
       {
         "number": 1924,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1993,
-        "reason": "process 35784 started 639277762790091965 is running"
+        "reason": "process 35784 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1924-cb97a4cf-003c-46ed-aeaf-5b42615c3729\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1977,
@@ -2558,9 +2755,9 @@
       },
       {
         "number": 1990,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+        "action": "adopt-pr",
+        "pr": 1993,
+        "reason": "draft PR #1993 at 0bed5815578cb7daa1641cd650bf749da3241bbc has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1991,
@@ -2600,6 +2797,12 @@
       },
       {
         "number": 2018,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 2023,
         "action": "blocked-route",
         "pr": null,
         "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"

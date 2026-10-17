@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1904
 
-Checkpoint 98 (this commit), 2026-10-17T01:17:35.448Z, after checked-in. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
+Checkpoint 99 (this commit), 2026-10-17T04:06:54.831Z, after a new plan. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,17 +12,22 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1906
 
 - claude-cli claude-opus-5-5 at high, process 18844 on DESKTOP-726EO47
-- as of 2026-10-17T01:17:33.711Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes that may exist only there; recover those bytes there before restarting or overwriting this work
+- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes removes it once its coordinator and child are confirmed gone
 - review job pr-1995/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 9e0c5e19d, completed {"gram":1,"ax":1} of planned ["gram","ax","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["gram","ax","undirected"]), last event finished
 - review job pr-1995/round-1/launch-gram-1 on DESKTOP-726EO47: round 1 reviewed e487e7f7b, completed {"gram":1} of planned ["gram","ax","undirected"]; last launched reviewer gram attempt 1 of round 1 (planned ["gram","ax","undirected"]), last event finished
 - review job pr-1995/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 9e0c5e19d, completed {"gram":1,"ax":1,"undirected":1} of planned ["gram","ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["gram","ax","undirected"]), last event finished
+- review job pr-1995/round-2/launch-axg-1 on DESKTOP-726EO47: round 2 reviewed 28104b74f, completed {"axg":1} of planned ["axg","undirected"]; last launched reviewer axg attempt 1 of round 2 (planned ["axg","undirected"]), last event finished
+- review job pr-1995/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 43efd1fb0, completed {"axg":1,"undirected":1} of planned ["axg","undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["axg","undirected"]), last event finished
+- review job pr-1995/round-3/launch-axg-1 on DESKTOP-726EO47: no completed review; last launched reviewer axg attempt 1 of round 3 (planned ["axg","undirected"]), last event blocked
+- review job pr-1995/round-3/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 3 (planned ["axg","undirected"]), last event identified
 
 ## #1924
 
 - claude-cli claude-opus-5-5 at high, process 35784 on DESKTOP-726EO47
-- as of 2026-10-17T01:17:33.711Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1993/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 6e7a7b974, completed {"ax":1} of planned ["ax","grammar","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
 - review job pr-1993/round-1/launch-grammar-1 on DESKTOP-726EO47: round 1 reviewed 3920a7861, completed {"ax":1,"grammar":1} of planned ["ax","grammar","undirected"]; last launched reviewer grammar attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
 - review job pr-1993/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 4628b32c0, completed {"ax":1,"grammar":1,"undirected":1} of planned ["ax","grammar","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
 - review job pr-1993/round-2/launch-ax-1 on DESKTOP-726EO47: round 2 reviewed 0c6a8af24, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 2 (planned ["ax","undirected"]), last event finished
 - review job pr-1993/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 398588031, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["ax","undirected"]), last event finished
+- review job pr-1993/round-3/launch-ax-1 on DESKTOP-726EO47: round 3 reviewed 5b818c040, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 3 (planned ["ax","undirected"]), last event finished
+- review job pr-1993/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed ec8189c61, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["ax","undirected"]), last event finished
