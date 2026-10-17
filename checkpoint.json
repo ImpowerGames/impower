@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 143,
-  "previous": "d5e93cc94711b5cde22b1601caf8f3a98b2dfc4f",
+  "seq": 144,
+  "previous": "93059924d18212db75b2e91ec3552c7a6aa52cd3",
   "snapshotParents": [],
-  "time": "2026-10-17T06:19:43.688Z",
+  "time": "2026-10-17T06:19:52.694Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 132,
+    "recordRevision": 133,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1877,10 +1877,10 @@
         "launchId": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
         "handle": {
           "kind": "process",
-          "pid": 12168,
-          "start": "639278114973657966",
+          "pid": 58432,
+          "start": "639278147895413871",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-a919aa23-6e09-4dda-9ddd-dcef10ec4d72"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e"
         },
         "verified": true,
         "brief": {
@@ -1924,13 +1924,13 @@
             "id": "a919aa23-6e09-4dda-9ddd-dcef10ec4d72",
             "time": "2026-10-17T05:24:57.907Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-a919aa23-6e09-4dda-9ddd-dcef10ec4d72"
+          },
+          {
+            "id": "55d8cc38-c3f8-46c9-a549-9e6c8be3135e",
+            "time": "2026-10-17T06:19:49.966Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e"
           }
-        ],
-        "resuming": {
-          "id": "55d8cc38-c3f8-46c9-a549-9e6c8be3135e",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e",
-          "time": "2026-10-17T06:19:41.055Z"
-        }
+        ]
       },
       "pending": null,
       "history": [],
@@ -4184,7 +4184,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T06:19:42.692Z",
+      "observedAt": "2026-10-17T06:19:51.572Z",
       "held": true,
       "head": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
       "remoteHead": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
@@ -4198,7 +4198,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T06:19:42.692Z",
+      "observedAt": "2026-10-17T06:19:51.572Z",
       "held": true,
       "head": "0ce68b477e72852e265ea00656ce216e181137e7",
       "remoteHead": "0ce68b477e72852e265ea00656ce216e181137e7",
@@ -4503,13 +4503,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T22:57:12.210Z",
-      "event": "resume-intent",
-      "ticket": 1962,
-      "id": "5941cf87-913c-4b3b-a5b0-23e248589e1c",
-      "sessionId": "9ca34572-7372-4ce5-8619-f14cef2f34ef"
-    },
     {
       "time": "2026-10-16T22:57:19.414Z",
       "event": "resumed",
@@ -5255,6 +5248,19 @@
       "ticket": 1966,
       "id": "55d8cc38-c3f8-46c9-a549-9e6c8be3135e",
       "sessionId": "58c4e7e1-10ce-48f9-8cd2-052d8503847b"
+    },
+    {
+      "time": "2026-10-17T06:19:49.966Z",
+      "event": "resumed",
+      "ticket": 1966,
+      "id": "55d8cc38-c3f8-46c9-a549-9e6c8be3135e",
+      "handle": {
+        "kind": "process",
+        "pid": 58432,
+        "start": "639278147895413871",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e"
+      }
     }
   ]
 }
