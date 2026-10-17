@@ -7804,8 +7804,11 @@ repository:
   # too, ahead of the Luau declaration `LuauExpression` reaches, so it also
   # ends at the line (`store a = 1 local b = 2,`). Its targets are
   # `LuauSparkdownVariableAssignment`, whose operation has no line break
-  # after its `=`, so a value after a comment that spans lines, or on the
-  # next line, is not read as its value (#1906).
+  # after its `=`: an `=` that ends its line has no value, so a value on
+  # the next line, or after a comment that opens on a later line, is not
+  # read as its value (#1906). A block comment that opens on the `=`'s line
+  # is read whole by `LuauComment`, as on `main`, so a value after its
+  # close is still the declaration's (`local q = --[[ a` then `]] 4`).
   LuauSparkdownVariableDefinition:
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
     beginCaptures:
@@ -7930,8 +7933,10 @@ repository:
 
   # One target of a narrative declaration (`LuauSparkdownVariableDefinition`),
   # with its annotation and `= value`: `LuauVariableAssignment` but for its
-  # operation, `LuauSparkdownAssignmentOperation`, which ends at its line, so
-  # a narrative declaration never reads its value from a later line (#1906).
+  # operation, `LuauSparkdownAssignmentOperation`, which ends at a line end,
+  # so an `=` that ends its line has no value (#1906); only a block comment
+  # that opens on the `=`'s line carries the operation past it, as on
+  # `main`.
   # lookaround: as for `LuauVariableAssignment`.
   LuauSparkdownVariableAssignment:
     begin: "(?!{{LUAU_RESERVED_WORDS}}{{WS}}*(?:--|,|$))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*{{LUAU_SHARED_VARIABLE_HEAD_END}})"
