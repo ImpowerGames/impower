@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 67,
-  "previous": "67c90cc2f0bcd1670b57b6c610e932044ae0cdcf",
+  "seq": 68,
+  "previous": "8713d5a9c1490d9db144810bd6c3a7de3213f7d8",
   "snapshotParents": [],
-  "time": "2026-10-17T02:07:41.570Z",
+  "time": "2026-10-17T02:11:11.645Z",
   "kind": "auto",
-  "transition": "request of #1963",
+  "transition": "answer of #1963",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 60,
+    "recordRevision": 63,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1240,7 +1240,238 @@
           "text": "Round 3 checkpoint report for PR #2009: rounds 1 (callers + undirected), 2 (persistence + undirected) and 3 (undirected, no findings) complete, all gpt-6.1-sol high; 8 accepted findings, all fixed and reviewed; reviewed head 23ebfd91b equals the current head; all CI checks pass. One correction introduced a defect (R1 PR-reference display text persisted, caught in R2). Deviation from the ticket: clean-worktrees keeps {owner}/{repo} from origin because its lookup concerns public pull request review jobs. Writer awaits the checkpoint decision; if finish, it marks #2009 ready and sends the final report.",
           "source": "cross-session message from writer session impower-a1 (CLI session bb9d33ea) received 2026-10-17 ~02:45Z",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision for PR #2009 after round 3: FINISH (decision aa7a65f6, published as PR comment 6228342499; read it in full). The review gates pass on head 23ebfd91b and the decision grants nothing beyond ordinary review-pr readiness. The clean-worktrees deviation (pr-<N> review-job state read from origin, the code repository) is accepted as the correct reading of the ticket; a note for a later slice, not for you: that lookup could use the pulls endpoint rather than the issues endpoint. Now: mark PR #2009 ready through review-pr's own readiness step, confirm the head is still 23ebfd91b and every check green, send me your final report as the brief's fields (model, effort, permissionMode, pr, reviewedHead 23ebfd91b, rounds per reviewer route, findings None, verification, ci, next: done), and end your turn. Do not merge; the coordinator merges through the gate.",
+            "deliveryId": "b8c56949",
+            "attempts": 1,
+            "time": "2026-10-17T02:11:08.559Z",
+            "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "aa7a65f6",
+          "kind": "finish",
+          "feature": 1961,
+          "ticket": 1963,
+          "pr": 2009,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-17T02:10:41.438Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
+          "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
+          "range": {
+            "from": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
+            "to": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
+            "base": "d5cb34d141f2c7f4caaf9b9fc17647019053d381",
+            "commits": [],
+            "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "reports": [
+            {
+              "comment": 6227216999,
+              "round": 1,
+              "reviewerId": "callers",
+              "adjudication": 6227357113
+            },
+            {
+              "comment": 6227490154,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6227654141
+            },
+            {
+              "comment": 6227921774,
+              "round": 2,
+              "reviewerId": "persistence",
+              "adjudication": 6227956839
+            },
+            {
+              "comment": 6228050570,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6228092253
+            },
+            {
+              "comment": 6228150147,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6228164145
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Eight accepted findings in three rounds, in two mechanisms plus three singletons. Mechanism A, triage mixing tickets and pull requests once the switch is on: round 1 callers #1 (pull request reads routed to the tickets repository), round 1 undirected #1 (bare PR numbers rendered into ticket text, which in the internal tracker would name a ticket), and round 2 persistence #1 (the correction for the previous one persisted the qualified prefix into stored data, so a prefix written before the cutover was doubled). The final shape prevents the class: one resolver (ticketsRepo) for tickets and the inbox, pull request reads pinned to the code repository, qualification applied at display time only, and stored ledger data byte-identical to main in both positions, which the persistence reviewer checked. Mechanism B, tests that read the committed switch or bypassed the production default: round 1 callers #3 (interface-exercise asserted the on position by passing the repository explicitly), the writer's own sweep of record-blockers, and round 2 undirected #1 (the triage tests imported the production module and depended on the committed repos.json). Now every switch-position test loads a copy of the script beside its own repos file pinned off or on, and the triage suite also passes in a scratch tree whose committed switch is flipped. The singletons: a leftover literal #510 in the generated Task, the template fixtures breaking when the staged public set is moved at the cutover, and the AGENTS.md publishing rule. Round 3 reviewed the test-only round 2 correction on 23ebfd91b and found nothing; that head is the current head, with no unreviewed range.",
+            "regressions": "One correction introduced a defect: the round 1 fix for bare PR numbers wrote the qualified display text into persisted friction and edit text, which round 2's persistence reviewer caught as a doubled prefix on pre-cutover data. It was repaired by qualifying at display time only, and round 2's undirected reviewer and round 3 found no further defect. The round 2 test-pinning correction introduced nothing. Every production change has had two independent reviews, and the last round was clean.",
+            "repairOptions": "No broader repair is needed: the design already rests on a single resolver and a single inbox constant, and the remaining public-slug literals are the repos file, the pull request comment and review files that #1964 retargets, an Actions endpoint (CI stays public), a historical evidence link the migration handles, and two #1962 hook fixtures that pin each repository as an input. One deviation from the ticket's file list is accepted as correct: clean-worktrees keeps reading pr-<N> review-job state through repos/{owner}/{repo}/issues/N on origin, because those numbers are pull requests in the code repository before and after the cutover, so naming the internal repository would read the wrong number; the callers reviewer agreed. A follow-up worth noting for #1964 or #1965 rather than this slice: that lookup could use the pulls endpoint instead of the issues endpoint, which is the form the #1962 guard allows on the code repository, even though the hook does not see a script's own child gh calls.",
+            "residualRisk": "By design under the brief, disclosed in the PR and the adjudications: no live operation on an internal ticket has run, since the switch stays off and the PR creates nothing in the internal repository, so the ticket's record-blockers acceptance on a throwaway internal ticket falls to the cutover (a scratch on-position dry run did call repos/ImpowerGames/impower-internal/issues/1 and got HTTP 410, proving the routing); the internal repository holds no template copies yet, so the template-sync test skips and #1967 lands them; the public chooser is unchanged until #1967 moves the staged templates; noncanonical closing-reference inputs (an issue URL with a trailing path, #5-old) match on their numeric prefix, low risk since no template or skill writes them. Switch-off behaviour was byte-compared against main by the persistence reviewer and exercised by every pre-existing assertion.",
+            "coverage": "Red on base: the new tests fail against an extract of origin/main (check-linked-issue behaviourally, templates and interface-exercise on missing files and exports). Green on 23ebfd91b: check-linked-issue in both positions including the acceptance cases (Closes ImpowerGames/impower-internal#5 passes, bare #5 alone fails on, both together pass), typed-issue-hook with the new loader rows, triage 38 (also with the committed switch flipped on in a scratch tree), interface-exercise and record-blockers from copies in both positions, templates (one SKIP for the empty internal repository), and check-agent-tooling --tier skills exit 0 with 71 discovered. Each review correction was mutation-checked. Live: record-blockers 1963 --dry-run prints ImpowerGames/impower#1963. CI on 23ebfd91b: every check passed, including skills-checks and driver-checks on both platforms and all four vitest-api-integration jobs.",
+            "nextRoundValue": "Little: round 3 was clean on a test-only correction, every production change had two independent reviews, the current head is the reviewed head, and the remaining gaps are cutover checks this PR cannot perform with the switch off. Another round would re-read the same code.",
+            "rationale": "The review gates pass: three complete rounds, every report adjudicated, all eight findings accepted and fixed with mutation evidence, round 3 clean, the current head independently reviewed with no unreviewed range, and every CI check passed. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish: the writer marks PR #2009 ready through review-pr's own readiness and sends its final report, and the coordinator merges only through the merge gate. The clean-worktrees deviation is accepted as the correct reading of the ticket; the suggestion to use the pulls endpoint is passed on as a follow-up, not a condition.",
+            "next": "The writer marks PR #2009 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 23ebfd91b, findings None), and ends. The coordinator runs integration.mjs gate and merges through integration.mjs merge; once the merge commit is on origin/main, #1964 becomes eligible and is dispatched with the cutover-switch decision and the internal-repository decision in its brief.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6227216999,
+                "finding": "triage redirects pull request reads into the tickets repository",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227216999,
+                "finding": "generated Tasks retain a literal #510 inbox reference",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227216999,
+                "finding": "the interface-exercise switch-on assertion bypassed the production default",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227216999,
+                "finding": "the chooser fixtures break when the staged public templates are moved at the cutover",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227490154,
+                "finding": "triage renders bare PR numbers into ticket text, which name tickets in the internal tracker",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227490154,
+                "finding": "AGENTS.md still sends issue templates to .github/ and mandates a bare Closes #N",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227921774,
+                "finding": "a stored earlier-feedback prefix written before the cutover is doubled and stays bare after it",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050570,
+                "finding": "the triage tests read the committed switch instead of pinning both positions",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228150147,
+                "disposition": "none"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: finish through ordinary readiness\n\nDecision `aa7a65f6` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1963.\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6227216999 in 6227357113, 6227490154 in 6227654141, 6227921774 in 6227956839, 6228050570 in 6228092253, 6228150147 in 6228164145).\n- Independently reviewed through `23ebfd91bc97c7e4d8e585d88553c1a9e268546d`.\n- Head `23ebfd91bc97c7e4d8e585d88553c1a9e268546d`. Nothing after the reviewed head is unreviewed.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, Luau corpus gate passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, test-suite passed, driver-checks (windows-latest) passed, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) passed, vitest-api-integration (windows-latest, 3.2.6) passed, hook-tests passed.\n- Findings across all rounds: 8 accepted, 1 none; unresolved: none.\n- Shared mechanisms: Eight accepted findings in three rounds, in two mechanisms plus three singletons. Mechanism A, triage mixing tickets and pull requests once the switch is on: round 1 callers #1 (pull request reads routed to the tickets repository), round 1 undirected #1 (bare PR numbers rendered into ticket text, which in the internal tracker would name a ticket), and round 2 persistence #1 (the correction for the previous one persisted the qualified prefix into stored data, so a prefix written before the cutover was doubled). The final shape prevents the class: one resolver (ticketsRepo) for tickets and the inbox, pull request reads pinned to the code repository, qualification applied at display time only, and stored ledger data byte-identical to main in both positions, which the persistence reviewer checked. Mechanism B, tests that read the committed switch or bypassed the production default: round 1 callers #3 (interface-exercise asserted the on position by passing the repository explicitly), the writer's own sweep of record-blockers, and round 2 undirected #1 (the triage tests imported the production module and depended on the committed repos.json). Now every switch-position test loads a copy of the script beside its own repos file pinned off or on, and the triage suite also passes in a scratch tree whose committed switch is flipped. The singletons: a leftover literal #510 in the generated Task, the template fixtures breaking when the staged public set is moved at the cutover, and the AGENTS.md publishing rule. Round 3 reviewed the test-only round 2 correction on 23ebfd91b and found nothing; that head is the current head, with no unreviewed range.\n- Defects introduced by corrections: One correction introduced a defect: the round 1 fix for bare PR numbers wrote the qualified display text into persisted friction and edit text, which round 2's persistence reviewer caught as a doubled prefix on pre-cutover data. It was repaired by qualifying at display time only, and round 2's undirected reviewer and round 3 found no further defect. The round 2 test-pinning correction introduced nothing. Every production change has had two independent reviews, and the last round was clean.\n- Broader or simpler repair: No broader repair is needed: the design already rests on a single resolver and a single inbox constant, and the remaining public-slug literals are the repos file, the pull request comment and review files that #1964 retargets, an Actions endpoint (CI stays public), a historical evidence link the migration handles, and two #1962 hook fixtures that pin each repository as an input. One deviation from the ticket's file list is accepted as correct: clean-worktrees keeps reading pr-<N> review-job state through repos/{owner}/{repo}/issues/N on origin, because those numbers are pull requests in the code repository before and after the cutover, so naming the internal repository would read the wrong number; the callers reviewer agreed. A follow-up worth noting for #1964 or #1965 rather than this slice: that lookup could use the pulls endpoint instead of the issues endpoint, which is the form the #1962 guard allows on the code repository, even though the hook does not see a script's own child gh calls.\n- Residual risk: By design under the brief, disclosed in the PR and the adjudications: no live operation on an internal ticket has run, since the switch stays off and the PR creates nothing in the internal repository, so the ticket's record-blockers acceptance on a throwaway internal ticket falls to the cutover (a scratch on-position dry run did call repos/ImpowerGames/impower-internal/issues/1 and got HTTP 410, proving the routing); the internal repository holds no template copies yet, so the template-sync test skips and #1967 lands them; the public chooser is unchanged until #1967 moves the staged templates; noncanonical closing-reference inputs (an issue URL with a trailing path, #5-old) match on their numeric prefix, low risk since no template or skill writes them. Switch-off behaviour was byte-compared against main by the persistence reviewer and exercised by every pre-existing assertion.\n- Verification coverage: Red on base: the new tests fail against an extract of origin/main (check-linked-issue behaviourally, templates and interface-exercise on missing files and exports). Green on 23ebfd91b: check-linked-issue in both positions including the acceptance cases (Closes ImpowerGames/impower-internal#5 passes, bare #5 alone fails on, both together pass), typed-issue-hook with the new loader rows, triage 38 (also with the committed switch flipped on in a scratch tree), interface-exercise and record-blockers from copies in both positions, templates (one SKIP for the empty internal repository), and check-agent-tooling --tier skills exit 0 with 71 discovered. Each review correction was mutation-checked. Live: record-blockers 1963 --dry-run prints ImpowerGames/impower#1963. CI on 23ebfd91b: every check passed, including skills-checks and driver-checks on both platforms and all four vitest-api-integration jobs.\n- What another round would establish: Little: round 3 was clean on a test-only correction, every production change had two independent reviews, the current head is the reviewed head, and the remaining gaps are cutover checks this PR cannot perform with the switch off. Another round would re-read the same code.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The review gates pass: three complete rounds, every report adjudicated, all eight findings accepted and fixed with mutation evidence, round 3 clean, the current head independently reviewed with no unreviewed range, and every CI check passed. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish: the writer marks PR #2009 ready through review-pr's own readiness and sends its final report, and the coordinator merges only through the merge gate. The clean-worktrees deviation is accepted as the correct reading of the ticket; the suggestion to use the pulls endpoint is passed on as a follow-up, not a condition. Next: The writer marks PR #2009 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 23ebfd91b, findings None), and ends. The coordinator runs integration.mjs gate and merges through integration.mjs merge; once the merge commit is on origin/main, #1964 becomes eligible and is dispatched with the cutover-switch decision and the internal-repository decision in its brief.\n- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"aa7a65f6\",\n \"kind\": \"finish\",\n \"feature\": 1961,\n \"ticket\": 1963,\n \"pr\": 2009,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-17T02:10:41.438Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"23ebfd91bc97c7e4d8e585d88553c1a9e268546d\",\n \"head\": \"23ebfd91bc97c7e4d8e585d88553c1a9e268546d\",\n \"range\": {\n  \"from\": \"23ebfd91bc97c7e4d8e585d88553c1a9e268546d\",\n  \"to\": \"23ebfd91bc97c7e4d8e585d88553c1a9e268546d\",\n  \"base\": \"d5cb34d141f2c7f4caaf9b9fc17647019053d381\",\n  \"commits\": [],\n  \"diffSha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n },\n \"reports\": [\n  {\n   \"comment\": 6227216999,\n   \"round\": 1,\n   \"reviewerId\": \"callers\",\n   \"adjudication\": 6227357113\n  },\n  {\n   \"comment\": 6227490154,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227654141\n  },\n  {\n   \"comment\": 6227921774,\n   \"round\": 2,\n   \"reviewerId\": \"persistence\",\n   \"adjudication\": 6227956839\n  },\n  {\n   \"comment\": 6228050570,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228092253\n  },\n  {\n   \"comment\": 6228150147,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228164145\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Eight accepted findings in three rounds, in two mechanisms plus three singletons. Mechanism A, triage mixing tickets and pull requests once the switch is on: round 1 callers #1 (pull request reads routed to the tickets repository), round 1 undirected #1 (bare PR numbers rendered into ticket text, which in the internal tracker would name a ticket), and round 2 persistence #1 (the correction for the previous one persisted the qualified prefix into stored data, so a prefix written before the cutover was doubled). The final shape prevents the class: one resolver (ticketsRepo) for tickets and the inbox, pull request reads pinned to the code repository, qualification applied at display time only, and stored ledger data byte-identical to main in both positions, which the persistence reviewer checked. Mechanism B, tests that read the committed switch or bypassed the production default: round 1 callers #3 (interface-exercise asserted the on position by passing the repository explicitly), the writer's own sweep of record-blockers, and round 2 undirected #1 (the triage tests imported the production module and depended on the committed repos.json). Now every switch-position test loads a copy of the script beside its own repos file pinned off or on, and the triage suite also passes in a scratch tree whose committed switch is flipped. The singletons: a leftover literal #510 in the generated Task, the template fixtures breaking when the staged public set is moved at the cutover, and the AGENTS.md publishing rule. Round 3 reviewed the test-only round 2 correction on 23ebfd91b and found nothing; that head is the current head, with no unreviewed range.\",\n  \"regressions\": \"One correction introduced a defect: the round 1 fix for bare PR numbers wrote the qualified display text into persisted friction and edit text, which round 2's persistence reviewer caught as a doubled prefix on pre-cutover data. It was repaired by qualifying at display time only, and round 2's undirected reviewer and round 3 found no further defect. The round 2 test-pinning correction introduced nothing. Every production change has had two independent reviews, and the last round was clean.\",\n  \"repairOptions\": \"No broader repair is needed: the design already rests on a single resolver and a single inbox constant, and the remaining public-slug literals are the repos file, the pull request comment and review files that #1964 retargets, an Actions endpoint (CI stays public), a historical evidence link the migration handles, and two #1962 hook fixtures that pin each repository as an input. One deviation from the ticket's file list is accepted as correct: clean-worktrees keeps reading pr-<N> review-job state through repos/{owner}/{repo}/issues/N on origin, because those numbers are pull requests in the code repository before and after the cutover, so naming the internal repository would read the wrong number; the callers reviewer agreed. A follow-up worth noting for #1964 or #1965 rather than this slice: that lookup could use the pulls endpoint instead of the issues endpoint, which is the form the #1962 guard allows on the code repository, even though the hook does not see a script's own child gh calls.\",\n  \"residualRisk\": \"By design under the brief, disclosed in the PR and the adjudications: no live operation on an internal ticket has run, since the switch stays off and the PR creates nothing in the internal repository, so the ticket's record-blockers acceptance on a throwaway internal ticket falls to the cutover (a scratch on-position dry run did call repos/ImpowerGames/impower-internal/issues/1 and got HTTP 410, proving the routing); the internal repository holds no template copies yet, so the template-sync test skips and #1967 lands them; the public chooser is unchanged until #1967 moves the staged templates; noncanonical closing-reference inputs (an issue URL with a trailing path, #5-old) match on their numeric prefix, low risk since no template or skill writes them. Switch-off behaviour was byte-compared against main by the persistence reviewer and exercised by every pre-existing assertion.\",\n  \"coverage\": \"Red on base: the new tests fail against an extract of origin/main (check-linked-issue behaviourally, templates and interface-exercise on missing files and exports). Green on 23ebfd91b: check-linked-issue in both positions including the acceptance cases (Closes ImpowerGames/impower-internal#5 passes, bare #5 alone fails on, both together pass), typed-issue-hook with the new loader rows, triage 38 (also with the committed switch flipped on in a scratch tree), interface-exercise and record-blockers from copies in both positions, templates (one SKIP for the empty internal repository), and check-agent-tooling -\\u002dtier skills exit 0 with 71 discovered. Each review correction was mutation-checked. Live: record-blockers 1963 -\\u002ddry-run prints ImpowerGames/impower#1963. CI on 23ebfd91b: every check passed, including skills-checks and driver-checks on both platforms and all four vitest-api-integration jobs.\",\n  \"nextRoundValue\": \"Little: round 3 was clean on a test-only correction, every production change had two independent reviews, the current head is the reviewed head, and the remaining gaps are cutover checks this PR cannot perform with the switch off. Another round would re-read the same code.\",\n  \"rationale\": \"The review gates pass: three complete rounds, every report adjudicated, all eight findings accepted and fixed with mutation evidence, round 3 clean, the current head independently reviewed with no unreviewed range, and every CI check passed. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish: the writer marks PR #2009 ready through review-pr's own readiness and sends its final report, and the coordinator merges only through the merge gate. The clean-worktrees deviation is accepted as the correct reading of the ticket; the suggestion to use the pulls endpoint is passed on as a follow-up, not a condition.\",\n  \"next\": \"The writer marks PR #2009 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 23ebfd91b, findings None), and ends. The coordinator runs integration.mjs gate and merges through integration.mjs merge; once the merge commit is on origin/main, #1964 becomes eligible and is dispatched with the cutover-switch decision and the internal-repository decision in its brief.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6227216999,\n    \"finding\": \"triage redirects pull request reads into the tickets repository\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227216999,\n    \"finding\": \"generated Tasks retain a literal #510 inbox reference\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227216999,\n    \"finding\": \"the interface-exercise switch-on assertion bypassed the production default\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227216999,\n    \"finding\": \"the chooser fixtures break when the staged public templates are moved at the cutover\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227490154,\n    \"finding\": \"triage renders bare PR numbers into ticket text, which name tickets in the internal tracker\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227490154,\n    \"finding\": \"AGENTS.md still sends issue templates to .github/ and mandates a bare Closes #N\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227921774,\n    \"finding\": \"a stored earlier-feedback prefix written before the cutover is doubled and stays bare after it\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050570,\n    \"finding\": \"the triage tests read the committed switch instead of pinning both positions\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228150147,\n    \"disposition\": \"none\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "4d4c46c3a7b4d6ac5242c19598362a184ce276e9edda9fbcfcff0415b90e74f1",
+          "blockSha256": "59df57ea00f4cd6cd5de012032be5b80bdba98476c52021d1cc2fd409583df82",
+          "published": {
+            "comment": 6228342499,
+            "time": "2026-10-17T02:10:45.929Z",
+            "headAtPublish": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d"
+          }
         }
       ]
     },
@@ -1742,6 +1973,16 @@
       "time": "2026-10-16T22:52:30.277Z"
     },
     {
+      "pr": 2009,
+      "url": "https://github.com/ImpowerGames/impower/pull/2009#issuecomment-6228342499",
+      "kind": "review-checkpoint finish",
+      "ticket": 1963,
+      "id": "aa7a65f6",
+      "round": 3,
+      "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
+      "time": "2026-10-17T02:10:45.929Z"
+    },
+    {
       "pr": 2015,
       "url": "https://github.com/ImpowerGames/impower/pull/2015#issuecomment-6228245433",
       "kind": "review-checkpoint repair",
@@ -1760,7 +2001,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T02:07:40.019Z",
+      "observedAt": "2026-10-17T02:11:10.331Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -1959,7 +2200,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:07:40.019Z",
+      "observedAt": "2026-10-17T02:11:10.331Z",
       "held": true,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
@@ -2595,6 +2836,30 @@
       "event": "request",
       "ticket": 1963,
       "id": "3ec61e13"
+    },
+    {
+      "time": "2026-10-17T02:10:41.438Z",
+      "event": "checkpoint-intent",
+      "ticket": 1963,
+      "id": "aa7a65f6",
+      "kind": "finish",
+      "round": 3,
+      "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d"
+    },
+    {
+      "time": "2026-10-17T02:10:45.929Z",
+      "event": "checkpoint-published",
+      "ticket": 1963,
+      "id": "aa7a65f6",
+      "comment": 6228342499
+    },
+    {
+      "time": "2026-10-17T02:11:08.560Z",
+      "event": "answer-intent",
+      "ticket": 1963,
+      "id": "3ec61e13",
+      "deliveryId": "b8c56949",
+      "attempt": 1
     }
   ]
 }
