@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 92,
-  "previous": "db549d0e82a4e73e8cfdd34ada2eaa36232c31c9",
+  "seq": 93,
+  "previous": "d6c8c759b3335d266e4747700380d4d73dcb314a",
   "snapshotParents": [],
-  "time": "2026-10-17T01:01:37.481Z",
+  "time": "2026-10-17T01:04:30.532Z",
   "kind": "auto",
-  "transition": "release of #1908",
+  "transition": "result of #1908",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 95,
+    "recordRevision": 96,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -935,6 +935,29 @@
             "notes": "AC2 as worded (removing the catch-all from LuauBlockBody alone) is a no-op because every pure-Luau body lists #LuauUnreadToken after #LuauBlockBody as #1905's lint requires; the PR demonstrates with the catch-all removed everywhere. Known list carries #879 (require, 17 inputs) and #922 (1 input), which #1906 is slated to close: whichever PR merges second must drop those entries. Bugs filed under #1890: #1985-#1992, #1997, #1998. Residual: lint capture errs toward inclusion; snippet names follow capture order; collection takes about 22 s; workflow failure branches checked by reading, not by injection. Housekeeping: leftover repro/filer-* branches; filer tree preserved under impower.filer-jobs/0490d5e0 (owner filer-1908-class-incomplete); unused artifact directory writer-1908-RJmMD2.",
             "source": "cross-session message from impower-8b (writer session e8d62dfb) on 2026-10-17"
           }
+        },
+        {
+          "time": "2026-10-17T01:04:26.288Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1996,
+            "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
+            "rounds": {
+              "codex-cli gpt-6.1-sol high": 2,
+              "cap": 3,
+              "reviewers": "round 1 gate (6225562238, c23daeb3b) and undirected (6226437335, 1f237133a), adjudications 6226120202 and 6226749389; round 2 fixes (6227039934, 2dece6b52) and undirected (6227537238, 855be2106), adjudications 6227324770 and 6227568114; round states 6225367876 and 6226762388; every reviewer exited, every journal finished"
+            },
+            "findings": "None",
+            "findingsHistory": "Six accepted and fixed (R1: literal-only port extraction dropped snippets; extent check skipped when Luau rejected a snippet; a split lint case lost its second group; the surplus-end extent accepted any early close; Luau-to-document line mapping off by one. R2: a stub result let a loop body throw silently). Shared mechanism: ways the gate could pass without checking what it claims; repaired broadly by running the ports with their real harness and reading extents exactly from Luau's own parse. No correction introduced a defect a later reviewer found.",
+            "verification": "gate on 855be2106: 1071/1071 passed (reviewer saw 1203 on the head), luauSyntaxAgreement 132/132 on 2dece6b52; inventory conformance 54, typecheck 851, lint 85, autocomplete 77; 51 known entries each still failing as listed; AC2 demonstration (not committed): removing every #LuauUnreadToken include fails 27/1071 (18 extent, 9 incomplete); round 1's class early-close mutation fails conformance/classes.luau; guard and matrix checks pass; filtered tsc clean",
+            "ci": "855be2106: Luau corpus gate, test-suite, all package shards, typecheck, tsc, build, hook-tests, skills-checks (both platforms), linked-issue, notifier-tests and every detect job passed; driver-checks, notifier, vitest-api-integration skipped by path filter; none failed or pending",
+            "next": "nothing from the writer; PR ready for the merge gate",
+            "changesAfterReviewedCommit": "none",
+            "notes": "AC2 as worded (removing the catch-all from LuauBlockBody alone) is a no-op because every pure-Luau body lists #LuauUnreadToken after #LuauBlockBody as #1905's lint requires; the PR demonstrates with the catch-all removed everywhere. Known list carries #879 (require, 17 inputs) and #922 (1 input), which #1906 is slated to close: whichever PR merges second must drop those entries. Bugs filed under #1890: #1985-#1992, #1997, #1998. Residual: lint capture errs toward inclusion; snippet names follow capture order; collection takes about 22 s; workflow failure branches checked by reading, not by injection. Housekeeping: leftover repro/filer-* branches; filer tree preserved under impower.filer-jobs/0490d5e0 (owner filer-1908-class-incomplete); unused artifact directory writer-1908-RJmMD2.",
+            "source": "cross-session message from impower-8b (writer session e8d62dfb) on 2026-10-17"
+          }
         }
       ]
     },
@@ -1505,7 +1528,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T01:01:36.085Z",
+      "observedAt": "2026-10-17T01:04:29.139Z",
       "held": true,
       "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
       "remoteHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
@@ -1641,7 +1664,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T01:01:36.085Z",
+      "observedAt": "2026-10-17T01:04:29.139Z",
       "held": true,
       "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
       "remoteHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
@@ -2806,6 +2829,13 @@
       "event": "released",
       "ticket": 1908,
       "reason": "process 52132 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-17T01:04:26.289Z",
+      "event": "result",
+      "ticket": 1908,
+      "pr": 1996,
+      "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b"
     }
   ]
 }
