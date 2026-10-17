@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 190,
-  "previous": "d7435bf404c8c82397bf5d64574ffbcbf5c0a657",
+  "seq": 191,
+  "previous": "2a89edb85e695d4423009219be64505f0d010dbb",
   "snapshotParents": [],
-  "time": "2026-10-17T15:22:31.922Z",
+  "time": "2026-10-17T15:22:41.377Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1906",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 202,
+    "recordRevision": 203,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1772,75 +1772,81 @@
       ]
     },
     "1906": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "high",
-        "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
-        "branch": "fix/1906-luau-token-classes",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
-        "launchId": "bb7eb9b8-394b-4504-a291-e7aa45147ebc",
-        "handle": {
-          "kind": "process",
-          "pid": 40776,
-          "start": "639278465918468262",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-f9a8bb74-5763-4b63-9971-8c7ffc27c0fd"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment bb7eb9b8-394b-4504-a291-e7aa45147ebc. You are the writer for ImpowerGames/impower ticket #1906 (Make the grammar's Luau token classes agree with Luau's lexer: closers, reserved words, structural words, Unicode names, require and the value on the next line), a slice of Feature #1904, coordinated by coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 an acknowledgement naming assignment bb7eb9b8-394b-4504-a291-e7aa45147ebc and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1906 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes on branch fix/1906-luau-token-classes from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904, and keep every artifact in it.\nSettled decisions:\n- The PR body carries Closes #1906 and a Closes line for each Bug the Feature assigns to this slice that is still open: #879 #922 #984 #1102 #1195 #1209 #1247 #1266 #1341; each gets a regression test. Where a listed Bug is not fixed by this slice, the PR says so and leaves it open.\n- #1905 (PR #1927, the tiling catch-all and converter reading of unread tokens) merged on 2026-10-16 as bdba348d; branch from current origin/main, which contains it.\n- Two sibling writers run in parallel: #1908 (the corpus gate test and CI wiring, no grammar change) and #1924 (token rules for valid Luau forms the grammar lacks, in the same YAML). #1924 leaves closers, reserved words, structural words, the identifier boundary, require and the value-on-the-next-line rule to you; you leave new form rules to it. When main moves, merge it into your branch and resolve YAML conflicts in the sources, regenerating both outputs.\n- PR #1411 (codex/fix/879-require-call-terminator) is an open, incomplete Codex PR for #879 that nobody continues; your PR closes #879 on its own. Name #1411 in your PR body as superseded so the maintainer can close it; do not touch its branch.\n- Story-body statement ends (where a Luau statement ends in a scene or branch) belong to #1907 and are out of scope here.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "78900b8e",
-          "attempts": 1,
-          "time": "2026-10-16T19:37:39.980Z",
-          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
-        },
-        "since": "2026-10-16T19:37:39.982Z",
-        "sessionId": "e57d8cb2-3a24-4931-90ab-6d0acb246002",
-        "acknowledged": {
-          "time": "2026-10-16T19:38:22.182Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "high",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
+            "branch": "fix/1906-luau-token-classes",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
+            "launchId": "bb7eb9b8-394b-4504-a291-e7aa45147ebc",
+            "handle": {
+              "kind": "process",
+              "pid": 40776,
+              "start": "639278465918468262",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-f9a8bb74-5763-4b63-9971-8c7ffc27c0fd"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment bb7eb9b8-394b-4504-a291-e7aa45147ebc. You are the writer for ImpowerGames/impower ticket #1906 (Make the grammar's Luau token classes agree with Luau's lexer: closers, reserved words, structural words, Unicode names, require and the value on the next line), a slice of Feature #1904, coordinated by coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 an acknowledgement naming assignment bb7eb9b8-394b-4504-a291-e7aa45147ebc and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1906 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes on branch fix/1906-luau-token-classes from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904, and keep every artifact in it.\nSettled decisions:\n- The PR body carries Closes #1906 and a Closes line for each Bug the Feature assigns to this slice that is still open: #879 #922 #984 #1102 #1195 #1209 #1247 #1266 #1341; each gets a regression test. Where a listed Bug is not fixed by this slice, the PR says so and leaves it open.\n- #1905 (PR #1927, the tiling catch-all and converter reading of unread tokens) merged on 2026-10-16 as bdba348d; branch from current origin/main, which contains it.\n- Two sibling writers run in parallel: #1908 (the corpus gate test and CI wiring, no grammar change) and #1924 (token rules for valid Luau forms the grammar lacks, in the same YAML). #1924 leaves closers, reserved words, structural words, the identifier boundary, require and the value-on-the-next-line rule to you; you leave new form rules to it. When main moves, merge it into your branch and resolve YAML conflicts in the sources, regenerating both outputs.\n- PR #1411 (codex/fix/879-require-call-terminator) is an open, incomplete Codex PR for #879 that nobody continues; your PR closes #879 on its own. Name #1411 in your PR body as superseded so the maintainer can close it; do not touch its branch.\n- Story-body statement ends (where a Luau statement ends in a scene or branch) belong to #1907 and are out of scope here.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "78900b8e",
+              "attempts": 1,
+              "time": "2026-10-16T19:37:39.980Z",
+              "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+            },
+            "since": "2026-10-16T19:37:39.982Z",
+            "sessionId": "e57d8cb2-3a24-4931-90ab-6d0acb246002",
+            "acknowledged": {
+              "time": "2026-10-16T19:38:22.182Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "high",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from impower-05 on 2026-10-16 naming assignment bb7eb9b8 with --model claude-opus-5-5, --effort high (CLAUDE_EFFORT), --permission-mode bypassPermissions, sent by session title",
+              "deliveryId": "78900b8e"
+            },
+            "resumes": [
+              {
+                "id": "4bcc49f5-bd97-449d-8480-09353997d26c",
+                "time": "2026-10-17T05:12:09.041Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-4bcc49f5-bd97-449d-8480-09353997d26c"
+              },
+              {
+                "id": "512712b3-3724-4e13-856b-cdab45204bc5",
+                "time": "2026-10-17T06:44:06.537Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5"
+              },
+              {
+                "id": "8d5bed2c-422b-4b37-a2e2-e6a0cd8bc09b",
+                "time": "2026-10-17T13:30:23.335Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-8d5bed2c-422b-4b37-a2e2-e6a0cd8bc09b"
+              },
+              {
+                "id": "12ee6d19-c4b9-4ae3-ab04-9adb2d00bdfe",
+                "time": "2026-10-17T13:36:55.608Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-12ee6d19-c4b9-4ae3-ab04-9adb2d00bdfe"
+              },
+              {
+                "id": "f9a8bb74-5763-4b63-9971-8c7ffc27c0fd",
+                "time": "2026-10-17T15:09:52.349Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-f9a8bb74-5763-4b63-9971-8c7ffc27c0fd"
+              }
+            ]
           },
-          "evidence": "cross-session message from impower-05 on 2026-10-16 naming assignment bb7eb9b8 with --model claude-opus-5-5, --effort high (CLAUDE_EFFORT), --permission-mode bypassPermissions, sent by session title",
-          "deliveryId": "78900b8e"
-        },
-        "resumes": [
-          {
-            "id": "4bcc49f5-bd97-449d-8480-09353997d26c",
-            "time": "2026-10-17T05:12:09.041Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-4bcc49f5-bd97-449d-8480-09353997d26c"
-          },
-          {
-            "id": "512712b3-3724-4e13-856b-cdab45204bc5",
-            "time": "2026-10-17T06:44:06.537Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5"
-          },
-          {
-            "id": "8d5bed2c-422b-4b37-a2e2-e6a0cd8bc09b",
-            "time": "2026-10-17T13:30:23.335Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-8d5bed2c-422b-4b37-a2e2-e6a0cd8bc09b"
-          },
-          {
-            "id": "12ee6d19-c4b9-4ae3-ab04-9adb2d00bdfe",
-            "time": "2026-10-17T13:36:55.608Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-12ee6d19-c4b9-4ae3-ab04-9adb2d00bdfe"
-          },
-          {
-            "id": "f9a8bb74-5763-4b63-9971-8c7ffc27c0fd",
-            "time": "2026-10-17T15:09:52.349Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-f9a8bb74-5763-4b63-9971-8c7ffc27c0fd"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 40776 is gone and no process names its launch directory; PR #1995 merged as 006d924c at the accepted head a35ea4a98 (operation 8a377245 confirmed); the writer was resumed with the acceptance and its process ended (plan census)",
+          "time": "2026-10-17T15:22:39.090Z"
+        }
+      ],
       "results": [],
       "requests": [
         {
@@ -6361,397 +6367,12 @@
   "diskRecoveries": [],
   "verifications": [],
   "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes": {
-      "ticket": 1906,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
-      "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T15:22:30.903Z",
-      "held": true,
-      "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
-      "remoteHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1995,
-      "reviewJobs": [
-        {
-          "job": "pr-1995/round-1/launch-ax-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-ax",
-            "reviewerId": "ax",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gram",
-              "ax",
-              "undirected"
-            ],
-            "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
-            "completedRoundReviewers": {
-              "gram": 1
-            },
-            "time": "2026-10-16T23:41:26.972Z"
-          },
-          "round": 1,
-          "reviewerId": "ax",
-          "attempt": 1,
-          "reviewedHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "gram": 1,
-            "ax": 1
-          },
-          "plannedRoundReviewers": [
-            "gram",
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6226905089
-          ]
-        },
-        {
-          "job": "pr-1995/round-1/launch-gram-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-gram",
-            "reviewerId": "gram",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gram",
-              "ax",
-              "undirected"
-            ],
-            "head": "e487e7f7bf8ee88c2ae5020123a9b9145a0c1a33",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T21:41:38.540Z"
-          },
-          "round": 1,
-          "reviewerId": "gram",
-          "attempt": 1,
-          "reviewedHead": "e487e7f7bf8ee88c2ae5020123a9b9145a0c1a33",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "gram": 1
-          },
-          "plannedRoundReviewers": [
-            "gram",
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6225382429
-          ]
-        },
-        {
-          "job": "pr-1995/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gram",
-              "ax",
-              "undirected"
-            ],
-            "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
-            "completedRoundReviewers": {
-              "gram": 1,
-              "ax": 1
-            },
-            "time": "2026-10-16T23:55:11.084Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "gram": 1,
-            "ax": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "gram",
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6227523977
-          ]
-        },
-        {
-          "job": "pr-1995/round-2/launch-axg-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-axg",
-            "reviewerId": "axg",
-            "attempt": 1,
-            "plannedReviewers": [
-              "axg",
-              "undirected"
-            ],
-            "head": "28104b74f26049c17cf3018b0748466e618196c6",
-            "completedRoundReviewers": {
-              "gram": 1,
-              "ax": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T01:45:20.298Z"
-          },
-          "round": 2,
-          "reviewerId": "axg",
-          "attempt": 1,
-          "reviewedHead": "28104b74f26049c17cf3018b0748466e618196c6",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "axg": 1
-          },
-          "plannedRoundReviewers": [
-            "axg",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6228226010
-          ]
-        },
-        {
-          "job": "pr-1995/round-2/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "axg",
-              "undirected"
-            ],
-            "head": "43efd1fb0e495743a6ce5027abd69bcbcd696f9b",
-            "completedRoundReviewers": {
-              "axg": 1
-            },
-            "time": "2026-10-17T02:11:30.019Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "43efd1fb0e495743a6ce5027abd69bcbcd696f9b",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "axg": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "axg",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6228684372
-          ]
-        },
-        {
-          "job": "pr-1995/round-3/launch-axg-1",
-          "lastEvent": "blocked",
-          "attempted": {
-            "round": 3,
-            "step": "review-axg",
-            "reviewerId": "axg",
-            "attempt": 1,
-            "plannedReviewers": [
-              "axg",
-              "undirected"
-            ],
-            "head": "776041e309ec96e045d268ac8d3422a1502d2a7c",
-            "completedRoundReviewers": {
-              "axg": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T03:29:07.386Z"
-          }
-        },
-        {
-          "job": "pr-1995/round-3/launch-axg-2",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-axg",
-            "reviewerId": "axg",
-            "attempt": 2,
-            "plannedReviewers": [
-              "axg",
-              "undirected"
-            ],
-            "head": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T05:52:45.577Z"
-          },
-          "round": 3,
-          "reviewerId": "axg",
-          "attempt": 2,
-          "reviewedHead": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "undirected": 1,
-            "axg": 2
-          },
-          "plannedRoundReviewers": [
-            "axg",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6230483903
-          ]
-        },
-        {
-          "job": "pr-1995/round-3/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "axg",
-              "undirected"
-            ],
-            "head": "08f0761a40aa945501dbc48da53b1ab31662bbb0",
-            "completedRoundReviewers": {
-              "axg": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T03:57:44.815Z"
-          },
-          "round": 3,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "08f0761a40aa945501dbc48da53b1ab31662bbb0",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "axg",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "axg"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6229606869
-          ]
-        },
-        {
-          "job": "pr-1995/round-4/launch-axg-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 4,
-            "step": "review-axg",
-            "reviewerId": "axg",
-            "attempt": 1,
-            "plannedReviewers": [
-              "axg",
-              "undirected"
-            ],
-            "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
-            "completedRoundReviewers": {
-              "undirected": 1,
-              "axg": 2
-            },
-            "time": "2026-10-17T13:48:38.491Z"
-          },
-          "round": 4,
-          "reviewerId": "axg",
-          "attempt": 1,
-          "reviewedHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "axg": 1
-          },
-          "plannedRoundReviewers": [
-            "axg",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6234798892
-          ]
-        },
-        {
-          "job": "pr-1995/round-4/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 4,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "axg",
-              "undirected"
-            ],
-            "head": "5fabd8bb1afa8235e76080e8159fdc84ccfe6839",
-            "completedRoundReviewers": {
-              "axg": 1
-            },
-            "time": "2026-10-17T14:03:51.345Z"
-          },
-          "round": 4,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "5fabd8bb1afa8235e76080e8159fdc84ccfe6839",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "axg": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "axg",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6235055428
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting": {
       "ticket": 1924,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:22:30.903Z",
+      "observedAt": "2026-10-17T15:22:40.382Z",
       "held": true,
       "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
       "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
@@ -7551,15 +7172,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T04:08:39.326Z",
-      "event": "checkpoint-intent",
-      "ticket": 1924,
-      "id": "3f6686ca",
-      "kind": "extend",
-      "round": 3,
-      "head": "0bed5815578cb7daa1641cd650bf749da3241bbc"
-    },
-    {
       "time": "2026-10-17T04:08:42.295Z",
       "event": "checkpoint-published",
       "ticket": 1924,
@@ -8299,6 +7911,12 @@
       "event": "operation-outcome",
       "id": "8a377245",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-17T15:22:39.091Z",
+      "event": "released",
+      "ticket": 1906,
+      "reason": "process 40776 is gone and no process names its launch directory"
     }
   ]
 }
