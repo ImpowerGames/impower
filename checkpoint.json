@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 72,
-  "previous": "023a0f212b5e238e92d99a6b3f35596c3b1f27ab",
+  "seq": 73,
+  "previous": "f6e2e3b5a094c70c712087d93a9f79f169db5cd3",
   "snapshotParents": [],
-  "time": "2026-10-17T02:13:11.156Z",
+  "time": "2026-10-17T02:15:12.582Z",
   "kind": "auto",
-  "transition": "result of #1963",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 67,
+    "recordRevision": 68,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1973,6 +1973,144 @@
       "mergedOnto": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
       "baseMoved": false,
       "onMain": true
+    },
+    {
+      "id": "d0289c2a",
+      "kind": "merge",
+      "ticket": 1963,
+      "pr": 2009,
+      "expectHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
+      "state": "intent",
+      "time": "2026-10-17T02:15:09.157Z",
+      "evidence": "admitted as reviewed",
+      "gate": {
+        "disposition": "reviewed",
+        "reviewedHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
+        "completedRound": 3,
+        "mergedSince": [],
+        "originMain": "d5cb34d141f2c7f4caaf9b9fc17647019053d381",
+        "ciMain": "d5cb34d141f2c7f4caaf9b9fc17647019053d381",
+        "containsMain": true,
+        "mainCi": {
+          "verdict": "green",
+          "head": "d5cb34d141f2c7f4caaf9b9fc17647019053d381",
+          "run": 38991245619,
+          "conclusion": "success",
+          "url": "https://github.com/ImpowerGames/impower/actions/runs/38991245619"
+        },
+        "checks": [
+          {
+            "name": "changes / detect",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "linked-issue",
+            "workflow": "Check Linked Issue",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "notifier",
+            "workflow": "Agent Notification Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+            "workflow": "Test Suite",
+            "result": "skipped"
+          },
+          {
+            "name": "driver-changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "tsc",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "Luau corpus gate",
+            "workflow": "Test Suite",
+            "result": "skipped"
+          },
+          {
+            "name": "notifier-tests",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks (ubuntu-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "typecheck",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks (windows-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks (ubuntu-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "test-suite",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks (windows-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (windows-latest, 2.1.9)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (windows-latest, 3.2.6)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "hook-tests",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          }
+        ]
+      }
     }
   ],
   "decisions": [
@@ -2025,7 +2163,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T02:13:08.230Z",
+      "observedAt": "2026-10-17T02:15:11.093Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -2224,7 +2362,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:13:08.230Z",
+      "observedAt": "2026-10-17T02:15:11.093Z",
       "held": true,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
@@ -2918,6 +3056,13 @@
       "ticket": 1963,
       "pr": 2009,
       "reviewedHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d"
+    },
+    {
+      "time": "2026-10-17T02:15:09.157Z",
+      "event": "operation-intent",
+      "id": "d0289c2a",
+      "kind": "merge",
+      "pr": 2009
     }
   ]
 }
