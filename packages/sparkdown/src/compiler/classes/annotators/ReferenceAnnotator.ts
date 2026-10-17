@@ -518,10 +518,13 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
 
     // ----- OOP define property (`store trust = 0`, `name = "RAFFLES"`) ---------
     if (nodeRef.name === "LuauPropertyDefinition") {
-      const begin = getDescendent(["LuauVariableAssignment_begin", "LuauSparkdownExplicitVariableAssignment_begin"], nodeRef.node);
-      const nameNode = begin
+      // A reserved-word key is in the property's own begin.
+      const ownBegin = findChildByName(nodeRef.node, "LuauPropertyDefinition_begin");
+      const keywordKey = ownBegin ? getDescendent("LuauDefineKeywordKey", ownBegin) : null;
+      const begin = keywordKey ? null : getDescendent(["LuauVariableAssignment_begin", "LuauSparkdownExplicitVariableAssignment_begin"], nodeRef.node);
+      const nameNode = keywordKey ?? (begin
         ? getDescendent("LuauVariableName", begin)
-        : getDescendent(["LuauVariableName", "LuauDefineKeywordKey"], nodeRef.node);
+        : getDescendent("LuauVariableName", nodeRef.node));
       if (nameNode) {
         const propName = this.read(nameNode.from, nameNode.to).trim();
         annotations.push(

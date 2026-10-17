@@ -713,9 +713,23 @@ class Tokenizer {
     // So is a reserved word where a `local` needs its name (`local end`,
     // #1906): the grammar ends the declaration with no name, and the word
     // begins whatever it begins, as in Luau.
-    const before = this.tokens[this.tokens.length - 1];
-    if (kind === "keyword" && token.text !== "function" && before?.kind === "keyword" && before.text === "local") token.unread = true;
+    // So is one after a comma of its names on the comma's line (`local a,
+    // nil`); the validator reports a comma that ends its line.
+    if (kind === "keyword" && token.text !== "function" && this.atLocalName(token)) token.unread = true;
     this.tokens.push(token);
+  }
+
+  /** Whether a token stands where a `local` needs a name: right after the `local`, or after a comma on its line that follows one of the names. */
+  private atLocalName(token: Token): boolean {
+    let i = this.tokens.length - 1;
+    const isLocal = (t: Token | undefined) => t?.kind === "keyword" && t.text === "local";
+    if (isLocal(this.tokens[i])) return true;
+    if (this.tokens[i]?.location.end.line !== token.location.begin.line) return false;
+    while (this.tokens[i]?.kind === "symbol" && this.tokens[i]!.text === "," && this.tokens[i - 1]?.kind === "name") {
+      i -= 2;
+      if (isLocal(this.tokens[i])) return true;
+    }
+    return false;
   }
 
   /** Writes a token the unit needs that the text does not hold, at an offset, as part of the node being read. */

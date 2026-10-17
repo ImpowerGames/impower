@@ -786,15 +786,17 @@ function readPropertyDefinition(
     }
     if (name == null) return null;
   } else {
-    // A key spelled as a reserved word is the property's own, before its
-    // `LuauAssignmentOperation`.
-    const variableAssignment = getDescendent(
-      "LuauVariableAssignment",
-      propNode,
-    );
-    const nameNode = variableAssignment
+    // A key spelled as a reserved word is in the property's own begin,
+    // before its `LuauAssignmentOperation`, whose value may hold
+    // assignments of its own.
+    const begin = findChildByName(propNode, "LuauPropertyDefinition_begin");
+    const keywordKey = begin ? getDescendent("LuauDefineKeywordKey", begin) : null;
+    const variableAssignment = keywordKey
+      ? null
+      : getDescendent("LuauVariableAssignment", propNode);
+    const nameNode = keywordKey ?? (variableAssignment
       ? getDescendent("LuauVariableName", variableAssignment)
-      : getDescendent("LuauDefineKeywordKey", propNode);
+      : null);
     if (!nameNode) return null;
     name = ctx.read(nameNode.from, nameNode.to);
   }

@@ -605,9 +605,15 @@ variables:
   # there, and `LuauAssignmentLineBreak` begins.
   # lookaround: LuauAssignmentLineBreak reads the comment with the line
   # break after it; LuauComment reads a comment anywhere else.
-  LUAU_COMMENT_ENDS_ASSIGNMENT_LINE: (?<=[^=~<>]={{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}*(?:{{LUAU_LINE_COMMENT_START}}|$))
+  LUAU_COMMENT_ENDS_ASSIGNMENT_LINE: (?<=[^=~<>]={{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}*(?:{{LUAU_LINE_COMMENT_START}}|{{LUAU_OPEN_BLOCK_COMMENT_START}}|$))
   # lookaround: LuauBlockComment reads a `--[[`.
   LUAU_LINE_COMMENT_START: (?:{{LUAU_COMMENT_START}}(?!\[=*\[))
+  # A block comment that does not close on its line, or one of a level
+  # (`--[====[`) `LUAU_BLOCK_COMMENT_ON_LINE` does not read: the comment the
+  # value's line break goes on after.
+  # lookaround: LUAU_BLOCK_COMMENT_ON_LINE reads a block comment that closes
+  # on its line, which a value can follow.
+  LUAU_OPEN_BLOCK_COMMENT_START: (?:(?!{{LUAU_BLOCK_COMMENT_ON_LINE}}){{LUAU_COMMENT_START}}\[=*\[)
   # A Luau name, as Luau's lexer reads one: ASCII letters, digits and `_`,
   # not starting with a digit, and never one of Luau's reserved words, so
   # `end`, `until`, `else` or `elseif` never becomes a variable, field or
@@ -621,12 +627,20 @@ variables:
   # it here, once, keeps every rule built on the class from reading it
   # (§10.1, "tighten what a variable matches").
   LUAU_IDENTIFIER: (?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})
-  # A define's key spelled as a reserved word other than a closer
-  # (`repeat = 3`, #1081): a define's keys are Sparkdown's own, as a table's
-  # bracketed keys are. Only `LuauPropertyDefinition`'s begin reads one.
+  # A define's key spelled as a reserved word other than a closer, or as a
+  # modifier (`repeat = 3`, `local = 3`, #1081): a define's keys are
+  # Sparkdown's own, as a table's bracketed keys are. Only
+  # `LuauPropertyDefinition`'s begin reads one.
   # lookaround: LuauDefine ends at a closer, and LuauRepeatLoop and the
   # other blocks a reserved word begins read any word not before a lone `=`.
-  LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}}){{LUAU_KEYWORD}}(?={{WS}}*{{LUAU_SINGLE_EQUALS}}))
+  LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_SINGLE_EQUALS}}))
+  # lookaround: a modifier before a lone `=` is the key LUAU_DEFINE_KEYWORD_KEY
+  # reads.
+  LUAU_NOT_BEFORE_LONE_EQUALS: (?!{{WS}}*{{LUAU_SINGLE_EQUALS}})
+  # Right after a define's reserved-word key, before its lone `=`.
+  # lookaround: without a key read, LuauPropertyDefinition needs a name or a
+  # bracketed key before the `=`.
+  LUAU_AFTER_DEFINE_KEYWORD_KEY: (?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_SINGLE_EQUALS}}
   # lookaround: LuauCompareOperator reads `==`.
   LUAU_SINGLE_EQUALS: =(?!=)
   # A name or a reserved word, as one token of Luau's lexer.
@@ -657,11 +671,12 @@ variables:
   # alternator in Luau code: before its arms on the line (`queue | a | b`,
   # `{cycle "a" | "b" end}`), or alone on its line, the block form whose
   # arms follow on the next lines. Anywhere else the word is a name
-  # (`local y = queue`, #984).
+  # (`local y = queue`, #984). A comment may end the line it stands alone on
+  # (`queue -- note`).
   # lookaround: as for `LUAU_CONDITIONAL_ALTERNATOR_SHAPE`, `LuauAccessPath`
   # reads the word as a name anywhere else, and only the line the word
   # stands alone on says the block form's arms follow.
-  LUAU_SEQUENTIAL_ALTERNATOR_SHAPE: (?:{{LUAU_ALTERNATOR_ARMS_AHEAD}}|(?<={{LUAU_SEQUENTIAL_BLOCK_LINE_HEAD}})$)
+  LUAU_SEQUENTIAL_ALTERNATOR_SHAPE: (?:{{LUAU_ALTERNATOR_ARMS_AHEAD}}|(?<={{LUAU_SEQUENTIAL_BLOCK_LINE_HEAD}})(?={{LUAU_LINE_END_OR_COMMENT}}))
   # A line that holds only a sequential alternator's head so far.
   LUAU_SEQUENTIAL_BLOCK_LINE_HEAD: ^{{WS}}*(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}{{WS}}*)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}{{WS}}*)?
   # A `|` arm separator later on the line, before any comment, after a
@@ -4693,11 +4708,12 @@ repository:
     # CSS-style selector keys / `$`-prefixed metadata keys (which aren't valid
     # identifiers). The bracket form reuses the table-constructor pieces
     # (LuauTableIndexDeclaration + LuauAssignmentOperation).
-    # A key spelled as a reserved word (`repeat = 3`, #1081) is read in the
-    # begin, where a modifier would stand, so a define's keys stay
-    # Sparkdown's own without any Luau binding taking a reserved word; its
-    # `=` and value are the `LuauAssignmentOperation` after it.
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_DEFINE_KEYWORD_KEY}})?({{WS}}*)(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_SINGLE_EQUALS}})
+    # A key spelled as a reserved word or a modifier (`repeat = 3`,
+    # `local = 3`, #1081) is read in the begin's last capture, so a define's
+    # keys stay Sparkdown's own without any Luau binding taking a reserved
+    # word; its `=` and value are the `LuauAssignmentOperation` after it. A
+    # modifier before a lone `=` is that key, not a modifier.
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_LONE_EQUALS}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}})
     beginCaptures:
       1:
         patterns:
@@ -4706,11 +4722,13 @@ repository:
         patterns:
           - { include: "#LuauScopeModifier" }
           - { include: "#LuauAccessModifier" }
-          - { include: "#LuauDefineKeywordKey" }
       3:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauDefineKeywordKey" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauBracketKeyAssignment" }
@@ -12188,7 +12206,7 @@ repository:
   LuauDefineKeywordKey:
     tag: variableName
     name: variable.other.readwrite.luau
-    match: ({{LUAU_KEYWORD}})
+    match: ({{LUAU_WORD}})
 
   LuauAccessorOperator:
     tag: separator
