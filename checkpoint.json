@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 159,
-  "previous": "85b0a397c77ffe5abc826ba04bd27721519c96d9",
+  "seq": 160,
+  "previous": "8c3bee89a27520c945ad4724c6fd419be6aaeae9",
   "snapshotParents": [],
-  "time": "2026-10-17T13:31:34.742Z",
+  "time": "2026-10-17T13:31:43.802Z",
   "kind": "auto",
-  "transition": "answered of #1924",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 168,
+    "recordRevision": 169,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4862,7 +4862,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:31:33.835Z",
+      "observedAt": "2026-10-17T13:31:42.904Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -5171,7 +5171,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:31:33.835Z",
+      "observedAt": "2026-10-17T13:31:42.904Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5888,11 +5888,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:16:58.421Z",
-      "event": "check-in",
-      "outcome": "#1905 writer (second resume) completed fix2's journal (completed, report-posted, finished) and posted the reposted report and adjudication (PR #1927 now 23 comments); writer still running on the filing steps; checkpoint evidence being re-gathered"
-    },
     {
       "time": "2026-10-16T19:21:08.449Z",
       "event": "checkpoint-intent",
@@ -6631,6 +6626,11 @@
       "ticket": 1924,
       "id": "fc721944",
       "deliveryId": "989bf81a"
+    },
+    {
+      "time": "2026-10-17T13:31:41.777Z",
+      "event": "check-in",
+      "outcome": "maintainer chose to hold the cutover until both PRs merge: #1906 extended to round 4 (decision , comment ) and its writer resumed; #1924 repair directed (decision e43240d9, comment 6234468080: remove the top-level attribute lookahead per the maintainer decision, recorded on #921) and its writer resumed; ORCH #1961 told to hold about five hours"
     }
   ]
 }
