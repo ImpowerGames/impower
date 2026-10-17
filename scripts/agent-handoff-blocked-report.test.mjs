@@ -15,7 +15,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
 import { runHandoff as actualRunHandoff, recordCoordinatorReport as actualRecord, writeReportReadBack, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
 import { readRepos } from "../.agents/repos.mjs";
-import { roundState } from "../.agents/skills/orchestrate-feature/review-checkpoint.mjs";
+import { roundState } from "../.agents/skills/orchestrate-issues/review-checkpoint.mjs";
 
 const launcher = fileURLToPath(new URL("./agent-handoff.mjs", import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-blocked-"));

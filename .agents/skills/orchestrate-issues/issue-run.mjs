@@ -1,4 +1,4 @@
-// Coordinates the ticket writers of one Feature. It reads the Feature's
+// Coordinates the ticket writers of one parent issue. It reads the parent issue's
 // sub-issues, blockers, Effort values, PRs and worktrees, decides which
 // tickets may be dispatched, and keeps the coordinator's compact run record:
 // who owns each ticket, which launch is pending, and the reports and disk
@@ -6,7 +6,7 @@
 // state, PR heads, review rounds and CI, so every plan reads them afresh and
 // the record never copies them as current facts.
 //
-//   node .agents/skills/orchestrate-feature/feature-run.mjs <command> --option value ...
+//   node .agents/skills/orchestrate-issues/issue-run.mjs <command> --option value ...
 //
 // Commands: init, snapshot, plan, claim, launch, launched, acknowledged,
 // deliver, delivered, request, relay, answer, answered, adopt, reconcile,
@@ -32,7 +32,16 @@ import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-export const RECORD_VERSION = 1;
+// Version 2 keys the run by `issue`; version 1 records, checkpoints and state
+// branches belong to runs started under the skill's previous name, and the
+// helpers that read them are the ones at the last commit before the rename.
+export const RECORD_VERSION = 2;
+export const BEFORE_RENAME = {
+  skill: "orchestrate-feature",
+  commit: "b3dd72d54c9a821731f8b7795b05e692547ad0f6",
+  stateBranch: (issue) => `orchestrate-state/feature-${issue}`,
+  get how() { return `continue that run from a checkout of commit ${this.commit}, the last commit before the rename, with its .agents/skills/${this.skill} helpers; this version does not read it`; },
+};
 
 // Writer models, routes and each route's self-check live in runner
 // configuration beside the reviewer defaults.
@@ -85,9 +94,9 @@ export function checkCoordinatorId(harness, id) {
 // The coordinator's session title, like a writer's, comes from a slug of two
 // to four lowercase words; the title hook reads it from the run record.
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){1,3}$/;
-export function orchestrationTitle(feature, slug) {
-  if (!SLUG.test(slug ?? "")) throw new Error(`--slug must be two to four lowercase words from the Feature's title joined by hyphens, such as resumable-feature-orchestration; ${JSON.stringify(slug ?? "")} is not`);
-  return `ORCH #${feature}: ${slug.replaceAll("-", " ")}`;
+export function orchestrationTitle(issue, slug) {
+  if (!SLUG.test(slug ?? "")) throw new Error(`--slug must be two to four lowercase words from the parent issue's title joined by hyphens, such as resumable-feature-orchestration; ${JSON.stringify(slug ?? "")} is not`);
+  return `ORCH #${issue}: ${slug.replaceAll("-", " ")}`;
 }
 
 // Ticket Effort is an organization issue field; its option names map onto the
@@ -115,7 +124,10 @@ export const freeBytesAt = (dir) => { const s = fs.statfsSync(dir); return s.bav
 
 export function readRecord(file) {
   const record = readJson(file);
-  if (record?.version !== RECORD_VERSION || !Number.isSafeInteger(record.revision) || typeof record.coordinator?.session !== "string") throw new Error(`${file} is not a version ${RECORD_VERSION} feature run record`);
+  // A version 1 record keys its run by `feature`; it belongs to a run started
+  // before the skill was renamed, which only the helpers of that time read.
+  if (record?.version === 1 && Number.isSafeInteger(record.revision) && typeof record.coordinator?.session === "string") throw new Error(`${file} is a version 1 run record of ${BEFORE_RENAME.skill}: ${BEFORE_RENAME.how}`);
+  if (record?.version !== RECORD_VERSION || !Number.isSafeInteger(record.revision) || typeof record.coordinator?.session !== "string") throw new Error(`${file} is not a version ${RECORD_VERSION} issue run record`);
   return record;
 }
 
@@ -152,12 +164,12 @@ export function updateRecord(file, { expectRevision, coordinator }, mutate, { id
   try {
     const record = readRecord(file);
     if (record.revision !== expectRevision) throw new Error(`The run record is at revision ${record.revision}, not ${expectRevision}; plan again from the current record`);
-    if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session} on ${record.coordinator.host}; ${coordinator} may not change its run record`);
+    if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session} on ${record.coordinator.host}; ${coordinator} may not change its run record`);
     // After a takeover the pointer names the new record, so the previous
     // coordinator's record stops accepting changes.
     let pointer;
-    try { pointer = readJson(pointerFile(record.checkout, repositoriesOf(record).tickets, record.feature)); } catch { pointer = null; }
-    if (!pointer || path.resolve(pointer.record) !== path.resolve(file)) throw new Error(`The coordinator pointer for Feature #${record.feature} ${pointer ? `names ${pointer.record} (coordinator ${pointer.coordinator})` : "is missing or unreadable"}; this record no longer coordinates the Feature`);
+    try { pointer = readJson(pointerFile(record.checkout, repositoriesOf(record).tickets, record.issue)); } catch { pointer = null; }
+    if (!pointer || path.resolve(pointer.record) !== path.resolve(file)) throw new Error(`The coordinator pointer for issue #${record.issue} ${pointer ? `names ${pointer.record} (coordinator ${pointer.coordinator})` : "is missing or unreadable"}; this record no longer coordinates the parent issue`);
     const next = structuredClone(record);
     const output = mutate(next);
     next.revision = record.revision + 1;
@@ -195,16 +207,16 @@ export function recoverLock(file, { identify = processIdentity } = {}) {
 const log = (record, event, details) => record.log.push({ time: new Date().toISOString(), event, ...details });
 const ticketOf = (record, number) => (record.tickets[number] ??= { owner: null, pending: null, history: [], results: [] });
 
-// One coordinator per Feature on this machine: a pointer in the checkout's
+// One coordinator per parent issue on this machine: a pointer in the checkout's
 // shared Git directory names the coordinator and its record. A second
 // coordinator is refused; it takes over only after the first is observed to
 // have ended, carrying the ownership forward unchanged. The pointer is keyed
-// by the repository that holds the Feature, the tickets repository, so an
-// internal Feature never meets a code repository issue of the same number;
+// by the repository that holds the parent issue, the tickets repository, so an
+// internal issue never meets a code repository issue of the same number;
 // with one repository that is the code repository, as it always was.
-export function pointerFile(checkout, repository, feature) {
+export function pointerFile(checkout, repository, issue) {
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: checkout, encoding: "utf8", windowsHide: true }).trim();
-  return path.join(common, "orchestrate-feature", `${repository.replace(/[^A-Za-z0-9.-]+/g, "_")}-${feature}.json`);
+  return path.join(common, "orchestrate-issues", `${repository.replace(/[^A-Za-z0-9.-]+/g, "_")}-${issue}.json`);
 }
 
 // --- Repositories -----------------------------------------------------------
@@ -212,7 +224,7 @@ export function pointerFile(checkout, repository, feature) {
 // A run spans the repositories .agents/repos.json names, at the position of
 // its cutover switch when the run starts (init, or resume's takeover). Pull
 // requests, CI, protection, merges and the writers' branches stay on the
-// run's own repository, the code repository. Its tickets (the Feature and its
+// run's own repository, the code repository. Its tickets (the parent issue and its
 // slices with their sub-issues, dependencies, field values and comments, the
 // review threads, the status comment, checkpoint decisions and the final
 // report) and its state branch live in the tickets repository, ticketsRepo().
@@ -262,10 +274,10 @@ export const DISCOVERY_TYPES = ["fix", "feat", "perf", "docs", "test", "refactor
 // What an invocation authorizes; a takeover starts from it again rather than
 // inheriting the previous coordinator's grant. Who merges is the coordinator's
 // recorded reading of the request it quotes: `coordinator` for an explicit
-// request to orchestrate the Feature, `maintainer` when the request stops at
+// request to orchestrate the parent issue, `maintainer` when the request stops at
 // ready PRs. Without that decision the maintainer merges.
 export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" };
-export const MERGE_GRANT = "the coordinator merges this Feature's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection";
+export const MERGE_GRANT = "the coordinator merges this parent issue's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection";
 export const MERGING = ["coordinator", "maintainer"];
 // A request that asks to stop at ready PRs, or not to merge, never grants the
 // coordinator the merge, whatever decision is recorded beside it.
@@ -274,7 +286,7 @@ export const MERGING = ["coordinator", "maintainer"];
 export const STOP_AT_READY = /stop(?:s|ping)? at (?:the )?ready|do(?:n't| not) merge|without merging|leave (?:the )?merg|maintainer merges/i;
 export const stopsAtReady = (text) => STOP_AT_READY.test(String(text ?? "").replace(/[-_]+/g, " "));
 export function mergingFor(invocation, merging = "maintainer") {
-  if (!MERGING.includes(merging)) throw new Error(`--merging must be ${MERGING.join(" or ")}: coordinator when the request explicitly asks to orchestrate the Feature, maintainer when it stops at ready PRs`);
+  if (!MERGING.includes(merging)) throw new Error(`--merging must be ${MERGING.join(" or ")}: coordinator when the request explicitly asks to orchestrate the parent issue, maintainer when it stops at ready PRs`);
   if (merging === "coordinator" && stopsAtReady(invocation)) throw new Error(`The request "${invocation}" asks to stop at ready PRs or not to merge; record --merging maintainer`);
   return merging;
 }
@@ -298,7 +310,7 @@ export function applyInvocation(file, { coordinator, invocation, merging }) {
 
 // The coordinator's permission mode as it reads it now, and a title for a
 // record that has none; running init again in the same session records a
-// switch of mode, and a record's title, once set, stays the Feature's.
+// switch of mode, and a record's title, once set, stays the parent issue's.
 export function applyCoordinatorMode(file, { coordinator, permissionMode, title }) {
   const record = readRecord(file);
   const switched = permissionMode !== undefined && record.coordinator.permissionMode !== permissionMode, titled = title !== undefined && !record.title;
@@ -324,16 +336,16 @@ export const CHECK_IN_MINUTES = 30;
 // argument; a path holding a single quote cannot be written that way.
 export const scheduleCommand = (file) => {
   if (file.includes("'")) throw new Error(`The run record path ${file} holds a single quote, which the recorded schedule command cannot carry; keep the record under a path without one`);
-  return `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record '${file}'`;
+  return `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${file}'`;
 };
 // The job to create with the runner's scheduling capability. Its minutes are
-// spread by Feature number, so several coordinators do not all wake at once.
+// spread by parent issue number, so several coordinators do not all wake at once.
 export function scheduleSpec(record, file, defaults) {
   const capability = defaults.orchestrators[record.coordinator.harness]?.checkIn ?? null;
-  const minute = record.feature % CHECK_IN_MINUTES;
+  const minute = record.issue % CHECK_IN_MINUTES;
   return {
     interval: CHECK_IN_MINUTES, cron: `${minute},${minute + CHECK_IN_MINUTES} * * * *`, recurring: true,
-    prompt: `Orchestrate-feature check-in for Feature #${record.feature}, run record ${file}: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.`,
+    prompt: `Orchestrate-issues check-in for issue #${record.issue}, run record ${file}: run the wake routine in .agents/skills/orchestrate-issues/references/writer-reports.md, act on what it finds, and record the outcome with issue-run.mjs checked-in.`,
     command: scheduleCommand(file), capability: capability?.capability ?? null, expiresAfterDays: capability?.expiresAfterDays ?? null,
   };
 }
@@ -352,7 +364,7 @@ export function checkedIn(record, { outcome }) {
 // What the next plan says about the check-in job.
 function checkInStatus(record, now) {
   const c = record.checkIn;
-  if (!c) return { state: "missing", next: `schedule the periodic check-in now: run feature-run.mjs schedule --record <this run record>, create the job it prints with your runner's scheduling capability, and record it with check-in --job <id>, or --none <reason> when the runner has none` };
+  if (!c) return { state: "missing", next: `schedule the periodic check-in now: run issue-run.mjs schedule --record <this run record>, create the job it prints with your runner's scheduling capability, and record it with check-in --job <id>, or --none <reason> when the runner has none` };
   if (c.state === "none") return { state: "none", next: `the runner schedules no check-in (${c.none}); run the wake routine at the start of every turn` };
   if (!c.job) return { state: "recreate", next: `the check-in ended with the previous coordinator; recreate it with ${c.command} and record it with check-in --job <id>` };
   if (c.expires && now > Date.parse(c.expires)) return { state: "expired", next: `job ${c.job} expired at ${c.expires}; create it again with ${c.command} and record the new job with check-in --job <id>` };
@@ -361,7 +373,7 @@ function checkInStatus(record, now) {
 
 // What a takeover carries of the check-in and the title: the job ended with
 // the previous coordinator's session, so it is recreated for the new record;
-// the title stays the Feature's.
+// the title stays the parent issue's.
 export function carriedRun(prev, { file, record, defaults }) {
   const spec = scheduleSpec(record, file, defaults);
   return {
@@ -371,19 +383,19 @@ export function carriedRun(prev, { file, record, defaults }) {
 }
 
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
-  const { record: file, checkout, repository, ticketsRepository, feature, coordinator, harness, invocation } = options;
+  const { record: file, checkout, repository, ticketsRepository, issue, coordinator, harness, invocation } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
   scheduleCommand(file);
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? "")) throw new Error("--repo must be owner/name");
   // Set only once tickets live apart from the code (startRepositories).
   if (ticketsRepository !== undefined && (!/^[\w.-]+\/[\w.-]+$/.test(ticketsRepository) || sameRepository(ticketsRepository, repository))) throw new Error("The tickets repository must be another owner/name than --repo");
-  if (!Number.isSafeInteger(feature) || feature <= 0) throw new Error("--feature must be the Feature's issue number");
+  if (!Number.isSafeInteger(issue) || issue <= 0) throw new Error("--issue must be the parent issue's issue number");
   if (!coordinator) throw new Error("--coordinator must name the coordinator's session");
   if (!invocation) throw new Error("--invocation must quote the user's request that invoked the skill");
   const merging = mergingFor(invocation, options.merging);
   if (!options.coordinatorModel || !writerEfforts(options.coordinatorModel).includes(options.coordinatorEffort)) throw new Error("--coordinator-model and --coordinator-effort must be the coordinator's own metadata");
   if (options.coordinatorMode !== undefined && !PERMISSION_MODES.includes(options.coordinatorMode)) throw new Error(`--coordinator-mode must be the coordinator's own permission mode: ${PERMISSION_MODES.join(", ")}`);
-  const title = options.slug === undefined ? undefined : orchestrationTitle(feature, options.slug);
+  const title = options.slug === undefined ? undefined : orchestrationTitle(issue, options.slug);
   const writer = resolveWriterModel(harness, options.writerModel, defaults);
   let concurrency = defaultConcurrency({ totalMemory });
   const diskAdmits = Math.floor((freeBytes ?? freeBytesAt(checkout)) / WRITER_DISK);
@@ -391,10 +403,10 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     if (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 8) throw new Error("--concurrency must be 1 to 8");
     concurrency = { limit: options.concurrency, basis: `invocation override (default would be ${concurrency.limit}: ${concurrency.basis})` };
   }
-  const pointer = pointerFile(checkout, ticketsRepository ?? repository, feature);
+  const pointer = pointerFile(checkout, ticketsRepository ?? repository, issue);
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, ...(options.coordinatorMode !== undefined && { permissionMode: options.coordinatorMode }), since: new Date().toISOString() };
   const fresh = (carried = {}) => ({
-    version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, ...(ticketsRepository !== undefined && { ticketsRepository }), feature, checkout, coordinator: self,
+    version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, ...(ticketsRepository !== undefined && { ticketsRepository }), issue, checkout, coordinator: self,
     invocation: { text: invocation, merging, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: authorityFor(merging),
     writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [],
@@ -418,7 +430,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
       applyInvocation(file, { coordinator, invocation, merging });
       return { action: "resume", record: applyCoordinatorMode(file, { coordinator, permissionMode: options.coordinatorMode, title }), pointer };
     }
-    if (!options.takeover) throw new Error(`Feature #${feature} already has coordinator ${existing.coordinator} on ${existing.host} (record ${existing.record}); a second coordinator would duplicate writers. Continue in that session, or confirm it ended and run init --takeover with an observation of it`);
+    if (!options.takeover) throw new Error(`Issue #${issue} already has coordinator ${existing.coordinator} on ${existing.host} (record ${existing.record}); a second coordinator would duplicate writers. Continue in that session, or confirm it ended and run init --takeover with an observation of it`);
     const prior = ownerStatus({ handle: { kind: "session", id: existing.coordinator } }, options.observations ?? {}, { host, identify });
     if (prior.status !== "exited") throw new Error(`Takeover refused: the previous coordinator ${existing.coordinator} is ${prior.status} (${prior.reason})`);
     // The previous record stays locked from the copy to the pointer switch,
@@ -427,7 +439,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     try {
       const old = readRecord(existing.record);
       if (!sameRepository(repositoriesOf(old).tickets, ticketsRepository ?? repository)) throw new Error(`Takeover refused: the run's tickets live in ${repositoriesOf(old).tickets}, but this takeover would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
-      writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }], run: carriedRun(old, { file, record: { feature, coordinator: self }, defaults }) }));
+      writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }], run: carriedRun(old, { file, record: { issue, coordinator: self }, defaults }) }));
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
     } finally { releaseOld(); }
     return { action: "takeover", record: readRecord(file), pointer };
@@ -534,11 +546,11 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
 
 // The rounds a PR's review has started, from the round-state comments the
 // review workflow posts on its review thread.
-// GitHub nests sub-issues at most eight levels deep, counting the Feature.
+// GitHub nests sub-issues at most eight levels deep, counting the parent issue.
 export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
 
-export function takeSnapshot({ repository, feature }, client) {
+export function takeSnapshot({ repository, issue }, client) {
   const originMain = client.fetchMain();
   const worktrees = client.worktrees();
   const pullCache = new Map();
@@ -566,17 +578,19 @@ export function takeSnapshot({ repository, feature }, client) {
       if (children.length && !truncated) visit(n, depth + 1);
     }
   };
-  const issue = client.issue(feature);
-  visit(feature, 1);
-  return { repository, feature: { number: feature, state: issue.state, title: issue.title, criteria: parseCriteria(issue.body), acceptanceSha256: acceptanceHash(issue.body) }, observedAt: new Date().toISOString(), originMain, tickets };
+  // The parent's type is the one GitHub reports (Feature, Task or Bug, or
+  // none); the brief names the parent by it.
+  const parent = client.issue(issue);
+  visit(issue, 1);
+  return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
-// The Feature's slices, each with its state, and its acceptance section, read
+// The parent issue's slices, each with its state, and its acceptance section, read
 // on their own: the sub-issue tree, then the body last. The final gate reads
 // it after every premise and compares it with the snapshot those premises
 // were judged on, so a slice that left, joined or reopened, or a criterion
 // that changed, while the slower reads ran stops the call.
-export function readFeatureScope({ feature }, client) {
+export function readIssueScope({ issue }, client) {
   const slices = [];
   const visit = (parent, depth) => {
     for (const sub of client.subIssues(parent)) {
@@ -585,11 +599,11 @@ export function readFeatureScope({ feature }, client) {
       else slices.push(`#${sub.number} ${sub.state}`);
     }
   };
-  visit(feature, 1);
-  return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(feature).body) };
+  visit(issue, 1);
+  return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(issue).body) };
 }
 // The same scope as a snapshot holds it.
-export const snapshotScope = (snapshot) => ({ slices: snapshot.tickets.filter((t) => !t.container || t.truncated).map((t) => `#${t.number} ${t.state}`).sort(), acceptanceSha256: snapshot.feature.acceptanceSha256 ?? null });
+export const snapshotScope = (snapshot) => ({ slices: snapshot.tickets.filter((t) => !t.container || t.truncated).map((t) => `#${t.number} ${t.state}`).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
 
 // --- Admission plan -------------------------------------------------------
 
@@ -655,10 +669,10 @@ export function deadLaunches(jobRoot, prs, census = processCensus) {
   return dead;
 }
 
-// The Feature's "Acceptance criteria" section: every line under that heading
+// The parent issue's "Acceptance criteria" section: every line under that heading
 // up to the next heading of the same or a higher level, so nested headings
 // stay inside it. A line inside a fenced code block is never a heading. Null
-// when the Feature has no such heading.
+// when the parent issue has no such heading.
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 // Each line's place relative to fenced code and HTML comments: true for a
 // fence or comment and every line inside one, so neither a heading nor a
@@ -710,11 +724,11 @@ export function parseCriteria(body) {
 }
 const sameCriteria = (a, b) => JSON.stringify(a.map((c) => c.text ?? c.criterion)) === JSON.stringify(b.map((c) => c.text ?? c.criterion));
 
-// The latest complete verification still describes the Feature only while
+// The latest complete verification still describes the parent issue only while
 // every premise it was made on holds in a fresh snapshot: main is the commit
-// it verified, the Feature lists the criteria it checked and the slices it
+// it verified, the parent issue lists the criteria it checked and the slices it
 // covered, each of those slices is still closed with its deliverable on main,
-// and no operation is unsettled, a Feature closure included. Each premise
+// and no operation is unsettled, a parent issue closure included. Each premise
 // that changed is named; any change needs a new verification. `running` is
 // the one operation being carried out, whose own intent is not a gap.
 export function verificationGaps(record, snapshot, { running = null } = {}) {
@@ -722,28 +736,28 @@ export function verificationGaps(record, snapshot, { running = null } = {}) {
   if (v?.verdict !== "complete") return ["the latest verification is not complete"];
   const gaps = [];
   if (snapshot.originMain !== v.mainSha) gaps.push(`origin/main is ${snapshot.originMain}, not the verified ${v.mainSha}`);
-  if (!Array.isArray(snapshot.feature?.criteria) || !sameCriteria(snapshot.feature.criteria, v.criteria) || snapshot.feature.acceptanceSha256 !== v.acceptanceSha256) gaps.push("the Feature's acceptance criteria changed");
+  if (!Array.isArray(snapshot.issue?.criteria) || !sameCriteria(snapshot.issue.criteria, v.criteria) || snapshot.issue.acceptanceSha256 !== v.acceptanceSha256) gaps.push("the parent issue's acceptance criteria changed");
   const slices = (snapshot.tickets ?? []).filter((t) => !t.container);
   const list = (ns) => [...ns].sort((a, b) => a - b).map((n) => `#${n}`).join(", ");
-  if (list(slices.map((t) => t.number)) !== list(v.tickets ?? [])) gaps.push(`the Feature's slices are ${list(slices.map((t) => t.number)) || "none"}, not the verified ${list(v.tickets ?? []) || "none"}`);
+  if (list(slices.map((t) => t.number)) !== list(v.tickets ?? [])) gaps.push(`the parent issue's slices are ${list(slices.map((t) => t.number)) || "none"}, not the verified ${list(v.tickets ?? []) || "none"}`);
   for (const t of slices) if (!(t.state === "closed" && t.delivered)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
   const open = (record.operations ?? []).filter((o) => o.id !== running && OPEN_OPERATION.has(o.state));
-  if (open.length) gaps.push(`${open.map((o) => (o.kind === "close" ? `closing Feature #${o.pr} (${o.id})` : `${o.kind} ${o.id} of PR #${o.pr}`)).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled; settle it with checkpoint.mjs reconcile-operations`);
+  if (open.length) gaps.push(`${open.map((o) => (o.kind === "close" ? `closing issue #${o.pr} (${o.id})` : `${o.kind} ${o.id} of PR #${o.pr}`)).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled; settle it with checkpoint.mjs reconcile-operations`);
   return gaps;
 }
 export const verificationHolds = (record, snapshot) => verificationGaps(record, snapshot).length === 0;
 
 // Remaining work the coordinator reports beside every plan.
 export function remainingFor(record, complete) {
-  if (complete) return ["Every slice is merged and the Feature's acceptance criteria were verified on main; close the Feature with integration.mjs close-feature if it is still open, and give the final report."];
+  if (complete) return ["Every slice is merged and the parent issue's acceptance criteria were verified on main; close the parent issue with integration.mjs close-issue if it is still open, and give the final report."];
   return [
     `A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on ${repositoriesOf(record).split ? "the slice's ticket, its review thread" : "the PR"}.`,
     coordinatorMerges(record)
       ? "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main."
       : "Ready PRs wait for the maintainer to merge them, since the invocation stops at ready; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
-    "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
-    "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone.",
-    ...(record.operations ?? []).filter((o) => o.kind === "close" && OPEN_OPERATION.has(o.state)).map((o) => `Closing Feature #${o.pr} (${o.id}) is ${o.state}: settle it with checkpoint.mjs reconcile-operations from a fresh snapshot before any other attempt.`),
+    "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the parent issue's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
+    "Once every slice is merged, the parent issue's own acceptance criteria are verified on main with integration.mjs verify-issue; the parent issue is complete only when that verification passes, never from merged PRs alone. A parent whose body has no \"Acceptance criteria\" section is refused there, with the section to add named, and stays open.",
+    ...(record.operations ?? []).filter((o) => o.kind === "close" && OPEN_OPERATION.has(o.state)).map((o) => `Closing issue #${o.pr} (${o.id}) is ${o.state}: settle it with checkpoint.mjs reconcile-operations from a fresh snapshot before any other attempt.`),
   ];
 }
 
@@ -767,7 +781,7 @@ const reportedSince = (own) => { const started = Date.parse(own.owner.resumes?.a
 const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
 
 export function planDispatch({ record, snapshot, observations = {}, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity, now = Date.now(), reviewJobs = `${record.checkout}.review-jobs`, census = processCensus }) {
-  if (snapshot.repository !== record.repository || snapshot.feature.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
+  if (snapshot.repository !== record.repository || snapshot.issue.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");
   const model = record.writer.model;
   const routes = routeOptions(model, defaults);
   const tickets = [], eligible = [], existingWork = [];
@@ -805,7 +819,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   // writer is settled; the snapshot lists a container before its sub-issues.
   const parentOf = new Map(snapshot.tickets.map((t) => [t.number, t.parent]));
   const heldContainers = new Set();
-  const heldAncestor = (t) => { for (let p = t.parent; p !== undefined && p !== snapshot.feature.number; p = parentOf.get(p)) if (heldContainers.has(p)) return p; return null; };
+  const heldAncestor = (t) => { for (let p = t.parent; p !== undefined && p !== snapshot.issue.number; p = parentOf.get(p)) if (heldContainers.has(p)) return p; return null; };
   // Each owner is observed once per plan; the sweep below reuses it.
   const statuses = new Map();
   const statusOf = (n, owner) => { if (!statuses.has(n)) statuses.set(n, ownerStatus(owner, observations, { host, identify })); return statuses.get(n); };
@@ -931,13 +945,13 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (held !== null) { add(t, "wait-dependency", `its parent #${held} is still held by a writer; settle that writer before its sub-issues are dispatched`, { waitingFor: [held] }); continue; }
     eligible.push(t);
   }
-  // A writer the record still holds for a ticket the Feature no longer lists
+  // A writer the record still holds for a ticket the parent issue no longer lists
   // keeps its capacity until the coordinator settles it.
   const listed = new Set(snapshot.tickets.map((t) => t.number));
   for (const [n, own] of Object.entries(record.tickets)) {
     if (listed.has(Number(n)) || (!own.owner && !own.pending)) continue;
     active++;
-    tickets.push({ number: Number(n), action: "decision-needed", reason: "the record holds a writer or pending start for a ticket that is no longer one of the Feature's sub-issues; settle it before reusing its capacity" });
+    tickets.push({ number: Number(n), action: "decision-needed", reason: "the record holds a writer or pending start for a ticket that is no longer one of the parent issue's sub-issues; settle it before reusing its capacity" });
   }
   const free = freeBytes ?? Infinity;
   const room = Math.min(record.concurrency.limit, Math.floor(free / WRITER_DISK));
@@ -990,11 +1004,11 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   for (const t of snapshot.tickets) reviewed.push(...t.prs.filter((p) => p.state === "OPEN").map((p) => ({ ticket: t.number, pr: p.number })));
   sweep.deadLaunches = deadLaunches(reviewJobs, reviewed, census);
   tickets.sort((a, b) => a.number - b.number);
-  // The Feature is complete only once its acceptance criteria were verified
+  // The parent issue is complete only once its acceptance criteria were verified
   // on main and every ticket is still delivered.
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
   return {
-    repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
+    repository: record.repository, issue: record.issue, parent: { type: snapshot.issue.type ?? null, title: snapshot.issue.title ?? null }, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow },
     routes, tickets, sweep, checkIn: checkInStatus(record, now), remaining: remainingFor(record, complete), complete,
   };
@@ -1008,7 +1022,7 @@ function planEntry(planFile, record, number, actions) {
   const plan = readJson(planFile);
   // A plan admits work only for the run and revision it was made from; a
   // takeover starts a new run, so an earlier coordinator's plan never applies.
-  if (plan.runId !== record.runId || plan.repository !== record.repository || plan.feature !== record.feature) throw new Error(`The plan was made for another run (${plan.runId ?? "none"}, coordinator ${plan.coordinator}); plan again from this run's record`);
+  if (plan.runId !== record.runId || plan.repository !== record.repository || plan.issue !== record.issue) throw new Error(`The plan was made for another run (${plan.runId ?? "none"}, coordinator ${plan.coordinator}); plan again from this run's record`);
   if (plan.revision !== record.revision) throw new Error(`The plan was made at revision ${plan.revision}; plan again from revision ${record.revision}`);
   const entry = plan.tickets.find((t) => t.number === number);
   if (!entry || !actions.includes(entry.action)) throw new Error(`The plan's action for #${number} is ${entry?.action ?? "missing"}, not ${actions.join(" or ")}`);
@@ -1727,8 +1741,12 @@ function briefBody(record, planFile, number, decisions, defaults) {
   const mode = work.permissionMode ? ` in permission mode ${work.permissionMode}` : "";
   const confirmed = work.permissionMode ? "model, effort and permission mode" : "model and effort";
   const { tickets, split } = repositoriesOf(record);
+  // The parent is named by its type as GitHub reports it (Task #N, Feature
+  // #N, Bug #N), and its body, as its template structures it, is the design
+  // of record for every slice.
+  const parent = `${plan.parent?.type ?? "issue"} #${record.issue}`;
   return [
-    `${work.launchId ? `Assignment ${work.launchId}. ` : ""}You are the writer for ${tickets} ticket #${number} (${entry.title}), a slice of Feature #${record.feature}, coordinated by ${coordinator} on ${record.coordinator.host}.`,
+    `${work.launchId ? `Assignment ${work.launchId}. ` : ""}You are the writer for ${tickets} ticket #${number} (${entry.title}), a sub-issue of ${parent}, coordinated by ${coordinator} on ${record.coordinator.host}.`,
     `Route: ${work.route}, model ${work.model} at effort ${work.effort}${mode}. Before any work and before building any reviewer plan, confirm your own ${confirmed}: ${route.selfCheck}. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.`,
     how.mechanism
       ? `Your first act after reading this brief: send ${coordinator} an acknowledgement naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed (${how.mechanism}). A brief left unacknowledged for one check-in interval is treated as undelivered.`
@@ -1737,7 +1755,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
     `Run the resolve-issue skill for #${number} exactly as written.`,
     adopted ? `Continue the existing work ${place} on branch ${work.branch}${adopted.pr ? ` and its PR #${adopted.pr}, which has started ${adopted.rounds} review rounds; the count continues from there and never resets` : ""}.` : `Create your worktree at ${work.worktree} on branch ${work.branch} from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.`,
     `Allocate your private artifact directory with resolve-issue's allocator under ${work.artifactParent ?? "a scratch parent of your own"}, and keep every artifact in it.`,
-    `Settled decisions:${decisions.length ? "" : " none beyond the ticket and its parent Feature's Proposed solution."}`,
+    `The design of record is the body of ${parent}, as its template structures it, together with the decisions below. Settled decisions:${decisions.length ? "" : " none beyond the ticket and that body."}`,
     ...decisions.map((d) => `- ${d}`),
     "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
     "After every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.",
@@ -1800,14 +1818,14 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       if (!o.merging) throw new Error(`--merging must record who merges: ${MERGING.join(" or ")}`);
       checkCoordinatorId(o.harness, o.coordinator);
       if (!PERMISSION_MODES.includes(o.coordinatorMode)) throw new Error(`--coordinator-mode must be this session's own permission mode: ${PERMISSION_MODES.join(", ")}`);
-      orchestrationTitle(o.feature, o.slug);
-      const done = initRecord({ ...o, feature: integer(o.feature, "feature"), repository: o.repo, ticketsRepository: startRepositories(o.repo, repos ?? readRepos()).ticketsRepository, concurrency: o.concurrency === undefined ? undefined : integer(o.concurrency, "concurrency"), observations: readOptional(o.observations) }, { defaults });
+      orchestrationTitle(o.issue, o.slug);
+      const done = initRecord({ ...o, issue: integer(o.issue, "issue"), repository: o.repo, ticketsRepository: startRepositories(o.repo, repos ?? readRepos()).ticketsRepository, concurrency: o.concurrency === undefined ? undefined : integer(o.concurrency, "concurrency"), observations: readOptional(o.observations) }, { defaults });
       return { action: done.action, revision: done.record.revision, pointer: done.pointer, title: done.record.title ?? null, permissionMode: done.record.coordinator.permissionMode, writer: done.record.writer, concurrency: done.record.concurrency, ...(done.diskAdmits !== undefined && { diskAdmitsNow: done.diskAdmits }), ...(modeBlock(done.record) && { dispatchBlocked: modeBlock(done.record) }) };
     }
     case "schedule": { const file = absolute(o.record, "record"); return scheduleSpec(readRecord(file), file, defaults); }
     case "snapshot": {
       const record = readRecord(absolute(o.record, "record"));
-      const snap = takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record, record.checkout));
+      const snap = takeSnapshot({ repository: record.repository, issue: record.issue }, githubClient(record, record.checkout));
       fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(snap, null, 2) + "\n");
       return { tickets: snap.tickets.length, originMain: snap.originMain };
     }
@@ -1816,7 +1834,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       const plan = planDispatch({ record, snapshot: readJson(absolute(o.snapshot, "snapshot")), observations: readOptional(o.observations), preflights: (o.preflight ? o.preflight.split(",") : []).map((f) => readJson(absolute(f, "preflight"))), freeBytes: freeBytesAt(record.checkout), defaults });
       if (o.out) fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(plan, null, 2) + "\n");
       // With checkpoints, a plan whose summary changed becomes the status the
-      // Feature's comment shows: done and remaining work, blockers and actions.
+      // parent issue's comment shows: done and remaining work, blockers and actions.
       const checkpoint = autoCheckpoint(absolute(o.record, "record"), { coordinator: record.coordinator.session, transition: "a new plan", github, plan, onlyIfChanged: true });
       return checkpoint ? { ...plan, checkpoint } : plan;
     }
@@ -1847,7 +1865,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|brief|recover-lock --option value ...");
   }
 }
 

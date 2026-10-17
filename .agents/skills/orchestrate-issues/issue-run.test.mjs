@@ -1,4 +1,4 @@
-// Exercises the orchestrate-feature helper: dependency admission, adoption of
+// Exercises the orchestrate-issues helper: dependency admission, adoption of
 // existing PRs and worktrees, exclusive ticket and coordinator ownership,
 // uncertain launches, observed process exit, writer defaults and route
 // selection, the writer brief, and coexistence with the review launcher's
@@ -14,11 +14,11 @@ import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 import { reserveFreeze, worktreePaths } from "../../../scripts/review-job-store.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
 import { readRepos } from "../../repos.mjs";
-import * as run from "./feature-run.mjs";
+import * as run from "./issue-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const script = path.join(here, "feature-run.mjs");
-const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "feature-run-")));
+const script = path.join(here, "issue-run.mjs");
+const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "issue-run-")));
 console.log(`scratch: ${tmp}`);
 const defaults = run.readWriterDefaults();
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -109,10 +109,10 @@ try {
     assert.equal(handoff.visible, "False", "the resume's console is hidden");
   }
 
-  // One coordinator per Feature: the pointer refuses a second session, and a
+  // One coordinator per parent issue: the pointer refuses a second session, and a
   // takeover needs the first observed to have ended.
   const record = path.join(artifacts, "run.json");
-  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", feature: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
   const first = init();
   assert.equal(first.action, "init");
   assert.equal(first.record.writer.model, "claude-opus-5-5");
@@ -120,18 +120,18 @@ try {
   assert.equal(init().action, "resume");
   // Running init again in the same session with a changed request records
   // it: a grant, then a request that stops at ready PRs takes the merge back.
-  const later = (extra) => init({ record: path.join(artifacts, "later.json"), feature: 109, invocation: "Use orchestrate-feature for #109.", ...extra });
+  const later = (extra) => init({ record: path.join(artifacts, "later.json"), issue: 109, invocation: "Use orchestrate-issues for #109.", ...extra });
   assert.equal(later().action, "init");
   assert.equal(run.coordinatorMerges(later({ merging: "coordinator" }).record), true);
-  const stopped = later({ invocation: "Use orchestrate-feature for #109; stop at ready PRs.", merging: "maintainer" }).record;
-  assert.deepEqual([run.coordinatorMerges(stopped), stopped.authority, stopped.log.at(-1).replaced], [false, run.AUTHORITY, { text: "Use orchestrate-feature for #109.", merging: "coordinator" }]);
-  assert.equal(later().record.invocation.text, "Use orchestrate-feature for #109.");
+  const stopped = later({ invocation: "Use orchestrate-issues for #109; stop at ready PRs.", merging: "maintainer" }).record;
+  assert.deepEqual([run.coordinatorMerges(stopped), stopped.authority, stopped.log.at(-1).replaced], [false, run.AUTHORITY, { text: "Use orchestrate-issues for #109.", merging: "coordinator" }]);
+  assert.equal(later().record.invocation.text, "Use orchestrate-issues for #109.");
   const second = path.join(artifacts, "second.json");
   assert.throws(() => init({ record: second, coordinator: "local_b" }), /already has coordinator local_a/);
   assert.throws(() => init({ record: second, coordinator: "local_b", takeover: true, observations: { sessions: { local_a: { state: "idle" } } } }), /Takeover refused: .* waiting/);
   assert.throws(() => init({ record: second, coordinator: "local_b", takeover: true }), /Takeover refused: .* unknown/);
   assert.ok(!fs.existsSync(second), "a refused coordinator writes no record");
-  assert.throws(() => run.initRecord({ record: path.join(artifacts, "x.json"), checkout, repository: "acme/widgets", feature: 101, coordinator: "local_c", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #101.", concurrency: 9 }, { defaults, freeBytes: 40 * GB }), /--concurrency must be 1 to 8/);
+  assert.throws(() => run.initRecord({ record: path.join(artifacts, "x.json"), checkout, repository: "acme/widgets", issue: 101, coordinator: "local_c", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-issues for #101.", concurrency: 9 }, { defaults, freeBytes: 40 * GB }), /--concurrency must be 1 to 8/);
 
   // Dependency admission and adoption. #101 is independent, #102 waits for an
   // open #101, #103's blocker is closed with its merge on origin/main, #106's
@@ -140,7 +140,7 @@ try {
   // past the concurrency limit, #110 has a worktree but no PR.
   const ticket = (number, more = {}) => ({ number, title: `ticket ${number}`, state: "open", parent: 100, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [], ...more });
   const snapshot = {
-    repository: "acme/widgets", feature: { number: 100, state: "open" }, originMain: "abc", tickets: [
+    repository: "acme/widgets", issue: { number: 100, state: "open" }, originMain: "abc", tickets: [
       ticket(101),
       ticket(102, { blockers: [{ number: 101, state: "open", delivered: false }] }),
       ticket(103, { blockers: [{ number: 90, state: "closed", delivered: true }], effort: "High" }),
@@ -172,7 +172,7 @@ try {
   assert.ok(p1.remaining.some((line) => /maintainer to merge/.test(line)), "a run that recorded no coordinator merge leaves it to the maintainer");
   // A run whose recorded decision grants the coordinator the merge sends the
   // ready PR through the merge gate instead.
-  const merging = { ...settled105(run.readRecord(record)), invocation: { text: "Use orchestrate-feature for #100.", merging: "coordinator" }, authority: run.authorityFor("coordinator") };
+  const merging = { ...settled105(run.readRecord(record)), invocation: { text: "Use orchestrate-issues for #100.", merging: "coordinator" }, authority: run.authorityFor("coordinator") };
   const viaGate = plan({ record: merging });
   assert.equal(actions(viaGate)[105], "merge-gate");
   assert.ok(viaGate.remaining.some((line) => /merges only through integration\.mjs's merge gate/.test(line)));
@@ -301,7 +301,7 @@ try {
   const p6File = write("plan6.json", plan());
   rev = mutate(rev, (r) => run.claim(r, { plan: p6File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
   const text = run.brief(run.readRecord(record), p6File, 101, ["No stacked branches."], defaults);
-  for (const needle of ["#101", "Feature #100", "coordinator session local_a", "claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions", defaults.routes.claude[0].selfCheck, "never substitute", "resolve-issue", wt101, "fix/101-thing", artifacts, "- No stacked branches.", "three-round cap", "checkpoint report", "machine-wide reviewer and test reservations", "Never merge", ...run.REPORT_FIELDS]) assert.ok(text.includes(needle), `brief names ${needle}`);
+  for (const needle of ["#101", "a sub-issue of issue #100", "The design of record is the body of issue #100, as its template structures it", "coordinator session local_a", "claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions", defaults.routes.claude[0].selfCheck, "never substitute", "resolve-issue", wt101, "fix/101-thing", artifacts, "- No stacked branches.", "three-round cap", "checkpoint report", "machine-wide reviewer and test reservations", "Never merge", ...run.REPORT_FIELDS]) assert.ok(text.includes(needle), `brief names ${needle}`);
 
   // Adopting an existing PR records its writer without starting another and
   // carries the PR's started rounds into the brief.
@@ -373,7 +373,7 @@ try {
   // or file in the writer's worktree.
   git(checkout, "worktree", "add", "-q", "-b", "fix/103-thing", wt103);
   const unlisted = plan({ record: widened(3), snapshot: { ...snapshot, tickets: snapshot.tickets.filter((t) => t.number !== 101) } });
-  assert.equal(actions(unlisted)[101], "decision-needed", "a pending start outside the Feature is reported");
+  assert.equal(actions(unlisted)[101], "decision-needed", "a pending start outside the parent issue is reported");
   assert.equal(unlisted.concurrency.active, 3, "and still occupies capacity beside #104 and #110");
   const p8File = write("plan8.json", plan({ record: widened(8) }));
   assert.throws(() => mutate(rev, (r) => run.claim(r, { plan: p8File, ticket: 103, worktree: wt103, branch: "fix/103-thing", artifactParent: artifacts })), /already exists; adopt/, "existing work is adopted, never claimed for a second writer");
@@ -401,7 +401,7 @@ try {
   // sub-issues are planned under their container.
   const client = {
     fetchMain: () => "m1",
-    issue: () => ({ state: "open", title: "Feature" }),
+    issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "## Description\n\nx\n\n## Acceptance criteria\n\n- [ ] Widgets work.\n" }),
     worktrees: () => run.parseWorktrees(`worktree ${checkout}\nHEAD m1\nbranch refs/heads/main\n\nworktree ${path.join(tmp, "x")}\nHEAD e2\nbranch refs/heads/codex/fix/202-thing\n`),
     subIssues: (n) => ({ 200: [{ number: 201, state: "open", title: "a" }, { number: 202, state: "open", title: "b" }, { number: 210, state: "open", title: "container" }], 210: [{ number: 211, state: "open", title: "c" }] })[n] ?? [],
     blockedBy: (n) => ({ 201: [{ number: 190, state: "closed" }], 202: [{ number: 191, state: "closed" }] })[n] ?? [],
@@ -415,20 +415,36 @@ try {
     checks: () => [{ name: "hook-tests", state: "SUCCESS" }],
     onMain: (sha) => sha === "on-main",
   };
-  const snap = run.takeSnapshot({ repository: "acme/widgets", feature: 200 }, client);
+  const snap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, client);
   const byNumber = Object.fromEntries(snap.tickets.map((t) => [t.number, t]));
   assert.deepEqual(byNumber[201].prs.map((p) => [p.number, p.rounds]), [[401, 3]], "the PR of another ticket is not adopted");
   assert.deepEqual(byNumber[201].blockers, [{ number: 190, state: "closed", delivered: true }]);
   assert.deepEqual(byNumber[202].blockers, [{ number: 191, state: "closed", delivered: false }]);
   assert.deepEqual(byNumber[202].worktrees.map((w) => w.branch), ["codex/fix/202-thing"]);
   assert.deepEqual([byNumber[210].container, byNumber[211].parent], [true, 210]);
+  // The parent is of any type: a Task with sub-issues is orchestrated as a
+  // Feature is, and the brief names it by the type GitHub reports and points
+  // the writer at its body as the design of record, never at a Feature.
+  {
+    assert.deepEqual([snap.issue.number, snap.issue.type, snap.issue.criteria.map((c) => c.text)], [200, "Task", ["Widgets work."]], "the snapshot carries the parent's type and criteria");
+    const taskRecord = path.join(artifacts, "run-200.json");
+    assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #200." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
+    const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([taskPlan.parent, actions(taskPlan)[211]], [{ type: "Task", title: "Widgets" }, "dispatch"], "the plan carries the parent's type and admits the nested slice");
+    const taskPlanFile = write("plan-200.json", taskPlan);
+    run.updateRecord(taskRecord, { expectRevision: 1, coordinator: "local_a" }, (r) => run.claim(r, { plan: taskPlanFile, ticket: 211, worktree: path.join(tmp, "wt-211"), branch: "fix/211-thing", artifactParent: artifacts }));
+    const taskBrief = run.brief(run.readRecord(taskRecord), taskPlanFile, 211, [], defaults);
+    assert.match(taskBrief, /You are the writer for acme\/widgets ticket #211 \(c\), a sub-issue of Task #200, coordinated by/);
+    assert.match(taskBrief, /The design of record is the body of Task #200, as its template structures it, together with the decisions below\. Settled decisions: none beyond the ticket and that body\./);
+    assert.doesNotMatch(taskBrief, /Feature/, "nothing in the brief calls the Task a Feature");
+  }
 
   // The cutover switch, each position pinned from its own copy of the repos
   // file; no case reads the committed position.
   const committedRepos = readRepos();
   const pinRepos = (cutover) => { const file = path.join(tmp, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committedRepos, code: "acme/widgets", internal: "acme/widgets-internal", cutover })); return readRepos(file); };
   const OFF = pinRepos(false), ON = pinRepos(true), INTERNAL = "acme/widgets-internal";
-  const featureSnapshot = (feature, tickets) => ({ repository: "acme/widgets", feature: { number: feature, state: "open" }, originMain: "abc", tickets });
+  const parentSnapshot = (issue, tickets) => ({ repository: "acme/widgets", issue: { number: issue, state: "open" }, originMain: "abc", tickets });
   assert.deepEqual(run.startRepositories("acme/widgets", OFF), {}, "with the switch off a run has one repository, and its record names no second one");
   assert.deepEqual(run.startRepositories("acme/widgets", ON), { ticketsRepository: INTERNAL });
   assert.deepEqual(run.startRepositories("acme/other", ON), {}, "a repository the file does not name keeps its own tickets");
@@ -483,7 +499,7 @@ try {
     ]);
     assert.ok(!calls.some((c) => /graphql|^gh issue|repos\/acme\/widgets\//.test(c)), "nothing reads tickets or comments of the code repository, and nothing uses GraphQL for them");
     assert.throws(() => split.comments(701), /Supply ticket/, "a PR's review thread needs its ticket once tickets live apart");
-    const splitSnap = run.takeSnapshot({ repository: "acme/widgets", feature: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], effort: () => "Medium" });
+    const splitSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], effort: () => "Medium" });
     assert.deepEqual(splitSnap.tickets[0].prs.map((p) => [p.number, p.rounds]), [[704, 2], [701, 2]], "the PRs' rounds come from the round-state comments on their ticket");
     // The record names the tickets repository; its brief and remaining work
     // send the writer and the checkpoint decisions there.
@@ -491,20 +507,20 @@ try {
     git(tmp, "init", "-q", "-b", "main", dir);
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "run.json");
-    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", ...run.startRepositories("acme/widgets", ON), feature: 6, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
-    assert.throws(() => run.initRecord({ record: path.join(dir, "bad.json"), checkout: dir, repository: "acme/widgets", ticketsRepository: "acme/widgets", feature: 9, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "x" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB }), /another owner\/name than --repo/);
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", ...run.startRepositories("acme/widgets", ON), issue: 6, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.throws(() => run.initRecord({ record: path.join(dir, "bad.json"), checkout: dir, repository: "acme/widgets", ticketsRepository: "acme/widgets", issue: 9, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "x" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB }), /another owner\/name than --repo/);
     const splitRecord = run.readRecord(file);
     assert.equal(splitRecord.ticketsRepository, INTERNAL);
-    // The coordinator pointer is keyed by the repository holding the Feature,
-    // so a code repository Feature #6 in the same checkout, from a run of one
+    // The coordinator pointer is keyed by the repository holding the parent issue,
+    // so a code repository issue #6 in the same checkout, from a run of one
     // repository, has its own pointer at the path it always had.
-    const sameNumber = run.initRecord({ record: path.join(dir, "public-6.json"), checkout: dir, repository: "acme/widgets", feature: 6, coordinator: "local_public", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
-    assert.equal(sameNumber.action, "init", "an unrelated Feature of the same number in the code repository starts its own run");
+    const sameNumber = run.initRecord({ record: path.join(dir, "public-6.json"), checkout: dir, repository: "acme/widgets", issue: 6, coordinator: "local_public", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.equal(sameNumber.action, "init", "an unrelated issue of the same number in the code repository starts its own run");
     assert.equal(sameNumber.pointer, run.pointerFile(dir, "acme/widgets", 6));
     assert.notEqual(run.pointerFile(dir, INTERNAL, 6), sameNumber.pointer);
-    assert.equal(JSON.parse(fs.readFileSync(run.pointerFile(dir, INTERNAL, 6), "utf8")).coordinator, "local_split", "and the internal Feature's pointer still names its coordinator");
+    assert.equal(JSON.parse(fs.readFileSync(run.pointerFile(dir, INTERNAL, 6), "utf8")).coordinator, "local_split", "and the internal issue's pointer still names its coordinator");
     assert.deepEqual(run.repositoriesOf(splitRecord).thread(701, 7), { repo: INTERNAL, number: 7, issueUrl: `https://api.github.com/repos/${INTERNAL}/issues/7` });
-    const splitSnapshot = featureSnapshot(6, [{ ...ticket(7), parent: 6 }]);
+    const splitSnapshot = parentSnapshot(6, [{ ...ticket(7), parent: 6 }]);
     const splitPlanFile = write("split-plan.json", run.planDispatch({ record: splitRecord, snapshot: splitSnapshot, preflights: [available("claude-cli", "claude-opus-5-5", [7])], freeBytes: 100 * GB, defaults }));
     assert.match(readJsonFile(splitPlanFile).remaining[0], /publishes it on the slice's ticket, its review thread\.$/);
     run.updateRecord(file, { expectRevision: 1, coordinator: "local_split" }, (r) => run.claim(r, { plan: splitPlanFile, ticket: 7, worktree: path.join(dir, "wt-7"), branch: "feat/7-thing", artifactParent: dir }));
@@ -522,13 +538,13 @@ try {
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "run.json"), since = "2026-10-16T10:00:00.000Z", host = os.hostname();
     const legacy = {
-      version: 1, revision: 119, runId: "6d7a2c1e-1c2b-4f3a-8e5d-000000000119", repository: "acme/widgets", feature: 1900, checkout: dir,
+      version: run.RECORD_VERSION, revision: 119, runId: "6d7a2c1e-1c2b-4f3a-8e5d-000000000119", repository: "acme/widgets", issue: 1900, checkout: dir,
       coordinator: { session: "local_legacy", host, harness: "claude", model: "claude-opus-5-5", effort: "high", permissionMode: "bypassPermissions", since },
-      invocation: { text: "/orchestrate-feature #1900", merging: "coordinator" }, authority: run.authorityFor("coordinator"),
+      invocation: { text: "/orchestrate-issues #1900", merging: "coordinator" }, authority: run.authorityFor("coordinator"),
       writer: { model: "claude-opus-5-5", source: "claude orchestrator default" }, concurrency: { limit: 3, basis: "the smaller of 3 (reviewer slots) and 15 by memory at 4 GB per writer" },
       tickets: { 1901: { owner: null, pending: null, history: [], results: [], requests: [], checkpoints: [] } },
       diskRecoveries: [], previousCoordinators: [], title: "ORCH #1900: legacy shaped run", log: [{ time: since, event: "init", coordinator: "local_legacy", writer: "claude-opus-5-5", concurrency: 3 }],
-      checkpoints: { remote: "origin", branch: "orchestrate-state/feature-1900" }, updated: since,
+      checkpoints: { remote: "origin", branch: "orchestrate-state/issue-1900" }, updated: since,
       checkIn: { interval: 30, cron: "10,40 * * * *", prompt: "check in", command: run.scheduleCommand(file), job: "job-1", none: null, state: "scheduled", since, expires: null }, operations: [],
     };
     fs.writeFileSync(file, JSON.stringify(legacy, null, 2));
@@ -538,7 +554,7 @@ try {
     const loaded = run.readRecord(file);
     assert.deepEqual([run.repositoriesOf(loaded).split, run.repositoriesOf(loaded).tickets], [false, "acme/widgets"], "a record without a tickets repository is a one-repository run");
     assert.deepEqual(run.repositoriesOf(loaded).thread(2001, 1902), { repo: "acme/widgets", number: 2001, issueUrl: "https://api.github.com/repos/acme/widgets/issues/2001" }, "its review threads are the PRs");
-    const legacySnap = featureSnapshot(1900, [{ ...ticket(1901), parent: 1900, state: "closed", delivered: true }, { ...ticket(1902), parent: 1900, blockers: [{ number: 1901, state: "closed", delivered: true }] }]);
+    const legacySnap = parentSnapshot(1900, [{ ...ticket(1901), parent: 1900, state: "closed", delivered: true }, { ...ticket(1902), parent: 1900, blockers: [{ number: 1901, state: "closed", delivered: true }] }]);
     const legacyPlanFile = write("legacy-plan.json", run.planDispatch({ record: loaded, snapshot: legacySnap, preflights: [available("claude-cli", "claude-opus-5-5", [1902])], freeBytes: 100 * GB, defaults }));
     const legacyPlan = readJsonFile(legacyPlanFile);
     assert.deepEqual(actions(legacyPlan), { 1901: "done", 1902: "dispatch" });
@@ -555,7 +571,7 @@ try {
     // finds it, so the takeover is reached on every filesystem.
     const upper = run.pointerFile(dir, "ACME/widgets", 1900);
     if (!fs.existsSync(upper)) fs.copyFileSync(pointer, upper);
-    const caseTakeover = run.initRecord({ record: path.join(dir, "run-upper.json"), checkout: dir, repository: "ACME/widgets", feature: 1900, coordinator: "local_upper", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "/orchestrate-feature #1900", takeover: true, observations: { sessions: { local_legacy: { state: "archived" } } } }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    const caseTakeover = run.initRecord({ record: path.join(dir, "run-upper.json"), checkout: dir, repository: "ACME/widgets", issue: 1900, coordinator: "local_upper", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "/orchestrate-issues #1900", takeover: true, observations: { sessions: { local_legacy: { state: "archived" } } } }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
     assert.deepEqual([caseTakeover.action, "ticketsRepository" in caseTakeover.record], ["takeover", false], "a case-only difference in --repo takes the run over as before");
   }
 
@@ -565,7 +581,7 @@ try {
   assert.equal(refused.status, 1);
   assert.match(refused.stderr, new RegExp(`at revision ${rev}, not ${rev - 1}`));
   assert.equal(run.readRecord(record).revision, rev);
-  const duplicate = cli("init", "--record", second, "--checkout", checkout, "--repo", "acme/widgets", "--feature", "100", "--coordinator", "local_0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--coordinator-mode", "bypassPermissions", "--slug", "widget-feature", "--invocation", "Use orchestrate-feature for #100.", "--merging", "coordinator");
+  const duplicate = cli("init", "--record", second, "--checkout", checkout, "--repo", "acme/widgets", "--issue", "100", "--coordinator", "local_0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--coordinator-mode", "bypassPermissions", "--slug", "widget-feature", "--invocation", "Use orchestrate-issues for #100.", "--merging", "coordinator");
   assert.equal(duplicate.status, 1);
   assert.match(duplicate.stderr, /already has coordinator local_a/);
   assert.equal(cli("plan", "--record", "relative.json").status, 1);
@@ -577,23 +593,23 @@ try {
   assert.equal(taken.action, "takeover");
   assert.deepEqual(taken.record.tickets[104].owner.adopted, { pr: 504, rounds: 2 });
   assert.deepEqual(taken.record.previousCoordinators.map((c) => [c.session, c.record]), [["local_a", record]]);
-  assert.throws(() => mutate(rev, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })), /this record no longer coordinates the Feature/);
+  assert.throws(() => mutate(rev, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })), /this record no longer coordinates the parent issue/);
   assert.equal(run.updateRecord(second, { expectRevision: 1, coordinator: "local_b" }, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })).record.revision, 2);
 
   // Review regressions, each in a fresh scratch checkout and record.
-  const fresh = (name, feature = 300) => {
+  const fresh = (name, issue = 300) => {
     const dir = path.join(tmp, name);
     fs.mkdirSync(path.join(dir, "artifacts"), { recursive: true });
     git(tmp, "init", "-q", "-b", "main", dir);
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "artifacts", "run.json");
-    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", feature, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: `Use orchestrate-feature for #${feature}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: `Use orchestrate-issues for #${issue}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     // Each change starts from the record's current revision, since create and
     // handoff change it through their own two writes.
     const change = (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: "local_r" }, fn).output;
     return { dir, file, artifacts: path.join(dir, "artifacts"), change };
   };
-  const snapshotOf = (feature, tickets) => ({ repository: "acme/widgets", feature: { number: feature, state: "open" }, originMain: "abc", tickets });
+  const snapshotOf = (issue, tickets) => ({ repository: "acme/widgets", issue: { number: issue, state: "open" }, originMain: "abc", tickets });
   const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, ...more });
 
   // 1. A detached writer that outlives its wrapper still owns its ticket: it
@@ -625,7 +641,7 @@ try {
   {
     const f = fresh("r2");
     const pointerLock = `${run.pointerFile(f.dir, "acme/widgets", 300)}.lock`;
-    const takeover = () => run.initRecord({ record: path.join(f.artifacts, "c.json"), checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: "local_c", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    const takeover = () => run.initRecord({ record: path.join(f.artifacts, "c.json"), checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: "local_c", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     fs.writeFileSync(pointerLock, JSON.stringify({ token: "b", identity: processIdentity(process.pid) }));
     assert.throws(takeover, new RegExp(`Process ${process.pid} holds .*pointer|Process ${process.pid} holds`), "a takeover in progress blocks another");
     fs.unlinkSync(pointerLock);
@@ -634,7 +650,7 @@ try {
     fs.unlinkSync(`${f.file}.lock`);
     assert.ok(!fs.existsSync(path.join(f.artifacts, "c.json")), "a refused takeover writes no record");
     assert.equal(takeover().action, "takeover");
-    assert.throws(() => run.initRecord({ record: path.join(f.artifacts, "d.json"), checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: "local_d", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB }), /previous coordinator local_c is unknown/, "a stale view of the first coordinator cannot replace the second");
+    assert.throws(() => run.initRecord({ record: path.join(f.artifacts, "d.json"), checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: "local_d", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB }), /previous coordinator local_c is unknown/, "a stale view of the first coordinator cannot replace the second");
   }
 
   // 3. Lock recovery removes only the generation it judged, one recovery at a
@@ -692,9 +708,9 @@ try {
   {
     const chain = (from, to) => Object.fromEntries(Array.from({ length: to - from }, (_, i) => [from + i, [{ number: from + i + 1, state: "open", title: `n${from + i + 1}` }]]));
     const nested = (links) => ({ ...client, worktrees: () => [], pulls: () => [], blockedBy: () => [], subIssues: (n) => links[n] ?? [] });
-    const deep = run.takeSnapshot({ repository: "acme/widgets", feature: 600 }, nested(chain(600, 604)));
+    const deep = run.takeSnapshot({ repository: "acme/widgets", issue: 600 }, nested(chain(600, 604)));
     assert.deepEqual(deep.tickets.map((t) => [t.number, t.container]), [[601, true], [602, true], [603, true], [604, false]], "a leaf four levels down is a ticket");
-    const tooDeep = run.takeSnapshot({ repository: "acme/widgets", feature: 700 }, nested(chain(700, 700 + run.MAX_SUB_ISSUE_DEPTH + 1)));
+    const tooDeep = run.takeSnapshot({ repository: "acme/widgets", issue: 700 }, nested(chain(700, 700 + run.MAX_SUB_ISSUE_DEPTH + 1)));
     const last = tooDeep.tickets.at(-1);
     assert.deepEqual([last.container, last.truncated], [true, true]);
     const f = fresh("r6", 700);
@@ -741,7 +757,7 @@ try {
     const pre = [available("claude-cli", "claude-opus-5-5", [1201, 1202])];
     const oldPlan = write("r11-old.json", planOf(f, snap, { preflights: pre }));
     const second = path.join(f.artifacts, "b.json");
-    run.initRecord({ record: second, checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: "local_b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", concurrency: 1, takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: second, checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: "local_b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", concurrency: 1, takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     assert.equal(run.readRecord(second).revision, 1, "the new run also starts at revision 1");
     assert.throws(() => run.updateRecord(second, { expectRevision: 1, coordinator: "local_b" }, (r) => run.claim(r, { plan: oldPlan, ticket: 1202, worktree: path.join(f.dir, "wt-1202"), branch: "fix/1202-thing", artifactParent: f.artifacts })), /made for another run/);
   }
@@ -770,7 +786,7 @@ try {
     git(tmp, "init", "-q", "-b", "main", dir);
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "artifacts", "run.json");
-    const made = run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", feature: 300, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "x" }, { defaults, freeBytes: 5 * GB, totalMemory: 64 * GB });
+    const made = run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue: 300, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "x" }, { defaults, freeBytes: 5 * GB, totalMemory: 64 * GB });
     assert.deepEqual([made.record.concurrency.limit, made.diskAdmits], [3, 0]);
     const snap = snapshotOf(300, [{ ...ticket(1401), parent: 300 }]);
     const pre = [available("claude-cli", "claude-opus-5-5", [1401])];

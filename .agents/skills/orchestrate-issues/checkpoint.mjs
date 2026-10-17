@@ -1,13 +1,13 @@
-// Portable checkpoints of one Feature's orchestration. The coordinator's run
+// Portable checkpoints of one parent issue's orchestration. The coordinator's run
 // record lives on its own machine; this module publishes a credential-free
 // copy of it, with an inventory of the writers' work and a takeover brief, as
 // a commit on a dedicated state branch in the tickets repository (the code
 // repository until the cutover switch in .agents/repos.json is on), and keeps
-// one status comment on the parent Feature pointing at the exact checkpoint. A
+// one status comment on the parent issue pointing at the exact checkpoint. A
 // coordinator on any machine, account or harness discovers the run from the
-// Feature number alone, takes it over, and reconciles it against GitHub.
+// parent issue number alone, takes it over, and reconciles it against GitHub.
 //
-//   node .agents/skills/orchestrate-feature/checkpoint.mjs <command> --option value ...
+//   node .agents/skills/orchestrate-issues/checkpoint.mjs <command> --option value ...
 //
 // Commands: enable, publish, sync-summary, discover, resume, prepare-handoff,
 // retrieve, intent, outcome, reconcile-operations, reference, recover-lock.
@@ -28,12 +28,15 @@ import { writeExclusive, readJson, currentIdentity, alive } from "../../../scrip
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { readRepos } from "../../repos.mjs";
-import { RECORD_VERSION, PERMISSION_MODES, applyInvocation, applyCoordinatorMode, authorityFor, carriedRun, checkCoordinatorId, mergingFor, orchestrationTitle, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus, prRef, qualifyPrs, repositoriesOf, sameRepository, startRepositories } from "./feature-run.mjs";
+import { RECORD_VERSION, BEFORE_RENAME, PERMISSION_MODES, applyInvocation, applyCoordinatorMode, authorityFor, carriedRun, checkCoordinatorId, mergingFor, orchestrationTitle, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus, prRef, qualifyPrs, repositoriesOf, sameRepository, startRepositories } from "./issue-run.mjs";
 
-export const CHECKPOINT_VERSION = 1;
-export const stateBranch = (feature) => `orchestrate-state/feature-${feature}`;
-export const statusMarker = (feature) => `<!-- orchestrate-feature status: feature ${feature} -->`;
-const POINTER_LINE = /<!-- orchestrate-feature checkpoint seq=(\d+) commit=([0-9a-f]{40}) -->/;
+export const CHECKPOINT_VERSION = 2;
+export const stateBranch = (issue) => `orchestrate-state/issue-${issue}`;
+// A run started under the skill's previous name: its checkpoints are version
+// 1 and its state branch is named after the Feature. Nothing here reads them.
+const beforeRename = (issue, what) => new Error(`Issue #${issue} was orchestrated under ${BEFORE_RENAME.skill}: ${what}; ${BEFORE_RENAME.how}`);
+export const statusMarker = (issue) => `<!-- orchestrate-issues status: issue ${issue} -->`;
+const POINTER_LINE = /<!-- orchestrate-issues checkpoint seq=(\d+) commit=([0-9a-f]{40}) -->/;
 
 // --- Git --------------------------------------------------------------------
 
@@ -52,19 +55,20 @@ export function remoteHeads(checkout, remote, pattern) {
 
 // The state branch is fetched into a private ref, so the local branch list and
 // FETCH_HEAD are untouched. Once tickets live apart the ref is scoped by the
-// tickets repository: a code repository Feature and an internal Feature of
+// tickets repository: a code repository issue and an internal issue of
 // the same number fetch into refs of their own, and neither can replace the
 // other's between its fetch and its read. A run of one repository keeps the
 // name it always had.
-const localStateRef = (branch, repository, tickets = repository) => (sameRepository(tickets, repository) ? `refs/orchestrate-feature/${branch}` : `refs/orchestrate-feature/${tickets}/${branch}`);
+const localStateRef = (branch, repository, tickets = repository) => (sameRepository(tickets, repository) ? `refs/orchestrate-issues/${branch}` : `refs/orchestrate-issues/${tickets}/${branch}`);
 
 function readCheckpointAt(checkout, commit) {
   const checkpoint = JSON.parse(git(checkout, ["show", `${commit}:checkpoint.json`]));
+  if (checkpoint?.version === 1 && Number.isSafeInteger(checkpoint.seq)) throw beforeRename(checkpoint.feature ?? "?", `commit ${commit} holds a version 1 checkpoint`);
   if (checkpoint?.version !== CHECKPOINT_VERSION || !Number.isSafeInteger(checkpoint.seq) || typeof checkpoint.coordinator?.session !== "string") throw new Error(`Commit ${commit} does not hold a version ${CHECKPOINT_VERSION} checkpoint`);
   return checkpoint;
 }
 
-// The current checkpoint on the remote, or null when the Feature has none. The
+// The current checkpoint on the remote, or null when the parent issue has none. The
 // chain is checked one step back: the commit's parents are exactly the
 // checkpoint it names as previous (one sequence number earlier), when there
 // is one, followed by the snapshot commits it names as its other parents.
@@ -73,15 +77,19 @@ function readCheckpointAt(checkout, commit) {
 // repository (the code repository for a run of one repository), so a
 // checkpoint of the other tracker is refused before anything renders or
 // publishes it.
-export function fetchState(checkout, remote, repository, feature, tickets = repository) {
-  const branch = stateBranch(feature), ref = localStateRef(branch, repository, tickets);
+export function fetchState(checkout, remote, repository, issue, tickets = repository) {
+  const branch = stateBranch(issue), ref = localStateRef(branch, repository, tickets);
   const head = remoteHeads(checkout, remote, `refs/heads/${branch}`).get(branch);
-  if (!head) return null;
+  if (!head) {
+    const old = BEFORE_RENAME.stateBranch(issue);
+    if (remoteHeads(checkout, remote, `refs/heads/${old}`).has(old)) throw beforeRename(issue, `its state branch on ${remote} is ${old}`);
+    return null;
+  }
   git(checkout, ["fetch", "-q", "--no-write-fetch-head", remote, `+refs/heads/${branch}:${ref}`]);
   const commit = git(checkout, ["rev-parse", ref]);
   const checkpoint = readCheckpointAt(checkout, commit);
-  if (checkpoint.repository !== repository || checkpoint.feature !== feature) throw new Error(`${branch} holds a checkpoint of ${checkpoint.repository}#${checkpoint.feature}, not ${repository}#${feature}`);
-  if (!sameRepository(repositoriesOf(checkpoint).tickets, tickets)) throw new Error(`${branch} holds a checkpoint of a run whose tickets live in ${repositoriesOf(checkpoint).tickets}, not ${tickets}; it is another tracker's Feature #${feature}`);
+  if (checkpoint.repository !== repository || checkpoint.issue !== issue) throw new Error(`${branch} holds a checkpoint of ${checkpoint.repository}#${checkpoint.issue}, not ${repository}#${issue}`);
+  if (!sameRepository(repositoriesOf(checkpoint).tickets, tickets)) throw new Error(`${branch} holds a checkpoint of a run whose tickets live in ${repositoriesOf(checkpoint).tickets}, not ${tickets}; it is another tracker's issue #${issue}`);
   const parents = git(checkout, ["rev-list", "--parents", "-n", "1", commit]).split(" ").slice(1);
   const expected = [...(checkpoint.previous ? [checkpoint.previous] : []), ...(checkpoint.snapshotParents ?? [])];
   if (parents.join(" ") !== expected.join(" ")) throw new Error(`Checkpoint ${commit} names parents ${expected.join(", ") || "none"} (previous ${checkpoint.previous}), but its parents are ${parents.join(", ") || "none"}; inspect ${branch}`);
@@ -459,17 +467,17 @@ export function renderSummary(state, repository) {
   const tickets = new Map(Object.entries(c.tickets).map(([n, t]) => [Number(n), { owner: ownerText(t) }]));
   for (const n of [...Object.keys(c.snapshots ?? {}), ...Object.values(c.work ?? {}).map((w) => w.ticket)]) if (!tickets.has(Number(n))) tickets.set(Number(n), { owner: "none" });
   for (const t of c.observed?.tickets ?? []) tickets.set(t.number, { ...(tickets.get(t.number) ?? { owner: "none" }), action: t.action, reason: t.reason, pr: t.pr });
-  // The comment is on the Feature, in the tickets repository, so its pull
+  // The comment is on the parent issue, in the tickets repository, so its pull
   // requests name the code repository once tickets live apart.
   const names = repositoriesOf(c);
   const rows = [...tickets.entries()].sort(([a], [b]) => a - b).map(([n, t]) => `| #${n} | ${cell(t.action ?? "")} | ${t.pr ? prRef(names, t.pr) : ""} | ${cell(t.owner)} | ${cell(workText(c, n))} | ${cell(t.reason ?? "")} |`);
   const prior = c.previousCoordinators.map((p) => `${p.session} on ${p.host} (${p.ended})`).join("; ");
   return qualifyPrs(names, [
-    statusMarker(c.feature),
-    `<!-- orchestrate-feature checkpoint seq=${c.seq} commit=${commit} -->`,
+    statusMarker(c.issue),
+    `<!-- orchestrate-issues checkpoint seq=${c.seq} commit=${commit} -->`,
     "## Orchestration status",
     "",
-    `Checkpoint ${c.seq} is [\`${short(commit)}\`](${link}) on \`${stateBranch(c.feature)}\`, saved ${c.time} after ${c.transition}. The [takeover brief](https://github.com/${repository}/blob/${commit}/brief.md) and the full record are in that commit; this comment summarizes it and may lag it.`,
+    `Checkpoint ${c.seq} is [\`${short(commit)}\`](${link}) on \`${stateBranch(c.issue)}\`, saved ${c.time} after ${c.transition}. The [takeover brief](https://github.com/${repository}/blob/${commit}/brief.md) and the full record are in that commit; this comment summarizes it and may lag it.`,
     "",
     `Coordinator: session ${c.coordinator.session} on ${c.coordinator.host} (${c.coordinator.harness}, ${c.coordinator.model} at ${c.coordinator.effort}) since ${c.coordinator.since}.${prior ? ` Previous: ${prior}.` : ""}`,
     `Handoff: ${c.handoff ? `${c.handoff.state} since ${c.handoff.since}; new dispatch is stopped` : "none; dispatch continues"}.`,
@@ -482,28 +490,28 @@ export function renderSummary(state, repository) {
     ...(c.operations?.some((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state)) ? ["Unsettled operations: " + c.operations.filter((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state)).map((o) => `${operationText(o)} at ${short(o.expectHead)} (${o.state})`).join("; ") + ".", ""] : []),
     ...(c.verifications?.length ? [verificationText(c.verifications.at(-1)), ""] : []),
     ...(c.observed?.remaining?.length ? ["Remaining:", ...c.observed.remaining.map((r) => `- ${r}`), ""] : []),
-    `To continue in another session, on any machine: use orchestrate-feature for #${c.feature}; it resumes from \`${stateBranch(c.feature)}\` and reconciles every fact with GitHub first.`,
+    `To continue in another session, on any machine: use orchestrate-issues for #${c.issue}; it resumes from \`${stateBranch(c.issue)}\` and reconciles every fact with GitHub first.`,
   ].join("\n"));
 }
 
 const sameText = (a, b) => a.replace(/\r\n/g, "\n").trim() === b.replace(/\r\n/g, "\n").trim();
-const markerComments = (github, feature) => github.list(feature).filter((c) => c.body.includes(statusMarker(feature))).sort((a, b) => a.id - b.id);
+const markerComments = (github, issue) => github.list(issue).filter((c) => c.body.includes(statusMarker(issue))).sort((a, b) => a.id - b.id);
 
 // Writes the status comment from the checkpoint at the head of the state
 // branch and reads it back. It repeats no other side effect, so a failed or
 // interrupted summary is repaired by running it again.
-export function syncSummary({ repository, tickets = repository, feature, checkout, remote, github, commentId, state }) {
-  const current = state ?? fetchState(checkout, remote, repository, feature, tickets);
-  if (!current) throw new Error(`Feature #${feature} has no checkpoint on ${stateBranch(feature)}`);
+export function syncSummary({ repository, tickets = repository, issue, checkout, remote, github, commentId, state }) {
+  const current = state ?? fetchState(checkout, remote, repository, issue, tickets);
+  if (!current) throw new Error(`Issue #${issue} has no checkpoint on ${stateBranch(issue)}`);
   // The state branch is in the tickets repository the checkpoint names.
   const body = renderSummary(current, repositoriesOf(current.checkpoint).tickets);
   let existing = null, duplicates = [];
-  if (commentId) { try { const c = github.get(commentId); if (c.body.includes(statusMarker(feature))) existing = c; } catch { existing = null; } }
-  if (!existing) { const found = markerComments(github, feature); existing = found.at(-1) ?? null; duplicates = found.slice(0, -1).map((c) => c.id); }
+  if (commentId) { try { const c = github.get(commentId); if (c.body.includes(statusMarker(issue))) existing = c; } catch { existing = null; } }
+  if (!existing) { const found = markerComments(github, issue); existing = found.at(-1) ?? null; duplicates = found.slice(0, -1).map((c) => c.id); }
   let written;
   if (existing && sameText(existing.body, body)) written = existing;
   else if (existing) written = github.update(existing.id, body);
-  else written = github.create(feature, body);
+  else written = github.create(issue, body);
   const back = github.get(written.id);
   const pointer = POINTER_LINE.exec(back.body);
   if (!pointer || Number(pointer[1]) !== current.checkpoint.seq || pointer[2] !== current.commit) throw new Error(`Comment ${written.id} did not read back as checkpoint ${current.checkpoint.seq}`);
@@ -546,7 +554,7 @@ export function stateRemote(checkout, names, remote) {
 const remotesOf = (record) => ({ remote: record.checkpoints.remote, codeRemote: record.checkpoints.codeRemote ?? record.checkpoints.remote });
 
 function takeoverBrief(c, commit) {
-  const lines = [`# Takeover brief for Feature #${c.feature}`, "", `Checkpoint ${c.seq} (${commit ?? "this commit"}), ${c.time}, after ${c.transition}. Coordinator ${c.coordinator.session} on ${c.coordinator.host}.`, ""];
+  const lines = [`# Takeover brief for issue #${c.issue}`, "", `Checkpoint ${c.seq} (${commit ?? "this commit"}), ${c.time}, after ${c.transition}. Coordinator ${c.coordinator.session} on ${c.coordinator.host}.`, ""];
   lines.push("Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.", "");
   lines.push("- Every writer, pending start and process below belongs to the host it names. A destination's local view of another host proves nothing: an absent PID, an unlisted session or a missing launch directory there is not an exit. Such a writer stays unknown until it is observed on its own host, by its coordinator there or by the maintainer, and recorded as an observation naming that host.");
   lines.push("- A review continuation belongs to the writer session that submitted it. Never claim it from another session; once that writer is observed to have ended, cancel and release the job on its host as the review supervisor describes, and continue the PR with a new writer whose round count continues from the PR's posted rounds.");
@@ -571,14 +579,14 @@ function takeoverBrief(c, commit) {
   }
   const open = (c.operations ?? []).filter((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state));
   if (open.length) lines.push("## Unsettled operations", "", ...open.map((o) => `- ${o.id}: ${operationText(o)} at ${o.expectHead}, ${o.state}; settle it with checkpoint.mjs reconcile-operations before any retry`), "");
-  if (c.verifications?.length) lines.push("## Feature verification", "", verificationText(c.verifications.at(-1)), "");
+  if (c.verifications?.length) lines.push("## Issue verification", "", verificationText(c.verifications.at(-1)), "");
   if (c.handoff?.uncertain?.length) lines.push("## Running or uncertain at handoff", "", ...c.handoff.uncertain.map((u) => `- #${u.ticket}: ${u.status} (${u.reason})`), "");
   return `${lines.join("\n").trim()}\n`;
 }
 
 export function buildCheckpoint(record, { seq, previous, snapshotParents = [], kind, transition, host, work, snapshots = record.snapshots ?? {}, observed }) {
   const checkpoint = {
-    version: CHECKPOINT_VERSION, repository: record.repository, ...(record.ticketsRepository !== undefined && { ticketsRepository: record.ticketsRepository }), feature: record.feature, seq, previous, snapshotParents, time: new Date().toISOString(), kind, transition,
+    version: CHECKPOINT_VERSION, repository: record.repository, ...(record.ticketsRepository !== undefined && { ticketsRepository: record.ticketsRepository }), issue: record.issue, seq, previous, snapshotParents, time: new Date().toISOString(), kind, transition,
     run: { runId: record.runId, recordRevision: record.revision, source: { host, checkout: record.checkout } },
     coordinator: record.coordinator, previousCoordinators: record.previousCoordinators,
     invocation: record.invocation, authority: record.authority, writer: record.writer, concurrency: record.concurrency,
@@ -608,7 +616,7 @@ export const observedFrom = (plan) => (plan ? { at: plan.plannedAt ?? new Date()
 // forced. A save counts only after the remote head and content read back.
 export function publish(file, { coordinator, kind = "auto", transition = "an explicit publish", plan, snapshots = {}, host = os.hostname(), github, takeoverFrom, sync = true, onlyIfChanged = false } = {}) {
   const record = readRecord(file);
-  if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not publish its checkpoint`);
+  if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not publish its checkpoint`);
   if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run; run checkpoint.mjs enable");
   const { remote, codeRemote } = remotesOf(record), { tickets } = repositoriesOf(record);
   // The remote's URLs may have changed since enable; a publication never
@@ -617,10 +625,10 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
   github ??= githubComments(tickets, record.checkout);
   return withLock(file, () => {
     const side = readSidecar(file);
-    const head = fetchState(record.checkout, remote, record.repository, record.feature, tickets);
+    const head = fetchState(record.checkout, remote, record.repository, record.issue, tickets);
     let previous = head?.commit ?? null;
-    if (head && head.checkpoint.coordinator.session !== coordinator && head.commit !== takeoverFrom) throw new CoordinatorChanged(`Feature #${record.feature} has been taken over: checkpoint ${head.checkpoint.seq} (${head.commit}) names coordinator ${head.checkpoint.coordinator.session} on ${head.checkpoint.coordinator.host}. This coordinator must stop; nothing was published`);
-    if (!head && side.saved) throw new Error(`${stateBranch(record.feature)} is missing although checkpoint ${side.saved.seq} (${side.saved.commit}) was saved; inspect the remote before publishing again`);
+    if (head && head.checkpoint.coordinator.session !== coordinator && head.commit !== takeoverFrom) throw new CoordinatorChanged(`Issue #${record.issue} has been taken over: checkpoint ${head.checkpoint.seq} (${head.commit}) names coordinator ${head.checkpoint.coordinator.session} on ${head.checkpoint.coordinator.host}. This coordinator must stop; nothing was published`);
+    if (!head && side.saved) throw new Error(`${stateBranch(record.issue)} is missing although checkpoint ${side.saved.seq} (${side.saved.commit}) was saved; inspect the remote before publishing again`);
     if (head && head.checkpoint.coordinator.session === coordinator) {
       // A checkpoint of this run made from a later record revision means this
       // record is an outdated copy; publishing it would undo newer state.
@@ -664,32 +672,32 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
     // plan replaces it; it carries the time it was planned.
     const checkpoint = buildCheckpoint(record, { seq, previous, snapshotParents: extra, kind, transition, host, work, snapshots: allSnapshots, observed });
     const content = `${JSON.stringify(checkpoint, null, 2)}\n`;
-    const commit = writeCommit(record.checkout, { "checkpoint.json": content, "brief.md": takeoverBrief(checkpoint) }, [...(previous ? [previous] : []), ...extra], `checkpoint ${seq} of ${tickets}#${record.feature}: ${transition}\n`);
+    const commit = writeCommit(record.checkout, { "checkpoint.json": content, "brief.md": takeoverBrief(checkpoint) }, [...(previous ? [previous] : []), ...extra], `checkpoint ${seq} of ${tickets}#${record.issue}: ${transition}\n`);
     side.attempt = { seq, commit, previous, recordRevision: record.revision, runId: record.runId, state: "intent", time: new Date().toISOString() };
     writeSidecar(file, side);
     let pushError = null;
-    try { git(record.checkout, ["push", "-q", remote, `${commit}:refs/heads/${stateBranch(record.feature)}`]); } catch (error) { pushError = error; }
+    try { git(record.checkout, ["push", "-q", remote, `${commit}:refs/heads/${stateBranch(record.issue)}`]); } catch (error) { pushError = error; }
     let now;
-    try { now = remoteHeads(record.checkout, remote, `refs/heads/${stateBranch(record.feature)}`).get(stateBranch(record.feature)) ?? null; }
+    try { now = remoteHeads(record.checkout, remote, `refs/heads/${stateBranch(record.issue)}`).get(stateBranch(record.issue)) ?? null; }
     catch (error) { side.attempt = { ...side.attempt, state: "uncertain", reason: `the push ${pushError ? `failed (${pushError.message})` : "ran"} and the remote could not be read back (${error.message})` }; writeSidecar(file, side); return { saved: false, state: "uncertain", seq, commit, reason: side.attempt.reason }; }
     if (now !== commit) {
       const competing = now !== previous;
       side.attempt = { ...side.attempt, state: competing ? "refused" : "failed", reason: competing ? `the remote moved to ${now} while this checkpoint was built on ${previous}` : `the push failed: ${pushError?.message ?? "no error, but the remote is unchanged"}` };
       writeSidecar(file, side);
       if (competing) {
-        const after = fetchState(record.checkout, remote, record.repository, record.feature, tickets);
-        if (after && after.checkpoint.coordinator.session !== coordinator) throw new CoordinatorChanged(`Feature #${record.feature} was taken over while this checkpoint was being published: checkpoint ${after.checkpoint.seq} names ${after.checkpoint.coordinator.session}. This coordinator must stop; nothing was published`);
+        const after = fetchState(record.checkout, remote, record.repository, record.issue, tickets);
+        if (after && after.checkpoint.coordinator.session !== coordinator) throw new CoordinatorChanged(`Issue #${record.issue} was taken over while this checkpoint was being published: checkpoint ${after.checkpoint.seq} names ${after.checkpoint.coordinator.session}. This coordinator must stop; nothing was published`);
       }
       return { saved: false, state: side.attempt.state, seq, commit, reason: side.attempt.reason };
     }
-    git(record.checkout, ["fetch", "-q", "--no-write-fetch-head", remote, `+refs/heads/${stateBranch(record.feature)}:${localStateRef(stateBranch(record.feature), record.repository, tickets)}`]);
+    git(record.checkout, ["fetch", "-q", "--no-write-fetch-head", remote, `+refs/heads/${stateBranch(record.issue)}:${localStateRef(stateBranch(record.issue), record.repository, tickets)}`]);
     if (git(record.checkout, ["show", `${commit}:checkpoint.json`]) !== content.trim()) throw new Error(`Checkpoint ${commit} did not read back as written`);
     side.saved = { seq, commit, recordRevision: record.revision, runId: record.runId, time: checkpoint.time };
     side.attempt = null;
     writeSidecar(file, side);
     const result = { saved: true, seq, commit, url: `https://github.com/${tickets}/tree/${commit}`, ...(Object.keys(refusedSnapshots).length && { refusedSnapshots }) };
     if (sync && github) {
-      try { side.summary = syncSummary({ repository: record.repository, tickets, feature: record.feature, checkout: record.checkout, remote, github, commentId: side.summary?.commentId, state: { commit, checkpoint, brief: "" } }); result.summary = { state: "synced", ...side.summary }; }
+      try { side.summary = syncSummary({ repository: record.repository, tickets, issue: record.issue, checkout: record.checkout, remote, github, commentId: side.summary?.commentId, state: { commit, checkpoint, brief: "" } }); result.summary = { state: "synced", ...side.summary }; }
       catch (error) { result.summary = { state: "failed", reason: error.message, repair: "checkpoint.mjs sync-summary rewrites it from the saved checkpoint" }; side.summary = { ...(side.summary ?? {}), failed: error.message, time: new Date().toISOString() }; }
       writeSidecar(file, side);
     }
@@ -705,7 +713,7 @@ export function ensureSaved(file, { coordinator, host, github } = {}) {
   if (!record.checkpoints) return { checkpoints: false };
   const side = readSidecar(file);
   if (side.saved?.recordRevision === record.revision && side.saved.runId === record.runId) {
-    const branch = stateBranch(record.feature);
+    const branch = stateBranch(record.issue);
     let now;
     try { now = remoteHeads(record.checkout, record.checkpoints.remote, `refs/heads/${branch}`).get(branch); }
     catch (error) { throw new Error(`Checkpoint ${side.saved.seq} could not be confirmed on the remote (${error.message}); the side effect was not started`); }
@@ -735,27 +743,27 @@ export function autoCheckpoint(file, { coordinator, transition, host, github, pl
 
 // The checkpoint settings of a record: the state branch's remote and, once
 // tickets live apart, the code repository's remote beside it.
-const checkpointSettings = (names, remote, feature) => ({ remote, branch: stateBranch(feature), ...(repositoriesOf(names).split && { codeRemote: CODE_REMOTE }) });
+const checkpointSettings = (names, remote, issue) => ({ remote, branch: stateBranch(issue), ...(repositoriesOf(names).split && { codeRemote: CODE_REMOTE }) });
 
 export function enable(file, { coordinator, expectRevision, remote: named, host, github }) {
   const current = readRecord(file);
   const remote = stateRemote(current.checkout, current, named);
-  const head = fetchState(current.checkout, remote, current.repository, current.feature, repositoriesOf(current).tickets);
-  if (head && head.checkpoint.coordinator.session !== coordinator) throw new Error(`Feature #${current.feature} already has checkpoint ${head.checkpoint.seq} by coordinator ${head.checkpoint.coordinator.session} on ${head.checkpoint.coordinator.host}; take it over with checkpoint.mjs resume instead of starting a second run`);
-  const { record } = updateRecord(file, { expectRevision, coordinator }, (r) => { r.checkpoints = checkpointSettings(r, remote, r.feature); r.log.push({ time: new Date().toISOString(), event: "checkpoints-enabled", remote }); });
+  const head = fetchState(current.checkout, remote, current.repository, current.issue, repositoriesOf(current).tickets);
+  if (head && head.checkpoint.coordinator.session !== coordinator) throw new Error(`Issue #${current.issue} already has checkpoint ${head.checkpoint.seq} by coordinator ${head.checkpoint.coordinator.session} on ${head.checkpoint.coordinator.host}; take it over with checkpoint.mjs resume instead of starting a second run`);
+  const { record } = updateRecord(file, { expectRevision, coordinator }, (r) => { r.checkpoints = checkpointSettings(r, remote, r.issue); r.log.push({ time: new Date().toISOString(), event: "checkpoints-enabled", remote }); });
   return { revision: record.revision, checkpoint: publish(file, { coordinator, transition: "checkpoints were enabled", host, github }) };
 }
 
-// Finds the run from the Feature number: the status comment names a
+// Finds the run from the parent issue number: the status comment names a
 // checkpoint, and the state branch's head is the current one. A summary that
 // names an older checkpoint is reported stale; the branch wins.
-export function discover({ repository, tickets = repository, feature, checkout, remote = DEFAULT_REMOTE, github }) {
-  const state = fetchState(checkout, remote, repository, feature, tickets);
-  const comments = github ? markerComments(github, feature) : [];
+export function discover({ repository, tickets = repository, issue, checkout, remote = DEFAULT_REMOTE, github }) {
+  const state = fetchState(checkout, remote, repository, issue, tickets);
+  const comments = github ? markerComments(github, issue) : [];
   const latest = comments.at(-1);
   const pointer = latest ? POINTER_LINE.exec(latest.body) : null;
   const summary = latest ? { commentId: latest.id, url: latest.url, seq: pointer ? Number(pointer[1]) : null, commit: pointer?.[2] ?? null } : null;
-  if (!state) return { found: false, summary, reason: summary ? `the status comment names checkpoint ${summary.seq}, but ${stateBranch(feature)} does not exist on ${remote}` : `Feature #${feature} has no checkpoint on ${stateBranch(feature)}` };
+  if (!state) return { found: false, summary, reason: summary ? `the status comment names checkpoint ${summary.seq}, but ${stateBranch(issue)} does not exist on ${remote}` : `Issue #${issue} has no checkpoint on ${stateBranch(issue)}` };
   return { found: true, commit: state.commit, checkpoint: state.checkpoint, brief: state.brief, summary: summary ? { ...summary, stale: summary.commit !== state.commit } : { stale: true, missing: true } };
 }
 
@@ -788,15 +796,15 @@ export function limitations(checkpoint, { host = os.hostname(), observations = {
 // own invocation; its predecessor's authority and decisions stay in the record
 // as evidence. Ownership, reports and history carry over unchanged.
 export function resume(options, { github, host = os.hostname(), defaults = readWriterDefaults(), totalMemory = os.totalmem() } = {}) {
-  const { record: file, checkout, repository, ticketsRepository, feature, coordinator, harness, invocation, evidence } = options;
+  const { record: file, checkout, repository, ticketsRepository, issue, coordinator, harness, invocation, evidence } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
   const remote = stateRemote(checkout, { repository, ticketsRepository }, options.remote);
   if (!coordinator || !invocation) throw new Error("--coordinator and --invocation (the user's request in this session) are required");
   // Who merges comes from this session's request, never from the previous one.
   const merging = mergingFor(invocation, options.merging);
   if (options.concurrency !== undefined && (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 8)) throw new Error("--concurrency must be 1 to 8");
-  const found = discover({ repository, tickets: ticketsRepository ?? repository, feature, checkout, remote, github });
-  if (!found.found) throw new Error(`${found.reason}; start the run with feature-run.mjs init`);
+  const found = discover({ repository, tickets: ticketsRepository ?? repository, issue, checkout, remote, github });
+  if (!found.found) throw new Error(`${found.reason}; start the run with issue-run.mjs init`);
   const prev = found.checkpoint;
   if (!sameRepository(repositoriesOf(prev).tickets, ticketsRepository ?? repository)) throw new Error(`Checkpoint ${prev.seq} is of a run whose tickets live in ${repositoriesOf(prev).tickets}, but this session would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
   if (prev.coordinator.session === coordinator) {
@@ -806,12 +814,12 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     // installs it again.
     const own = readRecord(file);
     if (own.runId !== prev.run.runId || own.coordinator.session !== coordinator) throw new Error(`Checkpoint ${prev.seq} names run ${prev.run.runId}, but ${file} holds run ${own.runId}; inspect both before continuing`);
-    const pointer = installPointer(checkout, repositoriesOf(own).tickets, feature, { record: file, coordinator, host, since: own.coordinator.since });
+    const pointer = installPointer(checkout, repositoriesOf(own).tickets, issue, { record: file, coordinator, host, since: own.coordinator.since });
     // This session's request, as it is now, decides who merges, and its
     // permission mode as it reads it now is recorded; a change is saved before
     // the session acts on it.
     const applied = applyInvocation(file, { coordinator, invocation, merging });
-    const switched = applyCoordinatorMode(file, { coordinator, permissionMode: options.coordinatorMode, title: options.slug === undefined ? undefined : orchestrationTitle(feature, options.slug) }).revision !== applied.record.revision;
+    const switched = applyCoordinatorMode(file, { coordinator, permissionMode: options.coordinatorMode, title: options.slug === undefined ? undefined : orchestrationTitle(issue, options.slug) }).revision !== applied.record.revision;
     const checkpoint = applied.changed || switched ? ensureSaved(file, { coordinator, host, github }) : undefined;
     return { action: "resume", seq: prev.seq, commit: found.commit, pointer, ...(checkpoint && { checkpoint }), limitations: limitations(prev, { host }) };
   }
@@ -837,12 +845,12 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const since = new Date().toISOString();
   if (options.coordinatorMode !== undefined && !PERMISSION_MODES.includes(options.coordinatorMode)) throw new Error(`--coordinator-mode must be the coordinator's own permission mode: ${PERMISSION_MODES.join(", ")}`);
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, ...(options.coordinatorMode !== undefined && { permissionMode: options.coordinatorMode }), since };
-  // The Feature's title and check-in carry over; a checkpoint from
+  // The parent issue's title and check-in carry over; a checkpoint from
   // before titles were recorded takes the title from this session's slug.
-  const run = carriedRun(prev, { file, record: { feature, coordinator: self }, defaults });
-  if (!run.title && options.slug !== undefined) run.title = orchestrationTitle(feature, options.slug);
+  const run = carriedRun(prev, { file, record: { issue, coordinator: self }, defaults });
+  if (!run.title && options.slug !== undefined) run.title = orchestrationTitle(issue, options.slug);
   const record = {
-    version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, ...(ticketsRepository !== undefined && { ticketsRepository }), feature, checkout,
+    version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, ...(ticketsRepository !== undefined && { ticketsRepository }), issue, checkout,
     coordinator: self,
     invocation: { text: invocation, merging, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: authorityFor(merging), writer, concurrency,
@@ -853,7 +861,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     snapshots: structuredClone(prev.snapshots ?? {}),
     ...run,
     previousCoordinators: [...prev.previousCoordinators, { ...prev.coordinator, record: `checkpoint ${prev.seq} (${found.commit})`, invocation: prev.invocation, authority: prev.authority, ended: evidence }],
-    checkpoints: checkpointSettings({ repository, ticketsRepository }, remote, feature),
+    checkpoints: checkpointSettings({ repository, ticketsRepository }, remote, issue),
     log: [{ time: since, event: "takeover", coordinator, from: prev.coordinator.session, checkpoint: { seq: prev.seq, commit: found.commit }, evidence, writer: writer.model }],
   };
   if (!options.coordinatorModel || !writerEfforts(options.coordinatorModel).includes(options.coordinatorEffort)) throw new Error("--coordinator-model and --coordinator-effort must be the coordinator's own metadata");
@@ -861,13 +869,13 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   // Only a refusal (another coordinator's checkpoint, or a push Git refused)
   // sets the record aside. Any other failure may have landed the takeover, so
   // the record stays for resume to settle from the remote.
-  const setAside = (reason) => { fs.renameSync(file, `${file}.refused-${Date.now()}`); return new Error(`The takeover was refused (${reason}); this session does not coordinate #${feature}. Discover again and take over into a new record if the run is still unowned`); };
-  const uncertain = (reason) => new Error(`The takeover's outcome is uncertain (${reason}); this session may already coordinate #${feature}. Run resume again in this session with the same record once the remote is reachable; it settles the outcome from the state branch`);
+  const setAside = (reason) => { fs.renameSync(file, `${file}.refused-${Date.now()}`); return new Error(`The takeover was refused (${reason}); this session does not coordinate #${issue}. Discover again and take over into a new record if the run is still unowned`); };
+  const uncertain = (reason) => new Error(`The takeover's outcome is uncertain (${reason}); this session may already coordinate #${issue}. Run resume again in this session with the same record once the remote is reachable; it settles the outcome from the state branch`);
   let published;
   try { published = publish(file, { coordinator, kind: "takeover", transition: `the takeover from ${prev.coordinator.session}`, host, github, takeoverFrom: found.commit }); }
   catch (error) { throw error instanceof CoordinatorChanged ? setAside(error.message) : uncertain(error.message); }
   if (!published.saved) throw published.state === "refused" ? setAside(published.reason) : uncertain(published.reason);
-  installPointer(checkout, ticketsRepository ?? repository, feature, { record: file, coordinator, host, since: retry?.coordinator.since ?? since });
+  installPointer(checkout, ticketsRepository ?? repository, issue, { record: file, coordinator, host, since: retry?.coordinator.since ?? since });
   // The limitations are those of the takeover's own checkpoint, which observed
   // this host's work afresh.
   return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer: retry?.writer ?? writer, summary: published.summary ?? null, limitations: limitations(readCheckpointAt(checkout, published.commit), { host }) };
@@ -876,8 +884,8 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
 // On this machine the local pointer follows the takeover, so a previous
 // coordinator's record here stops accepting changes.
 // `repository` is the tickets repository, which keys the pointer.
-function installPointer(checkout, repository, feature, value) {
-  const pointer = pointerFile(checkout, repository, feature);
+function installPointer(checkout, repository, issue, value) {
+  const pointer = pointerFile(checkout, repository, issue);
   fs.mkdirSync(path.dirname(pointer), { recursive: true });
   let current = null;
   try { current = readJson(pointer); } catch { current = null; }
@@ -939,10 +947,10 @@ export function prepareHandoff(file, { coordinator, expectRevision, step, observ
 // each changed file is written with the snapshot's exact bytes, past this
 // checkout's conversions, and the index takes the snapshot's staged state.
 // Both are checked against the snapshot.
-export function retrieve({ repository, tickets = repository, feature, checkout, remote = DEFAULT_REMOTE, ticket, worktree }) {
+export function retrieve({ repository, tickets = repository, issue, checkout, remote = DEFAULT_REMOTE, ticket, worktree }) {
   if (!path.isAbsolute(worktree ?? "")) throw new Error("--worktree must be an absolute path");
   if (fs.existsSync(worktree)) throw new Error(`${worktree} already exists`);
-  const state = fetchState(checkout, remote, repository, feature, tickets);
+  const state = fetchState(checkout, remote, repository, issue, tickets);
   const snap = state?.checkpoint.snapshots?.[ticket];
   if (!snap || snap.clean) throw new Error(`Checkpoint ${state?.checkpoint.seq ?? "none"} holds no snapshot for #${ticket}`);
   const local = spawnOk(checkout, ["rev-parse", "--verify", "--quiet", `refs/heads/${snap.branch}`]) ? git(checkout, ["rev-parse", `refs/heads/${snap.branch}`]) : null;
@@ -989,16 +997,16 @@ export function retrieve({ repository, tickets = repository, feature, checkout, 
 
 // --- Intended operations and their outcomes --------------------------------
 
-// An operation on GitHub (a merge, marking a PR ready, closing the Feature) is
+// An operation on GitHub (a merge, marking a PR ready, closing the parent issue) is
 // recorded as intent before it runs and as an outcome after. An outcome lost
 // to an interruption is read back from GitHub, never assumed: a PR merged at
 // the intended head confirms a merge, an open PR still at the intended head
 // means it did not apply and may be retried, and a moved head means the
-// decision no longer applies. A close names the Feature as its `pr` and the
-// verified main commit as its head; a closed Feature confirms it.
+// decision no longer applies. A close names the parent issue as its `pr` and the
+// verified main commit as its head; a closed parent issue confirms it.
 export const OPERATION_KINDS = ["merge", "ready", "close"];
-export const operationText = (o) => (o.kind === "close" ? `closing Feature #${o.pr}` : `${o.kind} of PR #${o.pr}`);
-export const verificationText = (v) => `Feature verification ${v.id} on main \`${String(v.mainSha).slice(0, 9)}\` at ${v.time}: ${v.verdict}${v.verdict === "complete" ? "" : ` (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...(v.unsettled ?? []).map((o) => `unsettled ${o}`)].join("; ")})`}.`;
+export const operationText = (o) => (o.kind === "close" ? `closing issue #${o.pr}` : `${o.kind} of PR #${o.pr}`);
+export const verificationText = (v) => `Issue verification ${v.id} on main \`${String(v.mainSha).slice(0, 9)}\` at ${v.time}: ${v.verdict}${v.verdict === "complete" ? "" : ` (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...(v.unsettled ?? []).map((o) => `unsettled ${o}`)].join("; ")})`}.`;
 export function intent(record, { kind, ticket, pr, expectHead, evidence }) {
   if (!OPERATION_KINDS.includes(kind)) throw new Error(`--kind must be ${OPERATION_KINDS.join(" or ")}`);
   if (!Number.isSafeInteger(ticket) || !Number.isSafeInteger(pr) || !/^[0-9a-f]{40}$/.test(expectHead ?? "")) throw new Error("--ticket, --pr and the full --expect-head are required");
@@ -1041,10 +1049,10 @@ export function reconcileOperations(record, { snapshot, firstParent }) {
     const pr = prs.get(op.pr);
     let state = "uncertain", retry = false, evidence = `PR #${op.pr} is not in the snapshot of ${snapshot.observedAt}`, landed = {};
     if (op.kind === "close") {
-      const feature = snapshot.feature?.number === op.pr ? snapshot.feature : null;
-      if (!feature) evidence = `Feature #${op.pr} is not the snapshot's Feature`;
-      else if (feature.state === "closed") { state = "confirmed"; evidence = `Feature #${op.pr} is closed`; }
-      else { state = "not-applied"; retry = true; evidence = `Feature #${op.pr} is still ${feature.state}`; }
+      const issue = snapshot.issue?.number === op.pr ? snapshot.issue : null;
+      if (!issue) evidence = `Issue #${op.pr} is not the snapshot's parent issue`;
+      else if (issue.state === "closed") { state = "confirmed"; evidence = `Issue #${op.pr} is closed`; }
+      else { state = "not-applied"; retry = true; evidence = `Issue #${op.pr} is still ${issue.state}`; }
     } else if (pr && op.kind === "merge") {
       if (pr.state === "MERGED" && pr.head === op.expectHead) { state = "confirmed"; landed = landing(op, pr.mergeCommit, firstParent); evidence = `PR #${op.pr} is merged as ${pr.mergeCommit} at ${pr.head}${landingText(landed, ciCovered(op))}`; }
       else if (pr.state === "MERGED") { state = "superseded"; evidence = `PR #${op.pr} was merged as ${pr.mergeCommit} at ${pr.head}, not at ${op.expectHead}; this operation's expected-head merge did not apply`; }
@@ -1124,8 +1132,8 @@ export function main(argv, { github: injected, repos, commentsFor = githubCommen
   switch (command) {
     case "enable": { const { file, github } = fromRecord(); return enable(file, { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), remote: o.remote, github }); }
     case "publish": { const { file, github } = fromRecord(); return publish(file, { coordinator: o.coordinator, transition: o.transition ?? "an explicit publish", plan: o.plan ? readJson(abs(o.plan, "plan")) : undefined, github }); }
-    case "sync-summary": { const checkout = abs(o.checkout, "checkout"), feature = int(o.feature, "feature"), { tickets, remote, github } = named(checkout); return syncSummary({ repository: o.repo, tickets, feature, checkout, remote, github }); }
-    case "discover": { const checkout = abs(o.checkout, "checkout"), { tickets, remote, github } = named(checkout); const found = discover({ repository: o.repo, tickets, feature: int(o.feature, "feature"), checkout, remote, github }); return found.found ? { ...found, limitations: limitations(found.checkpoint) } : found; }
+    case "sync-summary": { const checkout = abs(o.checkout, "checkout"), issue = int(o.issue, "issue"), { tickets, remote, github } = named(checkout); return syncSummary({ repository: o.repo, tickets, issue, checkout, remote, github }); }
+    case "discover": { const checkout = abs(o.checkout, "checkout"), { tickets, remote, github } = named(checkout); const found = discover({ repository: o.repo, tickets, issue: int(o.issue, "issue"), checkout, remote, github }); return found.found ? { ...found, limitations: limitations(found.checkpoint) } : found; }
     case "resume": {
       // Like init, the command line records the coordinator's own session id,
       // permission mode and title slug, never a default.
@@ -1133,12 +1141,12 @@ export function main(argv, { github: injected, repos, commentsFor = githubCommen
       if (!PERMISSION_MODES.includes(o.coordinatorMode)) throw new Error(`--coordinator-mode must be this session's own permission mode: ${PERMISSION_MODES.join(", ")}`);
       // The slug gives the session title to a checkpoint that carries none; a
       // carried title stays.
-      orchestrationTitle(int(o.feature, "feature"), o.slug);
+      orchestrationTitle(int(o.issue, "issue"), o.slug);
       const checkout = abs(o.checkout, "checkout"), { ticketsRepository, remote, github } = named(checkout);
-      return resume({ record: o.record, checkout, repository: o.repo, ticketsRepository, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, coordinatorMode: o.coordinatorMode, slug: o.slug, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, merging: o.merging ?? "(missing)", concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote }, { github });
+      return resume({ record: o.record, checkout, repository: o.repo, ticketsRepository, issue: int(o.issue, "issue"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, coordinatorMode: o.coordinatorMode, slug: o.slug, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, merging: o.merging ?? "(missing)", concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote }, { github });
     }
     case "prepare-handoff": { const { file, github } = fromRecord(); return prepareHandoff(file, { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), step: o.step, observations: o.observations ? readJson(abs(o.observations, "observations")) : {}, github }); }
-    case "retrieve": { const checkout = abs(o.checkout, "checkout"); const { tickets, remote } = named(checkout); return retrieve({ repository: o.repo, tickets, feature: int(o.feature, "feature"), checkout, remote, ticket: int(o.ticket, "ticket"), worktree: o.worktree }); }
+    case "retrieve": { const checkout = abs(o.checkout, "checkout"); const { tickets, remote } = named(checkout); return retrieve({ repository: o.repo, tickets, issue: int(o.issue, "issue"), checkout, remote, ticket: int(o.ticket, "ticket"), worktree: o.worktree }); }
     case "intent": return mutate((r) => intent(r, { kind: o.kind, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), expectHead: o.expectHead, evidence: o.evidence }), `the intent to ${o.kind} PR #${o.pr}`);
     case "outcome": return mutate((r) => outcome(r, { id: o.id, state: o.state, evidence: o.evidence }), `the outcome of operation ${o.id}`);
     case "reconcile-operations": {

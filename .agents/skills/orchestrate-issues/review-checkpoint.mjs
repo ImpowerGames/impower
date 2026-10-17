@@ -1,4 +1,4 @@
-// Review checkpoints for orchestrate-feature. After round 3's verified fixes,
+// Review checkpoints for orchestrate-issues. After round 3's verified fixes,
 // and after every later round's, the coordinator records one decision for a
 // writer's PR: finish through ordinary readiness, direct a root-cause repair,
 // authorize the next bounded round, accept the final verified corrections
@@ -7,7 +7,7 @@
 // decision whose checkable preconditions do not hold, and builds the comment
 // that records it on the PR's review thread: the PR itself, or the slice's
 // ticket once the run's tickets live apart from its code (repositoriesOf in
-// feature-run.mjs). The review thread is that decision's authority: a later
+// issue-run.mjs). The review thread is that decision's authority: a later
 // coordinator, on any account or machine, restores every decision from its
 // comments alone.
 //
@@ -15,7 +15,7 @@
 // filled in says nothing about whether its reasoning is sound. That is read
 // in the published decision.
 //
-//   node .agents/skills/orchestrate-feature/review-checkpoint.mjs <command> --option value ...
+//   node .agents/skills/orchestrate-issues/review-checkpoint.mjs <command> --option value ...
 //
 // Commands: evidence, decide, published, abandon, trust-predecessor, restore,
 // acceptance-check.
@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
-import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositories, streamSession, updateRecord } from "./feature-run.mjs";
+import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositories, streamSession, updateRecord } from "./issue-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -39,7 +39,7 @@ export const ASSESSMENT_FIELDS = ["mechanisms", "regressions", "repairOptions", 
 export const DISPOSITIONS = ["accepted", "rejected", "covered", "deferred", "none", "open"];
 const PASSED = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
 const PENDING = new Set(["PENDING", "QUEUED", "IN_PROGRESS", "EXPECTED", "WAITING", "REQUESTED"]);
-const MARK = "orchestrate-feature-checkpoint";
+const MARK = "orchestrate-issues-checkpoint";
 // GitHub refuses a comment body longer than this.
 const MAX_COMMENT = 65536;
 const BLOCK = new RegExp(`<!-- ${MARK}\\r?\\n([\\s\\S]*?)\\r?\\n-->`, "g");
@@ -338,8 +338,8 @@ function checkAssessment(kind, a, evidence) {
   if (!a || typeof a !== "object") throw new Error("--assessment must be a JSON object");
   const missing = ASSESSMENT_FIELDS.filter((f) => !present(a[f]));
   if (missing.length) throw new Error(`The assessment lacks ${missing.join(", ")}; every checkpoint answers each one from the PR's whole review history`);
-  if (!["preserved", "changed"].includes(a.agreedBehavior) || !["unchanged", "major-change"].includes(a.architecture)) throw new Error("The assessment must say whether the Feature's agreed behavior is preserved or changed, and whether the architecture is unchanged or takes a major change");
-  if ((a.agreedBehavior === "changed" || a.architecture === "major-change") && kind !== "maintainer") throw new Error("A change to the Feature's agreed behavior or a major architectural commitment is the maintainer's decision; record kind maintainer with the question");
+  if (!["preserved", "changed"].includes(a.agreedBehavior) || !["unchanged", "major-change"].includes(a.architecture)) throw new Error("The assessment must say whether the parent issue's agreed behavior is preserved or changed, and whether the architecture is unchanged or takes a major change");
+  if ((a.agreedBehavior === "changed" || a.architecture === "major-change") && kind !== "maintainer") throw new Error("A change to the parent issue's agreed behavior or a major architectural commitment is the maintainer's decision; record kind maintainer with the question");
   if (!Array.isArray(a.findings) || a.findings.some((f) => !Number.isSafeInteger(f?.comment) || !DISPOSITIONS.includes(f.disposition) || !present(f.finding ?? (f.disposition === "none" ? "no findings" : "")))) throw new Error(`The assessment's findings must list every finding as { comment, finding, disposition } with a disposition among ${DISPOSITIONS.join(", ")}`);
   if (kind !== "maintainer") {
     const listed = new Set(a.findings.map((f) => f.comment));
@@ -383,7 +383,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
     extra.authority = record.invocation.text;
   }
   const decision = {
-    version: 1, id: randomUUID().slice(0, 8), kind, feature: record.feature, ticket: number, pr: e.pr, coordinator: record.coordinator.session, runId: record.runId, time: now.toISOString(),
+    version: 1, id: randomUUID().slice(0, 8), kind, issue: record.issue, ticket: number, pr: e.pr, coordinator: record.coordinator.session, runId: record.runId, time: now.toISOString(),
     round: e.completedRound, limitBefore: e.limit, reviewedHead: e.reviewedHead, head: e.head,
     range: e.range ? { from: e.range.from, to: e.range.to, base: e.range.base, commits: e.range.commits.map((c) => c.sha), diffSha256: e.range.diffSha256 } : null,
     reports: e.reports.map(({ comment, round, reviewerId, adjudication }) => ({ comment, round, reviewerId, adjudication })),
@@ -407,7 +407,7 @@ export function renderDecision(d, e) {
   return [
     `### Coordinator checkpoint after review round ${d.round}: ${TITLES[d.kind]}`,
     "",
-    `Decision \`${d.id}\` by coordinator \`${d.coordinator}\` of Feature #${d.feature} for #${d.ticket}.${d.authority ? ` Authority: the orchestrate-feature invocation, quoted verbatim from the run record: "${line(d.authority)}"` : ""}`,
+    `Decision \`${d.id}\` by coordinator \`${d.coordinator}\` of issue #${d.issue} for #${d.ticket}.${d.authority ? ` Authority: the orchestrate-issues invocation, quoted verbatim from the run record: "${line(d.authority)}"` : ""}`,
     "",
     d.due
       ? `- Round state: round ${d.round} is complete (limit ${d.limitBefore} before this decision); its planned reviewers (${[e.plannedReviewers].flat().join(", ")}) exited, and every report has its adjudication (${d.reports.map((r) => `${r.comment} in ${r.adjudication}`).join(", ") || "none"}).`
@@ -426,7 +426,7 @@ export function renderDecision(d, e) {
     `- Decision: ${line(a.rationale)} Next: ${line(a.next)}`,
     ...(d.kind === "extend" ? [`- Round ${d.round + 1} may launch with \`reviewRoundLimit\` ${d.limit} and \`extendedReviewAuthorization\` set to the invocation quoted above, verbatim. Limit reason: ${d.limitReason} The next checkpoint follows round ${d.round + 1}'s verified fixes, and the count never resets.`] : []),
     ...(d.kind === "repair" ? [`- Repair scope: ${line(a.scope)} Verification change: ${line(a.verificationChange)} The round count stays at ${d.round}; the coordinator reassesses the changed risk once the repair is verified, before choosing the next action.`] : []),
-    ...(d.kind === "accept-unreviewed" ? [`- Verification on the head: ${a.verification.map(line).join("; ")}.`, `- This is the coordinator's exception for an orchestrated Feature: not ordinary readiness and not an independent review. Reviewed code ends at \`${d.reviewedHead}\`; the range above is accepted unreviewed. It applies to head \`${d.head}\` only: any later push invalidates it and needs a new checkpoint.`] : []),
+    ...(d.kind === "accept-unreviewed" ? [`- Verification on the head: ${a.verification.map(line).join("; ")}.`, `- This is the coordinator's exception for an orchestrated parent issue: not ordinary readiness and not an independent review. Reviewed code ends at \`${d.reviewedHead}\`; the range above is accepted unreviewed. It applies to head \`${d.head}\` only: any later push invalidates it and needs a new checkpoint.`] : []),
     ...(d.kind === "maintainer" ? [`- Question for the maintainer: ${line(a.question)} This ticket waits for the answer; independent tickets continue.`] : []),
     ...(d.kind === "finish" ? ["- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it."] : []),
     "",
@@ -460,7 +460,7 @@ export function abandon(record, { ticket: number, id, evidence }) {
 }
 
 // A coordinator resuming without its predecessor's run record names that
-// predecessor for a ticket, with the place the Feature names it (its status
+// predecessor for a ticket, with the place the parent issue names it (its status
 // comment). The predecessor's published decisions then count for the
 // ticket's round accounting, trusted but never verified: a block copied
 // from GitHub proves nothing about who decided, so none of them makes an
@@ -492,7 +492,7 @@ function processSession(o, pending, number) {
   } else if (pending && !fs.existsSync(dir) && (!o.host || o.host === os.hostname())) return null; // a start claimed on this host whose launch directory was never made never ran
   const which = pending ? `pending start ${o.launchId}` : `writer ${o.launchId ?? `process ${o.handle.pid}`}`;
   const where = unreadable ?? (out ? `its stream ${out} cannot be read here` : "no stream was recorded for it");
-  const fix = pending ? `settle the start with feature-run.mjs reconcile or withdraw on ${o.host ?? "its host"}` : `record its session with feature-run.mjs writer-session --ticket ${number} --writer ${o.launchId ?? o.handle.pid} --session <id> --evidence <where it was read>`;
+  const fix = pending ? `settle the start with issue-run.mjs reconcile or withdraw on ${o.host ?? "its host"}` : `record its session with issue-run.mjs writer-session --ticket ${number} --writer ${o.launchId ?? o.handle.pid} --session <id> --evidence <where it was read>`;
   throw new Error(`#${number}'s ${which} has no recorded session and ${where}, so whether its session wrote for the ticket is unknown; ${fix} first`);
 }
 
@@ -510,7 +510,7 @@ function initSession(text) {
 }
 
 export function trustPredecessor(record, { ticket: number, session, source }) {
-  if (!present(session) || !present(source)) throw new Error("--session must name the predecessor coordinator, and --source where the Feature names it (its status comment)");
+  if (!present(session) || !present(source)) throw new Error("--session must name the predecessor coordinator, and --source where the parent issue names it (its status comment)");
   const ticket = (record.tickets[number] ??= { owner: null, pending: null, history: [], results: [] });
   if (session === record.coordinator.session) throw new Error(`${session} is this coordinator; its own decisions are verified by its record`);
   if (writersOf(ticket, number).includes(session)) throw new Error(`${session} wrote for #${number}; a writer never decides its own review checkpoint`);
@@ -649,7 +649,7 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit, re
       const ticket = o.ticket === undefined ? undefined : int(o.ticket, "ticket");
       if (o.record) { const r = withRecord(); client = r.client; record = r.record; trusted = [...trusted, ...trustedCoordinators(record, ticket ?? null)]; }
       else abs(o.checkout, "checkout");
-      if (!trusted.length) throw new Error("Name the trusted coordinators with --record or --trust <session> (the Feature's status names them)");
+      if (!trusted.length) throw new Error("Name the trusted coordinators with --record or --trust <session> (the parent issue's status names them)");
       // Without a record, the cutover switch says where the review thread is;
       // once it is on, --ticket names it.
       client ??= clientFor({ repository: o.repo, ...startRepositories(o.repo, repos ?? readRepos()) }, abs(o.checkout, "checkout"));

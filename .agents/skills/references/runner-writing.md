@@ -4,7 +4,7 @@ An orchestrating session that resolves a ticket through a separate writer launch
 
 | Runner      | Route        | Launch |
 | ----------- | ------------ | ------ |
-| Claude Code | `claude-cli` | A fresh detached `claude -p` process with `--model <id>`, `--effort <effort>` and `--permission-mode <mode>`, started by the orchestrate-feature helper's `launch` (below). It outlives the orchestrating session and any turn, and its permission mode is the one the claim recorded, the coordinator's own. The writer confirms all three from the command line that started its `claude` process and its effort from `CLAUDE_EFFORT` in its own shell, and reports to the coordinator with `SendMessage`, `to` set to the coordinator's session id. It is the only Claude dispatch route. |
+| Claude Code | `claude-cli` | A fresh detached `claude -p` process with `--model <id>`, `--effort <effort>` and `--permission-mode <mode>`, started by the orchestrate-issues helper's `launch` (below). It outlives the orchestrating session and any turn, and its permission mode is the one the claim recorded, the coordinator's own. The writer confirms all three from the command line that started its `claude` process and its effort from `CLAUDE_EFFORT` in its own shell, and reports to the coordinator with `SendMessage`, `to` set to the coordinator's session id. It is the only Claude dispatch route. |
 | Codex       | `codex-cli`  | A fresh `codex exec` process on the writer route with `-c model_reasoning_effort="<effort>"`; await process exit. |
 | Codex       | `codex-app`  | The app's native collaboration writer with the model and reasoning-effort overrides, when the host's collaboration tool offers that model at that effort. The writer's rollout `turn_context` confirms both after launch. |
 
@@ -12,7 +12,7 @@ A coordinator runs unattended, so the Claude routes that need something only the
 
 ## Default writer model, routes and reports
 
-`.claude/writer-defaults.json` holds, for each orchestrator harness, the writer model used when the user names none (`claude-opus-5-5` for a Claude orchestrator, `gpt-6.1-sol` for a Codex orchestrator) and its scheduling capability for the periodic check-in; and for each vendor its dispatch routes in preference order, each with its self-check and, keyed by the coordinator's harness, how its writer reports to the coordinator. An explicit writer model from the user's request wins and uses its own vendor's routes. The orchestrate-feature brief carries the route's self-check verbatim with the instruction to stop on a mismatch, and its report mechanism with the coordinator's session id from the run record.
+`.claude/writer-defaults.json` holds, for each orchestrator harness, the writer model used when the user names none (`claude-opus-5-5` for a Claude orchestrator, `gpt-6.1-sol` for a Codex orchestrator) and its scheduling capability for the periodic check-in; and for each vendor its dispatch routes in preference order, each with its self-check and, keyed by the coordinator's harness, how its writer reports to the coordinator. An explicit writer model from the user's request wins and uses its own vendor's routes. The orchestrate-issues brief carries the route's self-check verbatim with the instruction to stop on a mismatch, and its report mechanism with the coordinator's session id from the run record.
 
 A Claude writer messages a Claude coordinator with `SendMessage`. A Claude session cannot message a Codex thread, a Codex writer cannot message a Claude session, and no message from a Codex writer to another Codex thread has been verified; on those combinations the writer ends each decision point with its report as its turn's last message, and the coordinator's periodic check-in reads it from the writer's transcript.
 
@@ -37,10 +37,10 @@ The preflight prints one verdict per ticket: `available` or `blocked` with the r
 
 ## Start and observe a writer
 
-A `claude-cli` writer starts through the orchestrate-feature helper after its claim:
+A `claude-cli` writer starts through the orchestrate-issues helper after its claim:
 
 ```sh
-node .agents/skills/orchestrate-feature/feature-run.mjs launch --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --executable <absolute claude executable> --prompt <absolute brief file> --arg -p --arg --model --arg <id> --arg --effort --arg <effort> --arg --permission-mode --arg <mode> --arg --output-format --arg stream-json --arg --verbose
+node .agents/skills/orchestrate-issues/issue-run.mjs launch --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --executable <absolute claude executable> --prompt <absolute brief file> --arg -p --arg --model --arg <id> --arg --effort --arg <effort> --arg --permission-mode --arg <mode> --arg --output-format --arg stream-json --arg --verbose
 ```
 
 It refuses a `--model`, `--effort` or `--permission-mode` other than the claim's, and arguments a command line would interpret, and keeps the brief it sent. The writer runs from the main checkout with the brief on standard input and its stream in `out.jsonl` inside a launch directory named for the claim, and the helper adds `--add-dir <launch directory>` to its arguments, so the writer's own command line names that directory: a process census then finds the writer before its start is recorded and after its wrapper ends, and the ticket stays owned while it runs. On Windows the helper creates the wrapper through `Win32_Process.Create`, outside the tool's process tree, because a process started with `Start-Process` from a command tool can end with that tool call; elsewhere the repository's `scripts/detached-launch.mjs` starts a detached shell.
@@ -50,7 +50,7 @@ A detached CLI writer's process exits when its turn ends, and nothing wakes it a
 A writer that ended its turn with a request is answered by resuming its CLI session, the one its stream's `init` line names, with the answer as the prompt; one that stopped with work left, on a wait it should have run in the foreground, is resumed the same way with a prompt to continue:
 
 ```sh
-node .agents/skills/orchestrate-feature/feature-run.mjs resume --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --executable <absolute claude executable> --prompt <absolute answer file> --arg -p --arg --resume --arg <session-id> --arg --model --arg <id> --arg --effort --arg <effort> --arg --permission-mode --arg <mode> --arg --output-format --arg stream-json --arg --verbose
+node .agents/skills/orchestrate-issues/issue-run.mjs resume --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --executable <absolute claude executable> --prompt <absolute answer file> --arg -p --arg --resume --arg <session-id> --arg --model --arg <id> --arg --effort --arg <effort> --arg --permission-mode --arg <mode> --arg --output-format --arg stream-json --arg --verbose
 ```
 
 It refuses a writer that is still running, another session, and a model, effort or permission mode other than the writer's own; it records the intent before starting the process detached the same way as `launch`, in a `resume-<N>-<id>` directory whose `out.jsonl` is then the writer's transcript, and the resumed process becomes the writer's handle. A resume whose outcome was lost is settled with `reconcile`, never run again.
@@ -58,13 +58,13 @@ It refuses a writer that is still running, another session, and a model, effort 
 The maintainer may want to read, or talk to, a CLI writer whose turn has ended. `open` hands that idle writer's session, the one its stream's `init` line names, to the desktop app with `claude --desktop --resume <session-id>`, run in a hidden console of its own created through `Win32_Process.Create`, because the app refuses a resume with redirected output; the open's intent is saved before it runs. Confirm the adoption with `list_sessions`, which lists the session as `local_<session-id>` within seconds, and record it with `opened --session local_<session-id>`; an open whose outcome was lost is settled the same way and never run again. Opening changes nothing about who the writer is or how it runs: the record keeps the CLI process as the writer, and the maintainer answers any prompt the app shows when they choose to talk to the session.
 
 ```sh
-node .agents/skills/orchestrate-feature/feature-run.mjs open --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --executable <absolute claude executable>
-node .agents/skills/orchestrate-feature/feature-run.mjs opened --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --session local_<session-id>
+node .agents/skills/orchestrate-issues/issue-run.mjs open --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --executable <absolute claude executable>
+node .agents/skills/orchestrate-issues/issue-run.mjs opened --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --session local_<session-id>
 ```
 
 The coordinator observes its writers for `plan --observations`: an existing desktop writer adopted with its work through `get_session` on its id (`running` while `isRunning`, `idle` when its turn ended, `archived` when archived, `absent` when the app no longer knows it), and a Codex writer through its awaited process or collaboration status. A detached CLI writer needs no observation: the helper compares its recorded process start identity on the same host.
 
-A writer's own record of what it said is its transcript, which the [writer reports](../orchestrate-feature/references/writer-reports.md) wake routine reads once its turn has ended: a detached CLI writer's `out.jsonl` in its launch directory, a desktop writer through `list_events` (or `export_transcript`) on its session id, and a Codex writer through its rollout file.
+A writer's own record of what it said is its transcript, which the [writer reports](../orchestrate-issues/references/writer-reports.md) wake routine reads once its turn has ended: a detached CLI writer's `out.jsonl` in its launch directory, a desktop writer through `list_events` (or `export_transcript`) on its session id, and a Codex writer through its rollout file.
 
 The caller's prompt names the ticket, the branch, the review-round limit the user authorized and any settled design decisions. The writer runs the resolve-issue skill, never merges, and reports the PR number, the last independently reviewed commit, the rounds used with each reviewer route, outstanding findings and the state of each CI check.
 

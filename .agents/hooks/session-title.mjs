@@ -65,17 +65,17 @@ export function deriveWorktree(command) {
 
 export const deriveTitle = (command) => deriveWorktree(command)?.title ?? null;
 
-// A Feature's coordinator is titled from its run record: the orchestrate-feature
-// command that writes the record (feature-run.mjs init, or checkpoint.mjs resume
+// A parent issue's coordinator is titled from its run record: the orchestrate-issues
+// command that writes the record (issue-run.mjs init, or checkpoint.mjs resume
 // for a takeover) names it with --record, and the record holds the title
 // `ORCH #<N>: <slug words>`. Returns the record path the command names.
-const RECORD_WRITERS = [["feature-run.mjs", "init"], ["checkpoint.mjs", "resume"]];
+const RECORD_WRITERS = [["issue-run.mjs", "init"], ["checkpoint.mjs", "resume"]];
 export function deriveRunRecord(command) {
   for (let words of simpleCommands(String(command))) {
     while (LEADING.has(words[0])) words = words.slice(1);
     if (!/^node(?:\.exe)?$/i.test(path.basename(words[0] ?? ""))) continue;
     const script = words[1]?.replaceAll("\\", "/") ?? "";
-    if (!RECORD_WRITERS.some(([file, sub]) => script.endsWith(`orchestrate-feature/${file}`) && words[2] === sub)) continue;
+    if (!RECORD_WRITERS.some(([file, sub]) => script.endsWith(`orchestrate-issues/${file}`) && words[2] === sub)) continue;
     const at = words.indexOf("--record");
     if (at > 0 && words[at + 1]) return words[at + 1];
   }
@@ -203,7 +203,7 @@ function instruction(entry, sessionId, harness) {
     ? `Load the set_session_title tool through tool search (its full name ends in __set_session_title), then call it with session_id "self" and title "${title}".`
     : `Call set_thread_title with title "${title}" when the host offers it.`;
   const what = forSession(entry)
-    ? `This session coordinates a Feature as "${title}", the title its run record holds. Rename the session to exactly that title before running further shell commands.`
+    ? `This session coordinates a parent issue as "${title}", the title its run record holds. Rename the session to exactly that title before running further shell commands.`
     : `This session creates the worktree for "${title}" at ${entry.worktree}. Rename the session to exactly that title before running further shell commands in that worktree.`;
   return `${what} ${call} Only if this runner offers no rename tool, run \`${ackFor(sessionId, entry.id)}\` instead.`;
 }
