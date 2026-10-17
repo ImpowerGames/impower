@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 168,
-  "previous": "290c4d2660272a4e5c1512fd76eba740a5342f08",
+  "seq": 169,
+  "previous": "619fb83c372fbd6cc0614406197a09878d0b957a",
   "snapshotParents": [],
-  "time": "2026-10-17T13:37:37.421Z",
+  "time": "2026-10-17T13:37:45.972Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #1924",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 179,
+    "recordRevision": 180,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2830,10 +2830,10 @@
         "launchId": "cb97a4cf-003c-46ed-aeaf-5b42615c3729",
         "handle": {
           "kind": "process",
-          "pid": 27048,
-          "start": "639278406839892812",
+          "pid": 50036,
+          "start": "639278410635513469",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-63193344-b271-46b0-8678-49194dd846ec"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-8c8c76cd-2b84-4bee-a930-7f6872573b16"
         },
         "verified": true,
         "brief": {
@@ -2867,13 +2867,13 @@
             "id": "63193344-b271-46b0-8678-49194dd846ec",
             "time": "2026-10-17T13:31:24.337Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-63193344-b271-46b0-8678-49194dd846ec"
+          },
+          {
+            "id": "8c8c76cd-2b84-4bee-a930-7f6872573b16",
+            "time": "2026-10-17T13:37:43.890Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-8c8c76cd-2b84-4bee-a930-7f6872573b16"
           }
-        ],
-        "resuming": {
-          "id": "8c8c76cd-2b84-4bee-a930-7f6872573b16",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-8c8c76cd-2b84-4bee-a930-7f6872573b16",
-          "time": "2026-10-17T13:37:35.210Z"
-        }
+        ]
       },
       "pending": null,
       "history": [],
@@ -5277,7 +5277,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:37:36.328Z",
+      "observedAt": "2026-10-17T13:37:45.045Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -5586,7 +5586,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:37:36.328Z",
+      "observedAt": "2026-10-17T13:37:45.045Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -6303,12 +6303,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:35:15.070Z",
-      "event": "released",
-      "ticket": 1905,
-      "reason": "process 17180 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-16T19:36:36.742Z",
       "event": "dispatch-intent",
@@ -7050,6 +7044,19 @@
       "ticket": 1924,
       "id": "8c8c76cd-2b84-4bee-a930-7f6872573b16",
       "sessionId": "18a46342-5e1d-4f43-b931-ad056aac78a7"
+    },
+    {
+      "time": "2026-10-17T13:37:43.890Z",
+      "event": "resumed",
+      "ticket": 1924,
+      "id": "8c8c76cd-2b84-4bee-a930-7f6872573b16",
+      "handle": {
+        "kind": "process",
+        "pid": 50036,
+        "start": "639278410635513469",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-8c8c76cd-2b84-4bee-a930-7f6872573b16"
+      }
     }
   ]
 }
