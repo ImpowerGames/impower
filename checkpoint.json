@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 117,
-  "previous": "3576f14a7257b38dc3b9941724c069d09fd21b80",
+  "seq": 118,
+  "previous": "4716cf6567d0324d2be06fa861dd8245793dd54a",
   "snapshotParents": [],
-  "time": "2026-10-17T05:01:38.422Z",
+  "time": "2026-10-17T05:01:56.869Z",
   "kind": "auto",
-  "transition": "release of #1964",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 107,
@@ -3223,7 +3223,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T05:01:37.346Z",
+      "observedAt": "2026-10-17T05:01:55.986Z",
       "held": true,
       "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
       "remoteHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
@@ -3447,7 +3447,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T05:01:27.868Z",
+    "at": "2026-10-17T05:01:55.985Z",
     "tickets": [
       {
         "number": 1962,
@@ -3463,9 +3463,9 @@
       },
       {
         "number": 1964,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 53628 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1965,
