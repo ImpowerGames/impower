@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 146,
-  "previous": "21bf9dded73a42eb647834ee5048ca912de7ebc2",
+  "seq": 147,
+  "previous": "f9b3ff5d743a1c4af7c007a59610e568b4e00096",
   "snapshotParents": [],
-  "time": "2026-10-17T03:15:35.122Z",
+  "time": "2026-10-17T03:16:16.515Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "closing the Feature (confirmed)",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 119,
+    "recordRevision": 120,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2370,9 +2370,15 @@
       "ticket": 1940,
       "pr": 1940,
       "expectHead": "4ba580faf754bef7d7b9db96c9c8635cf2672669",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T03:15:33.686Z",
-      "evidence": "verification 7547a31c"
+      "evidence": "Feature #1940 reads back closed, with the final report in comment 6228933416",
+      "settled": "2026-10-17T03:16:15.181Z",
+      "comment": {
+        "id": 6228933416,
+        "url": "https://github.com/ImpowerGames/impower/issues/1940#issuecomment-6228933416",
+        "reused": false
+      }
     }
   ],
   "decisions": [
@@ -2642,11 +2648,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T17:01:21.722Z",
-      "event": "disk-recovery",
-      "removed": "C:/Users/Brode/Documents/GitHub/impower.review-jobs/pr-1948"
-    },
     {
       "time": "2026-10-16T17:01:35.651Z",
       "event": "disk-recovery",
@@ -3305,6 +3306,12 @@
       "id": "435c0528",
       "kind": "close",
       "pr": 1940
+    },
+    {
+      "time": "2026-10-17T03:16:15.181Z",
+      "event": "operation-outcome",
+      "id": "435c0528",
+      "state": "confirmed"
     }
   ]
 }
