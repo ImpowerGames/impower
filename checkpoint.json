@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 94,
-  "previous": "59edceecb5b9f322e8b1846b422dcf5dbc92095d",
+  "seq": 95,
+  "previous": "3b68dfed9f0bef2aa06e7e393a7049104411c676",
   "snapshotParents": [],
-  "time": "2026-10-17T03:24:23.575Z",
+  "time": "2026-10-17T03:54:17.148Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 84,
+    "recordRevision": 85,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2498,21 +2498,21 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T03:24:22.393Z",
+      "observedAt": "2026-10-17T03:54:16.043Z",
       "held": true,
-      "head": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
-      "remoteHead": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
+      "head": "a2598bca035eee0c73ba2eeadcef88c79a6dbe7a",
+      "remoteHead": "a2598bca035eee0c73ba2eeadcef88c79a6dbe7a",
       "unpushed": false,
       "dirty": false,
       "handoffLock": {
         "host": "DESKTOP-726EO47",
-        "pid": 1288
+        "pid": 13932
       },
       "pr": 2040,
       "reviewJobs": [
         {
           "job": "pr-2040/round-1/launch-callers-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-callers",
@@ -2525,6 +2525,44 @@
             "head": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
             "completedRoundReviewers": null,
             "time": "2026-10-17T03:07:56.902Z"
+          },
+          "round": 1,
+          "reviewerId": "callers",
+          "attempt": 1,
+          "reviewedHead": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "callers": 1
+          },
+          "plannedRoundReviewers": [
+            "callers",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6229095635
+          ]
+        },
+        {
+          "job": "pr-2040/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "callers",
+              "undirected"
+            ],
+            "head": "a2598bca035eee0c73ba2eeadcef88c79a6dbe7a",
+            "completedRoundReviewers": {
+              "callers": 1
+            },
+            "time": "2026-10-17T03:40:25.697Z"
           }
         }
       ]
@@ -2534,7 +2572,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T03:24:22.393Z",
+      "observedAt": "2026-10-17T03:54:16.043Z",
       "held": true,
       "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
       "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
@@ -3388,6 +3426,11 @@
       "time": "2026-10-17T03:24:20.974Z",
       "event": "check-in",
       "outcome": "no change: #1964 opened draft PR #2040 at b670e0739 and is launching review round 1 (callers reviewer); #1966 round 4 reviewed and corrected, head 51a6a7c0c with CI running, writer waiting for CI before its checkpoint report; both writers running"
+    },
+    {
+      "time": "2026-10-17T03:54:14.653Z",
+      "event": "check-in",
+      "outcome": "no change: #1964 PR #2040 at a2598bca0 in round 1 with the undirected reviewer running; #1966 PR #2015 at 51a6a7c0c has the Windows driver check red (test-suite.test.mjs, writer diagnosing before its round 4 checkpoint report); both writers running"
     }
   ]
 }
