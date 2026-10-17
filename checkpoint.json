@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 191,
-  "previous": "2a89edb85e695d4423009219be64505f0d010dbb",
+  "seq": 192,
+  "previous": "8db57644b50d6841b189351e280dbfa93aa675fa",
   "snapshotParents": [],
-  "time": "2026-10-17T15:22:41.377Z",
+  "time": "2026-10-17T15:24:20.578Z",
   "kind": "auto",
-  "transition": "release of #1906",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 203,
@@ -6372,7 +6372,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:22:40.382Z",
+      "observedAt": "2026-10-17T15:24:19.837Z",
       "held": true,
       "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
       "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
@@ -6812,7 +6812,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T15:22:30.902Z",
+    "at": "2026-10-17T15:24:19.835Z",
     "tickets": [
       {
         "number": 984,
@@ -7032,15 +7032,15 @@
       },
       {
         "number": 1906,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 40776 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1907,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "6 writers already hold tickets against a limit of 3"
+        "reason": "5 writers already hold tickets against a limit of 3"
       },
       {
         "number": 1908,
@@ -7064,7 +7064,7 @@
         "number": 1977,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "6 writers already hold tickets against a limit of 3"
+        "reason": "5 writers already hold tickets against a limit of 3"
       },
       {
         "number": 1985,
