@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 214,
-  "previous": "e99bb9f19380940d75de5a1fa06ceb9e9f08c648",
+  "seq": 215,
+  "previous": "2c805acec98ddb3b829b86733acea0f227e0c5fa",
   "snapshotParents": [],
-  "time": "2026-10-17T16:53:23.943Z",
+  "time": "2026-10-17T17:23:29.820Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 196,
+    "recordRevision": 197,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T16:53:23.192Z",
+      "observedAt": "2026-10-17T17:23:29.039Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,15 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:57:15.885Z",
-      "event": "checkpoint-intent",
-      "ticket": 1964,
-      "id": "038210f9",
-      "kind": "finish",
-      "round": 3,
-      "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb"
-    },
     {
       "time": "2026-10-17T04:57:19.352Z",
       "event": "checkpoint-published",
@@ -6220,6 +6211,11 @@
       "time": "2026-10-17T16:53:21.934Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main 006d924c1; PR #1993 at fe4cd193e now marked ready, open, awaiting #1904's gate; #1907 and #1977 still to come; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T17:23:27.626Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main 991b99457 after #1904 merged PR #1993; #1904's last slices launched, PR #2061 (draft, 42255fec4) open for one of #1907/#1977; estimate 10 to 14 hours from ~23:25Z; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
