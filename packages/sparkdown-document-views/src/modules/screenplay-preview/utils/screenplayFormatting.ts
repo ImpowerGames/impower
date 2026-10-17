@@ -331,13 +331,12 @@ export const decorate = (
   // wholesale (the walk does not descend, so nested tokens never re-surface):
   //   Divert                  `-> WishCourage`, `-> Alley`
   //   Label                   the `(greeting)` anchor on a `then`/label line
-  //   Luau(Sparkdown)ExplicitStatement   `& c.trust -= 1` code
+  //   LuauSparkdownExplicit(Block)Statement   `& c.trust -= 1` code
   //   Luau*BlockCondition     the `trust >= 1 then` / `c.trust == 0 then` head
   //                           of an `if`/`elseif` block (includes the `then`)
   const isHiddenFlowLogic = (name: string) =>
     name === "Divert" ||
     name === "Label" ||
-    name === "LuauExplicitStatement" ||
     name === "LuauSparkdownExplicitStatement" ||
     name === "LuauSparkdownExplicitBlockStatement" ||
     name === "LuauIfBlockCondition" ||

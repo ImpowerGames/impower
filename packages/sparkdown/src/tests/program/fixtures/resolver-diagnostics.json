@@ -366,10 +366,7 @@
  "evaluation/factorial-by-reference.sd": {
   "fallback": null,
   "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":6,\"line\":7},\"start\":{\"character\":4,\"line\":7}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":7},\"start\":{\"character\":4,\"line\":7}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":6,\"line\":10},\"start\":{\"character\":4,\"line\":10}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":10},\"start\":{\"character\":4,\"line\":10}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":6,\"line\":11},\"start\":{\"character\":4,\"line\":11}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":11},\"start\":{\"character\":4,\"line\":11}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}"
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
   ]
  },
  "evaluation/factorial-recursive.sd": {
@@ -384,9 +381,7 @@
  },
  "evaluation/function-variable-state.sd": {
   "fallback": null,
-  "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":19},\"start\":{\"character\":2,\"line\":19}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":19},\"start\":{\"character\":2,\"line\":19}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}"
-  ]
+  "diagnostics": []
  },
  "evaluation/increment.sd": {
   "fallback": null,
@@ -473,10 +468,7 @@
  "logic/nested-pass-by-reference.sd": {
   "fallback": null,
   "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":6}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":6}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":7},\"start\":{\"character\":2,\"line\":7}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":7},\"start\":{\"character\":2,\"line\":7}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":8},\"start\":{\"character\":2,\"line\":8}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":8},\"start\":{\"character\":2,\"line\":8}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.\"},\"range\":{\"end\":{\"character\":4,\"line\":12},\"start\":{\"character\":2,\"line\":12}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":4,\"line\":12},\"start\":{\"character\":2,\"line\":12}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":3,\"source\":\"sparkdown\",\"tags\":[1]}"
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":6}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":3,\"line\":13},\"start\":{\"character\":0,\"line\":6}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
   ]
  },
  "logic/print-num.sd": {

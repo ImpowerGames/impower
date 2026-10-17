@@ -12,7 +12,6 @@ import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   "LuauFunctionDefinition",
-  "LuauExplicitStatement",
   "LuauSparkdownExplicitStatement",
   "LuauSparkdownExplicitBlockStatement",
   ...REASSIGNMENT_NAMES,

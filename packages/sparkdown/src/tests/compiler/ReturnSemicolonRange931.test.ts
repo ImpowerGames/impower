@@ -8,6 +8,8 @@ import { printOfficialAst } from "./printOfficialAst";
 
 describe("written return semicolon locations", () => {
   for (const context of ["file", "scene", "branch", "function"]) for (const mark of ["", "& "]) {
+    // A function body has no `&` marker (#1374).
+    if (context === "function" && mark) continue;
     test.each(["return;", "return 5;", "return 1, 2;", "return 5; -- comment", "return 5; --[[comment]]", "return 5 --[[comment]];"])(`${context} ${mark}%s includes its written delimiter`, (line) => {
       const source = `${mark}${line}\n`;
       const text = context === "file" ? source : `${context} a${context === "function" ? "()" : ""}\n${source}end\n`;

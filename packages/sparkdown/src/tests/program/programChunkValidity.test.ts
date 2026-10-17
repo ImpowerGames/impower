@@ -243,21 +243,21 @@ describe("a choose block whose choice label interpolates a variable outside brac
 describe("a call whose arguments continue on the next line (#1614)", () => {
   it("is not kept for a statement that no longer calls its result", () => {
     // `add(2)` followed by a line holding `()` is read as `add(2)()`; the
-    // edit makes that line a statement of its own, `& add(2)`, so the
+    // edit makes that line a statement of its own, `add(2)`, so the
     // statement above it calls `add` once and no longer calls its result.
-    const before = "    function reset\n  & add(2)\n()";
-    const { incremental, cold } = editOnce(before, offsetOf(before, 2, 0), 1, "  & add(2");
+    const before = "    function reset\n  add(2)\n()";
+    const { incremental, cold } = editOnce(before, offsetOf(before, 2, 0), 1, "  add(2");
     expect(cold.chunks).not.toBeNull();
     expect(incremental.chunks).toEqual(cold.chunks);
     expect(incremental).toEqual(cold);
   });
 
   it("is not kept for a statement that now calls its result", () => {
-    // The reverse: the line after the last `& add(2)` becomes `()`, which the
+    // The reverse: the line after the last `add(2)` becomes `()`, which the
     // statement above now reads as calling the result of `add(2)`.
-    const before = "function reset()\n  & add(2)\n  & add(2)\nend\n";
-    const at = before.lastIndexOf("  & add(2)");
-    const { incremental, cold } = editOnce(before, at, "  & add(2)".length, "  ()");
+    const before = "function reset()\n  add(2)\n  add(2)\nend\n";
+    const at = before.lastIndexOf("  add(2)");
+    const { incremental, cold } = editOnce(before, at, "  add(2)".length, "  ()");
     expect(cold.chunks).not.toBeNull();
     expect(incremental.chunks).toEqual(cold.chunks);
     expect(incremental).toEqual(cold);
