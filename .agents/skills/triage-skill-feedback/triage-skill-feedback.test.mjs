@@ -530,7 +530,17 @@ await test('tickets and the inbox follow the repos file in both positions while 
     copyFileSync(fileURLToPath(new URL('../../repos.mjs', import.meta.url)), resolve(checkout, '.agents/repos.mjs'));
     writeFileSync(resolve(checkout, '.agents/repos.json'), JSON.stringify({ ...committed, cutover: true, feedbackInbox: 777 }));
     const on = await import(pathToFileURL(resolve(dir, 'triage-skill-feedback.mjs')).href);
-    for (const [label, module, tickets, inbox] of [['off', { github, makePlan, preview }, committed.code, committed.feedbackInbox], ['on', on, committed.internal, 777]]) {
+    for (const [label, module, tickets, inbox, pr] of [['off', { github, makePlan, preview, readPlan, applyPlan }, committed.code, committed.feedbackInbox, '#503'], ['on', on, committed.internal, 777, `${committed.code}#503`]]) {
+      // Ticket text names a pull request with its repository once tickets live apart from the code.
+      const recurring = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [problem('F-5', 'applied in PR #503')]));
+      const merged = module.preview(await module.readPlan(recurring.api))[0];
+      assert.ok(merged.body.includes(`Earlier feedback (applied in PR ${pr}; context only):`) && merged.body.includes(`Previous reference for F-5: applied in PR ${pr}.`), `switch ${label}: the Task names PR ${pr}: ${merged.body}`);
+      const appliedNow = fixture();
+      const appliedPlan = await module.readPlan(appliedNow.api);
+      appliedPlan.groups = [{ action: 'applied', number: 503, keys: ['F-1'] }];
+      const result = await module.applyPlan(appliedPlan, appliedNow.api);
+      assert.ok(result.summary.includes(`applied ${pr};`) && result.summary.includes(`F-1 → applied in PR ${pr}.`), `switch ${label}: the summary names PR ${pr}: ${result.summary}`);
+      assert.equal(ledgerOf(appliedNow.state)['F-1'].status, 'applied in PR #503', `switch ${label}: the ledger keeps its status grammar`);
       const calls = [];
       const api = module.github(resolve(scratch, `bodies-${label}`), args => { calls.push(args); return '{}'; });
       api.inbox(); api.issue(5); api.pr(503); api.createTicket('t', 'b'); api.updateBody('b');

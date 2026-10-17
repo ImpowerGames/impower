@@ -14,6 +14,11 @@ const REPOS = readRepos();
 const REPO = ticketsRepo(REPOS);
 const CODE = REPOS.code;
 const INBOX = REPOS.feedbackInbox;
+// A pull request as written in ticket text: once tickets live apart from the
+// code, a bare #N would name a ticket, so it names the code repository. The
+// ledger keeps its `applied in PR #N` grammar; only rendered text changes.
+const prRef = number => `${REPOS.cutover ? CODE : ''}#${number}`;
+const displayStatus = status => status.replace(/^applied in PR #(\d+)$/, (_, number) => `applied in PR ${prRef(number)}`);
 const PLAN_VERSION = 4;
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 20);
 const clean = value => value.replace(/\r\n/g, '\n').trim();
@@ -190,7 +195,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
         // A merged edit that did not stop the problem needs a new Task; an unmerged one still carries its proposal.
         if (row.status.startsWith('applied in PR #') && !row.previousStatus) {
           row.previousStatus = row.status;
-          const prefix = `Earlier feedback (${row.status}; context only):\n`;
+          const prefix = `Earlier feedback (${displayStatus(row.status)}; context only):\n`;
           if (appliedUnmerged(row.status, references)) row.previousUnmerged = true;
           else for (const field of ['friction', 'edit']) if (!row[field].startsWith(prefix)) row[field] = prefix + row[field];
           row.status = 'open';
@@ -286,7 +291,7 @@ function description(rows) {
 
 function referenceContext(rows, context, target) {
   const references = [
-    ...rows.filter(row => row.previousStatus).map(row => `Previous reference for ${row.problemId}: ${row.previousStatus}${row.previousUnmerged ? '; the pull request closed without merging; its proposal remains actionable' : ''}.`),
+    ...rows.filter(row => row.previousStatus).map(row => `Previous reference for ${row.problemId}: ${displayStatus(row.previousStatus)}${row.previousUnmerged ? '; the pull request closed without merging; its proposal remains actionable' : ''}.`),
     ...rows.filter(row => taskOf(row.status) && taskOf(row.status) !== target).map(row => `Recorded Task for ${row.problemId}: #${taskOf(row.status)}.`),
   ];
   return [...references, context].filter(Boolean).join('\n\n');
@@ -314,7 +319,7 @@ export function preview(plan) {
 
 function summaryText(plan, marker, rows, filed, applied, elsewhere = []) {
   const history = [...historicalTargets(plan.body)];
-  const mapped = rows.map(row => `${row.problemId} → ${taskOf(row.status) ? `#${taskOf(row.status)}` : row.status}`);
+  const mapped = rows.map(row => `${row.problemId} → ${taskOf(row.status) ? `#${taskOf(row.status)}` : displayStatus(row.status)}`);
   return `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${plan.migrated ? ` Retired ${plan.migrated} table rows into the archive.` : ''}${elsewhere.length ? ` Left under another parent: ${elsewhere.join(', ')}.` : ''} Problems: ${mapped.join('; ') || 'none'}.${history.length ? `\n<!-- skill-feedback-history:v1 ${Buffer.from(JSON.stringify(history)).toString('base64')} -->` : ''}`;
 }
 
@@ -392,7 +397,7 @@ export async function applyPlan(plan, api) {
     // The body carries prose, the archive pointer and one summary; GitHub refuses an issue body or comment over 65,536 characters.
     // Every Task number, reopen note and foreign parent is counted at its largest so the refusal comes before any write.
     const appliedContext = group => literalDisplay(referenceContext(rows.filter(row => group.keys.includes(row.problemId)), ''));
-    const projectedSummary = summaryText(plan, marker, projectedRows.map(row => ({ ...row, status: `applied in PR ${largest}` })), plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(group => `${largest} (${appliedContext(group)})`), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
+    const projectedSummary = summaryText(plan, marker, projectedRows.map(row => ({ ...row, status: `applied in PR ${largest}` })), plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(group => `${prRef(Number.MAX_SAFE_INTEGER)} (${appliedContext(group)})`), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
     const projectedBody = removeLegacyTable(stripSummaryBlocks(plan.body), liveLedger).trimEnd().length + projectedSummary.length + 512;
     if (projectedBody > 65536 || projectedSummary.length > 65536) throw new Error(`The inbox body would reach ${projectedBody} characters and the summary comment ${projectedSummary.length}, over GitHub's 65,536-character limit. No tickets or intake were changed; shorten the inbox prose before planning again.`);
     const filed = [], applied = [];
@@ -430,9 +435,9 @@ export async function applyPlan(plan, api) {
         filed.push(`#${number} (existing${reopenedNow || plan.references?.issues?.[number]?.state === 'closed' ? ', reopened' : ''})`);
       } else {
         const target = await api.pr(number);
-        if (closedUnmerged(target)) throw new Error(`PR #${number} is closed and unmerged; select work that still carries the edit.`);
+        if (closedUnmerged(target)) throw new Error(`PR ${prRef(number)} is closed and unmerged; select work that still carries the edit.`);
         const prior = referenceContext(grouped, '');
-        applied.push(`#${number}${prior ? ` (${literalDisplay(prior)})` : ''}`);
+        applied.push(`${prRef(number)}${prior ? ` (${literalDisplay(prior)})` : ''}`);
       }
       for (const row of grouped) row.status = group.action === 'applied' ? `applied in PR #${number}` : `ticketed #${number}`;
     }
