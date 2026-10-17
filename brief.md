@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 191 (this commit), 2026-10-17T10:53:57.561Z, after checked-in. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 192 (this commit), 2026-10-17T11:23:37.619Z, after checked-in. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,8 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1967
 
 - claude-cli claude-opus-5-5 at high, process 60408 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover removes it once its coordinator and child are confirmed gone
 - review job pr-2057/round-1/launch-data-1 on DESKTOP-726EO47: round 1 reviewed 109a8b7d8, completed {"data":1} of planned ["data","undirected"]; last launched reviewer data attempt 1 of round 1 (planned ["data","undirected"]), last event finished
 - review job pr-2057/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 9c0fcd697, completed {"data":1,"undirected":1} of planned ["data","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["data","undirected"]), last event finished
 - review job pr-2057/round-2/launch-data-1 on DESKTOP-726EO47: round 2 reviewed 54169dbc5, completed {"data":1} of planned ["data","undirected"]; last launched reviewer data attempt 1 of round 2 (planned ["data","undirected"]), last event finished
-- review job pr-2057/round-2/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 2 (planned ["data","undirected"]), last event identified
+- review job pr-2057/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed c84b56346, completed {"data":1,"undirected":1} of planned ["data","undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["data","undirected"]), last event finished
+- review job pr-2057/round-3/launch-data-1 on DESKTOP-726EO47: round 3 reviewed b58331658, completed {"data":1} of planned ["data","undirected"]; last launched reviewer data attempt 1 of round 3 (planned ["data","undirected"]), last event finished
+- review job pr-2057/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 52e5a21c5, completed {"data":1,"undirected":1} of planned ["data","undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["data","undirected"]), last event finished
