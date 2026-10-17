@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 120 (this commit), 2026-10-17T05:02:24.728Z, after a new plan. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 121 (this commit), 2026-10-17T05:03:23.340Z, after launch of #1965. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -11,7 +11,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1965
 
-- pending dispatch on claude-cli (claimed on DESKTOP-726EO47)
+- claude-cli claude-opus-5-5 at high, process 34904 on DESKTOP-726EO47
 
 ## #1966
 
