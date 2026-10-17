@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 225,
-  "previous": "3aa29808c415c0e704cb838381b19b0ade521dee",
+  "seq": 226,
+  "previous": "82b1a55bd75cd12e4487d6b6aadcba1087436283",
   "snapshotParents": [],
-  "time": "2026-10-17T16:58:20.929Z",
+  "time": "2026-10-17T17:05:45.007Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "request of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 234,
+    "recordRevision": 235,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3078,7 +3078,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "1017144f",
+          "owner": "4c537485-e0db-474a-9884-f2d42c3243c1",
+          "time": "2026-10-17T17:05:41.779Z",
+          "text": "Do story-scope & lines take rule 3's bracket continuation? #1374's acceptance (2026-10-03) ended story & statements at the physical line even with unfinished call or table syntax; #1907's description lists & lines under rule 3. Option X (one bounded family for all story-scope statements, brackets span lines for & too) or option Y (a third copy of the 89-rule family differing only in bracket rules).",
+          "source": "cross-session message from impower-f8 (writer, launch 4c537485) on 2026-10-17 while running",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     },
     "1908": {
       "owner": null,
@@ -7678,18 +7689,24 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:58:20.929Z",
+      "observedAt": "2026-10-17T17:05:43.168Z",
       "held": true,
-      "exists": false
+      "head": "991b99457f415601f06af89ff2afaedf8721832e",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": false
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes": {
       "ticket": 1977,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T16:58:20.929Z",
+      "observedAt": "2026-10-17T17:05:43.168Z",
       "held": true,
-      "exists": false
+      "head": "991b99457f415601f06af89ff2afaedf8721832e",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
@@ -8060,12 +8077,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:39:40.729Z",
-      "event": "request",
-      "ticket": 1906,
-      "id": "c88c7386"
-    },
     {
       "time": "2026-10-17T06:43:30.465Z",
       "event": "checkpoint-intent",
@@ -8808,6 +8819,12 @@
       "time": "2026-10-17T16:58:19.550Z",
       "event": "check-in",
       "outcome": "#1907 and #1977 acknowledged (claude-opus-5-5 at high and low, bypass) and verified against the observed preflight; both running; the briefs' last decision line (migration hold and sibling note) was dropped by the shell loop and is sent by message"
+    },
+    {
+      "time": "2026-10-17T17:05:41.781Z",
+      "event": "request",
+      "ticket": 1907,
+      "id": "1017144f"
     }
   ]
 }
