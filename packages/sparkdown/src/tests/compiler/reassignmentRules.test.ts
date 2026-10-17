@@ -5,11 +5,12 @@
 // Luau rule continues its target and value lists past a comma that ends its
 // line (`LuauCommaLineBreak`), so it also begins at a target list that ends
 // its line with a comma, and ends where the next line starts a statement;
-// and where #1906 made them differ: the Luau rule reads its value from the
-// next line after an `=` that ends its line (`LuauAssignmentLineBreak`), so
-// it does not end at such a line end, where the narrative rule, which ends
-// at its line, does. The runtime cases in `TrailingCommaReassignment.test.ts` check
-// the values themselves.
+// and where #1906 made them differ: after an `=` that ends its line, the
+// shared `LuauAssignmentOperation` carries both rules to the next line
+// (`LuauAssignmentLineBreak`), where the Luau rule reads its value and the
+// narrative rule, which ends at its line, ends at that line's first token.
+// The runtime cases in `TrailingCommaReassignment.test.ts` check the values
+// themselves.
 
 import { describe, expect, test } from "vitest";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -34,8 +35,8 @@ describe("the two reassignment rules", () => {
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
   });
 
-  test("share their content, except the Luau rule's comma and `=` line breaks", () => {
-    const lineBreaks = ["#LuauCommaLineBreak", "#LuauAssignmentLineBreak"];
+  test("share their content, except the Luau rule's comma line break", () => {
+    const lineBreaks = ["#LuauCommaLineBreak"];
     expect(
       luau.patterns!.filter((p) => !lineBreaks.includes(p.include)),
     ).toEqual(narrative.patterns);
@@ -44,9 +45,10 @@ describe("the two reassignment rules", () => {
     }
   });
 
-  test("share their end, except the narrative rule's line end and the Luau rule's line-start statement end", () => {
-    expect(narrative.end!.endsWith("|$")).toBe(true);
-    expect(luau.end!.startsWith(`${narrative.end!.slice(0, -"|$".length)}|(?<=^`)).toBe(true);
+  test("share their end, except the narrative rule's line ends and the Luau rule's line-start statement end", () => {
+    const narrativeEnds = narrative.end!.lastIndexOf("|$|(?<=^");
+    expect(narrativeEnds).toBeGreaterThan(0);
+    expect(luau.end!.startsWith(`${narrative.end!.slice(0, narrativeEnds)}|(?<=^`)).toBe(true);
   });
 });
 

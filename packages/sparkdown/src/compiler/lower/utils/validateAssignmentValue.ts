@@ -53,6 +53,8 @@ function isInsignificant(name: string): boolean {
     name === "ExtraWhitespace" ||
     name === "RequiredWhitespace" ||
     name === "Newline" ||
+    // The comments and line breaks between an operator and its value.
+    name === "LuauAssignmentLineBreak" ||
     COMMENT_NAMES.has(name)
   );
 }

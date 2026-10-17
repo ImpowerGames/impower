@@ -129,10 +129,11 @@ export const FUNCTION_CALL_SHORTHAND_NODES = nodeNameSet(
 );
 
 // The nodes a rule puts around its content (`{` and `}` of an
-// interpolation), and the operator before a value, which are no part of the
-// value a container holds.
+// interpolation), and the operator before a value with what stands between
+// them (`LuauAssignmentLineBreak`), which are no part of the value a
+// container holds.
 const RULE_DELIMITER = /_(begin|end)(_c\d+)*$/;
-const NOT_VALUE = nodeNameSet(["LuauAssignmentOperator"]);
+const NOT_VALUE = nodeNameSet(["LuauAssignmentOperator", "LuauAssignmentLineBreak"]);
 
 /** The nodes that hold the value of a container node: its content's children, without its delimiters or an assignment's operator. */
 export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {

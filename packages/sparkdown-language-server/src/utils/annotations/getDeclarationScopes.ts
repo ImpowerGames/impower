@@ -221,12 +221,14 @@ const getLocalScope = (
   // `local a = ` is in the initializer.
   const text = read(definition.from, definition.to);
   const trimmed = text.trimEnd();
-  // An `=` that ends its line reads its value from the next line
-  // (`LuauAssignmentLineBreak`); when no value followed, the definition ends
-  // with that line break, and a cursor anywhere up to its end is still in
-  // the initializer.
+  // An `=` that ends its line reads its value from a later line: its
+  // operation holds the line break (`LuauAssignmentLineBreak`). When no
+  // value followed, the definition ends with that line break, and a cursor
+  // anywhere up to its end is still in the initializer.
+  const lastPart = definition.getChild(`${definition.name}_content`)?.lastChild;
+  const operation = lastPart?.getChild(`${lastPart.name}_content`)?.lastChild;
   const valueLineBreak = type === "var" &&
-    definition.getChild(`${definition.name}_content`)?.lastChild?.name === "LuauAssignmentLineBreak";
+    operation?.getChild(`${operation.name}_content`)?.lastChild?.name === "LuauAssignmentLineBreak";
   let start = type === "function"
     ? name.to
     : !valueLineBreak && text.slice(trimmed.length).includes("\n")

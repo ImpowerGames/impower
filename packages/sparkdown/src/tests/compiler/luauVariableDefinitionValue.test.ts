@@ -37,13 +37,14 @@ describe("LuauVariableDefinitionValue", () => {
 // from the next line after an `=` that ends its line (#1247), and the
 // narrative one ends at its line.
 describe("the two declaration rules", () => {
-  test("share their begin, captures and end but for the line end after an `=`", () => {
+  // An `=` that ends its line keeps its operation open to a later line
+  // (`LuauAssignmentLineBreak`), so only the narrative declaration ends at
+  // that line's first token (`LUAU_AT_LATER_LINE_TOKEN`).
+  test("share their begin, captures and end but for the narrative one's end at a later line", () => {
     const luau = repository["LuauVariableDefinition"]!;
     const narrative = repository["LuauSparkdownVariableDefinition"]!;
     expect(narrative.begin).toBe(luau.begin);
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
-    const lineEndAfterValue = String.raw`|(?:(?<![^=~<>]=(?:[^\S\n\r])*)|(?<=(?:[-][-])[^\n]*))(?=$)`;
-    expect(luau.end).toContain(lineEndAfterValue);
-    expect(luau.end!.replace(lineEndAfterValue, "").replace("(?=^|[;)\\]}])", "(?=^|$|[;)\\]}])")).toBe(narrative.end);
+    expect(narrative.end!.startsWith(`${luau.end}|(?<=^`)).toBe(true);
   });
 });

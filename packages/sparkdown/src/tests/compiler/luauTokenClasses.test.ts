@@ -354,6 +354,18 @@ describe("a structural word is a name outside its shape (#984)", () => {
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 5.\n" });
   });
 
+  // The operation holds the line break after an `=` with no value on its
+  // line, so it decides nothing from the comment's text, and it ends at a
+  // later line's first token wherever it stands.
+  test("the scope opened at an `=` ends at a later line's first token in narrative and define bodies too", () => {
+    const tree = (source: string) => stripAnsi(dumpTree(source));
+    // A narrative reassignment with no value leaves the next line to the story.
+    expect(tree("scene A\n  y = -- note\n  Hello there.\nend\n")).toMatch(/─ ActionLineEnd \[/);
+    // A define property with no value leaves the `end` to the define.
+    expect(tree("define cfg with\n  name =\nend\n")).toMatch(/LuauDefine_end \[\d+\.\.\d+\]/);
+    expect(tree("define cfg with\n  name =\nend\n")).not.toMatch(/ERROR_INCOMPLETE/);
+  });
+
   test("continue is a value where one stands, as in Luau", () => {
     const source = "function f()\n  local a, b = 1, continue\n  return a, b\nend\n";
     expect(officialErrors(source)).toEqual([]);
