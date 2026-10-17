@@ -411,24 +411,27 @@ try {
     // it is a container and its Bugs are delivered by the claimants. #223's
     // only PR is closed without merging; #224 is closed by two slices' PRs.
     subIssues: (n) => ({
-      200: [{ number: 201, state: "open", title: "a", type: { name: "Task" }, body: "## Scope\n\nCloses #221 and, with it, #2010 outside this tree; closes other/repo#223 there, not here." }, { number: 202, state: "open", title: "b", type: { name: "Task" }, body: "Fixes acme/widgets#222." }, { number: 210, state: "open", title: "container", type: { name: "Task" } }, { number: 212, state: "open", title: "slice with bugs", type: { name: "Task" } }, { number: 215, state: "open", title: "sibling-closed bug", type: { name: "Bug" } }, { number: 217, state: "closed", title: "merged sibling bug", type: { name: "Bug" } }, { number: 220, state: "open", title: "umbrella", type: { name: "Task" } }, { number: 223, state: "open", title: "stale closed PR bug", type: { name: "Bug" } }, { number: 224, state: "open", title: "two closers bug", type: { name: "Bug" } }, { number: 225, state: "open", title: "pr-only umbrella", type: { name: "Task" } }],
+      200: [{ number: 201, state: "open", title: "a", type: { name: "Task" }, body: "## Scope\n\nCloses #221 and, with it, #2010 outside this tree; closes other/repo#223 there, not here; closes #228 too (it does not: #227's own PR does)." }, { number: 202, state: "open", title: "b", type: { name: "Task" }, body: "Fixes acme/widgets#222." }, { number: 210, state: "open", title: "container", type: { name: "Task" } }, { number: 212, state: "open", title: "slice with bugs", type: { name: "Task" } }, { number: 215, state: "open", title: "sibling-closed bug", type: { name: "Bug" } }, { number: 217, state: "closed", title: "merged sibling bug", type: { name: "Bug" } }, { number: 220, state: "open", title: "umbrella", type: { name: "Task" } }, { number: 223, state: "open", title: "stale closed PR bug", type: { name: "Bug" } }, { number: 224, state: "open", title: "two closers bug", type: { name: "Bug" } }, { number: 225, state: "open", title: "pr-only umbrella", type: { name: "Task" } }, { number: 227, state: "open", title: "slice with its own pr", type: { name: "Task" } }],
       210: [{ number: 211, state: "open", title: "c", type: { name: "Task" } }],
       212: [{ number: 213, state: "open", title: "d", type: { name: "Bug" } }, { number: 214, state: "open", title: "e", type: { name: "Bug" } }],
       220: [{ number: 221, state: "open", title: "umbrella bug one", type: { name: "Bug" } }, { number: 222, state: "open", title: "umbrella bug two", type: { name: "Bug" } }],
       225: [{ number: 226, state: "open", title: "bug a sibling PR closes", type: { name: "Bug" } }],
+      227: [{ number: 228, state: "open", title: "bug its own slice closes", type: { name: "Bug" } }],
     })[n] ?? [],
     blockedBy: (n) => ({ 201: [{ number: 190, state: "closed" }], 202: [{ number: 191, state: "closed" }] })[n] ?? [],
     effort: () => "Medium",
     pulls: (n) => ({
       190: [{ number: 390, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/190-x", closingIssuesReferences: [{ number: 190 }] }],
       191: [{ number: 391, state: "MERGED", mergeCommit: { oid: "off-main" }, headRefName: "fix/191-x", closingIssuesReferences: [{ number: 191 }] }],
-      201: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }, { number: 221 }, { number: 224 }] }, { number: 499, state: "OPEN", isDraft: false, headRefName: "fix/2010-y", headRefOid: "h9", closingIssuesReferences: [{ number: 2010 }] }],
+      201: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215, repository: { name: "widgets", owner: { login: "acme" } } }, { number: 221 }, { number: 224 }, { number: 213, repository: { name: "repo", owner: { login: "other" } } }] }, { number: 499, state: "OPEN", isDraft: false, headRefName: "fix/2010-y", headRefOid: "h9", closingIssuesReferences: [{ number: 2010 }] }],
       202: [{ number: 392, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/202-thing", closingIssuesReferences: [{ number: 217 }, { number: 224 }, { number: 226 }] }],
       211: [{ number: 405, state: "CLOSED", isDraft: false, headRefName: "fix/211-x", headRefOid: "h5", closingIssuesReferences: [{ number: 223 }] }],
       215: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }, { number: 221 }, { number: 224 }] }],
       217: [{ number: 392, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/202-thing", closingIssuesReferences: [{ number: 217 }, { number: 224 }, { number: 226 }] }],
       221: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }, { number: 221 }, { number: 224 }] }],
       223: [{ number: 405, state: "CLOSED", isDraft: false, headRefName: "fix/211-x", headRefOid: "h5", closingIssuesReferences: [{ number: 223 }] }],
+      227: [{ number: 407, state: "OPEN", isDraft: true, headRefName: "feat/227-x", headRefOid: "h7", closingIssuesReferences: [{ number: 227 }, { number: 228 }] }],
+      228: [{ number: 407, state: "OPEN", isDraft: true, headRefName: "feat/227-x", headRefOid: "h7", closingIssuesReferences: [{ number: 227 }, { number: 228 }] }],
       224: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }, { number: 221 }, { number: 224 }] }, { number: 392, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/202-thing", closingIssuesReferences: [{ number: 217 }, { number: 224 }, { number: 226 }] }],
     })[n] ?? [],
     comments: () => [{ body: "### Review round 1 state\n" }, { body: "intro\n### Review round 3 state\n" }, { body: "Round 4 is not a heading" }],
@@ -463,9 +466,16 @@ try {
   // mention, is a container too: the Bug's own PR list is empty, and the
   // claim is read from the sibling's PR.
   assert.deepEqual([byNumber[225].container, byNumber[226].prs, byNumber[226].deliveredBy], [true, [], { ticket: 202, via: "pr", pr: 392, merged: true }], "a PR-only claim makes the umbrella a container");
+  // A PR's closing reference to another repository claims nothing (#213 stays
+  // its slice's), a qualified reference to the tickets repository counts
+  // (#215), and a slice's own PR claiming its sub-issue wins over a sibling's
+  // body claim, so the slice stays a slice (#227) and its Bug is delivered by
+  // that PR (#228).
+  assert.deepEqual(byNumber[213].deliveredBy.ticket, 212, "a foreign-repository PR reference claims nothing");
+  assert.deepEqual([byNumber[227].container, byNumber[227].deliveredBy, byNumber[228].deliveredBy], [false, undefined, { ticket: 227, via: "pr", pr: 407, merged: false }], "the own PR's claim outranks the sibling's body claim in the classification too");
   assert.deepEqual([byNumber[224].deliveredBy, byNumber[224].deliveryConflict], [undefined, [201, 202]], "two slices' PRs closing one ticket is a conflict, not a delivery");
   assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read and the snapshot agree on the slices");
-  assert.deepEqual(run.snapshotScope(snap).slices, ["#201 open", "#202 open", "#211 open", "#212 open", "#213 open", "#214 open", "#215 open", "#217 closed", "#221 open", "#222 open", "#223 open", "#224 open", "#226 open"]);
+  assert.deepEqual(run.snapshotScope(snap).slices, ["#201 open", "#202 open", "#211 open", "#212 open", "#213 open", "#214 open", "#215 open", "#217 closed", "#221 open", "#222 open", "#223 open", "#224 open", "#226 open", "#227 open", "#228 open"]);
   assert.deepEqual(run.closingReferences("Closes #1, closes #2, fixed #3, Resolves: acme/widgets#4, close #1, other/repo#2 is not closed, and #5 is only mentioned").map((r) => `${r.repository ?? ""}#${r.number}`), ["#1", "#2", "#3", "acme/widgets#4"]);
   assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read reads the same PRs and agrees");
   // The parent is of any type: a Task with sub-issues is orchestrated as a
@@ -474,32 +484,38 @@ try {
   {
     assert.deepEqual([snap.issue.number, snap.issue.type, snap.issue.criteria.map((c) => c.text)], [200, "Task", ["Widgets work."]], "the snapshot carries the parent's type and criteria");
     const taskRecord = path.join(artifacts, "run-200.json");
-    assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #200." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
+    assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #200.", concurrency: 4 }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
     const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211, 212])], freeBytes: 100 * GB, defaults, census: () => [] });
     assert.deepEqual([taskPlan.parent, actions(taskPlan)[211]], [{ type: "Task", title: "Widgets" }, "dispatch"], "the plan carries the parent's type and admits the nested slice");
     // Delivered tickets are never dispatched and hold no place: only #201's
     // draft PR and #202's worktree occupy capacity, so #212 waits on the limit
     // behind #211, and each slice's entry names what its PR delivers.
     assert.deepEqual([213, 214, 215, 221].map((n) => actions(taskPlan)[n]), ["delivered-by", "delivered-by", "delivered-by", "delivered-by"]);
-    assert.deepEqual([actions(taskPlan)[217], actions(taskPlan)[212], taskPlan.concurrency.active], ["done", "wait-capacity", 2], "a merged deliverer's Bug is done; delivered Bugs take no writer place");
+    assert.deepEqual([actions(taskPlan)[217], actions(taskPlan)[212], taskPlan.concurrency.active], ["done", "wait-capacity", 3], "a merged deliverer's Bug is done; delivered Bugs take no writer place");
     assert.match(taskPlan.tickets.find((t) => t.number === 215).reason, /#201's PR #401 delivers it \(that PR closes it\): it is never dispatched and holds no writer place/);
     assert.match(taskPlan.tickets.find((t) => t.number === 213).reason, /#212's PR delivers it \(a Bug under slice #212\)/);
-    assert.deepEqual([actions(taskPlan)[220], actions(taskPlan)[225], actions(taskPlan)[223], actions(taskPlan)[224], actions(taskPlan)[226]], ["container", "container", "blocked-route", "decision-needed", "decision-needed"], "umbrellas are containers, a ticket with only a dead PR is its own work, two closers need the maintainer, and a merged deliverer with the ticket open is a decision");
-    assert.match(taskPlan.tickets.find((t) => t.number === 224).reason, /open or merged PRs of #201 and #202 both close it/);
+    assert.deepEqual([actions(taskPlan)[220], actions(taskPlan)[225], actions(taskPlan)[223], actions(taskPlan)[224], actions(taskPlan)[226], actions(taskPlan)[227], actions(taskPlan)[228]], ["container", "container", "blocked-route", "decision-needed", "decision-needed", "adopt-pr", "delivered-by"], "umbrellas are containers, a ticket with only a dead PR is its own work, two closers need the maintainer, a merged deliverer with the ticket open is a decision, and a slice whose own PR claims its Bug keeps it");
+    assert.deepEqual(taskPlan.tickets.find((t) => t.number === 227).delivers, [228]);
+    // A conflicted ticket's pending start keeps its place.
+    const conflicted = run.planDispatch({ record: { ...run.readRecord(taskRecord), tickets: { 224: { owner: null, pending: { operation: "dispatch", launchId: "L1", route: "claude-cli", host: os.hostname(), since: new Date().toISOString() }, history: [], results: [] } } }, snapshot: snap, preflights: [], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(conflicted)[224], conflicted.concurrency.active], ["decision-needed", 4], "a pending start on a conflicted ticket is counted until settled");
+    assert.match(conflicted.tickets.find((t) => t.number === 224).reason, /keeps a place until it is settled/);
+    assert.match(taskPlan.tickets.find((t) => t.number === 224).reason, /#201 and #202 both claim it \(by an open or merged PR or a body closing reference\)/);
     assert.match(taskPlan.tickets.find((t) => t.number === 222).reason, /#202's PR #392 is merged on origin\/main, but GitHub left it open/, "a merged deliverer with the ticket still open is a decision, not a silent wait");
     assert.equal(actions(taskPlan)[222], "decision-needed");
     assert.deepEqual([212, 201, 202].map((n) => taskPlan.tickets.find((t) => t.number === n).delivers), [[213, 214], [215, 221], [217, 222, 226]]);
+    assert.equal(taskPlan.concurrency.active, 3, "#227's draft PR reserves a place beside #201's PR and #202's worktree");
     assert.equal(taskPlan.tickets.find((t) => t.number === 211).delivers, undefined);
     // A writer the record holds for a delivered ticket is a mistake to settle,
     // and it holds the slice that would otherwise start the same work.
     const held = run.planDispatch({ record: { ...run.readRecord(taskRecord), tickets: { 213: { owner: { route: "claude-desktop", handle: { kind: "session", id: "local_stray" }, since: new Date().toISOString() }, pending: null, history: [], results: [] } } }, snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [212])], freeBytes: 100 * GB, defaults, census: () => [], observations: { sessions: { local_stray: { state: "running" } } } });
-    assert.deepEqual([actions(held)[213], actions(held)[212], held.concurrency.active], ["decision-needed", "wait-dependency", 3], "a held writer on a delivered ticket is counted and holds its slice");
+    assert.deepEqual([actions(held)[213], actions(held)[212], held.concurrency.active], ["decision-needed", "wait-dependency", 4], "a held writer on a delivered ticket is counted and holds its slice");
     assert.match(held.tickets.find((t) => t.number === 212).reason, /#213, which its PR delivers, holds a writer or work of its own; settle that before #212 is dispatched/);
     // A worktree on a delivered ticket with no recorded writer is existing
     // work to adopt, and it holds the slice the same way.
     const treeSnap = { ...snap, tickets: snap.tickets.map((t) => (t.number === 213 ? { ...t, worktrees: [{ path: path.join(tmp, "wt-213-stray"), branch: "fix/213-work", head: "x" }] } : t)) };
     const tree = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: treeSnap, preflights: [available("claude-cli", "claude-opus-5-5", [212])], freeBytes: 100 * GB, defaults, census: () => [] });
-    assert.deepEqual([actions(tree)[213], actions(tree)[212], tree.concurrency.active], ["adopt-worktree", "wait-dependency", 3], "a worktree on a delivered ticket reserves a place and holds its slice");
+    assert.deepEqual([actions(tree)[213], actions(tree)[212], tree.concurrency.active], ["adopt-worktree", "wait-dependency", 4], "a worktree on a delivered ticket reserves a place and holds its slice");
     // The slice that delivers Bugs is dispatched like any other, and its brief
     // asks for their closing references.
     const slicePlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [212])], freeBytes: 100 * GB, defaults, census: () => [] });
@@ -605,11 +621,21 @@ try {
     {
       const listedWith8 = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref(INTERNAL, 8)])];
       const { client: split8 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies((search) => (search === heads || search === "7" ? listedWith8 : []), { [`repos/${INTERNAL}/issues/7/comments`]: [] }));
-      const split8Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 6 }, { ...split8, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice", type: { name: "Task" } }, { number: 8, state: "open", title: "bug the slice closes", type: { name: "Bug" } }] : []), blockedBy: () => [], effort: () => "Medium" });
+      const split8Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, { ...split8, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice", type: { name: "Task" } }, { number: 8, state: "open", title: "bug the slice closes", type: { name: "Bug" } }] : []), blockedBy: () => [], effort: () => "Medium" });
       const eight = split8Snap.tickets.find((t) => t.number === 8);
       assert.deepEqual([eight.prs, eight.deliveredBy], [[], { ticket: 7, via: "pr", pr: 701, merged: false }], "the sibling's PR is absent from the Bug's own list and still delivers it");
       const split8Plan = run.planDispatch({ record: run.readRecord(file), snapshot: split8Snap, preflights: [available("claude-cli", "claude-opus-5-5", [8])], freeBytes: 100 * GB, defaults, census: () => [] });
       assert.deepEqual([actions(split8Plan)[8], split8Plan.tickets.find((t) => t.number === 7).delivers], ["delivered-by", [8]], "the Bug is delivered by #7 whatever the record holds for #7");
+      // The snapshot command passes the run's tickets repository, so a body
+      // reference qualified with it claims after the cutover: Task #7's body
+      // "Closes acme/widgets-internal#9" delivers Bug #9 under umbrella #10.
+      const { client: split9 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => []));
+      const bodyClient = { ...split9, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => ({ 6: [{ number: 7, state: "open", title: "slice", type: { name: "Task" }, body: `Closes ${INTERNAL}#9.` }, { number: 10, state: "open", title: "umbrella", type: { name: "Task" } }], 10: [{ number: 9, state: "open", title: "bug the slice's body claims", type: { name: "Bug" } }] })[n] ?? [], blockedBy: () => [], effort: () => "Medium" };
+      const cliOut = path.join(tmp, "split-cli-snapshot.json");
+      run.main(["snapshot", "--record", file, "--out", cliOut], { clientFor: () => bodyClient, defaults });
+      const cliSnap = readJsonFile(cliOut);
+      assert.deepEqual([cliSnap.tickets.find((t) => t.number === 10).container, cliSnap.tickets.find((t) => t.number === 9).deliveredBy], [true, { ticket: 7, via: "body", pr: null, merged: false }], "the CLI snapshot reads qualified body claims against the tickets repository");
+      assert.deepEqual(run.snapshotScope(cliSnap).slices, run.readIssueScope({ issue: 6, tickets: INTERNAL }, bodyClient).slices, "and agrees with the gate's scope read");
     }
     const splitBrief = run.brief(run.readRecord(file), splitPlanFile, 7, [], defaults);
     assert.match(splitBrief, new RegExp(`You are the writer for ${INTERNAL} ticket #7 `));
