@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 224,
-  "previous": "905d76af7e9b71e5ba1244bcbce91922c3c35eed",
+  "seq": 225,
+  "previous": "3aa29808c415c0e704cb838381b19b0ade521dee",
   "snapshotParents": [],
-  "time": "2026-10-17T16:58:13.037Z",
+  "time": "2026-10-17T16:58:20.929Z",
   "kind": "auto",
-  "transition": "verify of #1977",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 233,
+    "recordRevision": 234,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -7678,7 +7678,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:58:13.036Z",
+      "observedAt": "2026-10-17T16:58:20.929Z",
       "held": true,
       "exists": false
     },
@@ -7687,7 +7687,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T16:58:13.036Z",
+      "observedAt": "2026-10-17T16:58:20.929Z",
       "held": true,
       "exists": false
     }
@@ -8060,13 +8060,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:21:42.956Z",
-      "event": "answered",
-      "ticket": 1374,
-      "id": "cbe1d967",
-      "deliveryId": "83ff2485"
-    },
     {
       "time": "2026-10-17T06:39:40.729Z",
       "event": "request",
@@ -8810,6 +8803,11 @@
       "time": "2026-10-17T16:58:11.414Z",
       "event": "verified",
       "ticket": 1977
+    },
+    {
+      "time": "2026-10-17T16:58:19.550Z",
+      "event": "check-in",
+      "outcome": "#1907 and #1977 acknowledged (claude-opus-5-5 at high and low, bypass) and verified against the observed preflight; both running; the briefs' last decision line (migration hold and sibling note) was dropped by the shell loop and is sent by message"
     }
   ]
 }
