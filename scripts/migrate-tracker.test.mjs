@@ -134,7 +134,7 @@ test("qualified, word-joined, URL, entity and escaped forms are not bare referen
 
 test("link destinations and written-out URLs keep their fragments", () => {
   assert.equal(rw("https://example.com/?q=#12 and #12"), "https://example.com/?q=#12 and #3");
-  assert.equal(rw("[section](#12) and [#12](https://x.test/#12) (#12)"), "[section](#12) and [#3](https://x.test/#12) (#3)", "link text and a parenthesised reference still map");
+  assert.equal(rw("[section](#12) and [#12](https://x.test/#12) (#12)"), "[section](#12) and [#12](https://x.test/#12) (#3)", "a link's text is not a reference, as GitHub renders it; a parenthesised reference maps");
   assert.equal(rw('[docs](#12 "title") then #40'), '[docs](#12 "title") then #41');
   assert.equal(rw("[ref]: #12\n\nsee #12"), "[ref]: #12\n\nsee #3", "a link reference definition");
   assert.deepEqual(bareRefs("<https://x.test/#12> (#40)"), [40]);
@@ -833,17 +833,47 @@ test("the render check passes a correct migration and its renders are counted fo
   assert.equal(renders, renderCount(snapshot));
 });
 
-test("a misread body that passes the text comparison fails the render check", async () => {
+test("a misread body fails the render check, and the gate refuses to write it", async () => {
   const tracker = await seeded();
-  // The tool reads <code> as code and leaves #4 alone; the renderer links it.
+  // The tool reads <code> as code and leaves #4 alone; this renderer links it.
   tracker.raw("Org/code", 7).rest.body = "See <code>#4</code> and #5.";
   const dir = scratch();
   const { snapshot, journal } = await transferred(tracker, dir);
+  const map = transferMap(journal);
+
+  // Written as the tool reads it, the body passes the text comparison and fails the render check:
+  // the old #4 would link the internal #4, a different ticket.
+  tracker.raw("Org/internal", 5).rest.body = "See <code>#4</code> and #3.\n\nMigrated from Org/code#7";
+  const { differences } = await renderCheck(tracker, repos, snapshot, map);
+  assert.deepEqual(differences, [{ old: 7, new: 5, field: "linked references of body:5", expected: ["org/internal#2", "org/internal#3"], actual: ["org/internal#4", "org/internal#3"] }]);
+
+  // The rewrite asks the renderer first, finds the reading disagrees, and leaves the text as transferred.
+  tracker.raw("Org/internal", 5).rest.body = "See <code>#4</code> and Org/internal#3.\n\nMigrated from Org/code#7";
+  const result = await runRewrite({ tracker, repos, snapshot, journal });
+  assert.deepEqual(result.leftAsTransferred, [{ old: 7, new: 5, key: "body:5", reader: [5], github: [4, 5] }]);
+  assert.equal(tracker.raw("Org/internal", 5).rest.body, "See <code>#4</code> and Org/internal#3.\n\nMigrated from Org/code#7", "not rewritten");
+  const verified = {};
+  const after = await runVerify({ tracker, repos, snapshot, journal, report: verified });
+  assert.ok(!after.some((d) => d.field.startsWith("text of")), "a text left as transferred is not compared with the tool's target");
+  assert.deepEqual(after.map((d) => d.field), ["linked references of body:5"], "the render check still checks it");
+  assert.equal(verified.leftAsTransferred.length, 1);
+});
+
+test("a body left as transferred gets its migration line back, and nothing else", async () => {
+  const tracker = await seeded();
+  tracker.raw("Org/code", 7).rest.body = "See <code>#4</code>.";
+  const dir = scratch();
+  const { snapshot, journal } = await transferred(tracker, dir);
+  // The transfer rewrote the line's reference, as GitHub's does.
+  tracker.raw("Org/internal", 5).rest.body = "See <code>#4</code>.\n\nMigrated from Org/internal#5";
   await runRewrite({ tracker, repos, snapshot, journal });
-  assert.equal(tracker.raw("Org/internal", 5).rest.body, "See <code>#4</code> and #3.\n\nMigrated from Org/code#7");
-  const differences = await runVerify({ tracker, repos, snapshot, journal });
-  assert.ok(!differences.some((d) => d.field.startsWith("text of")), "the text matches the tool's own target");
-  assert.deepEqual(differences, [{ old: 7, new: 5, field: "linked references of body:5", expected: ["org/internal#2", "org/internal#3"], actual: ["org/internal#4", "org/internal#3"] }], "the old #4 now links the internal #4, a different ticket");
+  assert.equal(tracker.raw("Org/internal", 5).rest.body, "See <code>#4</code>.\n\nMigrated from Org/code#7");
+});
+
+test("stand-ins per number keep equal text equal", () => {
+  const stand = withSentinels("[x][ref #12]\n\n[ref #12]: /docs and #40", [900, 901, 902], { perNumber: true });
+  assert.equal(stand.text, "[x][ref #900]\n\n[ref #900]: /docs and #901");
+  assert.deepEqual(stand.tokens.map((t) => t.sentinel), [900, 900, 901]);
 });
 
 test("the render check reports a reference the rewrite left with its old number", async () => {
