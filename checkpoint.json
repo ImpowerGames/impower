@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 129,
-  "previous": "3ffe06b6ab67c487de558b7f19c73794f218cb5c",
+  "seq": 130,
+  "previous": "fd385034280b49d46f0beee04f8b332835d4fe56",
   "snapshotParents": [],
-  "time": "2026-10-17T01:23:13.191Z",
+  "time": "2026-10-17T01:23:31.013Z",
   "kind": "auto",
-  "transition": "answer of #1974",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 105,
+    "recordRevision": 106,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -733,7 +733,12 @@
             "time": "2026-10-17T00:50:17.767Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-7a097718-7636-4e93-9a2d-b75836432bde"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
+          "time": "2026-10-17T01:23:26.743Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -2097,7 +2102,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:23:11.692Z",
+      "observedAt": "2026-10-17T01:23:28.987Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2254,7 +2259,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T01:23:11.692Z",
+      "observedAt": "2026-10-17T01:23:28.987Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2576,19 +2581,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:23:02.776Z",
-      "event": "launched",
-      "ticket": 851,
-      "launchId": "432efd6d-c055-4f07-a9f3-7b88b1ab2f3a",
-      "handle": {
-        "kind": "process",
-        "pid": 21604,
-        "start": "639277645823815597",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-851-432efd6d-c055-4f07-a9f3-7b88b1ab2f3a"
-      }
-    },
     {
       "time": "2026-10-16T16:23:49.598Z",
       "event": "dispatch-intent",
@@ -3256,6 +3248,13 @@
       "id": "af9a31ec",
       "deliveryId": "61b6e064",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T01:23:26.744Z",
+      "event": "resume-intent",
+      "ticket": 1974,
+      "id": "ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
+      "sessionId": "027bc9ab-053c-4105-bb27-36ecdae50509"
     }
   ]
 }
