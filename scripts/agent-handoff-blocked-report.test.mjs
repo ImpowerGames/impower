@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { runHandoff as actualRunHandoff, recordCoordinatorReport, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
+import { runHandoff as actualRunHandoff, recordCoordinatorReport as actualRecord, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
 import { readRepos } from "../.agents/repos.mjs";
 import { roundState } from "../.agents/skills/orchestrate-feature/review-checkpoint.mjs";
 
@@ -24,6 +24,10 @@ const reposFile = path.join(scratch, "repos-off.json");
 fs.writeFileSync(reposFile, JSON.stringify({ ...readRepos(), cutover: false }));
 const OFF = readRepos(reposFile);
 const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
+const onFile = path.join(scratch, "repos-on.json");
+fs.writeFileSync(onFile, JSON.stringify({ ...readRepos(), cutover: true }));
+const ON = readRepos(onFile);
+const recordCoordinatorReport = (journal, id, file, repos = OFF) => actualRecord(journal, id, file, { repos });
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
 const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
@@ -99,7 +103,21 @@ refuses(/verbatim/, "a read-back without the behalf line is refused", () => comm
 refuses(/REST API returns it/, "a read-back of the body alone is refused", () => fs.writeFileSync(readBack, `${line}\n\n${report}`));
 refuses(/is on https:\/\/api\.github\.com\/repos\/.*\/issues\/77, not review thread .*#1948/, "a comment on another issue is refused", () => comment(`${line}\n\n${report}`, 601, `https://api.github.com/repos/${OFF.internal}/issues/77`));
 refuses(/read-back is comment 602, not comment 601/, "a read-back of another comment is refused", () => post(report, 602));
-refuses(/names no review thread/, "a journal whose coordinator row names no thread is refused", journalWith((list) => { delete list.find((row) => row.event === "coordinator").thread; }));
+// A journal from a launcher that predates review threads names none; while the
+// switch is off it takes a comment on an issue of the code repository, where
+// that launcher posted, and nothing else.
+const legacy = journalWith((list) => { delete list.find((row) => row.event === "coordinator").thread; });
+refuses(/not a pull request in .*, where this journal's launcher posted reviews/, "a legacy journal refuses a comment outside the code repository", () => { legacy(); comment(`${line}\n\n${report}`, 601, `https://api.github.com/repos/${OFF.internal}/issues/1948`); });
+{
+  rewrite(original);
+  post();
+  legacy();
+  const before = fs.readFileSync(journal, "utf8");
+  assert.throws(() => recordCoordinatorReport(journal, 601, readBack, ON), /names no review thread.*cutover switch on/, "a legacy journal cannot be recorded once the switch is on");
+  assert.equal(fs.readFileSync(journal, "utf8"), before, "the refusal writes nothing");
+  recordCoordinatorReport(journal, 601, readBack);
+  assert.deepEqual(rows().map((row) => row.event).slice(-3), ["completed", "report-posted", "finished"], "a legacy journal is still recorded from a comment on the pull request while the switch is off");
+}
 refuses(/does not end/, "a journal blocked for another reason is refused", journalWith((list) => { list.at(-1).reason = "Undeclared transition"; }));
 refuses(/exit/, "a launch that exited nonzero is refused", journalWith((list) => { list.at(-2).code = 1; }));
 refuses(/exit/, "a launch with no exited row is refused", journalWith((list) => { list.splice(list.findIndex((row) => row.event === "exited"), 1); }));
@@ -124,9 +142,14 @@ console.log("PASS: a blocked journal is completed only with a clean exit on this
 rewrite(original);
 assert.deepEqual(rows().find((row) => row.event === "coordinator").thread, { repo: OFF.code, number: 1948, issueUrl: `https://api.github.com/repos/${OFF.code}/issues/1948` }, "the journal names the review thread the coordinator posts on");
 post();
-// As a shell redirect of `gh api` may write it, with a byte order mark.
-fs.writeFileSync(readBack, "﻿" + fs.readFileSync(readBack, "utf8"));
-execFileSync(process.execPath, [launcher, "record-report", journal, "601", readBack], { encoding: "utf8", windowsHide: true });
+// As a shell redirect of `gh api` writes it: Windows PowerShell 5.1's `>`
+// writes UTF-16 with a byte order mark, so on Windows the read-back goes
+// through that redirect; elsewhere the same bytes are written directly.
+const redirected = path.join(jobDir, "readback-redirected.json");
+if (process.platform === "win32") execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `Get-Content -Raw -Encoding UTF8 -LiteralPath '${readBack}' > '${redirected}'`], { windowsHide: true });
+else fs.writeFileSync(redirected, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(fs.readFileSync(readBack, "utf8"), "utf16le")]));
+assert.deepEqual([...fs.readFileSync(redirected).subarray(0, 2)], [0xff, 0xfe], "the redirected read-back is UTF-16 with its byte order mark");
+execFileSync(process.execPath, [launcher, "record-report", journal, "601", redirected], { encoding: "utf8", windowsHide: true });
 let recorded = rows();
 assert.deepEqual(recorded.map((row) => row.event).slice(-5), ["exited", "blocked", "completed", "report-posted", "finished"]);
 const completed = recorded.find((row) => row.event === "completed");

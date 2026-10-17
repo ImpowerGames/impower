@@ -13,7 +13,7 @@ import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
-import { readRepos, reviewThread } from "../.agents/repos.mjs";
+import { readRepos, reviewThread, ticketsRepo } from "../.agents/repos.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -373,6 +373,17 @@ function blockedReview(rows, blocked) {
   return { pending: { index, step: launching.step, head: launching.head, ...report }, completed };
 }
 
+// A read-back's text in the encoding a shell redirect wrote it: UTF-8, with or
+// without a byte order mark, or UTF-16 with one (Windows PowerShell 5.1's
+// default for `>`).
+function readBackText(file) {
+  const bytes = fs.readFileSync(file);
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return bytes.subarray(2).toString("utf16le");
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return Buffer.from(bytes.subarray(2)).swap16().toString("utf16le");
+  const text = bytes.toString("utf8");
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
 // Records the comment the coordinator posted for a reviewer that could not
 // post its own report: one without GitHub access (its journal ends
 // `report-awaiting-post`), or one whose post failed after a clean exit (its
@@ -385,10 +396,11 @@ function blockedReview(rows, blocked) {
 // thread the journal's coordinator row names, and its body one line saying it
 // is posted on the reviewer's behalf, a blank line, and the reviewer's report
 // verbatim, with at most the host's attribution footer after it. A journal
-// whose last rows are this command's own rows for this same comment (its
-// `finished` row was never written) takes the missing rows without a second
-// post.
-export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
+// written before the launcher recorded a thread takes a comment on an issue of
+// the code repository while the switch is off. A journal whose last rows are
+// this command's own rows for this same comment (its `finished` row was
+// never written) takes the missing rows without a second post.
+export function recordCoordinatorReport(journalFile, commentId, readBackFile, { repos = readRepos() } = {}) {
   if (!/^[1-9][0-9]*$/.test(String(commentId)) || !Number.isSafeInteger(Number(commentId))) throw new Error("Supply the posted comment's numeric ID");
   const rows = fs.readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
   // The row the record rests on, and the rows this command wrote after it
@@ -405,8 +417,7 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   const report = fs.readFileSync(pending.report, "utf8");
   if (sha256(report) !== pending.reportSha256) throw new Error(`Reviewer report at ${pending.report} changed since the launcher recorded it`);
   let posted;
-  // A shell redirect may begin the file with a byte order mark.
-  try { posted = JSON.parse(fs.readFileSync(readBackFile, "utf8").replace(/^﻿/, "")); }
+  try { posted = JSON.parse(readBackText(readBackFile)); }
   catch (error) { throw new Error(`The read-back ${readBackFile} must be the posted comment as GitHub's REST API returns it, with its id, issue_url and body (gh api repos/<repository>/issues/comments/<id>): ${error.message}`); }
   if (typeof posted?.body !== "string") throw new Error(`The read-back ${readBackFile} has no comment body; supply the comment as GitHub's REST API returns it, with its id, issue_url and body`);
   const body = normalizeBody(posted.body);
@@ -419,10 +430,19 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   // first row to survive an interruption fixes them for the retry.
   const recorded = written.findLast((row) => row.event === "report-posted" || row.event === "completed");
   if (recorded && (recorded.commentId !== record.commentId || recorded.readBackSha256 !== record.readBackSha256)) throw new Error(`Journal already records comment ${recorded.commentId} for this report; a different comment or read-back cannot complete it`);
-  const thread = rows.find((row) => row.event === "coordinator")?.thread;
-  if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("Journal's coordinator row names no review thread, so the posted comment's place cannot be checked; it was written before the launcher recorded one");
   if (Number(posted.id) !== record.commentId) throw new Error(`The read-back is comment ${posted.id ?? "with no id"}, not comment ${commentId}`);
-  if (!onThread(posted, thread)) throw new Error(`Comment ${commentId} is on ${posted.issue_url ?? "no issue"}, not review thread ${thread.repo}#${thread.number}; post the report there`);
+  const thread = rows.find((row) => row.event === "coordinator")?.thread;
+  if (thread !== undefined) {
+    if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("Journal's coordinator row names a malformed review thread; inspect the journal by hand");
+    if (!onThread(posted, thread)) throw new Error(`Comment ${commentId} is on ${posted.issue_url ?? "no issue"}, not review thread ${thread.repo}#${thread.number}; post the report there`);
+  } else {
+    // A launcher that predates review threads posted on the pull request and
+    // recorded no thread, so its journal takes a comment on an issue of the
+    // code repository while that repository holds the review conversation.
+    if (ticketsRepo(repos) !== repos.code) throw new Error(`Journal's coordinator row names no review thread: it was written before the launcher recorded one, when reviews were posted on the pull request, and with the cutover switch on its report cannot be recorded against ${repos.internal}`);
+    const prefix = `https://api.github.com/repos/${repos.code}/issues/`;
+    if (typeof posted.issue_url !== "string" || !posted.issue_url.toLowerCase().startsWith(prefix.toLowerCase()) || !/^[1-9][0-9]*$/.test(posted.issue_url.slice(prefix.length))) throw new Error(`Comment ${commentId} is on ${posted.issue_url ?? "no issue"}, not a pull request in ${repos.code}, where this journal's launcher posted reviews; post the report there`);
+  }
   const now = new Date().toISOString();
   const missing = [
     ...(completed && !written.some((row) => row.event === "completed") ? [{ ...completed, recordedAt: now, commentId: record.commentId, readBackSha256: record.readBackSha256 }] : []),
