@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 260,
-  "previous": "0ae942a2f70c9b482be2d8bb04893f2bc4d37156",
+  "seq": 261,
+  "previous": "934613c9532a1541dee4df3b6a61893b250288bc",
   "snapshotParents": [],
-  "time": "2026-10-17T23:18:43.815Z",
+  "time": "2026-10-17T23:19:02.037Z",
   "kind": "auto",
-  "transition": "closing the Feature (confirmed)",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 268,
+    "recordRevision": 269,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -9080,11 +9080,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T13:31:41.777Z",
-      "event": "check-in",
-      "outcome": "maintainer chose to hold the cutover until both PRs merge: #1906 extended to round 4 (decision , comment ) and its writer resumed; #1924 repair directed (decision e43240d9, comment 6234468080: remove the top-level attribute lookahead per the maintainer decision, recorded on #921) and its writer resumed; ORCH #1961 told to hold about five hours"
-    },
-    {
       "time": "2026-10-17T13:35:34.847Z",
       "event": "checkpoint-intent",
       "ticket": 1906,
@@ -9823,6 +9818,11 @@
       "event": "operation-outcome",
       "id": "d6c10cda",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-17T23:19:00.764Z",
+      "event": "check-in",
+      "outcome": "Feature #1904 verified complete (f66bd1e2) and closed (d6c10cda, comment 6242971662); PR #2062 merged as 879318898 under acceptance b5716de2; #1890 closed; window-may-open sent to ORCH #1961"
     }
   ]
 }
