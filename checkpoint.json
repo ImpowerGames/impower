@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 120,
-  "previous": "964810b5e126d0a2ef9f2b38a5e7549d322d68f4",
+  "seq": 121,
+  "previous": "390778937429140e3af493578ed08e1d3b3ff771",
   "snapshotParents": [],
-  "time": "2026-10-17T00:46:36.512Z",
+  "time": "2026-10-17T00:49:58.337Z",
   "kind": "auto",
-  "transition": "request of #1974",
+  "transition": "answer of #1974",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 94,
+    "recordRevision": 97,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -739,7 +739,288 @@
           "text": "Checkpoint after round 3 of PR #1984: round 3's one accepted blocking fix 0547bc904 (ProgramResolver.committed() moved to the chunk store's build commit beside completeMemos, so a build that made no program no longer counts its resolve as kept) changes behaviour and is unreviewed; last reviewed head f10dd9fcb, current head 0547bc904. Rounds: R1 incrementality 6224228197/6224983339 (2 blocking), blast-radius 6225158091/6225434348 (1 should-fix), undirected 6225755506/6226048395 (1 blocking); R2 incrementality 6226407873/6226439343, undirected 6226665410/6226736064 (comments); R3 undirected 6227205764/6227484652 (1 blocking). All accepted findings share one mechanism (which resolves are trusted as having completed a carried block's memos). Redgreen 1 failed/55 to 56 passed; memo and equivalence suites green (87 tests); CI on 0547bc904 pending. Residual: the unreviewed commit; accumulated re-resolve cost during no-program stretches (disclosed, no benchmark); ticket's store-below shape filed as Bug #2013. Asks for the checkpoint decision (a round 4 needs an extension).",
           "source": "cross-session message from the writer (peer impower-cd) at ~00:45Z, confirmed in launch-1974 out.jsonl",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision: extend, one bounded round. Published on PR #1984 as comment 6227574741 (decision ec7c56fe); read that comment, it is the authority. Launch round 4 on 0547bc904 with reviewRoundLimit 4 and extendedReviewAuthorization set, verbatim, to the invocation the decision quotes. The round reviews the single unreviewed behaviour-changing commit 0547bc904 and the final trust invariant it completes: that no path commits a build without completing memos, that memos are completed only for the latest resolve, and the accumulated re-resolve cost during no-program stretches. Size the round for that diff (one undirected reviewer is the expected plan under the defaults); read the launcher exit and its coordinator.err.log, adjudicate every finding, keep the PR draft, and send me the next checkpoint report in the brief's form once round 4's fixes (if any) are verified, with the final-report fields (findings exactly None when none are outstanding). If round 4 finds nothing and you push nothing after 0547bc904, say so: the head is then the reviewed head and the next decision is finish. Wait in the foreground for the reviewer journal and CI; end your turn only for a decision, a blocker or completion, messaged first.",
+            "deliveryId": "14c7db1c",
+            "attempts": 1,
+            "time": "2026-10-17T00:49:54.356Z",
+            "to": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "ec7c56fe",
+          "kind": "extend",
+          "feature": 1940,
+          "ticket": 1974,
+          "pr": 1984,
+          "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+          "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
+          "time": "2026-10-17T00:49:28.292Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "f10dd9fcbf92a924ee940114d722caab03c4f576",
+          "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+          "range": {
+            "from": "f10dd9fcbf92a924ee940114d722caab03c4f576",
+            "to": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+            "base": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
+            "commits": [
+              "0547bc904445405d804fbc744c1ac1f2f483cddd"
+            ],
+            "diffSha256": "17f16a02ea2a6f970b6dcef81eed86eb7dcb699d5758b2192c6dabea01fb6054"
+          },
+          "reports": [
+            {
+              "comment": 6224228197,
+              "round": 1,
+              "reviewerId": "incrementality",
+              "adjudication": 6224983339
+            },
+            {
+              "comment": 6225158091,
+              "round": 1,
+              "reviewerId": "blast-radius",
+              "adjudication": 6225434348
+            },
+            {
+              "comment": 6225755506,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6226048395
+            },
+            {
+              "comment": 6226407873,
+              "round": 2,
+              "reviewerId": "incrementality",
+              "adjudication": 6226439343
+            },
+            {
+              "comment": 6226665410,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6226736064
+            },
+            {
+              "comment": 6227205764,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6227484652
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "pending"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "pending"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "pending"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 4,
+          "limitReason": "One round reviews the single unreviewed behaviour-changing commit 0547bc904 and the final trust invariant it completes; the mechanism has converged, so a second extra round would only re-read the same rule.",
+          "authority": "C:/Program Files/Git/orchestrate-feature #1940",
+          "assessment": {
+            "mechanisms": "Every accepted defect finding is one mechanism: which resolves may be trusted as having completed a carried block's memos, and which units must hand their block back to the compiler. Round 1's incrementality findings (a non-kept resolve's records persisting, so a stale stand-in made no auto-global and the incremental program reported a diagnostic a cold compile does not; refresh completion lost across a StatementMemoRetry attempt or an accepted preview), round 1's undirected finding (carried units already fresh for a context change missed the refresh) and round 3's finding (a build that made no program still committed its resolver records) are all instances of it. The corrections now state one rule: every unit record carries the resolve that made it, a resolve counts as kept only when its build commits at the chunk store's commit point beside completeMemos, and the next resolve resolves again every unit recorded after the last committed one; every fresh unit hands its block to the compiler, which takes only blocks it carried. The quality findings (one rescan per block, two lifecycle comments) are closed.",
+            "regressions": "One: round 1's correction 00e52531f placed the commit point in compileStory, too broadly, so a build with no program counted its resolve as kept; round 3 found it and 0547bc904 narrows the commit to the build-commit point. The other corrections (df557a02b batching, f6c00cd3f fresh-unit collection, 0dea24227 and f10dd9fcb comments and tests) introduced nothing a later reviewer found. So the mechanism's last behaviour change was itself a correction of a correction, and no independent reviewer has read the invariant in its final form.",
+            "repairOptions": "No simpler correct repair is in view. Re-stamping memos without re-resolution was ruled out by the settled decision (a kept chunk does not vouch for the diagnostics a memo replays, #1742). Keying trust to the build commit is the natural invariant; a broader change would reach into how the chunk store commits builds, outside #1974.",
+            "residualRisk": "0547bc904 is a behaviour change in the resolver's core trust rule that no reviewer has seen: it moves ProgramResolver.committed() from compileStory to buildProgramChunks beside completeMemos (110-line diff across SparkdownCompiler.ts, ProgramResolver.ts and programStatementMemo.test.ts). While builds keep making no program (an author mid-way through an unsupported construct), each compile resolves again everything resolved since the last committed build, and that set grows until a build commits; disclosed in the PR Summary with deterministic counts but no wall-clock benchmark. A block placed in two places is inspected but not exercised; its failure mode is extra lowering, not wrong output. The ticket's store-below shape cannot reach an empty loweredOutsideRebuilt because the store collides with the local in a cold compile too; filed as Bug #2013 and the intended behaviour is pinned by the store-above test.",
+            "coverage": "Redgreen on 0547bc904 against its parent: 1 failed / 55 passed to 56 passed. Green on the head: programIncrementalCumulative, programPreviewMemo, programIncrementalPasses, programDeclarationRun, programDoBlockMemo, incrementalEquivalence and incrementalCumulativeEquivalence (87 tests), programStatementMemo 56/56; typecheck clean; live editor check shows the expected text. Measurement on the PR and ticket comment 6223869256: store above, loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40; store below 2 to 1 and 6/80 to 5/81. CI on f10dd9fcb all 28 checks passed; on 0547bc904 the sparkdown and spark-engine shards are still running with no failure.",
+            "nextRoundValue": "An independent check that no path commits a build without completing memos and that memos are completed only for the latest resolve, read against the final invariant rather than its earlier instances, plus a look at the accumulated re-resolve cost during no-program stretches. Both are concrete, and the last behaviour change has had no independent reader.",
+            "rationale": "Three rounds converged on one mechanism and the final rule is sound on its face, but its last correction changed behaviour after round 3's reviewer read the branch, it corrects a defect introduced by an earlier correction of the same mechanism, and it sits in the compiler's memo trust path that the Feature's two equivalence criteria depend on. Accepting it unreviewed would rest the Feature's acceptance on a commit no reviewer has read; one more bounded round on 0547bc904 establishes the invariant independently at low cost, after which finish or acceptance decides on the result.",
+            "next": "Round 4 on 0547bc904 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in this decision; the writer adjudicates and reports the next checkpoint, where the head must be the reviewed one or the correction small enough to accept.",
+            "limit": 4,
+            "limitReason": "One round reviews the single unreviewed behaviour-changing commit 0547bc904 and the final trust invariant it completes; the mechanism has converged, so a second extra round would only re-read the same rule.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6224228197,
+                "finding": "refresh path introduces diagnostics a cold compile does not emit (pre-existing, fixed on the branch per the adjudication rule)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224228197,
+                "finding": "refresh completion is lost across a retry or an accepted preview",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225158091,
+                "finding": "filter carried candidates once rather than rescanning the growing map per block (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225158091,
+                "finding": "no wall-clock threshold; editor preview traced in source with one live run",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6225755506,
+                "finding": "carried units already fresh for a context change miss the memo refresh",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226407873,
+                "finding": "lifecycle descriptions out of date (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226407873,
+                "finding": "original base red not reproduced by the reviewer (reservation timeout)",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6226665410,
+                "finding": "the retry test's comment describes the previous lifecycle (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227205764,
+                "finding": "a compile that produces no program still commits its resolver records (fixed in 0547bc904, unreviewed)",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: authorize another bounded round\n\nDecision `ec7c56fe` by coordinator `local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29` of Feature #1940 for #1974. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"C:/Program Files/Git/orchestrate-feature #1940\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6224228197 in 6224983339, 6225158091 in 6225434348, 6225755506 in 6226048395, 6226407873 in 6226439343, 6226665410 in 6226736064, 6227205764 in 6227484652).\n- Independently reviewed through `f10dd9fcbf92a924ee940114d722caab03c4f576`.\n- Head `0547bc904445405d804fbc744c1ac1f2f483cddd`. Unreviewed: `f10dd9fcb..0547bc904`, 1 commit (`0547bc904` fix(compiler): keep a resolve only when its build is committed (#1974)), diff SHA-256 `17f16a02ea2a6f970b6dcef81eed86eb7dcb699d5758b2192c6dabea01fb6054`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) pending, packages/sparkdown (3/4) pending, packages/sparkdown (4/4) pending, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 7 accepted, 2 covered; unresolved: none.\n- Shared mechanisms: Every accepted defect finding is one mechanism: which resolves may be trusted as having completed a carried block's memos, and which units must hand their block back to the compiler. Round 1's incrementality findings (a non-kept resolve's records persisting, so a stale stand-in made no auto-global and the incremental program reported a diagnostic a cold compile does not; refresh completion lost across a StatementMemoRetry attempt or an accepted preview), round 1's undirected finding (carried units already fresh for a context change missed the refresh) and round 3's finding (a build that made no program still committed its resolver records) are all instances of it. The corrections now state one rule: every unit record carries the resolve that made it, a resolve counts as kept only when its build commits at the chunk store's commit point beside completeMemos, and the next resolve resolves again every unit recorded after the last committed one; every fresh unit hands its block to the compiler, which takes only blocks it carried. The quality findings (one rescan per block, two lifecycle comments) are closed.\n- Defects introduced by corrections: One: round 1's correction 00e52531f placed the commit point in compileStory, too broadly, so a build with no program counted its resolve as kept; round 3 found it and 0547bc904 narrows the commit to the build-commit point. The other corrections (df557a02b batching, f6c00cd3f fresh-unit collection, 0dea24227 and f10dd9fcb comments and tests) introduced nothing a later reviewer found. So the mechanism's last behaviour change was itself a correction of a correction, and no independent reviewer has read the invariant in its final form.\n- Broader or simpler repair: No simpler correct repair is in view. Re-stamping memos without re-resolution was ruled out by the settled decision (a kept chunk does not vouch for the diagnostics a memo replays, #1742). Keying trust to the build commit is the natural invariant; a broader change would reach into how the chunk store commits builds, outside #1974.\n- Residual risk: 0547bc904 is a behaviour change in the resolver's core trust rule that no reviewer has seen: it moves ProgramResolver.committed() from compileStory to buildProgramChunks beside completeMemos (110-line diff across SparkdownCompiler.ts, ProgramResolver.ts and programStatementMemo.test.ts). While builds keep making no program (an author mid-way through an unsupported construct), each compile resolves again everything resolved since the last committed build, and that set grows until a build commits; disclosed in the PR Summary with deterministic counts but no wall-clock benchmark. A block placed in two places is inspected but not exercised; its failure mode is extra lowering, not wrong output. The ticket's store-below shape cannot reach an empty loweredOutsideRebuilt because the store collides with the local in a cold compile too; filed as Bug #2013 and the intended behaviour is pinned by the store-above test.\n- Verification coverage: Redgreen on 0547bc904 against its parent: 1 failed / 55 passed to 56 passed. Green on the head: programIncrementalCumulative, programPreviewMemo, programIncrementalPasses, programDeclarationRun, programDoBlockMemo, incrementalEquivalence and incrementalCumulativeEquivalence (87 tests), programStatementMemo 56/56; typecheck clean; live editor check shows the expected text. Measurement on the PR and ticket comment 6223869256: store above, loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40; store below 2 to 1 and 6/80 to 5/81. CI on f10dd9fcb all 28 checks passed; on 0547bc904 the sparkdown and spark-engine shards are still running with no failure.\n- What another round would establish: An independent check that no path commits a build without completing memos and that memos are completed only for the latest resolve, read against the final invariant rather than its earlier instances, plus a look at the accumulated re-resolve cost during no-program stretches. Both are concrete, and the last behaviour change has had no independent reader.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: Three rounds converged on one mechanism and the final rule is sound on its face, but its last correction changed behaviour after round 3's reviewer read the branch, it corrects a defect introduced by an earlier correction of the same mechanism, and it sits in the compiler's memo trust path that the Feature's two equivalence criteria depend on. Accepting it unreviewed would rest the Feature's acceptance on a commit no reviewer has read; one more bounded round on 0547bc904 establishes the invariant independently at low cost, after which finish or acceptance decides on the result. Next: Round 4 on 0547bc904 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in this decision; the writer adjudicates and reports the next checkpoint, where the head must be the reviewed one or the correction small enough to accept.\n- Round 4 may launch with `reviewRoundLimit` 4 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: One round reviews the single unreviewed behaviour-changing commit 0547bc904 and the final trust invariant it completes; the mechanism has converged, so a second extra round would only re-read the same rule. The next checkpoint follows round 4's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"ec7c56fe\",\n \"kind\": \"extend\",\n \"feature\": 1940,\n \"ticket\": 1974,\n \"pr\": 1984,\n \"coordinator\": \"local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29\",\n \"runId\": \"4ca51d53-fff8-4d2f-8922-014f34b64902\",\n \"time\": \"2026-10-17T00:49:28.292Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"f10dd9fcbf92a924ee940114d722caab03c4f576\",\n \"head\": \"0547bc904445405d804fbc744c1ac1f2f483cddd\",\n \"range\": {\n  \"from\": \"f10dd9fcbf92a924ee940114d722caab03c4f576\",\n  \"to\": \"0547bc904445405d804fbc744c1ac1f2f483cddd\",\n  \"base\": \"e2f91499ffa0eea13870e0ea468e3a42fe11f484\",\n  \"commits\": [\n   \"0547bc904445405d804fbc744c1ac1f2f483cddd\"\n  ],\n  \"diffSha256\": \"17f16a02ea2a6f970b6dcef81eed86eb7dcb699d5758b2192c6dabea01fb6054\"\n },\n \"reports\": [\n  {\n   \"comment\": 6224228197,\n   \"round\": 1,\n   \"reviewerId\": \"incrementality\",\n   \"adjudication\": 6224983339\n  },\n  {\n   \"comment\": 6225158091,\n   \"round\": 1,\n   \"reviewerId\": \"blast-radius\",\n   \"adjudication\": 6225434348\n  },\n  {\n   \"comment\": 6225755506,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6226048395\n  },\n  {\n   \"comment\": 6226407873,\n   \"round\": 2,\n   \"reviewerId\": \"incrementality\",\n   \"adjudication\": 6226439343\n  },\n  {\n   \"comment\": 6226665410,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6226736064\n  },\n  {\n   \"comment\": 6227205764,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227484652\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"pending\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"pending\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"pending\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 4,\n \"limitReason\": \"One round reviews the single unreviewed behaviour-changing commit 0547bc904 and the final trust invariant it completes; the mechanism has converged, so a second extra round would only re-read the same rule.\",\n \"authority\": \"C:/Program Files/Git/orchestrate-feature #1940\",\n \"assessment\": {\n  \"mechanisms\": \"Every accepted defect finding is one mechanism: which resolves may be trusted as having completed a carried block's memos, and which units must hand their block back to the compiler. Round 1's incrementality findings (a non-kept resolve's records persisting, so a stale stand-in made no auto-global and the incremental program reported a diagnostic a cold compile does not; refresh completion lost across a StatementMemoRetry attempt or an accepted preview), round 1's undirected finding (carried units already fresh for a context change missed the refresh) and round 3's finding (a build that made no program still committed its resolver records) are all instances of it. The corrections now state one rule: every unit record carries the resolve that made it, a resolve counts as kept only when its build commits at the chunk store's commit point beside completeMemos, and the next resolve resolves again every unit recorded after the last committed one; every fresh unit hands its block to the compiler, which takes only blocks it carried. The quality findings (one rescan per block, two lifecycle comments) are closed.\",\n  \"regressions\": \"One: round 1's correction 00e52531f placed the commit point in compileStory, too broadly, so a build with no program counted its resolve as kept; round 3 found it and 0547bc904 narrows the commit to the build-commit point. The other corrections (df557a02b batching, f6c00cd3f fresh-unit collection, 0dea24227 and f10dd9fcb comments and tests) introduced nothing a later reviewer found. So the mechanism's last behaviour change was itself a correction of a correction, and no independent reviewer has read the invariant in its final form.\",\n  \"repairOptions\": \"No simpler correct repair is in view. Re-stamping memos without re-resolution was ruled out by the settled decision (a kept chunk does not vouch for the diagnostics a memo replays, #1742). Keying trust to the build commit is the natural invariant; a broader change would reach into how the chunk store commits builds, outside #1974.\",\n  \"residualRisk\": \"0547bc904 is a behaviour change in the resolver's core trust rule that no reviewer has seen: it moves ProgramResolver.committed() from compileStory to buildProgramChunks beside completeMemos (110-line diff across SparkdownCompiler.ts, ProgramResolver.ts and programStatementMemo.test.ts). While builds keep making no program (an author mid-way through an unsupported construct), each compile resolves again everything resolved since the last committed build, and that set grows until a build commits; disclosed in the PR Summary with deterministic counts but no wall-clock benchmark. A block placed in two places is inspected but not exercised; its failure mode is extra lowering, not wrong output. The ticket's store-below shape cannot reach an empty loweredOutsideRebuilt because the store collides with the local in a cold compile too; filed as Bug #2013 and the intended behaviour is pinned by the store-above test.\",\n  \"coverage\": \"Redgreen on 0547bc904 against its parent: 1 failed / 55 passed to 56 passed. Green on the head: programIncrementalCumulative, programPreviewMemo, programIncrementalPasses, programDeclarationRun, programDoBlockMemo, incrementalEquivalence and incrementalCumulativeEquivalence (87 tests), programStatementMemo 56/56; typecheck clean; live editor check shows the expected text. Measurement on the PR and ticket comment 6223869256: store above, loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40; store below 2 to 1 and 6/80 to 5/81. CI on f10dd9fcb all 28 checks passed; on 0547bc904 the sparkdown and spark-engine shards are still running with no failure.\",\n  \"nextRoundValue\": \"An independent check that no path commits a build without completing memos and that memos are completed only for the latest resolve, read against the final invariant rather than its earlier instances, plus a look at the accumulated re-resolve cost during no-program stretches. Both are concrete, and the last behaviour change has had no independent reader.\",\n  \"rationale\": \"Three rounds converged on one mechanism and the final rule is sound on its face, but its last correction changed behaviour after round 3's reviewer read the branch, it corrects a defect introduced by an earlier correction of the same mechanism, and it sits in the compiler's memo trust path that the Feature's two equivalence criteria depend on. Accepting it unreviewed would rest the Feature's acceptance on a commit no reviewer has read; one more bounded round on 0547bc904 establishes the invariant independently at low cost, after which finish or acceptance decides on the result.\",\n  \"next\": \"Round 4 on 0547bc904 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in this decision; the writer adjudicates and reports the next checkpoint, where the head must be the reviewed one or the correction small enough to accept.\",\n  \"limit\": 4,\n  \"limitReason\": \"One round reviews the single unreviewed behaviour-changing commit 0547bc904 and the final trust invariant it completes; the mechanism has converged, so a second extra round would only re-read the same rule.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6224228197,\n    \"finding\": \"refresh path introduces diagnostics a cold compile does not emit (pre-existing, fixed on the branch per the adjudication rule)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224228197,\n    \"finding\": \"refresh completion is lost across a retry or an accepted preview\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225158091,\n    \"finding\": \"filter carried candidates once rather than rescanning the growing map per block (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225158091,\n    \"finding\": \"no wall-clock threshold; editor preview traced in source with one live run\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6225755506,\n    \"finding\": \"carried units already fresh for a context change miss the memo refresh\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226407873,\n    \"finding\": \"lifecycle descriptions out of date (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226407873,\n    \"finding\": \"original base red not reproduced by the reviewer (reservation timeout)\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6226665410,\n    \"finding\": \"the retry test's comment describes the previous lifecycle (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227205764,\n    \"finding\": \"a compile that produces no program still commits its resolver records (fixed in 0547bc904, unreviewed)\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "362c2be42e99c4b03f460e82e1e9335cbc220333631656a6a7f21d6d5d059d71",
+          "blockSha256": "665e188bf94edd78d6c2a90cc40529d10732a4ff07a7df53209af67a914e1c4b",
+          "published": {
+            "comment": 6227574741,
+            "time": "2026-10-17T00:49:31.590Z",
+            "headAtPublish": "0547bc904445405d804fbc744c1ac1f2f483cddd"
+          }
         }
       ]
     }
@@ -1335,6 +1616,16 @@
       "round": 3,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "time": "2026-10-16T23:49:20.963Z"
+    },
+    {
+      "pr": 1984,
+      "url": "https://github.com/ImpowerGames/impower/pull/1984#issuecomment-6227574741",
+      "kind": "review-checkpoint extend",
+      "ticket": 1974,
+      "id": "ec7c56fe",
+      "round": 3,
+      "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+      "time": "2026-10-17T00:49:31.590Z"
     }
   ],
   "diskRecoveries": [
@@ -1490,7 +1781,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T00:46:35.435Z",
+      "observedAt": "2026-10-17T00:49:56.282Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1647,7 +1938,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T00:46:35.435Z",
+      "observedAt": "2026-10-17T00:49:56.282Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2560,6 +2851,30 @@
       "event": "request",
       "ticket": 1974,
       "id": "6e80b10b"
+    },
+    {
+      "time": "2026-10-17T00:49:28.292Z",
+      "event": "checkpoint-intent",
+      "ticket": 1974,
+      "id": "ec7c56fe",
+      "kind": "extend",
+      "round": 3,
+      "head": "0547bc904445405d804fbc744c1ac1f2f483cddd"
+    },
+    {
+      "time": "2026-10-17T00:49:31.590Z",
+      "event": "checkpoint-published",
+      "ticket": 1974,
+      "id": "ec7c56fe",
+      "comment": 6227574741
+    },
+    {
+      "time": "2026-10-17T00:49:54.357Z",
+      "event": "answer-intent",
+      "ticket": 1974,
+      "id": "6e80b10b",
+      "deliveryId": "14c7db1c",
+      "attempt": 1
     }
   ]
 }
