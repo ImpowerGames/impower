@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { GhError, Journal, Pacer } from "./migrate-tracker.mjs";
+import { GhError, Journal, Pacer, ghClient } from "./migrate-tracker.mjs";
 import {
   ARCHIVE_DIR,
   ArchiveFormatError,
@@ -19,6 +19,7 @@ import {
   main,
   parseArchive,
   parseArgs,
+  pullTracker,
   githubRemote,
   renderArchive,
   runArchive,
@@ -117,7 +118,6 @@ function fakeClone(root) {
     },
     fetchDefault: () => ({ branch: "main", commit: "c0ffee" }),
     show: (_commit, file) => pushed.get(file) ?? null,
-    committed: (file) => pushed.has(file),
     converted: () => [],
   };
 }
@@ -312,6 +312,9 @@ test("the read-back comparison refuses to scrub a pull request whose archive is 
   // An archive taken before the third comment was posted is complete for its time and still short of the live conversation.
   const earlier = { ...truncated, commentCount: 2 };
   assert.deepEqual(scrubRefusals(renderArchive(earlier, repos), live, repos), ["comment 903 is not in the archive"]);
+  // The completeness check stands on its own: a short archive that holds every comment still live is refused too.
+  const remaining = { ...live, comments: live.comments.slice(0, 2), commentCount: 2 };
+  assert.deepEqual(scrubRefusals(renderArchive(truncated, repos), remaining, repos), ["the archive is short: it holds 2 of 3 comments"]);
   const edited = { ...live, comments: live.comments.map((x) => (x.id === 902 ? { ...x, body: "b, edited" } : x)) };
   assert.deepEqual(scrubRefusals(renderArchive(live, repos), edited, repos), ["comment 902 was edited after it was archived"]);
   assert.match(scrubRefusals(renderArchive(live, repos).slice(0, -4), live, repos)[0], /^the archive does not read back/);
@@ -334,7 +337,8 @@ test("scrub deletes only what the pushed archive holds, refuses the rest and rea
   const short2 = record(tracker.repo.get(2));
   fs.writeFileSync(file2, renderArchive({ ...short2, comments: [] }, repos));
   const unpushed = await runScrub({ tracker, repos, clone, journal });
-  assert.deepEqual(unpushed.refused.map((r) => r.pr), [1, 2, 3, 4], "nothing is deleted before the archive is pushed");
+  assert.deepEqual(unpushed.refused.map((r) => r.pr), [1, 2, 4], "nothing is deleted before the archive is pushed");
+  assert.deepEqual(unpushed.emptyWithoutArchive, [3], "a pull request with nothing on it needs no archive");
   assert.equal(tracker.calls.filter((c) => c.startsWith("delete")).length, 0);
 
   clone.push();
@@ -345,6 +349,7 @@ test("scrub deletes only what the pushed archive holds, refuses the rest and rea
   const result = await runScrub({ tracker, repos, clone, journal });
   assert.equal(result.scrubbed, 1);
   assert.equal(result.alreadyEmpty, 1);
+  assert.deepEqual(result.emptyWithoutArchive, []);
   assert.deepEqual(result.refused, [
     { pr: 2, refusals: ["the archive is short: it holds 0 of 1 comments", "comment 201 is not in the archive"] },
     { pr: 4, refusals: ["no archive on the internal repository's default branch"] },
@@ -439,7 +444,7 @@ test("a record that names a kept comment it does not hold, or holds more than it
   assert.deepEqual(archiveProblems({ ...full, commentCount: 1, keptComments: [401] }), []);
 });
 
-test("an interrupted first write is replaced on the rerun; a damaged file with a committed copy is restored first", async () => {
+test("an interrupted first write is replaced on the rerun, and a damaged working file is rebuilt from the pushed copy", async () => {
   const dir = scratch();
   const clone = fakeClone(path.join(dir, "clone"));
   const tracker = fakeTracker([conversation(1, { comments: [{ body: "a" }] })]);
@@ -458,8 +463,35 @@ test("an interrupted first write is replaced on the rerun; a damaged file with a
   const good = fs.readFileSync(path.join(folder, "1.md"), "utf8");
   fs.writeFileSync(path.join(folder, "1.md"), good.slice(0, -3));
   const damaged = await runArchive({ tracker, repos, clone, journal, only: [1] });
-  assert.match(damaged.failed[0].problems[0], /does not read back .*restore it with git -C .* checkout HEAD -- archive\/pull-requests\/1[.]md/);
-  assert.equal(fs.readFileSync(path.join(folder, "1.md"), "utf8"), good.slice(0, -3), "a file with a committed copy is left for the operator to restore");
+  assert.deepEqual(damaged.failed, []);
+  assert.equal(fs.readFileSync(path.join(folder, "1.md"), "utf8"), good);
+});
+
+test("after the scrub, a missing or incomplete working file is rebuilt with every comment the pushed copy holds", async () => {
+  const dir = scratch();
+  const clone = fakeClone(path.join(dir, "clone"));
+  const tracker = fakeTracker([conversation(1, { comments: [{ body: "a" }] })]);
+  const journal = new Journal(path.join(dir, "journal.jsonl"));
+  await runArchive({ tracker, repos, clone, journal });
+  clone.push();
+  await runScrub({ tracker, repos, clone, journal });
+  assert.deepEqual(tracker.repo.get(1).comments, []);
+  const file = path.join(clone.root, ARCHIVE_DIR, "1.md");
+  const pushed = fs.readFileSync(file, "utf8");
+  const incomplete = renderArchive({ ...parseArchive(pushed, repos), comments: [] }, repos);
+  for (const [what, damage] of [["missing", () => fs.rmSync(file)], ["cut at a section boundary, its count kept", () => fs.writeFileSync(file, incomplete)]]) {
+    damage();
+    const result = await runArchive({ tracker, repos, clone, journal, only: [1] });
+    assert.deepEqual(result.failed, [], what);
+    assert.deepEqual(result.carried, [{ pr: 1, kept: 1 }], what);
+    const archived = parseArchive(fs.readFileSync(file, "utf8"), repos);
+    assert.deepEqual(archived.comments.map((c) => [c.id, c.body]), [[101, "a"]], what);
+    assert.deepEqual(archived.keptComments, [101], what);
+  }
+  // A committed copy that does not read back stops the pull request instead.
+  clone.show = () => "junk";
+  const stopped = await runArchive({ tracker, repos, clone, journal, only: [1] });
+  assert.match(stopped.failed[0].problems[0], /does not read back.*repair it by hand/);
 });
 
 test("an edit made while the scrub waits for the write budget stops that pull request's scrub", async () => {
@@ -514,14 +546,63 @@ test("a deletion that fails in a way that may have taken effect is checked again
     await deleteComment.call(this, repo, id);
     throw new GhError(["api"], 502, "gh: Bad Gateway (HTTP 502)");
   };
-  assert.equal((await runScrub({ tracker, repos, clone, journal })).scrubbed, 1, "a 502 after the comment went is a deletion");
+  const slept = [];
+  const sleep = async (ms) => slept.push(ms);
+  assert.equal((await runScrub({ tracker, repos, clone, journal, sleep })).scrubbed, 1, "a 502 after the comment went is a deletion");
   const kept = fakeTracker([conversation(2, { comments: [{ body: "a" }] })]);
   await runArchive({ tracker: kept, repos, clone, journal });
   clone.push();
+  let attempts = 0;
   kept.deleteComment = async () => {
+    attempts++;
     throw new GhError(["api"], 502, "gh: Bad Gateway (HTTP 502)");
   };
-  await assert.rejects(runScrub({ tracker: kept, repos, clone, journal }), /HTTP 502/, "a 502 with the comment still there stops the run");
+  await assert.rejects(runScrub({ tracker: kept, repos, clone, journal, sleep }), /HTTP 502/, "a 502 with the comment still there stops the run after its retries");
+  assert.equal(attempts, 9);
+});
+
+test("a deletion refused by a rate limit is retried only after reading the comment again", async () => {
+  const dir = scratch();
+  const clone = fakeClone(path.join(dir, "clone"));
+  const tracker = fakeTracker([conversation(1, { comments: [{ body: "a" }] }), conversation(2, { comments: [{ body: "b" }] })]);
+  const journal = new Journal(path.join(dir, "journal.jsonl"));
+  await runArchive({ tracker, repos, clone, journal });
+  clone.push();
+  const deleteComment = tracker.deleteComment;
+  const refusedOnce = new Set();
+  tracker.deleteComment = async function (repo, id) {
+    if (!refusedOnce.has(id)) {
+      refusedOnce.add(id);
+      throw new GhError(["api"], 403, "gh: You have exceeded a secondary rate limit (HTTP 403)", { limited: true });
+    }
+    return deleteComment.call(this, repo, id);
+  };
+  const slept = [];
+  // A human edits comment 101 during the backoff; comment 201 is left alone.
+  const sleep = async (ms) => {
+    slept.push(ms);
+    if (slept.length === 1) tracker.repo.get(1).comments[0].body = "edited during the backoff";
+  };
+  const result = await runScrub({ tracker, repos, clone, journal, sleep });
+  assert.deepEqual(result.refused, [{ pr: 1, refusals: ["comment 101 changed after it was archived"] }]);
+  assert.deepEqual(tracker.repo.get(1).comments.map((c) => c.body), ["edited during the backoff"], "the edit survives");
+  assert.deepEqual(tracker.repo.get(2).comments, [], "the other pull request is scrubbed after its own backoff");
+  assert.deepEqual(slept, [60e3, 60e3]);
+});
+
+test("the production deletion is one paced request with no retry inside the client", async () => {
+  const calls = [];
+  const run = (args) => {
+    calls.push(args.join(" "));
+    return { status: 1, stdout: "", stderr: "gh: You have exceeded a secondary rate limit (HTTP 403)" };
+  };
+  const gh = ghClient({ pacer: new Pacer(), run, sleep: async () => assert.fail("the client must not wait to retry a deletion") });
+  const tracker = pullTracker(gh);
+  const error = await tracker.deleteComment("Org/code", 5).catch((e) => e);
+  assert.ok(error instanceof GhError && error.limited && error.status === 403);
+  await tracker.deleteReviewComment("Org/code", 6).catch(() => {});
+  assert.deepEqual(calls, ["api -X DELETE repos/Org/code/issues/comments/5", "api -X DELETE repos/Org/code/pulls/comments/6"]);
+  assert.equal(gh.pacer.totalWrites, 2);
 });
 
 test("a pull request that does not read back empty after its deletions is reported as failed", async () => {
@@ -599,8 +680,8 @@ test("the clone must be the internal repository's, store the archive verbatim, a
     git(root, "add", ARCHIVE_DIR);
     git(root, "commit", "--quiet", "-m", "more");
     assert.equal(clone.show(clone.fetchDefault().commit, `${ARCHIVE_DIR}/2.md`), null);
-    assert.ok(clone.committed(`${ARCHIVE_DIR}/2.md`), "the clone's own HEAD holds it");
-    assert.ok(!clone.committed(`${ARCHIVE_DIR}/3.md`));
+    assert.equal(clone.show("HEAD", `${ARCHIVE_DIR}/2.md`), text, "the clone's own HEAD holds it");
+    assert.equal(clone.show("HEAD", `${ARCHIVE_DIR}/3.md`), null);
     // Nor can a local replace ref stand the unpushed commit in for the pushed one.
     git(root, "replace", commit, git(root, "rev-parse", "HEAD").trim());
     assert.equal(spawnSync("git", ["-C", root, "cat-file", "blob", `${commit}:${ARCHIVE_DIR}/2.md`], { encoding: "utf8", windowsHide: true }).stdout, text, "plain Git follows the replace ref");

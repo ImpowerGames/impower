@@ -207,7 +207,7 @@ node scripts/scrub-pull-requests.mjs --scrub "$INTERNAL" --dir "$ATTEMPT/pull-re
 node scripts/scrub-pull-requests.mjs --scrub "$INTERNAL" --dir "$ATTEMPT/pull-requests" 2> "$ATTEMPT/scrub-check.log"; echo "exit $?"
 ```
 
-Expected: the first run exits 0 with `refused: []` and `failed: []`; it reads each pull request back with zero comments and zero review comments before journaling it finished. The second run is the check: `exit 0`, `scrubbed: 0`, `alreadyEmpty` equal to `pullRequests`. A pull request in `failed` did not read back empty; rerun.
+Expected: the first run exits 0 with `refused: []` and `failed: []`; it reads each pull request back with zero comments and zero review comments before journaling it finished. The second run is the check: `exit 0`, `scrubbed: 0`, `alreadyEmpty` equal to `pullRequests` and `emptyWithoutArchive: []`. A pull request in `failed` did not read back empty; rerun. Before each deletion the scrub reads the comment again and stops that pull request if its text changed since the archive. After a rate limit it waits, then reads the comment again before retrying.
 
 Submitted reviews cannot be deleted. `reviewsWithSummary` counts the reviews whose summary text stays on the public pull requests (the Codex connector's review summaries); their text is archived, and `$ATTEMPT/pull-requests/scrub-report.json` lists them by pull request and review id. Tell the maintainer the count; hiding them is the maintainer's call.
 
@@ -303,12 +303,23 @@ Turn back on each workflow listed in `$ATTEMPT/project-workflows.md`, on `https:
 
 Then run the Feature's acceptance checks and post the results as a comment on internal `<FEATURE>`:
 
-1. The internal repository: step 1's checks again, all as expected, and `gh api repos/ImpowerGames/impower-internal/contents/migration/issue-map.json --jq .size` prints a size.
+1. The internal repository, in its state after the cutover:
+
+   ```sh
+   gh api repos/ImpowerGames/impower-internal --jq '{private, has_issues, has_wiki, has_discussions, default_branch}'
+   gh api --paginate 'repos/ImpowerGames/impower-internal/labels?per_page=100' --jq '.[].name' | grep -Ec '^(app|lsp|platform|system|workflow): |^(documentation|invalid|investigation|question|wontfix)$'
+   gh api 'repos/ImpowerGames/impower-internal/milestones?state=all&per_page=100' --jq length
+   cd "$CODE" && node .agents/templates/templates.test.mjs | tail -1
+   gh api repos/ImpowerGames/impower/autolinks --jq '.[] | "\(.key_prefix) \(.url_template)"'
+   gh api repos/ImpowerGames/impower-internal/contents/migration/issue-map.json --jq .size
+   ```
+
+   Expected: the same settings as in step 1; `24` (the public labels step 1 copied; the public repository no longer has most of them, so step 1's diff no longer applies); `7`; `ok: ImpowerGames/impower-internal serves the same Bug, Feature and Task templates`; `I- https://github.com/ImpowerGames/impower-internal/issues/<num>`; and the map's size in bytes. Internal issue 39 is now the first migrated issue, so step 1's number probe no longer applies either.
 2. The guard: `node .claude/hooks/typed-issue-hook.test.mjs` passes on main.
 3. The pull request contract: a resolve-issue run on a throwaway internal Task ends with a public pull request whose body is one paragraph and the closing line, `gh api repos/ImpowerGames/impower/pulls/<P> --jq '[.comments, .review_comments]'` prints `[0,0]`, and the PR report, round state, reviewer reports and adjudication are comments on the Task. Close the pull request unmerged and the Task as not planned afterwards.
 4. Orchestration: an orchestrate-feature dry run on a throwaway internal Feature puts its status comment, checkpoint decision and final report on the Feature and its state branch on the internal repository, and `git ls-remote https://github.com/ImpowerGames/impower 'refs/heads/orchestrate-state/*' | diff "$ATTEMPT/state-branches-before.txt" -` prints nothing.
 5. to 7. Step 3's verify: `passed: true`, or only `left as transferred` entries the maintainer has read; it covers every snapshotted issue and its fields, the 35 public issues, no bare reference to an old number, and the open pull requests' computed closing references.
-8. Step 4's check run: every pull request reads back with zero comments and zero review comments, and `archive/pull-requests/` on the internal repository's main holds one file per pull request.
+8. Step 4's check run again, after item 3's pull request: `node scripts/scrub-pull-requests.mjs --scrub "$INTERNAL" --dir "$ATTEMPT/pull-requests"` exits 0 with `refused: []`, `failed: []`, `scrubbed: 0` and `alreadyEmpty` equal to `pullRequests`, so every pull request reads back with zero comments and zero review comments. `emptyWithoutArchive` lists only the pull requests opened after step 4 (step 5's and item 3's), which never had a comment to archive. `git -C "$INTERNAL" ls-tree --name-only origin/main archive/pull-requests/ | wc -l` equals step 4's archive `pullRequests`, one file per pull request that existed then.
 9. Step 5's label and milestone counts are `0` and `0`, and `https://github.com/ImpowerGames/impower/issues/new/choose` offers only the bug report and feature request with no blank issue.
 10. The references: `git -C "$CODE" grep -n "#510" -- .agents AGENTS.md ':(exclude)*.test.mjs'` prints nothing (step 5 says why test files are left out), `node .agents/repos.mjs inbox` prints `<INBOX>`, and `node .github/scripts/check-linked-issue.test.mjs` passes, covering a body with `Closes ImpowerGames/impower-internal#N` passing and one with only a bare `#N` failing.
 

@@ -730,10 +730,17 @@ export function estimateHours({ reads, writes }, { perHour = 4500, writesPerMinu
 }
 
 export class GhError extends Error {
-  constructor(args, status, text) {
+  constructor(args, status, text, { limited = false } = {}) {
     super(`gh ${args.join(" ")} failed${status ? ` (HTTP ${status})` : ""}: ${text.trim().split("\n").slice(0, 3).join(" ")}`);
     this.status = status;
+    // A rate-limit refusal, which rejected the request.
+    this.limited = limited;
   }
+}
+
+/** The backoff before retry `attempt` (from 0): longer after a rate limit, which GitHub may hold for minutes. */
+export function retryWait(limited, attempt) {
+  return limited ? Math.min(900e3, 60e3 * 2 ** attempt) : Math.min(120e3, 5e3 * 2 ** attempt);
 }
 
 function runGh(args, input) {
@@ -751,7 +758,7 @@ function runGh(args, input) {
  * and the mode's own live-state checks decide on the rerun.
  */
 export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, log = () => {} } = {}) {
-  async function call(args, { write = false, idempotent = !write, input } = {}) {
+  async function call(args, { write = false, idempotent = !write, input, retries = 8 } = {}) {
     for (let attempt = 0; ; attempt++) {
       await pacer.take(write);
       const r = run(args, input);
@@ -760,13 +767,13 @@ export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, 
       const status = Number(text.match(/HTTP (\d{3})/)?.[1] ?? 0);
       const limited = ((status === 403 || status === 429) && /rate limit|abuse|secondary/i.test(text)) || /submitted too quickly|secondary rate limit/i.test(text);
       const transient = idempotent && (status >= 500 || /timed? ?out|ECONNRESET|connection reset|TLS handshake|unexpected EOF/i.test(text));
-      if ((limited || transient) && attempt < 8) {
-        const wait = limited ? Math.min(900e3, 60e3 * 2 ** attempt) : Math.min(120e3, 5e3 * 2 ** attempt);
+      if ((limited || transient) && attempt < retries) {
+        const wait = retryWait(limited, attempt);
         log(`gh ${args.slice(0, 4).join(" ")}: ${limited ? "rate limited" : "transient failure"}, retrying in ${Math.round(wait / 1000)}s`);
         await sleep(wait);
         continue;
       }
-      throw new GhError(args, status, text);
+      throw new GhError(args, status, text, { limited });
     }
   }
   const parse = (s) => (s.trim() ? JSON.parse(s) : null);
@@ -776,6 +783,10 @@ export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, 
     async api(method, endpoint, body, headers = []) {
       const args = ["api", "-X", method, endpoint, ...headerArgs(headers), ...(body === undefined ? [] : ["--input", "-"])];
       return parse(await call(args, { write: method !== "GET", idempotent: ["GET", "PATCH", "PUT"].includes(method), input: body === undefined ? undefined : JSON.stringify(body) }));
+    },
+    /** One paced attempt with no retry, for a caller that must check live state again before repeating it. */
+    async apiOnce(method, endpoint) {
+      return parse(await call(["api", "-X", method, endpoint], { write: method !== "GET", idempotent: false, retries: 0 }));
     },
     async list(endpoint, headers = []) {
       const pages = parse(await call(["api", "--paginate", "--slurp", endpoint, ...headerArgs(headers)])) ?? [];

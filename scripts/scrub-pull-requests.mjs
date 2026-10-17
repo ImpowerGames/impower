@@ -64,7 +64,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { readRepos } from "../.agents/repos.mjs";
-import { GhError, Journal, Pacer, checkPrivateDir, estimateHours, ghClient, writeJson } from "./migrate-tracker.mjs";
+import { GhError, Journal, Pacer, checkPrivateDir, estimateHours, ghClient, retryWait, writeJson } from "./migrate-tracker.mjs";
 
 export const ARCHIVE_DIR = "archive/pull-requests";
 const MODES = ["archive", "scrub"];
@@ -249,17 +249,25 @@ export function archiveProblems(record) {
 }
 
 /**
- * The live record with every comment of an earlier archive that is no
+ * The live record with every comment of the earlier archives that is no
  * longer on the pull request carried over and named as kept: once the scrub
- * has deleted a comment, the earlier archive is its only copy. A comment
- * still on the pull request takes its live text.
+ * has deleted a comment, an earlier archive is its only copy. A comment
+ * still on the pull request takes its live text; one in several earlier
+ * archives takes its text from the first of them.
  */
 export function carryForward(record, earlier) {
   const out = { ...record };
   let carried = 0;
   for (const { list, kept } of LISTS) {
-    const live = new Set(record[list].map((c) => c.id));
-    const gone = earlier[list].filter((c) => !live.has(c.id));
+    const seen = new Set(record[list].map((c) => c.id));
+    const gone = [];
+    for (const copy of earlier) {
+      for (const c of copy[list]) {
+        if (seen.has(c.id)) continue;
+        seen.add(c.id);
+        gone.push(c);
+      }
+    }
     carried += gone.length;
     out[list] = [...record[list], ...gone].sort(byCreated);
     out[kept] = gone.map((c) => c.id).sort((a, b) => a - b);
@@ -329,10 +337,6 @@ export function cloneOf(root, repos, { run = runGit(root), remoteMatches = githu
       const out = ok(["check-attr", "text", "--stdin"], `${files.join("\n")}\n`);
       return out.split("\n").filter((l) => l.trim() && !/: text: unset$/.test(l)).map((l) => l.replace(/: text: [^:]*$/, ""));
     },
-    /** Whether the clone's own HEAD holds `file`: a file it has never committed has no copy in its history. */
-    committed(file) {
-      return this.show("HEAD", file) !== null;
-    },
     /** The file at `file` in `commit`, or null when the commit has none. */
     show(commit, file) {
       const r = git(["cat-file", "blob", `${commit}:${file}`]);
@@ -364,8 +368,9 @@ export function pullTracker(gh) {
     reviews: (repo, n) => gh.list(`repos/${repo}/pulls/${n}/reviews?per_page=100`),
     findComment: (repo, id) => gone(() => gh.api("GET", `repos/${repo}/issues/comments/${id}`)),
     findReviewComment: (repo, id) => gone(() => gh.api("GET", `repos/${repo}/pulls/comments/${id}`)),
-    deleteComment: (repo, id) => gh.api("DELETE", `repos/${repo}/issues/comments/${id}`),
-    deleteReviewComment: (repo, id) => gh.api("DELETE", `repos/${repo}/pulls/comments/${id}`),
+    // One attempt each: the scrub reads the comment again before a retry.
+    deleteComment: (repo, id) => gh.apiOnce("DELETE", `repos/${repo}/issues/comments/${id}`),
+    deleteReviewComment: (repo, id) => gh.apiOnce("DELETE", `repos/${repo}/pulls/comments/${id}`),
     // Room for a comment's read and its deletion together, so neither waits
     // for the budget between them.
     room: () => gh.pacer.room(2, 1),
@@ -406,6 +411,8 @@ export async function runArchive({ tracker, repos, clone, journal, dryRun = fals
   const converted = clone.converted(pulls.map((p) => archivePath(p.number)));
   if (converted.length) throw new Error(`${clone.root} would store ${converted.length} archive files with line-end conversion (first ${converted[0]}); make "archive/** -text" cover all of ${ARCHIVE_DIR} first`);
   const written = archivedAt(journal);
+  let pushed;
+  const pushedCommit = () => (pushed ??= clone.fetchDefault().commit);
   const result = { pullRequests: pulls.length, written: 0, unchanged: 0, carried: [], comments: 0, reviewComments: 0, reviewsWithSummary: [], failed: [] };
   // A partial file left by an interrupted write was never renamed into place.
   const dir = path.join(clone.root, ARCHIVE_DIR);
@@ -435,33 +442,39 @@ export async function runArchive({ tracker, repos, clone, journal, dryRun = fals
       log(`#${n}: ${problems.join("; ")}`);
       continue;
     }
-    // An earlier file is the only copy of any comment the scrub has since
-    // deleted, so its comments that are no longer on the pull request are
-    // carried into the new file.
-    let record = live;
-    if (fs.existsSync(file)) {
-      let earlier = null;
+    // Every earlier copy of the file is read: the internal repository's
+    // default branch as pushed, the clone's HEAD and the working file. The
+    // pushed copy holds every comment the scrub has deleted, since the scrub
+    // deletes only what that copy holds; the others may hold more. Each
+    // comment no longer on the pull request is carried into the new file
+    // from the first copy that holds it. A working file that does not read
+    // back is left out, since files are renamed into place whole and only an
+    // interrupted first write or a hand edit leaves one; a committed copy
+    // that does not read back stops the pull request.
+    const earlier = [];
+    let unreadable = null;
+    for (const [where, text] of [
+      [`${repos.internal}'s ${ARCHIVE_DIR} on its default branch`, clone.show(pushedCommit(), archivePath(n))],
+      [`the clone's HEAD`, clone.show("HEAD", archivePath(n))],
+      [file, fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null],
+    ]) {
+      if (text === null) continue;
       try {
-        earlier = parseArchive(fs.readFileSync(file, "utf8"), repos);
+        earlier.push(parseArchive(text, repos));
       } catch (error) {
         if (!(error instanceof ArchiveFormatError)) throw error;
-        // Files are replaced whole, so a damaged one was damaged by hand; it
-        // is replaced only when no commit holds a copy to restore.
-        const restore = clone.committed(archivePath(n)) ? `git -C ${clone.root} checkout HEAD -- ${archivePath(n)}` : clone.show(clone.fetchDefault().commit, archivePath(n)) !== null ? `git -C ${clone.root} checkout FETCH_HEAD -- ${archivePath(n)}` : null;
-        if (restore) {
-          result.failed.push({ pr: n, problems: [`${file} does not read back (${error.message}); restore it with ${restore} before archiving it again`] });
-          continue;
-        }
-        log(`#${n}: replacing ${file}, which does not read back and was never committed`);
+        if (where === file) log(`#${n}: replacing ${file}, which does not read back (${error.message})`);
+        else unreadable = `the copy of ${archivePath(n)} in ${where} does not read back (${error.message}); repair it by hand before archiving it again`;
       }
-      if (earlier) {
-        const carried = carryForward(live, earlier);
-        record = carried.record;
-        if (carried.carried) {
-          result.carried.push({ pr: n, kept: carried.carried });
-          log(`#${n}: carried ${carried.carried} comments the pull request no longer has from the earlier archive`);
-        }
-      }
+    }
+    if (unreadable) {
+      result.failed.push({ pr: n, problems: [unreadable] });
+      continue;
+    }
+    const { record, carried } = carryForward(live, earlier);
+    if (carried) {
+      result.carried.push({ pr: n, kept: carried });
+      log(`#${n}: carried ${carried} comments the pull request no longer has from the earlier archive`);
     }
     const text = renderArchive(record, repos);
     if (!dryRun) {
@@ -525,31 +538,53 @@ export function scrubRefusals(archiveText, live, repos) {
   return refusals;
 }
 
+const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const TRANSIENT = /timed? ?out|ECONNRESET|connection reset|TLS handshake|unexpected EOF/i;
+
 /**
- * Deletes one comment and reports whether it was there. A deletion that
- * failed for a reason other than the comment being gone is checked against
- * the live comment, since the request may have taken effect.
+ * Deletes one comment if it still reads as its archived text: "deleted",
+ * "gone" when it was already gone, or "changed" when its text is not the
+ * archived one. GitHub has no conditional deletion, so the comment is read
+ * just before each attempt, after the pacer has made room for the read and
+ * the deletion together. A deletion is made once per attempt with no retry
+ * inside the client: after a rate limit, or a failure that may have taken
+ * effect, the next attempt waits and reads the comment again first.
  */
-async function deleteOne(remove, find) {
-  try {
-    await remove();
-    return true;
-  } catch (error) {
-    if (!(error instanceof GhError)) throw error;
-    if (error.status === 404 || error.status === 410) return false;
-    if ((await find()) === null) return true;
-    throw error;
+async function deleteChecked(target, { tracker, sleep, log }) {
+  for (let attempt = 0; ; attempt++) {
+    await tracker.room?.();
+    const now = await target.find();
+    if (now === null) return attempt ? "deleted" : "gone";
+    if ((now.body ?? "") !== target.archived) return "changed";
+    try {
+      await target.remove();
+      return "deleted";
+    } catch (error) {
+      if (!(error instanceof GhError)) throw error;
+      if (error.status === 404 || error.status === 410) return attempt ? "deleted" : "gone";
+      const retry = error.limited || error.status >= 500 || (error.status === 0 && TRANSIENT.test(error.message));
+      if (!retry || attempt >= 8) throw error;
+      const wait = retryWait(error.limited, attempt);
+      log(`${target.kind} ${target.id}: ${error.limited ? "rate limited" : "transient failure"}, reading it again in ${Math.round(wait / 1000)}s`);
+      await sleep(wait);
+    }
   }
 }
 
-export async function runScrub({ tracker, repos, clone, journal, dryRun = false, only = null, log = () => {} }) {
+export async function runScrub({ tracker, repos, clone, journal, dryRun = false, only = null, sleep = realSleep, log = () => {} }) {
   const { branch, commit } = clone.fetchDefault();
   const pulls = await pullsToVisit(tracker, repos, only);
-  const result = { pullRequests: pulls.length, archive: { branch, commit }, scrubbed: 0, alreadyEmpty: 0, deleted: { comments: 0, reviewComments: 0 }, reviewsWithSummary: [], refused: [], failed: [] };
+  const result = { pullRequests: pulls.length, archive: { branch, commit }, scrubbed: 0, alreadyEmpty: 0, emptyWithoutArchive: [], deleted: { comments: 0, reviewComments: 0 }, reviewsWithSummary: [], refused: [], failed: [] };
   for (const { number: n } of pulls) {
     const text = clone.show(commit, archivePath(n));
     if (text === null) {
-      result.refused.push({ pr: n, refusals: scrubRefusals(null) });
+      // A pull request opened after the archive with nothing on it, such as
+      // one opened once the switch is on, has nothing to lose.
+      const pull = await tracker.getPull(repos.code, n);
+      if (pull.comments === 0 && pull.review_comments === 0) {
+        result.alreadyEmpty++;
+        result.emptyWithoutArchive.push(n);
+      } else result.refused.push({ pr: n, refusals: scrubRefusals(null) });
       continue;
     }
     const live = await readConversation(tracker, repos, n);
@@ -582,18 +617,14 @@ export async function runScrub({ tracker, repos, clone, journal, dryRun = false,
     ];
     let changed = null;
     for (const t of targets) {
-      // GitHub has no conditional deletion, so each comment is read again
-      // just before it is deleted, after any wait for the write budget: an
-      // edit made since the comparison above stops the pull request's scrub
-      // instead of being deleted unarchived.
-      await tracker.room?.();
-      const now = await t.find();
-      if (now !== null && (now.body ?? "") !== copies[t.list].get(t.id)) {
+      // An edit made since the comparison above stops the pull request's
+      // scrub instead of being deleted unarchived.
+      const outcome = await deleteChecked({ ...t, archived: copies[t.list].get(t.id) }, { tracker, sleep, log });
+      if (outcome === "changed") {
         changed = `${t.kind} ${t.id} changed after it was archived`;
         break;
       }
-      const was = now !== null && (await deleteOne(t.remove, t.find));
-      journal.append({ mode: "scrub", pr: n, step: "deleted", kind: t.kind, id: t.id, ...(was ? {} : { alreadyGone: true }) });
+      journal.append({ mode: "scrub", pr: n, step: "deleted", kind: t.kind, id: t.id, ...(outcome === "gone" ? { alreadyGone: true } : {}) });
       result.deleted[t.list]++;
     }
     if (changed) {
