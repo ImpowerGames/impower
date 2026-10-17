@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 209,
-  "previous": "880d4ecb825da1a753ba1a2b78dc1fc08fc21b4b",
+  "seq": 210,
+  "previous": "1f1da1bb20f500899b6b478ebd5779e8d40a3840",
   "snapshotParents": [],
-  "time": "2026-10-17T16:50:48.324Z",
+  "time": "2026-10-17T16:53:44.172Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1993 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 222,
+    "recordRevision": 223,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -7249,9 +7249,9 @@
       "ticket": 1924,
       "pr": 1993,
       "expectHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T16:50:46.291Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1993 reads back merged as 991b99457f415601f06af89ff2afaedf8721832e at fe4cd193e4cb46f80b42f3ab9422591b4e783691; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -7434,7 +7434,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T16:53:42.151Z",
+      "mergeCommit": "991b99457f415601f06af89ff2afaedf8721832e",
+      "mergedOnto": "006d924c192a2299e3398e308b6172b4540d4115",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -7577,7 +7582,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T16:50:47.567Z",
+      "observedAt": "2026-10-17T16:53:43.425Z",
       "held": true,
       "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -8418,11 +8423,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T05:15:46.265Z",
-      "event": "check-in",
-      "outcome": "maintainer handed #1374 to this run: #1374 attached under #1904 (status comment 6229776134), invocation re-recorded, PR #1402 closed as superseded, writer session local_06fee41a adopted on claude-desktop and verified, PR #2022 extended to round 4 (decision 0f12aa4d, comment 6230032946), answer delivered; #1906 round 3 found incomplete (launch-axg-1 blocked, executionDrained false): writer resumed with request 19d362c9's answer to take the item-6 value-scope repair, relaunch axg as round 3 attempt 2 and resend; #1924 running round 4; ORCH #1961 cutover window agreed 18 to 30 hours out"
-    },
-    {
       "time": "2026-10-17T05:28:30.194Z",
       "event": "request",
       "ticket": 1924,
@@ -9154,6 +9154,12 @@
       "id": "9711dd68",
       "kind": "merge",
       "pr": 1993
+    },
+    {
+      "time": "2026-10-17T16:53:42.151Z",
+      "event": "operation-outcome",
+      "id": "9711dd68",
+      "state": "confirmed"
     }
   ]
 }
