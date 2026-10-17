@@ -7,7 +7,8 @@ import { programListing, pushesString } from "../programListing";
 // An if statement's condition ends with its line unless the next line begins
 // with its `then` or continues the expression. A condition written without
 // `then` is reported in Luau's words at the token Luau names, and the line
-// after it stays in the branch's body (#1159).
+// after it stays in the branch's body (#1159). A story `if` header ends at
+// its line with no exception (#1907).
 
 const URI = "inmemory:///main.sd";
 
@@ -73,9 +74,11 @@ describe("an if statement without `then`", () => {
   const STORY =
     "store flag = true\n\n-> start\n\nscene start\n  Opening beat.\n  if flag\n    Went down the true side.\n  else\n    Went down the false side.\n  end\n  Shared beat after the branch.\nend\n";
 
-  test("in a story, is an error at the branch's first word", () => {
+  // A story header ends at its line (#1907), so Luau's reading of it meets
+  // its end of input there rather than the branch's first word.
+  test("in a story, is an error at the end of the `if` line", () => {
     expect(diagnosticsOf(compile(STORY)).map(describeLsp)).toEqual([
-      "7:4-7:8 error: Expected 'then' when parsing if statement, got 'Went'",
+      "6:9-7:0 error: Expected 'then' when parsing if statement, got <eof>",
     ]);
   });
 
@@ -85,15 +88,17 @@ describe("an if statement without `then`", () => {
     expect(pushesString(listing, "Went down the false side.")).toBe(true);
   });
 
-  // The second operand differs from the first: `flag and flag` repeats a
-  // condition, which DuplicateCondition reports in a narrative `if` too.
+  // A story header ends at its line (#1907), so a condition or `then` on a
+  // later line is not the header's: the header is missing it at its line's
+  // end, and both branches stay. In a function each still reads to its
+  // `then` (above).
   test.each([
-    ["whose `then` is on a later line", "  if flag\n    and flag ~= false\n    then\n"],
-    ["that begins on the line after `if`", "  if\n    flag\n  then\n"],
-    ["that begins after a comment-only line", "  if\n    -- note\n    flag\n  then\n"],
-  ])("in a story, a condition %s keeps both branches", (_, header) => {
+    ["whose `then` is on a later line", "  if flag\n    and flag ~= false\n    then\n", "6:9-7:0 error: Expected 'then' when parsing if statement, got <eof>"],
+    ["that begins on the line after `if`", "  if\n    flag\n  then\n", "6:4-7:0 error: Expected identifier when parsing expression, got <eof>"],
+    ["that begins after a comment-only line", "  if\n    -- note\n    flag\n  then\n", "6:4-7:0 error: Expected identifier when parsing expression, got <eof>"],
+  ])("in a story, a condition %s is missing on the `if` line, and both branches stay", (_, header, error) => {
     const program = compile(STORY.replace("  if flag\n", header));
-    expect(diagnosticsOf(program).map(describeLsp)).toEqual([]);
+    expect(diagnosticsOf(program).filter((d) => d.severity === 1).map(describeLsp)).toEqual([error]);
     const listing = programListing(program.chunks);
     expect(pushesString(listing, "Went down the true side.")).toBe(true);
     expect(pushesString(listing, "Went down the false side.")).toBe(true);

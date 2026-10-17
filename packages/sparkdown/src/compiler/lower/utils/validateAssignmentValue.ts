@@ -20,6 +20,7 @@ import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../.
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
 import { isUnreadTokenAt } from "../../utils/unreadTokens";
+import { storyIslandEnd } from "../../utils/storyIslands";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
 // declaration: a value missing after `=` or after a comma, a second `=`, a
@@ -94,7 +95,7 @@ export function validateStatementNode(
     return;
   }
   if (node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
-    const declaration = getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node);
+    const declaration = getDescendent(["LuauSparkdownVariableDefinition"], node);
     if (declaration) {
       validateVariableDefinition(declaration, continuation, ctx);
       return;
@@ -203,12 +204,13 @@ export function validateAssignmentValue(
   // The highlighting node may end at the line-ending operator while Luau
   // reads a value on the following line. Validate the converter's value.
   const read = (from: number, to: number) => ctx.read(from, to);
-  const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText);
+  const islandEnd = authoredIslandEnd(opNode, wholeDocument(opNode, read, ctx.documentText));
+  const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText, islandEnd);
   // A value that begins with a token the grammar left unread (`x = @5`) is
   // Luau's reading's to report, as it reports the statement's other errors.
   if (next && luauReadingReportsUnread(opNode, next.from, read)) return;
   if (checkerReadsOnTo(opNode, next?.from, read)) {
-    const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read, ctx.documentText));
+    const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read, ctx.documentText), islandEnd);
     if (value.errors.every((error) => error.message.startsWith("Expected the end of the expression"))) return;
   }
   if (typeCheckerReportsMissingValue(opNode, operator.to, read, ctx.documentText)) return;
@@ -242,7 +244,7 @@ export function validateListComma(
   }
   // As after an `=` (`validateAssignmentValue`).
   const read = (from: number, to: number) => ctx.read(from, to);
-  const after = nextSignificantToken(comma, at + 1, read, ctx.documentText);
+  const after = nextSignificantToken(comma, at + 1, read, ctx.documentText, authoredIslandEnd(comma, wholeDocument(comma, read, ctx.documentText)));
   if (after && luauReadingReportsUnread(comma, after.from, read)) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
   const parsing = afterAssignment ? "expression" : "binding name";
@@ -552,17 +554,20 @@ export function cannotBeginValue(node: SyntaxNode, ctx: LowerContext): boolean {
 // node of the tree after `pos` that is not whitespace or a comment, read
 // from the leaf that holds it (a name or keyword whole, any other token by
 // its first character), with its document offset, or null (rendered as
-// `<eof>`) when the document has none.
+// `<eof>`) when the document has none, or when the token is past the end of
+// the story statement that holds `anyNode` (#1907).
 function nextTokenAfter(
   anyNode: SyntaxNode,
   pos: number,
   ctx: LowerContext,
 ): { text: string; from: number } | null {
+  const islandEnd = authoredIslandEnd(anyNode, wholeDocument(anyNode, (from, to) => ctx.read(from, to), ctx.documentText));
   let top = anyNode;
   while (top.parent) top = top.parent;
   let node: SyntaxNode | null = top.resolveInner(pos, 1);
   while (node) {
     const token = firstTokenIn(node, pos, ctx);
+    if (token && islandEnd !== undefined && token.from >= islandEnd) return null;
     if (token) {
       // A story line that begins with `--` (an em-dash action line) is a
       // comment to Luau, which reads on from the next line, or, after a
@@ -678,7 +683,7 @@ export function typeCheckerReportsMissingValue(
   document?: () => string,
 ): boolean {
   const text = wholeDocument(node, read, document);
-  const authoredEnd = authoredIslandEnd(node);
+  const authoredEnd = authoredIslandEnd(node, text);
   const reading = readLuauExpressionAfter(pos, text, authoredEnd);
   let expr = reading.expr;
   // A leading binary operator (`+ 1`) leaves its missing left operand in
@@ -696,16 +701,13 @@ export function typeCheckerReportsMissingValue(
   return checkerReadsOnTo(node, got?.from, read);
 }
 
-// A marked story island has its own authored EOF. Reading the following
-// prose as an operand or method name would report at a story token while
-// the bounded checker separately reports the missing token at EOF.
-// A genuine function inside the island keeps its multiline Luau ownership.
-export function authoredIslandEnd(node: SyntaxNode): number | undefined {
-  for (let parent: SyntaxNode | null = node; parent; parent = parent.parent) {
-    if (parent.name === "LuauFunctionBody") return undefined;
-    if (parent.name === "LuauSparkdownExplicitStatement") return parent.to;
-  }
-  return undefined;
+// A story statement has its own authored EOF (`storyIslandEnd`, #1907).
+// Reading the following prose as an operand or method name would report at
+// a story token while the bounded checker separately reports the missing
+// token at EOF. A genuine function inside the island keeps its multiline
+// Luau ownership.
+export function authoredIslandEnd(node: SyntaxNode, text: string): number | undefined {
+  return storyIslandEnd(node, text);
 }
 
 function wholeDocument(node: SyntaxNode, read: (from: number, to: number) => string, document?: () => string): string {

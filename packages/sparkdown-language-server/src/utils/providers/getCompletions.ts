@@ -1349,8 +1349,8 @@ export const getCompletions = (
       attributeDefine?.type === "filtered_image" &&
       leftStack.filter((node) => isExplicitRuleName(node.name, "LuauTable")).length === 1 &&
       getNodeText(getDescendent("LuauVariableName", attributeProperty)) === "attributes" &&
-      getDescendent(["LuauTable", "LuauSparkdownExplicitTable"], attributeProperty)?.from === attributeTable.from) {
-    const content = (attributeTable.getChild("LuauTable_content") ?? attributeTable.getChild("LuauSparkdownExplicitTable_content"));
+      getDescendent("LuauTable", attributeProperty)?.from === attributeTable.from) {
+    const content = attributeTable.getChild("LuauTable_content");
     const entries: SyntaxNode[] = [];
     let literalList = !!content;
     for (let node = content?.firstChild; node; node = node.nextSibling) {
@@ -2182,7 +2182,40 @@ export const getCompletions = (
         );
       }
     }
-    if (leftStack.some((n) => n.name === "LuauForCondition")) {
+    // A story `for` reads its condition with the bounded rule it shares with
+    // a story `while` and a marked (`&`) loop (#1907), so the loop that owns
+    // the condition, the first such loop outside it, decides (a `while`
+    // nested in a `for` offers no `in`). A marked loop is a `for` when its
+    // header's keyword is.
+    const storyCondition = leftStack.findIndex(
+      (n) => n.name === "LuauSparkdownExplicitLoopCondition",
+    );
+    const storyConditionLoop =
+      storyCondition < 0
+        ? undefined
+        : leftStack
+            .slice(storyCondition + 1)
+            .find(
+              (n) =>
+                n.name === "LuauSparkdownForLoop" ||
+                n.name === "LuauSparkdownWhileLoop" ||
+                n.name === "LuauSparkdownExplicitLoop",
+            );
+    const markedLoopBegin =
+      storyConditionLoop?.name === "LuauSparkdownExplicitLoop"
+        ? storyConditionLoop.getChild("LuauSparkdownExplicitLoop_begin")
+        : null;
+    const storyConditionIsFor =
+      storyConditionLoop?.name === "LuauSparkdownForLoop" ||
+      (!!markedLoopBegin &&
+        !!getDescendent(
+          "LuauForKeyword",
+          markedLoopBegin as GrammarSyntaxNode<SparkdownNodeName>,
+        ));
+    if (
+      leftStack.some((n) => n.name === "LuauForCondition") ||
+      storyConditionIsFor
+    ) {
       const contentNode = leftStack[0];
       if (contentNode) {
         addTriggeredKeywordCompletions(

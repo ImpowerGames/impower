@@ -756,15 +756,16 @@ describe("if expression without an else", () => {
   });
 
   // A column-0 line after an if expression's line that belongs to the
-  // expression still does: a clause keyword, a continuation, and the value of
-  // an else arm.
+  // expression still does in Luau code: a clause keyword, a continuation, and
+  // the value of an else arm. A story declaration ends at its line instead
+  // (#1907, #1658), as storyBodyLineRule pins.
   test.each([
     ["then and else at column 0", "local a = true\nlocal x = if a\nthen 1\nelse 2\n", "Value 1.\n"],
     ["a continuation at column 0", 'local a = true\nlocal x = if a then "x"\n.. "z"\nelse "y"\n', "Value xz.\n"],
     ["an else value at column 0", 'local a = false\nlocal x = if a then "a" else\n"c"\n', "Value c.\n"],
     ["an else value at column 0 that is a name", "local a = false\nlocal n = 4\nlocal x = if a then 1 else\nn\n", "Value 4.\n"],
   ])("%s stays in the expression", (_name, lines, value) => {
-    const ctx = makeRuntimeStoryFromSource(`${lines}Value {x}.\n`);
+    const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n${lines}return x\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(value);
   });

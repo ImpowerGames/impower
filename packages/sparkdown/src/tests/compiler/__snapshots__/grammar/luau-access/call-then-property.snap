@@ -43,22 +43,22 @@ sparkdown [0..12]
      │       │       │   │       │   │   └─ LuauFunctionName [6..7]: "f"
      │       │       │   │       │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 7
      │       │       │   │       ├─ LuauSparkdownExplicitFunctionCall_content [7..10]
-     │       │       │   │       │   └─ LuauSparkdownExplicitFunctionCallParameters [7..10]
-     │       │       │   │       │       ├─ LuauSparkdownExplicitFunctionCallParameters_begin [7..8]
-     │       │       │   │       │       │   └─ LuauSparkdownExplicitFunctionCallParameters_begin_c1 [7..8]
+     │       │       │   │       │   └─ LuauFunctionCallParameters [7..10]
+     │       │       │   │       │       ├─ LuauFunctionCallParameters_begin [7..8]
+     │       │       │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [7..8]
      │       │       │   │       │       │       └─ PunctuationParenOpen [7..8]: "("
-     │       │       │   │       │       ├─ LuauSparkdownExplicitFunctionCallParameters_content [8..9]
-     │       │       │   │       │       │   └─ LuauSparkdownExplicitAccessPath [8..9]
-     │       │       │   │       │       │       ├─ LuauSparkdownExplicitAccessPath_begin 8
-     │       │       │   │       │       │       ├─ LuauSparkdownExplicitAccessPath_content [8..9]
-     │       │       │   │       │       │       │   └─ LuauSparkdownExplicitAccessPart [8..9]
+     │       │       │   │       │       ├─ LuauFunctionCallParameters_content [8..9]
+     │       │       │   │       │       │   └─ LuauAccessPath [8..9]
+     │       │       │   │       │       │       ├─ LuauAccessPath_begin 8
+     │       │       │   │       │       │       ├─ LuauAccessPath_content [8..9]
+     │       │       │   │       │       │       │   └─ LuauAccessPart [8..9]
      │       │       │   │       │       │       │       └─ LuauVariable [8..9]
      │       │       │   │       │       │       │           └─ LuauVariable_c1 [8..9]
      │       │       │   │       │       │       │               └─ LuauVariableName [8..9]: "x"
-     │       │       │   │       │       │       └─ LuauSparkdownExplicitAccessPath_end 9
-     │       │       │   │       │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 9
-     │       │       │   │       │       └─ LuauSparkdownExplicitFunctionCallParameters_end [9..10]
-     │       │       │   │       │           └─ LuauSparkdownExplicitFunctionCallParameters_end_c1 [9..10]
+     │       │       │   │       │       │       └─ LuauAccessPath_end 9
+     │       │       │   │       │       │           └─ LuauAccessPath_end_c1 9
+     │       │       │   │       │       └─ LuauFunctionCallParameters_end [9..10]
+     │       │       │   │       │           └─ LuauFunctionCallParameters_end_c1 [9..10]
      │       │       │   │       │               └─ PunctuationParenClose [9..10]: ")"
      │       │       │   │       └─ LuauSparkdownExplicitFunctionCall_end 10
      │       │       │   └─ LuauSparkdownExplicitAccessPart [10..12]

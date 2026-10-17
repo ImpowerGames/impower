@@ -76,7 +76,6 @@ const DELIMITED_VALUE_NAMES = nodeNameSet([
   "LuauFunctionDefinition",
   "LuauFunctionBody",
   "LuauParenthetical",
-  "LuauSparkdownExplicitParenthetical",
   "LuauFunctionCallParameters",
 ]);
 

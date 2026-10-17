@@ -18,16 +18,16 @@ sparkdown [0..75]
  │   │   │   │           │   │   └─ LuauStdLibFunctions [2..7]: "print"
  │   │   │   │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 7
  │   │   │   │           ├─ LuauSparkdownExplicitFunctionCall_content [7..10]
- │   │   │   │           │   └─ LuauSparkdownExplicitFunctionCallParameters [7..10]
- │   │   │   │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_begin [7..8]
- │   │   │   │           │       │   └─ LuauSparkdownExplicitFunctionCallParameters_begin_c1 [7..8]
+ │   │   │   │           │   └─ LuauFunctionCallParameters [7..10]
+ │   │   │   │           │       ├─ LuauFunctionCallParameters_begin [7..8]
+ │   │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [7..8]
  │   │   │   │           │       │       └─ PunctuationParenOpen [7..8]: "("
- │   │   │   │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_content [8..9]
+ │   │   │   │           │       ├─ LuauFunctionCallParameters_content [8..9]
  │   │   │   │           │       │   └─ LuauNumericDecimal [8..9]
  │   │   │   │           │       │       ├─ LuauNumericDecimal_c1 [8..9]: "1"
  │   │   │   │           │       │       └─ LuauNumericDecimal_c2 9
- │   │   │   │           │       └─ LuauSparkdownExplicitFunctionCallParameters_end [9..10]
- │   │   │   │           │           └─ LuauSparkdownExplicitFunctionCallParameters_end_c1 [9..10]
+ │   │   │   │           │       └─ LuauFunctionCallParameters_end [9..10]
+ │   │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [9..10]
  │   │   │   │           │               └─ PunctuationParenClose [9..10]: ")"
  │   │   │   │           └─ LuauSparkdownExplicitFunctionCall_end 10
  │   │   │   └─ LuauSparkdownExplicitAccessPath_end 10
@@ -93,16 +93,16 @@ sparkdown [0..75]
  │   │       │   │   │           │   │   └─ LuauStdLibFunctions [39..44]: "print"
  │   │       │   │   │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 44
  │   │       │   │   │           ├─ LuauSparkdownExplicitFunctionCall_content [44..47]
- │   │       │   │   │           │   └─ LuauSparkdownExplicitFunctionCallParameters [44..47]
- │   │       │   │   │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_begin [44..45]
- │   │       │   │   │           │       │   └─ LuauSparkdownExplicitFunctionCallParameters_begin_c1 [44..45]
+ │   │       │   │   │           │   └─ LuauFunctionCallParameters [44..47]
+ │   │       │   │   │           │       ├─ LuauFunctionCallParameters_begin [44..45]
+ │   │       │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [44..45]
  │   │       │   │   │           │       │       └─ PunctuationParenOpen [44..45]: "("
- │   │       │   │   │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_content [45..46]
+ │   │       │   │   │           │       ├─ LuauFunctionCallParameters_content [45..46]
  │   │       │   │   │           │       │   └─ LuauNumericDecimal [45..46]
  │   │       │   │   │           │       │       ├─ LuauNumericDecimal_c1 [45..46]: "1"
  │   │       │   │   │           │       │       └─ LuauNumericDecimal_c2 46
- │   │       │   │   │           │       └─ LuauSparkdownExplicitFunctionCallParameters_end [46..47]
- │   │       │   │   │           │           └─ LuauSparkdownExplicitFunctionCallParameters_end_c1 [46..47]
+ │   │       │   │   │           │       └─ LuauFunctionCallParameters_end [46..47]
+ │   │       │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [46..47]
  │   │       │   │   │           │               └─ PunctuationParenClose [46..47]: ")"
  │   │       │   │   │           └─ LuauSparkdownExplicitFunctionCall_end 47
  │   │       │   │   └─ LuauSparkdownExplicitAccessPath_end 47

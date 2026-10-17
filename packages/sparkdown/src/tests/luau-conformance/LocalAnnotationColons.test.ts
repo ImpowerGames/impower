@@ -107,12 +107,13 @@ describe("in a narrative body", () => {
   });
 
   // The next line is story, so a trailing comma is the only error, as it is
-  // before a target with a valid annotation (`TrailingCommaValueList`).
+  // before a target with a valid annotation (`TrailingCommaValueList`). The
+  // declaration's Luau meets its end of input at the line's end (#1907).
   test.each(["local a,\nb :: number", "local a,\nb: number", "scene S\n  local a,\n  b :: number\nend"])(
     "%j reports only the trailing comma",
     (source) => {
       expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
-        "Expected identifier when parsing binding name, got 'b'",
+        "Expected identifier when parsing binding name, got <eof>",
       ]);
     },
   );

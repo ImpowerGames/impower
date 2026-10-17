@@ -226,23 +226,23 @@ sparkdown [0..228]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [116..117]
  │   │           └─ OptionalWhitespace [116..117]: " "
  │   ├─ LuauSparkdownIfBlock_content [117..146]
- │   │   ├─ LuauIfBlockCondition [117..123]
- │   │   │   ├─ LuauIfBlockCondition_begin 117
- │   │   │   ├─ LuauIfBlockCondition_content [117..118]
- │   │   │   │   └─ LuauAccessPath [117..118]
- │   │   │   │       ├─ LuauAccessPath_begin 117
- │   │   │   │       ├─ LuauAccessPath_content [117..118]
- │   │   │   │       │   └─ LuauAccessPart [117..118]
+ │   │   ├─ LuauSparkdownExplicitIfCondition [117..123]
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 117
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [117..118]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPath [117..118]
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 117
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [117..118]
+ │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [117..118]
  │   │   │   │       │       └─ LuauVariable [117..118]
  │   │   │   │       │           └─ LuauVariable_c1 [117..118]
  │   │   │   │       │               └─ LuauVariableName [117..118]: "x"
- │   │   │   │       └─ LuauAccessPath_end 118
- │   │   │   │           └─ LuauAccessPath_end_c1 118
- │   │   │   └─ LuauIfBlockCondition_end [118..123]
- │   │   │       ├─ LuauIfBlockCondition_end_c1 [118..119]
- │   │   │       │   └─ LuauIfBlockCondition_end_c1 [118..119]
+ │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 118
+ │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 118
+ │   │   │   └─ LuauSparkdownExplicitIfCondition_end [118..123]
+ │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [118..119]
+ │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [118..119]
  │   │   │       │       └─ OptionalWhitespace [118..119]: " "
- │   │   │       └─ LuauIfBlockCondition_end_c2 [119..123]
+ │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [119..123]
  │   │   │           └─ LuauThenKeyword [119..123]: "then"
  │   │   ├─ ImplicitAction [123..130]
  │   │   │   ├─ ImplicitAction_begin [123..124]

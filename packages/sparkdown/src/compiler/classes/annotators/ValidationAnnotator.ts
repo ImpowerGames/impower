@@ -14,6 +14,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
+import { isStoryCondition } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -264,6 +265,8 @@ const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
   // one-to-one counterpart of either ordinary condition rule.
   "LuauSparkdownExplicitIfCondition",
 ]);
+// The story blocks whose condition ends at the header's line (#1907).
+const STORY_CONDITION_BLOCKS: ReadonlySet<string> = new Set(["LuauSparkdownIfBlock", "LuauSparkdownElseifBlock"]);
 // The parts of an if statement's condition that are not its expression.
 const IF_CONDITION_TRIVIA = nodeNameSet([
   "LuauConditionLeadingBreak",
@@ -276,6 +279,7 @@ const IF_CONDITION_TRIVIA = nodeNameSet([
 ]);
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
+const LUAU_UNTIL_KEYWORD = nodeNameSet(["LuauUntilKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
 // The parts of an if expression's clause that are not its value.
 const IF_CLAUSE_TRIVIA = new Set([
@@ -1009,6 +1013,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return token ? { text: token[0], from: pos + i } : null;
   }
 
+  /** The end of the line break at `pos`, or `pos` where none begins there. */
+  protected lineBreakEnd(pos: number): number {
+    const next = this.read(pos, pos + 2);
+    return pos + (next.startsWith("\r\n") ? 2 : next.startsWith("\n") || next.startsWith("\r") ? 1 : 0);
+  }
+
   /** The end of the token before `pos`, past the whitespace and block
    *  comments before it, where Luau's range for a token it did not expect
    *  begins. */
@@ -1123,20 +1133,27 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // the `;` that ends its statement has no right operand; the grammar reads
     // it as its own token. Where the type checker reads the Luau, it reports
     // the missing operand (and a cast's missing type) with Luau's range, the
-    // `;`, as it reports every missing expression (#1175).
-    if (nodeRef.name === "LuauOperatorMissingOperand") {
+    // `;`, as it reports every missing expression (#1175). In a story
+    // statement, which ends at its line, the operand is missing at the
+    // statement's end (#1907); the checker reports it there for the Luau it
+    // reads, and Sparkdown for a `store` declaration, which it does not.
+    if (isExplicitRuleName(nodeRef.name, "LuauOperatorMissingOperand")) {
       // An operator right after an annotation's `:` stands where the type
       // must begin, and is the token the type's own error names
       // (`scene s(a: ..)`).
       const lineStart = this.text?.lineAt(nodeRef.from).from ?? nodeRef.from;
       const afterAnnotationColon = /(?:^|[^:]):\s*$/.test(this.read(lineStart, nodeRef.from));
-      const got = this.luauTokenAt(nodeRef.to);
+      const authoredEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
+      const got = this.luauTokenAt(nodeRef.to, authoredEnd);
       if (!afterAnnotationColon && !this.checkerReadsOnTo(nodeRef.node, got?.from)) {
+        // A story statement's `<eof>` is its line break, as the checker
+        // ranges it.
+        const eof = authoredEnd === undefined ? undefined : { from: authoredEnd, to: this.lineBreakEnd(authoredEnd) };
         this.error(
           annotations,
           `${MISSING_EXPRESSION}, got ${got ? `'${got.text}'` : "<eof>"}`,
-          got?.from ?? nodeRef.from,
-          got ? got.from + got.text.length : nodeRef.to,
+          got?.from ?? eof?.from ?? nodeRef.from,
+          got ? got.from + got.text.length : (eof?.to ?? nodeRef.to),
         );
       }
       return annotations;
@@ -1149,7 +1166,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const isMethodColon = this.isMethodColon(nodeRef.node);
       // An unfinished narrative method call owns its island's EOF. A genuine
       // function still permits the method name on its next Luau line.
-      const authoredEnd = isMethodColon ? authoredIslandEnd(nodeRef.node) : undefined;
+      const authoredEnd = isMethodColon ? authoredIslandEnd(nodeRef.node, this.statementDocumentText()) : undefined;
       // The checker reports a missing method name too, as it reports every
       // missing name after a member access (#1175), where it reads the token
       // found instead.
@@ -1161,7 +1178,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         // operator to the end of the token it found.
         const operator = /^\s*(->|[:|&])/.exec(this.read(nodeRef.from, nodeRef.to));
         const from = nodeRef.from + (operator?.[0].length ?? 0);
-        const got = this.luauTokenAfter(nodeRef.to);
+        // A story statement ends at its line (#1907): its Luau meets its end
+        // of input there, whatever the next line holds.
+        const islandEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
+        const inIsland = islandEnd === undefined ? undefined : this.luauTokenAt(nodeRef.to, islandEnd);
+        const got = inIsland === null
+          ? { text: null, to: this.lineBreakEnd(islandEnd!) }
+          : inIsland
+            ? { text: inIsland.text, to: inIsland.from + inIsland.text.length }
+            : this.luauTokenAfter(nodeRef.to);
         if (!got) return annotations;
         this.error(
           annotations,
@@ -1396,7 +1421,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (missing?.message === IF_EXPRESSION_WITHOUT_ELSE) {
         const text = this.statementDocumentText();
         const start = firstDescendant(nodeRef.node, LUAU_IF_KEYWORD)?.from ?? nodeRef.from;
-        const error = readLuauExpressionAfter(start, text, authoredIslandEnd(nodeRef.node)).errors[0];
+        const error = readLuauExpressionAfter(start, text, authoredIslandEnd(nodeRef.node, this.statementDocumentText())).errors[0];
         if (error?.message.startsWith(`${IF_EXPRESSION_WITHOUT_ELSE}, got `)) {
           let from = luauPositionOffset(error.location.begin, text);
           let to = luauPositionOffset(error.location.end, text);
@@ -1423,6 +1448,31 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
       }
     }
+    // A story `if` or `elseif` header whose line ends with its keyword has no
+    // condition: the header ends at its line (#1907), so Luau's reading meets
+    // its end of input where the condition should begin.
+    if (STORY_CONDITION_BLOCKS.has(nodeRef.name)) {
+      const content = childNamed(nodeRef.node, `${nodeRef.name}_content`);
+      if (!content?.getChild("LuauSparkdownExplicitIfCondition")) {
+        const begin = childNamed(nodeRef.node, `${nodeRef.name}_begin`);
+        const at = this.text?.lineAt(begin?.to ?? nodeRef.from).to ?? nodeRef.to;
+        this.error(annotations, `${MISSING_EXPRESSION}, got <eof>`, at, this.lineBreakEnd(at));
+      }
+    }
+    // Likewise a story `repeat` loop's `until` that ends its line: the
+    // condition the body around the loop reads after it is not on its line.
+    if (nodeRef.name === "LuauSparkdownRepeatLoop") {
+      const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
+      const until = end ? firstDescendant(end, LUAU_UNTIL_KEYWORD) : null;
+      if (until) {
+        const at = this.text?.lineAt(until.to).to ?? until.to;
+        let next = nodeRef.node.nextSibling;
+        while (next && next.from === next.to) next = next.nextSibling;
+        if (next?.name !== "LuauSparkdownExplicitUntilCondition" || next.from > at) {
+          this.error(annotations, `${MISSING_EXPRESSION}, got <eof>`, at, this.lineBreakEnd(at));
+        }
+      }
+    }
     // An if statement's condition that its line ends without a `then`: the
     // grammar ends the condition there, so the branch's first line stays in
     // its body. Luau names the token after the condition's expression, which
@@ -1430,9 +1480,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
-        const authoredEnd = nodeRef.name === "LuauSparkdownExplicitIfCondition"
-          ? authoredIslandEnd(nodeRef.node)
-          : undefined;
+        const authoredEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
+        // A story header's condition ends at its line (#1907). Where its own
+        // expression is unfinished there (`if a and`), Luau's reading stops
+        // at that error and names nothing about `then`: the error at the
+        // line's end is the expression's, and one at a token on the line is
+        // the missing operand's own report. A whole expression followed by a
+        // token (`if flag print(1)`) is missing the `then` before that token.
+        if (authoredEnd !== undefined && isStoryCondition(nodeRef.node)) {
+          const expressionError = readLuauExpressionAfter(nodeRef.from, this.statementDocumentText(), authoredEnd).errors[0];
+          if (expressionError && !expressionError.message.startsWith("Expected the end of the expression")) {
+            if (expressionError.message.endsWith("got <eof>")) {
+              this.error(annotations, expressionError.message, authoredEnd, this.lineBreakEnd(authoredEnd));
+            }
+            return annotations;
+          }
+        }
         const got = nextSignificantToken(
           nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
@@ -1441,11 +1504,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           authoredEnd,
         );
         const eof = authoredEnd ?? this.tree?.length ?? nodeRef.to;
+        // A story header's `<eof>` is its line break, as for a story
+        // statement.
+        const eofEnd = authoredEnd !== undefined && isStoryCondition(nodeRef.node) ? this.lineBreakEnd(eof) : eof;
         this.error(
           annotations,
           `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
           got?.from ?? eof,
-          got == null ? eof : got.from + got.text.length,
+          got == null ? eofEnd : got.from + got.text.length,
         );
       }
     }

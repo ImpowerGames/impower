@@ -1640,7 +1640,9 @@ export const getFormatting = (
     // Pure Luau semantics: newlines are interchangeable with spaces
     // anywhere inside a header. The grammar doesn't quite model
     // this (loop rules terminate at `$`), so the formatter does the
-    // visual normalization itself.
+    // visual normalization itself. In Luau code only: a story
+    // header ends at its line (#1907), so the lines under it are
+    // story, never its condition.
     //
     // `then` is overloaded — it also opens the *result* clause of a
     // `choose ... then ... end` construct, where it MUST stay on
@@ -1699,10 +1701,17 @@ export const getFormatting = (
           // its begin's `.to` as the header-start.
           let walker = nodeRef.node.parent;
           while (walker) {
+            // A story header ends at its line (#1907): a `then` on a
+            // later line is not its header's, and joining it would
+            // read the lines between into the condition.
             if (
               walker.name === "LuauSparkdownIfBlock" ||
+              walker.name === "LuauSparkdownElseifBlock"
+            ) {
+              return;
+            }
+            if (
               walker.name === "LuauIfBlock" ||
-              walker.name === "LuauSparkdownElseifBlock" ||
               walker.name === "LuauElseifBlock"
             ) {
               // The begin of this block ends right after `if`/`elseif`.
@@ -1723,12 +1732,22 @@ export const getFormatting = (
           // LuauRepeatLoop (nested form) first.
           let walker = nodeRef.node.parent;
           while (walker) {
+            // A story `do` block's `do` opens a block of its own: a
+            // story loop's header ends at its line (#1907), so the
+            // lines above it are never its loop's condition.
+            // Its own `do` stays where a bracket that carried the
+            // header on left it.
             if (
+              walker.name === "LuauSparkdownDoBlock" ||
               walker.name === "LuauSparkdownForLoop" ||
-              walker.name === "LuauForLoop" ||
               walker.name === "LuauSparkdownWhileLoop" ||
+              walker.name === "LuauSparkdownRepeatLoop"
+            ) {
+              return;
+            }
+            if (
+              walker.name === "LuauForLoop" ||
               walker.name === "LuauWhileLoop" ||
-              walker.name === "LuauSparkdownRepeatLoop" ||
               walker.name === "LuauRepeatLoop"
             ) {
               let c = walker.firstChild;

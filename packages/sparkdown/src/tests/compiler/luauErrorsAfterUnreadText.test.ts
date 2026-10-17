@@ -63,14 +63,18 @@ describe("an assignment after an if expression's else value (#1205)", () => {
       "on the same line",
       "function f()\n  local x = 0\n  x = if false then 1 else x = 6\n  return x\nend\n",
     ],
-    [
-      "after a top-level `local` declaration",
-      "local a = false\nlocal y = 0\nlocal x = if a then 1 else\n  y = 6\n",
-    ],
   ])("%s, is Luau's error at Luau's range", (_name, text) => {
     const expected = luauErrors(text);
     expect(expected).toHaveLength(1);
     expect(errors(text)).toEqual(expected);
+  });
+
+  // A top-level declaration ends at its line (#1907), so its else value is
+  // missing at the line's end and the next line is not read into it.
+  it("after a top-level `local` declaration, is the missing else value at the line's end", () => {
+    expect(errors("local a = false\nlocal y = 0\nlocal x = if a then 1 else\n  y = 6\n")).toEqual([
+      "2:26-3:0 Expected identifier when parsing expression, got <eof>",
+    ]);
   });
 });
 

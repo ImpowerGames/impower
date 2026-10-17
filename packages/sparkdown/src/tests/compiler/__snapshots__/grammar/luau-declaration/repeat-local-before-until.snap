@@ -76,34 +76,34 @@ sparkdown [0..63]
  │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [22..23]
  │   │   │   │       │   │   │           └─ OptionalWhitespace [22..23]: " "
  │   │   │   │       │   │   └─ LuauAssignmentOperator_end 23
- │   │   │   │       │   ├─ LuauAccessPath [23..25]
- │   │   │   │       │   │   ├─ LuauAccessPath_begin 23
- │   │   │   │       │   │   ├─ LuauAccessPath_content [23..24]
- │   │   │   │       │   │   │   └─ LuauAccessPart [23..24]
+ │   │   │   │       │   ├─ LuauSparkdownExplicitAccessPath [23..25]
+ │   │   │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 23
+ │   │   │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [23..24]
+ │   │   │   │       │   │   │   └─ LuauSparkdownExplicitAccessPart [23..24]
  │   │   │   │       │   │   │       └─ LuauVariable [23..24]
  │   │   │   │       │   │   │           └─ LuauVariable_c1 [23..24]
  │   │   │   │       │   │   │               └─ LuauVariableName [23..24]: "n"
- │   │   │   │       │   │   └─ LuauAccessPath_end [24..25]
- │   │   │   │       │   │       └─ LuauAccessPath_end_c1 [24..25]
- │   │   │   │       │   │           └─ LuauAccessPath_end_c1 [24..25]
+ │   │   │   │       │   │   └─ LuauSparkdownExplicitAccessPath_end [24..25]
+ │   │   │   │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [24..25]
+ │   │   │   │       │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [24..25]
  │   │   │   │       │   │               └─ OptionalWhitespace [24..25]: " "
- │   │   │   │       │   └─ LuauArithmeticOperation [25..28]
- │   │   │   │       │       ├─ LuauArithmeticOperation_begin 25
- │   │   │   │       │       │   └─ LuauArithmeticOperation_begin_c1 25
- │   │   │   │       │       ├─ LuauArithmeticOperation_content [25..28]
- │   │   │   │       │       │   ├─ LuauArithmeticOperator [25..27]
- │   │   │   │       │       │   │   ├─ LuauArithmeticOperator_begin [25..27]
- │   │   │   │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 25
+ │   │   │   │       │   └─ LuauSparkdownExplicitArithmeticOperation [25..28]
+ │   │   │   │       │       ├─ LuauSparkdownExplicitArithmeticOperation_begin 25
+ │   │   │   │       │       │   └─ LuauSparkdownExplicitArithmeticOperation_begin_c1 25
+ │   │   │   │       │       ├─ LuauSparkdownExplicitArithmeticOperation_content [25..28]
+ │   │   │   │       │       │   ├─ LuauSparkdownExplicitArithmeticOperator [25..27]
+ │   │   │   │       │       │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin [25..27]
+ │   │   │   │       │       │   │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin_c1 25
  │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 25
- │   │   │   │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [25..26]: "+"
- │   │   │   │       │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [26..27]
- │   │   │   │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [26..27]
+ │   │   │   │       │       │   │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin_c2 [25..26]: "+"
+ │   │   │   │       │       │   │   │   └─ LuauSparkdownExplicitArithmeticOperator_begin_c3 [26..27]
+ │   │   │   │       │       │   │   │       └─ LuauSparkdownExplicitArithmeticOperator_begin_c3 [26..27]
  │   │   │   │       │       │   │   │           └─ OptionalWhitespace [26..27]: " "
- │   │   │   │       │       │   │   └─ LuauArithmeticOperator_end 27
+ │   │   │   │       │       │   │   └─ LuauSparkdownExplicitArithmeticOperator_end 27
  │   │   │   │       │       │   └─ LuauNumericDecimal [27..28]
  │   │   │   │       │       │       ├─ LuauNumericDecimal_c1 [27..28]: "1"
  │   │   │   │       │       │       └─ LuauNumericDecimal_c2 28
- │   │   │   │       │       └─ LuauArithmeticOperation_end 28
+ │   │   │   │       │       └─ LuauSparkdownExplicitArithmeticOperation_end 28
  │   │   │   │       └─ LuauSparkdownAssignmentOperation_end 28
  │   │   │   └─ LuauSparkdownReassignment_end 28
  │   │   └─ LuauSparkdownVariableDefinition [28..40]
@@ -149,16 +149,16 @@ sparkdown [0..63]
  │       │       └─ OptionalWhitespace [40..41]: " "
  │       └─ LuauSparkdownRepeatLoop_end_c2 [41..46]
  │           └─ LuauUntilKeyword [41..46]: "until"
- ├─ LuauUntilCondition [46..51]
- │   ├─ LuauUntilCondition_begin [46..47]
- │   │   └─ LuauUntilCondition_begin_c1 [46..47]
- │   │       └─ LuauUntilCondition_begin_c1 [46..47]
+ ├─ LuauSparkdownExplicitUntilCondition [46..51]
+ │   ├─ LuauSparkdownExplicitUntilCondition_begin [46..47]
+ │   │   └─ LuauSparkdownExplicitUntilCondition_begin_c1 [46..47]
+ │   │       └─ LuauSparkdownExplicitUntilCondition_begin_c1 [46..47]
  │   │           └─ OptionalWhitespace [46..47]: " "
- │   ├─ LuauUntilCondition_content [47..51]
+ │   ├─ LuauSparkdownExplicitUntilCondition_content [47..51]
  │   │   └─ LuauBoolean [47..51]
  │   │       ├─ LuauBoolean_c1 [47..51]: "true"
  │   │       └─ LuauBoolean_c2 51
- │   └─ LuauUntilCondition_end 51
+ │   └─ LuauSparkdownExplicitUntilCondition_end 51
  ├─ Newline [51..52]: "\n"
  ├─ ImplicitAction [52..62]
  │   ├─ ImplicitAction_begin 52

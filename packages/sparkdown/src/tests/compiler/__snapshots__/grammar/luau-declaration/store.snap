@@ -30,14 +30,14 @@ sparkdown [0..42]
      │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [24..25]
      │       │       │   │   │           └─ OptionalWhitespace [24..25]: " "
      │       │       │   │   └─ LuauAssignmentOperator_end 25
-     │       │       │   └─ LuauAccessPath [25..42]
-     │       │       │       ├─ LuauAccessPath_begin 25
-     │       │       │       ├─ LuauAccessPath_content [25..42]
-     │       │       │       │   ├─ LuauAccessPart [25..36]
+     │       │       │   └─ LuauSparkdownExplicitAccessPath [25..42]
+     │       │       │       ├─ LuauSparkdownExplicitAccessPath_begin 25
+     │       │       │       ├─ LuauSparkdownExplicitAccessPath_content [25..42]
+     │       │       │       │   ├─ LuauSparkdownExplicitAccessPart [25..36]
      │       │       │       │   │   └─ LuauVariable [25..36]
      │       │       │       │   │       └─ LuauVariable_c1 [25..36]
      │       │       │       │   │           └─ LuauVariableName [25..36]: "TIME_OF_DAY"
-     │       │       │       │   └─ LuauAccessPart [36..42]
+     │       │       │       │   └─ LuauSparkdownExplicitAccessPart [36..42]
      │       │       │       │       └─ LuauPropertyAccessor [36..42]
      │       │       │       │           ├─ LuauPropertyAccessor_c1 36
      │       │       │       │           ├─ LuauPropertyAccessor_c2 [36..37]
@@ -45,8 +45,8 @@ sparkdown [0..42]
      │       │       │       │           ├─ LuauPropertyAccessor_c3 37
      │       │       │       │           └─ LuauPropertyAccessor_c4 [37..42]
      │       │       │       │               └─ LuauPropertyName [37..42]: "NIGHT"
-     │       │       │       └─ LuauAccessPath_end 42
-     │       │       │           └─ LuauAccessPath_end_c1 42
+     │       │       │       └─ LuauSparkdownExplicitAccessPath_end 42
+     │       │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 42
      │       │       └─ LuauSparkdownAssignmentOperation_end 42
      │       └─ LuauSparkdownVariableAssignment_end 42
      └─ LuauSparkdownVariableDefinition_end 42

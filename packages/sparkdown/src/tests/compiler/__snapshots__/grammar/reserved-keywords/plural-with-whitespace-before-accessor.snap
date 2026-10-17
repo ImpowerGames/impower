@@ -30,14 +30,14 @@ sparkdown [0..37]
  │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [16..17]
  │   │       │       │   │   │           └─ OptionalWhitespace [16..17]: " "
  │   │       │       │   │   └─ LuauAssignmentOperator_end 17
- │   │       │       │   ├─ LuauAccessPath [17..33]
- │   │       │       │   │   ├─ LuauAccessPath_begin 17
- │   │       │       │   │   ├─ LuauAccessPath_content [17..33]
- │   │       │       │   │   │   ├─ LuauAccessPart [17..23]
+ │   │       │       │   ├─ LuauSparkdownExplicitAccessPath [17..33]
+ │   │       │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 17
+ │   │       │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [17..33]
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitAccessPart [17..23]
  │   │       │       │   │   │   │   └─ LuauVariable [17..23]
  │   │       │       │   │   │   │       └─ LuauVariable_c1 [17..23]
  │   │       │       │   │   │   │           └─ LuauStdLibConstants [17..23]: "plural"
- │   │       │       │   │   │   └─ LuauAccessPart [23..33]
+ │   │       │       │   │   │   └─ LuauSparkdownExplicitAccessPart [23..33]
  │   │       │       │   │   │       └─ LuauFunctionAccessor [23..33]
  │   │       │       │   │   │           ├─ LuauFunctionAccessor_c1 [23..24]
  │   │       │       │   │   │           │   └─ ExtraWhitespace [23..24]: " "
@@ -47,8 +47,8 @@ sparkdown [0..37]
  │   │       │       │   │   │           ├─ LuauFunctionAccessor_c4 [25..33]
  │   │       │       │   │   │           │   └─ LuauFunctionName [25..33]: "category"
  │   │       │       │   │   │           └─ LuauFunctionAccessor_c5 33
- │   │       │       │   │   └─ LuauAccessPath_end 33
- │   │       │       │   │       └─ LuauAccessPath_end_c1 33
+ │   │       │       │   │   └─ LuauSparkdownExplicitAccessPath_end 33
+ │   │       │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 33
  │   │       │       │   └─ LuauParenthetical [33..36]
  │   │       │       │       ├─ LuauParenthetical_begin [33..34]
  │   │       │       │       │   └─ LuauParenthetical_begin_c1 [33..34]
