@@ -15,8 +15,7 @@ import { isStoryHeaderOnlyLoop } from "../../utils/storyIslands";
 // at the end of its first line, so the lines under it are not its body.
 // In a function or a marked block that is reported as an error on the loop's
 // keyword rather than lowered; a story loop's, or a marked statement's own
-// loop's, is Luau's own error at
-// its line's end (#1907).
+// loop's, is Luau's own error at its line's end (#1907).
 export function loopBodyBlock(
   loop: GrammarSyntaxNode<SparkdownNodeName>,
 ): GrammarSyntaxNode<SparkdownNodeName> | undefined {
