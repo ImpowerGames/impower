@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 104,
-  "previous": "312d8b715e33c0c747e193148a4a4a185a471cdd",
+  "seq": 105,
+  "previous": "b7f8ca360890de22041d8e814b1268dd6f18e441",
   "snapshotParents": [],
-  "time": "2026-10-17T04:09:50.967Z",
+  "time": "2026-10-17T04:09:59.893Z",
   "kind": "auto",
-  "transition": "answered of #1924",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 108,
+    "recordRevision": 109,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2342,7 +2342,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T04:09:49.886Z",
+      "observedAt": "2026-10-17T04:09:58.672Z",
       "held": true,
       "head": "08f0761a40aa945501dbc48da53b1ab31662bbb0",
       "remoteHead": "08f0761a40aa945501dbc48da53b1ab31662bbb0",
@@ -2599,7 +2599,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T04:09:49.886Z",
+      "observedAt": "2026-10-17T04:09:58.672Z",
       "held": true,
       "head": "0bed5815578cb7daa1641cd650bf749da3241bbc",
       "remoteHead": "0bed5815578cb7daa1641cd650bf749da3241bbc",
@@ -3228,19 +3228,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T03:00:10.345Z",
-      "event": "launched",
-      "ticket": 1909,
-      "launchId": "139c5f6b-d476-4267-afb0-c4e2e9cca07a",
-      "handle": {
-        "kind": "process",
-        "pid": 54024,
-        "start": "639277164100107638",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1909-139c5f6b-d476-4267-afb0-c4e2e9cca07a"
-      }
-    },
     {
       "time": "2026-10-16T03:00:55.918Z",
       "event": "acknowledged",
@@ -3891,6 +3878,11 @@
       "ticket": 1924,
       "id": "442d13e0",
       "deliveryId": "04471f3a"
+    },
+    {
+      "time": "2026-10-17T04:09:57.309Z",
+      "event": "check-in",
+      "outcome": "#1924 round 3 checkpoint (request 442d13e0) decided extend to round 4 (decision 3f6686ca, comment 6229458152): the unreviewed tail is a behavior-changing grammar and converter change with a history of regressions; acceptance refused; the own-line attribute alternative left to the maintainer via #921; Closes #1990 confirmed; writer resumed with the decision; #1906 running in round 2"
     }
   ]
 }
