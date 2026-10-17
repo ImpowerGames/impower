@@ -1124,8 +1124,15 @@ try {
     assert.throws(() => cp.publish(record, { coordinator: "local_split", transition: "a leak probe", github: stores[INTERNAL] }), /Remote internal reaches .*acme.widgets\.git, not only the tickets repository/);
     assert.equal(git(checkout, "ls-remote", "origin", "refs/heads/orchestrate-state/feature-900"), "", "the code repository received no state branch");
     git(checkout, "config", "--unset-all", "remote.internal.pushurl");
-    const state900 = cp.fetchState(checkout, "internal", CODE, 900);
+    const state900 = cp.fetchState(checkout, "internal", CODE, 900, INTERNAL);
     assert.deepEqual([state900.checkpoint.repository, state900.checkpoint.ticketsRepository, state900.checkpoint.run.runId], [CODE, INTERNAL, run.readRecord(record).runId], "the checkpoint carries the run record and names both repositories");
+    // A reader of the code repository's Feature #900, a run of one repository,
+    // never takes this checkpoint for its own, wherever it was fetched from:
+    // nothing renders or publishes another tracker's state.
+    assert.throws(() => cp.fetchState(checkout, "internal", CODE, 900), new RegExp(`tickets live in ${INTERNAL}, not ${CODE}; it is another tracker's Feature #900`));
+    assert.throws(() => cp.syncSummary({ repository: CODE, feature: 900, checkout, remote: "internal", github: stores[CODE] }), /another tracker's Feature #900/);
+    assert.equal(stores[CODE].comments.size, 0, "so no status reaches the code repository's Feature");
+    assert.equal(cp.fetchState(checkout, "internal", CODE, 900, INTERNAL).commit, git(checkout, "ls-remote", "internal", "refs/heads/orchestrate-state/feature-900").split("\t")[0], "the checkpoint read is the commit the remote reported");
     // A writer's branch is pushed to the code repository and observed there;
     // its unfinished files are snapshotted onto the internal state branch,
     // whose history the public code repository already holds.
@@ -1140,7 +1147,7 @@ try {
     assert.equal(handed.checkpoint.saved, true, handed.checkpoint.reason);
     const snap901 = handed.snapshots[901];
     assert.ok(snap901 && !snap901.clean, "the unfinished work is snapshotted");
-    const handedState = cp.fetchState(checkout, "internal", CODE, 900);
+    const handedState = cp.fetchState(checkout, "internal", CODE, 900, INTERNAL);
     assert.ok(handedState.checkpoint.snapshots[901].commit === snap901.commit && git(checkout, "merge-base", "--is-ancestor", snap901.commit, handedState.commit) === "", "the snapshot travels on the internal state branch");
     const work901 = cp.workFor(handedState.checkpoint, 901)[0];
     assert.deepEqual([work901.remoteHead, work901.unpushed], [git(worktree, "rev-parse", "HEAD"), false], "the writer's branch is observed on the code repository's remote");

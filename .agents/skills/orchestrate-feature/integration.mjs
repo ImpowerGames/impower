@@ -243,7 +243,7 @@ const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.review
 // branch, with this operation's intent saved there, read from the remote. A
 // takeover, or an intent that never reached the remote, refuses the call.
 export function remoteOwnership(record, opId) {
-  const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.feature);
+  const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.feature, repositoriesOf(record).tickets);
   if (!state) return [`${stateBranch(record.feature)} is missing on ${record.checkpoints.remote}`];
   if (state.checkpoint.coordinator.session !== record.coordinator.session) return [`Feature #${record.feature} has been taken over: checkpoint ${state.checkpoint.seq} names coordinator ${state.checkpoint.coordinator.session}`];
   if (!(state.checkpoint.operations ?? []).some((o) => o.id === opId && o.state === "intent")) return [`operation ${opId}'s intent is not on ${stateBranch(record.feature)}`];
