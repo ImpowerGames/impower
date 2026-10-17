@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 102,
-  "previous": "4843310503c94e0b52c282ea946fb3181aae942e",
+  "seq": 103,
+  "previous": "b3c55bc4a9733a3da017e471dde032cd083c40ba",
   "snapshotParents": [],
-  "time": "2026-10-17T04:24:40.104Z",
+  "time": "2026-10-17T04:25:01.033Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 92,
+    "recordRevision": 93,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2819,7 +2819,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T04:24:38.969Z",
+      "observedAt": "2026-10-17T04:24:59.281Z",
       "held": true,
       "head": "5f4c4d3014460b1a99017e310e46089841f3e179",
       "remoteHead": "5f4c4d3014460b1a99017e310e46089841f3e179",
@@ -2930,7 +2930,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T04:24:38.969Z",
+      "observedAt": "2026-10-17T04:24:59.281Z",
       "held": true,
       "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
       "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
@@ -3868,6 +3868,11 @@
       "ticket": 1966,
       "id": "f73dfd51",
       "deliveryId": "d809ab04"
+    },
+    {
+      "time": "2026-10-17T04:24:57.666Z",
+      "event": "check-in",
+      "outcome": "no change: #1964 PR #2040 at 5f4c4d301 entering round 2 (one Windows api-integration check red on that head, the writer's to clear); #1966 PR #2015 round 5 launched on 51a6a7c0c under decision 0b03d427, writer waiting on the reviewer; both writers running"
     }
   ]
 }
