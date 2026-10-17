@@ -783,6 +783,11 @@ try {
     const row = report.split("\n").find((l) => l.startsWith("| #45 |"));
     assert.ok(row, "the delivered ticket has a row");
     assert.doesNotMatch(row, /#990|ccccccccc/, "an unrelated merged PR in the ticket's own list is not its delivery");
+    // A delivered ticket whose deliverer has no PR yet reports that absence,
+    // never another PR in its own list.
+    const noPr = { ...withDelivered, tickets: withDelivered.tickets.map((t) => (t.number === 45 ? { ...t, state: "open", delivered: false, deliveredBy: { ticket: 43, via: "body", pr: null, merged: false } } : t)) };
+    const noPrRow = ig.finalReport(run.readRecord(dstRecord), noPr, run.readRecord(dstRecord).verifications.find((v) => v.id === done.id)).split("\n").find((l) => l.startsWith("| #45 |"));
+    assert.match(noPrRow, /^\| #45 \| open \|  \| delivered by #43's PR: no merged PR/, "a deliverer with no PR borrows nothing");
     assert.match(row, new RegExp(`^\\| #45 \\| delivered \\| #${merged43.number} \\| delivered by #43's PR: merged by the coordinator as \\\`${String(merged43.mergeCommit).slice(0, 9)}\\\``), "the row names the deliverer, its PR and its merge through the gate");
   }
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);

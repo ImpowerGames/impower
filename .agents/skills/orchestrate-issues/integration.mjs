@@ -360,7 +360,7 @@ function slices(record, snapshot) {
   const prOf = (t) => (t.deliveredBy?.pr ? snapshot.tickets.find((x) => x.number === t.deliveredBy.ticket)?.prs.find((p) => p.number === t.deliveredBy.pr) ?? null : null);
   return snapshot.tickets.filter((t) => !t.container).map((t) => {
     const viaDeliverer = prOf(t);
-    const prs = viaDeliverer ? [viaDeliverer] : t.prs;
+    const prs = t.deliveredBy ? (viaDeliverer ? [viaDeliverer] : []) : t.prs;
     const merged = prs.find((p) => p.state === "MERGED" && p.mergeCommit);
     const op = merged && (record.operations ?? []).find((o) => o.kind === "merge" && o.pr === merged.number && o.state === "confirmed");
     return { number: t.number, title: t.title, deliveredBy: t.deliveredBy ?? null, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: prs.filter((p) => p.state === "OPEN").map((p) => p.number) };

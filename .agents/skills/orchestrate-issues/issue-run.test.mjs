@@ -551,6 +551,26 @@ try {
     assert.match(miniPlan.tickets.find((t) => t.number === 323).reason, /#322's body claims it, but #322 cannot deliver it \(itself delivered by another slice or contested\)/);
     assert.deepEqual(miniPlan.tickets.find((t) => t.number === 321).delivers, [322], "no writer is handed a claim its slice cannot carry");
     assert.deepEqual(run.closingReferences("Fixes https://github.com/acme/widgets/issues/7 and closes http://github.com/o/r/issues/8").map((r) => `${r.repository}#${r.number}`), ["acme/widgets#7", "o/r#8"]);
+    // A reference inside an HTML comment is invisible to GitHub and claims nothing.
+    assert.deepEqual(run.closingReferences("<!-- Previous scope: Closes #102. -->\nNothing here.\n<!--\ncloses #103\n-->"), []);
+    // A ticket another ticket claims delivers none of its own sub-issues: Task
+    // #402, claimed by #401's body, is a container reported for a decision,
+    // and its Bug #403 is planned on its own. An unrelated merged PR naming a
+    // delivered Bug neither completes it nor admits its dependents.
+    const t2 = {
+      200: [task(401, "claimant", "Closes #402. <!-- and closes #404 once, long ago -->"), task(402, "claimed task"), task(405, "slice with a bug"), task(406, "waits on the bug"), bug(404, "independent bug")],
+      402: [bug(403, "bug under a claimed task")], 405: [bug(407, "closed bug the slice delivers")],
+    };
+    const t2Pulls = { 407: [{ number: 599, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/999-work", closingIssuesReferences: [{ number: 407 }] }], 405: [{ number: 501, state: "OPEN", isDraft: true, headRefName: "feat/405-x", headRefOid: "h501", closingIssuesReferences: [{ number: 405 }, { number: 407 }] }] };
+    const t2Client = { ...mini, subIssues: (n) => t2[n] ?? [], pulls: (n) => [...(t2Pulls[n] ?? []), ...(n === 407 ? t2Pulls[405] : [])], blockedBy: (n) => (n === 406 ? [{ number: 407, state: "closed" }] : []), onMain: (sha) => sha === "on-main" };
+    const t2Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, { ...t2Client, subIssues: (n) => (t2[n] ?? []).map((x) => (x.number === 407 ? { ...x, state: "closed" } : x)) });
+    const k = Object.fromEntries(t2Snap.tickets.map((t) => [t.number, t]));
+    assert.deepEqual([k[402].container, k[402].claimedContainer, k[403].deliveredBy, k[404].deliveredBy], [true, { ticket: 401, via: "body" }, undefined, undefined], "a claimed task delivers nothing and a commented-out claim names nothing");
+    assert.deepEqual([k[407].deliveredBy, k[407].delivered, k[406].blockers[0].delivered], [{ ticket: 405, via: "pr", pr: 501, merged: false }, false, false], "only the deliverer's merge delivers the Bug and admits its dependents");
+    const t2Plan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: t2Snap, preflights: [available("claude-cli", "claude-opus-5-5", [403, 404, 406])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([402, 403, 404, 406, 407].map((n) => actions(t2Plan)[n]), ["decision-needed", "dispatch", "dispatch", "wait-dependency", "decision-needed"]);
+    assert.match(t2Plan.tickets.find((t) => t.number === 402).reason, /#401's body claims it, but it has sub-issues of its own/);
+    assert.equal(t2Plan.tickets.find((t) => t.number === 401).delivers, undefined, "no writer is handed a container's closing reference");
   }
 
   // The cutover switch, each position pinned from its own copy of the repos
