@@ -796,7 +796,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     // installs it again.
     const own = readRecord(file);
     if (own.runId !== prev.run.runId || own.coordinator.session !== coordinator) throw new Error(`Checkpoint ${prev.seq} names run ${prev.run.runId}, but ${file} holds run ${own.runId}; inspect both before continuing`);
-    const pointer = installPointer(checkout, repository, feature, { record: file, coordinator, host, since: own.coordinator.since });
+    const pointer = installPointer(checkout, repositoriesOf(own).tickets, feature, { record: file, coordinator, host, since: own.coordinator.since });
     // This session's request, as it is now, decides who merges, and its
     // permission mode as it reads it now is recorded; a change is saved before
     // the session acts on it.
@@ -857,7 +857,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   try { published = publish(file, { coordinator, kind: "takeover", transition: `the takeover from ${prev.coordinator.session}`, host, github, takeoverFrom: found.commit }); }
   catch (error) { throw error instanceof CoordinatorChanged ? setAside(error.message) : uncertain(error.message); }
   if (!published.saved) throw published.state === "refused" ? setAside(published.reason) : uncertain(published.reason);
-  installPointer(checkout, repository, feature, { record: file, coordinator, host, since: retry?.coordinator.since ?? since });
+  installPointer(checkout, ticketsRepository ?? repository, feature, { record: file, coordinator, host, since: retry?.coordinator.since ?? since });
   // The limitations are those of the takeover's own checkpoint, which observed
   // this host's work afresh.
   return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer: retry?.writer ?? writer, summary: published.summary ?? null, limitations: limitations(readCheckpointAt(checkout, published.commit), { host }) };
@@ -865,6 +865,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
 
 // On this machine the local pointer follows the takeover, so a previous
 // coordinator's record here stops accepting changes.
+// `repository` is the tickets repository, which keys the pointer.
 function installPointer(checkout, repository, feature, value) {
   const pointer = pointerFile(checkout, repository, feature);
   fs.mkdirSync(path.dirname(pointer), { recursive: true });

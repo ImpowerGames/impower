@@ -435,7 +435,8 @@ try {
 
   // The GitHub calls of each position, through an injected gh.
   const ghCalls = (names, reply) => { const calls = []; return { calls, client: run.githubClient(names, checkout, { run: (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return reply(args); } }) }; };
-  const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
+  // `pulls` answers every PR search, or, as a function, each search by its query.
+  const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(typeof pulls === "function" ? pulls(args[args.indexOf("--search") + 1]) : pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
   const listFields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit";
   {
     const { client: one, calls } = ghCalls({ repository: "acme/widgets" }, replies([]));
@@ -459,10 +460,14 @@ try {
     const ref = (slug, number) => ({ number, repository: { name: slug.split("/")[1], owner: { login: slug.split("/")[0] } } });
     const pr = (number, branch, login, refs) => ({ number, state: "OPEN", isDraft: true, headRefName: branch, headRefOid: `h${number}`, baseRefName: "main", closingIssuesReferences: refs, mergeCommit: null, author: { login } });
     const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 7)])];
-    const { client: split, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(listed, { [`repos/${INTERNAL}/issues/7/comments`]: [{ body: "### Review round 2 state\n" }], "repos/acme/widgets/issues/701/comments": [{ body: "### Review round 5 state\n" }] }));
+    // GitHub's head: qualifier matches a branch name's start, so a branch with
+    // a prefix a claim allows is answered only by the search for the number.
+    const prefixed = pr(704, "codex/fix/7-prefixed", "shared", [ref(INTERNAL, 7)]);
+    const heads = run.DISCOVERY_TYPES.map((t) => `head:${t}/7-`).join(" ");
+    const { client: split, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies((search) => (search === heads ? listed : search === "7" ? [prefixed, listed[0], pr(705, "fix/77-other", "shared", [])] : []), { [`repos/${INTERNAL}/issues/7/comments`]: [{ body: "### Review round 2 state\n" }], "repos/acme/widgets/issues/701/comments": [{ body: "### Review round 5 state\n" }] }));
     split.issue(6); split.subIssues(6); split.blockedBy(7); split.effort(7);
     const found = split.pulls(7);
-    assert.deepEqual(found.map((p) => [p.number, p.closingIssuesReferences.map((r) => `${r.repository.owner.login}/${r.repository.name}#${r.number}`)]), [[701, [`${INTERNAL}#7`]]], "only the shared account's PR on the ticket's own branch is the ticket's, with its references to the tickets repository");
+    assert.deepEqual(found.map((p) => [p.number, p.closingIssuesReferences.map((r) => `${r.repository.owner.login}/${r.repository.name}#${r.number}`)]), [[704, [`${INTERNAL}#7`]], [701, [`${INTERNAL}#7`]]], "only the shared account's PRs on the ticket's own branch, prefixed or not, are the ticket's, once each, with their references to the tickets repository");
     assert.ok(!("author" in found[0]), "the author is read for discovery only");
     split.comments(701, 7); split.checks(701);
     assert.deepEqual(calls, [
@@ -471,14 +476,15 @@ try {
       `gh api --paginate --slurp repos/${INTERNAL}/issues/7/dependencies/blocked_by`,
       `gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/${INTERNAL}/issues/7/issue-field-values`,
       "gh api user --jq .login",
-      `gh pr list --repo acme/widgets --author @me --state all --search ${run.DISCOVERY_TYPES.map((t) => `head:${t}/7-`).join(" ")} --limit 100 --json ${listFields},author`,
+      `gh pr list --repo acme/widgets --author @me --state all --search ${heads} --limit 100 --json ${listFields},author`,
+      `gh pr list --repo acme/widgets --author @me --state all --search 7 --limit 100 --json ${listFields},author`,
       `gh api --paginate --slurp repos/${INTERNAL}/issues/7/comments`,
       "gh pr view 701 --repo acme/widgets --json statusCheckRollup",
     ]);
     assert.ok(!calls.some((c) => /graphql|^gh issue|repos\/acme\/widgets\//.test(c)), "nothing reads tickets or comments of the code repository, and nothing uses GraphQL for them");
     assert.throws(() => split.comments(701), /Supply ticket/, "a PR's review thread needs its ticket once tickets live apart");
     const splitSnap = run.takeSnapshot({ repository: "acme/widgets", feature: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], effort: () => "Medium" });
-    assert.deepEqual(splitSnap.tickets[0].prs.map((p) => [p.number, p.rounds]), [[701, 2]], "the PR's rounds come from the round-state comments on its ticket");
+    assert.deepEqual(splitSnap.tickets[0].prs.map((p) => [p.number, p.rounds]), [[704, 2], [701, 2]], "the PRs' rounds come from the round-state comments on their ticket");
     // The record names the tickets repository; its brief and remaining work
     // send the writer and the checkpoint decisions there.
     const dir = path.join(tmp, "split-run");
@@ -489,6 +495,14 @@ try {
     assert.throws(() => run.initRecord({ record: path.join(dir, "bad.json"), checkout: dir, repository: "acme/widgets", ticketsRepository: "acme/widgets", feature: 9, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "x" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB }), /another owner\/name than --repo/);
     const splitRecord = run.readRecord(file);
     assert.equal(splitRecord.ticketsRepository, INTERNAL);
+    // The coordinator pointer is keyed by the repository holding the Feature,
+    // so a code repository Feature #6 in the same checkout, from a run of one
+    // repository, has its own pointer at the path it always had.
+    const sameNumber = run.initRecord({ record: path.join(dir, "public-6.json"), checkout: dir, repository: "acme/widgets", feature: 6, coordinator: "local_public", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.equal(sameNumber.action, "init", "an unrelated Feature of the same number in the code repository starts its own run");
+    assert.equal(sameNumber.pointer, run.pointerFile(dir, "acme/widgets", 6));
+    assert.notEqual(run.pointerFile(dir, INTERNAL, 6), sameNumber.pointer);
+    assert.equal(JSON.parse(fs.readFileSync(run.pointerFile(dir, INTERNAL, 6), "utf8")).coordinator, "local_split", "and the internal Feature's pointer still names its coordinator");
     assert.deepEqual(run.repositoriesOf(splitRecord).thread(701, 7), { repo: INTERNAL, number: 7, issueUrl: `https://api.github.com/repos/${INTERNAL}/issues/7` });
     const splitSnapshot = featureSnapshot(6, [{ ...ticket(7), parent: 6 }]);
     const splitPlanFile = write("split-plan.json", run.planDispatch({ record: splitRecord, snapshot: splitSnapshot, preflights: [available("claude-cli", "claude-opus-5-5", [7])], freeBytes: 100 * GB, defaults }));

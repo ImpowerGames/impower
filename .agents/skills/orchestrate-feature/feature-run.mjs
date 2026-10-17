@@ -156,7 +156,7 @@ export function updateRecord(file, { expectRevision, coordinator }, mutate, { id
     // After a takeover the pointer names the new record, so the previous
     // coordinator's record stops accepting changes.
     let pointer;
-    try { pointer = readJson(pointerFile(record.checkout, record.repository, record.feature)); } catch { pointer = null; }
+    try { pointer = readJson(pointerFile(record.checkout, repositoriesOf(record).tickets, record.feature)); } catch { pointer = null; }
     if (!pointer || path.resolve(pointer.record) !== path.resolve(file)) throw new Error(`The coordinator pointer for Feature #${record.feature} ${pointer ? `names ${pointer.record} (coordinator ${pointer.coordinator})` : "is missing or unreadable"}; this record no longer coordinates the Feature`);
     const next = structuredClone(record);
     const output = mutate(next);
@@ -198,7 +198,10 @@ const ticketOf = (record, number) => (record.tickets[number] ??= { owner: null, 
 // One coordinator per Feature on this machine: a pointer in the checkout's
 // shared Git directory names the coordinator and its record. A second
 // coordinator is refused; it takes over only after the first is observed to
-// have ended, carrying the ownership forward unchanged.
+// have ended, carrying the ownership forward unchanged. The pointer is keyed
+// by the repository that holds the Feature, the tickets repository, so an
+// internal Feature never meets a code repository issue of the same number;
+// with one repository that is the code repository, as it always was.
 export function pointerFile(checkout, repository, feature) {
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: checkout, encoding: "utf8", windowsHide: true }).trim();
   return path.join(common, "orchestrate-feature", `${repository.replace(/[^A-Za-z0-9.-]+/g, "_")}-${feature}.json`);
@@ -252,8 +255,8 @@ export const qualifyPrs = (names, text) => (names.split ? String(text).replace(/
 
 // Once tickets live apart, a ticket's number says nothing about the code
 // repository's pull requests, so its pull requests are found by the shared
-// account as author and a head branch <type>/<N>-, searched for each branch
-// type a claim or an adoption uses.
+// account as author and a head branch <type>/<N>-, with or without a prefix,
+// searched for each branch type a claim or an adoption uses.
 export const DISCOVERY_TYPES = ["fix", "feat", "perf", "docs", "test", "refactor", "ci", "chore"];
 
 // What an invocation authorizes; a takeover starts from it again rather than
@@ -388,7 +391,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     if (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 8) throw new Error("--concurrency must be 1 to 8");
     concurrency = { limit: options.concurrency, basis: `invocation override (default would be ${concurrency.limit}: ${concurrency.basis})` };
   }
-  const pointer = pointerFile(checkout, repository, feature);
+  const pointer = pointerFile(checkout, ticketsRepository ?? repository, feature);
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, ...(options.coordinatorMode !== undefined && { permissionMode: options.coordinatorMode }), since: new Date().toISOString() };
   const fresh = (carried = {}) => ({
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, ...(ticketsRepository !== undefined && { ticketsRepository }), feature, checkout, coordinator: self,
@@ -501,10 +504,17 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   const pages = (args) => JSON.parse(run("gh", ["api", "--paginate", "--slurp", ...args])).flat();
   const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit";
   let account;
+  // GitHub's head: qualifier matches a branch name's start, so a branch with a
+  // prefix a claim allows (codex/fix/<N>-) is found by the second query, the
+  // shared account's PRs whose text names the number, as its closing
+  // reference does. Either query only narrows the list: a PR is the ticket's
+  // by its author and its branch.
   const accountPulls = (n) => {
     account ??= run("gh", ["api", "user", "--jq", ".login"]).trim();
     const heads = DISCOVERY_TYPES.map((type) => `head:${type}/${n}-`).join(" ");
-    return JSON.parse(run("gh", ["pr", "list", "--repo", code, "--author", "@me", "--state", "all", "--search", heads, "--limit", "100", "--json", `${fields},author`]))
+    const found = new Map();
+    for (const search of [heads, String(n)]) for (const p of JSON.parse(run("gh", ["pr", "list", "--repo", code, "--author", "@me", "--state", "all", "--search", search, "--limit", "100", "--json", `${fields},author`]))) found.set(p.number, p);
+    return [...found.values()].sort((a, b) => b.number - a.number)
       .filter((p) => p.author?.login === account && branchTicket(p.headRefName) === n)
       .map(({ author, ...p }) => ({ ...p, closingIssuesReferences: closingIn(p.closingIssuesReferences, tickets, code) }));
   };
