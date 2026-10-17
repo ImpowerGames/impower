@@ -1,0 +1,14 @@
+function f(c)
+  local x = --[[ c ]] if c then
+    1
+  else 2
+  local y = (--[[ c ]] if c then
+    1
+  else 2)
+  local z = 1 + --[[ c ]] if c then
+    1
+  else 2
+  return --[[ c ]] --[[ d ]] if c then
+    x
+  else y + z
+end

@@ -149,7 +149,6 @@ portUpstreamFile("TypeInfer.tryUnify.test.cpp", [
     // TypeInfer.tryUnify.test.cpp:261 TEST_CASE_FIXTURE(Fixture, "variadics_should_use_reversed_properly")
     name: "variadics_should_use_reversed_properly",
     fixture: "Fixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         --!strict
         local function f<T>(...: T): ...T

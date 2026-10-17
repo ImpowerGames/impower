@@ -2711,7 +2711,6 @@ local baz = foo[bar]
     // TypeInfer.tables.test.cpp:3486 TEST_CASE_FIXTURE(BuiltinsFixture, "access_index_metamethod_that_returns_variadic")
     name: "access_index_metamethod_that_returns_variadic",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         type Foo = {x: string}
         local t = {}
@@ -5197,7 +5196,6 @@ end
     // TypeInfer.tables.test.cpp:6427 TEST_CASE_FIXTURE(Fixture, "result_like_tagged_union")
     name: "result_like_tagged_union",
     fixture: "Fixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
 --!strict
 local function retry(func: (...any) -> ...any): { type: "ok", value: any } | { type: "failed" }

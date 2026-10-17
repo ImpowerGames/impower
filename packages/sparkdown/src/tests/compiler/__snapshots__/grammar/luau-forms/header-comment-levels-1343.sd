@@ -1,0 +1,15 @@
+style --[=[ example ]] inside ]=] banner with
+  color = red
+end
+style --[==[ a ]=] b ]] c ]==] other with
+  color = blue
+end
+style --[=[a]]=] third with
+  color = green
+end
+style --[====[c]====] fourth with
+  color = green
+end
+function --[=[a]]=] h(x: number) return x end
+
+The rain stops on the rooftop.

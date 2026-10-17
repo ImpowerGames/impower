@@ -11,6 +11,8 @@ import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 // The statements of a `.sd` file that are Luau, wherever they sit.
 export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
+  // A top-level function's attributes, read with the function after them.
+  "LuauFunctionAttributes",
   "LuauFunctionDefinition",
   "LuauSparkdownExplicitStatement",
   "LuauSparkdownExplicitBlockStatement",

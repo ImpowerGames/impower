@@ -646,12 +646,12 @@ describe("faithful fixture and query execution", () => {
       "type T = Mod.  X",
     );
   });
-  test("prepared native AST preserves mixed variadic lists while #876 blocks source parsing", async () => {
+  test("prepared native AST preserves mixed variadic lists", async () => {
     const { decorateSource } = await import("./typecheckDecoration");
     const source = "type T=(number,...string)->(number,...string)";
-    // This natural source remains a Sparkdown grammar defect; no parse success
-    // or conformance skip is fabricated. Exercise the genuine prepared AST and
-    // real checker separately, as the definition setup boundary permits.
+    // Exercise the genuine prepared AST and real checker separately from
+    // Sparkdown's grammar, which reads this source too since #876 (#1924),
+    // as the definition setup boundary permits.
     const parse = await loadOfficialLuau("typecheck"),
       parsed = parse(source);
     expect(parsed.errors).toBe(0);

@@ -712,7 +712,6 @@ tbl:f3()
     name: "normalization_limit_in_unify_with_any",
     fixture: "BuiltinsFixture",
     limits: { LuauNormalizeCacheLimit: 1000 },
-    unparsed: { defect: 924 }, // an if expression followed by end on the same line
     source: Array.from({ length: 100 }, (_, i) => `type T${i} = { f${i}: number }\n`).join("") +
       "type Instance = { new: (('s0', extra: Instance?) -> T0)" +
       Array.from({ length: 99 }, (_, i) => ` & (('s${i + 1}', extra: Instance?) -> T${i + 1})`).join("") +

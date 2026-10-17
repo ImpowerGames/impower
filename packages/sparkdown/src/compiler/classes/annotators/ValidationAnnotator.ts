@@ -117,8 +117,8 @@ const LUAU_NUMBER = nodeNameSet([
   "LuauNumericHex",
   "LuauNumericBinary",
 ]);
-// The grammar's `LUAU_TYPE_END_BEFORE_OPTIONAL` without the `]` that a block
-// comment's close adds, tested against the two characters before a position.
+// The grammar's `LUAU_TYPE_END` without the `]` that a block comment's close
+// adds, tested against the two characters before a position.
 const LUAU_TYPE_END_BEFORE_OPTIONAL = /(?:[\w)}"'`?]|[^-]>)$/;
 
 // The inline text command (`<1.5x:...>`) reuses the number rule for its

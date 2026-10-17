@@ -84,21 +84,7 @@ export interface KnownCorpusFailure {
  * `KNOWN_DISAGREEMENTS`.
  */
 export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
-  ...failing(876, "incomplete", "a variadic type `...T`, or a pack `T...` inside `<< >>`", [
-    "typecheck/TypeInfer.annotations.test.cpp/unknown_generic_type_pack_in_explicit_instantiation_generates_one_error check 1",
-    "typecheck/TypeInfer.annotations.test.cpp/unknown_generic_type_pack_in_explicit_instantiation_generates_one_error check 2",
-    "typecheck/TypeInfer.annotations.test.cpp/unknown_generic_type_pack_in_explicit_instantiation_generates_one_error check 3",
-    "typecheck/TypeInfer.anyerror.test.cpp/for_in_loop_iterator_is_any_pack",
-    "typecheck/TypeInfer.tables.test.cpp/access_index_metamethod_that_returns_variadic",
-    "typecheck/TypeInfer.tables.test.cpp/result_like_tagged_union",
-    "typecheck/TypeInfer.test.cpp/multiple_assignment",
-    "typecheck/TypeInfer.tryUnify.test.cpp/variadics_should_use_reversed_properly",
-  ]),
   ...failing(1988, "incomplete", "a `;` right after a `repeat`'s `until` condition", ["conformance/constructs.luau"]),
-  ...failing(1990, "incomplete", "a one-line `return if ... else ...` before the function's `end`", [
-    "conformance/coroutine.luau",
-    "typecheck/TypeInfer.provisional.test.cpp/normalization_limit_in_unify_with_any",
-  ]),
   ...failing(1989, "extent", "a keyword as a method name after `:` opens a block that takes the function's `end`", [
     "autocomplete/autocompleteMembers.test.ts/keyword_methods",
   ]),

@@ -161,10 +161,13 @@ export interface LuauSyntaxError {
  * its `:` (`annotation`); an expression that is missing or cannot begin with
  * the token found, a member access with no name after its `.` or `:`, a
  * method call with no arguments, or a function value with a name
- * (`expression`); and a statement that is a value but not a call
- * (`statement`).
+ * (`expression`); a statement that is a value but not a call
+ * (`statement`); and an attribute Luau does not know, repeats, or gives
+ * arguments it does not take, such as a value that is not a literal
+ * (`attribute`), where the grammar reads the attribute and its arguments
+ * as it reads any.
  */
-export type MalformedConstruct = "type" | "annotation" | "expression" | "statement";
+export type MalformedConstruct = "type" | "annotation" | "expression" | "statement" | "attribute";
 
 /** A node of the syntax tree, by its name and document offsets (a `SyntaxNode` is not kept, since the tree makes a new one on every visit). */
 export interface TreeNodeRef {
@@ -1495,6 +1498,9 @@ class Parser {
   // the closing brackets given up on in the blocks being read (see
   // `parseBlockNoScope`).
   private sparkdownDepth = 0;
+  // Not part of Luau: how many attribute lists (`@[...]`) are being read;
+  // every error met in one is the list's (`MalformedConstruct` "attribute").
+  private attributeListDepth = 0;
   // Not part of Luau: how many errors the reading has met, a second at one
   // location included, and the index of the token the last was met at.
   private reports = 0;
@@ -1639,16 +1645,22 @@ class Parser {
     }
     const recovering = statement?.startsAtError === true && location.begin.gt(statement.begin);
     const consequence = recovering || (this.statementErrorBegin !== undefined && !location.begin.gt(this.statementErrorBegin));
-    // A type or an annotation that story ends before is malformed where the
-    // end of the unit's Luau would leave it so; Sparkdown's own syntax does
-    // not read one (`local x:` before a line of story).
+    // A type, an annotation or an attribute's function that story ends
+    // before is malformed where the end of the unit's Luau would leave it
+    // so; Sparkdown's own syntax does not read one (`local x:` or
+    // `store f = @native` before a line of story).
     // A marked narrative statement owns its missing value/closer at its
     // authored EOF. The following prose only supplies a synthetic break;
     // delegating this error to story grammar would drop it entirely.
     // Genuine Luau functions keep their existing multiline recovery.
     const boundedStoryEnd = !this.currentFunction().luau && this.current().kind === "break" && this.current().authoredEnd === true;
-    const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation"));
-    if (malformed && !follows && !consequence && this.sparkdownDepth === 0 && !atSparkdown && !this.atAbandonedCloser()) {
+    // An error met in an attribute list is the list's, and Luau's attribute
+    // errors are Luau's own even in a `store` declaration's value, since
+    // Sparkdown's syntax does not read an attribute's meaning.
+    malformed ??= this.attributeListDepth > 0 ? "attribute" : undefined;
+    const sparkdownOwned = this.sparkdownDepth > 0 && malformed !== "attribute";
+    const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation" || malformed === "attribute"));
+    if (malformed && !follows && !consequence && !sparkdownOwned && !atSparkdown && !this.atAbandonedCloser()) {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
     }
@@ -2224,11 +2236,11 @@ class Parser {
   private validateAttribute(loc: Location, name: string, attributes: AstAttr[], args: AstExpr[]): AstAttrType | undefined {
     const type = ATTRIBUTES.get(name);
     if (type === undefined) {
-      this.report(loc, name.length === 0 ? "Attribute name is missing" : `Invalid attribute '@${name}'`);
+      this.report(loc, name.length === 0 ? "Attribute name is missing" : `Invalid attribute '@${name}'`, "attribute");
       return undefined;
     }
-    for (const attr of attributes) if (attr.type === type) this.report(loc, `Cannot duplicate attribute '@${name}'`);
-    if (type === AstAttrType.Deprecated) for (const [errorLoc, message] of deprecatedArgsErrors(loc, args)) this.report(errorLoc, message);
+    for (const attr of attributes) if (attr.type === type) this.report(loc, `Cannot duplicate attribute '@${name}'`, "attribute");
+    if (type === AstAttrType.Deprecated) for (const [errorLoc, message] of deprecatedArgsErrors(loc, args)) this.report(errorLoc, message, "attribute");
     return type;
   }
 
@@ -2251,30 +2263,40 @@ class Parser {
       }
       const open = this.current();
       this.next();
-      if (this.is("]")) {
-        const loc = Location.span(at.location, this.current().location);
-        this.report(loc, "Attribute list cannot be empty");
-        attributes.push(new AstAttr(loc, AstAttrType.Unknown, [], ERROR_NAME));
-      } else {
-        for (;;) {
-          const name = this.parseName("attribute name");
-          if (this.is("(") || this.is("{") || this.current().kind === "string" || this.current().kind === "rawstring") {
-            const [args, argsLocation] = this.parseCallList();
-            for (const arg of args) {
-              if (!isConstantLiteral(arg) && !isLiteralTable(arg)) this.report(argsLocation, "Only literals can be passed as arguments for attributes");
-            }
-            const type = this.validateAttribute(name.location, name.name, attributes, args);
-            attributes.push(new AstAttr(Location.span(name.location, argsLocation), type ?? AstAttrType.Unknown, args, name.name));
-          } else {
-            attributes.push(new AstAttr(name.location, this.validateAttribute(name.location, name.name, attributes, []) ?? AstAttrType.Unknown, [], name.name));
-          }
-          if (!this.is(",")) break;
-          this.next();
-        }
+      this.attributeListDepth++;
+      try {
+        this.parseAttributeList(at, open, attributes);
+      } finally {
+        this.attributeListDepth--;
       }
-      this.expectMatchAndConsume("]", open);
     }
     return attributes;
+  }
+
+  /** The names and arguments of an attribute list after its `[`, and its `]`. */
+  private parseAttributeList(at: Token, open: Token, attributes: AstAttr[]): void {
+    if (this.is("]")) {
+      const loc = Location.span(at.location, this.current().location);
+      this.report(loc, "Attribute list cannot be empty");
+      attributes.push(new AstAttr(loc, AstAttrType.Unknown, [], ERROR_NAME));
+    } else {
+      for (;;) {
+        const name = this.parseName("attribute name");
+        if (this.is("(") || this.is("{") || this.current().kind === "string" || this.current().kind === "rawstring") {
+          const [args, argsLocation] = this.parseCallList();
+          for (const arg of args) {
+            if (!isConstantLiteral(arg) && !isLiteralTable(arg)) this.report(argsLocation, "Only literals can be passed as arguments for attributes");
+          }
+          const type = this.validateAttribute(name.location, name.name, attributes, args);
+          attributes.push(new AstAttr(Location.span(name.location, argsLocation), type ?? AstAttrType.Unknown, args, name.name));
+        } else {
+          attributes.push(new AstAttr(name.location, this.validateAttribute(name.location, name.name, attributes, []) ?? AstAttrType.Unknown, [], name.name));
+        }
+        if (!this.is(",")) break;
+        this.next();
+      }
+    }
+    this.expectMatchAndConsume("]", open);
   }
 
   /** An attribute list's arguments: a parenthesized list, a table or a string. */
@@ -2318,6 +2340,7 @@ class Parser {
       [],
       [],
       `Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got ${describe(this.current())} instead`,
+      "attribute",
     );
   }
 
@@ -2345,7 +2368,7 @@ class Parser {
       return stat;
     };
     if (attributes.length !== 0 && !this.is("function")) {
-      this.report(this.current().location, `Expected 'function' after export declaration with attribute, but got ${describe(this.current())} instead`);
+      this.report(this.current().location, `Expected 'function' after export declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     if (this.is("local")) {
       const keywordLocation = this.current().location;
@@ -2579,7 +2602,7 @@ class Parser {
       return new AstStatLocalFunction(new Location(start.begin, body.location.end), variable!, body, isConst);
     }
     if (attributes.length !== 0) {
-      return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`);
+      return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     const names: Binding[] = [];
     this.parseBindingList(names, false, isConst);
@@ -3458,7 +3481,7 @@ class Parser {
     if (this.isAttribute()) {
       const attributes = this.parseAttributes();
       if (!this.is("function")) {
-        return this.reportExprError(start, [], `Expected 'function' declaration after attribute, but got ${describe(this.current())} instead`);
+        return this.reportExprError(start, [], `Expected 'function' declaration after attribute, but got ${describe(this.current())} instead`, "attribute");
       }
       const matchFunction = this.current();
       this.next();

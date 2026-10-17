@@ -91,6 +91,9 @@ export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownExplicitBlockStatement",
   "LuauReassignment",
   "LuauSparkdownReassignment",
+  // A top-level function statement with its attributes, which holds the
+  // function's own node.
+  "LuauFunctionAttributes",
   "LuauFunctionDefinition",
   "LuauIfBlock",
   "LuauSparkdownIfBlock",

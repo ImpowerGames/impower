@@ -48,12 +48,11 @@ describe("syntax diagnostics", () => {
   });
 
   test("a construct the parser cannot finish is reported, once per place", () => {
-    // Luau reads the attributed function value; the grammar's declaration
-    // value stops at the `@` it has no rule for, and the function body takes
-    // the rest as tokens it left unread (`LuauUnreadToken`).
-    const found = checkLuau("\n\n    local f = @[native] function() end\n").syntaxDiagnostics;
+    // Luau reads a `;` right after a `repeat`'s `until` condition; the
+    // grammar's loop cannot end before it (#1988).
+    const found = checkLuau("\n\n    repeat local x = 1 until x;\n").syntaxDiagnostics;
     expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
-      [2, 14, `Sparkdown could not finish reading the Luau before "@[native] function() end"`],
+      [2, 30, `Sparkdown could not finish reading the Luau before ";"`],
     ]);
   });
 

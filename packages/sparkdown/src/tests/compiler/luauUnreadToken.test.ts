@@ -380,7 +380,6 @@ describe("each error has one reader", () => {
 
   it("an unread attribute is read as Luau's lexer reads it, in a type and in a parameter list", () => {
     for (const luau of [
-      "function f()\n  local x: @[native] = 1\nend\n",
       "function f()\n  local x: @ = 1\nend\n",
       "function f(@) end\n",
       "function f()\n  b = @5\nend\n",
@@ -405,10 +404,14 @@ describe("each error has one reader", () => {
     const closure = (body: string) => read(`layout main with\n  button @click={ ${body}}\nend\n`).errors;
     expect(closure("local x = @")).toEqual(closure("local x = @ "));
     expect(closure("local x = @").join("\n")).not.toContain("@end");
-    // The grammar reads `@native` as an attribute (`LuauAttribute`), so it is
-    // no unread token; the type is still missing there, as Luau reports it.
+    // The grammar reads `@native` and `@[native]` as attributes
+    // (`LuauAttribute`, `LuauAttributeList`, #1924), so neither is an unread
+    // token; the type is still missing there, as Luau reports it.
     expect(read("function f()\n  local x: @native = 1\nend\n").errors).toContain(
       "1:11-1:18 attributes are not allowed in declaration context",
+    );
+    expect(read("function f()\n  local x: @[native] = 1\nend\n").errors).toContain(
+      "1:11-1:13 attributes are not allowed in declaration context",
     );
   });
 
@@ -441,14 +444,15 @@ describe("each error has one reader", () => {
 });
 
 describe("the syntax tree holds the whole function", () => {
-  it("#921 reads the attribute list in the function's body, the `@` as unread", () => {
+  it("#921 reads the attribute list in the function's body, the `@` as an attribute's", () => {
     const { tree } = read(CASES["#921 a function marked with an attribute list"]!.text);
     const top: string[] = [];
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) top.push(node.name);
     expect(top.filter((n) => n !== "Newline")).toEqual(["ImplicitAction", "LuauFunctionDefinition"]);
     expect(errorNodes(tree)).toEqual([]);
+    // The list's own rule reads it since #1924 (`LuauAttributeList`).
     const at = tree.topNode.resolveInner(CASES["#921 a function marked with an attribute list"]!.text.indexOf("@"), 1);
-    expect(at.name).toBe("LuauUnreadCharacter");
+    expect(at.name).toBe("LuauAttributeOperator");
   });
 
   it("#1248 two calls on one line leave no unfinished node", () => {

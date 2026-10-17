@@ -1,0 +1,476 @@
+sparkdown [0..223]
+ ├─ LuauFunctionDefinition [0..188]
+ │   ├─ LuauFunctionDefinition_begin [0..9]
+ │   │   ├─ LuauFunctionDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauFunctionDefinition_begin_c2 0
+ │   │   ├─ LuauFunctionDefinition_begin_c3 0
+ │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
+ │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
+ │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │           └─ OptionalWhitespace [8..9]: " "
+ │   ├─ LuauFunctionDefinition_content [9..185]
+ │   │   ├─ LuauFunctionDeclarationName [9..10]
+ │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..10]
+ │   │   │   │   └─ LuauFunctionName [9..10]: "g"
+ │   │   │   └─ LuauFunctionDeclarationName_c2 10
+ │   │   ├─ LuauFunctionParameters [10..12]
+ │   │   │   ├─ LuauFunctionParameters_begin [10..11]
+ │   │   │   │   └─ LuauFunctionParameters_begin_c1 [10..11]
+ │   │   │   │       └─ PunctuationParenOpen [10..11]: "("
+ │   │   │   └─ LuauFunctionParameters_end [11..12]
+ │   │   │       └─ LuauFunctionParameters_end_c1 [11..12]
+ │   │   │           └─ PunctuationParenClose [11..12]: ")"
+ │   │   └─ LuauFunctionBody [12..185]
+ │   │       ├─ LuauFunctionBody_begin [12..13]: "\n"
+ │   │       ├─ LuauFunctionBody_content [13..185]
+ │   │       │   ├─ LuauFunctionDefinition [13..57]
+ │   │       │   │   ├─ LuauFunctionDefinition_begin [13..30]
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c1 [13..15]
+ │   │       │   │   │   │   └─ OptionalWhitespace [13..15]: "  "
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c2 [15..20]
+ │   │       │   │   │   │   └─ LuauScopeModifier [15..20]: "local"
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c3 [20..21]
+ │   │       │   │   │   │   └─ LuauFunctionDefinition_begin_c3 [20..21]
+ │   │       │   │   │   │       └─ OptionalWhitespace [20..21]: " "
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c4 [21..29]
+ │   │       │   │   │   │   └─ LuauFunctionKeyword [21..29]: "function"
+ │   │       │   │   │   └─ LuauFunctionDefinition_begin_c5 [29..30]
+ │   │       │   │   │       └─ LuauFunctionDefinition_begin_c5 [29..30]
+ │   │       │   │   │           └─ OptionalWhitespace [29..30]: " "
+ │   │       │   │   ├─ LuauFunctionDefinition_content [30..53]
+ │   │       │   │   │   ├─ LuauFunctionDeclarationName [30..31]
+ │   │       │   │   │   │   ├─ LuauFunctionDeclarationName_c1 [30..31]
+ │   │       │   │   │   │   │   └─ LuauFunctionName [30..31]: "f"
+ │   │       │   │   │   │   └─ LuauFunctionDeclarationName_c2 31
+ │   │       │   │   │   ├─ LuauFunctionParameters [31..33]
+ │   │       │   │   │   │   ├─ LuauFunctionParameters_begin [31..32]
+ │   │       │   │   │   │   │   └─ LuauFunctionParameters_begin_c1 [31..32]
+ │   │       │   │   │   │   │       └─ PunctuationParenOpen [31..32]: "("
+ │   │       │   │   │   │   └─ LuauFunctionParameters_end [32..33]
+ │   │       │   │   │   │       └─ LuauFunctionParameters_end_c1 [32..33]
+ │   │       │   │   │   │           └─ PunctuationParenClose [32..33]: ")"
+ │   │       │   │   │   ├─ LuauFunctionReturnType [33..44]
+ │   │       │   │   │   │   ├─ LuauFunctionReturnType_begin [33..35]
+ │   │       │   │   │   │   │   ├─ LuauFunctionReturnType_begin_c1 [33..34]
+ │   │       │   │   │   │   │   │   └─ LuauTypeOperator [33..34]: ":"
+ │   │       │   │   │   │   │   └─ LuauFunctionReturnType_begin_c2 [34..35]
+ │   │       │   │   │   │   │       └─ LuauFunctionReturnType_begin_c2 [34..35]
+ │   │       │   │   │   │   │           └─ OptionalWhitespace [34..35]: " "
+ │   │       │   │   │   │   ├─ LuauFunctionReturnType_content [35..44]
+ │   │       │   │   │   │   │   └─ LuauTypeLiteral [35..44]
+ │   │       │   │   │   │   │       ├─ LuauTypeLiteral_begin 35
+ │   │       │   │   │   │   │       ├─ LuauTypeLiteral_content [35..44]
+ │   │       │   │   │   │   │       │   ├─ LuauVariadicTypePack [35..38]: "..."
+ │   │       │   │   │   │   │       │   └─ LuauNamedTypeReference [38..44]
+ │   │       │   │   │   │   │       │       ├─ LuauNamedTypeReference_begin [38..44]
+ │   │       │   │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [38..44]
+ │   │       │   │   │   │   │       │       │   │   └─ LuauPrimitiveType [38..44]
+ │   │       │   │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [38..44]: "number"
+ │   │       │   │   │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 44
+ │   │       │   │   │   │   │       │       │   │       └─ LuauPrimitiveType_c3 44
+ │   │       │   │   │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 44
+ │   │       │   │   │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 44
+ │   │       │   │   │   │   │       │       └─ LuauNamedTypeReference_end 44
+ │   │       │   │   │   │   │       └─ LuauTypeLiteral_end 44
+ │   │       │   │   │   │   └─ LuauFunctionReturnType_end 44
+ │   │       │   │   │   └─ LuauFunctionBody [44..53]
+ │   │       │   │   │       ├─ LuauFunctionBody_begin 44
+ │   │       │   │   │       ├─ LuauFunctionBody_content [44..53]
+ │   │       │   │   │       │   └─ LuauReturnStatement [44..53]
+ │   │       │   │   │       │       ├─ LuauReturnStatement_begin [44..52]
+ │   │       │   │   │       │       │   ├─ LuauReturnStatement_begin_c1 [44..45]
+ │   │       │   │   │       │       │   │   └─ OptionalWhitespace [44..45]: " "
+ │   │       │   │   │       │       │   ├─ LuauReturnStatement_begin_c2 [45..51]
+ │   │       │   │   │       │       │   │   └─ LuauControlKeyword [45..51]: "return"
+ │   │       │   │   │       │       │   └─ LuauReturnStatement_begin_c3 [51..52]
+ │   │       │   │   │       │       │       └─ LuauReturnStatement_begin_c3 [51..52]
+ │   │       │   │   │       │       │           └─ OptionalWhitespace [51..52]: " "
+ │   │       │   │   │       │       ├─ LuauReturnStatement_content [52..53]
+ │   │       │   │   │       │       │   └─ LuauNumericDecimal [52..53]
+ │   │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [52..53]: "1"
+ │   │       │   │   │       │       │       └─ LuauNumericDecimal_c2 53
+ │   │       │   │   │       │       └─ LuauReturnStatement_end 53
+ │   │       │   │   │       └─ LuauFunctionBody_end 53
+ │   │       │   │   └─ LuauFunctionDefinition_end [53..57]
+ │   │       │   │       ├─ LuauFunctionDefinition_end_c1 [53..54]
+ │   │       │   │       │   └─ LuauFunctionDefinition_end_c1 [53..54]
+ │   │       │   │       │       └─ OptionalWhitespace [53..54]: " "
+ │   │       │   │       └─ LuauFunctionDefinition_end_c2 [54..57]
+ │   │       │   │           └─ LuauEndKeyword [54..57]: "end"
+ │   │       │   ├─ Newline [57..58]: "\n"
+ │   │       │   ├─ LuauFunctionDefinition [58..105]
+ │   │       │   │   ├─ LuauFunctionDefinition_begin [58..75]
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c1 [58..60]
+ │   │       │   │   │   │   └─ OptionalWhitespace [58..60]: "  "
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c2 [60..65]
+ │   │       │   │   │   │   └─ LuauScopeModifier [60..65]: "local"
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c3 [65..66]
+ │   │       │   │   │   │   └─ LuauFunctionDefinition_begin_c3 [65..66]
+ │   │       │   │   │   │       └─ OptionalWhitespace [65..66]: " "
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c4 [66..74]
+ │   │       │   │   │   │   └─ LuauFunctionKeyword [66..74]: "function"
+ │   │       │   │   │   └─ LuauFunctionDefinition_begin_c5 [74..75]
+ │   │       │   │   │       └─ LuauFunctionDefinition_begin_c5 [74..75]
+ │   │       │   │   │           └─ OptionalWhitespace [74..75]: " "
+ │   │       │   │   ├─ LuauFunctionDefinition_content [75..101]
+ │   │       │   │   │   ├─ LuauFunctionDeclarationName [75..77]
+ │   │       │   │   │   │   ├─ LuauFunctionDeclarationName_c1 [75..77]
+ │   │       │   │   │   │   │   └─ LuauFunctionName [75..77]: "f2"
+ │   │       │   │   │   │   └─ LuauFunctionDeclarationName_c2 77
+ │   │       │   │   │   ├─ LuauFunctionParameters [77..79]
+ │   │       │   │   │   │   ├─ LuauFunctionParameters_begin [77..78]
+ │   │       │   │   │   │   │   └─ LuauFunctionParameters_begin_c1 [77..78]
+ │   │       │   │   │   │   │       └─ PunctuationParenOpen [77..78]: "("
+ │   │       │   │   │   │   └─ LuauFunctionParameters_end [78..79]
+ │   │       │   │   │   │       └─ LuauFunctionParameters_end_c1 [78..79]
+ │   │       │   │   │   │           └─ PunctuationParenClose [78..79]: ")"
+ │   │       │   │   │   ├─ LuauFunctionReturnType [79..92]
+ │   │       │   │   │   │   ├─ LuauFunctionReturnType_begin [79..81]
+ │   │       │   │   │   │   │   ├─ LuauFunctionReturnType_begin_c1 [79..80]
+ │   │       │   │   │   │   │   │   └─ LuauTypeOperator [79..80]: ":"
+ │   │       │   │   │   │   │   └─ LuauFunctionReturnType_begin_c2 [80..81]
+ │   │       │   │   │   │   │       └─ LuauFunctionReturnType_begin_c2 [80..81]
+ │   │       │   │   │   │   │           └─ OptionalWhitespace [80..81]: " "
+ │   │       │   │   │   │   ├─ LuauFunctionReturnType_content [81..92]
+ │   │       │   │   │   │   │   └─ LuauTypeLiteral [81..92]
+ │   │       │   │   │   │   │       ├─ LuauTypeLiteral_begin 81
+ │   │       │   │   │   │   │       ├─ LuauTypeLiteral_content [81..92]
+ │   │       │   │   │   │   │       │   └─ LuauTypeFunctionParameters [81..92]
+ │   │       │   │   │   │   │       │       ├─ LuauTypeFunctionParameters_begin [81..82]
+ │   │       │   │   │   │   │       │       │   └─ LuauTypeFunctionParameters_begin_c1 [81..82]
+ │   │       │   │   │   │   │       │       │       └─ PunctuationParenOpen [81..82]: "("
+ │   │       │   │   │   │   │       │       ├─ LuauTypeFunctionParameters_content [82..91]
+ │   │       │   │   │   │   │       │       │   └─ LuauTypeLiteral [82..91]
+ │   │       │   │   │   │   │       │       │       ├─ LuauTypeLiteral_begin 82
+ │   │       │   │   │   │   │       │       │       ├─ LuauTypeLiteral_content [82..91]
+ │   │       │   │   │   │   │       │       │       │   ├─ LuauVariadicTypePack [82..85]: "..."
+ │   │       │   │   │   │   │       │       │       │   └─ LuauNamedTypeReference [85..91]
+ │   │       │   │   │   │   │       │       │       │       ├─ LuauNamedTypeReference_begin [85..91]
+ │   │       │   │   │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [85..91]
+ │   │       │   │   │   │   │       │       │       │       │   │   └─ LuauPrimitiveType [85..91]
+ │   │       │   │   │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [85..91]: "number"
+ │   │       │   │   │   │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 91
+ │   │       │   │   │   │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 91
+ │   │       │   │   │   │   │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 91
+ │   │       │   │   │   │   │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 91
+ │   │       │   │   │   │   │       │       │       │       └─ LuauNamedTypeReference_end 91
+ │   │       │   │   │   │   │       │       │       └─ LuauTypeLiteral_end 91
+ │   │       │   │   │   │   │       │       └─ LuauTypeFunctionParameters_end [91..92]
+ │   │       │   │   │   │   │       │           ├─ LuauTypeFunctionParameters_end_c1 [91..92]
+ │   │       │   │   │   │   │       │           │   └─ PunctuationParenClose [91..92]: ")"
+ │   │       │   │   │   │   │       │           ├─ LuauTypeFunctionParameters_end_c2 92
+ │   │       │   │   │   │   │       │           └─ LuauTypeFunctionParameters_end_c3 92
+ │   │       │   │   │   │   │       └─ LuauTypeLiteral_end 92
+ │   │       │   │   │   │   └─ LuauFunctionReturnType_end 92
+ │   │       │   │   │   └─ LuauFunctionBody [92..101]
+ │   │       │   │   │       ├─ LuauFunctionBody_begin 92
+ │   │       │   │   │       ├─ LuauFunctionBody_content [92..101]
+ │   │       │   │   │       │   └─ LuauReturnStatement [92..101]
+ │   │       │   │   │       │       ├─ LuauReturnStatement_begin [92..100]
+ │   │       │   │   │       │       │   ├─ LuauReturnStatement_begin_c1 [92..93]
+ │   │       │   │   │       │       │   │   └─ OptionalWhitespace [92..93]: " "
+ │   │       │   │   │       │       │   ├─ LuauReturnStatement_begin_c2 [93..99]
+ │   │       │   │   │       │       │   │   └─ LuauControlKeyword [93..99]: "return"
+ │   │       │   │   │       │       │   └─ LuauReturnStatement_begin_c3 [99..100]
+ │   │       │   │   │       │       │       └─ LuauReturnStatement_begin_c3 [99..100]
+ │   │       │   │   │       │       │           └─ OptionalWhitespace [99..100]: " "
+ │   │       │   │   │       │       ├─ LuauReturnStatement_content [100..101]
+ │   │       │   │   │       │       │   └─ LuauNumericDecimal [100..101]
+ │   │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [100..101]: "1"
+ │   │       │   │   │       │       │       └─ LuauNumericDecimal_c2 101
+ │   │       │   │   │       │       └─ LuauReturnStatement_end 101
+ │   │       │   │   │       └─ LuauFunctionBody_end 101
+ │   │       │   │   └─ LuauFunctionDefinition_end [101..105]
+ │   │       │   │       ├─ LuauFunctionDefinition_end_c1 [101..102]
+ │   │       │   │       │   └─ LuauFunctionDefinition_end_c1 [101..102]
+ │   │       │   │       │       └─ OptionalWhitespace [101..102]: " "
+ │   │       │   │       └─ LuauFunctionDefinition_end_c2 [102..105]
+ │   │       │   │           └─ LuauEndKeyword [102..105]: "end"
+ │   │       │   ├─ Newline [105..106]: "\n"
+ │   │       │   ├─ LuauDataTypeDeclaration [106..133]
+ │   │       │   │   ├─ LuauDataTypeDeclaration_begin [106..113]
+ │   │       │   │   │   ├─ LuauDataTypeDeclaration_begin_c1 [106..108]
+ │   │       │   │   │   │   └─ OptionalWhitespace [106..108]: "  "
+ │   │       │   │   │   ├─ LuauDataTypeDeclaration_begin_c2 108
+ │   │       │   │   │   ├─ LuauDataTypeDeclaration_begin_c3 108
+ │   │       │   │   │   ├─ LuauDataTypeDeclaration_begin_c4 [108..112]
+ │   │       │   │   │   │   └─ LuauTypeKeyword [108..112]: "type"
+ │   │       │   │   │   └─ LuauDataTypeDeclaration_begin_c5 [112..113]
+ │   │       │   │   │       └─ OptionalWhitespace [112..113]: " "
+ │   │       │   │   ├─ LuauDataTypeDeclaration_content [113..133]
+ │   │       │   │   │   ├─ LuauTypeLiteral [113..115]
+ │   │       │   │   │   │   ├─ LuauTypeLiteral_begin 113
+ │   │       │   │   │   │   ├─ LuauTypeLiteral_content [113..115]
+ │   │       │   │   │   │   │   └─ LuauNamedTypeReference [113..115]
+ │   │       │   │   │   │   │       ├─ LuauNamedTypeReference_begin [113..115]
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c1 [113..114]
+ │   │       │   │   │   │   │       │   │   └─ LuauTypeName [113..114]
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c1 113
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c2 113
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c3 [113..114]: "F"
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c4 114
+ │   │       │   │   │   │   │       │   │       ├─ LuauTypeName_c5 114
+ │   │       │   │   │   │   │       │   │       └─ LuauTypeName_c6 114
+ │   │       │   │   │   │   │       │   ├─ LuauNamedTypeReference_begin_c2 [114..115]
+ │   │       │   │   │   │   │       │   │   └─ LuauNamedTypeReference_begin_c2 [114..115]
+ │   │       │   │   │   │   │       │   │       └─ OptionalWhitespace [114..115]: " "
+ │   │       │   │   │   │   │       │   └─ LuauNamedTypeReference_begin_c3 115
+ │   │       │   │   │   │   │       └─ LuauNamedTypeReference_end 115
+ │   │       │   │   │   │   └─ LuauTypeLiteral_end 115
+ │   │       │   │   │   └─ LuauTypeAssignment [115..133]
+ │   │       │   │   │       ├─ LuauTypeAssignment_begin [115..117]
+ │   │       │   │   │       │   ├─ LuauTypeAssignment_begin_c1 [115..116]: "="
+ │   │       │   │   │       │   └─ LuauTypeAssignment_begin_c2 [116..117]
+ │   │       │   │   │       │       └─ LuauTypeAssignment_begin_c2 [116..117]
+ │   │       │   │   │       │           └─ OptionalWhitespace [116..117]: " "
+ │   │       │   │   │       ├─ LuauTypeAssignment_content [117..133]
+ │   │       │   │   │       │   └─ LuauTypeLiteral [117..133]
+ │   │       │   │   │       │       ├─ LuauTypeLiteral_begin 117
+ │   │       │   │   │       │       ├─ LuauTypeLiteral_content [117..133]
+ │   │       │   │   │       │       │   ├─ LuauTypeFunctionParameters [117..120]
+ │   │       │   │   │       │       │   │   ├─ LuauTypeFunctionParameters_begin [117..118]
+ │   │       │   │   │       │       │   │   │   └─ LuauTypeFunctionParameters_begin_c1 [117..118]
+ │   │       │   │   │       │       │   │   │       └─ PunctuationParenOpen [117..118]: "("
+ │   │       │   │   │       │       │   │   └─ LuauTypeFunctionParameters_end [118..120]
+ │   │       │   │   │       │       │   │       ├─ LuauTypeFunctionParameters_end_c1 [118..119]
+ │   │       │   │   │       │       │   │       │   └─ PunctuationParenClose [118..119]: ")"
+ │   │       │   │   │       │       │   │       ├─ LuauTypeFunctionParameters_end_c2 [119..120]
+ │   │       │   │   │       │       │   │       │   └─ LuauTypeFunctionParameters_end_c2 [119..120]
+ │   │       │   │   │       │       │   │       │       └─ OptionalWhitespace [119..120]: " "
+ │   │       │   │   │       │       │   │       └─ LuauTypeFunctionParameters_end_c3 120
+ │   │       │   │   │       │       │   └─ LuauTypeBinaryOperation [120..133]
+ │   │       │   │   │       │       │       ├─ LuauTypeBinaryOperation_begin 120
+ │   │       │   │   │       │       │       │   └─ LuauTypeBinaryOperation_begin_c1 120
+ │   │       │   │   │       │       │       │       └─ OptionalWhitespace 120
+ │   │       │   │   │       │       │       ├─ LuauTypeBinaryOperation_content [120..133]
+ │   │       │   │   │       │       │       │   ├─ LuauTypeBinaryOperator [120..123]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTypeBinaryOperator_begin [120..123]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauTypeBinaryOperator_begin_c1 120
+ │   │       │   │   │       │       │       │   │   │   │   └─ OptionalWhitespace 120
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauTypeBinaryOperator_begin_c2 [120..122]: "->"
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTypeBinaryOperator_begin_c3 [122..123]
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTypeBinaryOperator_begin_c3 [122..123]
+ │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace [122..123]: " "
+ │   │       │   │   │       │       │       │   │   └─ LuauTypeBinaryOperator_end 123
+ │   │       │   │   │       │       │       │   └─ LuauTypeLiteral [123..133]
+ │   │       │   │   │       │       │       │       ├─ LuauTypeLiteral_begin 123
+ │   │       │   │   │       │       │       │       ├─ LuauTypeLiteral_content [123..133]
+ │   │       │   │   │       │       │       │       │   ├─ LuauVariadicTypePack [123..126]: "..."
+ │   │       │   │   │       │       │       │       │   └─ LuauNamedTypeReference [126..133]
+ │   │       │   │   │       │       │       │       │       ├─ LuauNamedTypeReference_begin [126..132]
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c1 [126..132]
+ │   │       │   │   │       │       │       │       │       │   │   └─ LuauPrimitiveType [126..132]
+ │   │       │   │   │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [126..132]: "number"
+ │   │       │   │   │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 132
+ │   │       │   │   │       │       │       │       │       │   │       └─ LuauPrimitiveType_c3 132
+ │   │       │   │   │       │       │       │       │       │   ├─ LuauNamedTypeReference_begin_c2 132
+ │   │       │   │   │       │       │       │       │       │   └─ LuauNamedTypeReference_begin_c3 132
+ │   │       │   │   │       │       │       │       │       ├─ LuauNamedTypeReference_content [132..133]
+ │   │       │   │   │       │       │       │       │       │   └─ Newline [132..133]: "\n"
+ │   │       │   │   │       │       │       │       │       └─ LuauNamedTypeReference_end 133
+ │   │       │   │   │       │       │       │       └─ LuauTypeLiteral_end 133
+ │   │       │   │   │       │       │       └─ LuauTypeBinaryOperation_end 133
+ │   │       │   │   │       │       └─ LuauTypeLiteral_end 133
+ │   │       │   │   │       └─ LuauTypeAssignment_end 133
+ │   │       │   │   └─ LuauDataTypeDeclaration_end 133
+ │   │       │   ├─ LuauFunctionDefinition [133..164]
+ │   │       │   │   ├─ LuauFunctionDefinition_begin [133..150]
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c1 [133..135]
+ │   │       │   │   │   │   └─ OptionalWhitespace [133..135]: "  "
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c2 [135..140]
+ │   │       │   │   │   │   └─ LuauScopeModifier [135..140]: "local"
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c3 [140..141]
+ │   │       │   │   │   │   └─ LuauFunctionDefinition_begin_c3 [140..141]
+ │   │       │   │   │   │       └─ OptionalWhitespace [140..141]: " "
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c4 [141..149]
+ │   │       │   │   │   │   └─ LuauFunctionKeyword [141..149]: "function"
+ │   │       │   │   │   └─ LuauFunctionDefinition_begin_c5 [149..150]
+ │   │       │   │   │       └─ LuauFunctionDefinition_begin_c5 [149..150]
+ │   │       │   │   │           └─ OptionalWhitespace [149..150]: " "
+ │   │       │   │   ├─ LuauFunctionDefinition_content [150..160]
+ │   │       │   │   │   ├─ LuauFunctionDeclarationName [150..152]
+ │   │       │   │   │   │   ├─ LuauFunctionDeclarationName_c1 [150..152]
+ │   │       │   │   │   │   │   └─ LuauFunctionName [150..152]: "f3"
+ │   │       │   │   │   │   └─ LuauFunctionDeclarationName_c2 152
+ │   │       │   │   │   ├─ LuauGenericsDeclaration [152..158]
+ │   │       │   │   │   │   ├─ LuauGenericsDeclaration_begin [152..153]
+ │   │       │   │   │   │   │   └─ LuauGenericsDeclaration_begin_c1 [152..153]
+ │   │       │   │   │   │   │       └─ PunctuationAngleOpen [152..153]: "<"
+ │   │       │   │   │   │   ├─ LuauGenericsDeclaration_content [153..157]
+ │   │       │   │   │   │   │   └─ LuauTypeLiteral [153..157]
+ │   │       │   │   │   │   │       ├─ LuauTypeLiteral_begin 153
+ │   │       │   │   │   │   │       ├─ LuauTypeLiteral_content [153..157]
+ │   │       │   │   │   │   │       │   └─ LuauVariadicType [153..157]: "T..."
+ │   │       │   │   │   │   │       └─ LuauTypeLiteral_end 157
+ │   │       │   │   │   │   └─ LuauGenericsDeclaration_end [157..158]
+ │   │       │   │   │   │       └─ LuauGenericsDeclaration_end_c1 [157..158]
+ │   │       │   │   │   │           └─ PunctuationAngleClose [157..158]: ">"
+ │   │       │   │   │   └─ LuauFunctionParameters [158..160]
+ │   │       │   │   │       ├─ LuauFunctionParameters_begin [158..159]
+ │   │       │   │   │       │   └─ LuauFunctionParameters_begin_c1 [158..159]
+ │   │       │   │   │       │       └─ PunctuationParenOpen [158..159]: "("
+ │   │       │   │   │       └─ LuauFunctionParameters_end [159..160]
+ │   │       │   │   │           └─ LuauFunctionParameters_end_c1 [159..160]
+ │   │       │   │   │               └─ PunctuationParenClose [159..160]: ")"
+ │   │       │   │   └─ LuauFunctionDefinition_end [160..164]
+ │   │       │   │       ├─ LuauFunctionDefinition_end_c1 [160..161]
+ │   │       │   │       │   └─ LuauFunctionDefinition_end_c1 [160..161]
+ │   │       │   │       │       └─ OptionalWhitespace [160..161]: " "
+ │   │       │   │       └─ LuauFunctionDefinition_end_c2 [161..164]
+ │   │       │   │           └─ LuauEndKeyword [161..164]: "end"
+ │   │       │   ├─ Newline [164..165]: "\n"
+ │   │       │   ├─ ExtraWhitespace [165..167]: "  "
+ │   │       │   ├─ LuauAccessPath [167..184]
+ │   │       │   │   ├─ LuauAccessPath_begin 167
+ │   │       │   │   ├─ LuauAccessPath_content [167..184]
+ │   │       │   │   │   └─ LuauAccessPart [167..184]
+ │   │       │   │   │       └─ LuauFunctionCall [167..184]
+ │   │       │   │   │           ├─ LuauFunctionCall_begin [167..169]
+ │   │       │   │   │           │   ├─ LuauFunctionCall_begin_c1 [167..169]
+ │   │       │   │   │           │   │   └─ LuauFunctionName [167..169]: "f3"
+ │   │       │   │   │           │   └─ LuauFunctionCall_begin_c2 169
+ │   │       │   │   │           ├─ LuauFunctionCall_content [169..184]
+ │   │       │   │   │           │   ├─ LuauGenericsInstantiation [169..182]
+ │   │       │   │   │           │   │   ├─ LuauGenericsInstantiation_begin [169..171]
+ │   │       │   │   │           │   │   │   └─ LuauGenericsInstantiation_begin_c1 [169..171]
+ │   │       │   │   │           │   │   │       └─ PunctuationDoubleAngleOpen [169..171]: "<<"
+ │   │       │   │   │           │   │   ├─ LuauGenericsInstantiation_content [171..180]
+ │   │       │   │   │           │   │   │   └─ LuauVariadicType [171..180]: "number..."
+ │   │       │   │   │           │   │   └─ LuauGenericsInstantiation_end [180..182]
+ │   │       │   │   │           │   │       └─ LuauGenericsInstantiation_end_c1 [180..182]
+ │   │       │   │   │           │   │           └─ PunctuationDoubleAngleClose [180..182]: ">>"
+ │   │       │   │   │           │   └─ LuauFunctionCallParameters [182..184]
+ │   │       │   │   │           │       ├─ LuauFunctionCallParameters_begin [182..183]
+ │   │       │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [182..183]
+ │   │       │   │   │           │       │       └─ PunctuationParenOpen [182..183]: "("
+ │   │       │   │   │           │       └─ LuauFunctionCallParameters_end [183..184]
+ │   │       │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [183..184]
+ │   │       │   │   │           │               └─ PunctuationParenClose [183..184]: ")"
+ │   │       │   │   │           └─ LuauFunctionCall_end 184
+ │   │       │   │   └─ LuauAccessPath_end 184
+ │   │       │   │       └─ LuauAccessPath_end_c1 184
+ │   │       │   └─ Newline [184..185]: "\n"
+ │   │       └─ LuauFunctionBody_end 185
+ │   └─ LuauFunctionDefinition_end [185..188]
+ │       ├─ LuauFunctionDefinition_end_c1 185
+ │       │   └─ LuauFunctionDefinition_end_c1 185
+ │       │       └─ OptionalWhitespace 185
+ │       └─ LuauFunctionDefinition_end_c2 [185..188]
+ │           └─ LuauEndKeyword [185..188]: "end"
+ ├─ Newline [188..189]: "\n"
+ ├─ LuauSparkdownExplicitStatement [189..215]
+ │   ├─ LuauSparkdownExplicitStatement_begin [189..191]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 189
+ │   │   │   └─ OptionalWhitespace 189
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [189..190]
+ │   │   │   └─ LuauExplicitStatementMark [189..190]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [190..191]
+ │   │       └─ RequiredWhitespace [190..191]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [191..215]
+ │   │   └─ LuauSparkdownExplicitDataTypeDeclaration [191..215]
+ │   │       ├─ LuauSparkdownExplicitDataTypeDeclaration_begin [191..196]
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c1 191
+ │   │       │   │   └─ OptionalWhitespace 191
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c2 191
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c3 191
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c4 [191..195]
+ │   │       │   │   └─ LuauTypeKeyword [191..195]: "type"
+ │   │       │   └─ LuauSparkdownExplicitDataTypeDeclaration_begin_c5 [195..196]
+ │   │       │       └─ OptionalWhitespace [195..196]: " "
+ │   │       ├─ LuauSparkdownExplicitDataTypeDeclaration_content [196..215]
+ │   │       │   ├─ LuauSparkdownExplicitTypeLiteral [196..198]
+ │   │       │   │   ├─ LuauSparkdownExplicitTypeLiteral_begin 196
+ │   │       │   │   ├─ LuauSparkdownExplicitTypeLiteral_content [196..198]
+ │   │       │   │   │   └─ LuauSparkdownExplicitNamedTypeReference [196..198]
+ │   │       │   │   │       ├─ LuauSparkdownExplicitNamedTypeReference_begin [196..198]
+ │   │       │   │   │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c1 [196..197]
+ │   │       │   │   │       │   │   └─ LuauTypeName [196..197]
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c1 196
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c2 196
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c3 [196..197]: "G"
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c4 197
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c5 197
+ │   │       │   │   │       │   │       └─ LuauTypeName_c6 197
+ │   │       │   │   │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c2 [197..198]
+ │   │       │   │   │       │   │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c2 [197..198]
+ │   │       │   │   │       │   │       └─ OptionalWhitespace [197..198]: " "
+ │   │       │   │   │       │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c3 198
+ │   │       │   │   │       └─ LuauSparkdownExplicitNamedTypeReference_end 198
+ │   │       │   │   └─ LuauSparkdownExplicitTypeLiteral_end 198
+ │   │       │   └─ LuauSparkdownExplicitTypeAssignment [198..215]
+ │   │       │       ├─ LuauSparkdownExplicitTypeAssignment_begin [198..200]
+ │   │       │       │   ├─ LuauSparkdownExplicitTypeAssignment_begin_c1 [198..199]: "="
+ │   │       │       │   └─ LuauSparkdownExplicitTypeAssignment_begin_c2 [199..200]
+ │   │       │       │       └─ LuauSparkdownExplicitTypeAssignment_begin_c2 [199..200]
+ │   │       │       │           └─ OptionalWhitespace [199..200]: " "
+ │   │       │       ├─ LuauSparkdownExplicitTypeAssignment_content [200..215]
+ │   │       │       │   └─ LuauSparkdownExplicitTypeLiteral [200..215]
+ │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_begin 200
+ │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_content [200..215]
+ │   │       │       │       │   ├─ LuauSparkdownExplicitTypeFunctionParameters [200..203]
+ │   │       │       │       │   │   ├─ LuauSparkdownExplicitTypeFunctionParameters_begin [200..201]
+ │   │       │       │       │   │   │   └─ LuauSparkdownExplicitTypeFunctionParameters_begin_c1 [200..201]
+ │   │       │       │       │   │   │       └─ PunctuationParenOpen [200..201]: "("
+ │   │       │       │       │   │   └─ LuauSparkdownExplicitTypeFunctionParameters_end [201..203]
+ │   │       │       │       │   │       ├─ LuauSparkdownExplicitTypeFunctionParameters_end_c1 [201..202]
+ │   │       │       │       │   │       │   └─ PunctuationParenClose [201..202]: ")"
+ │   │       │       │       │   │       ├─ LuauSparkdownExplicitTypeFunctionParameters_end_c2 [202..203]
+ │   │       │       │       │   │       │   └─ LuauSparkdownExplicitTypeFunctionParameters_end_c2 [202..203]
+ │   │       │       │       │   │       │       └─ OptionalWhitespace [202..203]: " "
+ │   │       │       │       │   │       └─ LuauSparkdownExplicitTypeFunctionParameters_end_c3 203
+ │   │       │       │       │   └─ LuauSparkdownExplicitTypeBinaryOperation [203..215]
+ │   │       │       │       │       ├─ LuauSparkdownExplicitTypeBinaryOperation_begin 203
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitTypeBinaryOperation_begin_c1 203
+ │   │       │       │       │       │       └─ OptionalWhitespace 203
+ │   │       │       │       │       ├─ LuauSparkdownExplicitTypeBinaryOperation_content [203..215]
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitTypeBinaryOperator [203..206]
+ │   │       │       │       │       │   │   ├─ LuauSparkdownExplicitTypeBinaryOperator_begin [203..206]
+ │   │       │       │       │       │   │   │   ├─ LuauSparkdownExplicitTypeBinaryOperator_begin_c1 203
+ │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 203
+ │   │       │       │       │       │   │   │   ├─ LuauSparkdownExplicitTypeBinaryOperator_begin_c2 [203..205]: "->"
+ │   │       │       │       │       │   │   │   └─ LuauSparkdownExplicitTypeBinaryOperator_begin_c3 [205..206]
+ │   │       │       │       │       │   │   │       └─ LuauSparkdownExplicitTypeBinaryOperator_begin_c3 [205..206]
+ │   │       │       │       │       │   │   │           └─ OptionalWhitespace [205..206]: " "
+ │   │       │       │       │       │   │   └─ LuauSparkdownExplicitTypeBinaryOperator_end 206
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitTypeLiteral [206..215]
+ │   │       │       │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_begin 206
+ │   │       │       │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_content [206..215]
+ │   │       │       │       │       │       │   ├─ LuauVariadicTypePack [206..209]: "..."
+ │   │       │       │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference [209..215]
+ │   │       │       │       │       │       │       ├─ LuauSparkdownExplicitNamedTypeReference_begin [209..215]
+ │   │       │       │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c1 [209..215]
+ │   │       │       │       │       │       │       │   │   └─ LuauPrimitiveType [209..215]
+ │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [209..215]: "number"
+ │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 215
+ │   │       │       │       │       │       │       │   │       └─ LuauPrimitiveType_c3 215
+ │   │       │       │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c2 215
+ │   │       │       │       │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c3 215
+ │   │       │       │       │       │       │       └─ LuauSparkdownExplicitNamedTypeReference_end 215
+ │   │       │       │       │       │       └─ LuauSparkdownExplicitTypeLiteral_end 215
+ │   │       │       │       │       └─ LuauSparkdownExplicitTypeBinaryOperation_end 215
+ │   │       │       │       └─ LuauSparkdownExplicitTypeLiteral_end 215
+ │   │       │       └─ LuauSparkdownExplicitTypeAssignment_end 215
+ │   │       └─ LuauSparkdownExplicitDataTypeDeclaration_end 215
+ │   └─ LuauSparkdownExplicitStatement_end 215
+ ├─ Newline [215..216]: "\n"
+ ├─ ImplicitAction [216..222]
+ │   ├─ ImplicitAction_begin 216
+ │   │   └─ ImplicitAction_begin_c1 216
+ │   │       └─ OptionalWhitespace 216
+ │   ├─ ImplicitAction_content [216..222]
+ │   │   └─ ActionLineEnd [216..222]
+ │   │       ├─ ActionLineEnd_begin 216
+ │   │       │   └─ ActionLineEnd_begin_c1 216
+ │   │       │       └─ OptionalWhitespace 216
+ │   │       ├─ ActionLineEnd_content [216..222]
+ │   │       │   └─ TextChunk [216..222]
+ │   │       │       ├─ TextChunk_begin 216
+ │   │       │       ├─ TextChunk_content [216..222]
+ │   │       │       │   ├─ Word [216..221]: "Hello"
+ │   │       │       │   └─ Punctuation [221..222]: "."
+ │   │       │       └─ TextChunk_end 222
+ │   │       └─ ActionLineEnd_end 222
+ │   └─ ImplicitAction_end 222
+ └─ Newline [222..223]: "\n"

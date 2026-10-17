@@ -1,0 +1,30 @@
+store second = @[native]
+function() return 9 end
+store third = @[native] -- a note that ends with end
+  -- another note
+  @checked
+  function() return 3 end
+store fourth = @[native] --[[c]] function() return 4 end
+store fifth = @[
+  native
+]
+function() return 5 end
+store sixth = @[deprecated{ reason = "]" },
+  native
+]
+function() return 6 end
+store seventh = @[deprecated{ reason = [=[x]]=] }]
+function() return 10 end
+store eighth = @[deprecated{reason = [[
+x
+]]}]
+function() return 11 end
+function g()
+  local f = @native
+    function() return 7 end
+  local h = @[native] -- note
+
+    @checked function() return 8 end
+  return f() + h()
+end
+Value {second()} {third()} {fourth()} {fifth()} {sixth()} {seventh()} {eighth()} {g()}.

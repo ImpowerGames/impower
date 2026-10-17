@@ -1,0 +1,22 @@
+define --[[ c ]] Person with
+  name = "a"
+end
+animation --[=[ c ]=] fade with
+  keyframes {
+    from { opacity = 0 }
+  }
+end
+theme --[[ a]b ]] t with
+  colors { primary = red }
+end
+morph --[[ c ]] --[[ d ]] m with
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = eyes.open } }
+    { offset = 0.4; eyes { state = eyes.closed } }
+  }
+end
+screen --[[ c ]] hud with
+end
+external --[[ c ]] message(x)
+Hi.

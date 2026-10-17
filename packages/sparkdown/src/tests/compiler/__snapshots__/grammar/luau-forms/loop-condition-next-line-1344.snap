@@ -1,0 +1,196 @@
+sparkdown [0..57]
+ ├─ LuauSparkdownForLoop [0..29]
+ │   ├─ LuauSparkdownForLoop_begin [0..3]
+ │   │   ├─ LuauSparkdownForLoop_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauSparkdownForLoop_begin_c2 [0..3]
+ │   │   │   └─ LuauForKeyword [0..3]: "for"
+ │   │   └─ LuauSparkdownForLoop_begin_c3 3
+ │   │       └─ LuauSparkdownForLoop_begin_c3 3
+ │   │           └─ OptionalWhitespace 3
+ │   ├─ LuauSparkdownForLoop_content [3..29]
+ │   │   ├─ LuauForCondition [3..15]
+ │   │   │   ├─ LuauForCondition_begin 3
+ │   │   │   ├─ LuauForCondition_content [3..15]
+ │   │   │   │   ├─ Newline [3..4]: "\n"
+ │   │   │   │   ├─ RequiredWhitespace [4..6]: "  "
+ │   │   │   │   ├─ LuauAccessPath [6..8]
+ │   │   │   │   │   ├─ LuauAccessPath_begin 6
+ │   │   │   │   │   ├─ LuauAccessPath_content [6..7]
+ │   │   │   │   │   │   └─ LuauAccessPart [6..7]
+ │   │   │   │   │   │       └─ LuauVariable [6..7]
+ │   │   │   │   │   │           └─ LuauVariable_c1 [6..7]
+ │   │   │   │   │   │               └─ LuauVariableName [6..7]: "i"
+ │   │   │   │   │   └─ LuauAccessPath_end [7..8]
+ │   │   │   │   │       └─ LuauAccessPath_end_c1 [7..8]
+ │   │   │   │   │           └─ LuauAccessPath_end_c1 [7..8]
+ │   │   │   │   │               └─ OptionalWhitespace [7..8]: " "
+ │   │   │   │   ├─ LuauAssignmentOperation [8..11]
+ │   │   │   │   │   ├─ LuauAssignmentOperation_begin 8
+ │   │   │   │   │   │   └─ LuauAssignmentOperation_begin_c1 8
+ │   │   │   │   │   │       └─ OptionalWhitespace 8
+ │   │   │   │   │   ├─ LuauAssignmentOperation_content [8..11]
+ │   │   │   │   │   │   ├─ LuauAssignmentOperator [8..10]
+ │   │   │   │   │   │   │   ├─ LuauAssignmentOperator_begin [8..10]
+ │   │   │   │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c1 8
+ │   │   │   │   │   │   │   │   │   └─ OptionalWhitespace 8
+ │   │   │   │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c2 [8..9]: "="
+ │   │   │   │   │   │   │   │   └─ LuauAssignmentOperator_begin_c3 [9..10]
+ │   │   │   │   │   │   │   │       └─ LuauAssignmentOperator_begin_c3 [9..10]
+ │   │   │   │   │   │   │   │           └─ OptionalWhitespace [9..10]: " "
+ │   │   │   │   │   │   │   └─ LuauAssignmentOperator_end 10
+ │   │   │   │   │   │   └─ LuauNumericDecimal [10..11]
+ │   │   │   │   │   │       ├─ LuauNumericDecimal_c1 [10..11]: "1"
+ │   │   │   │   │   │       └─ LuauNumericDecimal_c2 11
+ │   │   │   │   │   └─ LuauAssignmentOperation_end 11
+ │   │   │   │   ├─ LuauCommaSeparator [11..13]
+ │   │   │   │   │   ├─ LuauCommaSeparator_c1 11
+ │   │   │   │   │   ├─ LuauCommaSeparator_c2 [11..12]: ","
+ │   │   │   │   │   └─ LuauCommaSeparator_c3 [12..13]
+ │   │   │   │   │       └─ LuauCommaSeparator_c3 [12..13]
+ │   │   │   │   │           └─ OptionalWhitespace [12..13]: " "
+ │   │   │   │   ├─ LuauNumericDecimal [13..14]
+ │   │   │   │   │   ├─ LuauNumericDecimal_c1 [13..14]: "3"
+ │   │   │   │   │   └─ LuauNumericDecimal_c2 14
+ │   │   │   │   └─ Newline [14..15]: "\n"
+ │   │   │   └─ LuauForCondition_end 15
+ │   │   └─ LuauSparkdownDoBlock [15..29]
+ │   │       ├─ LuauSparkdownDoBlock_begin [15..17]
+ │   │       │   ├─ LuauSparkdownDoBlock_begin_c1 15
+ │   │       │   │   └─ OptionalWhitespace 15
+ │   │       │   ├─ LuauSparkdownDoBlock_begin_c2 [15..17]
+ │   │       │   │   └─ LuauDoKeyword [15..17]: "do"
+ │   │       │   └─ LuauSparkdownDoBlock_begin_c3 17
+ │   │       │       └─ LuauSparkdownDoBlock_begin_c3 17
+ │   │       │           └─ OptionalWhitespace 17
+ │   │       ├─ LuauSparkdownDoBlock_content [17..26]
+ │   │       │   ├─ Newline [17..18]: "\n"
+ │   │       │   ├─ LuauSparkdownReassignment [18..25]
+ │   │       │   │   ├─ LuauSparkdownReassignment_begin [18..21]
+ │   │       │   │   │   ├─ LuauSparkdownReassignment_begin_c1 [18..20]
+ │   │       │   │   │   │   └─ OptionalWhitespace [18..20]: "  "
+ │   │       │   │   │   └─ LuauSparkdownReassignment_begin_c2 [20..21]
+ │   │       │   │   │       └─ LuauAccessPath [20..21]
+ │   │       │   │   │           ├─ LuauAccessPath_begin 20
+ │   │       │   │   │           ├─ LuauAccessPath_content [20..21]
+ │   │       │   │   │           │   └─ LuauAccessPart [20..21]
+ │   │       │   │   │           │       └─ LuauVariable [20..21]
+ │   │       │   │   │           │           └─ LuauVariable_c1 [20..21]
+ │   │       │   │   │           │               └─ LuauVariableName [20..21]: "x"
+ │   │       │   │   │           └─ LuauAccessPath_end 21
+ │   │       │   │   │               └─ LuauAccessPath_end_c1 21
+ │   │       │   │   ├─ LuauSparkdownReassignment_content [21..25]
+ │   │       │   │   │   └─ LuauSparkdownAssignmentOperation [21..25]
+ │   │       │   │   │       ├─ LuauSparkdownAssignmentOperation_begin [21..22]
+ │   │       │   │   │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 [21..22]
+ │   │       │   │   │       │       └─ OptionalWhitespace [21..22]: " "
+ │   │       │   │   │       ├─ LuauSparkdownAssignmentOperation_content [22..25]
+ │   │       │   │   │       │   ├─ LuauAssignmentOperator [22..24]
+ │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [22..24]
+ │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 22
+ │   │       │   │   │       │   │   │   │   └─ OptionalWhitespace 22
+ │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [22..23]: "="
+ │   │       │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [23..24]
+ │   │       │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [23..24]
+ │   │       │   │   │       │   │   │           └─ OptionalWhitespace [23..24]: " "
+ │   │       │   │   │       │   │   └─ LuauAssignmentOperator_end 24
+ │   │       │   │   │       │   └─ LuauAccessPath [24..25]
+ │   │       │   │   │       │       ├─ LuauAccessPath_begin 24
+ │   │       │   │   │       │       ├─ LuauAccessPath_content [24..25]
+ │   │       │   │   │       │       │   └─ LuauAccessPart [24..25]
+ │   │       │   │   │       │       │       └─ LuauVariable [24..25]
+ │   │       │   │   │       │       │           └─ LuauVariable_c1 [24..25]
+ │   │       │   │   │       │       │               └─ LuauVariableName [24..25]: "i"
+ │   │       │   │   │       │       └─ LuauAccessPath_end 25
+ │   │       │   │   │       │           └─ LuauAccessPath_end_c1 25
+ │   │       │   │   │       └─ LuauSparkdownAssignmentOperation_end 25
+ │   │       │   │   └─ LuauSparkdownReassignment_end 25
+ │   │       │   └─ Newline [25..26]: "\n"
+ │   │       └─ LuauSparkdownDoBlock_end [26..29]
+ │   │           ├─ LuauSparkdownDoBlock_end_c1 26
+ │   │           │   └─ LuauSparkdownDoBlock_end_c1 26
+ │   │           │       └─ OptionalWhitespace 26
+ │   │           └─ LuauSparkdownDoBlock_end_c2 [26..29]
+ │   │               └─ LuauEndKeyword [26..29]: "end"
+ │   └─ LuauSparkdownForLoop_end 29
+ ├─ Newline [29..30]: "\n"
+ ├─ LuauSparkdownWhileLoop [30..56]
+ │   ├─ LuauSparkdownWhileLoop_begin [30..35]
+ │   │   ├─ LuauSparkdownWhileLoop_begin_c1 30
+ │   │   │   └─ OptionalWhitespace 30
+ │   │   ├─ LuauSparkdownWhileLoop_begin_c2 [30..35]
+ │   │   │   └─ LuauWhileKeyword [30..35]: "while"
+ │   │   └─ LuauSparkdownWhileLoop_begin_c3 35
+ │   │       └─ LuauSparkdownWhileLoop_begin_c3 35
+ │   │           └─ OptionalWhitespace 35
+ │   ├─ LuauSparkdownWhileLoop_content [35..56]
+ │   │   ├─ LuauWhileCondition [35..40]
+ │   │   │   ├─ LuauWhileCondition_begin 35
+ │   │   │   ├─ LuauWhileCondition_content [35..40]
+ │   │   │   │   ├─ Newline [35..36]: "\n"
+ │   │   │   │   ├─ ExtraWhitespace [36..38]: "  "
+ │   │   │   │   ├─ LuauAccessPath [38..39]
+ │   │   │   │   │   ├─ LuauAccessPath_begin 38
+ │   │   │   │   │   ├─ LuauAccessPath_content [38..39]
+ │   │   │   │   │   │   └─ LuauAccessPart [38..39]
+ │   │   │   │   │   │       └─ LuauVariable [38..39]
+ │   │   │   │   │   │           └─ LuauVariable_c1 [38..39]
+ │   │   │   │   │   │               └─ LuauVariableName [38..39]: "x"
+ │   │   │   │   │   └─ LuauAccessPath_end 39
+ │   │   │   │   │       └─ LuauAccessPath_end_c1 39
+ │   │   │   │   └─ Newline [39..40]: "\n"
+ │   │   │   └─ LuauWhileCondition_end 40
+ │   │   └─ LuauSparkdownDoBlock [40..56]
+ │   │       ├─ LuauSparkdownDoBlock_begin [40..42]
+ │   │       │   ├─ LuauSparkdownDoBlock_begin_c1 40
+ │   │       │   │   └─ OptionalWhitespace 40
+ │   │       │   ├─ LuauSparkdownDoBlock_begin_c2 [40..42]
+ │   │       │   │   └─ LuauDoKeyword [40..42]: "do"
+ │   │       │   └─ LuauSparkdownDoBlock_begin_c3 42
+ │   │       │       └─ LuauSparkdownDoBlock_begin_c3 42
+ │   │       │           └─ OptionalWhitespace 42
+ │   │       ├─ LuauSparkdownDoBlock_content [42..53]
+ │   │       │   ├─ Newline [42..43]: "\n"
+ │   │       │   ├─ LuauSparkdownReassignment [43..52]
+ │   │       │   │   ├─ LuauSparkdownReassignment_begin [43..46]
+ │   │       │   │   │   ├─ LuauSparkdownReassignment_begin_c1 [43..45]
+ │   │       │   │   │   │   └─ OptionalWhitespace [43..45]: "  "
+ │   │       │   │   │   └─ LuauSparkdownReassignment_begin_c2 [45..46]
+ │   │       │   │   │       └─ LuauAccessPath [45..46]
+ │   │       │   │   │           ├─ LuauAccessPath_begin 45
+ │   │       │   │   │           ├─ LuauAccessPath_content [45..46]
+ │   │       │   │   │           │   └─ LuauAccessPart [45..46]
+ │   │       │   │   │           │       └─ LuauVariable [45..46]
+ │   │       │   │   │           │           └─ LuauVariable_c1 [45..46]
+ │   │       │   │   │           │               └─ LuauVariableName [45..46]: "x"
+ │   │       │   │   │           └─ LuauAccessPath_end 46
+ │   │       │   │   │               └─ LuauAccessPath_end_c1 46
+ │   │       │   │   ├─ LuauSparkdownReassignment_content [46..52]
+ │   │       │   │   │   └─ LuauSparkdownAssignmentOperation [46..52]
+ │   │       │   │   │       ├─ LuauSparkdownAssignmentOperation_begin [46..47]
+ │   │       │   │   │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 [46..47]
+ │   │       │   │   │       │       └─ OptionalWhitespace [46..47]: " "
+ │   │       │   │   │       ├─ LuauSparkdownAssignmentOperation_content [47..52]
+ │   │       │   │   │       │   ├─ LuauAssignmentOperator [47..49]
+ │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [47..49]
+ │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 47
+ │   │       │   │   │       │   │   │   │   └─ OptionalWhitespace 47
+ │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [47..48]: "="
+ │   │       │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [48..49]
+ │   │       │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [48..49]
+ │   │       │   │   │       │   │   │           └─ OptionalWhitespace [48..49]: " "
+ │   │       │   │   │       │   │   └─ LuauAssignmentOperator_end 49
+ │   │       │   │   │       │   └─ LuauNil [49..52]
+ │   │       │   │   │       │       ├─ LuauNil_c1 [49..52]: "nil"
+ │   │       │   │   │       │       └─ LuauNil_c2 52
+ │   │       │   │   │       └─ LuauSparkdownAssignmentOperation_end 52
+ │   │       │   │   └─ LuauSparkdownReassignment_end 52
+ │   │       │   └─ Newline [52..53]: "\n"
+ │   │       └─ LuauSparkdownDoBlock_end [53..56]
+ │   │           ├─ LuauSparkdownDoBlock_end_c1 53
+ │   │           │   └─ LuauSparkdownDoBlock_end_c1 53
+ │   │           │       └─ OptionalWhitespace 53
+ │   │           └─ LuauSparkdownDoBlock_end_c2 [53..56]
+ │   │               └─ LuauEndKeyword [53..56]: "end"
+ │   └─ LuauSparkdownWhileLoop_end 56
+ └─ Newline [56..57]: "\n"
