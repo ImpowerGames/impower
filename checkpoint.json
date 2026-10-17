@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 207,
-  "previous": "8f81604aec59e31c0403e0ba8e2d56c301058be3",
+  "seq": 208,
+  "previous": "bbe199811865d80c326dacff5b6bd72a6409a718",
   "snapshotParents": [],
-  "time": "2026-10-17T13:24:39.946Z",
+  "time": "2026-10-17T13:53:36.537Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 189,
+    "recordRevision": 190,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T13:24:39.294Z",
+      "observedAt": "2026-10-17T13:53:35.842Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,13 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:10:03.974Z",
-      "event": "resume-intent",
-      "ticket": 1966,
-      "id": "94cb1eb1-c697-4fc9-b600-106d102b93e9",
-      "sessionId": "58c4e7e1-10ce-48f9-8cd2-052d8503847b"
-    },
     {
       "time": "2026-10-17T04:10:12.710Z",
       "event": "resumed",
@@ -6243,6 +6236,11 @@
       "time": "2026-10-17T13:24:38.172Z",
       "event": "check-in",
       "outcome": "no change: all six slices' tooling merged (#1967 Phase A PR #2057 as 555e5300a); the cutover window is held for ORCH #1904's relayed maintainer decision on PRs #1995 and #1993 (both still open drafts); the #1967 writer is deliberately kept unreleased, idle, to be resumed with the Phase B go; no writer running"
+    },
+    {
+      "time": "2026-10-17T13:53:34.672Z",
+      "event": "check-in",
+      "outcome": "no change: all six slices' tooling merged; the cutover window is held on the maintainer's decision relayed by ORCH #1904 at ~19:50Z and extended at ~20:00Z: it opens only after Feature #1904 closes with every slice merged (PRs #1995, #1993, then #1907 and #1977), estimated 20 to 26 hours; the #1967 writer (launch 02ea0ef4, CLI session 4b0d553c) is deliberately kept unreleased and idle so one resume carries the Phase B go; no writer running; plan's release suggestion for #1967 not followed for that reason"
     }
   ]
 }
