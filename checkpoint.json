@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 254,
-  "previous": "872af0e0dc6e32a44e8eb134b0e276ed10c47353",
+  "seq": 255,
+  "previous": "f9931c38c9eebc2eead40e4c2dae930fabd6a1a5",
   "snapshotParents": [],
-  "time": "2026-10-17T23:01:59.453Z",
+  "time": "2026-10-17T23:02:50.919Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #2062 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 263,
+    "recordRevision": 264,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -8514,9 +8514,9 @@
       "ticket": 1907,
       "pr": 2062,
       "expectHead": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T23:01:57.643Z",
-      "evidence": "admitted as accepted-unreviewed",
+      "evidence": "PR #2062 reads back merged as 879318898d304d6420b2f921bac1d6c11e9487e7 at 08f9ad28f53ff87e753c9c410c7c5a39585d2df0; the merge commit is on origin/main",
       "gate": {
         "disposition": "accepted-unreviewed",
         "reviewedHead": "9ed9a8ab96377498def488057ad20a4963c8f043",
@@ -8713,7 +8713,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T23:02:48.747Z",
+      "mergeCommit": "879318898d304d6420b2f921bac1d6c11e9487e7",
+      "mergedOnto": "b3dd72d54c9a821731f8b7795b05e692547ad0f6",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -8876,7 +8881,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T23:01:58.782Z",
+      "observedAt": "2026-10-17T23:02:50.240Z",
       "held": true,
       "head": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
       "remoteHead": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
@@ -9307,13 +9312,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T13:31:06.708Z",
-      "event": "checkpoint-published",
-      "ticket": 1924,
-      "id": "e43240d9",
-      "comment": 6234468080
-    },
     {
       "time": "2026-10-17T13:31:07.278Z",
       "event": "answer-intent",
@@ -10061,6 +10059,12 @@
       "id": "bad50151",
       "kind": "merge",
       "pr": 2062
+    },
+    {
+      "time": "2026-10-17T23:02:48.747Z",
+      "event": "operation-outcome",
+      "id": "bad50151",
+      "state": "confirmed"
     }
   ]
 }
