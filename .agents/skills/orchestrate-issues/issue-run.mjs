@@ -962,7 +962,9 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const blockedDeliverers = new Map();
   const deliveredBySlice = new Map(snapshot.tickets.filter((t) => t.deliveredBy).map((t) => [t.number, t.deliveredBy.ticket]));
   for (const t of snapshot.tickets) {
-    if (!t.deliveredBy || t.state === "closed") continue;
+    // A closed issue alone is not delivery: until its deliverer's merge
+    // delivers it, its unmet blockers keep holding the deliverer.
+    if (!t.deliveredBy || t.delivered) continue;
     const s = t.deliveredBy.ticket;
     for (const b of t.blockers) {
       if (b.delivered || b.number === s || deliveredBySlice.get(b.number) === s) continue;
@@ -1006,8 +1008,14 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
     if (t.container && t.claimedContainer) {
       const c = t.claimedContainer;
-      add(t, "decision-needed", `${c.tickets ? `${c.tickets.map((n) => `#${n}`).join(" and ")} both claim it` : `#${c.ticket}'s ${c.via === "pr" ? "PR" : "body"} claims it`}, but it has sub-issues of its own, which are planned individually; remove the closing reference, or settle which slice carries that work`, { claimedContainer: c });
-      if (own.owner || own.pending) { heldContainers.add(t.number); active++; }
+      // The claim settles nothing about the container's own work: a writer,
+      // pending start, or existing PR or worktree whose writer is not known to
+      // have ended keeps its place and holds the sub-issues, as below.
+      const existing = !own.owner && !own.pending && (open.length || t.worktrees.length) && !writerKnownEnded(own);
+      const holds = Boolean(own.owner || own.pending || existing);
+      if (holds) { heldContainers.add(t.number); active++; }
+      const work = existing ? `; existing work on it (${[...open.map((p) => `PR #${p.number}`), ...t.worktrees.map((w) => w.path)].join(", ")}) may still have a writer, so find it and record it with adopt, and its sub-issues wait until it is settled` : holds ? "; its recorded writer or pending start keeps a place and holds its sub-issues until settled" : "";
+      add(t, "decision-needed", `${c.tickets ? `${c.tickets.map((n) => `#${n}`).join(" and ")} both claim it` : `#${c.ticket}'s ${c.via === "pr" ? "PR" : "body"} claims it`}, but it has sub-issues of its own, which are planned individually; remove the closing reference, or settle which slice carries that work${work}`, { claimedContainer: c, ...(holds && { reserves: true }), ...(existing && { worktrees: t.worktrees, ...(open.length && { pr: open[0].number }) }) });
       continue;
     }
     if (t.container) {

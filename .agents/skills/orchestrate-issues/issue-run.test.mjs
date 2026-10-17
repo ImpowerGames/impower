@@ -571,6 +571,17 @@ try {
     assert.deepEqual([402, 403, 404, 406, 407].map((n) => actions(t2Plan)[n]), ["decision-needed", "dispatch", "dispatch", "wait-dependency", "decision-needed"]);
     assert.match(t2Plan.tickets.find((t) => t.number === 402).reason, /#401's body claims it, but it has sub-issues of its own/);
     assert.equal(t2Plan.tickets.find((t) => t.number === 401).delivers, undefined, "no writer is handed a container's closing reference");
+    // A claim on a container keeps the container's unsettled worktree: it
+    // reserves a place and holds the container's sub-issues.
+    const treeT2 = { ...t2Snap, tickets: t2Snap.tickets.map((t) => (t.number === 402 ? { ...t, worktrees: [{ path: path.join(tmp, "wt-402"), branch: "feat/402-work", head: "x" }] } : t)) };
+    const treeT2Plan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: treeT2, preflights: [available("claude-cli", "claude-opus-5-5", [403, 404, 406])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(treeT2Plan)[402], actions(treeT2Plan)[403], treeT2Plan.concurrency.active - t2Plan.concurrency.active], ["decision-needed", "wait-dependency", 1], "the claimed container's worktree reserves a place and holds #403");
+    assert.match(treeT2Plan.tickets.find((t) => t.number === 402).reason, /existing work on it .*wt-402.* may still have a writer/);
+    // A Bug closed by hand without its deliverer's merge still holds its
+    // deliverer on its own unmet blocker.
+    const closedSnap = { ...miniSnap, tickets: miniSnap.tickets.map((t) => (t.number === 302 ? { ...t, state: "closed", delivered: false } : t)) };
+    const closedPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: closedSnap, preflights: [available("claude-cli", "claude-opus-5-5", [301, 303])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(closedPlan)[301], actions(closedPlan)[302]], ["wait-dependency", "decision-needed"], "a closed issue alone is not delivery");
   }
 
   // The cutover switch, each position pinned from its own copy of the repos
