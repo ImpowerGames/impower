@@ -1,5 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
-import { isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd, storyStatementEnd } from "../utils/storyIslands";
+import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd } from "../utils/storyIslands";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -490,6 +490,8 @@ interface Token {
   authoredEnd?: true;
   /** That EOF ends a story loop header with no `do` on its line (#1907), where Luau's error is the loop's diagnostic. */
   loopHeaderEnd?: true;
+  /** A token of such a header, where Luau's error is the loop's diagnostic too (`while true print(1)`). */
+  loopHeader?: true;
   /** End offset of the grammar-owned marked narrative island containing this token. */
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
@@ -692,7 +694,7 @@ class Tokenizer {
   readonly returnTriviaSpans: { from: number; to: number }[] = [];
   readonly hotcomments: HotComment[] = [];
   /** Where each story declaration's or reassignment's Luau ends (#1907), for `insertStoryBreaks`. */
-  readonly storyIslandEnds: { from: number; end: number; source: number; loop?: true }[] = [];
+  readonly storyIslandEnds: { from: number; end: number; source: number; loop?: true; continued?: true }[] = [];
   /** The index of the top-level node being read. */
   source = -1;
   /**
@@ -890,15 +892,19 @@ class Tokenizer {
     // A story declaration or reassignment ends at its line as a marked
     // statement does (#1907), so it is an island with the same EOF. A token
     // later on its line is still one Luau's reading meets, so the EOF stands
-    // at the end of that line, where `insertStoryBreaks` puts it, or of a
-    // statement that begins later on that line and goes on past it.
+    // at the end of that line, where `insertStoryBreaks` puts it, unless a
+    // statement that begins later on that line goes on past it, whose own
+    // end then ends the reading.
     if (isStoryStatementIsland(node)) {
       const first = this.tokens.length;
       this.readChildren(node);
-      const own = lastLineEnd(this.text, node.to);
-      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.authoredIsland ??= own;
+      const end = lastLineEnd(this.text, node.to);
       const loop = isStoryHeaderOnlyLoop(node);
-      this.storyIslandEnds.push({ from: node.from, end: loop ? own : storyStatementEnd(node, this.text), source: this.source, ...(loop ? { loop: true as const } : {}) });
+      for (let i = first; i < this.tokens.length; i++) {
+        this.tokens[i]!.authoredIsland ??= end;
+        if (loop) this.tokens[i]!.loopHeader = true;
+      }
+      this.storyIslandEnds.push({ from: node.from, end, source: this.source, ...(loop ? { loop: true as const } : {}), ...(continuesPastLine(node, this.text) ? { continued: true as const } : {}) });
       return;
     }
     if (name === "LuauSparkdownChooseBlock_begin") {
@@ -1660,7 +1666,7 @@ class Parser {
     malformed ??= this.attributeListDepth > 0 ? "attribute" : undefined;
     // A story loop header with no `do` on its line meets its end of input
     // where the `do` should be (#1907): Luau's error there is the loop's.
-    malformed ??= boundedStoryEnd && this.current().loopHeaderEnd ? "statement" : undefined;
+    malformed ??= (boundedStoryEnd && this.current().loopHeaderEnd) || this.current().loopHeader ? "statement" : undefined;
     const sparkdownOwned = this.sparkdownDepth > 0 && malformed !== "attribute";
     const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation" || malformed === "attribute"));
     if (malformed && !follows && !consequence && !sparkdownOwned && !atSparkdown && !this.atAbandonedCloser()) {
@@ -4186,7 +4192,14 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
   let lastStoryBreak = -1;
   let next = 0;
   const endIsland = (island: (typeof islands)[number]) => {
-    if (lastStoryBreak >= island.from) return;
+    if (island.continued) return;
+    if (lastStoryBreak >= island.from) {
+      // Two islands that end together share the one EOF, which keeps a
+      // story loop header's mark (`local a = 0 while true`).
+      const shared = merged[merged.length - 1];
+      if (island.loop && shared?.authoredEnd && shared.from === island.end) shared.loopHeaderEnd = true;
+      return;
+    }
     merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}) });
     lastStoryBreak = island.end;
   };

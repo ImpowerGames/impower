@@ -305,6 +305,14 @@ describe("a story loop header ends at its line", () => {
   // Luau's reading of the header meets its end of input at the line's end,
   // so its first error there is the loop's one diagnostic, as the official
   // parser reports it for the header alone.
+  test.each([
+    ["while true print(1)", "0:11-0:16 Expected 'do' when parsing while loop, got 'print'"],
+    ["for i = 1, 3 print(i)", "0:13-0:18 Expected 'do' when parsing for loop, got 'print'"],
+  ])("`%s`, with a token where its `do` should be, reports Luau's error at that token", (header, error) => {
+    expect(parseOfficialTree(`${header}\n`).errors[0]!.message).toBe(error.slice(error.indexOf(" ") + 1));
+    expect(errorsOf(`${header}\nStory.\n`)).toEqual([error]);
+  });
+
   test.each(["for i = 1, 3", "for", "while true", "while", "for _, v in pairs({})"])(
     "`%s` before a story line reports Luau's error at its line's end",
     (header) => {
@@ -356,6 +364,20 @@ describe("a statement later on the line keeps its own continuation", () => {
   ])("%s", (_name, source, output) => {
     expect(errorsOf(source)).toEqual([]);
     expect(run(source).output).toBe(output);
+  });
+
+  // The later statement's own ends still stand inside it (#2062 round 2).
+  test("a statement inside the later block still ends at its own line", () => {
+    const source = "local a = 0 if true then\n  local b = 1 +\n  local c = 2\n  Value {c}.\nend\n";
+    expect(errorsOf(source)).toEqual(["1:15-2:0 Expected identifier when parsing expression, got <eof>"]);
+    expect(run(source).output).toBe("Value 2.\n");
+  });
+
+  test.each([
+    ["local a = 0 while true", "0:22-1:0 Expected 'do' when parsing while loop, got <eof>"],
+    ["local a = 0 for i = 1, 3", "0:24-1:0 Expected 'do' when parsing for loop, got <eof>"],
+  ])("a header-only loop after a statement on its line still reports its missing `do`: %s", (line, error) => {
+    expect(errorsOf(`${line}\nStory.\n`)).toEqual([error]);
   });
 });
 

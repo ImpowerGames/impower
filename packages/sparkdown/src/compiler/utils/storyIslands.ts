@@ -58,7 +58,7 @@ export function storyIslandEnd(node: SyntaxNode, text: string): number | undefin
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
     if (n.name === "LuauFunctionBody") return undefined;
     if (n.name === "LuauSparkdownExplicitStatement") return n.to;
-    if (STORY_STATEMENTS.has(n.name)) return storyStatementEnd(n, text);
+    if (STORY_STATEMENTS.has(n.name)) return lastLineEnd(text, n.to);
     if (isStoryCondition(n)) return lastLineEnd(text, n.to);
     if (n.name === "LuauSparkdownExplicitUntilCondition" && isStoryUntilCondition(n)) return lastLineEnd(text, n.to);
   }
@@ -66,18 +66,18 @@ export function storyIslandEnd(node: SyntaxNode, text: string): number | undefin
 }
 
 /**
- * Where a story statement's Luau meets its end of input: the end of its last
- * line, or of the last line of a statement that begins later on that line
- * (`local a = 0 a = math.max(1,` / `2)`, or a block such as `while x do`),
- * which Luau reads on with it, since nothing ends Luau's reading between
- * them.
+ * Whether a statement that begins later on a story statement's last line goes
+ * on past that line (`local a = 0 a = math.max(1,` / `2)`, or a block such as
+ * `while x do`). Nothing ends Luau's reading between the two, so the end of
+ * the line is no end of input: the later statement's own end, or the story
+ * after its block, ends the reading instead.
  */
-export function storyStatementEnd(node: SyntaxNode, text: string): number {
-  let end = lastLineEnd(text, node.to);
+export function continuesPastLine(node: SyntaxNode, text: string): boolean {
+  const end = lastLineEnd(text, node.to);
   for (let next = node.nextSibling; next && next.from < end; next = next.nextSibling) {
-    end = Math.max(end, lastLineEnd(text, next.to));
+    if (lastLineEnd(text, next.to) > end) return true;
   }
-  return end;
+  return false;
 }
 
 /** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */
