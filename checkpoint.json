@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 261,
-  "previous": "934613c9532a1541dee4df3b6a61893b250288bc",
+  "seq": 262,
+  "previous": "279cf1800804682943124a56991af41485d6beae",
   "snapshotParents": [],
-  "time": "2026-10-17T23:19:02.037Z",
+  "time": "2026-10-17T23:19:09.146Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 269,
@@ -9020,7 +9020,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T23:03:13.244Z",
+    "at": "2026-10-17T23:19:09.145Z",
     "tickets": [
       {
         "number": 1374,
@@ -9042,9 +9042,9 @@
       },
       {
         "number": 1907,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 27532 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1908,
@@ -9072,10 +9072,7 @@
       }
     ],
     "remaining": [
-      "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
-      "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main.",
-      "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
-      "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone."
+      "Every slice is merged and the Feature's acceptance criteria were verified on main; close the Feature with integration.mjs close-feature if it is still open, and give the final report."
     ]
   },
   "log": [
