@@ -9,6 +9,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  diagnoseDetailed,
   diagnoseWithLintsInFunction,
   lintInFunction,
   lintMessagesInFunction,
@@ -111,7 +112,7 @@ end
 });
 
 // Luau: ImplicitReturn
-describe.skip("functions that can fall off the end after returning a value (not implemented: ImplicitReturn)", () => {
+describe("functions that can fall off the end after returning a value", () => {
   test("f1, f4 and the anonymous f6", () => {
     expect(
       lintInFunction(`
@@ -191,7 +192,7 @@ return f1,f2,f3,f4,f5,f6,f7
 });
 
 // Luau: ImplicitReturnInfiniteLoop
-describe.skip("infinite loops with and without a break (not implemented: ImplicitReturn)", () => {
+describe("infinite loops with and without a break", () => {
   test("f3 and f4 can leave their loops", () => {
     expect(
       lintInFunction(`
@@ -248,6 +249,90 @@ return f1,f2,f3,f4
           "Function 'f4' can implicitly return no values even though there's an explicit return at line 33; add explicit return to silence",
       },
     ]);
+  });
+});
+
+describe("ImplicitReturn safety and diagnostic locations", () => {
+  const implicit = (source: string) => diagnoseDetailed(source).filter((d) => d.code === "ImplicitReturn");
+
+  // Sparkdown adaptation: Luau runtime truthiness makes 0 and even an empty
+  // string true. These literal guards cannot leave a while without a break.
+  test.each(["1", "0", '""', '"x"'])("a truthy constant while %s cannot fall through", (guard) => {
+    expect(implicit(`function f(a)
+ while ${guard} do
+  if a then return 1 end
+ end
+end`)).toEqual([]);
+  });
+
+  test.each(["1", "0", '""', '"x"'])("a same-loop break allows while %s to fall through", (guard) => {
+    const warnings = implicit(`function f(a)
+ while ${guard} do
+  if a then return 1 end
+  break
+ end
+end`);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.message).toBe("Function 'f' can implicitly return no values even though there's an explicit return at line 3; add explicit return to silence");
+  });
+
+  test.each(["1", "0", '""', '"x"'])("a nested-loop break does not exit while %s", (guard) => {
+    expect(implicit(`function f(a)
+ while ${guard} do
+  while a do break end
+  if a then return 1 end
+ end
+end`)).toEqual([]);
+  });
+
+  test.each(["nil", "false", "a"])("an unproven truthy while %s can fall through", (guard) => {
+    const warnings = implicit(`function f(a)
+ while ${guard} do
+  if a then return 1 end
+ end
+end`);
+    expect(warnings).toHaveLength(1);
+  });
+
+  // The LocalUnused keyword-read fixture is intentionally a partial value
+  // return. Its exact LocalUnused mask must not suppress this separate rule.
+  test("the LocalUnused keyword-read control still warns about its implicit return", () => {
+    expect(lintInFunction("\nlocal match = true\nif match then return 1 end\n", "ImplicitReturn")).toEqual([{
+      line: 2,
+      message: "Function 'run' can implicitly return no values even though there's an explicit return at line 3; add explicit return to silence",
+    }]);
+  });
+
+  test("the closing end is a warning and names the first value return", () => {
+    expect(implicit("function f(a)\n if a then\n  return 1\n end\nend\n")).toEqual([{
+      file: "main.sd",
+      code: "ImplicitReturn",
+      severity: 2,
+      message: "Function 'f' can implicitly return no values even though there's an explicit return at line 3; add explicit return to silence",
+      range: { start: { line: 3, character: 1 }, end: { line: 3, character: 4 } },
+    }]);
+  });
+
+  test.each([
+    ["no value return", "function f(a)\n if a then return end\nend"],
+    ["explicit empty return", "function f(a)\n if a then return 1 end\n return\nend"],
+    ["all arms exit", "function f(a)\n if a then return 1 else return end\nend"],
+    ["error exit", "function f(a)\n if a then return 1 end\n error('stop')\nend"],
+    ["assert exit", "function f(a)\n if a then return 1 end\n assert(false)\nend"],
+    ["repeat body always exits", "function f(a)\n repeat return 1 until a\nend"],
+    ["nested function return", "function f()\n local function g() return 1 end\n g()\nend"],
+    ["nested loop break", "function f(a)\n while true do\n  while a do break end\n  if a then return 1 end\n end\nend"],
+    ["incomplete function", "function f(a)\n if a then return 1 end"],
+    ["incomplete conditional", "function f(a)\n if a then return 1\nend"],
+    ["malformed expression", "function f(a)\n if a then return 1 end\n print(+)\nend"],
+    ["narrative control flow", "if true\n & return 1\nend\nHello."],
+  ])("stays silent for %s", (_name, source) => {
+    expect(implicit(source)).toEqual([]);
+  });
+
+  test("nested function warns once without treating its return as the outer function's", () => {
+    const warnings = implicit("function outer()\n local function inner(a)\n  if a then return 1 end\n end\n inner(false)\nend");
+    expect(warnings.map((d) => d.message)).toEqual(["Function 'inner' can implicitly return no values even though there's an explicit return at line 3; add explicit return to silence"]);
   });
 });
 
