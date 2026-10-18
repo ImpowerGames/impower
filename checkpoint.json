@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 236,
-  "previous": "191731ae5a57b5c26c93bb4f9750ed20142d4661",
+  "seq": 237,
+  "previous": "630a0e43a4981f70bfeb3f894819268ba4dc171d",
   "snapshotParents": [],
-  "time": "2026-10-18T16:32:07.494Z",
+  "time": "2026-10-18T16:32:47.384Z",
   "kind": "auto",
-  "transition": "the intent to merge PR #2072",
+  "transition": "the outcome of operation c462ec31",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 217,
+    "recordRevision": 218,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5120,8 +5120,10 @@
       "ticket": 1967,
       "pr": 2072,
       "expectHead": "f7311b4fc411cbe68496b17ff6923a0582304636",
-      "state": "intent",
-      "time": "2026-10-18T16:32:05.176Z"
+      "state": "confirmed",
+      "time": "2026-10-18T16:32:05.176Z",
+      "evidence": "gh pr view 2072 reads MERGED with merge commit d0a9796280b039f8de44964aa3653052d624b129 at 2026-10-18T16:32:19Z after gh pr merge --merge --match-head-commit f7311b4fc411cbe68496b17ff6923a0582304636; origin/main is d0a979628 with cutover true in .agents/repos.json",
+      "settled": "2026-10-18T16:32:45.239Z"
     }
   ],
   "decisions": [
@@ -5254,7 +5256,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-18T16:32:06.646Z",
+      "observedAt": "2026-10-18T16:32:46.606Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5540,13 +5542,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T05:25:11.758Z",
-      "event": "answered",
-      "ticket": 1966,
-      "id": "56d48051",
-      "deliveryId": "9260586d"
-    },
     {
       "time": "2026-10-17T05:26:48.414Z",
       "event": "check-in",
@@ -6215,6 +6210,12 @@
       "id": "c462ec31",
       "kind": "merge",
       "pr": 2072
+    },
+    {
+      "time": "2026-10-18T16:32:45.239Z",
+      "event": "operation-outcome",
+      "id": "c462ec31",
+      "state": "confirmed"
     }
   ]
 }
