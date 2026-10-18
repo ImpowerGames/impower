@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 234 (this commit), 2026-10-18T14:16:28.224Z, after the intent before a side effect. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 235 (this commit), 2026-10-18T14:16:35.578Z, after resume of #1967. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -11,7 +11,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1967
 
-- claude-cli claude-opus-5-5 at high, process 46820 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at high, process 57092 on DESKTOP-726EO47
 - review job pr-2057/round-1/launch-data-1 on DESKTOP-726EO47: round 1 reviewed 109a8b7d8, completed {"data":1} of planned ["data","undirected"]; last launched reviewer data attempt 1 of round 1 (planned ["data","undirected"]), last event finished
 - review job pr-2057/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 9c0fcd697, completed {"data":1,"undirected":1} of planned ["data","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["data","undirected"]), last event finished
 - review job pr-2057/round-2/launch-data-1 on DESKTOP-726EO47: round 2 reviewed 54169dbc5, completed {"data":1} of planned ["data","undirected"]; last launched reviewer data attempt 1 of round 2 (planned ["data","undirected"]), last event finished
