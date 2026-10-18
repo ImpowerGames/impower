@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 238,
-  "previous": "cd85a72d20c0db092ea87242be3138dd0a819eb9",
+  "seq": 239,
+  "previous": "f0067be6709861c6a8cfaaadf6f554b666ff5e51",
   "snapshotParents": [],
-  "time": "2026-10-18T17:06:59.752Z",
+  "time": "2026-10-18T17:07:22.464Z",
   "kind": "auto",
-  "transition": "the intent to merge PR #2073",
+  "transition": "the outcome of operation 129fdd9c",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 219,
+    "recordRevision": 220,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5131,8 +5131,10 @@
       "ticket": 1967,
       "pr": 2073,
       "expectHead": "843975f80b6aa756c01069c2dc4fce26aec378bf",
-      "state": "intent",
-      "time": "2026-10-18T17:06:57.526Z"
+      "state": "confirmed",
+      "time": "2026-10-18T17:06:57.526Z",
+      "evidence": "gh pr view 2073 reads MERGED with merge commit 36f20820a6821bd6672f467cc8a8f2738aedbc28 at 2026-10-18T17:07:07Z after gh pr merge --merge --match-head-commit 843975f80b6aa756c01069c2dc4fce26aec378bf with 18 checks passed and 4 skipped",
+      "settled": "2026-10-18T17:07:20.308Z"
     }
   ],
   "decisions": [
@@ -5265,7 +5267,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-18T17:06:58.940Z",
+      "observedAt": "2026-10-18T17:07:21.672Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5551,11 +5553,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T05:53:43.691Z",
-      "event": "check-in",
-      "outcome": "no change: #1965 writer editing the skill references before the tooling checks, no PR yet; #1966 round 6 reviewed and corrected at 0ce68b477 (CI running), writer running rehearsal 9 before its checkpoint report; both writers running"
-    },
     {
       "time": "2026-10-17T06:05:09.781Z",
       "event": "request",
@@ -6227,6 +6224,12 @@
       "id": "129fdd9c",
       "kind": "merge",
       "pr": 2073
+    },
+    {
+      "time": "2026-10-18T17:07:20.308Z",
+      "event": "operation-outcome",
+      "id": "129fdd9c",
+      "state": "confirmed"
     }
   ]
 }
