@@ -54,7 +54,8 @@ try {
     const outsideDir=path.join(scratch,'outside-job');
     const input={worktree:repo,jobDir:outsideDir,head,base:head,pr:547,writer:'writer',writerEffort:'medium',permissions:{mode:'fixture'},reviewer:'reviewer',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'old-turn',cwd:repo},reviews:[{id:'correctness',transport:'native-claude-json',executable:process.execPath,args:[child,'--model','reviewer','--effort','high','--permission-mode','dontAsk','--output-format','json'],effort:'high',permissions:'dontAsk',prompt}]};
     const host={preflight:async()=>({supported:true})};
-    const unseamed={validateArgs:fixtureValidation.validateArgs};
+    // Only the job root goes unseamed; the switch stays pinned off like every other case.
+    const unseamed={validateArgs:fixtureValidation.validateArgs,repos:OFF};
     await assert.rejects(actualCreate(input,host,unseamed),error=>error.message.includes(`under ${path.join(fs.realpathSync.native(scratch),'repo.review-jobs')} `)&&/jobDir .*outside-job/.test(error.message)&&/review correctness prompt/.test(error.message));
     assert.equal(fs.existsSync(outsideDir),false,'a refused job directory must not be created');
     assert.equal(fs.existsSync(worktreePaths(repo).freeze),false,'a refused plan must not take the worktree freeze');
@@ -412,7 +413,7 @@ try {
   {
     const f=await fixture(),review=f.input.reviews[0],native={...review,args:review.args.slice(1)};
     assert.doesNotThrow(()=>validateNativeReviewArgs(native));assert.throws(()=>validateNativeReviewArgs(review),/Unsupported automatic/);
-    assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]},{jobRoot:scratch}));assert.throws(()=>actualValidate(f.input,{jobRoot:scratch}),/Unsupported automatic/,'production default validator is wired');
+    assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]},{jobRoot:scratch,repos:OFF}));assert.throws(()=>actualValidate(f.input,{jobRoot:scratch,repos:OFF}),/Unsupported automatic/,'production default validator is wired');
     assert.throws(()=>validateNativeReviewArgs({...native,permissions:'bypassPermissions',args:native.args.map(value=>value==='dontAsk'?'bypassPermissions':value)}),/permission mode/);
     assert.throws(()=>validateReviewPlan({...f.input,writer:'reviewer[fast]'}),/distinct/);
     assert.throws(()=>validateReviewPlan({...f.input,writerEffort:'bogus'}),/Supply writerEffort/,'job admission refuses an unknown writer effort');

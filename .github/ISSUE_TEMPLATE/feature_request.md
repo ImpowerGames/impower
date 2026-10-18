@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: New functionality, or a change to how something works.
+about: Suggest something new for Impower, Sparkdown or the VS Code extension, or a change to how something works.
 title: ""
 labels: ""
 type: Feature
@@ -8,39 +8,17 @@ assignees: ""
 ---
 
 <!--
-Title: one sentence naming what the author or player gains. Example: "Explain why a preview could not be simulated". No prefix and no ticket number.
-
-Labels: apply every area the work touches. `system: sparkdown` (language, compiler, engine packages), `system: sparkle-ui` (Sparkle layout, components, styles, reactive engine, DOM renderer), `app: web-editor` (the impower-dev editor and web player), `app: vscode-extension` (vscode-sparkdown), `documentation`.
-
-Keep every heading; write "Open" under one that is still undecided rather than deleting it. Delete these comments before filing.
+Thanks for the suggestion. Give the issue a title that names what you would gain, for example "Show why a preview could not be simulated". Fill in what you can. Please delete these comments before submitting.
 -->
 
-## Problem
+## What you are trying to do
 
-<!-- What you are trying to do and what gets in the way today. Describe the situation, not the solution. -->
+<!-- The story, game or workflow you are working on, and what gets in the way today. -->
 
-## Proposed solution
+## What would help
 
-<!-- How it would work from the author's or player's side: the Sparkdown syntax, the editor or extension UI, or the API. Show an example script in a fenced code block where syntax is involved. -->
+<!-- How you imagine it working. If it involves Sparkdown syntax, a short example script helps. -->
 
-## Alternatives considered
+## Anything else
 
-<!-- Other ways to solve the problem and why this proposal is preferred. -->
-
-## Scope
-
-<!-- What is included, and what is deliberately left out so the work has a clear edge. Note any existing code, branch, or issue that partly covers this. -->
-
-## Implementation plan
-
-<!-- Steps in pipeline order (parser, compiler, engine, player, editor, extension), one bullet per step naming the package it touches. Decisions rather than code. Write "Open" if the plan has not been worked out yet; a ticket produced by the file-feature skill always fills this in. -->
-
-## Acceptance criteria
-
-<!-- Conditions a reviewer can check: which tests exist and what they prove, what the running editor or extension shows, what a measurement reads. -->
-
-- [ ]
-
-## Additional context
-
-<!-- Related issues or pull requests, references, mockups. -->
+<!-- Workarounds you use now, similar tools that do this well, mockups or screenshots. -->
