@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 235,
-  "previous": "b5ef875a26baed2973afd702fd3085da92c8ca76",
+  "seq": 236,
+  "previous": "191731ae5a57b5c26c93bb4f9750ed20142d4661",
   "snapshotParents": [],
-  "time": "2026-10-18T14:16:35.578Z",
+  "time": "2026-10-18T16:32:07.494Z",
   "kind": "auto",
-  "transition": "resume of #1967",
+  "transition": "the intent to merge PR #2072",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 216,
+    "recordRevision": 217,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5113,6 +5113,15 @@
       "time": "2026-10-17T13:12:49.847Z",
       "evidence": "gh pr merge 2057 --merge --match-head-commit 52e5a21c5 succeeded on the maintainer's instruction; PR reads back MERGED with merge commit 555e5300ae7b7b8483394ad36c4d6967fa740d55, which is on origin/main",
       "settled": "2026-10-17T13:13:07.161Z"
+    },
+    {
+      "id": "c462ec31",
+      "kind": "merge",
+      "ticket": 1967,
+      "pr": 2072,
+      "expectHead": "f7311b4fc411cbe68496b17ff6923a0582304636",
+      "state": "intent",
+      "time": "2026-10-18T16:32:05.176Z"
     }
   ],
   "decisions": [
@@ -5245,7 +5254,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-18T14:16:34.792Z",
+      "observedAt": "2026-10-18T16:32:06.646Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5531,19 +5540,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T05:24:57.907Z",
-      "event": "resumed",
-      "ticket": 1966,
-      "id": "a919aa23-6e09-4dda-9ddd-dcef10ec4d72",
-      "handle": {
-        "kind": "process",
-        "pid": 12168,
-        "start": "639278114973657966",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-a919aa23-6e09-4dda-9ddd-dcef10ec4d72"
-      }
-    },
     {
       "time": "2026-10-17T05:25:11.758Z",
       "event": "answered",
@@ -6212,6 +6208,13 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-a9e36123-f7ff-46ea-a460-b55a1e5c2bf8"
       }
+    },
+    {
+      "time": "2026-10-18T16:32:05.176Z",
+      "event": "operation-intent",
+      "id": "c462ec31",
+      "kind": "merge",
+      "pr": 2072
     }
   ]
 }
