@@ -1,6 +1,6 @@
 # Skills improve through use — report the friction
 
-The skills under `.agents/skills/` are improved based on what happens when they are used. Friction a session meets while following a skill is reported as a comment in the standing feedback inbox the maintainer reads and triages: issue `<inbox>` in the [tickets repository](publishing.md#the-tickets-repository) `<tickets>`, which `node .agents/repos.mjs inbox` and `node .agents/repos.mjs tickets` print (#510 on the code repository until the cutover).
+The skills under `.agents/skills/` are improved based on what happens when they are used. Friction a session meets while following a skill is reported as a comment in the standing feedback inbox the maintainer reads and triages: issue `<inbox>` in the [tickets repository](publishing.md#the-tickets-repository) `<tickets>`, which `node .agents/repos.mjs inbox` and `node .agents/repos.mjs tickets` print.
 
 A report belongs in the inbox when both of these hold:
 
