@@ -30,6 +30,7 @@ import {
   targetIdentifier,
 } from "../utils/lowerPropertyTargetAssignment";
 import { offsetAt } from "../utils/luauAst";
+import { publishesConst } from "../utils/publishesConst";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import type { StatementSite } from "./lowerLuauStatement";
 
@@ -47,7 +48,7 @@ export function lowerAssignment(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  const vars = stat.vars.map(reassignedConst);
+  const vars = stat.vars.map((target) => reassignedConst(target, ctx));
   if (vars.length === 1 && stat.values.length <= 1) {
     const value = stat.values[0];
     return lowerSingleAssignment(
@@ -62,15 +63,19 @@ export function lowerAssignment(
 }
 
 // A const's name as an assignment target: the converter reads the target as
-// Luau's error, which the type checker reports; the compiler reports the
-// const's re-assignment with its own wording, so the assignment is lowered
-// with its name.
-function reassignedConst(target: AstExpr): AstExpr {
+// Luau's error. The compiler reports a published const's re-assignment with
+// its own wording, so in story text the assignment is lowered with its name.
+// In a function the const is Luau's, a local whose re-assignment the type
+// checker reports in Luau's words, and the assignment is not lowered (the
+// reading of a function's body holds none of the story's constants, so a
+// const it reads as a local is the function's own).
+function reassignedConst(target: AstExpr, ctx: LowerContext): AstExpr {
   if (
     target instanceof AstExprError &&
     target.expressions.length === 1 &&
     target.expressions[0] instanceof AstExprLocal &&
-    target.expressions[0].local.isConst
+    target.expressions[0].local.isConst &&
+    publishesConst(ctx)
   ) {
     return target.expressions[0];
   }
@@ -84,7 +89,7 @@ export function lowerCompoundAssignment(
   ctx: LowerContext,
 ): CompiledBlock {
   return lowerSingleAssignment(
-    reassignedConst(stat.variable),
+    reassignedConst(stat.variable, ctx),
     lowerExpression(stat.value, site.source, ctx),
     `${binaryOpToString(stat.op)}=`,
     site,

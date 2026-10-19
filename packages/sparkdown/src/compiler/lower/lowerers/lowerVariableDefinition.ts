@@ -18,6 +18,7 @@ import {
   type PathName,
 } from "../expression/lowerExpression";
 import { rangeOf } from "../utils/luauAst";
+import { publishesConst } from "../utils/publishesConst";
 import { statementSource } from "../utils/statementSource";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -26,9 +27,11 @@ import type { StatementSite } from "./lowerLuauStatement";
 /**
  * A declaration: `local` names (a temporary of the enclosing flow or
  * function), `store` names (globals the story saves, registered at the story
- * level and evaluated at its start) and a `const` (a global that does not
- * change). The validators of the declaration's syntax node report what its
- * list leaves missing (`validateVariableDefinition`).
+ * level and evaluated at its start) and a `const` outside every function (a
+ * global that does not change). A `const` inside a function is Luau's, and
+ * is lowered as a `local`: its names, its values and its errors are Luau's
+ * (`publishesConst`). The validators of the declaration's syntax node report
+ * what its list leaves missing (`validateVariableDefinition`).
  */
 export function lowerVariableDefinition(
   stat: AstStatLocal | AstStatSparkdownStore,
@@ -38,7 +41,7 @@ export function lowerVariableDefinition(
   const scope =
     stat instanceof AstStatSparkdownStore
       ? "store"
-      : stat.isConst
+      : stat.isConst && publishesConst(ctx)
         ? "const"
         : "local";
   const targets: PathName[] =

@@ -28,6 +28,7 @@ import { Path } from "./Path";
 import { VariableAssignment } from "./Variable/VariableAssignment";
 import { DebugMetadata } from "../../../../runtime/DebugMetadata";
 import { Stitch } from "./Stitch";
+import { RESERVED } from "../../../../compiler/typecheck/LuauUnitNodes";
 import { ObjectExpression } from "./Expression/ObjectExpression";
 import { VariableReference } from "./Variable/VariableReference";
 
@@ -122,38 +123,14 @@ export function sitesNaming(
 }
 
 export class Story extends FlowBase {
-  public static readonly IsReservedKeyword = (name?: string): boolean => {
-    switch (name) {
-      case "true":
-      case "false":
-      case "not":
-      case "return":
-      case "else":
-      case "temp":
-      case "INCLUDE":
-      case "include":
-      case "EXTERNAL":
-      case "external":
-      case "VAR":
-      case "var":
-      case "store":
-      case "CONST":
-      case "const":
-      // `LIST` / `list` are intentionally NOT reserved — sparkdown
-      // replaced ink's LIST type with Luau tables (see
-      // docs/runtime/DIVERGENCES.md), so the words are free for user identifiers
-      // (`store list = {…}`, `function list_all() end`, etc.).
-      case "DEFINE":
-      case "define":
-      case "function":
-      case "system":
-      case "scene":
-      case "branch":
-        return true;
-    }
-
-    return false;
-  };
+  /**
+   * Luau's keywords, the only words a name may not be. Sparkdown's own
+   * statements (`store`, `const`, `define`, `scene`, `branch`, ...) are
+   * recognized by their shape, so their words are names wherever Luau allows
+   * one (docs/runtime/DIVERGENCES.md, "Only Luau's keywords are reserved").
+   */
+  public static readonly IsReservedKeyword = (name?: string): boolean =>
+    name !== undefined && RESERVED.has(name);
 
   private _errorHandler: ErrorHandler | null = null;
   private _hadError: boolean = false;

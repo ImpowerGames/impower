@@ -383,8 +383,41 @@ recognizable keyword.
 
 Sparkdown adds `store` alongside Luau's `local`. `store` declares a
 ink-style global variable (persisted in save state); `local` is a per-scope
-binding (see below); `const` is a once-only declaration (currently lowered
-to `var` — see DEFERRED.md). Standard Luau has no `store`.
+binding (see below). Standard Luau has no `store`.
+
+### `const` outside a function is a published constant; inside one it is Luau's
+
+A `const` outside every function (in the story, a scene or a branch) is the
+story's published constant: a global that does not change, declared with the
+story's globals before it starts. It takes one name and one value (``A `const`
+takes one name and one value``), its value must be a constant expression
+(``A const must be initialized to a constant expression``), a second `const`
+of its name with another value is an error (``Cannot redeclare const``), and
+assigning to it, inside a function or out, is ``Cannot re-assign the const``.
+
+A `const` inside a function, at any depth of its blocks, is Luau's: a local
+of its block that cannot be reassigned. It takes several names
+(`const X, Y = 1, 2`), any value (`const v = t.field`), shadows and is
+shadowed like a `local`, and two functions each have their own `const` of one
+name. The errors are Luau's, at Luau's range: `Missing initializer in const
+declaration` where it has more names than values and no call to spread
+across them, and `Variable 'X' is constant and may not be reassigned` for an
+assignment to it. A `run` file's text is the body of the function a `run`
+calls, so its `const`s are Luau's too. `ConstMultiDeclaration.test.ts` and
+`LuauNamesAndFunctionConst.test.ts` pin the two scopes.
+
+### Only Luau's keywords are reserved
+
+A name may be any word but Luau's keywords (`and break do else elseif end
+false for function if in local nil not or repeat return then true until
+while`), which are rejected where Luau rejects them, with Luau's message.
+Sparkdown's own statements (`store`, `const`, `define`, `scene`, `branch`,
+`include`, `system`, ...) and ink's (`var`, `temp`, `VAR`, `CONST`,
+`EXTERNAL`, ...) are recognized by their shape, so their words are names
+wherever Luau allows a name: a `local`, a parameter, a function's name, a
+table key. One gap remains: the grammar still reads `define` and `store`
+inside a function as Sparkdown's declarations where a value or a statement
+begins (`local store = 1`, `return define`), ImpowerGames/impower-internal#1328.
 
 ### Math builtins use Luau names, not ink's all-caps form
 
@@ -674,7 +707,7 @@ These literal cases are deliberately different:
 - `\u{110000}` through `\u{7FFFFFFF}` are valid in Luau (it encodes them as extended UTF-8) and are accepted here too, but a JS string cannot hold a code point above U+10FFFF, so they lower to U+FFFD.
 - Native integer literals are unsupported as described above; malformed integer spellings such as `0xABii` retain **Malformed number** rather than Luau's **Malformed integer**.
 
-A missing or malformed expression is reported wherever Luau reports one, with Luau's wording and range, from the type checker's reading of the Luau in the syntax tree ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)): an operator with no operand (`local y = 1 +` before `local`, `f(1 +)`), an empty value (`local a, b = 1,` before `end`, `f(1,)`), a member access with no name (`t.a.`, `get().a. = 1`), a function value with a name (`local g = function named() end`), and a statement that is a value but not a call (`x + 1`). Other statement-level diagnostics (a missing `end`, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. A malformed type annotation is reported only where its type cannot begin (see "A malformed type annotation is reported only where its type cannot begin" above), and Luau's tests for the rest are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
+A missing or malformed expression is reported wherever Luau reports one, with Luau's wording and range, from the type checker's reading of the Luau in the syntax tree ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)): an operator with no operand (`local y = 1 +` before `local`, `f(1 +)`), an empty value (`local a, b = 1,` before `end`, `f(1,)`), a member access with no name (`t.a.`, `get().a. = 1`), a function value with a name (`local g = function named() end`), and a statement that is a value but not a call (`x + 1`). Other statement-level diagnostics (a missing `end`, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. A malformed type annotation is reported only where its type cannot begin (see "A malformed type annotation is reported only where its type cannot begin" above), and Luau's tests for the rest are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
 
 ### A value on the line after `return` counts only when `return` starts its line
 

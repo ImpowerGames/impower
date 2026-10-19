@@ -452,15 +452,16 @@ export function bodyReferencesNameAsCall(
 
 /**
  * The names the statements of `block` declare as locals themselves
- * (`local x`, `local function f`), not those declared inside the blocks
- * within it: what a `repeat` loop's `until` condition sees of its body.
+ * (`local x`, `local function f`, and a `const` unless the story publishes
+ * it, `publishesConst`), not those declared inside the blocks within it:
+ * what a `repeat` loop's `until` condition sees of its body.
  */
-export function blockLocalNames(block: AstStatBlock): string[] {
+export function blockLocalNames(block: AstStatBlock, constsAreLocal: boolean): string[] {
   const names: string[] = [];
   for (const stat of block.body) {
-    if (stat instanceof AstStatLocal && !stat.isConst) {
+    if (stat instanceof AstStatLocal && (constsAreLocal || !stat.isConst)) {
       names.push(...stat.vars.map((v) => v.name));
-    } else if (stat instanceof AstStatLocalFunction && !stat.isConst) {
+    } else if (stat instanceof AstStatLocalFunction && (constsAreLocal || !stat.isConst)) {
       names.push(stat.name.name);
     }
   }
