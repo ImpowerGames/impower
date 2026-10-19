@@ -543,7 +543,11 @@ function lowerHandlerClosure(
     // With statement shapes on, each statement of the closure is recorded on
     // the evaluator's body, for the binary program (`openEvaluatorBody`).
     const shape = openEvaluatorBody(ctx, closureNode.from, closureNode.to);
+    // The closure runs as a function: a `const` in it is Luau's local.
+    const localConsts = ctx.localConsts;
+    ctx.localConsts = true;
     const stmts = lowerStatements(body, ctx, undefined, shape);
+    ctx.localConsts = localConsts;
     if (body) reportBodySyntaxErrors(closureSyntaxErrors(body, ctx), ctx);
     const fn = new Function(
       new Identifier(exprId),

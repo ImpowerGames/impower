@@ -105,6 +105,13 @@ export interface LowerContext {
    */
   sparkleLoopVars?: string[];
   /**
+   * Set while the statements of a Sparkle handler's closure (`@e={ ... }`)
+   * lower: the closure runs as a function, though it is not on
+   * `functionScopeStack`, so a `const` in it is Luau's, a local, rather than
+   * the story's published constant (`publishesConst`).
+   */
+  localConsts?: boolean;
+  /**
    * The continuation lines and own-line blocks of the Sparkle body being
    * built, joined to the elements they continue (`joinSparkleContinuations`).
    * Set by `buildSparkleBody` around the body.

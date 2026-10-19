@@ -311,6 +311,34 @@ describe("a `const` inside a function follows Luau (#1293)", () => {
   });
 });
 
+// The type checker reads a function's body, and reports Luau's const errors
+// there; the lowerer reports them where it does not read the Luau. Each is
+// reported once, in Luau's words (round 2).
+describe("a function's `const` errors in every place Luau is read", () => {
+  const REASSIGNED = "Variable 'a' is constant and may not be reassigned";
+  const MISSING = "Missing initializer in const declaration";
+  test.each([
+    ["a function", "Go {f()}.\nfunction f()\n  const a = 1\n  a = 2\n  return a\nend\n", REASSIGNED],
+    ["a function value in an interpolation", "Go {(function() const a = 1; a = 2; return a end)()}.\n", REASSIGNED],
+    ["a function value in an interpolation, with a value missing", "Go {(function() const a, b = 1; return a end)()}.\n", MISSING],
+    ["a define's method", "define box as thing with\n  sum()\n    const a = 1\n    a = 2\n    return a\n  end\nend\nGo.\n", REASSIGNED],
+    ["a define's function-valued property", "define box as thing with\n  sum = function()\n    const a = 1\n    a = 2\n    return a\n  end\nend\nGo.\n", REASSIGNED],
+    ["a Sparkle handler", "store g = 0\nlayout form with\n  button \"Go\" @click={ const a = 1 a = 2 g = a }\nend\nValue {g}.\n", REASSIGNED],
+    ["a function statement over the const", "Go {f()}.\nfunction f()\n  const a = 1\n  function a() end\n  return 1\nend\n", REASSIGNED],
+  ])("in %s", (_label, source, message) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect([...ctx.errorMessages]).toEqual([message]);
+  });
+
+  test("a Sparkle handler's const is a local of the handler, not a story constant", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      "store g = 0\nlayout form with\n  button \"Go\" @click={ const a, b = 1, 2 g = a + b }\nend\nconst a = 5\nValue {g} {a}.\n",
+    );
+    expect([...ctx.errorMessages]).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Value 0 5.\n");
+  });
+});
+
 describe("a `const` inside a function is linted as a local", () => {
   test("an unused one is reported as Luau's linter reports a local", () => {
     const ctx = makeRuntimeStoryFromSource(
