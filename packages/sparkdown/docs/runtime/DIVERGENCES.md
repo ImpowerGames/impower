@@ -415,7 +415,10 @@ Sparkdown's own statements (`store`, `const`, `define`, `scene`, `branch`,
 `include`, `system`, ...) and ink's (`var`, `temp`, `VAR`, `CONST`,
 `EXTERNAL`, ...) are recognized by their shape, so their words are names
 wherever Luau allows a name: a `local`, a parameter, a function's name, a
-table key. One gap remains: the grammar still reads `define` and `store`
+table key. A scene's, a branch's, a choice's or a gather's name is the
+story's own, diverted to rather than read as Luau, so it may be any word its
+construct's shape allows, Luau's keywords included (`+ (then)`,
+`-> then`). One gap remains: the grammar still reads `define` and `store`
 inside a function as Sparkdown's declarations where a value or a statement
 begins (`local store = 1`, `return define`), and `const` at the start of the
 line that continues a list of names (`local a,` then `const = 1, 2`, which is

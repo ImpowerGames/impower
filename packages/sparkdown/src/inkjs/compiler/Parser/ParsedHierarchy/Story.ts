@@ -933,9 +933,19 @@ export class Story extends FlowBase {
     typeNameOverride: string = "",
   ): void => {
     const typeNameToPrint: string = typeNameOverride || obj.typeName;
+    // Luau's keywords are reserved for Luau's names: a local, a parameter, a
+    // global, a struct and a function. A scene, a branch, a choice or a
+    // gather label is the story's own name, diverted to, which its
+    // construct's shape recognizes, so it may be any word (`+ (then)`).
+    const luauName =
+      symbolType === SymbolType.Temp ||
+      symbolType === SymbolType.Arg ||
+      symbolType === SymbolType.Var ||
+      symbolType === SymbolType.Struct ||
+      (obj instanceof FlowBase && obj.isFunction);
     if (identifier?.name) {
       for (const part of identifier.name.split(".")) {
-        if (Story.IsReservedKeyword(part)) {
+        if (luauName && Story.IsReservedKeyword(part)) {
           obj.Error(
             `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
             identifier?.debugMetadata,

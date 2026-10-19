@@ -123,7 +123,7 @@ import {
   type SparkdownSource,
 } from "./Ast";
 import { Location, Position } from "./Location";
-import { breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
+import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
@@ -997,7 +997,7 @@ class Tokenizer {
     // statement before only at the end of a line.
     if (!before || before.kind === "mark") return;
     const begin = at === this.tokens.length ? from : this.tokens[at]!.from;
-    if (!this.text.slice(before.to, begin).includes("\n")) return;
+    if (!breaksAcrossLine(this.text.slice(before.to, begin))) return;
     if (at === this.tokens.length) {
       this.push("break", from, from + /^[A-Za-z_][A-Za-z0-9_]*/.exec(text)![0].length);
       return;
@@ -4715,13 +4715,19 @@ export function lexLuauDocumentForTesting(documentText: string): readonly { kind
 }
 
 /** The next token as Luau reads it, past whitespace and comments. */
-export function nextLuauToken(from: number, documentText: string, to = documentText.length): { text: string; from: number; name: boolean } | null {
+export function nextLuauToken(from: number, documentText: string, to = documentText.length): { text: string; from: number } | null {
   const tokens = lexAhead(documentText, from);
   const token = tokens[firstFrom(tokens, from)];
   if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
-  // `name` is whether Luau's lexer reads the token as a name, not a keyword.
-  return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from, name: token.kind === "name" };
+  return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
+}
+
+/** Whether Luau's lexer reads the token that begins at `from` as a name, rather than a keyword or a symbol. */
+export function isLuauNameAt(from: number, documentText: string): boolean {
+  const tokens = lexAhead(documentText, from);
+  const token = tokens[firstFrom(tokens, from)];
+  return token?.from === from && token.kind === "name";
 }
 
 /** Read the expression after an operator the grammar ends without a value. */

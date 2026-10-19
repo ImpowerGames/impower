@@ -16,7 +16,7 @@ import {
 } from "../../utils/variableDefinitionNames";
 import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
 import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
-import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
+import { isLuauNameAt, luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
 import { isUnreadTokenAt } from "../../utils/unreadTokens";
@@ -246,15 +246,14 @@ export function validateListComma(
   const read = (from: number, to: number) => ctx.read(from, to);
   const after = nextSignificantToken(comma, at + 1, read, ctx.documentText, authoredIslandEnd(comma, wholeDocument(comma, read, ctx.documentText)));
   if (after && luauReadingReportsUnread(comma, after.from, read)) return;
-  // Before the `=`, a token Luau's lexer reads as a name on the comma's line
-  // is the next binding name: the converter's reading, which the lowering
-  // runs, carries the declaration on to it whatever statement the grammar
-  // begins at its word (`local a, const = 1, 2`), since it ends a statement
-  // before one the tree begins only at the end of a line (`statementBreak`
-  // in `readLuauAst.ts`). Only a token that is not a name is a missing one
-  // there. On a later line the reading ends the declaration before such a
-  // statement, and the binding it lacks is Sparkdown's to report, as below.
-  if (!afterAssignment && after?.name && !ctx.read(at, after.from).includes("\n")) return;
+  // Before the `=`, a token Luau's lexer reads as a name is the next binding
+  // name wherever the reading carries the declaration on to it
+  // (`checkerReadsOnTo`), whatever statement the grammar begins at its word
+  // on the comma's line (`local a, const = 1, 2`): only a token that is not
+  // a name is a missing one there. Where the reading ends the declaration
+  // before a statement the tree begins on a later line, the binding it lacks
+  // is Sparkdown's to report, as below.
+  if (!afterAssignment && after && isLuauNameAt(after.from, wholeDocument(comma, read, ctx.documentText)) && checkerReadsOnTo(comma, after.from, read)) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
   const parsing = afterAssignment ? "expression" : "binding name";
   ctx.diagnostics.push({
@@ -732,7 +731,7 @@ export function nextSignificantToken(
   read: (from: number, to: number) => string,
   document?: () => string,
   to?: number,
-): { text: string; from: number; name: boolean } | null {
+): { text: string; from: number } | null {
   return nextLuauToken(pos, wholeDocument(node, read, document), to);
 }
 
