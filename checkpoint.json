@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 241,
-  "previous": "a223623de43cbef450d2be41c935f9198d238ff7",
+  "seq": 242,
+  "previous": "cf1e979755ffe14ff9233a25c9bdf719c6693b12",
   "snapshotParents": [],
-  "time": "2026-10-19T04:41:57.602Z",
+  "time": "2026-10-19T07:49:38.682Z",
   "kind": "auto",
-  "transition": "resume of #1967",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 222,
+    "recordRevision": 223,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4029,7 +4029,12 @@
             "time": "2026-10-19T04:41:55.662Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-f59b361f-1d7b-4967-a7fa-d12a51de44f1"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "729f2393-a8ae-4820-ace6-1e07e1b2fe7f",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-729f2393-a8ae-4820-ace6-1e07e1b2fe7f",
+          "time": "2026-10-19T07:49:36.500Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -5272,7 +5277,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-19T04:41:56.894Z",
+      "observedAt": "2026-10-19T07:49:37.853Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5558,13 +5563,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:05:53.450Z",
-      "event": "answered",
-      "ticket": 1965,
-      "id": "e7652e19",
-      "deliveryId": "99611e24"
-    },
     {
       "time": "2026-10-17T06:13:50.550Z",
       "event": "request",
@@ -6241,6 +6239,13 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-f59b361f-1d7b-4967-a7fa-d12a51de44f1"
       }
+    },
+    {
+      "time": "2026-10-19T07:49:36.500Z",
+      "event": "resume-intent",
+      "ticket": 1967,
+      "id": "729f2393-a8ae-4820-ace6-1e07e1b2fe7f",
+      "sessionId": "4b0d553c-7961-4f25-bf16-8776d5f38c13"
     }
   ]
 }
