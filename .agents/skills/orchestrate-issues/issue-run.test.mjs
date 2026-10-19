@@ -620,7 +620,7 @@ try {
   {
     const ref = (slug, number) => ({ number, repository: { name: slug.split("/")[1], owner: { login: slug.split("/")[0] } } });
     const pr = (number, branch, login, refs) => ({ number, state: "OPEN", isDraft: true, headRefName: branch, headRefOid: `h${number}`, baseRefName: "main", closingIssuesReferences: refs, mergeCommit: null, author: { login } });
-    const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 7)])];
+    const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 70)])];
     // GitHub's head: qualifier matches a branch name's start, so a branch with
     // a prefix a claim allows is answered only by the search for the number.
     const prefixed = pr(704, "codex/fix/7-prefixed", "shared", [ref(INTERNAL, 7)]);
@@ -691,6 +691,31 @@ try {
       const cliSnap = readJsonFile(cliOut);
       assert.deepEqual([cliSnap.tickets.find((t) => t.number === 10).container, cliSnap.tickets.find((t) => t.number === 9).deliveredBy], [true, { ticket: 7, via: "body", pr: null, merged: false }], "the CLI snapshot reads qualified body claims against the tickets repository");
       assert.deepEqual(run.snapshotScope(cliSnap).slices, run.readIssueScope({ issue: 6, tickets: INTERNAL }, bodyClient).slices, "and agrees with the gate's scope read");
+    }
+    // A pre-cutover PR's branch names its old public number while its closing
+    // reference was rewritten to the internal one: merged PR #1357 on
+    // codex/refactor/1322-x closes only internal #873, so it is not Task
+    // #1322's and #1322's Bug #900 is delivered by #1322 itself. A fresh
+    // draft on feat/7-x with no references yet is still #7's.
+    {
+      const stale = { number: 1357, state: "MERGED", isDraft: false, headRefName: "codex/refactor/1322-x", headRefOid: "h", baseRefName: "main", mergeCommit: { oid: "c" }, closingIssuesReferences: [ref(INTERNAL, 873)] };
+      const fresh = { number: 1400, state: "OPEN", isDraft: true, headRefName: "feat/7-x", headRefOid: "f", baseRefName: "main", mergeCommit: null, closingIssuesReferences: [] };
+      const tree = { 6: [{ number: 1322, state: "open", title: "slice", type: { name: "Task" }, body: "" }, { number: 7, state: "open", title: "fresh slice", type: { name: "Task" }, body: "" }], 1322: [{ number: 900, state: "open", title: "bug", type: { name: "Bug" }, body: "" }] };
+      const staleClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: () => ({ state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], effort: () => "Low", comments: () => [], checks: () => [], pulls: (n) => (n === 1322 ? [stale] : n === 7 ? [fresh] : []) };
+      const staleSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, staleClient);
+      const of = (n) => staleSnap.tickets.find((t) => t.number === n);
+      assert.deepEqual([of(1322).prs, of(900).deliveredBy?.ticket, of(900).deliveredBy?.pr, of(7).prs.map((p) => p.number)], [[], 1322, null, [1400]], "a PR that closes another internal ticket is not the one its old branch names; a draft with no references is found by its branch");
+      const stalePlan = run.planDispatch({ record: run.readRecord(file), snapshot: staleSnap, preflights: [available("claude-cli", "claude-opus-5-5", [1322, 900, 7])], freeBytes: 100 * GB, defaults, census: () => [] });
+      assert.equal(actions(stalePlan)[900], "delivered-by", "the slice's Bug is delivered by the slice");
+      assert.deepEqual(run.readIssueScope({ issue: 6, tickets: INTERNAL, split: true }, staleClient).slices, run.snapshotScope(staleSnap).slices, "the gate's scope read applies the same rule");
+      // The actual client applies it too.
+      const { client: staleGh } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => [{ ...stale, author: { login: "shared" } }]));
+      assert.deepEqual(staleGh.pulls(1322), [], "the client does not give the ticket a PR closing another ticket");
+      assert.deepEqual(staleGh.pulls(873).map((p) => p.number), [1357], "and gives it to the ticket it closes");
+      // A sibling slice's PR on its own branch still is not a Bug's own PR.
+      const sibling = { ...stale, number: 1358, headRefName: "feat/7-x", closingIssuesReferences: [ref(INTERNAL, 7), ref(INTERNAL, 8)], author: { login: "shared" } };
+      const { client: siblingGh } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => [sibling]));
+      assert.deepEqual([siblingGh.pulls(7).map((p) => p.number), siblingGh.pulls(8)], [[1358], []], "a PR whose branch ticket it closes is that ticket's only");
     }
     const splitBrief = run.brief(run.readRecord(file), splitPlanFile, 7, [], defaults);
     assert.match(splitBrief, new RegExp(`You are the writer for ${INTERNAL} ticket #7 `));
