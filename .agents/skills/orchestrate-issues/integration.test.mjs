@@ -81,11 +81,11 @@ try {
     ...permutations(readLines).filter((p) => p.join("\n") !== block).map((p) => ({ name: `reads in the order ${p.map((l) => readLines.indexOf(l) + 1).join("")}`, lines: p })),
     ...readLines.map((l, i) => ({ name: `read ${i + 1} removed`, lines: readLines.filter((x) => x !== l) })),
   ];
-  const here = new URL(".", import.meta.url).href, scripts = new URL("../../../scripts/", import.meta.url).href;
+  const here = new URL(".", import.meta.url).href, scripts = new URL("../../../scripts/", import.meta.url).href, agents = new URL("../../", import.meta.url).href;
   const mutantDir = fs.mkdtempSync(path.join(tmp, "gate-mutants-"));
   const load = async (name, lines) => {
     const file = path.join(mutantDir, `${name}.mjs`);
-    fs.writeFileSync(file, source.replace(block, lines.join("\n")).replaceAll('from "./', `from "${here}`).replaceAll('from "../../../scripts/', `from "${scripts}`));
+    fs.writeFileSync(file, source.replace(block, lines.join("\n")).replaceAll('from "./', `from "${here}`).replaceAll('from "../../../scripts/', `from "${scripts}`).replaceAll('from "../../', `from "${agents}`));
     return (await import(pathToFileURL(file).href)).finalGate;
   };
   // An unchanged copy, loaded the same way, passes: a mutant fails for its
@@ -215,6 +215,20 @@ try {
   assert.equal(ig.invokes(quoted(`Use orchestrate-issues for #${ISSUE}1`)), false, "a longer number is not this parent");
   assert.equal(ig.invokes(quoted("Can you explain how orchestrate-issues merges PRs?")), false, "a discussion of the skill grants nothing");
   assert.equal(ig.invokes(quoted(`Please orchestrate #${ISSUE} for me.`)), false, "a request that does not name the skill grants nothing");
+  // After the cutover the record names a tickets repository apart from the
+  // code repository, and the parent may be named with the autolink prefix;
+  // the one-repository position keeps the bare #N rule.
+  const split = (text) => ({ ...quoted(text), repository: "o/code", ticketsRepository: "o/tickets" });
+  for (const form of [`#${ISSUE}`, `#I-${ISSUE}`, `I-${ISSUE}`]) {
+    assert.equal(ig.invokes(split(`/orchestrate-issues ${form}`)), true, `a split record accepts ${form}`);
+    assert.equal(ig.invokes(split(`/orchestrate-issues ${form}1`)), false, `a split record refuses the longer ${form}1`);
+  }
+  assert.equal(ig.invokes(split(`/orchestrate-issues #I-${ISSUE + 1}`)), false, "another prefixed number is not this parent");
+  assert.equal(ig.invokes(split(`/orchestrate-issues ${ISSUE}`)), false, "a bare number without # or the prefix names no issue");
+  assert.equal(ig.invokes(split(`/orchestrate-issues FIXI-${ISSUE}`)), false, "the prefixed number inside a longer word names no issue");
+  assert.equal(ig.invokes(split(`/orchestrate-issues (I-${ISSUE})`)), true, "punctuation before the prefix still starts a token");
+  assert.equal(ig.invokes(quoted(`/orchestrate-issues #I-${ISSUE}`)), false, "the one-repository position keeps the #N rule");
+  assert.equal(ig.invokes({ ...quoted(`/orchestrate-issues I-${ISSUE}`), repository: "o/code" }), false, "a record without a tickets repository keeps the #N rule");
   for (const text of ["Use orchestrate-issues for #40, but stop at ready PRs.", "Use orchestrate-issues for #40 and do not merge anything.", "Use orchestrate-issues for #40 --stop-at-ready."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);
   run.initRecord({ record: recordFile, checkout: src, repository: REPO, issue: ISSUE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.1-sol", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   assert.deepEqual([run.readRecord(recordFile).invocation.merging, run.readRecord(recordFile).authority.merge], ["coordinator", run.MERGE_GRANT], "an explicit invocation, recorded as such, grants the coordinator the scoped merge");
