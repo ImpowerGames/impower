@@ -14,7 +14,7 @@ import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, readingCarriesOnTo } from "../../typecheck/LuauUnitNodes";
 import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
 import { isLuauNameAt, luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
@@ -247,13 +247,15 @@ export function validateListComma(
   const after = nextSignificantToken(comma, at + 1, read, ctx.documentText, authoredIslandEnd(comma, wholeDocument(comma, read, ctx.documentText)));
   if (after && luauReadingReportsUnread(comma, after.from, read)) return;
   // Before the `=`, a token Luau's lexer reads as a name is the next binding
-  // name wherever the reading carries the declaration on to it
-  // (`checkerReadsOnTo`), whatever statement the grammar begins at its word
+  // name wherever Luau's reading carries the declaration on to it
+  // (`readingCarriesOnTo`: the lowerer reads a function value, a method or a
+  // handler as Luau too, where the type checker does not), whatever
+  // statement the grammar begins at its word
   // on the comma's line (`local a, const = 1, 2`): only a token that is not
   // a name is a missing one there. Where the reading ends the declaration
   // before a statement the tree begins on a later line, the binding it lacks
   // is Sparkdown's to report, as below.
-  if (!afterAssignment && after && isLuauNameAt(after.from, wholeDocument(comma, read, ctx.documentText)) && checkerReadsOnTo(comma, after.from, read)) return;
+  if (!afterAssignment && after && isLuauNameAt(after.from, wholeDocument(comma, read, ctx.documentText)) && readingCarriesOnTo(comma, after.from, read)) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
   const parsing = afterAssignment ? "expression" : "binding name";
   ctx.diagnostics.push({

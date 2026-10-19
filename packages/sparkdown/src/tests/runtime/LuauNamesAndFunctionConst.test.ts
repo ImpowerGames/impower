@@ -157,6 +157,37 @@ describe("names in a list (#1292)", () => {
     ]);
   });
 
+  // The lowerer reads these as Luau where the type checker does not, so the
+  // name after the comma is the reading's binding there too (round 2).
+  test.each([
+    [
+      "a function value in an interpolation",
+      "Go {(function() local a, const = 1, 2; return a + const end)()}.\n",
+    ],
+    [
+      "a define's method",
+      "define box as thing with\n  sum()\n    local a, const = 1, 2\n    return a + const\n  end\nend\nGo.\n",
+    ],
+    [
+      "a define's method declaring a const",
+      "define box as thing with\n  sum()\n    const a, const = 1, 2\n    return a + const\n  end\nend\nGo.\n",
+    ],
+    [
+      "a define's function-valued property",
+      "define box as thing with\n  sum = function()\n    local a, const = 1, 2\n    return a + const\n  end\nend\nGo.\n",
+    ],
+    [
+      "a Sparkle handler",
+      "store g = 0\nlayout form with\n  button \"Go\" @click={ local a, const = 1, 2 g = a + const }\nend\nValue {g}.\n",
+    ],
+    ["a store", "store a, const = 1, 2\nGo {a + const}.\n"],
+  ])("%s takes a name after the comma", (_label, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(
+      [...ctx.errorMessages].filter((m) => m.includes("when parsing binding name")),
+    ).toEqual([]);
+  });
+
   test("a comment between the comma and the name", () => {
     const { errors, text } = run(
       "Go {f()}.\nfunction f()\n  local a, --[[ next ]] const = 1, 2\n  return a + const\nend\n",

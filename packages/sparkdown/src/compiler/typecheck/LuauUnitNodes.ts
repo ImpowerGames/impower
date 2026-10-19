@@ -239,8 +239,22 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   if (tokenFrom === undefined) return true;
   let root = node;
   while (root.parent) root = root.parent;
+  if (!isCheckedLuau(root.resolveInner(tokenFrom, 1), read)) return false;
+  return readingCarriesOnTo(node, tokenFrom, read);
+}
+
+/**
+ * Whether Luau's reading of a construct, the type checker's or a lowerer's
+ * own, carries its statement on to the token at `tokenFrom`: no statement
+ * the tree begins at the token is one the reading ends the construct's
+ * statement before (`STATEMENT_BREAKS`, `breaksStatement`, across a line
+ * end). Whether the type checker reads the construct at all is
+ * `checkerReadsOnTo`'s question, not this one's.
+ */
+export function readingCarriesOnTo(node: SyntaxNode, tokenFrom: number, read: (from: number, to: number) => string): boolean {
+  let root = node;
+  while (root.parent) root = root.parent;
   const token = root.resolveInner(tokenFrom, 1);
-  if (!isCheckedLuau(token, read)) return false;
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
     // The construct's last word, comments aside, is the token the reading
