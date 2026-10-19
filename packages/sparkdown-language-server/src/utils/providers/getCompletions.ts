@@ -178,8 +178,9 @@ interface AttributeChoice {
 /**
  * Follow the attribute syntax one step at a time, so no label holds a `.`
  * (a trigger character, where the web client restarts its word): before a
- * dot the groups not yet written, the switches and the unambiguous bare
- * options; after `group.` that group's options not yet selected.
+ * dot the groups not yet written, the switches and the bare options that
+ * select their own group and nothing already written; after `group.` that
+ * group's options not yet selected.
  */
 const attributeCompletionChoices = (
   vocabulary: AttributeVocabulary,
@@ -201,9 +202,16 @@ const attributeCompletionChoices = (
     choices.set(group, info.switch ? { label: group, offset: 0, attribute: group } : { label: group, offset: 0 });
     if (info.switch) continue;
     for (const option of info.options) {
-      if (!choices.has(option) && !resolveAttributes(vocabulary, [option]).diagnostics.some(
-        (diagnostic) => diagnostic.code === "ambiguous-attribute",
-      )) choices.set(option, { label: option, offset: 0, attribute: option });
+      // A bare option named like a group shares that group's label, and one
+      // named like a switch selects the switch; both stay reachable after
+      // `group.`. Offer a bare option only where it selects this group and
+      // changes no group already set (face/eyebrows shorthand selects both).
+      if (choices.has(option) || Object.hasOwn(vocabulary.groups, option)) continue;
+      const bare = resolveAttributes(vocabulary, [option]);
+      const targets = Object.keys(bare.selection);
+      if (!bare.diagnostics.length && targets.includes(group) && targets.every((target) => !(target in selection))) {
+        choices.set(option, { label: option, offset: 0, attribute: option });
+      }
     }
   }
   return [...choices.values()];

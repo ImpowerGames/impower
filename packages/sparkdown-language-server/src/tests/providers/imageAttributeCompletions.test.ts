@@ -68,6 +68,23 @@ describe("image attribute completion", () => {
     const face = { options: ["happy"], switch: false };
     expect(complete("[[mia:|]]", withGroups({ face, clothes: face }))).toEqual(["clothes", "face"]);
     expect(complete("[[mia:|]]", withGroups({ face, eyebrows: face }))).toEqual(["eyebrows", "face", "happy"]);
+    expect(complete("[[mia:face.happy:|]]", withGroups({ face, eyebrows: face })), "shorthand would also reset face").toEqual(["eyebrows"]);
+  });
+  it("never offers a bare option that selects a switch or group of the same name", () => {
+    const groups = {
+      face: { options: ["hat", "happy", "look"], switch: false },
+      hat: { options: ["on", "off"], switch: true },
+      look: { options: ["up"], switch: false },
+    };
+    const shadowed = { context: { image: { mia: { $type: "image", $name: "mia", attribute_vocabulary: { ...vocabulary, groups } } } } } as any;
+    expect(complete("[[mia:|]]", shadowed)).toEqual(["face", "happy", "hat", "look", "up"]);
+    expect(complete("[[mia:hat:|]]", shadowed)).toEqual(["face", "happy", "look", "up"]);
+    expect(complete("[[mia:face.|]]", shadowed, ".")).toEqual(["happy", "hat", "look"]);
+  });
+  it("leaves out a switch already set when the artwork has an option of its name", () => {
+    const data = '<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.hat"/><g data-name="face.happy"/><g data-name="hat.on"/></svg>';
+    const svgProgram = { context: { image: { mia: { $type: "image", $name: "mia", ext: "svg", data } } } } as any;
+    expect(complete("[[mia:hat:|]]", svgProgram)).toEqual(["face", "happy"]);
   });
   it.each(['"', "'"])("completes a named look attribute inside %s quotes without replacing the quotes", (quote) => {
     const source = `define party as filtered_image with\n  image = image.mia\n  attributes = { ${quote}hat${quote}, ${quote}sa|d${quote} }\nend\n`;
