@@ -14,45 +14,97 @@ const program = { context: {
   filtered_image: { party: { $type: "filtered_image", $name: "party", image: { $name: "mia" }, attributes: ["happy"] } },
 } } as any;
 
-const completeItems = (source: string, contextProgram = program) =>
-  completeAt(source.replace("|", "@0"), { program: contextProgram }).items;
-const complete = (source: string, contextProgram = program) => completeItems(source, contextProgram).map((item) => item.label).sort();
+const completeItems = (source: string, contextProgram = program, trigger?: string) =>
+  completeAt(source.replace("|", "@0"), { program: contextProgram, trigger }).items;
+const complete = (source: string, contextProgram = program, trigger?: string) =>
+  completeItems(source, contextProgram, trigger).map((item) => item.label).sort();
+type Edit = { newText: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } };
+/** The document after accepting `label`, its text edit applied to the cursor's line. */
+const accept = (source: string, label: string, trigger?: string) => {
+  const item = completeItems(source, program, trigger).find((candidate) => candidate.label === label);
+  expect(item, label).toBeDefined();
+  const edit = item!.textEdit as Edit;
+  const lines = source.replace("|", "").split("\n");
+  const line = lines[edit.range.start.line]!;
+  lines[edit.range.start.line] = line.slice(0, edit.range.start.character) + edit.newText + line.slice(edit.range.end.character);
+  return { text: lines.join("\n"), item: item! };
+};
 
 describe("image attribute completion", () => {
-  it.each([":", "~"])("offers only the image vocabulary after %s", (separator) => {
-    expect(complete(`[[mia${separator}|]]`)).toEqual(["face.happy", "face.sad", "far-left", "happy", "hat", "hat.off", "hat.on", "look.far-left", "sad"].sort());
+  it.each([":", "~"])("offers the image's groups, switches and bare options after %s, none dotted", (separator) => {
+    expect(complete(`[[mia${separator}|]]`)).toEqual(["face", "far-left", "happy", "hat", "look", "sad"]);
   });
-  it("inherits the named look vocabulary and excludes attributes already written", () => {
-    const labels = complete("[[party:hat:|]]");
-    expect(labels).toContain("face.sad");
-    expect(labels).not.toContain("hat");
-    expect(labels).not.toContain("coat");
+  it("inserts a group with its dot and asks for its options, and a switch on its own", () => {
+    const face = accept("[[mia:|]]", "face");
+    expect(face.text).toBe("[[mia:face.]]");
+    expect(face.item.command?.command).toBe("editor.action.triggerSuggest");
+    const hat = accept("[[mia:|]]", "hat");
+    expect(hat.text).toBe("[[mia:hat]]");
+    expect(hat.item.data.filtered).toEqual({ image: "mia", attributes: ["hat"] });
   });
-  it("omits ambiguous bare options but retains qualified choices and face/eyebrows shorthand", () => {
+  it.each([
+    ["[[mia:face.|]]", "[[mia:face.happy]]"],
+    ["[[mia:face.h|]]", "[[mia:face.happy]]"],
+    ["[[mia~face.|]]", "[[mia~face.happy]]"],
+  ])("offers only the typed group's options after its dot: %s", (source, accepted) => {
+    expect(complete(source, program, ".")).toEqual(["happy", "sad"]);
+    const { text, item } = accept(source, "happy", ".");
+    expect(text).toBe(accepted);
+    expect(item.data.filtered).toEqual({ image: "mia", attributes: ["face.happy"] });
+  });
+  it("offers a switch's on and off after its dot, and nothing after an unknown group", () => {
+    expect(complete("[[mia:hat.|]]", program, ".")).toEqual(["off", "on"]);
+    expect(complete("[[mia:nope.|]]", program, ".")).toEqual([]);
+  });
+  it("inherits the named look vocabulary and excludes groups and options already written", () => {
+    expect(complete("[[party:hat:|]]")).toEqual(["face", "far-left", "happy", "look", "sad"]);
+    expect(complete("[[mia:face.happy:|]]")).toEqual(["far-left", "hat", "look"]);
+    expect(complete("[[mia:happy:face.|]]", program, ".")).toEqual(["sad"]);
+  });
+  it("omits ambiguous bare options but retains their groups and face/eyebrows shorthand", () => {
     const withGroups = (groups: typeof vocabulary.groups | object) => ({ context: { image: { mia: {
       $type: "image", $name: "mia", attribute_vocabulary: { ...vocabulary, groups },
     } } } }) as any;
     const face = { options: ["happy"], switch: false };
-    expect(complete("[[mia:|]]", withGroups({ face, clothes: face }))).toEqual(["clothes.happy", "face.happy"]);
-    expect(complete("[[mia:|]]", withGroups({ face, eyebrows: face }))).toEqual(["eyebrows.happy", "face.happy", "happy"]);
+    expect(complete("[[mia:|]]", withGroups({ face, clothes: face }))).toEqual(["clothes", "face"]);
+    expect(complete("[[mia:|]]", withGroups({ face, eyebrows: face }))).toEqual(["eyebrows", "face", "happy"]);
+    expect(complete("[[mia:face.happy:|]]", withGroups({ face, eyebrows: face })), "shorthand would also reset face").toEqual(["eyebrows"]);
+  });
+  it("never offers a bare option that selects a switch or group of the same name", () => {
+    const groups = {
+      face: { options: ["hat", "happy", "look"], switch: false },
+      hat: { options: ["on", "off"], switch: true },
+      look: { options: ["up"], switch: false },
+    };
+    const shadowed = { context: { image: { mia: { $type: "image", $name: "mia", attribute_vocabulary: { ...vocabulary, groups } } } } } as any;
+    expect(complete("[[mia:|]]", shadowed)).toEqual(["face", "happy", "hat", "look", "up"]);
+    expect(complete("[[mia:hat:|]]", shadowed)).toEqual(["face", "happy", "look", "up"]);
+    expect(complete("[[mia:face.|]]", shadowed, ".")).toEqual(["happy", "hat", "look"]);
+  });
+  it("leaves out a switch already set when the artwork has an option of its name", () => {
+    const data = '<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.hat"/><g data-name="face.happy"/><g data-name="hat.on"/></svg>';
+    const svgProgram = { context: { image: { mia: { $type: "image", $name: "mia", ext: "svg", data } } } } as any;
+    expect(complete("[[mia:hat:|]]", svgProgram)).toEqual(["face", "happy"]);
   });
   it.each(['"', "'"])("completes a named look attribute inside %s quotes without replacing the quotes", (quote) => {
     const source = `define party as filtered_image with\n  image = image.mia\n  attributes = { ${quote}hat${quote}, ${quote}sa|d${quote} }\nend\n`;
-    const items = completeItems(source);
-    const sad = items.find((item) => item.label === "face.sad")!;
-    expect(sad).toBeDefined();
-    expect(items.map((item) => item.label)).not.toContain("hat");
-    expect(items.map((item) => item.label)).not.toContain("coat");
-    const edit = sad.textEdit as { newText: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } };
-    const lines = source.replace("|", "").split("\n");
-    const line = lines[edit.range.start.line]!;
-    expect(line.slice(0, edit.range.start.character) + edit.newText + line.slice(edit.range.end.character)).toBe(`  attributes = { ${quote}hat${quote}, ${quote}face.sad${quote} }`);
-    expect(sad.data.filtered).toEqual({ image: "mia", attributes: ["hat", "face.sad"] });
+    const labels = complete(source);
+    expect(labels).toEqual(["face", "far-left", "happy", "look", "sad"]);
+    const { text, item } = accept(source, "sad");
+    expect(text.split("\n")[2]).toBe(`  attributes = { ${quote}hat${quote}, ${quote}sad${quote} }`);
+    expect(item.data.filtered).toEqual({ image: "mia", attributes: ["hat", "sad"] });
+  });
+  it("completes a group's options after its dot inside a quoted attribute", () => {
+    const source = `define party as filtered_image with\n  image = image.mia\n  attributes = { "face.|" }\nend\n`;
+    expect(complete(source, program, ".")).toEqual(["happy", "sad"]);
+    const { text, item } = accept(source, "sad", ".");
+    expect(text.split("\n")[2]).toBe(`  attributes = { "face.sad" }`);
+    expect(item.data.filtered).toEqual({ image: "mia", attributes: ["face.sad"] });
   });
   it("completes multiline lists while retaining later attribute priority", () => {
     const source = `define party as filtered_image with\n  image = image.mia\n  attributes = {\n    "|",\n    "hat.off"\n  }\nend\n`;
-    const sad = completeItems(source).find((item) => item.label === "face.sad");
-    expect(sad?.data.filtered).toEqual({ image: "mia", attributes: ["face.sad", "hat.off"] });
+    const sad = completeItems(source).find((item) => item.label === "sad");
+    expect(sad?.data.filtered).toEqual({ image: "mia", attributes: ["sad", "hat.off"] });
   });
   it.each([
     `define party as filtered_image with\n  image = image.mia\n  description = { "|" }\nend\n`,
@@ -63,6 +115,6 @@ describe("image attribute completion", () => {
     `define party as filtered_image with\n  attributes = { nested = { "|" } }\nend\n`,
     `define party as filtered_image with\n  attributes = { named = "|" }\nend\n`,
   ])("does not offer image attributes outside a resolved filtered-image list: %s", (source) => {
-    expect(complete(source)).not.toContain("face.sad");
+    expect(complete(source)).not.toContain("sad");
   });
 });
