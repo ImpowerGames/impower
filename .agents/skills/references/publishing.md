@@ -20,7 +20,7 @@ Commands in the skills write `<tickets>` for that slug and `<inbox>` for the inb
 
 ### The review thread
 
-A pull request's review conversation lives on its review thread: the round state, every reviewer report (including one posted on a reviewer's behalf), the adjudications, the notes that explain `gh pr ready --undo`, the outstanding-work statement and the PR report below. While the switch is off, the review thread is the pull request itself, number `P` in the code repository. Once it is on, it is the internal ticket the pull request resolves, or the umbrella of several, and nothing is posted on the public pull request: `gh pr ready` and `gh pr ready --undo` still run there, with no comment. `reviewThread` in `.agents/repos.mjs` resolves it for the scripts.
+A pull request's review conversation lives on its review thread: the round state, every reviewer report (including one posted on a reviewer's behalf), the adjudications, the notes that explain `gh pr ready --undo`, the outstanding-work statement and the PR report below. While the switch is off, the review thread is the pull request itself, number `P` in the code repository. Once it is on, it is the internal ticket the pull request resolves, or the umbrella of several, and nothing is posted on the public pull request: `gh pr ready` and `gh pr ready --undo` still run there, with no comment, so such a pull request reads back with no comments and no review comments. `reviewThread` in `.agents/repos.mjs` resolves it for the scripts.
 
 Commands write `<T>` for the thread's number: `P` while the switch is off, the internal ticket's number once it is on. Its repository is always `<tickets>`:
 
