@@ -336,6 +336,31 @@ describe("a function's `const` errors in every place Luau is read", () => {
       REASSIGNED,
     ],
     [
+      "a function value in a string's interpolation",
+      "Go {f()}.\nfunction f()\n  return \"Value {(function() const a = 1; a = 2; return a end)()}.\"\nend\n",
+      REASSIGNED,
+    ],
+    [
+      "a nested function value in a string's interpolation",
+      "Go {f()}.\nfunction f()\n  return \"Value {(function() const a = 1; local g = function() a = 2 end; g(); return a end)()}.\"\nend\n",
+      REASSIGNED,
+    ],
+    [
+      "a function value in a string's interpolation, with a value missing",
+      "Go {f()}.\nfunction f()\n  return \"Value {(function() const a, b = 1; return a end)()}.\"\nend\n",
+      MISSING,
+    ],
+    [
+      "a function value in a store's value",
+      "store h = function() const a = 1; a = 2; return a end\nGo {h()}.\n",
+      REASSIGNED,
+    ],
+    [
+      "a function value in a backtick string's interpolation",
+      "Go {f()}.\nfunction f()\n  return `Value {(function() const a = 1; a = 2; return a end)()}.`\nend\n",
+      REASSIGNED,
+    ],
+    [
       "a nested function in a function",
       "Go {f()}.\nfunction f()\n  const a = 1\n  local function g()\n    a = 2\n  end\n  g()\n  return a\nend\n",
       REASSIGNED,

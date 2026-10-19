@@ -47,7 +47,7 @@ import {
 } from "../../typecheck/Ast";
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { isCheckedLuauAt } from "../../typecheck/LuauUnitNodes";
+import { checkerReportsSyntaxAt } from "../../typecheck/LuauUnitNodes";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -169,7 +169,8 @@ export function reportSyntaxErrors(
 /**
  * Reports Luau's errors for the `const`s of a function value and of the
  * functions in it (`LuauSyntaxError.luauConst`) where the type checker does
- * not read the value: a function value in an interpolation, a define's
+ * not report them (`checkerReportsSyntaxAt`): a function value in an
+ * interpolation of the story or of a double-quoted string, a define's
  * property. The bodies are each read again as they lower, without the
  * consts around them, so only the value's own reading sees a nested function
  * reassign an outer function's `const`. An error the lowering already
@@ -187,7 +188,7 @@ function reportFunctionValueConstErrors(
   const errors = source.errors.filter((error) => {
     if (!error.luauConst) return false;
     const at = offsetAt(error.location.begin, ctx);
-    return at >= from && at <= to && !isCheckedLuauAt(node, at, read);
+    return at >= from && at <= to && !checkerReportsSyntaxAt(node, at, read);
   });
   reportSyntaxErrors(errors, ctx);
 }
