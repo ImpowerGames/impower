@@ -18,7 +18,7 @@ import {
   type PathName,
 } from "../expression/lowerExpression";
 import { rangeOf } from "../utils/luauAst";
-import { publishesConst, reportLuauConstError } from "../utils/publishesConst";
+import { publishesConst, reportMissingConstInitializer } from "../utils/publishesConst";
 import { statementSource } from "../utils/statementSource";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -46,13 +46,7 @@ export function lowerVariableDefinition(
         : "local";
   // A function's `const` with more names than values, and no call or `...`
   // last to give the rest, is Luau's error on the declaration.
-  if (stat instanceof AstStatLocal && stat.isConst && scope === "local") {
-    const last = stat.values[stat.values.length - 1];
-    const spreads = last instanceof AstExprCall || last instanceof AstExprVarargs;
-    if (!spreads && stat.values.length < stat.vars.length) {
-      reportLuauConstError("Missing initializer in const declaration", stat.location, site.node, ctx);
-    }
-  }
+  if (stat instanceof AstStatLocal) reportMissingConstInitializer(stat, site.node, ctx);
   const targets: PathName[] =
     stat instanceof AstStatLocal
       ? stat.vars.map((v) => ({ name: v.name, location: v.location }))

@@ -48,6 +48,7 @@ import {
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -549,6 +550,8 @@ export function lowerFunctionBody(
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, skipNames, shape);
+  // The function bodies its types hold lower no code; check them here.
+  reportErasedConstErrors(func, node, ctx);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();

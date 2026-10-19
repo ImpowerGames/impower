@@ -15,6 +15,7 @@ import {
 import { reportBodySyntaxErrors } from "../expression/lowerFunction";
 import { closureBodyAst, closureSyntaxErrors } from "../utils/luauAst";
 import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
 import {
   type Binding,
@@ -547,10 +548,12 @@ function lowerHandlerClosure(
     // The closure runs as a function: a `const` in it is Luau's local.
     const localConsts = ctx.localConsts;
     ctx.localConsts = true;
+    const closureBody = body ? closureBodyAst(body, ctx) : null;
     ctx.functionBindingsStack?.push(
-      functionBindings(loopVars.map((name) => ({ name })), body ? closureBodyAst(body, ctx) : null, ctx),
+      functionBindings(loopVars.map((name) => ({ name })), closureBody, ctx),
     );
     const stmts = lowerStatements(body, ctx, undefined, shape);
+    if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
     ctx.functionBindingsStack?.pop();
     ctx.localConsts = localConsts;
     if (body) reportBodySyntaxErrors(closureSyntaxErrors(body, ctx), ctx);

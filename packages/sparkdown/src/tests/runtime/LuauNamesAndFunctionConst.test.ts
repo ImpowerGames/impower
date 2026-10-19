@@ -436,6 +436,36 @@ describe("a function's `const` reassigned from a body read on its own", () => {
   });
 });
 
+// A function body a type holds (`typeof(function() ... end)`) lowers no code,
+// so the lowerer checks it on its own where the type checker does not
+// (round 6).
+describe("a function's `const` errors in a function body a type holds", () => {
+  const REASSIGNED = "Variable 'a' is constant and may not be reassigned";
+  const MISSING = "Missing initializer in const declaration";
+  const shapes: [string, string, string][] = [
+    ["a type alias reassigning a captured const", "const a = 1; type T = typeof(function() a = 2 end); return 1", REASSIGNED],
+    ["a local's annotation reassigning a captured const", "const a = 1; local x: typeof(function() a = 2 end) = nil; return 1", REASSIGNED],
+    ["a type alias with a const missing its value", "type T = typeof(function() const b end); return 1", MISSING],
+  ];
+  const places: [string, (code: string) => string][] = [
+    ["a story interpolation", (code) => `Go {(function() ${code} end)()}.\n`],
+    ["a double-quoted string's interpolation", (code) => `Go {f()}.\nfunction f()\n  return "Value {(function() ${code} end)()}."\nend\n`],
+    ["a define's property", (code) => `define box with\n  sum = function() ${code} end\nend\nGo.\n`],
+    ["a store's function value", (code) => `store h = function() ${code} end\nGo.\n`],
+  ];
+  for (const [place, wrap] of places) {
+    test.each(shapes)(`${place}: %s`, (_label, code, message) => {
+      const ctx = makeRuntimeStoryFromSource(wrap(code));
+      expect([...ctx.errorMessages]).toEqual([message]);
+    });
+  }
+
+  test.each(shapes)("a checked function: %s, once", (_label, code, message) => {
+    const ctx = makeRuntimeStoryFromSource(`Go {f()}.\nfunction f()\n  ${code.split("; ").join("\n  ")}\nend\n`);
+    expect([...ctx.errorMessages]).toEqual([message]);
+  });
+});
+
 describe("a `const` inside a function is linted as a local", () => {
   test("an unused one is reported as Luau's linter reports a local", () => {
     const ctx = makeRuntimeStoryFromSource(

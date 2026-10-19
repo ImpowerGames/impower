@@ -1,11 +1,27 @@
 import type { SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../runtime/Error";
-import { AstExprError, AstExprGlobal, AstExprLocal, type AstExpr } from "../../typecheck/Ast";
+import {
+  AstExprCall,
+  AstExprError,
+  AstExprFunction,
+  AstExprGlobal,
+  AstExprLocal,
+  AstExprVarargs,
+  AstStatAssign,
+  AstStatCompoundAssign,
+  AstStatFunction,
+  AstStatLocal,
+  AstType,
+  AstTypePack,
+  visitAst,
+  type AstExpr,
+  type AstNode,
+} from "../../typecheck/Ast";
 import { checkerReportsSyntaxAt } from "../../typecheck/LuauUnitNodes";
 import type { Location } from "../../typecheck/Location";
 import type { LowerContext } from "../context";
 import { offsetAt, rangeOf } from "./luauAst";
-import { resolveFunctionBinding } from "./functionBindings";
+import { functionBindings, resolveFunctionBinding } from "./functionBindings";
 import { makeSource } from "./validateDefineStructure";
 
 /**
@@ -94,4 +110,78 @@ export function reportReassignedConst(
     node,
     ctx,
   );
+}
+
+/**
+ * Reports Luau's missing initializer for a function's `const` with more
+ * names than values and no call or `...` last to give the rest
+ * (`reportLuauConstError`). A published constant's is the compiler's own.
+ */
+export function reportMissingConstInitializer(
+  stat: AstStatLocal,
+  node: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  if (!stat.isConst || publishesConst(ctx)) return;
+  const last = stat.values[stat.values.length - 1];
+  const spreads = last instanceof AstExprCall || last instanceof AstExprVarargs;
+  if (spreads || stat.values.length >= stat.vars.length) return;
+  reportLuauConstError("Missing initializer in const declaration", stat.location, node, ctx);
+}
+
+/**
+ * Reports Luau's const errors in the function bodies a function's types
+ * hold (`typeof(function() ... end)` in a type alias, an annotation or a
+ * cast), for which no code is lowered, so neither reporter would otherwise
+ * reach them: each such body is checked against the bindings around it, as
+ * it would be lowered (`reportReassignedConst`,
+ * `reportMissingConstInitializer`). `root` is the function whose body has
+ * lowered, while its bindings are still on `functionBindingsStack`; a
+ * function value in its code lowers, and is checked, on its own.
+ */
+export function reportErasedConstErrors(
+  root: AstNode,
+  node: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  const check = (fn: AstExprFunction): void => {
+    ctx.functionBindingsStack?.push(
+      functionBindings([...(fn.self ? [fn.self] : []), ...fn.args], fn.body, ctx),
+    );
+    visitAst(fn.body, {
+      visit: (n) => {
+        if (n instanceof AstExprFunction) {
+          check(n);
+          return false;
+        }
+        if (n instanceof AstStatAssign) for (const v of n.vars) reportReassignedConst(v, node, ctx);
+        else if (n instanceof AstStatCompoundAssign) reportReassignedConst(n.variable, node, ctx);
+        else if (n instanceof AstStatFunction) reportReassignedConst(n.name, node, ctx);
+        else if (n instanceof AstStatLocal) reportMissingConstInitializer(n, node, ctx);
+        return true;
+      },
+    });
+    ctx.functionBindingsStack?.pop();
+  };
+  const inType = (type: AstNode): void => {
+    visitAst(type, {
+      visit: (n) => {
+        if (n instanceof AstExprFunction) {
+          check(n);
+          return false;
+        }
+        return true;
+      },
+    });
+  };
+  visitAst(root, {
+    visit: (n) => {
+      if (n !== root && n instanceof AstExprFunction) return false;
+      if (n instanceof AstType || n instanceof AstTypePack) {
+        inType(n);
+        return false;
+      }
+      return true;
+    },
+  });
 }

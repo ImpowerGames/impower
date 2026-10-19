@@ -68,6 +68,7 @@ import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import { syntheticId } from "../utils/documentTag";
 import {
   closeFunctionBody,
@@ -679,6 +680,7 @@ function lowerDefineMethod(
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, METHOD_BODY_SKIP, shape);
+  if (reading) reportErasedConstErrors(reading.unit.root, node, ctx);
   // Its body's errors, as Luau reports them for the function the method
   // stands for (or is, in the `function name() … end` form), its `end`
   // included.
