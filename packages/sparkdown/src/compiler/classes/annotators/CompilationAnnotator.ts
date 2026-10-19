@@ -12,6 +12,7 @@ import {
 } from "../../lower/statementMemo";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import type { FunctionBinding } from "../../lower/utils/functionBindings";
 import type { SourceMetadata } from "../../../runtime/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
 import type {
@@ -605,6 +606,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // so nested-scope scans of free variables can detect shadowing
       // of stdlib-named identifiers by enclosing-scope locals.
       const declaredLocalsStack: Set<string>[] = [];
+      // Per-chunk stack of the bindings each enclosing function's body
+      // holds, with their ranges (`functionBindings`), pushed with
+      // `declaredLocalsStack`.
+      const functionBindingsStack: FunctionBinding[][] = [];
       // Per-chunk stack of hoist buffers — one entry pushed per
       // enclosing function-definition lowering. Bare `function NAME end`
       // nested inside another function pre-declares a `local NAME = nil`
@@ -690,6 +695,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           },
         },
         declaredLocalsStack,
+        functionBindingsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
         blockEndStack,

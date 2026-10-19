@@ -1,10 +1,11 @@
 import type { SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../runtime/Error";
-import { AstExprError, AstExprLocal, type AstExpr } from "../../typecheck/Ast";
+import { AstExprError, AstExprGlobal, AstExprLocal, type AstExpr } from "../../typecheck/Ast";
 import { checkerReportsSyntaxAt } from "../../typecheck/LuauUnitNodes";
 import type { Location } from "../../typecheck/Location";
 import type { LowerContext } from "../context";
-import { rangeOf } from "./luauAst";
+import { offsetAt, rangeOf } from "./luauAst";
+import { resolveFunctionBinding } from "./functionBindings";
 import { makeSource } from "./validateDefineStructure";
 
 /**
@@ -65,19 +66,31 @@ export function reassignedConstName(target: AstExpr): AstExprLocal | undefined {
 
 /**
  * Reports Luau's error for a target that reassigns a function's `const`
- * (`reportLuauConstError`). In story text the const is the published
- * constant, whose reassignment the compiler reports in its own words.
+ * (`reportLuauConstError`), decided by the functions lowering around it:
+ * a name the target's own reading binds to a const, or one it reads as a
+ * global that an enclosing function binds to a const there
+ * (`resolveFunctionBinding`), which a body read on its own (a nested
+ * function, a define's property or method, a Sparkle handler) cannot see.
+ * In story text the const is the published constant, whose reassignment the
+ * compiler reports in its own words.
  */
 export function reportReassignedConst(
   target: AstExpr,
   node: SyntaxNode,
   ctx: LowerContext,
 ): void {
+  if (publishesConst(ctx)) return;
   const local = reassignedConstName(target);
-  if (!local || publishesConst(ctx)) return;
+  const name = local
+    ? local.local.name
+    : target instanceof AstExprGlobal &&
+        resolveFunctionBinding(target.name, offsetAt(target.location.begin, ctx), ctx)?.isConst
+      ? target.name
+      : undefined;
+  if (name === undefined) return;
   reportLuauConstError(
-    `Variable '${local.local.name}' is constant and may not be reassigned`,
-    local.location,
+    `Variable '${name}' is constant and may not be reassigned`,
+    (local ?? target).location,
     node,
     ctx,
   );

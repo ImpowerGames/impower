@@ -47,8 +47,7 @@ import {
 } from "../../typecheck/Ast";
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { checkerReportsSyntaxAt } from "../../typecheck/LuauUnitNodes";
-import { publishesConst } from "../utils/publishesConst";
+import { functionBindings } from "../utils/functionBindings";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -165,35 +164,6 @@ export function reportSyntaxErrors(
     if (reported.has(`${source.startLineNumber}:${source.startCharacterNumber} ${error.message}`)) continue;
     diagnostics.push({ message: error.message, severity: ErrorType.Error, source });
   }
-}
-
-/**
- * Reports Luau's errors for the `const`s of a function value and of the
- * functions in it (`LuauSyntaxError.constError`) where the type checker does
- * not report them (`checkerReportsSyntaxAt`): a function value in an
- * interpolation of the story or of a double-quoted string, a define's
- * property. The bodies are each read again as they lower, without the
- * consts around them, so only the value's own reading sees a nested function
- * reassign an outer function's `const`. An error the lowering already
- * reported at the same place is left out (`reportSyntaxErrors`).
- */
-function reportFunctionValueConstErrors(
-  func: AstExprFunction,
-  source: LuauSource,
-  node: SyntaxNode,
-  ctx: LowerContext,
-): void {
-  const from = offsetAt(func.location.begin, ctx);
-  const to = offsetAt(func.location.end, ctx);
-  const read = (a: number, b: number) => ctx.read(a, b);
-  const errors = source.errors.filter((error) => {
-    // A const declared outside the value is a function's too when the
-    // value lowers inside a function, whose body the reading holds alone.
-    if (!error.constError || (!error.luauConst && publishesConst(ctx))) return false;
-    const at = offsetAt(error.location.begin, ctx);
-    return at >= from && at <= to && !checkerReportsSyntaxAt(node, at, read);
-  });
-  reportSyntaxErrors(errors, ctx);
 }
 
 /**
@@ -567,6 +537,9 @@ export function lowerFunctionBody(
   const content = getFunctionBodyContent(node);
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
+  ctx.functionBindingsStack?.push(
+    functionBindings([...(func.self ? [func.self] : []), ...func.args], func.body, ctx),
+  );
   ctx.declaredLocalsStack?.push(
     immediateBodyDeclarations(parameterNames(func), func.body),
   );
@@ -579,6 +552,7 @@ export function lowerFunctionBody(
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
+  ctx.functionBindingsStack?.pop();
   ctx.functionScopeStack?.pop();
   return {
     hoisted,
@@ -721,8 +695,6 @@ export function lowerFunctionExpression(
   );
   if (!alreadyRegistered) {
     const fn = buildFunction(func, node, synthName, ctx, upvals);
-    // Once the body has lowered, so its own reports are left out.
-    reportFunctionValueConstErrors(func, source, node, ctx);
     if (stack && stack.length > 0) {
       stack[stack.length - 1]!.push(fn);
     } else if (ctx.hoistedKnots) {

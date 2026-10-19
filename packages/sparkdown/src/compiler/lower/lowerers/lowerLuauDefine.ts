@@ -67,6 +67,7 @@ import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { functionBindings } from "../utils/functionBindings";
 import { syntheticId } from "../utils/documentTag";
 import {
   closeFunctionBody,
@@ -669,6 +670,9 @@ function lowerDefineMethod(
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
   ctx.declaredLocalsStack?.push(new Set(["self"]));
+  ctx.functionBindingsStack?.push(
+    functionBindings([{ name: "self" }, ...params.map((name) => ({ name }))], reading?.unit.root ?? null, ctx, content.from),
+  );
   const hoistedDecls: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
@@ -686,6 +690,7 @@ function lowerDefineMethod(
   }
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
+  ctx.functionBindingsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 

@@ -389,6 +389,53 @@ describe("a function's `const` errors in every place Luau is read", () => {
   });
 });
 
+// A body read on its own (a define's property or method, a Sparkle handler, a
+// nested function) holds no binding for the enclosing function's const; the
+// lowerer resolves the name against the functions around it (round 5).
+describe("a function's `const` reassigned from a body read on its own", () => {
+  const REASSIGNED = "Variable 'a' is constant and may not be reassigned";
+  const fn = (body: string) => `Go {f()}.\nfunction f()\n${body}\nend\n`;
+  test.each([
+    ["a define's property", "  const a = 1\n  define box with\n    sum = function() a = 2; return a end\n  end\n  return box.sum()"],
+    ["a define's method", "  const a = 1\n  define box with\n    sum()\n      a = 2\n      return a\n    end\n  end\n  return 1"],
+    ["a Sparkle handler", "  const a = 1\n  layout form with\n    button \"Go\" @click={ a = 2 }\n  end\n  return a"],
+    ["a nested function in a define's property", "  const a = 1\n  define box with\n    sum = function() local g = function() a = 2 end; g(); return a end\n  end\n  return 1"],
+    ["a nested function in a define's method", "  const a = 1\n  define box with\n    sum()\n      local g = function() a = 2 end\n      g()\n      return a\n    end\n  end\n  return 1"],
+    ["a compound assignment in a define's property", "  const a = 1\n  define box with\n    sum = function() a += 2; return a end\n  end\n  return 1"],
+  ])("from %s is Luau's error", (_label, body) => {
+    const ctx = makeRuntimeStoryFromSource(fn(body));
+    expect([...ctx.errorMessages]).toEqual([REASSIGNED]);
+  });
+
+  // A function value in a handler inside a function also fails to resolve
+  // its synthetic target, which is not this error (I-1332's class).
+  test("from a nested function in a Sparkle handler is Luau's error, once", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      fn("  const a = 1\n  layout form with\n    button \"Go\" @click={ local g = function() a = 2 end g() }\n  end\n  return a"),
+    );
+    expect([...ctx.errorMessages].filter((m) => m.includes("constant"))).toEqual([REASSIGNED]);
+  });
+
+  test.each([
+    ["the const declared after the body", "  define box with\n    sum = function() a = 2; return a end\n  end\n  const a = 1\n  return a"],
+    ["a local shadowing it in a block", "  const a = 1\n  do\n    local a = 5\n    define box with\n      sum = function() a = 2; return a end\n    end\n  end\n  return a"],
+    ["a local shadowing it in a repeat body, through the until", "  const a = 1\n  repeat\n    local a = 0\n    local g = function() a = 2 end\n    g()\n  until a == 2\n  return a"],
+    ["a parameter of the body shadowing it", "  const a = 1\n  define box with\n    sum = function(a) a = 2; return a end\n  end\n  return a"],
+    ["the block that declared it closed", "  do\n    const a = 1\n  end\n  define box with\n    sum = function() a = 2; return a end\n  end\n  return 1"],
+  ])("with %s, is no error", (_label, body) => {
+    const ctx = makeRuntimeStoryFromSource(fn(body));
+    expect([...ctx.errorMessages].filter((m) => m.includes("constant") || m.includes("const `"))).toEqual([]);
+  });
+
+  test.each([
+    ["a nested function", "const a = 1\nGo {f()}.\nfunction f()\n  local g = function() a = 2 end\n  return 1\nend\n"],
+    ["a define's property in a function", "const a = 1\nGo {f()}.\nfunction f()\n  define box with\n    sum = function() a = 2; return a end\n  end\n  return 1\nend\n"],
+  ])("a published const reassigned from %s keeps the compiler's error", (_label, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect([...ctx.errorMessages]).toEqual(["Cannot re-assign the const `a`."]);
+  });
+});
+
 describe("a `const` inside a function is linted as a local", () => {
   test("an unused one is reported as Luau's linter reports a local", () => {
     const ctx = makeRuntimeStoryFromSource(
