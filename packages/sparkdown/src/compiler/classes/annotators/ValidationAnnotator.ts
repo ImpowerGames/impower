@@ -170,14 +170,17 @@ const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleElementInvalid",
 ]);
 const MISSING_TYPE = "Expected type";
+// The `:` a loop's `do` or an `if`'s `then` follows with no method name
+// between, which ends the header there (I-1318).
+const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
+const HEADER_METHOD_COLONS = nodeNameSet(HEADER_METHOD_COLON_NAMES);
 // The grammar's tokens for a type that is missing or malformed, and for a
-// declaration target's `::`, and the `:` a header's `do` or `then` follows
-// with no method name between (I-1318).
+// declaration target's `::`, and a header's method colon.
 const TYPE_ERROR_TOKENS = nodeNameSet([
   "LuauTypeStrayOptionalOperator",
   "LuauTypeStrayColon",
   "LuauTypeAnnotationMissingType",
-  "LuauHeaderMethodColon",
+  ...HEADER_METHOD_COLON_NAMES,
   "LuauTypeBinaryOperatorMissingType",
   "LuauFunctionReturnMissingType",
   "LuauTargetTypeCastOperator",
@@ -193,7 +196,7 @@ const DECLARATION_COMMA = nodeNameSet([
 const DECLARATION_ASSIGNMENT = nodeNameSet(["LuauAssignmentOperation"]);
 const MISSING_TYPE_NODES = nodeNameSet([
   "LuauTypeAnnotationMissingType",
-  "LuauHeaderMethodColon",
+  ...HEADER_METHOD_COLON_NAMES,
   "LuauTypeBinaryOperatorMissingType",
   "LuauFunctionReturnMissingType",
 ]);
@@ -968,7 +971,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * A header's `:` before its `do` or `then` is always a method's (I-1318).
    */
   protected isMethodColon(node: SyntaxNode): boolean {
-    if (node.name === "LuauHeaderMethodColon") {
+    if (HEADER_METHOD_COLONS.has(node.name)) {
       return true;
     }
     const part = node.parent;

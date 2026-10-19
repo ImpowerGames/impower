@@ -151,9 +151,18 @@ const CASES: Record<string, Form[]> = {
     { form: "local t = {}\n  if 1 + t: then\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  while (t): do\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
     { form: "local t = {}\n  local b = x and t: do", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  local c = 1 + t:then", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  local b = (t):end", errors: ["Expected identifier when parsing method name, got 'end'"] },
     { form: "local t = {}\n  (t):until()", errors: ["Expected identifier when parsing method name, got 'until'"] },
     { form: "local t = {}\n  local b = (t): --[[c]] then", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    // The other header's keyword in a condition is the method's name (round
+    // 3, `ax` finding 1).
+    { form: "local t = {}\n  if t:do() then\n    return 1\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  if t:  do then\n    return 1\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  if t.a then\n    return 1\n  elseif t:do() then\n    return 2\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  local x = if t:do() then 1 else 2", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  while t:then() do\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local t = {}\n  for k, v in t:then() do\n    print(k)\n  end", errors: ["Expected identifier when parsing method name, got 'then'"] },
   ],
   // A loop left without its `do` or `until` before the function's `end`
   // (I-1295). Luau's reading then closes the loop at that `end` and reports
