@@ -460,6 +460,28 @@ describe("a function's `const` errors in a function body a type holds", () => {
     });
   }
 
+  // An erased function's signature types, and a type function's body, which
+  // is erased too (round 7).
+  const signatureShapes: [string, string, string][] = [
+    ["an erased function's parameter type", "type T = typeof(function(x: typeof(function() const b end)) end); return 1", MISSING],
+    ["an erased function's return type", "type T = typeof(function(): typeof(function() const b end) end); return 1", MISSING],
+    ["an erased function's vararg type", "type T = typeof(function(...: typeof(function() const b end)) end); return 1", MISSING],
+    ["a nested erased function's parameter type", "type T = typeof(function() local g = function(x: typeof(function() const b end)) end end); return 1", MISSING],
+    ["a type function reassigning its const", "type function tf() const a = 1; a = 2; return nil end; return 1", REASSIGNED],
+    ["a type function with a const missing its value", "type function tf() const b; return nil end; return 1", MISSING],
+  ];
+  for (const [place, wrap] of places.filter(([p]) => p !== "a define's property")) {
+    test.each(signatureShapes)(`${place}: %s`, (_label, code, message) => {
+      const ctx = makeRuntimeStoryFromSource(wrap(code));
+      expect([...ctx.errorMessages]).toEqual([message]);
+    });
+  }
+
+  test.each(signatureShapes)("a checked function: %s, once", (_label, code, message) => {
+    const ctx = makeRuntimeStoryFromSource(`Go {f()}.\nfunction f()\n  ${code.split("; ").join("\n  ")}\nend\n`);
+    expect([...ctx.errorMessages]).toEqual([message]);
+  });
+
   test.each(shapes)("a checked function: %s, once", (_label, code, message) => {
     const ctx = makeRuntimeStoryFromSource(`Go {f()}.\nfunction f()\n  ${code.split("; ").join("\n  ")}\nend\n`);
     expect([...ctx.errorMessages]).toEqual([message]);

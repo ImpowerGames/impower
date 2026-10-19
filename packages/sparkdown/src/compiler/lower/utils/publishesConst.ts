@@ -11,6 +11,7 @@ import {
   AstStatCompoundAssign,
   AstStatFunction,
   AstStatLocal,
+  AstStatTypeFunction,
   AstType,
   AstTypePack,
   visitAst,
@@ -130,28 +131,40 @@ export function reportMissingConstInitializer(
 }
 
 /**
- * Reports Luau's const errors in the function bodies a function's types
- * hold (`typeof(function() ... end)` in a type alias, an annotation or a
- * cast), for which no code is lowered, so neither reporter would otherwise
- * reach them: each such body is checked against the bindings around it, as
- * it would be lowered (`reportReassignedConst`,
- * `reportMissingConstInitializer`). `root` is the function whose body has
- * lowered, while its bindings are still on `functionBindingsStack`; a
- * function value in its code lowers, and is checked, on its own.
+ * Reports Luau's const errors in the function bodies no code is lowered for,
+ * so neither reporter would otherwise reach them: a function a type holds
+ * (`typeof(function() ... end)` in a type alias, an annotation, a cast or a
+ * generic default), its signature's types included, and a type function's
+ * body. Each is checked as it would be lowered (`reportReassignedConst`,
+ * `reportMissingConstInitializer`) against the bindings around it, with its
+ * own pushed; a type function sees none of the locals outside it, as Luau
+ * reads it, so it is checked against its own alone. `root` is the function
+ * whose body has lowered, while its bindings are still on
+ * `functionBindingsStack`; a function value in its code lowers, and is
+ * checked, on its own.
  */
 export function reportErasedConstErrors(
   root: AstNode,
   node: SyntaxNode,
   ctx: LowerContext,
 ): void {
-  const check = (fn: AstExprFunction): void => {
+  const check = (fn: AstExprFunction, isolated = false): void => {
+    const outer = ctx.functionBindingsStack;
+    if (isolated && outer) ctx.functionBindingsStack = [];
     ctx.functionBindingsStack?.push(
       functionBindings([...(fn.self ? [fn.self] : []), ...fn.args], fn.body, ctx),
     );
-    visitAst(fn.body, {
+    // The function itself, so its parameter, vararg and return types are
+    // walked with its body.
+    visitAst(fn, {
       visit: (n) => {
+        if (n === fn) return true;
         if (n instanceof AstExprFunction) {
           check(n);
+          return false;
+        }
+        if (n instanceof AstStatTypeFunction) {
+          check(n.body, true);
           return false;
         }
         if (n instanceof AstStatAssign) for (const v of n.vars) reportReassignedConst(v, node, ctx);
@@ -162,6 +175,7 @@ export function reportErasedConstErrors(
       },
     });
     ctx.functionBindingsStack?.pop();
+    if (isolated && outer) ctx.functionBindingsStack = outer;
   };
   const inType = (type: AstNode): void => {
     visitAst(type, {
@@ -176,6 +190,11 @@ export function reportErasedConstErrors(
   };
   visitAst(root, {
     visit: (n) => {
+      // A type function's body is erased, unlike a function value's.
+      if (n instanceof AstStatTypeFunction) {
+        check(n.body, true);
+        return false;
+      }
       if (n !== root && n instanceof AstExprFunction) return false;
       if (n instanceof AstType || n instanceof AstTypePack) {
         inType(n);
