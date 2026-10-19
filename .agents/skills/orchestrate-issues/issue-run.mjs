@@ -502,6 +502,17 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
 // The ticket a branch named <kind>/<N>-<slug> works on, the convention that
 // discovery, review checkpoints and the merge gate all read.
 export const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(branch ?? "")?.[1]) || null;
+// Whether a PR, its closing references already kept to the tickets
+// repository, is ticket n's: one that closes n always is. Otherwise its branch
+// must name n, and once tickets live apart its references must be empty too:
+// a pre-cutover PR's branch names its old public number while its closing
+// reference was rewritten to the internal one, so a PR that closes other
+// tickets is theirs whatever its branch says. A fresh draft with no
+// references yet is still found by its branch.
+export const ownsPull = (p, n, split) => {
+  const refs = p.closingIssuesReferences ?? [];
+  return refs.some((r) => r.number === n) || (branchTicket(p.headRefName) === n && (!split || refs.length === 0));
+};
 
 export function parseWorktrees(text) {
   return text.split(/\r?\n\r?\n/).map((block) => Object.fromEntries(block.split(/\r?\n/).filter(Boolean).map((line) => { const i = line.indexOf(" "); return i < 0 ? [line, true] : [line.slice(0, i), line.slice(i + 1)]; }))).filter((w) => w.worktree).map((w) => ({ path: w.worktree, head: w.HEAD ?? null, branch: typeof w.branch === "string" ? w.branch.replace(/^refs\/heads\//, "") : null }));
@@ -528,7 +539,8 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
     for (const search of [heads, String(n)]) for (const p of JSON.parse(run("gh", ["pr", "list", "--repo", code, "--author", "@me", "--state", "all", "--search", search, "--limit", "100", "--json", `${fields},author`]))) found.set(p.number, p);
     return [...found.values()].sort((a, b) => b.number - a.number)
       .filter((p) => p.author?.login === account && branchTicket(p.headRefName) === n)
-      .map(({ author, ...p }) => ({ ...p, closingIssuesReferences: closingIn(p.closingIssuesReferences, tickets, code) }));
+      .map(({ author, ...p }) => ({ ...p, closingIssuesReferences: closingIn(p.closingIssuesReferences, tickets, code) }))
+      .filter((p) => ownsPull(p, n, true));
   };
   return {
     issue: (n) => JSON.parse(run("gh", ["api", `repos/${tickets}/issues/${n}`])),
@@ -589,7 +601,7 @@ const viablePr = (p) => p.state === "MERGED" || p.state === "OPEN";
 // is marked truncated rather than treated as a ticket. The snapshot and the
 // final gate's scope read share this walk and its PR reads, so both see the
 // same slices.
-export function walkSubIssues(issue, client, { tickets = null, pullsOf = pullsFilter(client, tickets) } = {}) {
+export function walkSubIssues(issue, client, { tickets = null, split = false, pullsOf = pullsFilter(client, tickets, split) } = {}) {
   const nodes = [];
   const isBug = (c) => (c.type?.name ?? null) === "Bug";
   const visit = (parent, depth) => {
@@ -666,11 +678,11 @@ const plannedNodes = (nodes) => nodes.filter((t) => !t.container || t.truncated)
 // reference names it; a reference to another repository names nothing). The
 // client that reads PRs once tickets live apart already keeps only those, and
 // in one repository the code repository is the tickets repository.
-const pullsFilter = (client, tickets = null) => {
+const pullsFilter = (client, tickets = null, split = false) => {
   const cache = new Map();
   const refsOf = (p) => (tickets === null ? (p.closingIssuesReferences ?? []).filter((r) => !r.repository?.name) : closingIn(p.closingIssuesReferences, tickets, tickets));
   return (n) => {
-    if (!cache.has(n)) cache.set(n, client.pulls(n).map((p) => ({ ...p, closingIssuesReferences: refsOf(p) })).filter((p) => p.closingIssuesReferences.some((r) => r.number === n) || branchTicket(p.headRefName) === n));
+    if (!cache.has(n)) cache.set(n, client.pulls(n).map((p) => ({ ...p, closingIssuesReferences: refsOf(p) })).filter((p) => ownsPull(p, n, split)));
     return cache.get(n);
   };
 };
@@ -678,7 +690,7 @@ const pullsFilter = (client, tickets = null) => {
 export function takeSnapshot({ repository, issue, tickets: ticketsRepository = repository }, client) {
   const originMain = client.fetchMain();
   const worktrees = client.worktrees();
-  const pullsOf = pullsFilter(client, ticketsRepository);
+  const pullsOf = pullsFilter(client, ticketsRepository, repositoriesOf({ repository, ticketsRepository }).split);
   const delivered = (n) => pullsOf(n).some((p) => p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
   // The parent's body is read before its tree, so a criterion added while the
   // tree is walked shows up in the final gate's later scope read, not here;
@@ -721,8 +733,8 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
 // it after every premise and compares it with the snapshot those premises
 // were judged on, so a slice that left, joined or reopened, or a criterion
 // that changed, while the slower reads ran stops the call.
-export function readIssueScope({ issue, tickets = null }, client) {
-  const slices = plannedNodes(walkSubIssues(issue, client, { tickets })).map((t) => `#${t.number} ${t.state}`);
+export function readIssueScope({ issue, tickets = null, split = false }, client) {
+  const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split })).map((t) => `#${t.number} ${t.state}`);
   return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(issue).body) };
 }
 // The same scope as a snapshot holds it.
