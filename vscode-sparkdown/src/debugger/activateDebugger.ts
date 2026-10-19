@@ -19,6 +19,8 @@ import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGa
 import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
 import { getEditor } from "../utils/getEditor";
 import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
+import { debugPathToUri, debugUriToPath } from "./debugUriMapping";
+import { evaluatableExpressionRange } from "./evaluatableExpressionRange";
 
 export const activateDebugger = (
   context: vscode.ExtensionContext,
@@ -36,8 +38,10 @@ export const activateDebugger = (
             type: "game",
             name: "Run File",
             request: "launch",
-            program:
-              SparkdownPreviewGamePanelManager.instance.document.uri.fsPath,
+            program: debugUriToPath(
+              vscode.Uri,
+              SparkdownPreviewGamePanelManager.instance.document.uri.toString(),
+            ),
           },
           { noDebug: true },
         );
@@ -53,8 +57,10 @@ export const activateDebugger = (
           type: "game",
           name: "Debug File",
           request: "launch",
-          program:
-            SparkdownPreviewGamePanelManager.instance.document.uri.fsPath,
+          program: debugUriToPath(
+            vscode.Uri,
+            SparkdownPreviewGamePanelManager.instance.document.uri.toString(),
+          ),
           stopOnEntry: true,
         });
       }
@@ -131,31 +137,23 @@ export const activateDebugger = (
     context.subscriptions.push(factory as { dispose: () => any });
   }
 
-  // override VS Code's default implementation of the debug hover
-  // here we match only Mock "variables", that are words starting with an '$'
+  // The debug hover evaluates the variable, or dotted path, under the cursor
+  // (#1845); a name the selected frame does not have falls through to the
+  // language hover (`SparkDebugSession.evaluateRequest`).
   context.subscriptions.push(
     vscode.languages.registerEvaluatableExpressionProvider("sparkdown", {
       provideEvaluatableExpression(
         document: vscode.TextDocument,
         position: vscode.Position,
       ): vscode.ProviderResult<vscode.EvaluatableExpression> {
-        const VARIABLE_REGEXP = /\$[a-z][a-z0-9]*/gi;
         const line = document.lineAt(position.line).text;
-
-        let m: RegExpExecArray | null;
-        while ((m = VARIABLE_REGEXP.exec(line))) {
-          const varRange = new vscode.Range(
-            position.line,
-            m.index,
-            position.line,
-            m.index + m[0].length,
-          );
-
-          if (varRange.contains(position)) {
-            return new vscode.EvaluatableExpression(varRange);
-          }
+        const range = evaluatableExpressionRange(line, position.character);
+        if (!range) {
+          return undefined;
         }
-        return undefined;
+        return new vscode.EvaluatableExpression(
+          new vscode.Range(position.line, range.start, position.line, range.end),
+        );
       },
     }),
   );
@@ -249,11 +247,15 @@ function pathToUri(path: string): vscode.Uri {
       return docUri;
     }
   }
-  try {
-    return vscode.Uri.file(path);
-  } catch (e) {
-    return vscode.Uri.parse(path);
-  }
+  const knownUris = vscode.workspace.textDocuments.map((d) =>
+    d.uri.toString(),
+  );
+  const rootUris = (vscode.workspace.workspaceFolders ?? []).map((f) =>
+    f.uri.toString(),
+  );
+  return vscode.Uri.parse(
+    debugPathToUri(vscode.Uri, path, knownUris, rootUris),
+  );
 }
 
 class InlineDebugAdapterFactory
@@ -329,13 +331,15 @@ class InlineDebugAdapterFactory
         return pathToUri(path).toString();
       },
       uriToPath(uri: string) {
-        return vscode.Uri.parse(uri).fsPath;
+        return debugUriToPath(vscode.Uri, uri);
       },
       getRootPath(path: string) {
         const uri = pathToUri(path);
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
         if (workspaceFolder) {
-          return workspaceFolder.uri.fsPath;
+          // Spelled like the source paths uriToPath produces, so a source's
+          // name is its path relative to the folder on every scheme.
+          return debugUriToPath(vscode.Uri, workspaceFolder.uri.toString());
         }
         return undefined;
       },

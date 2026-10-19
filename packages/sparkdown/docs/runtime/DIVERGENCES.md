@@ -53,7 +53,7 @@ store x = 5        # equivalent — implicit form, also works at top level
 & total = total + 1  # top-level reassignment needs the &
 ```
 
-Without `&`, a bare reassignment at the top level would parse as [`ImplicitAction`](definitions/yaml/sparkdown.language-grammar.yaml) text. The declaration form `store x = 5` parses as `LuauSparkdownVariableDefinition` either way, because `LuauExplicitStatement` includes that rule ahead of the rest of its content, which is why `& store x = 5` and `store x = 5` are interchangeable. See [`lowerExplicitStatement.ts`](src/compiler/lower/lowerers/lowerExplicitStatement.ts).
+Without `&`, a bare reassignment at the top level would parse as [`ImplicitAction`](definitions/yaml/sparkdown.language-grammar.yaml) text. The declaration form `store x = 5` parses as `LuauSparkdownVariableDefinition` either way, because `LuauSparkdownExplicitStatement` includes a declaration rule ahead of the rest of its content, which is why `& store x = 5` and `store x = 5` are interchangeable. Inside a function body there is no `&` marker: the body is Luau, and a reassignment is written `total = total + 1` (#1374). See [`lowerExplicitStatement.ts`](src/compiler/lower/lowerers/lowerExplicitStatement.ts).
 
 ### Weaves use `choose ... then ... end` blocks, not mark-counting
 
@@ -220,7 +220,7 @@ on the alternator block instead.
 
 Only the keyword form is exposed in the grammar; the runtime's
 `NativeFunctionCall` opcodes were renamed to match
-([`NativeFunctionCall.ts:42-54`](src/inkjs/engine/NativeFunctionCall.ts)). Error
+([`NativeFunctionCall.ts:42-54`](src/runtime/NativeFunctionCall.ts)). Error
 messages mention the operator the user actually wrote. Short-circuit semantics
 for `and` / `or` are honored as in Luau.
 
@@ -243,7 +243,7 @@ list-specific arithmetic (`(a, b) + (c)`) is not.
 Sparkdown does not support ink's dedicated membership operators (`?` / `!?`
 and the `has` / `hasnt`).
 Instead use the builtin membership methods (see
-[`MethodDispatch.ts`](src/inkjs/engine/MethodDispatch.ts)):
+[`MethodDispatch.ts`](src/runtime/MethodDispatch.ts)):
 
 | ink            | sparkdown                                        |
 | -------------- | ------------------------------------------------ |
@@ -383,8 +383,46 @@ recognizable keyword.
 
 Sparkdown adds `store` alongside Luau's `local`. `store` declares a
 ink-style global variable (persisted in save state); `local` is a per-scope
-binding (see below); `const` is a once-only declaration (currently lowered
-to `var` — see DEFERRED.md). Standard Luau has no `store`.
+binding (see below). Standard Luau has no `store`.
+
+### `const` outside a function is a published constant; inside one it is Luau's
+
+A `const` outside every function (in the story, a scene or a branch) is the
+story's published constant: a global that does not change, declared with the
+story's globals before it starts. It takes one name and one value (``A `const`
+takes one name and one value``), its value must be a constant expression
+(``A const must be initialized to a constant expression``), a second `const`
+of its name with another value is an error (``Cannot redeclare const``), and
+assigning to it, inside a function or out, is ``Cannot re-assign the const``.
+
+A `const` inside a function, at any depth of its blocks, is Luau's: a local
+of its block that cannot be reassigned. It takes several names
+(`const X, Y = 1, 2`), any value (`const v = t.field`), shadows and is
+shadowed like a `local`, and two functions each have their own `const` of one
+name. The errors are Luau's, at Luau's range: `Missing initializer in const
+declaration` where it has more names than values and no call to spread
+across them, and `Variable 'X' is constant and may not be reassigned` for an
+assignment to it. A `run` file's text is the body of the function a `run`
+calls, so its `const`s are Luau's too. `ConstMultiDeclaration.test.ts` and
+`LuauNamesAndFunctionConst.test.ts` pin the two scopes.
+
+### Only Luau's keywords are reserved
+
+A name may be any word but Luau's keywords (`and break do else elseif end
+false for function if in local nil not or repeat return then true until
+while`), which are rejected where Luau rejects them, with Luau's message.
+Sparkdown's own statements (`store`, `const`, `define`, `scene`, `branch`,
+`include`, `system`, ...) and ink's (`var`, `temp`, `VAR`, `CONST`,
+`EXTERNAL`, ...) are recognized by their shape, so their words are names
+wherever Luau allows a name: a `local`, a parameter, a function's name, a
+table key. A scene's, a branch's, a choice's or a gather's name is the
+story's own, diverted to rather than read as Luau, so it may be any word its
+construct's shape allows, Luau's keywords included (`+ (then)`,
+`-> then`). One gap remains: the grammar still reads `define` and `store`
+inside a function as Sparkdown's declarations where a value or a statement
+begins (`local store = 1`, `return define`), and `const` at the start of the
+line that continues a list of names (`local a,` then `const = 1, 2`, which is
+reported as a missing name), ImpowerGames/impower-internal#1328.
 
 ### Math builtins use Luau names, not ink's all-caps form
 
@@ -402,7 +440,7 @@ library names rather than ink's `FLOOR` / `CEILING` / etc. conventions:
 | `SEED_RANDOM(s)` | `math.randomseed(s)` |
 
 The single source of truth is the [`STDLIB`
-table](src/inkjs/engine/StdLib.ts) — a plain `{ namespace: { method: fn } }`
+table](src/runtime/StdLib.ts) — a plain `{ namespace: { method: fn } }`
 object of JS implementations. At engine init, `NativeFunctionCall` walks
 the table and registers each function under its dotted full name (e.g.
 `"math.floor"`), inferring arity from `fn.length` and registering for
@@ -445,7 +483,7 @@ variable named `count`. Syntax highlighting tags the name as stdlib at
 the source level so the reserved status is visible.
 
 The mappings live in `INK_BUILTIN_ALIASES.count` in
-[`StdLib.ts`](src/inkjs/engine/StdLib.ts). Unlike the `STDLIB` table
+[`StdLib.ts`](src/runtime/StdLib.ts). Unlike the `STDLIB` table
 (which holds JS implementations registered with `NativeFunctionCall`),
 these alias entries point at _existing_ ink runtime builtin names —
 `FunctionCall.GenerateIntoContainer` already routes those through
@@ -674,7 +712,7 @@ These literal cases are deliberately different:
 - `\u{110000}` through `\u{7FFFFFFF}` are valid in Luau (it encodes them as extended UTF-8) and are accepted here too, but a JS string cannot hold a code point above U+10FFFF, so they lower to U+FFFD.
 - Native integer literals are unsupported as described above; malformed integer spellings such as `0xABii` retain **Malformed number** rather than Luau's **Malformed integer**.
 
-A missing or malformed expression is reported wherever Luau reports one, with Luau's wording and range, from the type checker's reading of the Luau in the syntax tree ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)): an operator with no operand (`local y = 1 +` before `local`, `f(1 +)`), an empty value (`local a, b = 1,` before `end`, `f(1,)`), a member access with no name (`t.a.`, `get().a. = 1`), a function value with a name (`local g = function named() end`), and a statement that is a value but not a call (`x + 1`). Other statement-level diagnostics (a missing `end`, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. A malformed type annotation is reported only where its type cannot begin (see "A malformed type annotation is reported only where its type cannot begin" above), and Luau's tests for the rest are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
+A missing or malformed expression is reported wherever Luau reports one, with Luau's wording and range, from the type checker's reading of the Luau in the syntax tree ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)): an operator with no operand (`local y = 1 +` before `local`, `f(1 +)`), an empty value (`local a, b = 1,` before `end`, `f(1,)`), a member access with no name (`t.a.`, `get().a. = 1`), a function value with a name (`local g = function named() end`), and a statement that is a value but not a call (`x + 1`). Other statement-level diagnostics (a missing `end`, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. A malformed type annotation is reported only where its type cannot begin (see "A malformed type annotation is reported only where its type cannot begin" above), and Luau's tests for the rest are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
 
 ### A value on the line after `return` counts only when `return` starts its line
 
@@ -702,6 +740,17 @@ A whole `{…}` interpolation in display text is Sparkdown's inline conditional,
 
 Sparkdown reports Luau's `LocalUnused`, `UnreachableCode`, `DuplicateCondition` and `ForRange` lints with Luau's messages, lacks the other rules of Luau's linter, and has no `--!nolint` or other `--!` directives to silence them. [`docs/compiler/LINTS.md`](../compiler/LINTS.md) lists which lints sparkdown has, lacks and omits, and where its four rules report less than Luau's do.
 
+### A top-level line that begins with an attribute is Luau
+
+A top-level line of a `.sd` script that begins with a Luau attribute, `@` glued to a name or to `[` (`@native`, `@[deprecated]`), is Luau wherever its function stands. The function may be on the same line, after comments, or on a later line at any indentation. A line of attributes with no function after them reports Luau's missing-function error. Story text may not begin with an attribute. This is the maintainer's decision on the question #921 left open, made for #1924.
+
+A write keeps its `@`:
+- A spaced write (`@ target: text`) is never an attribute.
+- An unspaced write whose target is a name or a dotted name path (`@hud: text`, `@hud.panel: text`) stays a write, since Luau never follows an attribute with `.` or `:`.
+- Any other unspaced target (`@my target: text`) begins a Luau line, so write it spaced: `@ my target: text`.
+
+`@` elsewhere in a story line (`Mail me @ home`) stays story.
+
 ### Regex literals: `@/pattern/flags`
 
 Not a Luau form at all. A regex literal is raw, so a pattern keeps single
@@ -722,9 +771,9 @@ fires at all (`LuauArithmeticOperation` claims the leading `/` first), and
 ahead of that rule it fires in operator position too, so
 `{10/2} and {10 / 2}` lexed `/2} and {10 /` as a regex.
 
-`@` works because every other `@` rule requires an identifier, `(` or `=` after
-the sigil (`@attribute`, `@has(...)`, `@click=`), so none of them can match
-`@/`. It also leaves `/` as the familiar delimiter, which matters: `/` is the
+`@` works because every other `@` rule requires an identifier, `[`, `(` or `=`
+after the sigil (`@attribute`, `@[attribute]`, `@has(...)`, `@click=`), so none
+of them can match `@/`. It also leaves `/` as the familiar delimiter, which matters: `/` is the
 one candidate that appears in **zero** of the built-in patterns, whereas `!`
 (`[!?]`, intonation), `:` (`(?:`) and `|` (`(?:^|\b)`) are all common inside
 them and would need escaping.
@@ -793,7 +842,7 @@ compiled bytecode or driving the runtime directly.
 
 The JSON wire format distinguishes `7` (int) from `7.0` (float) by emitting
 the latter as the string `"7.0f"` rather than the bare number `7`.
-[`SimpleJson.Writer.WriteFloat`](src/inkjs/engine/SimpleJson.ts) emits the
+[`SimpleJson.Writer.WriteFloat`](src/runtime/SimpleJson.ts) emits the
 marker; `JsonSerialisation.JTokenToRuntimeObject` recognizes it (via
 `/^([0-9]+.[0-9]+f)$/`) on the way back in. Without this, `7 / 3.0`'s `2.333…`
 would round-trip as `2`.

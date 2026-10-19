@@ -32,4 +32,4 @@ Do not reproduce or file the candidates yourself. Read [filing routes](../../ref
 
 ## Record it
 
-In the PR body, name each in-passing fix under Changes and each filed ticket under Notes for reviewers, with one sentence on why it is separate work, and read the body back. In the handoff, list the tickets filed and the in-passing fixes, or say None. Most sessions file nothing.
+In the PR body (the PR report on the ticket once the cutover switch is on), name each in-passing fix under Changes and each filed ticket under Notes for reviewers, with one sentence on why it is separate work, and read it back. In the handoff, list the tickets filed and the in-passing fixes, or say None. Most sessions file nothing.

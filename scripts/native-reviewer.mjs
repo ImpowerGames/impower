@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {git} from './review-job-store.mjs';
+import {assertReviewerDirectory} from './review-job-root.mjs';
 import {validateCodexSandboxStorage,validateCodexAuthHome,readCodexAuthSecret,codexReviewMode,isSupportedCodexVersion,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
 
 // The sandboxed grammar needs the elevated Windows sandbox. The full-access
@@ -114,9 +115,10 @@ export function validateCodexReviewer(review,plan) {
   need(values.has('--cd')&&values.get('--cd')===permission.cwd,'--cd <step permissions.cwd>');
   need(values.has('--output-last-message'),'--output-last-message <fresh report in step permissions.cwd>');
   if(missing.length)throw new Error(`Codex reviewer step lacks its isolated effective configuration; supply: ${missing.join('; ')}`);
-  const root=fs.realpathSync.native(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
+  const root=assertReviewerDirectory(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=fs.existsSync(plan.jobDir)?fs.realpathSync.native(plan.jobDir):path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
   const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
-  if(contains(root,worktree)||contains(worktree,root)||contains(root,job)||contains(job,root)||contains(root,common)||contains(common,root))throw new Error('Codex reviewer writes must exclude repository and supervisor state');
+  if(contains(root,worktree)||contains(worktree,root)||contains(root,common)||contains(common,root))throw new Error(`Codex reviewer writes must exclude repository and supervisor state: reviewer directory ${root}, worktree ${worktree}, common Git directory ${common}`);
+  if(contains(root,job)||contains(job,root))throw new Error(`Codex reviewer writes must exclude repository and supervisor state: reviewer directory ${root} conflicts with journal state directory ${job}; put the journal in a sibling state directory such as launch-<reviewer-id>, outside the reviewer directory`);
   // The launcher withholds the secret from its environment and supplies it here.
   if(fullAccess&&permission.codexAuthEnv!==undefined)readCodexAuthSecret(permission,plan.secretSource??process.env);
   else if(fullAccess)validateCodexAuthHome(permission,worktree);

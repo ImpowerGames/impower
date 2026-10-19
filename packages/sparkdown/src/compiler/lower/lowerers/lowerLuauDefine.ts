@@ -1,5 +1,6 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { luauStatementError } from "../../utils/luauStatementError";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { followsDanglingDot, followsMissingValue } from "../utils/statementBefore";
@@ -51,11 +52,12 @@ import {
   stripQuotes,
 } from "../expression/lowerExpression";
 import {
-  bodyAst,
   buildClosureExpression,
   freeVariables,
+  readBodyAst,
+  reportBodySyntaxErrors,
 } from "../expression/lowerFunction";
-import { rangeOf, readExpressionAst, type LuauSource } from "../utils/luauAst";
+import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
@@ -65,6 +67,8 @@ import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import { syntheticId } from "../utils/documentTag";
 import {
   closeFunctionBody,
@@ -76,7 +80,7 @@ import {
 // live runtime global table (a named singleton) AND, when typed
 // (`as T`), a compile-time `StructDefinition` for the engine's
 // character / UI / asset spec system. Both ride ONE VariableAssignment
-// (see VariableAssignment + ParsedHierarchy/Story's ExportRuntime):
+// (see VariableAssignment and `Story.PrepareGlobals`):
 //
 //   define companion as character with     companion = __def({
 //     store trust = 0                         trust = 0,
@@ -108,7 +112,9 @@ import {
 // hidden `__readProps` / `__writeProps` lists for future enforcement.
 
 interface DefineProperty {
+  // Empty for a computed key (`[expr] = …`), whose `key` is evaluated at init.
   name: string;
+  key?: Expression;
   expr: Expression;
   // "store" | "local" | "const" | "" — from LuauScopeModifier.
   scope: string;
@@ -143,13 +149,13 @@ const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
 
 // Define bodies lower members only, but still report expressions that Luau
 // cannot read as statements. A property's continuation is consumed first.
+// A statement that is a `.` no name follows is the validator's to report
+// (`LuauDanglingAccessor`); a later one on the line (`Hello there.`) is a
+// statement of its own, and Luau's first error is this one's.
 function reportDefineStatement(start: SyntaxNode, ctx: LowerContext): SyntaxNode {
   let last = start;
-  let dangling = false;
-  for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) {
-    last = node;
-    if (node.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", node)) dangling = true;
-  }
+  for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) last = node;
+  const dangling = start.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", start) !== undefined;
   const read = (from: number, to: number) => ctx.read(from, to);
   if (dangling || followsDanglingDot(start, read) || followsMissingValue(start, read)) return last;
   const error = luauStatementError(start, start.from, read, last.to, ctx.documentText);
@@ -415,7 +421,12 @@ export function lowerLuauDefine(
         } else if (structureErrors.length === 0) {
           child = reportDefineStatement(child, ctx);
         }
-      } else if (structureErrors.length === 0 && EXPRESSION_STATEMENT_STARTS.has(child.name)) {
+      } else if (
+        structureErrors.length === 0 &&
+        (EXPRESSION_STATEMENT_STARTS.has(child.name) || UNREAD_TOKENS.has(child.name))
+      ) {
+        // A token no rule of the body read (`!`, `a = 1 !`) has its error
+        // here too: the validator leaves it to Luau's reading.
         child = reportDefineStatement(child, ctx);
       }
       child = child.nextSibling;
@@ -439,8 +450,11 @@ export function lowerLuauDefine(
         entryExpr = contextValueToExpression(ctxValue);
       }
     }
-    entries.push(new ObjectExpressionEntry(prop.name, entryExpr));
+    entries.push(new ObjectExpressionEntry(prop.key ?? prop.name, entryExpr));
   }
+  // A computed key's name is unknown until init, so it takes no modifier
+  // list, struct property or context entry.
+  const named = properties.filter((p) => !p.key);
   for (const method of methodNodes) {
     const closure = lowerDefineMethod(method.name, method.node, ctx);
     if (closure) {
@@ -469,15 +483,15 @@ export function lowerLuauDefine(
   };
   pushNameList(
     "__storeProps",
-    properties.filter((p) => p.scope === "store").map((p) => p.name),
+    named.filter((p) => p.scope === "store").map((p) => p.name),
   );
   pushNameList(
     "__readProps",
-    properties.filter((p) => p.access === "read").map((p) => p.name),
+    named.filter((p) => p.access === "read").map((p) => p.name),
   );
   pushNameList(
     "__writeProps",
-    properties.filter((p) => p.access === "write").map((p) => p.name),
+    named.filter((p) => p.access === "write").map((p) => p.name),
   );
 
   const defineExpr = new FunctionCall(new Identifier("__def"), [
@@ -503,7 +517,7 @@ export function lowerLuauDefine(
     // level). Without this, `define X as character` registers the struct
     // KEY but with no `name` prop, so the engine can't match a dialogue
     // cue (`RAFFLES:`) to its character and every cue warns + no portrait.
-    const propertyDefs = properties.map(
+    const propertyDefs = named.map(
       (p) => new StructPropertyDefinition(1, new Identifier(p.name), p.expr),
     );
     structDef = new StructDefinition(propertyDefs);
@@ -515,7 +529,7 @@ export function lowerLuauDefine(
   // Emit the define bound to its BARE name here. Whether it ends up on the bare
   // global or a synthetic `$<type>_<name>` key is decided later, by the
   // whole-program `scopeDefineInstances` post-pass in SparkdownCompiler (before
-  // ExportRuntime): a typed define whose name is NEVER used as a type — not an
+  // resolution): a typed define whose name is NEVER used as a type — not an
   // `as`-parent, not a `new D()` target — is a LEAF INSTANCE and gets scoped so
   // the bare name stays free for user `store`/vars (the `store show` vs builtin
   // `animation show` clash class). That classification is a whole-PROGRAM
@@ -553,7 +567,7 @@ export function lowerLuauDefine(
     const name = nameIdentifier.name ?? "";
     if (type && name) {
       const struct: Record<string, unknown> = { $type: type, $name: name };
-      for (const prop of properties) {
+      for (const prop of named) {
         // A bare/dotted reference used as a SCALAR value (e.g. a
         // `filtered_image`'s `image = bunny_realization`) is a struct
         // reference, not a string — it must reach context as a
@@ -601,7 +615,7 @@ export function lowerLuauDefine(
         $type: type,
         $name: "$default",
       };
-      for (const prop of properties) {
+      for (const prop of named) {
         let value = coerceScalarLiteral(prop.value, ctx);
         if (value === undefined) {
           value = expressionToContextValue(prop.expr);
@@ -638,9 +652,10 @@ function lowerDefineMethod(
   const params = userArgs
     .filter((a) => !a.isVararg)
     .map((a) => a.identifier?.name ?? "");
+  const reading = readBodyAst(content, METHOD_BODY_SKIP, ctx);
   const upvals = freeVariables(
     params,
-    bodyAst(content, METHOD_BODY_SKIP, ctx),
+    reading?.unit.root ?? null,
     ctx,
   ).filter((n) => n !== "self");
   recordCaptureRead(ctx, upvals);
@@ -656,14 +671,28 @@ function lowerDefineMethod(
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
   ctx.declaredLocalsStack?.push(new Set(["self"]));
+  ctx.functionBindingsStack?.push(
+    functionBindings([{ name: "self" }, ...params.map((name) => ({ name }))], reading?.unit.root ?? null, ctx, content.from),
+  );
   const hoistedDecls: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, METHOD_BODY_SKIP, shape);
+  if (reading) reportErasedConstErrors(reading.unit.root, node, ctx);
+  // Its body's errors, as Luau reports them for the function the method
+  // stands for (or is, in the `function name() … end` form), its `end`
+  // included.
+  let bodyStart = content.firstChild;
+  while (bodyStart && METHOD_BODY_SKIP.has(bodyStart.name)) bodyStart = bodyStart.nextSibling;
+  if (bodyStart) {
+    const errors = node.name === "LuauMethodDefinition" ? methodSyntaxErrors(node, ctx) : readBlockAst([node], ctx)?.unit.errors ?? [];
+    reportBodySyntaxErrors(errors, ctx, bodyStart.from);
+  }
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
+  ctx.functionBindingsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
@@ -736,6 +765,7 @@ function readPropertyDefinition(
   // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
   // plain identifier (`name = …`).
   let name: string | null = null;
+  let keyExpr: Expression | null = null;
   const bracketAssignment = getDescendent("LuauBracketKeyAssignment", propNode);
   if (bracketAssignment) {
     const indexNode = getDescendent(
@@ -744,8 +774,9 @@ function readPropertyDefinition(
     );
     if (!indexNode) return null;
     // Only STRING-LITERAL keys are representable in the compile-time struct;
-    // computed keys (`[expr]`) stay runtime-only (the __def table still carries
-    // them). The key is the string's value, its escapes read.
+    // a computed key (`[expr]`) is runtime-only: the __def table carries it as
+    // an expression key evaluated at init, and the context never sees it. The
+    // key is the string's value, its escapes read.
     const key = readExpressionAst(containerValueNodes(indexNode), ctx);
     if (
       key?.expr instanceof AstExprConstantString &&
@@ -753,15 +784,26 @@ function readPropertyDefinition(
     ) {
       const range = rangeOf(key.expr.location, ctx);
       name = processLuauEscapes(stripQuotes(ctx.read(range.from, range.to)));
+    } else if (key) {
+      keyExpr = lowerExpression(key.expr, key.source, ctx);
+      if (keyExpr) {
+        stampDebugMetadata([keyExpr], indexNode.from, indexNode.to, ctx);
+        name = "";
+      }
     }
     if (name == null) return null;
   } else {
-    const variableAssignment = getDescendent(
-      "LuauVariableAssignment",
-      propNode,
-    );
-    if (!variableAssignment) return null;
-    const nameNode = getDescendent("LuauVariableName", variableAssignment);
+    // A key spelled as a reserved word is in the property's own begin,
+    // before its `LuauAssignmentOperation`, whose value may hold
+    // assignments of its own.
+    const begin = findChildByName(propNode, "LuauPropertyDefinition_begin");
+    const keywordKey = begin ? getDescendent("LuauDefineKeywordKey", begin) : null;
+    const variableAssignment = keywordKey
+      ? null
+      : getDescendent("LuauVariableAssignment", propNode);
+    const nameNode = keywordKey ?? (variableAssignment
+      ? getDescendent("LuauVariableName", variableAssignment)
+      : null);
     if (!nameNode) return null;
     name = ctx.read(nameNode.from, nameNode.to);
   }
@@ -819,5 +861,13 @@ function readPropertyDefinition(
     ? ctx.read(accessNode.from, accessNode.to).trim()
     : "";
 
-  return { name, expr, scope, access, node: propNode, value };
+  return {
+    name,
+    ...(keyExpr ? { key: keyExpr } : {}),
+    expr,
+    scope,
+    access,
+    node: propNode,
+    value,
+  };
 }

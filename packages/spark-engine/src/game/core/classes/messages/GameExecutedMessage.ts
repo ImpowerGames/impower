@@ -1,5 +1,6 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { DocumentLocation } from "../../types/DocumentLocation";
 import type { ExecutedLines } from "../../types/ExecutedLines";
@@ -9,18 +10,21 @@ export type { ExecutedLines, SimulationFailure };
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
 export interface GameExecutedParams {
-  simulatePath?: string | null;
-  startPath?: string | null;
-  /** The lines the executed paths cover, by script uri. Absent from the
+  /** The flow the route to the start point starts at the top of: a scene's
+   *  name, or `"0"` for the top-level content, which keys the choices and
+   *  conditions a route favors. */
+  simulateFlow?: string | null;
+  /** The lines the executed positions cover, by script uri. Absent from the
    *  report of a displayed suggestion. */
   executedLines?: Record<string, ExecutedLines>;
-  /** The location of the first executed path that has one. */
+  /** The location of the first executed position that has one. */
   firstLocation?: DocumentLocation;
-  /** The location of the last executed path that has one. */
+  /** The location of the last executed position that has one. */
   lastLocation?: DocumentLocation;
-  /** The last path executed, located or not. Absent from the report of a
-   *  displayed suggestion. */
-  lastExecutedPath?: string;
+  /** The address of the last position executed, located or not, which is
+   *  opaque (`ProgramLocator`): a host compares it with another, or asks
+   *  where it is. Absent from the report of a displayed suggestion. */
+  lastExecutedAddress?: ProgramAddress;
   /** Empty in the report of a displayed suggestion. */
   conditions: { selected: boolean }[];
   choices: { options: string[]; selected: number }[];
@@ -29,9 +33,9 @@ export interface GameExecutedParams {
   simulation?: "none" | "simulating" | "success" | "fail";
   /** Only meaningful alongside `simulation: "fail"`, and always sent with it. */
   simulationFailure?: SimulationFailure;
-  /** Where `simulatePath` and `startPath` are in the script, alongside
-   *  `simulation: "fail"`, added by a host that holds the program for a page
-   *  that labels the failure but does not hold it. */
+  /** Where the route that failed was to start (the flow `simulateFlow`
+   *  names) and to end (the start point), sent with `simulation: "fail"`, for
+   *  a page that labels the failure and holds no program. */
   simulateLocation?: DocumentLocation;
   startLocation?: DocumentLocation;
 }

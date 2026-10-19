@@ -1,0 +1,11 @@
+store x = "global"
+choose
+  do
+    local x = "local"
+  end
+  * if (x == "global") [Pick {x}]
+    Body {x}.
+  * [Other {x}]
+end
+After {x}.
+done

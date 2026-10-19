@@ -248,7 +248,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     flags: { LuauStrictVisitInstantiatedType: true },
     checks: [
       {
-        unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
         source: `
                 --!strict
                 local function f<T...>() end
@@ -260,7 +259,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
         ],
       },
       {
-        unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
         source: `
                 --!strict
                 local t = {}
@@ -273,7 +271,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
         ],
       },
       {
-        unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
         source: `
                 --!nonstrict
                 local t = {}
@@ -625,7 +622,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     checks: [
       {
         module: "Modules/Main",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local Test = require(script.Parent.Thing)
@@ -657,7 +653,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     checks: [
       {
         module: "Modules/Main",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local Test = require(script.Parent.Thing)
@@ -689,7 +684,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     checks: [
       {
         module: "Modules/Main",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local Test = require(script.Parent.Thing)

@@ -1,0 +1,14 @@
+choose
+  local i = 0
+  while i < 2 do
+    i = i + 1
+    * While {i}
+      Chose while {i}.
+  end
+  for j = 1, 2 do
+    * For {j}
+  end
+  * Outer
+end
+After.
+done

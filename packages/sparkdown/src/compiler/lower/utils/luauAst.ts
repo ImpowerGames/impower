@@ -7,10 +7,13 @@
 
 import type { SyntaxNode } from "@lezer/common";
 import type { AstExprError, AstStatError } from "../../typecheck/Ast";
+import { AstExprFunction } from "../../typecheck/Ast";
 import type { Location, Position } from "../../typecheck/Location";
 import {
   readLuauBlock,
   readLuauExpression,
+  readLuauMethod,
+  readLuauStatements,
   type LuauAstUnit,
   type LuauSyntaxError,
 } from "../../typecheck/readLuauAst";
@@ -118,15 +121,36 @@ export function readExpressionAst(
   return { expr, source: { top: topOf(first), errors } };
 }
 
-/** The Luau statements some sibling nodes hold, read as one block. */
+/**
+ * The Luau statements some sibling nodes hold, read as one block; with
+ * `afterType`, as the rest of a type the nodes begin by continuing (see
+ * `readLuauBlock`).
+ */
 export function readBlockAst(
   nodes: readonly SyntaxNode[],
   ctx: LowerContext,
+  afterType = false,
 ): { unit: LuauAstUnit; source: LuauSource } | null {
   const first = nodes[0];
   if (!first) return null;
-  const unit = readLuauBlock(nodes, documentText(ctx));
+  const unit = readLuauBlock(nodes, documentText(ctx), afterType);
   return { unit, source: { top: topOf(first), errors: unit.errors } };
+}
+
+/** The syntax errors of a `define`'s method, read as the function value it stands for (`readLuauMethod`). */
+export function methodSyntaxErrors(node: SyntaxNode, ctx: LowerContext): readonly LuauSyntaxError[] {
+  return readLuauMethod(node, documentText(ctx)).errors;
+}
+
+/** The syntax errors of a Sparkle closure's body, read as the body of the function value it runs as (`readLuauStatements`). */
+export function closureSyntaxErrors(content: SyntaxNode, ctx: LowerContext): readonly LuauSyntaxError[] {
+  return readLuauStatements([content], documentText(ctx)).errors;
+}
+
+/** A Sparkle closure's body, read as the body of the function value it runs as (`readLuauStatements`), or null when the reading is not one. */
+export function closureBodyAst(content: SyntaxNode, ctx: LowerContext): import("../../typecheck/Ast").AstStatBlock | null {
+  const { expr } = readLuauStatements([content], documentText(ctx));
+  return expr instanceof AstExprFunction ? expr.body : null;
 }
 
 /** The message of the syntax error an error node names. */

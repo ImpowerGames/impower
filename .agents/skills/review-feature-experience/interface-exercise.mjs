@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { ticketsRepo } from "../../repos.mjs";
 
 // The interface exercise of the experience review. Nothing is built when a
 // design is reviewed, so the reviewing session walks through an author's tasks
@@ -109,7 +110,8 @@ export function walkthroughRecord(name) {
   return lines.join("\n");
 }
 
-export const ghIssueCommand = (number) => ["api", `repos/ImpowerGames/impower/issues/${number}`];
+// Tickets are read from the tickets repository the repos file names.
+export const ghIssueCommand = (number, repo = ticketsRepo()) => ["api", `repos/${repo}/issues/${number}`];
 export function ghIssueBody(number) {
   return JSON.parse(execFileSync("gh", ghIssueCommand(number), { encoding: "utf8", windowsHide: true })).body ?? "";
 }

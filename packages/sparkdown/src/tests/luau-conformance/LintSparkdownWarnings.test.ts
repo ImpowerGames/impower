@@ -82,7 +82,7 @@ describe("an empty choice", () => {
 describe("varargs outside a vararg function", () => {
   test("the warning names the internal variable", () => {
     expect(diagnoseWithLints("function add(x, y) return ... end\n")).toEqual([
-      "Cannot find variable named `__varargs__`",
+      "Cannot find variable named `__varargs$`",
     ]);
   });
 });

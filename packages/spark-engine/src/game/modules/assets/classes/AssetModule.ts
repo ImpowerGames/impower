@@ -4,7 +4,7 @@ import {
   type SceneBeat,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { Module } from "../../../core/classes/Module";
-import { SceneTracker } from "../../../core/classes/SceneTracker";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { type LoadInstruction } from "../../../core/types/Instruction";
 import { type Instructions } from "../../../core/types/Instructions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
@@ -60,6 +60,12 @@ export class AssetModule extends Module<
   /** Layouts whose fonts are pinned (`layout:<name>`). */
   protected _layoutPins = new Set<string>();
 
+  /** The pins of layouts a composed close retired, held until their
+   *  elements have gone (#1820). */
+  protected _retiringPins = new Set<string>();
+
+  protected _retiredLayouts = 0;
+
   /** Keys already handed to prediction since the last scene entry, so the
    *  window does not resend the same items after every beat. */
   /** Beat pins whose lines have not been written to the page yet; released
@@ -105,10 +111,10 @@ export class AssetModule extends Module<
 
   protected _warned = new Set<string>();
 
-  /** Per-flow `path -> beat index`, rebuilt when the program changes. */
+  /** Per-flow `address -> beat index`, rebuilt when the program changes. */
   protected _beatIndex?: {
     program: object;
-    byFlow: Map<string, Map<string, number>>;
+    byFlow: Map<string, Map<ProgramAddress, number>>;
   };
 
   protected _destroyed = false;
@@ -183,21 +189,23 @@ export class AssetModule extends Module<
     return !this.previewing;
   }
 
-  /** Where a preview stands: the path the cursor resolved to, which the
-   *  story may not have executed yet. In play, the executing path. */
-  protected get anchorPath(): string | null | undefined {
+  /** Where a preview stands: the address the cursor resolved to, which the
+   *  story may not have executed yet. In play, the executing address. */
+  protected get anchorAddress(): ProgramAddress | null | undefined {
     const previewing = this.context.system.previewing;
-    return typeof previewing === "string"
+    return typeof previewing === "number"
       ? previewing
-      : this._game.executingPath;
+      : this._game.executingAddress;
   }
 
-  /** The cursor's path as the window's anchor inside `scene`, or nothing
+  /** The cursor's address as the window's anchor inside `scene`, or nothing
    *  when the cursor is in another scene (a preview whose line diverts on
    *  into the next scene enters it from its first beat). */
-  protected previewAnchorIn(scene: string): string | undefined {
-    const anchor = this.anchorPath;
-    return anchor && SceneTracker.sceneOf(anchor) === scene ? anchor : undefined;
+  protected previewAnchorIn(scene: string): ProgramAddress | undefined {
+    const anchor = this.anchorAddress;
+    return anchor != null && this._game.sceneOf(anchor) === scene
+      ? anchor
+      : undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -556,6 +564,33 @@ export class AssetModule extends Module<
   }
 
   /**
+   * Hand a closing layout's fonts to a pin of their own (#1820): a composed
+   * close keeps the layout's element on the page, retiring, while its exit
+   * plays, and a reopen of the layout meanwhile pins them again under the
+   * layout's name. Returns the retiring pin, for {@link releaseRetiredLayout}
+   * once that element has gone; nothing for a layout with no fonts pinned.
+   */
+  retireLayout(name: string): string | undefined {
+    if (!this._layoutPins.delete(name)) {
+      return undefined;
+    }
+    this._retiredLayouts += 1;
+    const pin = `layout:${name}:retiring:${this._retiredLayouts}`;
+    this._retiringPins.add(pin);
+    // Pinned again before the layout's own pin goes, so the fonts are never
+    // free to evict in between.
+    void this.request(this.resolveFontItems([name]), 0, pin).catch(() => {});
+    this.release([`layout:${name}`], false);
+    return pin;
+  }
+
+  releaseRetiredLayout(pin: string): void {
+    if (this._retiringPins.delete(pin)) {
+      this.release([pin], false);
+    }
+  }
+
+  /**
    * Let interpolated names into the pipeline the moment the interpreter
    * parses them, before the line's gate runs.
    */
@@ -583,38 +618,41 @@ export class AssetModule extends Module<
   // Prediction
   // ---------------------------------------------------------------------------
 
-  protected beatIndexFor(flow: string, path: string | null | undefined): number {
-    if (!path) {
+  protected beatIndexFor(
+    flow: string,
+    address: ProgramAddress | null | undefined,
+  ): number {
+    if (address == null) {
       return -1;
     }
     const program = this._game.program;
     if (!this._beatIndex || this._beatIndex.program !== program) {
       this._beatIndex = { program, byFlow: new Map() };
     }
-    let byPath = this._beatIndex.byFlow.get(flow);
+    let byAddress = this._beatIndex.byFlow.get(flow);
     const beats = program.sceneAssets?.[flow]?.beats ?? [];
-    if (!byPath) {
-      byPath = new Map();
-      beats.forEach((beat, index) => byPath!.set(beat.path, index));
-      this._beatIndex.byFlow.set(flow, byPath);
+    if (!byAddress) {
+      byAddress = new Map();
+      beats.forEach((beat, index) => byAddress!.set(beat.address, index));
+      this._beatIndex.byFlow.set(flow, byAddress);
     }
-    const exact = byPath.get(path);
+    const exact = byAddress.get(address);
     if (exact != null) {
       return exact;
     }
-    // Not a beat path: the last beat at or before the current position in
-    // the source, which is what "the beats after this one" means.
-    return beatIndexIn(beats, program.pathLocations, path);
+    // Not a beat's address: the last beat at or before the current position
+    // in the source, which is what "the beats after this one" means.
+    return beatIndexIn(beats, this._game.locator, address);
   }
 
   /**
-   * Prefetch the assets of the next `predict_distance` beats after `path` in
+   * Prefetch the assets of the next `predict_distance` beats after `address` in
    * `flow`, spilling into the flows it loads and diverts to when the window
-   * runs past the end. With `inclusive`, the beat at `path` is included.
+   * runs past the end. With `inclusive`, the beat at `address` is included.
    */
   protected predictFrom(
     flow: string,
-    path: string | null | undefined,
+    address: ProgramAddress | null | undefined,
     inclusive: boolean,
   ): void {
     const sceneAssets = this._game.program.sceneAssets;
@@ -623,7 +661,7 @@ export class AssetModule extends Module<
       return;
     }
     const distance = this.config.predict_distance;
-    const start = this.beatIndexFor(flow, path) + (inclusive ? 0 : 1);
+    const start = this.beatIndexFor(flow, address) + (inclusive ? 0 : 1);
     let remaining = distance === 0 ? Number.POSITIVE_INFINITY : distance;
     const primary: SceneBeat[] = [];
     for (let i = Math.max(0, start); i < entry.beats.length && remaining > 0; i++) {
@@ -703,7 +741,7 @@ export class AssetModule extends Module<
    */
   protected predictAround(
     flow: string,
-    path: string | null | undefined,
+    address: ProgramAddress | null | undefined,
     wholeScene: boolean,
   ): void {
     const entry = this._game.program.sceneAssets?.[flow];
@@ -711,7 +749,7 @@ export class AssetModule extends Module<
       return;
     }
     const distance = this.config.predict_distance;
-    const index = Math.max(0, this.beatIndexFor(flow, path));
+    const index = Math.max(0, this.beatIndexFor(flow, address));
     const last = this._previewWindow;
     // The last window still covers a cursor that moved less than half its
     // reach, so it is not sent again for that.
@@ -756,7 +794,7 @@ export class AssetModule extends Module<
     if (this.previewing) {
       this.predictAround(flow, this.previewAnchorIn(flow), false);
     } else {
-      this.predictFrom(flow, this._game.executingPath, false);
+      this.predictFrom(flow, this._game.executingAddress, false);
     }
   }
 
@@ -901,34 +939,52 @@ export class AssetModule extends Module<
     // portrait, which shows only with the beat that writes it) is not
     // restored, so its picture is not waited for: the beat's own gate asks
     // for the portrait the beat shows.
-    const names: string[] = [];
-    const ui = this._game.module.ui;
-    const imageState = ui.state.image;
-    if (imageState) {
-      const cleared = new Set(ui.getTransientTargets());
-      for (const [target, events] of Object.entries(imageState)) {
-        if (cleared.has(target)) {
-          continue;
-        }
-        for (const event of events ?? []) {
-          if (event.control === "show" && event.assets?.length) {
-            names.push(...event.assets);
-          }
-        }
-      }
-    }
-    const gate = (list: string[]) =>
-      this.resolveImageItems(list).filter(
-        (item) => this.timed || item.kind !== "video",
-      );
+    await this.gateRestore(this._game.module.ui.restoredPictureNames());
+  }
+
+  /** Hold the restore until `names` are resident, under the `restore` pin
+   *  that `onRestore` lets go. */
+  protected async gateRestore(names: string[]): Promise<void> {
+    const items = this.resolveImageItems(names).filter(
+      (item) => this.timed || item.kind !== "video",
+    );
     this._restorePending = true;
     await this.ensureResident(
-      gate(names),
+      items,
       0,
       "restore",
       this.config.restore_timeout,
       "restore",
     );
+  }
+
+  /**
+   * A beat-only display's part of the redisplay that takes the connect's
+   * place (#657). The cache's sizes are the program's, which the display
+   * leaves as they were. The restore waits only for the pictures it writes
+   * that the page was not showing when the last display went up (`shown`):
+   * those are on the page, so they need no round trip.
+   */
+  async onRedisplay(shown: string[]): Promise<void> {
+    this._destroyed = false;
+    if (this.silent) {
+      return;
+    }
+    const showing = new Set(shown);
+    const names = this._game.module.ui
+      .restoredPictureNames()
+      .filter((name) => !showing.has(name));
+    if (names.length === 0) {
+      return;
+    }
+    await this.gateRestore(names);
+  }
+
+  /** The program's scenes changed under the cursor's scene (#657): the
+   *  prediction window was laid out over the old ones, and the next scene
+   *  entry lays out its own. */
+  onSceneMapChanged(): void {
+    this._previewWindow = null;
   }
 
   override async onRestore(): Promise<void> {
@@ -1025,14 +1081,15 @@ export class AssetModule extends Module<
     if (this.previewing) {
       this.predictAround(scene, this.previewAnchorIn(scene), true);
     } else {
-      this.predictFrom(scene, this._game.executingPath, true);
+      this.predictFrom(scene, this._game.executingAddress, true);
     }
   }
 
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
     this._fontNamesByLayout.clear();
-    this._previewWindow = null;
+    // The prediction window stands while the program's scenes do: the game
+    // tells this module when they changed (`onSceneMapChanged`, #657).
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {
@@ -1071,6 +1128,7 @@ export class AssetModule extends Module<
       ...this._abandonedPins,
       ...[...this._loadPins].map((flow) => `load:${flow}`),
       ...[...this._layoutPins].map((name) => `layout:${name}`),
+      ...this._retiringPins,
     ];
     // Unpin without dropping: the cache outlives this game (STOP then PLAY
     // must not re-fetch), and the next game re-pins what it needs.
@@ -1083,6 +1141,7 @@ export class AssetModule extends Module<
     this._abandonedPins.clear();
     this._loadPins.clear();
     this._layoutPins.clear();
+    this._retiringPins.clear();
     this._fontNamesByLayout.clear();
     this._previewWindow = null;
     this._progress.clear();

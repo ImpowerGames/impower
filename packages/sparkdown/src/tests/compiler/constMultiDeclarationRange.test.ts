@@ -1,14 +1,16 @@
-// The error for a `const` with more than one name or value is reported on the
-// declaration itself: its range spans the statement, starting at `const`
-// rather than at the line's indentation, also inside a function body.
-import "../../inkjs/engine/Container";
+// The error for a top-level `const` with more than one name or value is
+// reported on the declaration itself: its range spans the statement, starting
+// at `const` rather than at the line's indentation. A `const` inside a
+// function is Luau's (#1319), and Luau's error for more names than values is
+// on the declaration too, from `const` to its last value.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 const URI = "inmemory:///main.sd";
 const RULE = "A `const` takes one name and one value";
+const LUAU_RULE = "Missing initializer in const declaration";
 
-function ruleDiagnostics(text: string) {
+function ruleDiagnostics(text: string, rule = RULE) {
   const c = new SparkdownCompiler();
   c.configure({
     files: [
@@ -31,7 +33,7 @@ function ruleDiagnostics(text: string) {
       : Object.values(p.diagnostics ?? {}).flat()
   ).filter(
     (d: any) =>
-      (typeof d.message === "string" ? d.message : d.message?.value) === RULE,
+      (typeof d.message === "string" ? d.message : d.message?.value) === rule,
   );
 }
 
@@ -46,14 +48,15 @@ describe("const multi-declaration diagnostic range", () => {
     });
   });
 
-  it("starts at `const`, not the indentation, inside a function body", () => {
+  it("inside a function body, Luau's error starts at `const`, not the indentation", () => {
     const text =
-      "Value {f()}.\nfunction f()\n  const a = 1, 2\n  return a\nend\n";
-    const [d, ...rest] = ruleDiagnostics(text);
+      "Value {f()}.\nfunction f()\n  const a, g = 1\n  return a\nend\n";
+    expect(ruleDiagnostics(text)).toHaveLength(0);
+    const [d, ...rest] = ruleDiagnostics(text, LUAU_RULE);
     expect(rest).toHaveLength(0);
     expect(d.range).toEqual({
       start: { line: 2, character: 2 },
-      end: { line: 2, character: "  const a = 1, 2".length },
+      end: { line: 2, character: "  const a, g = 1".length },
     });
   });
 });

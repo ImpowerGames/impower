@@ -20,8 +20,7 @@
 //      before is still stripped.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
 const render = (source: string): string => {
@@ -178,7 +177,7 @@ ALICE:
 ALICE:
   The limit is {LIMIT} tonight.
 `;
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     compiler.configure({
       files: [
         {
@@ -193,7 +192,7 @@ ALICE:
       ],
     });
     const cold = compiler.compile({ textDocument: { uri } }).program;
-    expect(cold.compiled).toBeTruthy();
+    expect(cold.chunks).toBeTruthy();
 
     // Insert one character into `tonight`, on the line holding the
     // interpolation: line index 3, just before the final ".".
@@ -212,9 +211,9 @@ ALICE:
       ],
     });
     const warm = compiler.compile({ textDocument: { uri } }).program;
-    expect(warm.compiled).toBeTruthy();
+    expect(warm.chunks).toBeTruthy();
 
-    const story = new RuntimeStory(warm.compiled as Record<string, any>);
+    const story = testStory(warm.chunks);
     story.collapseWhitespace = false;
     expect(runToEnd(story)).toBe("The limit is 5 tonight!.\n");
   });

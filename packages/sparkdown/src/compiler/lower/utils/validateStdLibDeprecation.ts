@@ -1,5 +1,5 @@
-import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
-import { lookupStdLibDeprecation } from "../../../inkjs/engine/StdLib";
+import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
+import { lookupStdLibDeprecation } from "../../../runtime/StdLib";
 import type { LowerContext } from "../context";
 
 // LSP `DiagnosticTag.Deprecated`. VS Code renders the affected range

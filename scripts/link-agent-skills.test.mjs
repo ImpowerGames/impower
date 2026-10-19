@@ -95,4 +95,40 @@ assert.equal(recovery.length, 3);
 assert.ok(recovery.every((row) => row.action === "repair" && row.previousTarget.includes("impower-foreign-")));
 assert.equal(fs.readFileSync(path.join(foreign, "precious"), "utf8"), "keep");
 console.log("PASS: dangling-link repair, unexpected-resolution refusal and pre-mutation recovery records survive partial creation failure");
+// A real harness directory holding one link per skill, one of them dangling
+// after a skill was renamed, holds no data of its own: the default run refuses
+// and names the repair command, and that command leaves the three shared
+// links behind, through which every existing skill resolves and no renamed
+// one remains. A real file beside the links keeps the populated refusal.
+const movedSource = path.join(moved, ".agents", "skills");
+assert.ok(linkAgentSkills(moved, { repairLinks: true }).every((row) => fs.realpathSync(row.destination) === fs.realpathSync(movedSource)), "the three links are in place before the per-skill case");
+const perSkill = path.join(moved, ".claude", "skills");
+const skillLink = (name) => fs.symlinkSync(path.join(moved, ".agents", "skills", name), path.join(perSkill, name), process.platform === "win32" ? "junction" : "dir");
+fs.unlinkSync(perSkill);
+fs.mkdirSync(perSkill);
+skillLink("file-task");
+skillLink("renamed-away");
+assert.throws(() => linkAgentSkills(moved), /Refusing directory of links: .*holds only links \(file-task, renamed-away\).*run node scripts\/link-agent-skills\.mjs --repair-links from this checkout/);
+assert.ok(fs.lstatSync(path.join(perSkill, "renamed-away")).isSymbolicLink(), "the default run changes nothing");
+assert.ok(!fs.existsSync(path.join(perSkill, "renamed-away")), "the renamed skill's link dangles");
+const perSkillRepair = linkAgentSkills(moved, { repairLinks: true }).find((row) => row.destination === perSkill);
+assert.equal(perSkillRepair.action, "repair");
+assert.deepEqual(Object.keys(perSkillRepair.previousTarget).sort(), ["file-task", "renamed-away"], "the recovery record keeps each entry's raw target");
+for (const tool of toolDirectories) {
+  const leaf = path.join(moved, tool, "skills");
+  assert.ok(fs.lstatSync(leaf).isSymbolicLink(), `${tool}/skills is the shared link`);
+  assert.equal(fs.realpathSync(leaf), fs.realpathSync(movedSource));
+  assert.equal(fs.readFileSync(path.join(leaf, "file-task", "SKILL.md"), "utf8"), taskSkill, `${tool} resolves the existing skill`);
+  assert.ok(!fs.existsSync(path.join(leaf, "renamed-away")), `${tool} holds nothing for the renamed skill`);
+}
+assert.equal(fs.readFileSync(path.join(movedSource, "file-task", "SKILL.md"), "utf8"), taskSkill, "the targets are untouched");
+fs.unlinkSync(perSkill);
+fs.mkdirSync(perSkill);
+skillLink("renamed-away");
+fs.writeFileSync(path.join(perSkill, "notes.md"), "mine");
+assert.throws(() => linkAgentSkills(moved), /Refusing populated/);
+assert.throws(() => linkAgentSkills(moved, { repairLinks: true }), /Refusing populated/, "a file beside the links is data the repair never removes");
+assert.equal(fs.readFileSync(path.join(perSkill, "notes.md"), "utf8"), "mine");
+assert.ok(fs.lstatSync(path.join(perSkill, "renamed-away")).isSymbolicLink());
+console.log("PASS: a directory of per-skill links, one dangling after a rename, is refused with the repair command named and replaced by the shared links under --repair-links");
 // Leave printed scratch evidence available; never recursively remove junction trees.

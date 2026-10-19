@@ -39,42 +39,42 @@ sparkdown [0..124]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [36..37]
  │   │           └─ OptionalWhitespace [36..37]: " "
  │   ├─ LuauSparkdownIfBlock_content [37..106]
- │   │   ├─ LuauIfBlockCondition [37..52]
- │   │   │   ├─ LuauIfBlockCondition_begin 37
- │   │   │   ├─ LuauIfBlockCondition_content [37..47]
- │   │   │   │   ├─ LuauAccessPath [37..43]
- │   │   │   │   │   ├─ LuauAccessPath_begin 37
- │   │   │   │   │   ├─ LuauAccessPath_content [37..42]
- │   │   │   │   │   │   └─ LuauAccessPart [37..42]
+ │   │   ├─ LuauSparkdownExplicitIfCondition [37..52]
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 37
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [37..47]
+ │   │   │   │   ├─ LuauSparkdownExplicitAccessPath [37..43]
+ │   │   │   │   │   ├─ LuauSparkdownExplicitAccessPath_begin 37
+ │   │   │   │   │   ├─ LuauSparkdownExplicitAccessPath_content [37..42]
+ │   │   │   │   │   │   └─ LuauSparkdownExplicitAccessPart [37..42]
  │   │   │   │   │   │       └─ LuauVariable [37..42]
  │   │   │   │   │   │           └─ LuauVariable_c1 [37..42]
  │   │   │   │   │   │               └─ LuauVariableName [37..42]: "trust"
- │   │   │   │   │   └─ LuauAccessPath_end [42..43]
- │   │   │   │   │       └─ LuauAccessPath_end_c1 [42..43]
- │   │   │   │   │           └─ LuauAccessPath_end_c1 [42..43]
+ │   │   │   │   │   └─ LuauSparkdownExplicitAccessPath_end [42..43]
+ │   │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [42..43]
+ │   │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [42..43]
  │   │   │   │   │               └─ OptionalWhitespace [42..43]: " "
- │   │   │   │   └─ LuauCompareOperation [43..47]
- │   │   │   │       ├─ LuauCompareOperation_begin 43
- │   │   │   │       │   └─ LuauCompareOperation_begin_c1 43
- │   │   │   │       ├─ LuauCompareOperation_content [43..47]
- │   │   │   │       │   ├─ LuauCompareOperator [43..46]
- │   │   │   │       │   │   ├─ LuauCompareOperator_begin [43..46]
- │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c1 43
+ │   │   │   │   └─ LuauSparkdownExplicitCompareOperation [43..47]
+ │   │   │   │       ├─ LuauSparkdownExplicitCompareOperation_begin 43
+ │   │   │   │       │   └─ LuauSparkdownExplicitCompareOperation_begin_c1 43
+ │   │   │   │       ├─ LuauSparkdownExplicitCompareOperation_content [43..47]
+ │   │   │   │       │   ├─ LuauSparkdownExplicitCompareOperator [43..46]
+ │   │   │   │       │   │   ├─ LuauSparkdownExplicitCompareOperator_begin [43..46]
+ │   │   │   │       │   │   │   ├─ LuauSparkdownExplicitCompareOperator_begin_c1 43
  │   │   │   │       │   │   │   │   └─ OptionalWhitespace 43
- │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [43..45]: ">="
- │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [45..46]
- │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [45..46]
+ │   │   │   │       │   │   │   ├─ LuauSparkdownExplicitCompareOperator_begin_c2 [43..45]: ">="
+ │   │   │   │       │   │   │   └─ LuauSparkdownExplicitCompareOperator_begin_c3 [45..46]
+ │   │   │   │       │   │   │       └─ LuauSparkdownExplicitCompareOperator_begin_c3 [45..46]
  │   │   │   │       │   │   │           └─ OptionalWhitespace [45..46]: " "
- │   │   │   │       │   │   └─ LuauCompareOperator_end 46
+ │   │   │   │       │   │   └─ LuauSparkdownExplicitCompareOperator_end 46
  │   │   │   │       │   └─ LuauNumericDecimal [46..47]
  │   │   │   │       │       ├─ LuauNumericDecimal_c1 [46..47]: "1"
  │   │   │   │       │       └─ LuauNumericDecimal_c2 47
- │   │   │   │       └─ LuauCompareOperation_end 47
- │   │   │   └─ LuauIfBlockCondition_end [47..52]
- │   │   │       ├─ LuauIfBlockCondition_end_c1 [47..48]
- │   │   │       │   └─ LuauIfBlockCondition_end_c1 [47..48]
+ │   │   │   │       └─ LuauSparkdownExplicitCompareOperation_end 47
+ │   │   │   └─ LuauSparkdownExplicitIfCondition_end [47..52]
+ │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [47..48]
+ │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [47..48]
  │   │   │       │       └─ OptionalWhitespace [47..48]: " "
- │   │   │       └─ LuauIfBlockCondition_end_c2 [48..52]
+ │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [48..52]
  │   │   │           └─ LuauThenKeyword [48..52]: "then"
  │   │   ├─ Newline [52..53]: "\n"
  │   │   ├─ InlineDialogue [53..71]

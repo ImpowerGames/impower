@@ -4,27 +4,31 @@ import {
   MessageProtocol,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
 import {
   SparkWebPlayerElement,
   setWorkspace,
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
+import { previewedDocumentUri } from "./previewedDocumentUri";
+import { revealsPreview } from "./revealsPreview";
 
 console.log("running game-webview");
 
 declare var acquireVsCodeApi: any;
 
+const vscode = acquireVsCodeApi();
+
+// What a panel vscode restores is handed. Starts from what was saved before,
+// so saving one field does not drop the other until it is reported again.
+const saved = vscode.getState();
 const state: {
   textDocument: { uri: string };
   canvasHeight?: number;
 } = {
-  textDocument: { uri: "" },
-  canvasHeight: undefined,
+  textDocument: { uri: saved?.textDocument?.uri ?? "" },
+  canvasHeight: saved?.canvasHeight,
 };
-
-const vscode = acquireVsCodeApi();
 
 const connection = new WindowMessageConnection((message: any) =>
   vscode.postMessage(message),
@@ -39,6 +43,13 @@ connection.addEventListener("message", async (e: MessageEvent) => {
     // Forward protocol messages from vscode extension to window
     sendProtocolMessage(message);
   }
+  const uri = previewedDocumentUri(message);
+  if (uri) {
+    // Save the script the preview shows so a panel vscode restores resumes
+    // it (#1886)
+    state.textDocument.uri = uri;
+    vscode.setState(state);
+  }
 });
 
 // Stays a raw bus listener (not the typed `onProtocolMessage` helper): it
@@ -52,7 +63,7 @@ window.addEventListener(MessageProtocol.event, (e) => {
         // Forward responses and notifications from player to vscode extension
         connection.postMessage(message);
       }
-      if (GamePreviewedMessage.type.isNotification(message)) {
+      if (revealsPreview(message)) {
         document.body.classList.add("ready");
       }
     }
@@ -67,9 +78,13 @@ window.addEventListener(MessageProtocol.event, (e) => {
 
 const load = async () => {
   setWorkspace(workspaceState.workspace);
-  await Promise.allSettled([SparkWebPlayerElement.register()]);
-  // Post an empty message to let vscode know the webview is ready
+  // Post an empty message to let vscode know this webview's script has
+  // loaded, before the player is registered: the player announces itself
+  // once it has mounted, through this same channel, so the extension always
+  // hears this first and can let go of an initialization still under way
+  // for the webview this one replaced (#1874).
   vscode.postMessage({});
+  await Promise.allSettled([SparkWebPlayerElement.register()]);
 };
 
 load();

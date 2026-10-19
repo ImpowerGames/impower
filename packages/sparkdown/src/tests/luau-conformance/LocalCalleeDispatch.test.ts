@@ -16,7 +16,7 @@ import { runConformanceSource } from "./conformanceTestHarness";
 //
 // 2. **Runtime `__stdlib_fn` dispatch** (`Story.ts`): both the
 //    variable-divert path (Divert with hasVariableTarget) AND the
-//    `CallValueAsFunction` ControlCommand now recognize an ObjectValue
+//    value call (`callValueAsFunction`) now recognize an ObjectValue
 //    marker with `__stdlib_fn`, look up the entry via `lookupAnyStdLib`,
 //    pop its fixed arity off the eval stack, invoke `entry.fn`, and
 //    push the result. Variadic stdlib entries (`arity === -1`) fall
@@ -72,7 +72,7 @@ describe("local-bound callable dispatch", () => {
   test("runtime: stdlib_fn marker captured by inner closure (basic.luau-803)", () => {
     // basic.luau line 803 — the canonical case. `abs` is a local in
     // the IIFE; the inner `function foo()` captures it as upval; calls
-    // `abs(-5)` from the closure body. The CallValueAsFunction handler
+    // `abs(-5)` from the closure body. The value call
     // unboxes the marker and dispatches to math.abs.
     const r = runConformanceSource(
       `assert((function() local abs = math.abs function foo() return abs(-5) end return foo() end)() == 5)`,

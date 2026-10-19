@@ -20,10 +20,11 @@
 // The fix is `SparkdownCompiler.applyBuiltinOverrides`: tag the prelude's
 // declarations (nothing else distinguishes them — both sides carry a null
 // `debugMetadata`), let an authored define take the slot from a tagged
-// incumbent, and BACK-FILL the authored `__def` table with the builtin values
-// the author didn't restate. Two colliding AUTHORED defines still error.
+// incumbent; the authored `__def` then fills its table at runtime with the
+// builtin values the author didn't restate (#1951). Two colliding AUTHORED
+// defines still error.
 //
-// The back-fill is the load-bearing half: without it a partial override drops
+// The fill is the load-bearing half: without it a partial override drops
 // every field it doesn't mention, and `config.ui` losing `layouts_element_name`
 // means `reveal()` can't find the screen root — a black preview, no error.
 

@@ -17,6 +17,7 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
   {
     // TypeInfer.const.test.cpp:23 TEST_CASE_FIXTURE(Fixture, "reassignments_dont_affect_type_state")
     name: "reassignments_dont_affect_type_state",
+    malformed: "`PI` is a const and is reassigned",
     fixture: "Fixture",
     flags: { LuauExportValueSyntax: true },
     source: `
@@ -32,6 +33,7 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
   {
     // TypeInfer.const.test.cpp:40 TEST_CASE_FIXTURE(Fixture, "empty_domain_is_ok")
     name: "empty_domain_is_ok",
+    malformed: "the const `PI` has no value",
     fixture: "Fixture",
     source: `
         const PI
@@ -66,6 +68,7 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
   {
     // TypeInfer.const.test.cpp:83 TEST_CASE_FIXTURE(Fixture, "const_extra_lvalues_are_nil_and_syntax_error_from_underfill")
     name: "const_extra_lvalues_are_nil_and_syntax_error_from_underfill",
+    malformed: "the const has more names than values",
     fixture: "Fixture",
     source: `
         const X, Y, Z = 42, 13
@@ -97,6 +100,7 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
   {
     // TypeInfer.const.test.cpp:118 TEST_CASE_FIXTURE(Fixture, "assign_different_values_to_const_x")
     name: "assign_different_values_to_const_x",
+    malformed: "`x` is a const and is reassigned",
     fixture: "Fixture",
     flags: { LuauExportValueSyntax: true },
     source: `

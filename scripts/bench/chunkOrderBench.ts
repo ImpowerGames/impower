@@ -3,11 +3,11 @@
 //
 // Run through engine-bench.mjs, one candidate per process, with the
 // configuration as one JSON argument: { project, line, candidate, samples,
-// warmup, json }. The sizes come from the named project: the largest sequence
-// of the flow that holds the line, in statements, which is the sequence an edit
-// near the bottom of a real scene lands in; every statement of that flow in one
-// sequence, which is what the flow would be with no nesting; and the flow's
-// record count in #314's encoding, which is the scale the ticket names.
+// warmup, json }. The sizes come from the named project's statement chunks: the
+// largest sequence of the flow that holds the line, in statements, which is the
+// sequence an edit near the bottom of a real scene lands in; and every
+// statement of that flow in one sequence, which is what the flow would be with
+// no nesting.
 //
 //   flat-copy       a sequence is an array of chunks beside an array of line
 //                   starts; an edit builds new arrays and leaves the old
@@ -17,16 +17,10 @@
 //                   to undo
 //   tree-copy       a persistent tree of 32-wide nodes that carry their chunk
 //                   and line counts; an edit copies the path to one leaf
-//   records-splice  #314's cost of carrying one unchanged flow of this size
-//                   into a compile's buffer: a bulk copy of its records. It is
-//                   the floor of what #314 pays per flow per compile; the flow
-//                   an edit touched is written again record by record, which
-//                   `--mode emit` prices
 //
 // An insert also moves the line start of every later statement, and a replace
 // does when the statement's line count changed, so both are timed with that
 // restamp. Each is timed at the top, the middle and the bottom of the sequence.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { silenceConsole, stats } from "./benchProject";
@@ -35,7 +29,7 @@ import { measureProjectShape } from "./projectShape";
 interface OrderBenchConfig {
   project: string;
   line: number;
-  candidate: "flat-copy" | "flat-splice" | "tree-copy" | "records-splice";
+  candidate: "flat-copy" | "flat-splice" | "tree-copy";
   samples: number;
   warmup: number;
   json?: string;
@@ -255,35 +249,19 @@ function timeStructure(make: (chunks: Chunk[], spans: number[]) => Structure, st
   return rows;
 }
 
-// One unchanged flow carried into a compile's buffer, as ProgramBinaryWriter's
-// splice does it: a bulk copy of three slots per record.
-function timeRecords(records: number) {
-  const flow = new Uint32Array(records * 3).fill(7);
-  const buffer = new Uint32Array(records * 3 * 2);
-  const perOp: number[] = [];
-  for (let i = 0; i < config.warmup + config.samples; i++) {
-    const t0 = performance.now();
-    for (let k = 0; k < OPS_PER_SAMPLE; k++) buffer.set(flow, (k & 1) * flow.length);
-    const t1 = performance.now();
-    if (i >= config.warmup) perOp.push(((t1 - t0) * 1e6) / OPS_PER_SAMPLE);
-  }
-  return { "copy of the flow's records": stats(perOp) };
-}
-
 function main() {
   const realLog = silenceConsole();
   const { shape } = measureProjectShape(config.project, config.line);
   const sizes: [string, number][] = [
     [`the largest sequence of ${shape.flow}`, shape.sequences[0]!],
     [`every statement of ${shape.flow} in one sequence`, shape.flowStatements],
-    [`one entry per record of ${shape.flow}`, shape.flowRecords],
   ];
-  const make = config.candidate === "flat-copy" ? flatCopy : config.candidate === "flat-splice" ? flatSplice : config.candidate === "tree-copy" ? treeCopy : undefined;
-  const results = make ? sizes.map(([what, n]) => ({ what, entries: n, nanoseconds: timeStructure(make, n) })) : [{ what: `the records of ${shape.flow}`, entries: shape.flowRecords, nanoseconds: timeRecords(shape.flowRecords) }];
+  const make = config.candidate === "flat-copy" ? flatCopy : config.candidate === "flat-splice" ? flatSplice : treeCopy;
+  const results = sizes.map(([what, n]) => ({ what, entries: n, nanoseconds: timeStructure(make, n) }));
   const report = { candidate: config.candidate, project: config.project, warmup: config.warmup, samples: config.samples, operationsPerSample: OPS_PER_SAMPLE, shape, results };
   if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
   const f = (n: number) => n.toFixed(0).padStart(9);
-  const out = [`candidate ${report.candidate}: flow ${shape.flow}, ${shape.flowRecords} records, ${shape.flowStatements} statements in ${shape.sequences.length} sequences, the largest of ${shape.sequences[0]}; ${OPS_PER_SAMPLE} operations per sample, ${report.samples} samples after ${report.warmup} warm-up`];
+  const out = [`candidate ${report.candidate}: flow ${shape.flow}, ${shape.flowStatements} statements in ${shape.sequences.length} sequences, the largest of ${shape.sequences[0]}; ${OPS_PER_SAMPLE} operations per sample, ${report.samples} samples after ${report.warmup} warm-up`];
   for (const result of results) {
     out.push(`  ${result.what}, ${result.entries} entries (nanoseconds per operation)`, `  ${"".padEnd(28)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`);
     for (const [row, s] of Object.entries(result.nanoseconds)) out.push(`  ${row.padEnd(28)} ${f(s.min)} ${f(s.median)} ${f(s.max)}`);

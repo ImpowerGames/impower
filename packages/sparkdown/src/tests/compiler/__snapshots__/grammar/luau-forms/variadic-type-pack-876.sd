@@ -1,0 +1,9 @@
+function g()
+  local function f(): ...number return 1 end
+  local function f2(): (...number) return 1 end
+  type F = () -> ...number
+  local function f3<T...>() end
+  f3<<number...>>()
+end
+& type G = () -> ...number
+Hello.

@@ -12,14 +12,14 @@
 // completes with the choices unless the run shows something first.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { testCompiler, testStory, type TestStory } from "../engineUnderTest";
 import {
   continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { pathLocation } from "../../compiler/utils/pathLocationTable";
+import { programListing, stringCount } from "../programListing";
+type RuntimeStory = TestStory;
 
 type Routing = { target?: string; character?: string };
 
@@ -67,7 +67,7 @@ const URI = `${BASE}main.sd`;
 
 // Compiles `main.sd` with the other scripts beside it that it includes.
 function compile(text: string, others: Record<string, string> = {}) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: Object.entries({ ...others, "main.sd": text }).map(
       ([path, source]) => ({
@@ -99,39 +99,20 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
     }));
 }
 
-// The compiled program's tokens, flattened, with every nested container
-// visited.
-function tokens(json: unknown): unknown[] {
-  const out: unknown[] = [];
-  const visit = (value: unknown): void => {
-    if (Array.isArray(value)) {
-      for (const item of value) visit(item);
-    } else if (value && typeof value === "object") {
-      out.push(value);
-      for (const item of Object.values(value)) visit(item);
-    } else {
-      out.push(value);
-    }
-  };
-  visit(json);
-  return out;
-}
-
-// What the compiled program holds: its `Glue` objects, its `line` markers,
-// its `display` calls, and how many of those tables carry `open`, `glue`,
-// `extend` or `caption`.
+// What the compiled program holds: its `display` calls, and how many of those
+// tables carry `open`, `glue`, `extend` or `caption`, read from the keys its
+// chunks push (`programListing`). The program's instruction set has no
+// instruction for ink's glue or a `line` marker, so no join can emit either.
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
-  const all = tokens(ctx.compiledJson);
+  const all = programListing(ctx.root);
   return {
-    inkGlue: all.filter((t) => t === "<>").length,
-    line: all.filter((t) => t === "line").length,
-    display: all.filter((t) => t === "stdlib:display:1").length,
-    open: all.filter((t) => t === "^open").length,
-    glue: all.filter((t) => t === "^glue").length,
-    extend: all.filter((t) => t === "^extend").length,
-    caption: all.filter((t) => t === "^caption").length,
+    display: all.filter((t) => /^CallStd display\/1\b/.test(t)).length,
+    open: stringCount(all, "open"),
+    glue: stringCount(all, "glue"),
+    extend: stringCount(all, "extend"),
+    caption: stringCount(all, "caption"),
   };
 }
 
@@ -314,15 +295,14 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
   });
 
   test("a `..` after an interpolation in the middle of a line is text", () => {
-    for (const [source, rest] of [
-      [`{3} .. and more.\n`, ".. and more.\n"],
-      [`{3}..and more.\n`, "..and more.\n"],
+    for (const [source, shown] of [
+      [`{3} .. and more.\n`, "3 .. and more.\n"],
+      [`{3}..and more.\n`, "3..and more.\n"],
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
-      // The grammar makes the interpolation and the rest of its line two
-      // statements, as it does for `{3} and more.`.
-      expect(texts(ctx.story)).toEqual(["3\n", rest]);
+      // The line is one display line, as `3 .. and more.` would be (#1746).
+      expect(texts(ctx.story)).toEqual([shown]);
     }
   });
 
@@ -529,7 +509,7 @@ end
       { "api.sd": `external ring()\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     let rings = 0;
     story.BindExternalFunction("ring", () => {
       rings++;
@@ -545,7 +525,7 @@ end
       { "api.sd": `function aside()\n  print("Aside.")\nend\n` },
     );
     expect(errorsIn(program)).toEqual([]);
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    const story = testStory(program.chunks);
     expect(story.Continue()).toBe("Pick.\n");
   });
 
@@ -647,6 +627,125 @@ end
     expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
+  // What the preview credits a line to: the continue that shows it (#1686).
+  // The step that shows after the caption runs in the caption's continue,
+  // where a breakpoint on its line stops (`executedLog`), and its addresses
+  // are logged for the beat by the next continue, which shows it
+  // (`beatLog`), through a session's state and a durable save.
+  test("reports the lines the carried step ran in the continue that shows them", () => {
+    const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    const lines = (addresses: number[]) => [
+      ...new Set(addresses.map((a) => ctx.root.locationOf(a)?.startLine)),
+    ];
+    const run = (story: RuntimeStory) => {
+      const executed: number[] = [];
+      const beat: number[] = [];
+      story.executedLog = executed;
+      story.beatLog = beat;
+      const text = story.Continue();
+      story.executedLog = null;
+      story.beatLog = null;
+      return { text, ran: lines(executed), beat: lines(beat) };
+    };
+    expect(run(ctx.story)).toEqual({
+      text: "Pick.\n",
+      ran: [1, 2, 3],
+      beat: [1],
+    });
+    const saved = ctx.story.state.ToJson();
+    const durable = ctx.story.toSave();
+    expect(run(ctx.story)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+    const again = testStory(ctx.root);
+    again.state.LoadJson(saved);
+    expect(run(again)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+    const loaded = testStory(ctx.root);
+    loaded.loadSave(durable);
+    expect(run(loaded)).toEqual({
+      text: "Something shows first.\n",
+      ran: [],
+      beat: [2, 3],
+    });
+  });
+
+  // A line that begins with `..` takes up the line end the line before it
+  // left waiting, so what ran while it waited is logged with the beat they
+  // share, even when the joining line ends with `..` and leaves a line end
+  // waiting of its own.
+  test("logs a joined line with the beat it joins", () => {
+    const beats = (source: string) => {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      const out: [string | null, (number | undefined)[]][] = [];
+      while (ctx.story.canContinue) {
+        const beat: number[] = [];
+        ctx.story.beatLog = beat;
+        const text = ctx.story.Continue();
+        ctx.story.beatLog = null;
+        out.push([
+          text,
+          [...new Set(beat.map((a) => ctx.root.locationOf(a)?.startLine))],
+        ]);
+      }
+      return out;
+    };
+    expect(beats(`A ..\n.. B..\nC.\n`)).toEqual([
+      ["A B\n", [0, 1]],
+      ["C.\n", [2]],
+      ["", []],
+    ]);
+    expect(beats(`A ..\n.. B..\n.. C.\nD.\n`)).toEqual([
+      ["A BC.\n", [0, 1, 2]],
+      ["D.\n", [3]],
+      ["", []],
+    ]);
+    expect(
+      beats(
+        `choose\n  Pick ..\n  .. more.\n  if true then\n    Shown.\n  end\n  * One\nend\n`,
+      ).slice(0, 2),
+    ).toEqual([
+      ["Pick more.\n", [1, 2]],
+      ["Shown.\n", [3, 4]],
+    ]);
+  });
+
+  // Every instruction a run executes is logged for exactly one beat, whatever
+  // waited or was carried on the way.
+  test("logs each instruction a run executes for exactly one beat", () => {
+    for (const source of [
+      `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`,
+      `choose\n  Outer.\n  if true then\n    choose\n      Inner.\n      & print("Aside.")\n      * Inner choice\n    end\n  end\n  * Outer choice\nend\n`,
+      `choose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  print("Aside.")\n  print("More.")\nend\n`,
+      `store x = 0\nchoose\n  Pick.\n  if true then\n    & x = 1\n  end\n  * One\nend\n`,
+      `A ..\nif true then\n  .. B\nend\nC.\n`,
+      `Line one. #mood\nLine two.\n`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      const executed: number[] = [];
+      const beat: number[] = [];
+      ctx.story.executedLog = executed;
+      ctx.story.beatLog = beat;
+      for (let turn = 0; turn < 3; turn += 1) {
+        while (ctx.story.canContinue) ctx.story.Continue();
+        if (ctx.story.currentChoices.length === 0) break;
+        ctx.story.ChooseChoiceIndex(0);
+      }
+      const sorted = (a: number[]) => [...a].sort((x, y) => x - y);
+      expect(executed.length).toBeGreaterThan(0);
+      expect(sorted(beat)).toEqual(sorted(executed));
+    }
+  });
+
   // A caption the carried step shows keeps its own newline waiting, through a
   // save too.
   test("carries a caption's own waiting line end", () => {
@@ -681,31 +780,6 @@ end
     again.story.state.LoadJson(saved);
     again.story.ChoosePathString("other");
     expect(again.story.Continue()).toBe("Elsewhere.\n");
-  });
-
-  // What the preview credits a line to: the continue that shows it. The line
-  // that shows after the caption ran in the caption's continue, and is
-  // reported in the next one, which shows it.
-  test("reports the lines the carried step ran in the continue that shows them", () => {
-    const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
-    const program = compile(source) as any;
-    expect(errorsIn(program)).toEqual([]);
-    const story = new RuntimeStory(program.compiled as Record<string, any>);
-    const line = source
-      .split("\n")
-      .findIndex((l) => l.includes("Something shows first."));
-    let ran = new Set<number>();
-    story.onExecute = (path) => {
-      const location = pathLocation(program.pathLocations, path);
-      if (location) ran.add(location[1]!);
-    };
-    const caption = source.split("\n").findIndex((l) => l.includes("Pick."));
-    expect(story.Continue()).toBe("Pick.\n");
-    expect(ran.has(line)).toBe(false);
-    expect(ran.has(caption)).toBe(true);
-    ran = new Set();
-    expect(story.Continue()).toBe("Something shows first.\n");
-    expect(ran.has(line)).toBe(true);
   });
 
   test("keeps what it carries through a host's function call", () => {
@@ -806,13 +880,11 @@ describe("the compiled program", () => {
     ],
   ];
   for (const [label, source, glue, open] of cases) {
-    test(`${label} emits no Glue and marks each join \`glue\` or \`open\``, () => {
+    test(`${label} marks each join \`glue\` or \`open\``, () => {
       const shape = programShape(source);
-      expect(shape.inkGlue).toBe(0);
       expect(shape.glue).toBe(glue);
       expect(shape.open).toBe(open);
       expect(shape.display).toBeGreaterThan(0);
-      expect(shape.line).toBe(0);
     });
   }
 
@@ -820,19 +892,16 @@ describe("the compiled program", () => {
     ["a touching click", `A.. >\n..B\n`],
     ["a spaced click", `A .. >\n.. B\n`],
   ] as const) {
-    test(`${label} emits no Glue and marks its break \`extend\``, () => {
+    test(`${label} marks its break \`extend\``, () => {
       const shape = programShape(source);
-      expect(shape.inkGlue).toBe(0);
       expect(shape.glue).toBe(0);
       expect(shape.open).toBe(0);
       expect(shape.extend).toBe(1);
-      expect(shape.line).toBe(0);
     });
   }
 
   test("a choose caption is marked `caption`, not `open`", () => {
     const shape = programShape(`choose\n  First.\n  Pick one.\n  * One\nend\n`);
-    expect(shape.inkGlue).toBe(0);
     expect(shape.glue).toBe(0);
     expect(shape.open).toBe(0);
     expect(shape.caption).toBe(1);

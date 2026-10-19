@@ -1,0 +1,31 @@
+sparkdown [0..17]
+ ├─ InlineWrite [0..16]
+ │   ├─ InlineWrite_begin [0..12]
+ │   │   ├─ InlineWrite_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ InlineWrite_begin_c2 [0..1]
+ │   │   │   └─ WriteMark [0..1]: "@"
+ │   │   ├─ InlineWrite_begin_c3 1
+ │   │   │   └─ InlineWrite_begin_c3 1
+ │   │   │       └─ OptionalWhitespace 1
+ │   │   ├─ InlineWrite_begin_c4 [1..10]
+ │   │   │   └─ WriteTarget [1..10]: "hud.panel"
+ │   │   ├─ InlineWrite_begin_c5 [10..11]
+ │   │   │   └─ ColonSeparator [10..11]: ":"
+ │   │   ├─ InlineWrite_begin_c6 [11..12]
+ │   │   │   └─ RequiredWhitespace [11..12]: " "
+ │   │   └─ InlineWrite_begin_c7 12
+ │   ├─ InlineWrite_content [12..16]
+ │   │   └─ LineEnd [12..16]
+ │   │       ├─ LineEnd_begin 12
+ │   │       │   └─ LineEnd_begin_c1 12
+ │   │       │       └─ OptionalWhitespace 12
+ │   │       ├─ LineEnd_content [12..16]
+ │   │       │   └─ TextChunk [12..16]
+ │   │       │       ├─ TextChunk_begin 12
+ │   │       │       ├─ TextChunk_content [12..16]
+ │   │       │       │   └─ Word [12..16]: "text"
+ │   │       │       └─ TextChunk_end 16
+ │   │       └─ LineEnd_end 16
+ │   └─ InlineWrite_end 16
+ └─ Newline [16..17]: "\n"

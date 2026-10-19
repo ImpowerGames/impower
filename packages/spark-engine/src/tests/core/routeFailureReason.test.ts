@@ -32,10 +32,19 @@ import {
   lastSearchStats,
   planRoute,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
-import { hasPathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
+
+/** An address no program here holds: chunk 2^19, far past any chunk id a
+ *  test program is given. */
+const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
@@ -54,14 +63,8 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 const newGame = (program: unknown) =>
@@ -96,6 +99,20 @@ const NO_STORY_FLOW = `define config with
 end
 `;
 
+/** Top-level content, a scene, and a `define` block after the scene, whose
+ *  lines hold no beat and have none below them. */
+const TOP_LEVEL_THEN_DEFINE = `Top line of the story.
+-> start
+
+scene start
+  First beat of the scene.
+end
+
+define config with
+  value = 1
+end
+`;
+
 /** A scene that diverts back to its own top forever. */
 const ENDLESS_LOOP = `-> start
 
@@ -116,16 +133,16 @@ function plainScene(beats: number): string {
 }
 
 /** Resolve a source line the way a click in the editor would. */
-function startPathForLine(program: unknown, line: number): string {
+function startAddressForLine(program: unknown, line: number): ProgramAddress {
   const game: any = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return game.startPath as string;
+  return game.startAddress!;
 }
 
 describe("the planner says how its search ended", () => {
   test("a search that reaches the target reports that it found it", () => {
     const program = compileSrc(plainScene(40));
-    const toPath = startPathForLine(program, 40);
+    const toPath = startAddressForLine(program, 40);
     const route = Game.planRoute(newGame(program).story, program, "start", toPath);
     expect(route).not.toBeNull();
     expect(lastSearchStats.endReason).toBe("found");
@@ -134,9 +151,9 @@ describe("the planner says how its search ended", () => {
 
   test("a search that runs the story out reports that it was exhausted", () => {
     const program = compileSrc(UNREACHABLE_TAIL);
-    const toPath = startPathForLine(program, 5);
+    const toPath = startAddressForLine(program, 5);
     // The line really is in the script — this is not a missing-target search.
-    expect(hasPathLocation(program.pathLocations, toPath)).toBe(true);
+    expect(programLocator(program).locationOf(toPath)).toBeDefined();
     const route = Game.planRoute(newGame(program).story, program, "start", toPath);
     expect(route).toBeNull();
     expect(lastSearchStats.endReason).toBe("exhausted");
@@ -148,7 +165,7 @@ describe("the planner says how its search ended", () => {
     const route = planRoute(
       newGame(program).story,
       "start",
-      "start.NO_SUCH_PATH",
+      NO_SUCH_ADDRESS,
       {
         stayWithinKnot: true,
         maxSteps: 5_000,
@@ -168,7 +185,7 @@ describe("the planner says how its search ended", () => {
     const route = planRoute(
       newGame(program).story,
       "start",
-      "start.NO_SUCH_PATH",
+      NO_SUCH_ADDRESS,
       {
         stayWithinKnot: true,
         // Room to spare on both work ceilings, so only the clock can stop it.
@@ -192,7 +209,7 @@ describe("a search that broke does not claim to have looked everywhere", () => {
   // a confident, specific accusation about a script that is fine.
   const makeThrowingSearch = () => {
     const program = compileSrc(plainScene(10));
-    const toPath = startPathForLine(program, 10);
+    const toPath = startAddressForLine(program, 10);
     const game: any = newGame(program);
     const story = game.story;
     // Break the story the way a real internal fault would: every attempt to
@@ -221,8 +238,8 @@ describe("a search that broke does not claim to have looked everywhere", () => {
       stayWithinKnot: true,
       searchTimeout: Number.MAX_SAFE_INTEGER,
     });
-    expect(Game.describeFailedRouteSearch(program, toPath)).toBe("errored");
-    expect(Game.describeFailedRouteSearch(program, toPath)).not.toBe(
+    expect(newGame(program).describeFailedRouteSearch(toPath)).toBe("errored");
+    expect(newGame(program).describeFailedRouteSearch(toPath)).not.toBe(
       "exhausted",
     );
   }, 120_000);
@@ -231,7 +248,7 @@ describe("a search that broke does not claim to have looked everywhere", () => {
     // The control. Without it, the two tests above would pass just as happily
     // if `endReason` had simply been hard-wired to "errored".
     const program = compileSrc(UNREACHABLE_TAIL);
-    const toPath = startPathForLine(program, 5);
+    const toPath = startAddressForLine(program, 5);
     planRoute(newGame(program).story, "start", toPath, {
       stayWithinKnot: true,
       searchTimeout: Number.MAX_SAFE_INTEGER,
@@ -245,15 +262,15 @@ describe("the planner's verdict becomes the reason shown to the author", () => {
     const program = compileSrc(ENDLESS_LOOP);
     // A real search, really cut off, immediately before the question is asked —
     // the same order the engine does it in.
-    planRoute(newGame(program).story, "start", "start.NO_SUCH_PATH", {
+    planRoute(newGame(program).story, "start", NO_SUCH_ADDRESS, {
       stayWithinKnot: true,
       maxSteps: 5_000,
       maxNodes: 500,
       searchTimeout: Number.MAX_SAFE_INTEGER,
     });
     expect(lastSearchStats.endReason).toBe("max-steps");
-    const realTarget = startPathForLine(program, 3);
-    expect(Game.describeFailedRouteSearch(program, realTarget)).toBe("timeout");
+    const realTarget = startAddressForLine(program, 3);
+    expect(newGame(program).describeFailedRouteSearch(realTarget)).toBe("timeout");
   }, 120_000);
 
   test("a target that is not in the story is unroutable, whatever ended the search", () => {
@@ -263,24 +280,29 @@ describe("the planner's verdict becomes the reason shown to the author", () => {
     // reporting whichever ceiling it stopped on would tell them to shorten a
     // scene that is not the problem.
     const program = compileSrc(ENDLESS_LOOP);
-    planRoute(newGame(program).story, "start", "start.NO_SUCH_PATH", {
+    planRoute(newGame(program).story, "start", NO_SUCH_ADDRESS, {
       stayWithinKnot: true,
       maxSteps: 5_000,
       maxNodes: 500,
       searchTimeout: Number.MAX_SAFE_INTEGER,
     });
     expect(lastSearchStats.endReason).toBe("max-steps");
-    expect(Game.describeFailedRouteSearch(program, "start.NO_SUCH_PATH")).toBe(
+    expect(newGame(program).describeFailedRouteSearch(NO_SUCH_ADDRESS)).toBe(
       "unroutable",
     );
-    expect(Game.describeFailedRouteSearch(program, null)).toBe("unroutable");
+    expect(newGame(program).describeFailedRouteSearch(null)).toBe("unroutable");
+    // The start address of a line with none, front matter or a `define`
+    // block, is no position of the story either.
+    expect(newGame(program).describeFailedRouteSearch(TOP_LEVEL_START)).toBe(
+      "unroutable",
+    );
   }, 120_000);
 
   test("an exhausted search is reported as exhausted", () => {
     const program = compileSrc(UNREACHABLE_TAIL);
-    const toPath = startPathForLine(program, 5);
+    const toPath = startAddressForLine(program, 5);
     Game.planRoute(newGame(program).story, program, "start", toPath);
-    expect(Game.describeFailedRouteSearch(program, toPath)).toBe("exhausted");
+    expect(newGame(program).describeFailedRouteSearch(toPath)).toBe("exhausted");
   }, 120_000);
 });
 
@@ -296,11 +318,26 @@ describe("a game that simulates for itself records the same reason", () => {
   test("a file with no story flow is recorded as unroutable", () => {
     const program = compileSrc(NO_STORY_FLOW);
     const game: any = newGame(program);
-    // Nothing in this file resolves to a story position, so the start path
-    // falls back to the root container.
+    // Nothing in this file resolves to a story position, so the start
+    // address falls back to the top of the top-level content.
     expect(game.setStartFrom({ file: URI, line: 1 })).toBeNull();
+    expect(game.startAddress).toBe(TOP_LEVEL_START);
     game.simulate();
     expect(game.simulationFailure).toBe("unroutable");
+  }, 120_000);
+
+  test("a run from a line with no address starts at the top of the top-level content", () => {
+    // A `define` block after the last scene: no line there or below holds a
+    // beat, so the start address is the sentinel, and jumping to it is what
+    // PLAY does after the route search fails.
+    const program = compileSrc(TOP_LEVEL_THEN_DEFINE);
+    const game: any = newGame(program);
+    expect(game.setStartFrom({ file: URI, line: 8 })).toBeNull();
+    expect(game.startAddress).toBe(TOP_LEVEL_START);
+    game.jumpTo(game.startAddress);
+    expect(String(game.story.Continue() ?? "").trim()).toBe(
+      "Top line of the story.",
+    );
   }, 120_000);
 
   test("a route that replays without arriving is recorded as diverged", () => {
@@ -312,11 +349,11 @@ describe("a game that simulates for itself records the same reason", () => {
     // exactly the disagreement the branch exists to catch.
     const program = compileSrc(plainScene(10));
     const game: any = newGame(program);
-    const toPath = startPathForLine(program, 6);
+    const toPath = startAddressForLine(program, 6);
     const route = Game.planRoute(game.story, program, "start", toPath);
     expect(route).not.toBeNull();
 
-    game.simulateRoute({ ...route, toPath: "start.NO_SUCH_PATH" }, 0);
+    game.simulateRoute({ ...route, to: NO_SUCH_ADDRESS }, 0);
 
     expect(game.simulation).toBe("fail");
     expect(game.simulationFailure).toBe("diverged");
@@ -327,7 +364,7 @@ describe("a game that simulates for itself records the same reason", () => {
     // destination.
     const program = compileSrc(plainScene(10));
     const game: any = newGame(program);
-    const toPath = startPathForLine(program, 6);
+    const toPath = startAddressForLine(program, 6);
     const route = Game.planRoute(game.story, program, "start", toPath);
 
     game.simulateRoute(route, 0);
@@ -347,7 +384,7 @@ describe("a game that simulates for itself records the same reason", () => {
 
   test("a line after a call to a vararg function that branches still routes", () => {
     // #1051: the search forks at the condition inside `f` by saving the
-    // state, and that save holds `f`'s `__varargs__` pack.
+    // state, and that save holds `f`'s `__varargs$` pack.
     const program = compileSrc(
       `-> start\n\nscene start\n  First {f("marker", 1)}.\n  Second.\nend\n\n` +
         `function f(...)\n  if ... then\n    return 1\n  end\n  return 2\nend\n`,

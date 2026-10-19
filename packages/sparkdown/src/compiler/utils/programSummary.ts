@@ -1,4 +1,3 @@
-import { hasCompiledProgram } from "../../binary/programBinary";
 import type { SparkProgram } from "../types/SparkProgram";
 
 /** What a host that leaves a program where it was compiled still reads of it:
@@ -21,8 +20,31 @@ export const programSummary = (
   runnable,
 });
 
-/** Whether a program, whole or summarized, produced a story that runs. */
+/** Whether two programs, whole or summarized, are one compile's: the same
+ *  `uri`, script versions and `filesEpoch` (see `programIdentity`). A host
+ *  that receives summaries, or receives programs across a port, gets a new
+ *  object for every answer, so object identity cannot say that a compile
+ *  served the program it served before; these fields can. */
+export const isSameProgram = (
+  a: Pick<SparkProgram, "uri" | "scripts" | "filesEpoch"> | undefined | null,
+  b: Pick<SparkProgram, "uri" | "scripts" | "filesEpoch"> | undefined | null,
+): boolean => {
+  if (a === b) {
+    return true;
+  }
+  if (!a || !b || a.uri !== b.uri || a.filesEpoch !== b.filesEpoch) {
+    return false;
+  }
+  const scripts = Object.entries(a.scripts ?? {});
+  return (
+    scripts.length === Object.keys(b.scripts ?? {}).length &&
+    scripts.every(([uri, version]) => b.scripts?.[uri] === version)
+  );
+};
+
+/** Whether a program, whole or summarized, is one that runs: whether its
+ *  compile built its statement chunks. */
 export const isRunnableProgram = (
   program: SparkProgram | undefined | null,
 ): boolean =>
-  program?.summary ? program.runnable === true : hasCompiledProgram(program);
+  program?.summary ? program.runnable === true : !!program?.chunks;

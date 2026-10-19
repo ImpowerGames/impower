@@ -1,0 +1,630 @@
+import { InkObject } from "./Object";
+import { StoryException } from "./StoryException";
+import { asOrThrows } from "./TypeAssertion";
+import { tryParseInt, tryParseFloat } from "./TryGetResult";
+import { throwNullException } from "./NullException";
+
+export abstract class AbstractValue extends InkObject {
+  public abstract get valueType(): ValueType;
+  public abstract get isTruthy(): boolean;
+  public abstract get valueObject(): any;
+
+  public abstract Cast(newType: ValueType): Value<any>;
+
+  public static Create(
+    val: any,
+    preferredNumberType?: ValueType,
+  ): Value<any> | null {
+    // This code doesn't exist in upstream and is simply here to enforce
+    // the creation of the proper number value.
+    // If `preferredNumberType` is not provided or if value doesn't match
+    // `preferredNumberType`, this conditional does nothing.
+    if (preferredNumberType) {
+      if (
+        preferredNumberType === (ValueType.Int as ValueType) &&
+        Number.isInteger(Number(val))
+      ) {
+        return new IntValue(Number(val));
+      } else if (
+        preferredNumberType === (ValueType.Float as ValueType) &&
+        !isNaN(val)
+      ) {
+        return new FloatValue(Number(val));
+      }
+    }
+
+    // Lua/Luau `nil`. Has to be checked BEFORE the integer branch
+    // below because `Number(null) === 0` and `Number.isInteger(0)`
+    // is true — without this guard a stdlib fn that returns JS `null`
+    // would silently become `IntValue(0)`.
+    if (val === null) {
+      return new NullValue();
+    }
+
+    // NaN is a first-class float in Lua (`0/0`, `inf - inf`). Without
+    // this branch it fell through every check below and `Create`
+    // returned null — which the native-op dispatch then pushed onto
+    // the eval stack as a raw null, crashing the next pop.
+    if (typeof val === "number" && Number.isNaN(val)) {
+      return new FloatValue(NaN);
+    }
+
+    if (typeof val === "boolean") {
+      return new BoolValue(Boolean(val));
+    }
+
+    // https://github.com/y-lohse/inkjs/issues/425
+    // Changed condition sequence, because Number('') is
+    // parsed to 0, which made setting string to empty
+    // impossible
+    if (typeof val === "string") {
+      return new StringValue(String(val));
+    } else if (Number.isInteger(Number(val))) {
+      return new IntValue(Number(val));
+    } else if (!isNaN(val)) {
+      return new FloatValue(Number(val));
+    }
+
+    return null;
+  }
+  public override Copy() {
+    return asOrThrows(AbstractValue.Create(this.valueObject), InkObject);
+  }
+  public BadCastException(targetType: ValueType) {
+    return new StoryException(
+      "Can't cast " +
+        this.valueObject +
+        " from " +
+        this.valueType +
+        " to " +
+        targetType,
+    );
+  }
+}
+
+export abstract class Value<
+  T extends { toString: () => string },
+> extends AbstractValue {
+  public value: T | null;
+
+  constructor(val: T | null) {
+    super();
+    this.value = val;
+  }
+  public get valueObject() {
+    return this.value;
+  }
+  public override toString() {
+    if (this.value === null) return throwNullException("Value.value");
+    return this.value.toString();
+  }
+}
+
+export class BoolValue extends Value<boolean> {
+  constructor(val: boolean) {
+    super(val || false);
+  }
+  public get isTruthy() {
+    return Boolean(this.value);
+  }
+  public get valueType() {
+    return ValueType.Bool;
+  }
+
+  public Cast(newType: ValueType): Value<any> {
+    if (this.value === null) return throwNullException("Value.value");
+
+    if (newType == this.valueType) {
+      return this;
+    }
+
+    if (newType == ValueType.Int) {
+      return new IntValue(this.value ? 1 : 0);
+    }
+
+    if (newType == ValueType.Float) {
+      return new FloatValue(this.value ? 1.0 : 0.0);
+    }
+
+    if (newType == ValueType.String) {
+      return new StringValue(this.value ? "true" : "false");
+    }
+
+    throw this.BadCastException(newType);
+  }
+
+  public override toString() {
+    return this.value ? "true" : "false";
+  }
+}
+
+// Lua/Luau multi-return values. Sparkdown's eval stack normally
+// holds one value per slot; multi-return packs an ordered list of
+// values into a single `MultiValue` slot so existing
+// single-value consumers continue to work unchanged. Transparency is
+// the design goal: `valueObject` / `isTruthy` / `valueType` / `Cast`
+// all forward to the FIRST inner value, matching Lua's "truncate to 1"
+// rule for callers that don't ask for the rest.
+//
+// Three call sites participate:
+//   - Stdlib fns returning a JS array (e.g. `math.modf` → `[i, f]`)
+//     — wrapped here by the dispatcher and pushed as a single slot.
+//   - the `Pack` instruction — pops N values, pushes one
+//     MultiValue. Emitted by `return a, b, c`.
+//   - the `Unpack` instruction — pops one (MultiValue or
+//     plain), pushes N values padded with nil. Emitted by
+//     `local a, b = expr`.
+//
+// Single-target `VariableAssignment` unwraps a `MultiValue` before
+// storage, except for a vararg function's `__varargs$` slot, which
+// keeps the whole pack. A saved state therefore can hold one (in that
+// slot or on the evaluation stack); it serializes as
+// `{"tuple": [...]}`.
+export class MultiValue extends Value<any> {
+  public values: AbstractValue[];
+  constructor(values: AbstractValue[]) {
+    super(null);
+    this.values = values;
+  }
+  public get valueType(): ValueType {
+    return this.values[0]?.valueType ?? ValueType.Null;
+  }
+  public override get valueObject(): any {
+    return this.values[0]?.valueObject ?? null;
+  }
+  public get isTruthy(): boolean {
+    const first = this.values[0];
+    return first != null && first.isTruthy;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType === ValueType.Multi) return this;
+    const first = this.values[0];
+    if (!first) return new NullValue();
+    return first.Cast(newType);
+  }
+  public override toString(): string {
+    return this.values[0]?.toString() ?? "nil";
+  }
+  public override Copy(): InkObject {
+    return new MultiValue(
+      this.values.map((v) => v.Copy() as AbstractValue),
+    );
+  }
+}
+
+// Lua/Luau `nil` — the explicit "no value" value. Distinct from JS
+// `undefined` (which means "no return"), distinct from `Void` (which
+// is an inkjs control marker for "function returned nothing"). Sparkdown
+// stdlib fns that fail (`tonumber("xyz")`, `rawget(t, missing)`,
+// `table.find(t, missing)`, `utf8.offset` out of range) return `null`
+// from JS; the dispatcher wraps that via `Value.Create`, which routes
+// here. `valueObject` is `null` so external function calls see `null`.
+export class NullValue extends Value<any> {
+  constructor() {
+    super(null);
+  }
+  public get isTruthy(): boolean {
+    return false;
+  }
+  public get valueType(): ValueType {
+    return ValueType.Null;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType === this.valueType) return this;
+    if (newType === ValueType.String) return new StringValue("nil");
+    if (newType === ValueType.Bool) return new BoolValue(false);
+    throw this.BadCastException(newType);
+  }
+  public override toString(): string {
+    return "nil";
+  }
+  public override Copy(): InkObject {
+    return new NullValue();
+  }
+}
+
+export class IntValue extends Value<number> {
+  constructor(val: number) {
+    // `?? 0` (not `|| 0`): negative zero is falsy in JS, so `|| 0`
+    // silently dropped the sign — Lua requires tostring(-0) == "-0".
+    super(val ?? 0);
+  }
+  public get isTruthy() {
+    return this.value != 0;
+  }
+  public get valueType() {
+    return ValueType.Int;
+  }
+
+  public Cast(newType: ValueType): Value<any> {
+    if (this.value === null) return throwNullException("Value.value");
+
+    if (newType == this.valueType) {
+      return this;
+    }
+
+    if (newType == ValueType.Bool) {
+      return new BoolValue(this.value === 0 ? false : true);
+    }
+
+    if (newType == ValueType.Float) {
+      return new FloatValue(this.value);
+    }
+
+    if (newType == ValueType.String) {
+      return new StringValue("" + this.value);
+    }
+
+    throw this.BadCastException(newType);
+  }
+}
+
+export class FloatValue extends Value<number> {
+  constructor(val: number) {
+    // `?? 0.0` (not `|| 0.0`): NaN and -0 are falsy in JS, so `|| 0.0`
+    // silently normalized BOTH to +0 — `inf - inf` came out as 0
+    // instead of nan, and negative zero lost its sign.
+    super(val ?? 0.0);
+  }
+  public get isTruthy() {
+    return this.value != 0.0;
+  }
+  public get valueType() {
+    return ValueType.Float;
+  }
+
+  public Cast(newType: ValueType): Value<any> {
+    if (this.value === null) return throwNullException("Value.value");
+
+    if (newType == this.valueType) {
+      return this;
+    }
+
+    if (newType == ValueType.Bool) {
+      return new BoolValue(this.value === 0.0 ? false : true);
+    }
+
+    if (newType == ValueType.Int) {
+      return new IntValue(this.value);
+    }
+
+    if (newType == ValueType.String) {
+      return new StringValue("" + this.value);
+    }
+
+    throw this.BadCastException(newType);
+  }
+}
+
+export class StringValue extends Value<string> {
+  public _isNewline: boolean;
+  public _isInlineWhitespace: boolean;
+
+  constructor(val: string) {
+    super(val || "");
+
+    this._isNewline = this.value == "\n";
+    this._isInlineWhitespace = true;
+
+    if (this.value === null) return throwNullException("Value.value");
+
+    if (this.value.length > 0) {
+      this.value.split("").every((c) => {
+        if (c != " " && c != "\t") {
+          this._isInlineWhitespace = false;
+          return false;
+        }
+
+        return true;
+      });
+    }
+  }
+  public get valueType() {
+    return ValueType.String;
+  }
+  public get isTruthy() {
+    if (this.value === null) return throwNullException("Value.value");
+    return this.value.length > 0;
+  }
+  public get isNewline() {
+    return this._isNewline;
+  }
+  public get isInlineWhitespace() {
+    return this._isInlineWhitespace;
+  }
+  public get isNonWhitespace() {
+    return !this.isNewline && !this.isInlineWhitespace;
+  }
+
+  public Cast(newType: ValueType): Value<any> {
+    if (newType == this.valueType) {
+      return this;
+    }
+
+    if (newType == ValueType.Int) {
+      let parsedInt = tryParseInt(this.value);
+      if (parsedInt.exists) {
+        return new IntValue(parsedInt.result);
+      } else {
+        throw this.BadCastException(newType);
+      }
+    }
+
+    if (newType == ValueType.Float) {
+      let parsedFloat = tryParseFloat(this.value);
+      if (parsedFloat.exists) {
+        return new FloatValue(parsedFloat.result);
+      } else {
+        throw this.BadCastException(newType);
+      }
+    }
+
+    throw this.BadCastException(newType);
+  }
+}
+
+/**
+ * The symbol a binary program's function value names
+ * (docs/engine/binary-program.md, section 10): the symbol's id, the table
+ * generation the id belongs to, and the symbol's qualified name, or nothing
+ * for a function written inside a statement, whose symbol is anonymous. Two
+ * refer to one function when they name it, or when they hold its anonymous
+ * symbol of one generation. `label` is how it prints, as the deleted object
+ * engine printed a function's path.
+ */
+export class SymbolRef {
+  constructor(
+    public readonly symbol: number,
+    public readonly generation: number,
+    public readonly name: string | null,
+    public readonly label: string,
+  ) {}
+
+  public Equals(other: unknown): boolean {
+    if (!(other instanceof SymbolRef)) {
+      return false;
+    }
+    if (this.name !== null || other.name !== null) {
+      return this.name === other.name;
+    }
+    return (
+      this.symbol === other.symbol && this.generation === other.generation
+    );
+  }
+
+  public toString(): string {
+    return this.label;
+  }
+}
+
+/** A function or flow of a binary program held as a value, the one form a
+ *  function value takes: a named function, a flow or label written as a
+ *  value, or the function of a closure. Two compare equal when their symbols
+ *  refer to one function. */
+export class SymbolValue extends Value<SymbolRef> {
+  constructor(ref: SymbolRef) {
+    super(ref);
+  }
+  public get valueType() {
+    return ValueType.DivertTarget;
+  }
+  public get ref(): SymbolRef {
+    if (this.value === null) return throwNullException("Value.value");
+    return this.value;
+  }
+  public get isTruthy(): never {
+    throw new Error("Shouldn't be checking the truthiness of a divert target");
+  }
+
+  public Cast(newType: ValueType): Value<any> {
+    if (newType == this.valueType) return this;
+
+    throw this.BadCastException(newType);
+  }
+  // The text is also the value's key in a table (`luauMapKeyString`), and a
+  // save holds table keys as they are, so it keeps the form the object engine
+  // printed its divert targets in, its class name around the label.
+  // `tostring` prints a function value as `function: <label>` instead.
+  public override toString() {
+    return "DivertTargetValue(" + this.ref.label + ")";
+  }
+  public override Copy() {
+    return new SymbolValue(this.ref);
+  }
+}
+
+export class VariablePointerValue extends Value<string> {
+  public _contextIndex: number;
+
+  // Lua-style open/close upvalues. While the parent frame (or block
+  // scope) the pointer references is still alive, the pointer is
+  // "open" — reads/writes resolve through the frame's slot via
+  // `contextIndex`. When that frame pops (`CallStack.Pop`) or the
+  // declaring block scope exits (`Element.PopScope`), the current
+  // value is snapshotted into `closedValue`; the pointer is then
+  // "closed" and behaves like a heap cell — reads return
+  // `closedValue`, writes update it in place.
+  //
+  // Closed-ness is an EXPLICIT flag, not `closedValue !== null` — a
+  // captured variable legitimately holding nil must still close
+  // (closed-with-null reads as nil). Conflating the two left such
+  // pointers dangling "open" at a stale contextIndex; when a later
+  // call re-occupied that stack depth and bound the pointer into its
+  // own target slot, reads chased the self-referential pointer into
+  // infinite `GetVariableWithName` ⇄ `ValueAtVariablePointer`
+  // recursion. Any assignment to `closedValue` closes the pointer.
+  //
+  // Lua semantics: multiple closures that capture the same outer
+  // variable share ONE upvalue, so when one closure writes, the others
+  // see it. Dedup happens at pointer-creation time (the auto-resolve
+  // path in `Story.ts` looks up an existing open pointer for the
+  // target frame+name before creating a new one).
+  private _closedValue: InkObject | null = null;
+  private _isClosed: boolean = false;
+
+  // Which of its frame's block scopes holds the binding an open cell
+  // captured (`CallStack.Element.temporaryScopes` index), or -1 when
+  // unknown (a cell loaded from a save written before scopes were
+  // recorded), which resolves the innermost binding of the name. The
+  // name alone can't tell an outer `x` from an inner `local x` that
+  // shadows it after the capture.
+  public scopeIndex: number = -1;
+
+  public get closedValue(): InkObject | null {
+    return this._closedValue;
+  }
+
+  public set closedValue(value: InkObject | null) {
+    this._closedValue = value;
+    this._isClosed = true;
+  }
+
+  public get isClosed(): boolean {
+    return this._isClosed;
+  }
+
+  // Binds the cell to a live frame again. Used when a taken choice's thread,
+  // which still binds the variable, replaces the thread that closed the cell.
+  public Reopen() {
+    this._closedValue = null;
+    this._isClosed = false;
+  }
+
+  constructor(variableName: string, contextIndex: number = -1) {
+    super(variableName);
+
+    this._contextIndex = contextIndex;
+  }
+
+  public get contextIndex() {
+    return this._contextIndex;
+  }
+  public set contextIndex(value: number) {
+    this._contextIndex = value;
+  }
+  public get variableName() {
+    if (this.value === null) return throwNullException("Value.value");
+    return this.value;
+  }
+  public set variableName(value: string) {
+    this.value = value;
+  }
+  public get valueType() {
+    return ValueType.VariablePointer;
+  }
+
+  public get isTruthy(): never {
+    throw new Error(
+      "Shouldn't be checking the truthiness of a variable pointer",
+    );
+  }
+
+  public Cast(newType: ValueType): Value<any> {
+    if (newType == this.valueType) return this;
+
+    throw this.BadCastException(newType);
+  }
+  public override toString() {
+    return "VariablePointerValue(" + this.variableName + ")";
+  }
+  public override Copy() {
+    const copy = new VariablePointerValue(this.variableName, this.contextIndex);
+    copy.scopeIndex = this.scopeIndex;
+    return copy;
+  }
+}
+
+// ObjectValue: an inkjs-runtime record holding string-keyed entries (the
+// inkjs equivalent of a Luau table literal). Values are AbstractValues so
+// nested objects, strings, numbers, etc. all participate in the type system.
+//
+// Constructed at runtime by the program engine's `MakeTable` instruction:
+// each entry pushes its key followed by the evaluated value, and
+// `MakeTable` pops the pairs and builds the ObjectValue
+// (`tableFromPairs` in evaluation.ts).
+export class ObjectValue extends Value<Map<string, AbstractValue>> {
+  // Luau `table.freeze(t)` marks a table read-only. Stdlib mutation
+  // fns (`table.insert`, `table.remove`, `rawset`, ...) check this
+  // flag and refuse to mutate. `table.clone` on a frozen table
+  // returns an *unfrozen* shallow copy — matching Luau.
+  private _frozen: boolean = false;
+  // Luau metatable. `setmetatable(t, mt)` writes here; `getmetatable(t)`
+  // reads it (or the `__metatable` field if set — Luau's metatable
+  // protection). All metamethod dispatch (`__index`, `__add`, `__eq`,
+  // etc.) walks this slot. `null` means "no metatable" — falls back
+  // to the raw rawget/rawset / built-in operator path.
+  private _metatable: ObjectValue | null = null;
+
+  constructor(entries?: Map<string, AbstractValue> | null) {
+    super(entries ?? new Map<string, AbstractValue>());
+  }
+  public get valueType() {
+    return ValueType.Object;
+  }
+  public get isTruthy() {
+    return this.value !== null && this.value.size > 0;
+  }
+  public get isFrozen(): boolean {
+    return this._frozen;
+  }
+  public Freeze(): void {
+    this._frozen = true;
+  }
+  // Sets the freeze flag a loaded save recorded for this table, which a
+  // load restores into a table the loading story already has; scripts only
+  // ever freeze.
+  public RestoreFrozen(frozen: boolean): void {
+    this._frozen = frozen;
+  }
+  public get metatable(): ObjectValue | null {
+    return this._metatable;
+  }
+  public set metatable(mt: ObjectValue | null) {
+    this._metatable = mt;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType == this.valueType) return this;
+    if (newType == ValueType.String) {
+      return new StringValue(this.toString());
+    }
+    throw this.BadCastException(newType);
+  }
+  public override toString(): string {
+    if (this.value === null) return "{}";
+    const parts: string[] = [];
+    for (const [k, v] of this.value) {
+      parts.push(`${k} = ${v?.toString() ?? "null"}`);
+    }
+    return `{${parts.join(", ")}}`;
+  }
+  public override Copy() {
+    if (this.value === null) return new ObjectValue();
+    const next = new Map<string, AbstractValue>();
+    for (const [k, v] of this.value) {
+      const copy = v?.Copy() as AbstractValue | null;
+      if (copy) next.set(k, copy);
+    }
+    const out = new ObjectValue(next);
+    // Metatables are shared by reference across Copy (matching Lua —
+    // `t2 = table.clone(t1)` produces an unfrozen copy with the same
+    // metatable pointer; mutations to the original's mt are visible).
+    out._metatable = this._metatable;
+    return out;
+  }
+}
+
+export enum ValueType {
+  Bool = -1,
+  Int = 0,
+  Float = 1,
+  // 2 was ink's list type, deleted (#1752); the numbers that follow keep
+  // their places, so coercion still ranks each type as before.
+  String = 3,
+  DivertTarget = 4,
+  VariablePointer = 5,
+  Object = 6,
+  // Appended (rather than renumbered) so existing serialized save
+  // states keep their numeric ValueType indices.
+  Null = 7,
+  Multi = 8,
+}

@@ -1,27 +1,23 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { ParsedObject } from "../Object";
 import { Path } from "../Path";
 import { Story } from "../Story";
-import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Identifier } from "../Identifier";
-import { asOrNull, filterUndef } from "../../../../engine/TypeAssertion";
+import { asOrNull, filterUndef } from "../../../../../runtime/TypeAssertion";
 import {
   isStdLibFunctionName,
   isStdLibNamespaceName,
   lookupStdLibConstant,
-} from "../../../../engine/StdLib";
+} from "../../../../../runtime/StdLib";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
+import { NUMBERED_SYNTHETIC_NAME } from "../../../../../program/ProgramSymbols";
 
 export class VariableReference extends Expression {
-  private _runtimeVarRef: RuntimeVariableReference | null = null;
-
   // - Normal variables have a single item in their "path"
   // - Knot/stitch names for read counts are actual dot-separated paths
   //   (though this isn't actually used at time of writing)
-  // - List names are dot separated: listName.itemName (or just itemName)
   get name() {
     return this.path.join(".");
   }
@@ -31,18 +27,16 @@ export class VariableReference extends Expression {
   }
 
   /**
-   * Derived, not a generation-time flag: constants are known before any
-   * generation runs, and a stored flag would be STICKY across compiles.
-   * Incremental ExportRuntime reuses a flow without regenerating it, so a
-   * reference that was constant when it was last generated would keep
+   * Derived, not a preparation-time flag: constants are known before any
+   * preparation runs, and a stored flag would be STICKY across compiles.
+   * An incremental compile reuses a flow without preparing it again, so a
+   * reference that was constant when it was last prepared would keep
    * claiming so after the constant is deleted — silently suppressing the
    * `Cannot find variable named` warning a cold compile emits.
    */
   get isConstantReference(): boolean {
     return this.story.constants.has(this.name);
   }
-  // Only known after GenerateIntoContainer has run
-  public isListItemReference: boolean = false;
 
   /**
    * What the name resolved to when references were last resolved: a
@@ -55,14 +49,20 @@ export class VariableReference extends Expression {
   public resolvedAs: "variable" | "count" | "function" | "unresolved" =
     "unresolved";
 
+  /** The scene, branch or label whose count the name reads, when it
+   *  resolved to a count. */
+  public countTarget: ParsedObject | null = null;
+
   // The member a colon call reads from this reference, as in `table:nogetn()`.
   // When set, an unresolved name reports the member path (`table.nogetn`)
   // across both names, as the dot form's path reference does. The compiler
   // rebases its position with the reference's other identifiers.
   public unresolvedMember: Identifier | null = null;
 
-  get runtimeVarRef() {
-    return this._runtimeVarRef;
+  // Whether the reference was prepared since its last `ResetRuntime`.
+  private _preparedReference = false;
+  get isReferencePrepared(): boolean {
+    return this._preparedReference;
   }
 
   constructor(public readonly pathIdentifiers: Identifier[]) {
@@ -74,63 +74,19 @@ export class VariableReference extends Expression {
     return "ref";
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    // Constants are ordinary runtime globals now, initialized ahead of every
-    // other global in the "global decl" container, so a reference is a plain
-    // variable lookup. This used to COPY the constant's entire runtime-object
-    // graph in here, once per reference site — which also meant any
-    // initializer containing an operator threw outright, because
-    // `NativeFunctionCall` has no `Copy()`.
-    if (this.story.constants.has(this.name)) {
-      this._runtimeVarRef = new RuntimeVariableReference(this.name);
-      container.AddContent(this._runtimeVarRef);
-      return;
-    }
+  /** The reference marked prepared; it reads nothing of the story until it
+   *  is resolved. */
+  public override PrepareIntoContainer(): void {
+    this._preparedReference = true;
+  }
 
-    this._runtimeVarRef = new RuntimeVariableReference(this.name);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
 
-    // List item reference?
-    // Path might be to a list (listName.listItemName or just listItemName)
-    if (this.path.length === 1 || this.path.length === 2) {
-      let listItemName: string = "";
-      let listName: string = "";
-
-      if (this.path.length === 1) {
-        listItemName = this.path[0]!;
-      } else {
-        listName = this.path[0]!;
-        listItemName = this.path[1]!;
-      }
-
-      const listItem = this.story.ResolveListItem(listName, listItemName, this);
-
-      if (listItem) {
-        this.isListItemReference = true;
-      }
-    }
-
-    container.AddContent(this._runtimeVarRef);
-  };
-
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
-
-    // Read-count conversion below (`name = null` + `pathForCount = ...`) is a
-    // one-way door on the runtime object. Under incremental container reuse
-    // the SAME runtime object is re-resolved on later compiles — restore it
-    // to its generated form first so the conversion is re-derived from the
-    // CURRENT tree (a deleted target flow decays back to a plain variable
-    // reference exactly like a cold compile).
-    if (this._runtimeVarRef && this._runtimeVarRef.name === null) {
-      this._runtimeVarRef.name = this.name;
-      this._runtimeVarRef.pathForCount = null;
-    }
-
-    // Work is already done if it's a constant or list item reference
+    // Work is already done if it's a constant reference
     this.resolvedAs = "variable";
-    if (this.isConstantReference || this.isListItemReference) {
+    this.countTarget = null;
+    if (this.isConstantReference) {
       return;
     }
 
@@ -157,12 +113,8 @@ export class VariableReference extends Expression {
       parsedPath.ResolveFromContext(this);
     if (targetForCount) {
       // Lua-style first-class fn fallback: when the name resolves to
-      // a FUNCTION knot, leave the `RuntimeVariableReference` as-is
-      // (with `name` set, no `pathForCount`). At runtime the variable
-      // lookup misses (functions aren't in variablesState), and the
-      // knot-lookup fallback in `Story.ts` converts the reference
-      // into a `DivertTargetValue`. So `local f = double` works
-      // without requiring `local f = -> double`.
+      // a FUNCTION knot, the reference reads the function as a value. So
+      // `local f = double` works without requiring `local f = -> double`.
       //
       // The legacy ink convention of `myKnot` resolving to its read
       // count still applies for NON-function knots (regular labelled
@@ -174,31 +126,14 @@ export class VariableReference extends Expression {
         return;
       }
 
-      if (!targetForCount.containerForCounting) {
-        throw new Error();
-      }
-
+      // The program reads the count of the target's symbol (`GetCount`),
+      // which every counted symbol keeps.
       this.resolvedAs = "count";
-      targetForCount.containerForCounting.visitsShouldBeCounted = true;
-
-      // If this is an argument to a function that wants a variable to be
-      // passed by reference, then the Parsed.Divert will have generated a
-      // Runtime.VariablePointerValue instead of allowing this object
-      // to generate its RuntimeVariableReference. This only happens under
-      // error condition since we shouldn't be passing a read count by
-      // reference, but we don't want it to crash!
-      if (this._runtimeVarRef === null) {
-        return;
-      }
-
-      this._runtimeVarRef.pathForCount = targetForCount.runtimePath;
-      this._runtimeVarRef.name = null;
-
+      this.countTarget = targetForCount;
       return;
     }
 
-    // Couldn't find this multi-part path at all, whether as a divert target,
-    // or list item reference.
+    // Couldn't find this multi-part path at all as a divert target.
     if (this.path.length > 1) {
       // Last chance: maybe this is property access on a table-typed
       // variable (sparkdown extension — `result.value` where `result`
@@ -288,7 +223,7 @@ export class VariableReference extends Expression {
     }
 
     // Luau-superset semantics: same logic as the single-name
-    // "Cannot find variable named" diagnostic in `ResolveReferences` — downgrade
+    // "Cannot find variable named" diagnostic in `ResolveWith` — downgrade
     // unresolved dotted paths to a warning so the runtime can fall
     // back to `NullValue` for property reads (`_G.bar`,
     // `unknown.field`, ...). The diagnostic still surfaces in the
@@ -306,29 +241,37 @@ export class VariableReference extends Expression {
 
   // A variable read, with `VariableReference`'s runtime fallbacks (a dotted
   // name walked through tables, `_G`, a function's name as its value, a
-  // builtin's marker, nil). A read count is not emitted yet.
+  // builtin's marker, nil). A name that reads a scene's, a branch's or a
+  // label's count reads the count of its symbol (`GetCount`), which every
+  // counted symbol keeps, so no fact about the target is recorded and a read
+  // added in one flow emits nothing of the flow it counts
+  // (docs/engine/binary-program.md, section 5).
   public override EmitExpression(emitter: ProgramEmitter): void {
-    if (this.isListItemReference) {
-      emitter.unsupported("list");
-    }
-    if (this.resolvedAs === "count") {
-      emitter.unsupported("read count");
-    }
     emitter.recordResolution(this.resolutionKey);
+    if (this.resolvedAs === "count") {
+      const symbol = emitter.targetSymbol(this.countTarget, this.name);
+      emitter.referenceTarget(symbol);
+      emitter.emit(Op.GetCount, symbol);
+      return;
+    }
     emitter.emit(Op.GetVar, emitter.variable(this.name));
   }
 
-  /** The name and what it resolved to, as a chunk records it. A name the
-   *  compiler generated, which it numbers by document order, is recorded
-   *  without its number, since the chunk names it by its own. */
+  /** The name and what it resolved to, as a chunk records it: for a count,
+   *  the symbol whose count it reads. A name the compiler generated, which it
+   *  numbers by document order, is recorded without its number, since the
+   *  chunk names it by its own. */
   get resolutionKey(): string {
-    const name = /^__synth_\d+$/.test(this.name) ? "__synth" : this.name;
+    const name = NUMBERED_SYNTHETIC_NAME.test(this.name) ? "__synth" : this.name;
+    if (this.resolvedAs === "count") {
+      return `${name}:count:${this.countTarget?.programSymbolName ?? ""}`;
+    }
     return `${name}:${this.resolvedAs}`;
   }
 
   public override readonly toString = (): string => `{${this.path.join(".")}}`;
 
   override OnResetRuntime(): void {
-    this._runtimeVarRef = null;
+    this._preparedReference = false;
   }
 }

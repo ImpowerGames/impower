@@ -1147,6 +1147,253 @@ check("a red run the test-suite runner never started is not run, never a red", (
   assert.match(r.problems.join("\n"), /red run never started.*run redgreen again/s);
 });
 
+// A Luau conformance test compares the checker's diagnostics, whose text and
+// code are `SyntaxError`, so a genuine red prints the word inside its diff
+// (#1439). The word decides nothing there; only a runner-level line does.
+check("SyntaxError text inside an assertion diff is an assertion, not a syntax failure", () => {
+  const runnerSummary = "\n Test Files  1 failed (1)\n      Tests  5 failed | 17 passed (22)";
+  const diffs = [
+    ' FAIL  a.test.ts > x\nAssertionError: expected [] to deeply equal [ \'4:8-4:9 SyntaxError: Type function cannot reference\' ]\n- Expected\n+ Received\n\n-   "4:8-4:9 SyntaxError: Type function cannot reference outer local \'var\'",\n+   [],',
+    ' FAIL  a.test.ts > x\nAssertionError: expected [ { code: \'SyntaxError\' } ] to deeply equal []\n-   "code": "SyntaxError",\n+   "code": "Other",',
+    ' FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n  Expected: "0:8-0:10 SyntaxError: Expected identifier"\n  Received: "Unexpected token"',
+    ' FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n+   "1 SyntaxError Expected identifier when parsing expression, got \'+\'",\n+   "src/a.ts:1:1 error TS2304: Cannot find name"',
+  ];
+  for (const diff of diffs) assert.equal(classifyRedFailure(diff + runnerSummary), "assertion", diff);
+});
+
+check("a runner-level syntax failure is still a syntax failure", () => {
+  assert.equal(classifyRedFailure("SyntaxError: Unexpected token"), "syntax");
+  assert.equal(classifyRedFailure("file:///C:/x/check.mjs:3\n  foo bar\n      ^^^\nSyntaxError: Unexpected identifier 'bar'"), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts [ a.test.ts ]\nError: Transform failed with 1 error:\nC:/x/a.ts:1:2: ERROR: Unexpected \"}\""), "syntax");
+  assert.equal(classifyRedFailure("src/a.ts(3,5): error TS2304: Cannot find name 'x'."), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts\n    SyntaxError: Unexpected token '}'\n"), "syntax");
+});
+
+check("a red run whose assertion diff prints SyntaxError is accepted end to end", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") {',
+      '  console.error(" FAIL  a.test.ts > x");',
+      '  console.error("AssertionError: expected [] to deeply equal [ 0:8-0:10 SyntaxError: Expected type ]");',
+      '  console.error("-   \\"0:8-0:10 SyntaxError: Expected type, got \'=\'\\",");',
+      '  console.error(" Tests  1 failed | 1 passed (2)");',
+      "  process.exit(1);",
+      "}",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "diff check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+});
+
+// The runner's marker can follow unterminated text from the process-identity
+// probe on the same line, so it is not at a line start; its exit status (75) and
+// the marker together say no test ran (#1439).
+check("a not-run marker after other output on its line is still not run", () => {
+  for (const half of ["green", "red"]) {
+    const dir = makeRepo();
+    const condition = half === "red" ? "true" : 'value === "new"';
+    fs.writeFileSync(
+      path.join(dir, "check.mjs"),
+      [
+        'import { value } from "./lib.mjs";',
+        `if (${condition}) {`,
+        '  process.stderr.write("Starting the CLR failed with HRESULT 80004005.");',
+        `  console.error(${JSON.stringify(NOT_RUN)});`,
+        "  process.exit(75);",
+        "}",
+        'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+        'console.log("ok");',
+      ].join("\n") + "\n",
+    );
+    git(dir, "commit", "-q", "-am", "clr");
+    applyFix(dir);
+    const r = run(dir);
+    assert.equal(r.ok, false, half);
+    assert.equal(r[half].outcome, "not run", half);
+    assert.doesNotMatch(r.problems.join("\n"), /failed against the fix/, half);
+    assert.match(r.problems.join("\n"), new RegExp(`${half} run never started`), half);
+  }
+});
+
+check("a test that only quotes the not-run marker, with an ordinary failing exit, stays a red", () => {
+  assert.equal(
+    classifyRedFailure(`AssertionError: expected '${NOT_RUN}' to be ''\nTests  1 failed (1)`, { exit: 1 }),
+    "assertion",
+  );
+});
+
+check("a failed green run with no test result and no assertion is not blamed on the fix", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value === "new") { console.error("Starting the CLR failed with HRESULT 80004005."); process.exit(1); }',
+      'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "no-result green");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  const problems = r.problems.join("\n");
+  assert.doesNotMatch(problems, /failed against the fix/);
+  assert.match(problems, /green run produced no test result/);
+});
+
+check("a genuinely failing green run is still reported as failing against the fix", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'console.error("AssertionError: expected never, got " + value); process.exit(1);',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "always fails");
+  applyFix(dir);
+  const r = run(dir);
+  assert.match(r.problems.join("\n"), /failed against the fix/);
+});
+
+// Round 1 review: the real tsc --pretty shape, the shared assertion predicate
+// and an exit-75 assertion that quotes the marker (#1439).
+check("a pretty tsc compile error is a syntax failure even when its source frame holds assertion words", () => {
+  const pretty = "lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n\nFound 1 error in lib.ts:1\n";
+  assert.equal(classifyRedFailure(pretty, { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure(pretty.replace(/(lib\.ts)(:1:21)/, "\x1b[96m$1\x1b[0m$2"), { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
+});
+
+check("a plain Node console.assert failure is assertion evidence on the green half too", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'const passes = value === "never";',
+      'console.assert(passes, "expected never to equal " + value);',
+      "process.exit(passes ? 0 : 1);",
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "console.assert check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  const problems = r.problems.join("\n");
+  assert.match(problems, /failed against the fix/);
+  assert.doesNotMatch(problems, /produced no test result/);
+});
+
+check("an assertion that quotes the not-run marker and exits 75 is a red, not a run that never started", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import assert from "node:assert/strict";',
+      'import { value } from "./lib.mjs";',
+      `const quoted = ${JSON.stringify(NOT_RUN)};`,
+      'try { assert.equal(value === "new" ? "" : quoted, "", "expected no marker, got " + quoted); }',
+      "catch (error) { console.error(error.stack); process.exit(75); }",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "exit 75 assertion");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+});
+
+// Round 1, second reviewer: a compiler path with spaces, and the unchanged
+// context lines of a multiline diff, which carry no +/- prefix (#1439).
+check("a compiler error in a path with spaces is a syntax failure", () => {
+  const output = "folder space/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n";
+  assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("C:\\repo with space\\lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
+  // Quotes are legal in a filename; a labelled assertion that quotes a diagnostic is still an assertion.
+  assert.equal(classifyRedFailure("O'Connor/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("O'Connor/lib.ts(1,21): error TS1109: Expression expected.", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("/srv/a:b c/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("error TS5058: The specified path does not exist: 'x.ts'.", { exit: 1 }), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts > x\nexpected 'a.ts:1:2 - error TS2304: x' to be 'ok'\n Tests  1 failed (1)", { exit: 1 }), "assertion");
+  assert.equal(
+    classifyRedFailure("AssertionError: expected 'a.ts:1:2 - error TS2304: Cannot find name' to be 'ok'\n Tests  1 failed (1)", { exit: 1 }),
+    "assertion",
+  );
+});
+
+check("unchanged context lines of a multiline assertion diff never decide a syntax verdict", () => {
+  const vitest = [
+    " FAIL  a.test.ts > x",
+    "AssertionError: expected 'header\\nSyntaxError: diagnostic\\nnew' to be 'header\\nSyntaxError: diagnostic\\nold' // Object.is equality",
+    "",
+    "- Expected",
+    "+ Received",
+    "",
+    "  header",
+    "  SyntaxError: diagnostic",
+    "- old",
+    "+ new",
+    "",
+    " ❯ a.test.ts:3:41",
+    "",
+    " Test Files  1 failed (1)",
+    "      Tests  1 failed (1)",
+  ].join("\n");
+  assert.equal(classifyRedFailure(vitest, { exit: 1 }), "assertion");
+  // The same diff, indented as a nested reporter prints it, and Node's own assert diff.
+  assert.equal(classifyRedFailure(vitest.replace(/^(  header|  SyntaxError.*|- old|\+ new|- Expected|\+ Received)$/gm, "    $1"), { exit: 1 }), "assertion");
+  const node = "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n  header\n  SyntaxError: diagnostic\n+ new\n- old\n";
+  assert.equal(classifyRedFailure(node, { exit: 1 }), "assertion");
+  // A runner line after the block still decides.
+  assert.equal(classifyRedFailure(node + "SyntaxError: Unexpected token '}'\n", { exit: 1 }), "syntax");
+});
+
+check("a Vitest run that ran and failed an assertion is not a syntax failure because a passing test printed one", () => {
+  const output = "stdout | a.test.ts > prints\nSyntaxError: Unexpected token } in JSON\n\n FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)";
+  assert.equal(classifyRedFailure(output, { exit: 1 }), "assertion");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts [ a.test.ts ]\nSyntaxError: Unexpected token } in JSON\n Test Files  1 failed (1)\n      Tests  no tests", { exit: 1 }), "syntax");
+});
+
+// Round 3: assertion vocabulary in a compiler path, and a file that failed to
+// load beside a file that asserted (#1439).
+check("assertion words in a compiler path do not make a compile error an assertion", () => {
+  for (const file of ["AssertionError.ts", "Expected files/lib.ts", "expected dir/Received.ts"]) {
+    const output = `${file}:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n`;
+    assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax", file);
+  }
+  // A runner's own assertion record beside a compiler line is mixed evidence, never accepted as a red.
+  assert.equal(classifyRedFailure("lib.ts(1,2): error TS1109: x\nAssertionError: expected 1 to be 2\n", { exit: 1 }), "unknown");
+});
+
+check("a file that failed to load beside a file that asserted is still a syntax failure", () => {
+  const output = [
+    " RUN  v2.1.9 C:/repo",
+    "",
+    " FAIL  collection.test.mjs [ collection.test.mjs ]",
+    "SyntaxError: Unexpected token ';'",
+    " ❯ loadModule collection.test.mjs:2:1",
+    "",
+    " FAIL  assertion.test.mjs > unrelated assertion",
+    "AssertionError: expected 1 to be 2",
+    "",
+    " Test Files  2 failed (2)",
+    "      Tests  1 failed (1)",
+  ].join("\n");
+  assert.equal(classifyRedFailure(output, { exit: 1 }), "syntax");
+  // The same output without the load-failure header is a test printing the line.
+  assert.equal(classifyRedFailure(output.replace(" FAIL  collection.test.mjs [ collection.test.mjs ]\n", ""), { exit: 1 }), "assertion");
+});
+
 if (failures > 0) {
   console.log(`\n${failures} failing`);
   process.exit(1);

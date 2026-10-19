@@ -15,6 +15,7 @@
 // replays the route itself, so a case hands its game the answer it names in
 // place of the one the worker found.
 
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { describe, expect, test, vi } from "vitest";
 import { programIdentity } from "../utils/programIdentity";
 import { putAtStartPoint } from "../main/workers/putAtStartPoint";
@@ -45,13 +46,16 @@ const TRUNCATED_SAVE = '{"simulatedFrom":"main","stor';
 /** A stand-in game that records what the play path asks of it, and nothing
  *  else. `simulate` here is the route search PLAY runs itself — the call
  *  this rule exists to avoid. */
-function recordingGame(startPath: string | null) {
+function recordingGame(startAddress: ProgramAddress | null) {
   const calls: string[] = [];
   const game: any = {
     calls,
     state: "initial",
-    startPath,
-    simulatePath: undefined as string | null | undefined,
+    startAddress,
+    simulateFlow: undefined as string | null | undefined,
+    // The flow a route to an address starts from: here, every address stands
+    // in `main`.
+    routeStartOf: (_address: ProgramAddress) => "main",
     simulation: undefined as string | undefined,
     // `programIdentity` reads these; `version` is deliberately not part of it.
     program: { uri: PROGRAM.uri, scripts: PROGRAM.scripts, version: 99 },
@@ -95,7 +99,7 @@ const MATCHING_PROGRAM_ID = programIdentity(PROGRAM);
 
 type WorkerAnswer = {
   checkpoint?: string;
-  simulatedPath?: string | null;
+  simulatedAddress?: ProgramAddress | null;
   simulatedProgramId?: string;
 };
 
@@ -120,7 +124,7 @@ async function playInWorker(game: any, worker: WorkerAnswer) {
     h.workerState.player.putAtStartPoint = (built, simulationOptions) =>
       putAtStartPoint(built, simulationOptions, {
         checkpoint: worker.checkpoint,
-        path: worker.simulatedPath,
+        address: worker.simulatedAddress,
         programId:
           !("simulatedProgramId" in worker) ||
           worker.simulatedProgramId === MATCHING_PROGRAM_ID
@@ -139,9 +143,9 @@ vi.setConfig({ testTimeout: 120_000 });
 
 describe("pressing play reuses the worker's route search", () => {
   test("the worker's checkpoint is loaded instead of searching again", async () => {
-    const game = recordingGame("main.3");
+    const game = recordingGame(3);
     await playInWorker(game, {
-      simulatedPath: "main.3",
+      simulatedAddress: 3,
       checkpoint: SIMULATED_SAVE,
     });
 
@@ -161,9 +165,9 @@ describe("pressing play reuses the worker's route search", () => {
     // A named path with no state means the worker established that no route
     // reaches it. Running the same doomed search on the interface thread would
     // freeze the page for seconds and reach the same verdict.
-    const game = recordingGame("main.3");
+    const game = recordingGame(3);
     await playInWorker(game, {
-      simulatedPath: "main.3",
+      simulatedAddress: 3,
       checkpoint: undefined,
     });
 
@@ -172,7 +176,7 @@ describe("pressing play reuses the worker's route search", () => {
     // The failure is still recorded, so the toolbar reports an unreachable
     // start point and `start` falls back to jumping straight to it.
     expect(game.simulation).toBe("fail");
-    expect(game.simulatePath).toBe("main");
+    expect(game.simulateFlow).toBe("main");
     // The game is still started — a failed route means starting at the top of
     // the containing knot, not refusing to play.
     expect(game.calls).toContain("start");
@@ -182,9 +186,9 @@ describe("pressing play reuses the worker's route search", () => {
     // A malformed save is not the runaway case: the worker reaching this start
     // point proves a route exists, so the search run here finds one and ends.
     // Starting at the wrong place would be the worse outcome.
-    const game = recordingGame("main.3");
+    const game = recordingGame(3);
     await playInWorker(game, {
-      simulatedPath: "main.3",
+      simulatedAddress: 3,
       checkpoint: TRUNCATED_SAVE,
     });
 
@@ -196,9 +200,9 @@ describe("pressing play reuses the worker's route search", () => {
     // The worker's answer describes the path it searched for. If this run
     // begins somewhere else, loading that checkpoint would drop the player
     // into an unrelated part of the story, so the search has to happen here.
-    const game = recordingGame("main.3");
+    const game = recordingGame(3);
     await playInWorker(game, {
-      simulatedPath: "other.7",
+      simulatedAddress: 7,
       checkpoint: SIMULATED_SAVE,
     });
 
@@ -212,9 +216,9 @@ describe("pressing play reuses the worker's route search", () => {
     // path would still match — a path string survives an edit — so the program
     // identity is what catches it. Falling back to searching here is the old
     // behaviour: slower, but it cannot start the game in the wrong place.
-    const game = recordingGame("main.3");
+    const game = recordingGame(3);
     await playInWorker(game, {
-      simulatedPath: "main.3",
+      simulatedAddress: 3,
       checkpoint: SIMULATED_SAVE,
       simulatedProgramId: programIdentity({
         uri: PROGRAM.uri,
@@ -231,9 +235,9 @@ describe("pressing play reuses the worker's route search", () => {
     // know the answer is about this script, so the safe reading is that it is
     // not. Failing this way costs a search; failing the other way starts the
     // game somewhere the user did not ask for.
-    const game = recordingGame("main.3");
+    const game = recordingGame(3);
     await playInWorker(game, {
-      simulatedPath: "main.3",
+      simulatedAddress: 3,
       checkpoint: SIMULATED_SAVE,
       simulatedProgramId: undefined,
     });
@@ -245,9 +249,9 @@ describe("pressing play reuses the worker's route search", () => {
   test("with no worker answer at all, the play path still searches", async () => {
     // A host that never simulates routes off the main thread must keep
     // working; the fallback is the old behaviour, unchanged.
-    const game = recordingGame("main.3");
+    const game = recordingGame(3);
     await playInWorker(game, {
-      simulatedPath: undefined,
+      simulatedAddress: undefined,
       checkpoint: undefined,
       simulatedProgramId: undefined,
     });
@@ -264,7 +268,7 @@ describe("pressing play reuses the worker's route search", () => {
     // undefineds and silently skip the (cheap, immediately-returning) search.
     const game = recordingGame(null);
     await playInWorker(game, {
-      simulatedPath: undefined,
+      simulatedAddress: undefined,
       checkpoint: undefined,
       simulatedProgramId: undefined,
     });
@@ -293,7 +297,7 @@ describe("the worker's own route reaches the rule", () => {
       const [{ built, route }] = handed;
       // The answer is about this start point in this program, with the state
       // the replay ended in, so PLAY's game loads it and searches nothing.
-      expect(route.path).toBe(built.startPath);
+      expect(route.address).toBe(built.startAddress);
       expect(route.programId).toBe(programIdentity(built.program));
       expect(route.checkpoint).toBeTruthy();
       expect(built.simulation).toBe("success");

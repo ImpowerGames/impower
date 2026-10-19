@@ -6,13 +6,23 @@ import type { Variable } from "../../types/Variable";
 export type GetGameVariablesMethod = typeof GetGameVariablesMessage.method;
 
 export interface GetGameVariablesParams {
-  scope: "vars" | "lists" | "defines" | "temps" | "children" | "value";
+  scope: "vars" | "defines" | "temps" | "children" | "value";
   /**
    * The variable for which to retrieve its children.
    * The `variablesReference` must have been obtained in the current suspended state.
    * */
   value?: any;
   variablesReference?: number;
+  /**
+   * For the `temps` scope, the thread whose frame to read (a thread's `id`
+   * from `game/threads`). Without it, the thread that runs.
+   */
+  threadId?: number;
+  /**
+   * For the `temps` scope, the frame to read (a frame's `id` from
+   * `game/stackTrace` for `threadId`). Without it, the frame that runs.
+   */
+  frameId?: number;
 }
 
 export interface GetGameVariablesResult {

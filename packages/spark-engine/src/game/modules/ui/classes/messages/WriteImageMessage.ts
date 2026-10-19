@@ -69,6 +69,11 @@ export interface WriteImageParams {
    *  audio's output latency. Absent for writes that start when the page
    *  handles them. */
   time?: number;
+  /** The structural ids of the elements the write goes to, when the game
+   *  sends it inside a composed `ui/beat` (#1820): the target as it resolved
+   *  where the write stands in the beat, not as it resolves once the beat's
+   *  later structure is on the page. */
+  elements?: string[];
 }
 
 export class WriteImageMessage {

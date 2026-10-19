@@ -1,5 +1,5 @@
 // Regression tests for Lua short-circuit `and`/`or` evaluation
-// (the `ShortCircuit` ControlCommand emitted by BinaryExpression).
+// (the `JumpIfKeep` instruction BinaryExpression emits).
 // Previously both operands were evaluated eagerly with operand-
 // returning semantics applied afterwards — correct results for pure
 // scalar operands, but the untaken branch's side effects ran (and
@@ -36,10 +36,10 @@ function compileAndCapture(source: string): {
     textDocument: { uri: "inmemory:///main.sd" },
   });
   const errors: string[] = [];
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     return { errors: ["NO_COMPILED"], recorded: [] };
   }
-  const story = testStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.chunks);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);

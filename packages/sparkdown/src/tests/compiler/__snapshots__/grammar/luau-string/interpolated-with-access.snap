@@ -18,11 +18,11 @@ sparkdown [0..41]
      │       │           │   │   └─ LuauFunctionName [2..5]: "log"
      │       │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 5
      │       │           ├─ LuauSparkdownExplicitFunctionCall_content [5..41]
-     │       │           │   └─ LuauSparkdownExplicitFunctionCallParameters [5..41]
-     │       │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_begin [5..6]
-     │       │           │       │   └─ LuauSparkdownExplicitFunctionCallParameters_begin_c1 [5..6]
+     │       │           │   └─ LuauFunctionCallParameters [5..41]
+     │       │           │       ├─ LuauFunctionCallParameters_begin [5..6]
+     │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [5..6]
      │       │           │       │       └─ PunctuationParenOpen [5..6]: "("
-     │       │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_content [6..40]
+     │       │           │       ├─ LuauFunctionCallParameters_content [6..40]
      │       │           │       │   └─ LuauInterpolatedString [6..40]
      │       │           │       │       ├─ LuauInterpolatedString_begin [6..7]
      │       │           │       │       │   └─ LuauInterpolatedString_begin_c1 [6..7]
@@ -81,8 +81,8 @@ sparkdown [0..41]
      │       │           │       │           ├─ LuauInterpolatedString_end_c1 [39..40]
      │       │           │       │           │   └─ PunctuationStringBacktickQuoteClose [39..40]: "`"
      │       │           │       │           └─ LuauInterpolatedString_end_c2 40
-     │       │           │       └─ LuauSparkdownExplicitFunctionCallParameters_end [40..41]
-     │       │           │           └─ LuauSparkdownExplicitFunctionCallParameters_end_c1 [40..41]
+     │       │           │       └─ LuauFunctionCallParameters_end [40..41]
+     │       │           │           └─ LuauFunctionCallParameters_end_c1 [40..41]
      │       │           │               └─ PunctuationParenClose [40..41]: ")"
      │       │           └─ LuauSparkdownExplicitFunctionCall_end 41
      │       └─ LuauSparkdownExplicitAccessPath_end 41

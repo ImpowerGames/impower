@@ -1,6 +1,6 @@
 // Phase 1 of Lua-pattern support: `string.find` and `string.match`.
 // Patterns are translated to JS regex via `luaPatternToJs` in
-// `inkjs/engine/LuaPatterns.ts`. Phase 1 omits `%b{}` balanced
+// `runtime/LuaPatterns.ts`. Phase 1 omits `%b{}` balanced
 // match, `%f[]` frontier, and `()` position captures — those
 // throw a runtime story.Error pointing at the unsupported feature.
 
@@ -29,10 +29,10 @@ function compileAndCapture(source: string): {
     textDocument: { uri: "inmemory:///main.sd" },
   });
   const errors: string[] = [];
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     return { errors: ["NO_COMPILED"], recorded: [] };
   }
-  const story = testStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.chunks);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);

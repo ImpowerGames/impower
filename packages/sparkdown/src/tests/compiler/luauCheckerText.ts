@@ -20,8 +20,8 @@ import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN
 const grammarNames = new Set(Object.keys(GRAMMAR_DEFINITION.repository));
 const ordinaryNames = new Map<string, string>();
 for (const name of grammarNames) {
-  const original = name === "LuauSparkdownExplicitStoryVariableDefinition" ? "LuauSparkdownVariableDefinition"
-    : name.startsWith("LuauSparkdownExplicit") ? "Luau" + name.slice("LuauSparkdownExplicit".length)
+  const original =
+    name.startsWith("LuauSparkdownExplicit") ? "Luau" + name.slice("LuauSparkdownExplicit".length)
     : name.startsWith("SparkdownExplicit") ? name.slice("SparkdownExplicit".length) : undefined;
   if (original && grammarNames.has(original)) ordinaryNames.set(name, original);
 }
@@ -514,17 +514,16 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       while (first && NEUTRAL.test(first.name)) first = first.nextSibling;
       let following = cursor.node.nextSibling;
       while (following && NEUTRAL.test(following.name)) following = following.nextSibling;
-      const until = following && oracleName(following.name) === "LuauUntilStatement" ? findDescendant(following, "LuauUntilKeyword") : undefined;
+      const until = following ? findDescendant(following, "LuauUntilKeyword") : undefined;
       writtenCloser = first?.name === "LuauRepeatKeyword" && !!until && index.lineAt(until.from) === line;
     }
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
       if (writtenCloser) break;
       if (["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"].includes(parent.name)) {
-        // Repeat's end is a lookahead. Its following until statement owns
-        // the written keyword; prose/string/comment occurrences do not.
-        let sibling = parent.nextSibling;
-        while (sibling && NEUTRAL.test(sibling.name)) sibling = sibling.nextSibling;
-        const until = sibling && oracleName(sibling.name) === "LuauUntilStatement" ? findDescendant(sibling, "LuauUntilKeyword") : undefined;
+        // The loop's end holds its written `until`; prose, string and
+        // comment occurrences are not there.
+        const end = parent.getChild(`${parent.name}_end`);
+        const until = end ? findDescendant(end, "LuauUntilKeyword") : undefined;
         writtenCloser = !!until && until.from >= to && index.lineAt(until.from) === line;
         break;
       }

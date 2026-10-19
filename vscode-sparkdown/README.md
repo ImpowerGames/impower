@@ -27,6 +27,8 @@ This is an extension for Visual Studio Code which allows you to create `spark` g
 > - View the Live Preview, export your Screenplay, and more, using the `COMMANDS` panel.
 > - Quickly lookup sparkdown syntax in the `CHEAT SHEET` panel.
 
+Workspace discovery includes scripts and assets below the opened folder, including a nested `project` directory. Dependencies under `node_modules` and hidden subdirectories are skipped. An explicitly opened folder can itself be hidden. Other folders still contribute assets, so opening a repository with research or prototype assets can report name collisions that are absent when opening only its game project.
+
 ## Previewing suggestions in the Game Preview
 
 When the Game Preview is open and stopped, highlighting a suggestion in the autocomplete list shows the scene as it would look with that suggestion accepted. Moving to another suggestion updates the preview, and moving back shows the earlier one again. The suggestion's details panel does not need to be open; its thumbnails are still there when you open it. The [suggestion preview guide](https://github.com/ImpowerGames/impower/blob/main/packages/sparkdown/docs/guide/SuggestionPreview.md) explains which scene is shown and how long a preview takes.
@@ -68,9 +70,7 @@ and watches everything the extension bundles: the language server, the
 spark-web-player, the screenplay-PDF exporter, and the screenplay / game / screen
 / inspector webviews, plus the extension host code itself.
 
-With that watcher running, press **F5** in VS Code (the _Run Extension_ launch
-config) to open an Extension Development Host with the extension loaded; rebuilds
-from the watcher are picked up on reload.
+Alternatively, open the monorepo root and press **F5** using _Launch vscode-sparkdown_. Its background task builds and watches both workers and all four webviews, then starts the extension build and worker copier. The development host opens only after the initial runtime outputs are ready, including when those outputs were missing. Reload the development host to load subsequent extension or webview builds. Use one of these watch workflows at a time.
 
 > Working on the **web app** instead of the extension? Use `npm run web:dev` from
 > the root — see the [root README](../README.md).

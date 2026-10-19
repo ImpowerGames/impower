@@ -12,7 +12,6 @@ describe("a local target followed by `::`", () => {
     "local x::number",
     "local a, b :: number",
     "local x :: number = 1",
-    "const x :: number = 1",
     "local x :: number -- note",
     "function f() local x :: number end",
   ])(
@@ -27,15 +26,22 @@ describe("a local target followed by `::`", () => {
     },
   );
 
-  // A type takes in the line break after it (#1053), so a declaration that
-  // ends in one spans that line break, as `local x: number` does (#1183).
-  test.each([
-    ["local x :: number", 1],
-    ["local x :: number = 1", 0],
-    ["local a, b :: number", 1],
-  ] as const)(
+  // A `const` of Luau's (here a Luau unit's) with no value before its `::`
+  // has no initializer either, which both official parsers report on the
+  // declaration before the `::` (#1319).
+  test("\"const x :: number = 1\" reports its missing initializer and the `::`", () => {
+    const { syntaxDiagnostics } = checkLuau("const x :: number = 1\n");
+    expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toEqual([
+      [0, 0, 0, 7, "Missing initializer in const declaration"],
+      [0, 8, 0, 10, "Expected identifier when parsing expression, got '::'"],
+    ]);
+  });
+
+  // A narrative declaration ends at its line, even when it ends in a type
+  // that a `|` line could go on with in Luau code (#1907).
+  test.each(["local x :: number", "local x :: number = 1", "local a, b :: number"])(
     "%j in a narrative body stays one declaration, with no prose after it",
-    (statement, lineBreak) => {
+    (statement) => {
       const tree = parseSource(`${statement}\n`);
       const names: string[] = [];
       const cur = tree.cursor();
@@ -43,7 +49,7 @@ describe("a local target followed by `::`", () => {
         if (cur.name === "LuauSparkdownVariableDefinition") names.push(`${cur.from}-${cur.to}`);
         if (/^(ImplicitAction|TextChunk)$/.test(cur.name)) names.push(cur.name);
       } while (cur.next());
-      expect(names).toEqual([`0-${statement.length + lineBreak}`]);
+      expect(names).toEqual([`0-${statement.length}`]);
     },
   );
 
@@ -58,7 +64,7 @@ describe("a local target followed by `::`", () => {
       } while (cur.next());
       const next = statement.length + 1;
       expect(names).toEqual([
-        `LuauSparkdownVariableDefinition 0-${next}`,
+        `LuauSparkdownVariableDefinition 0-${statement.length}`,
         `TextChunk ${next}-${next + "hello".length}`,
       ]);
     },

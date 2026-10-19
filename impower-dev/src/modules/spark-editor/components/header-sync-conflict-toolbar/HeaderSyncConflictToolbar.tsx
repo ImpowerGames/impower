@@ -11,8 +11,7 @@ export type HeaderSyncConflictToolbarProps = Partial<typeof propDefaults>;
  *
  * Replaces the legacy `<se-header-sync-conflict-toolbar>` (sparkle
  * `<s-button>` + `<s-dialog>`). The dialog is a plain Preact-native
- * modal (no Radix dependency, which had CJS-during-Vite-SSR issues for
- * `react-dialog`'s portal helper). Animated SVG decorations from the
+ * modal; the shared Dialog (#1511) replaces it. Animated SVG decorations from the
  * spec have been simplified to a single arrow icon next to the
  * heading — the imperative SVG animations from the spec were
  * impressive but not essential to the action.
@@ -80,9 +79,6 @@ export default function HeaderSyncConflictToolbar(
 /**
  * Plain Preact-native modal. Only renders when `open`. Overlay click
  * and Escape both call `onClose`. Confirm button calls `onConfirm`.
- *
- * No Radix dependency on purpose — the impower-dev SSR module loader
- * crashes on `@radix-ui/react-dialog`'s CJS portal helpers.
  */
 function ConfirmDialog({
   open,

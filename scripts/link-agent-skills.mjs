@@ -29,7 +29,20 @@ export function linkAgentSkills(root = repositoryRoot, { repairLinks = false, re
       }
       return { destination, action: "exists" };
     }
-    if (stat && (!stat.isDirectory() || fs.readdirSync(destination).length)) throw new Error(`Refusing populated directory or file: ${destination}. Preserve and reconcile its local skills and driver artifacts before installation; no data was replaced. See .agents/skills/RUNNERS.md, Migration and recovery.`);
+    const populated = () => new Error(`Refusing populated directory or file: ${destination}. Preserve and reconcile its local skills and driver artifacts before installation; no data was replaced. See .agents/skills/RUNNERS.md, Migration and recovery.`);
+    if (stat && !stat.isDirectory()) throw populated();
+    const entries = stat ? fs.readdirSync(destination) : [];
+    if (entries.length) {
+      // A real directory holding nothing but links, one per skill and some of
+      // them dangling once a skill was renamed, holds no data of its own: the
+      // explicit repair unlinks each entry and puts the shared link in the
+      // directory's place. Anything else beside the links is preserved and
+      // refused, as any populated directory is.
+      const links = entries.filter((name) => fs.lstatSync(path.join(destination, name)).isSymbolicLink());
+      if (links.length !== entries.length) throw populated();
+      if (!repairLinks) throw new Error(`Refusing directory of links: ${destination} holds only links (${entries.join(", ")}) in place of this checkout's shared link. To replace those link entries with the shared link while preserving their targets, run node scripts/link-agent-skills.mjs --repair-links from this checkout. See .agents/skills/RUNNERS.md, Migration and recovery.`);
+      return { destination, action: "repair", previousTarget: Object.fromEntries(links.map((name) => [name, fs.readlinkSync(path.join(destination, name))])) };
+    }
     return { destination, action: stat ? "empty" : "create" };
   });
   // Emit recovery information before any unlink, including when a later create
@@ -39,7 +52,8 @@ export function linkAgentSkills(root = repositoryRoot, { repairLinks = false, re
     if (plan.action === "exists") continue;
     fs.mkdirSync(path.dirname(plan.destination), { recursive: true });
     if (plan.action === "empty") fs.rmdirSync(plan.destination);
-    if (plan.action === "repair") fs.unlinkSync(plan.destination);
+    if (plan.action === "repair" && typeof plan.previousTarget === "string") fs.unlinkSync(plan.destination);
+    else if (plan.action === "repair") { for (const name of Object.keys(plan.previousTarget)) fs.unlinkSync(path.join(plan.destination, name)); fs.rmdirSync(plan.destination); }
     fs.symlinkSync(process.platform === "win32" ? source : path.relative(path.dirname(plan.destination), source), plan.destination, process.platform === "win32" ? "junction" : "dir");
   }
   return plans.map((plan) => ({ ...plan, target: fs.realpathSync(plan.destination), kind: process.platform === "win32" ? "junction" : "symlink" }));

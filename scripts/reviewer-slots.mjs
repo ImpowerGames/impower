@@ -11,6 +11,19 @@ export const machineSlotRoot = process.platform === "win32"
   ? path.join(process.env.ProgramData || "C:\\ProgramData", "Impower", "reviewer-slots")
   : "/var/tmp/impower-reviewer-slots";
 
+// PowerShell reads a getter that throws as $null, so a null StartTime means
+// either an exiting process or one this user cannot open. Only HasExited
+// separates them; a process still mid-exit is looked up again a few times,
+// and one that never resolves stays unknown rather than reading as absent.
+// The lookup is a PowerShell expression; tests substitute a stand-in object.
+export function windowsProcessIdentity(pid, lookup = `Get-Process -Id ${pid} -ErrorAction Stop`) {
+  const script = `$ErrorActionPreference='Stop'; try{$r='unknown'; for($i=0;$i -lt 5;$i++){$p=${lookup}; $s=$p.StartTime; if($null -ne $s){$r=$s.ToUniversalTime().Ticks.ToString(); break}; if($p.HasExited -eq $true){$r='absent'; break}; Start-Sleep -Milliseconds 50}; $r}catch{if($_.FullyQualifiedErrorId -like 'NoProcessFoundForGivenId*'){'absent'}else{throw}}`;
+  const value = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {encoding:"utf8",windowsHide:true}).trim();
+  if (value === "absent") return null;
+  if (!/^\d+$/.test(value)) throw new Error("Process start identity unavailable");
+  return {pid, start:value};
+}
+
 // null means confirmed absent; failures to inspect are unknown, never absence.
 export function processIdentity(pid) {
   if (!Number.isSafeInteger(pid) || pid < 1) throw new Error("Invalid process ID");
@@ -25,13 +38,7 @@ export function processIdentity(pid) {
     if(!boot || !/^\d+$/.test(fields[19]??""))throw new Error("Process start identity unavailable");
     return { pid, start: boot + ":" + fields[19] };
   }
-  if (process.platform === "win32") {
-    const script = `$ErrorActionPreference='Stop'; try{$p=Get-Process -Id ${pid} -ErrorAction Stop; $p.StartTime.ToUniversalTime().Ticks.ToString()}catch{if($_.FullyQualifiedErrorId -like 'NoProcessFoundForGivenId*'){'absent'}else{throw}}`;
-    const value = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {encoding:"utf8",windowsHide:true}).trim();
-    if (value === "absent") return null;
-    if (!/^\d+$/.test(value)) throw new Error("Process start identity unavailable");
-    return {pid, start:value};
-  }
+  if (process.platform === "win32") return windowsProcessIdentity(pid);
   throw new Error("Reviewer slots require Windows or Linux process identity support");
 }
 const same = (a,b) => a && b && a.pid === b.pid && a.start === b.start;

@@ -1,9 +1,6 @@
 import { ConditionalSingleBranch } from "./ConditionalSingleBranch";
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Story } from "../Story";
 import type {
   ProgramEmitter,
@@ -12,8 +9,6 @@ import type {
 import { Op } from "../../../../../program/ProgramInstructions";
 
 export class Conditional extends ParsedObject {
-  private _reJoinTarget: RuntimeControlCommand | null = null;
-
   constructor(
     public initialCondition: Expression,
     public branches: ConditionalSingleBranch[],
@@ -33,39 +28,13 @@ export class Conditional extends ParsedObject {
     return "Conditional";
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    const container = new RuntimeContainer();
-
-    // Initial condition
-    if (this.initialCondition) {
-      container.AddContent(this.initialCondition.runtimeObject);
-    }
-
-    // Individual branches
+  protected override Prepare(): boolean {
+    this.initialCondition?.prepare();
     for (const branch of this.branches) {
-      const branchContainer = branch.runtimeObject;
-      container.AddContent(branchContainer);
+      branch.prepare();
     }
-
-    // If it's a switch-like conditional, each branch
-    // will have a "duplicate" operation for the original
-    // switched value. If there's no final else clause
-    // and we fall all the way through, we need to clean up.
-    // (An else clause doesn't dup but it *does* pop)
-    if (
-      this.initialCondition !== null &&
-      this.branches[0]!.ownExpression !== null &&
-      !this.branches[this.branches.length - 1]!.isElse
-    ) {
-      container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
-    }
-
-    // Target for branches to rejoin to
-    this._reJoinTarget = RuntimeControlCommand.NoOp();
-    container.AddContent(this._reJoinTarget);
-
-    return container;
-  };
+    return true;
+  }
 
   // One chunk of relative jumps: each branch's test, as a decision, and its
   // content, whose body is a block of the statement, then a jump past the
@@ -79,31 +48,31 @@ export class Conditional extends ParsedObject {
     for (const branch of this.branches) {
       branch.EmitBranch(emitter, end);
     }
+    // With no branch to take the value (a `match` with no arm, which the
+    // lowering reports), it is popped as well.
+    const first = this.branches[0];
     if (
       this.initialCondition !== null &&
-      this.branches[0]!.ownExpression !== null &&
-      !this.branches[this.branches.length - 1]!.isElse
+      (!first ||
+        (first.ownExpression !== null &&
+          !this.branches[this.branches.length - 1]!.isElse))
     ) {
       emitter.emit(Op.Pop);
     }
     emitter.bind(end);
   }
 
-  public override ResolveReferences(context: Story): void {
-    const pathToReJoin = this._reJoinTarget!.path;
-
-    for (const branch of this.branches) {
-      if (!branch.returnDivert) {
-        throw new Error();
-      }
-
-      branch.returnDivert.targetPath = pathToReJoin;
+  public override ResolveWith(context: Story): void {
+    if (!this.isPrepared) {
+      throw new TypeError("A conditional resolved before it was generated");
     }
 
-    super.ResolveReferences(context);
-  }
+    for (const branch of this.branches) {
+      if (!branch.isPrepared) {
+        throw new Error();
+      }
+    }
 
-  override OnResetRuntime(): void {
-    this._reJoinTarget = null;
+    super.ResolveWith(context);
   }
 }

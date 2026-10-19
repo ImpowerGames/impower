@@ -13,6 +13,7 @@
 // replays the route (what `workspace.worker` does) and its checkpoint is loaded
 // into a fresh CONNECTED game that previews the point (what the player does).
 
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { describe, expect, test } from "vitest";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
@@ -45,7 +46,9 @@ const writtenText = (harness: any): string =>
     .join(" ");
 
 /** Scrub to `line` the way the editor does, and return what got written. */
-async function scrubTo(line: number): Promise<{ path: string | null; text: string }> {
+async function scrubTo(
+  line: number,
+): Promise<{ address: ProgramAddress | null; text: string }> {
   const simulator = createHarness(SOURCE, 0, { connect: false });
   const simulated: any = simulator.game;
   simulated.setStartFrom({ file: MAIN_URI, line });
@@ -56,8 +59,8 @@ async function scrubTo(line: number): Promise<{ path: string | null; text: strin
   const player = createHarness(SOURCE, line, { loadCheckpoint: checkpoint });
   await player.ready;
   player.reset();
-  const path = await player.preview(line);
-  return { path, text: writtenText(player) };
+  const address = await player.preview(line);
+  return { address, text: writtenText(player) };
 }
 
 describe("preview point resolution (#490)", () => {
@@ -79,8 +82,8 @@ describe("preview point resolution (#490)", () => {
   test("each content line resolves to a different beat", async () => {
     const dialogue = await scrubTo(lineOf("Wow."));
     const action = await scrubTo(lineOf("indignant"));
-    expect(dialogue.path).toBeTruthy();
-    expect(action.path).toBeTruthy();
-    expect(action.path).not.toBe(dialogue.path);
+    expect(dialogue.address).toBeTruthy();
+    expect(action.address).toBeTruthy();
+    expect(action.address).not.toBe(dialogue.address);
   });
 });

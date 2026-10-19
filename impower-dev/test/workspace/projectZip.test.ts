@@ -1,15 +1,10 @@
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import { unzipSync, zipSync } from "fflate";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   buildZippable,
   parseUnzipEntries,
 } from "../../../packages/opfs-workspace/src/utils/assetArchive";
-
-// Stub the Workspace singleton (Worker-spawning, circular import).
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { fs: {}, ls: {}, configuration: { settings: {} } },
-}));
 
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 

@@ -181,6 +181,25 @@ export class Connection {
     return response;
   }
 
+  /** Wait for the page's answer to a request it receives inside another
+   *  message, not on its own: an animation a composed beat carries (#1820),
+   *  which the page answers once the animation has played. */
+  expect<R>(msg: RequestMessage): Promise<R> {
+    return new Promise<R>((resolve, reject) => {
+      this._outgoingRequestResolveCallbacks[msg.id] = resolve;
+      this._outgoingRequestRejectCallbacks[msg.id] = reject;
+    });
+  }
+
+  /** Stop waiting for an answer `expect` waits for, with `error`: the
+   *  message that carried the request will never reach the page. */
+  cancel(id: string | number, error: ResponseError): void {
+    const reject = this._outgoingRequestRejectCallbacks[id];
+    delete this._outgoingRequestResolveCallbacks[id];
+    delete this._outgoingRequestRejectCallbacks[id];
+    reject?.(error);
+  }
+
   protected handleResponse<M extends string, R>(
     message: ResponseMessage<M, R>,
   ): void {

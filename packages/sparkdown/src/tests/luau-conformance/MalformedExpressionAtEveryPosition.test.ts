@@ -1,10 +1,10 @@
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "../compiler/officialSyntax";
 import { diagnosticMessage } from "./diagnosticTestHarness";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { functionSpans } from "../programListing";
 
 // An expression that is missing, or that cannot start with the token where
 // one must stand, is one syntax error wherever an expression can appear,
@@ -55,7 +55,27 @@ function compileDocument(text: string) {
     .filter((d) => d.severity === 1)
     .sort((a, b) => a.range!.start.line - b.range!.start.line || a.range!.start.character - b.range!.start.character)
     .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${diagnosticMessage(d)}`);
-  return { errors, functions: program.pathLocations?.functions };
+  return { errors, functions: program.chunks ? functionSpans(program) : withoutChunks(text, errors) };
+}
+
+/** Two kinds of document build no statement chunks: one whose loop test is
+ *  malformed, which the program writer has no form for, and one with a
+ *  malformed `store`, whose declarations cannot run. Each reports its syntax
+ *  error, and the compile makes no program (#705), so there are no function
+ *  spans to read: the test holds such a document to its errors alone. Any
+ *  other compile that builds no chunks fails the test. */
+function withoutChunks(text: string, errors: readonly string[]): null {
+  const loopTest = /(^|\n) *(while|until|repeat)\b|\buntil\b/.test(text);
+  const malformedStore = /(^|\n) *store /.test(text);
+  expect(loopTest || malformedStore, `the compile builds no chunks: ${JSON.stringify(text)}`).toBe(true);
+  expect(errors.length, `no error for ${JSON.stringify(text)}`).toBeGreaterThan(0);
+  return null;
+}
+
+/** Holds a document's function spans to `expected`, when its compile built
+ *  the chunks they are read from (`withoutChunks`). */
+function expectSpans(functions: ReturnType<typeof functionSpans> | null, expected: unknown) {
+  if (functions !== null) expect(functions).toEqual(expected);
 }
 
 // Every position an expression can appear, with `E` where the expression
@@ -127,7 +147,7 @@ describe("a malformed expression at every position", () => {
       const text = lines.join("\n");
       const { errors, functions } = compileDocument(text);
       expect(errors).toEqual(luauFirstError(text));
-      expect(functions).toEqual([{ path: "f", lines: [0, 0, lines.length - 2] }]);
+      expectSpans(functions, [{ path: "f", lines: [0, 0, lines.length - 2] }]);
     },
   );
 
@@ -162,7 +182,7 @@ describe("the reported layouts", () => {
     const { errors, functions } = compileDocument(text);
     expect(errors).toEqual(messages);
     expect(errors).toEqual(luauFirstError(text));
-    expect(functions).toEqual([{ path: "f", lines: [0, 0, text.split("\n").length - 2] }]);
+    expectSpans(functions, [{ path: "f", lines: [0, 0, text.split("\n").length - 2] }]);
   });
 
   // #1156: a dangling member access after a receiver that is not a plain
@@ -185,7 +205,7 @@ describe("the reported layouts", () => {
     const { errors, functions } = compileDocument(text);
     expect(errors).toHaveLength(1);
     expect(errors).toEqual(luauFirstError(text));
-    expect(functions).toEqual([{ path: "f", lines: [0, 0, endLine] }]);
+    expectSpans(functions, [{ path: "f", lines: [0, 0, endLine] }]);
   });
 
   test.each([
@@ -238,8 +258,10 @@ describe("the reported layouts", () => {
     // An if expression with no condition, in a value.
     ["function f()\n  local a = if then 1 else 2\nend", ["1:15-1:19 Expected identifier when parsing expression, got 'then'"]],
     ["function f(c)\n  local a = if c then 1 elseif then 2 else 3\n  return a\nend", ["1:31-1:35 Expected identifier when parsing expression, got 'then'"]],
-    // The checker's statement after a narrative line is never named.
-    ["-> s\nscene s\n  local x = t:m\n  Hello.\nend", []],
+    // The checker's statement after a narrative line is never named: the
+    // declaration ends at its line, so the call is missing its arguments at
+    // the line's end (#1907).
+    ["-> s\nscene s\n  local x = t:m\n  Hello.\nend", ["2:12-3:0 Expected '(', '{' or <string> when parsing function call, got <eof>"]],
     // Round 1's undirected review: an error on the line before that leaves
     // nothing open hides no later mistake.
     ["function f()\n  local x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
@@ -335,7 +357,7 @@ describe("the reported layouts", () => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
     if (source.startsWith("function")) {
-      expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
+      expectSpans(functions, [{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
       expectLuauReports(source, messages);
     }
   });
@@ -368,14 +390,18 @@ describe("the reported layouts", () => {
       "1:24-1:29 Expected identifier, got 'until'",
       "1:48-1:49 Expected identifier when parsing expression, got ';'",
     ]],
+    // The `then` after the table belongs to no `if` (Luau read `if` as the
+    // name after `t.a.`), so the grammar leaves it unread, and Luau's error
+    // for it is reported (#1905).
     ["function f(t)\n  local a, b = 1, t.a. if {1 +} then end\nend", [
       "1:23-1:25 Expected identifier, got 'if'",
       "1:30-1:31 Expected identifier when parsing expression, got '}'",
+      "1:32-1:36 Expected identifier when parsing expression, got 'then'",
     ], false],
   ] as [string, string[], boolean?][])("interim: %j reports %j", (source, messages, keepsEnd = true) => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
-    if (keepsEnd) expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
+    if (keepsEnd) expectSpans(functions, [{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
     expectLuauReports(source, messages);
   });
 
@@ -414,31 +440,31 @@ describe("the reported layouts", () => {
   });
 
   // In a narrative body a declaration ends at its line, and the checker does
-  // not read the story after it: what the statement is missing is
-  // Sparkdown's own error, once.
+  // not read the story after it: what the statement is missing is missing
+  // at the end of its line, `<eof>` to Luau's reading of it (#1907), once.
   test.each([
-    ["-> s\nscene s\n  local y = 1 +\n  local z = 2\nend", ["3:2-3:7 Expected identifier when parsing expression, got 'local'"]],
-    ["-> s\nscene s\n  local y = 1 +\nend", ["3:0-3:3 Expected identifier when parsing expression, got 'end'"]],
-    ["-> s\nscene s\n  local a, b = 1,\n  Hello there.\n  local c = 3\nend", ["2:16-2:17 Expected identifier when parsing expression, got 'Hello'"]],
+    ["-> s\nscene s\n  local y = 1 +\n  local z = 2\nend", ["2:15-3:0 Expected identifier when parsing expression, got <eof>"]],
+    ["-> s\nscene s\n  local y = 1 +\nend", ["2:15-3:0 Expected identifier when parsing expression, got <eof>"]],
+    ["-> s\nscene s\n  local a, b = 1,\n  Hello there.\n  local c = 3\nend", ["2:17-3:0 Expected identifier when parsing expression, got <eof>"]],
     ["store hp = 100,\nThe hero has {hp} health.\nstore mp = 50,\nscene s\n  Hi.\nend", [
-      "0:14-0:15 Expected identifier when parsing expression, got 'The'",
-      "2:13-2:14 Expected identifier when parsing expression, got 'scene'",
+      "0:14-0:15 Expected identifier when parsing expression, got <eof>",
+      "2:13-2:14 Expected identifier when parsing expression, got <eof>",
     ]],
-    ["store a, b = 1,\n  2", ["0:14-0:15 Expected identifier when parsing expression, got '2'"]],
+    ["store a, b = 1,\n  2", ["0:14-0:15 Expected identifier when parsing expression, got <eof>"]],
     ["store x = 1 +;", ["0:13-0:14 Expected identifier when parsing expression, got ';'"]],
-    ["store x = 1 +\nlocal z = 2", ["1:0-1:5 Expected identifier when parsing expression, got 'local'"]],
+    ["store x = 1 +\nlocal z = 2", ["0:13-1:0 Expected identifier when parsing expression, got <eof>"]],
     // Round 2: a `store` declaration's complete value ends its statement.
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
     // Round 3: a line break inside a comment ends the line too.
     ["function f(t)\n  store x = 0xZ --[[\n  ]] 2\nend", ["1:12-1:15 Malformed number", "2:5-2:6 Expected identifier when parsing expression, got '2'"]],
     // A keyword on the line after a `.` with no name begins a statement.
     ["function f(t)\n  store x = t.a.\n  return 1 +;\nend", [
-      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, or divert target.",
       "2:2-2:8 Expected identifier, got 'return'",
       "2:12-2:13 Expected identifier when parsing expression, got ';'",
     ]],
     ["function f(t)\n  store x = t.a.\n  --[[c]] return 1 +;\nend", [
-      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, or divert target.",
       "2:10-2:16 Expected identifier, got 'return'",
       "2:20-2:21 Expected identifier when parsing expression, got ';'",
     ]],

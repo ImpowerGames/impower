@@ -6,9 +6,22 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { readReports } from './feedback-reports.mjs';
 import { hydrateReports, persistReports, prepareReports, inspectReportsArchive } from './feedback-archive.mjs';
+import { readRepos, ticketsRepo } from '../../repos.mjs';
 
-const REPO = 'ImpowerGames/impower';
-const INBOX = 510;
+// The inbox and its tickets live in the tickets repository the repos file
+// names; pull requests stay in the code repository.
+const REPOS = readRepos();
+const REPO = ticketsRepo(REPOS);
+const CODE = REPOS.code;
+const INBOX = REPOS.feedbackInbox;
+// A pull request as written in ticket text: once tickets live apart from the
+// code, a bare #N would name a ticket, so it names the code repository. The
+// ledger keeps its `applied in PR #N` grammar; only rendered text changes.
+const prRef = number => `${REPOS.cutover ? CODE : ''}#${number}`;
+const displayStatus = status => status.replace(/^applied in PR #(\d+)$/, (_, number) => `applied in PR ${prRef(number)}`);
+// The ledger stores the earlier-feedback prefix in that grammar too, whichever
+// position wrote it, so rendering qualifies it rather than the stored text.
+const displayContext = text => text.replace(/^Earlier feedback \(applied in PR #(\d+); context only\):$/gm, (_, number) => `Earlier feedback (applied in PR ${prRef(number)}; context only):`);
 const PLAN_VERSION = 4;
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 20);
 const clean = value => value.replace(/\r\n/g, '\n').trim();
@@ -27,7 +40,7 @@ const reportExcerpt = text => { const points = Array.from(text); return points.l
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
 // A row needs a group when it has no Task yet or carries a new observation for its Task.
 const needsGroup = row => row.status === 'open' || Boolean(row.observations?.length);
-const DEFER_REMOVED = 'The defer action was removed by #947: every counted problem is filed as a workflow: skills Task attached to #510. Group the problem as ticket, existing or applied; close an unwanted Task as not planned.';
+const DEFER_REMOVED = `The defer action was removed by #947: every counted problem is filed as a workflow: skills Task attached to #${INBOX}. Group the problem as ticket, existing or applied; close an unwanted Task as not planned.`;
 
 function fencedAt(body, offset = body.length) {
   let fence;
@@ -276,12 +289,12 @@ const onlyObservations = row => Boolean(row.observations?.length && taskOf(row.s
 function description(rows) {
   return rows.map(row => `### ${row.skill} (${row.problemId}; ${reportCount(row)})\n\n` + (onlyObservations(row)
     ? row.observations.map(item => `Intake #${item.id}:\n\n${item.friction}\n\nProposed change: ${item.edit}`).join('\n\n')
-    : `${row.friction}\n\nProposed change: ${row.edit}`)).join('\n\n');
+    : `${displayContext(row.friction)}\n\nProposed change: ${displayContext(row.edit)}`)).join('\n\n');
 }
 
 function referenceContext(rows, context, target) {
   const references = [
-    ...rows.filter(row => row.previousStatus).map(row => `Previous reference for ${row.problemId}: ${row.previousStatus}${row.previousUnmerged ? '; the pull request closed without merging; its proposal remains actionable' : ''}.`),
+    ...rows.filter(row => row.previousStatus).map(row => `Previous reference for ${row.problemId}: ${displayStatus(row.previousStatus)}${row.previousUnmerged ? '; the pull request closed without merging; its proposal remains actionable' : ''}.`),
     ...rows.filter(row => taskOf(row.status) && taskOf(row.status) !== target).map(row => `Recorded Task for ${row.problemId}: #${taskOf(row.status)}.`),
   ];
   return [...references, context].filter(Boolean).join('\n\n');
@@ -289,12 +302,12 @@ function referenceContext(rows, context, target) {
 
 function evidenceBody(rows, marker, context, target) {
   context = referenceContext(rows, context, target);
-  return `## Feedback from #510\n\n${description(rows)}${context ? `\n\n## Additional context\n\n${context}` : ''}\n\n${marker}\n`;
+  return `## Feedback from #${INBOX}\n\n${description(rows)}${context ? `\n\n## Additional context\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 function ticketBody(rows, marker, context) {
   context = referenceContext(rows, context);
-  return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #510.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
+  return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #${INBOX}.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #${INBOX}.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 export function preview(plan) {
@@ -309,7 +322,7 @@ export function preview(plan) {
 
 function summaryText(plan, marker, rows, filed, applied, elsewhere = []) {
   const history = [...historicalTargets(plan.body)];
-  const mapped = rows.map(row => `${row.problemId} → ${taskOf(row.status) ? `#${taskOf(row.status)}` : row.status}`);
+  const mapped = rows.map(row => `${row.problemId} → ${taskOf(row.status) ? `#${taskOf(row.status)}` : displayStatus(row.status)}`);
   return `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${plan.migrated ? ` Retired ${plan.migrated} table rows into the archive.` : ''}${elsewhere.length ? ` Left under another parent: ${elsewhere.join(', ')}.` : ''} Problems: ${mapped.join('; ') || 'none'}.${history.length ? `\n<!-- skill-feedback-history:v1 ${Buffer.from(JSON.stringify(history)).toString('base64')} -->` : ''}`;
 }
 
@@ -387,7 +400,7 @@ export async function applyPlan(plan, api) {
     // The body carries prose, the archive pointer and one summary; GitHub refuses an issue body or comment over 65,536 characters.
     // Every Task number, reopen note and foreign parent is counted at its largest so the refusal comes before any write.
     const appliedContext = group => literalDisplay(referenceContext(rows.filter(row => group.keys.includes(row.problemId)), ''));
-    const projectedSummary = summaryText(plan, marker, projectedRows.map(row => ({ ...row, status: `applied in PR ${largest}` })), plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(group => `${largest} (${appliedContext(group)})`), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
+    const projectedSummary = summaryText(plan, marker, projectedRows.map(row => ({ ...row, status: `applied in PR ${largest}` })), plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(group => `${prRef(Number.MAX_SAFE_INTEGER)} (${appliedContext(group)})`), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
     const projectedBody = removeLegacyTable(stripSummaryBlocks(plan.body), liveLedger).trimEnd().length + projectedSummary.length + 512;
     if (projectedBody > 65536 || projectedSummary.length > 65536) throw new Error(`The inbox body would reach ${projectedBody} characters and the summary comment ${projectedSummary.length}, over GitHub's 65,536-character limit. No tickets or intake were changed; shorten the inbox prose before planning again.`);
     const filed = [], applied = [];
@@ -425,9 +438,9 @@ export async function applyPlan(plan, api) {
         filed.push(`#${number} (existing${reopenedNow || plan.references?.issues?.[number]?.state === 'closed' ? ', reopened' : ''})`);
       } else {
         const target = await api.pr(number);
-        if (closedUnmerged(target)) throw new Error(`PR #${number} is closed and unmerged; select work that still carries the edit.`);
+        if (closedUnmerged(target)) throw new Error(`PR ${prRef(number)} is closed and unmerged; select work that still carries the edit.`);
         const prior = referenceContext(grouped, '');
-        applied.push(`#${number}${prior ? ` (${literalDisplay(prior)})` : ''}`);
+        applied.push(`${prRef(number)}${prior ? ` (${literalDisplay(prior)})` : ''}`);
       }
       for (const row of grouped) row.status = group.action === 'applied' ? `applied in PR #${number}` : `ticketed #${number}`;
     }
@@ -465,10 +478,11 @@ export async function applyPlan(plan, api) {
   return { summary, url: readback.html_url, run };
 }
 
-function github(scratch) {
+// The GitHub adapter; `run` takes the gh arguments and returns its stdout.
+export function github(scratch, run = args => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, windowsHide: true })) {
   let sequence = 0;
   let directory;
-  const gh = args => JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, windowsHide: true }));
+  const gh = args => JSON.parse(run(args));
   const api = path => gh(['api', `repos/${REPO}/${path}`]);
   const pages = path => gh(['api', `repos/${REPO}/${path}`, '--paginate', '--slurp']).flat();
   function bodyFile(body) {
@@ -477,15 +491,15 @@ function github(scratch) {
   }
   return {
     inbox: () => api(`issues/${INBOX}`), comments: () => pages(`issues/${INBOX}/comments?per_page=100`),
-    issues: () => pages('issues?state=all&per_page=100'), issue: number => api(`issues/${number}`), pr: number => api(`pulls/${number}`),
+    issues: () => pages('issues?state=all&per_page=100'), issue: number => api(`issues/${number}`), pr: number => gh(['api', `repos/${CODE}/pulls/${number}`]),
     issueComments: number => pages(`issues/${number}/comments?per_page=100`),
     subIssues: () => pages(`issues/${INBOX}/sub_issues?per_page=100`),
     addSubIssue: id => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${INBOX}/sub_issues`, '-F', `sub_issue_id=${id}`]),
     reopenIssue: number => gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${number}`, '-f', 'state=open']),
     postIssueComment: (number, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${number}/comments`, '-F', `body=@${bodyFile(body)}`]),
     createTicket: (title, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-F', `body=@${bodyFile(body)}`, '-f', 'type=Task', '-f', 'labels[]=workflow: skills']),
-    updateBody: body => execFileSync('gh', ['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)], { encoding: 'utf8', windowsHide: true }),
-    deleteComment: id => execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`], { encoding: 'utf8', windowsHide: true }),
+    updateBody: body => run(['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)]),
+    deleteComment: id => run(['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`]),
     postSummary: body => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${INBOX}/comments`, '-F', `body=@${bodyFile(body)}`]),
   };
 }

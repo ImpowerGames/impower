@@ -1,0 +1,3 @@
+function g()
+  type F = <a>() -> <b>(a, b) -> a
+end

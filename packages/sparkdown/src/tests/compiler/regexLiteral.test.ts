@@ -86,8 +86,10 @@ describe("regex literals", () => {
     }
   });
 
+  // After a value, `//` is Luau's floor division, so the store divides by `b`,
+  // which holds a number here.
   test("`@//` line comments are not swallowed as an empty regex", () => {
-    const r = compile(`store a = 1 // a comment\n`);
+    const r = compile(`store b = 2\nstore a = 1 // b\n`);
     expect(r.diags).toEqual([]);
   });
 });

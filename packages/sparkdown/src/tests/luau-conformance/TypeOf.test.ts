@@ -2,13 +2,13 @@ import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
 // `type(v)` / `typeof(v)` should report "function" for callable
-// values (DivertTargetValue for bare knot references, closure-shaped
+// values (symbol values for bare knot references, closure-shaped
 // ObjectValues for anonymous functions with upvalues, and the
 // stdlib-fn sentinel for bare-name stdlib references like `type`,
 // `assert`, `print`).
 //
 // Two-part fix landed for these:
-//   - `luauTypeOf` extended to return "function" for DivertTargetValue,
+//   - `luauTypeOf` extended to return "function" for a symbol value,
 //     VariablePointerValue, closure-ObjectValue (`__closure_fn` tag),
 //     and the new stdlib-fn sentinel (`__stdlib_fn` tag).
 //   - Story.ts runtime variable-lookup fallback: when the name isn't
@@ -51,8 +51,8 @@ describe("type(v) reports 'function' for callable values", () => {
     expect(r.returnedOK).toBe(true);
   });
 
-  test("type(user_named_fn) == 'function' (DivertTargetValue branch)", () => {
-    // Bare-knot reference resolves to a DivertTargetValue at runtime.
+  test("type(user_named_fn) == 'function' (symbol value branch)", () => {
+    // Bare-knot reference resolves to a symbol value at runtime.
     // Previously `type(f)` returned "userdata" — now correctly
     // returns "function".
     const r = runConformanceSource(`local function f() end

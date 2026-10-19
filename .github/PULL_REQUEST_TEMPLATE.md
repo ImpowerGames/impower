@@ -1,47 +1,11 @@
 <!--
-Title: conventional commit form, `type(scope): summary`, with the issue number at the end when there is one. Types: feat, fix, perf, refactor, test, docs, chore, build, ci. Scope is the package or area (compiler, engine, web-editor, vscode, sparkle, github). Example: "fix(compiler): accumulate all matching filtered_layers (#302)".
+Title: conventional commit form, `type(scope): summary`, ending with the internal ticket in parentheses. Types: feat, fix, perf, refactor, test, docs, chore, build, ci. Scope is the package or area (compiler, engine, web-editor, vscode, sparkle, github). Example: "fix(compiler): accumulate all matching filtered_layers (I-302)". A pull request that closes several tickets names their umbrella.
 
-Open as a draft until it is ready for review. Keep every heading; write "None" or "Not applicable" with a short reason under one that does not apply. Delete these comments before opening.
+Open as a draft until it is ready for review. This body is one summary paragraph and the closing lines, nothing else. The motivation, changes, type of change, testing and verification, checklist and notes for reviewers go in the PR report, a comment on the ticket in the internal tracker that follows .agents/templates/pr-report.md, and every review comment goes on that ticket too. Delete these comments before opening.
 -->
 
-## Summary
+<!-- One paragraph a reviewer could repeat to someone else: what this pull request does. -->
 
-<!-- One to three sentences a reviewer could repeat to someone else: what this pull request does. -->
+Closes ImpowerGames/impower-internal#
 
-Closes #
-
-<!-- Keep the line above, with the issue number filled in, whenever this pull request resolves an issue. GitHub closes the issue on merge only when a closing keyword and the number appear together in this body; a number in the title does nothing. For several issues, repeat the keyword: "Closes #12, closes #34". When there is no issue, replace the line with "No linked issue." -->
-
-## Motivation
-
-<!-- Why the change is needed. For a bug fix, state what was going wrong and the cause, with file:line references at the base commit. When there is no issue, describe the need here. -->
-
-## Changes
-
-<!-- What changed, as a bulleted list grouped by package or area. Call out anything that changes behavior, a public API, the Sparkdown syntax, or a generated file. Mention alternatives you rejected where a reviewer could reasonably ask. -->
-
-## Type of change
-
-<!-- One line: bug fix, feature, refactor or cleanup, performance, documentation, build/tooling/CI, or breaking change. List more than one where it applies, e.g. "feature, documentation". A breaking change also needs its migration described under Changes. -->
-
-Type:
-
-## Testing and verification
-
-<!-- How you know it works. List tests added or changed with their paths, and the commands run with their results. For a bug fix, confirm the new test fails without the fix. For anything visible, attach before and after screenshots of the running editor, extension, or player, embedded where you describe what each frame shows; `gh pr create --attach` and `gh pr edit --attach` upload them (see .agents/skills/references/publishing.md). For performance, give before and after numbers and how they were measured. For tooling or configuration, say what you ran to prove the change does what it claims. -->
-
-## Checklist
-
-<!-- Fill in what you actually did after each label. Leave a label blank, or write "not applicable" with a reason, rather than describing something you didn't do. -->
-
-Tests run:
-
-Visual check:
-
-Docs:
-
-Body read back:
-
-## Notes for reviewers
-
-<!-- Trade-offs, known limitations, follow-up work with the issue that tracks it, and where a careful reviewer should look first. -->
+<!-- Keep the line above, with the ticket number filled in. GitHub closes the ticket on merge only when a closing keyword and the reference appear together in this body; the (I-N) in the title closes nothing, and a bare "#N" here names a pull request in this repository. When the change also resolves an issue filed in this repository, add "Closes #N" for it on its own line. A pull request that closes several tickets closes their umbrella and each of them: "Closes ImpowerGames/impower-internal#40, closes ImpowerGames/impower-internal#12, closes ImpowerGames/impower-internal#34". When there is no ticket, replace the line with "No linked issue." -->

@@ -120,6 +120,9 @@ test("open, settle, hover, and read through both editor protocol transports", { 
       observer.on("message", receive);
       try {
         await once(observer, "open");
+        // Clients receive editor notifications only after subscribing; subscribe
+        // to all so an echo would arrive if the bridge reflected injections.
+        for (const client of [socket, observer]) client.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: {} }));
         socket.send(JSON.stringify({ jsonrpc: "2.0", method: "test/noEffect", params: {} }));
         await socketRequest(socket, "sender-barrier", "window/loadedProjectId");
         await socketRequest(observer, "observer-barrier", "window/loadedProjectId");

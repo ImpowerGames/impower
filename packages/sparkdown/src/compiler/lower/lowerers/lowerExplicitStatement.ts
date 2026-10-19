@@ -15,7 +15,7 @@ import {
   type StatementSite,
 } from "./lowerLuauStatement";
 
-const EXPLICIT_STATEMENT = nodeNameSet(["LuauExplicitStatement", "LuauSparkdownExplicitStatement", "LuauSparkdownExplicitBlockStatement"]);
+const EXPLICIT_STATEMENT = nodeNameSet(["LuauSparkdownExplicitStatement", "LuauSparkdownExplicitBlockStatement"]);
 
 /**
  * A statement marked with `&`, which writes Luau where narrative would
@@ -23,8 +23,9 @@ const EXPLICIT_STATEMENT = nodeNameSet(["LuauExplicitStatement", "LuauSparkdownE
  * `& foo()` (a call whose value is discarded), and `& store x = 5`,
  * `& const x = 5`, `& local x = 5`, which declare as the unmarked
  * declarations do. The statement it marks lowers as that statement does.
- * The validators of its node report a redundant `&` in a function body and
- * what its list leaves missing (`validateStatementNode`).
+ * The marker stands only in story text: a function body is Luau, with no
+ * marker. The validators of its node report what its list leaves missing
+ * (`validateStatementNode`).
  */
 export function lowerExplicitStatement(
   stat: AstStatSparkdownExplicit,
@@ -36,7 +37,7 @@ export function lowerExplicitStatement(
   // A statement's weave is unwrapped wherever its content is placed (the
   // enclosing flow's weave, a choice body, an alternator arm), so the weave's
   // range, stamped by `lower()`, no longer reaches the statements it held.
-  // Give them the line's range themselves: `program.pathLocations` then has
+  // Give them the line's range themselves: the statement's chunk then has
   // rows for the line, so a runtime error it raises is reported on it and
   // PLAY, a preview or a breakpoint on it resolves to it. A `& local`
   // declaration runs in the flow like any other logic line and is stamped

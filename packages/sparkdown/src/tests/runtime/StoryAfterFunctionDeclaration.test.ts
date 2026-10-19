@@ -5,6 +5,7 @@
 // function's own body, where they would sit after its `return`.
 
 import { describe, expect, test } from "vitest";
+import { flowListings, pushesString } from "../programListing";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const LESS = `function less(a, b)\n  return a < b\nend\n`;
@@ -24,20 +25,21 @@ function linesFromTop(source: string): string[] {
   return lines;
 }
 
-/** The named top-level containers of the compiled story, keyed by name. */
-function namedContainers(source: string): Record<string, unknown> {
+/** The instructions of each flow of the compiled program (a scene, a
+ *  function), keyed by its name (`flowListings`). */
+function namedContainers(source: string): Record<string, string[]> {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
-  const root = (ctx.compiledJson as { root: unknown[] }).root;
-  return (root.at(-1) ?? {}) as Record<string, unknown>;
+  return Object.fromEntries(flowListings(ctx.root));
 }
 
 // Luau's parser's error for a line of words in a function body.
 const INCOMPLETE =
   "Incomplete statement: expected assignment or a function call";
 
-const holds = (container: unknown, text: string) =>
-  JSON.stringify(container).includes(JSON.stringify(`^${text}`));
+/** Whether a flow's code writes `text`. */
+const holds = (flow: string[] | undefined, text: string) =>
+  pushesString(flow ?? [], text);
 
 describe("story lines after a function declaration", () => {
   test("lines after a function declared first play from the top", () => {
@@ -71,20 +73,33 @@ describe("story lines after a function declaration", () => {
   test("lines of a function's body that are not Luau statements are each reported as an error", () => {
     // A function body is Luau, so a line such as `Hello there.` is not a
     // story line there but a Luau statement Luau cannot read (#1158). Each
-    // one gets Luau's error.
+    // one gets Luau's error: `Hello`, the `.` whose name Luau reads from the
+    // next line, which a Sparkdown access path cannot, and the `?` no rule
+    // reads with the `you` it leaves incomplete (#1905).
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
+    expect(ctx.errorMessages.map((m) => m.split("\n")[0])).toEqual([
+      "Expected identifier after '.' on the same line",
+      INCOMPLETE,
+      INCOMPLETE,
+      "Expected identifier when parsing expression, got '?'",
+    ]);
   });
 
-  test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
-    // The line does not close the definition early, so its `end` closes it
-    // and the line after the function is in the root flow (#1093).
+  test("a function whose body is only lines of words ends at its `end`, and the line after it plays from the top", () => {
+    // GRAMMAR.md section 13.2: a pure-Luau body holds no story text, so each
+    // line is reported as Luau, and the definition still closes at its `end`
+    // (#1093). The errors are those of the test above (#1905).
     const ctx = makeRuntimeStoryFromSource(
-      `function greet()\n  local x = 1\n  How are you?\nend\nAfter it.\n`,
+      `function greet\n  Hello there.\n  How are you?\nend\nAfter it.\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect(ctx.errorMessages).toEqual([INCOMPLETE]);
+    expect(ctx.errorMessages.map((m) => m.split("\n")[0])).toEqual([
+      "Expected identifier after '.' on the same line",
+      INCOMPLETE,
+      INCOMPLETE,
+      "Expected identifier when parsing expression, got '?'",
+    ]);
     const lines: string[] = [];
     while (ctx.story.canContinue) {
       const text = ctx.story.Continue();
@@ -93,9 +108,28 @@ describe("story lines after a function declaration", () => {
       }
     }
     expect(lines).toEqual(["After it.\n"]);
-    const root = (ctx.compiledJson as { root: unknown[] }).root;
-    const named = (root.at(-1) ?? {}) as Record<string, unknown>;
-    expect(holds(named["greet"], "After it.")).toBe(false);
+    const named = flowListings(ctx.root);
+    expect(holds(named.get("greet"), "After it.")).toBe(false);
+  });
+
+  test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
+    // The line does not close the definition early, so its `end` closes it
+    // and the line after the function is in the root flow (#1093).
+    const ctx = makeRuntimeStoryFromSource(
+      `function greet()\n  local x = 1\n  How are you?\nend\nAfter it.\n`,
+    );
+    // `How` and `you`, as Luau reports them, and the `?`.
+    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE, "Expected identifier when parsing expression, got '?'"]);
+    const lines: string[] = [];
+    while (ctx.story.canContinue) {
+      const text = ctx.story.Continue();
+      if (text) {
+        lines.push(text);
+      }
+    }
+    expect(lines).toEqual(["After it.\n"]);
+    const named = flowListings(ctx.root);
+    expect(holds(named.get("greet"), "After it.")).toBe(false);
   });
 
   test("lines after a function declared inside a scene stay in the scene", () => {

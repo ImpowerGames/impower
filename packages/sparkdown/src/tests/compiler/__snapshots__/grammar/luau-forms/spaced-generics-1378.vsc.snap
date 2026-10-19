@@ -1,0 +1,41 @@
+text.source.sparkdown [0..58]
+ ├─ meta.function.luau [0..12]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..10]: "g"
+ │   └─ meta.parameter.luau [10..12]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
+ ├─ Newline [12..13]: "\n"
+ ├─ meta.function.luau [13..53]
+ │   └─ meta.function.body.luau [13..53]
+ │       └─ meta.function.luau [13..53]
+ │           ├─ punctuation.whitespace.optional.sd [13..15]: "  "
+ │           ├─ storage.modifier.scope.luau [15..20]: "local"
+ │           ├─ punctuation.whitespace.optional.sd [20..21]: " "
+ │           ├─ keyword.control.luau [21..29]: "function"
+ │           ├─ punctuation.whitespace.optional.sd [29..30]: " "
+ │           ├─ entity.name.function.luau [30..31]: "f"
+ │           ├─ punctuation.whitespace.extra.sd [31..32]: " "
+ │           ├─ punctuation.definition.template-expression.begin.sd [32..33]: "<"
+ │           ├─ entity.name.type.luau [33..34]: "A"
+ │           ├─ punctuation.definition.template-expression.end.sd [34..35]: ">"
+ │           ├─ meta.parameter.luau [35..49]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [35..36]: "("
+ │           │   ├─ variable.parameter.function.luau [36..38]: "op"
+ │           │   ├─ keyword.operator.type.luau [38..39]: ":"
+ │           │   ├─ punctuation.whitespace.optional.sd [39..40]: " "
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [40..41]: "("
+ │           │   ├─ entity.name.type.luau [41..42]: "A"
+ │           │   ├─ punctuation.definition.template-expression.end.sd [42..43]: ")"
+ │           │   ├─ punctuation.whitespace.optional.sd [43..44]: " "
+ │           │   ├─ keyword.operator.type.luau [44..46]: "->"
+ │           │   ├─ punctuation.whitespace.optional.sd [46..47]: " "
+ │           │   ├─ entity.name.type.luau [47..48]: "A"
+ │           │   └─ punctuation.definition.template-expression.end.sd [48..49]: ")"
+ │           ├─ punctuation.whitespace.optional.sd [49..50]: " "
+ │           └─ keyword.control.end.luau [50..53]: "end"
+ ├─ Newline [53..54]: "\n"
+ ├─ meta.function.luau [54..57]
+ │   └─ keyword.control.end.luau [54..57]: "end"
+ └─ Newline [57..58]: "\n"

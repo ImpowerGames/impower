@@ -1,6 +1,6 @@
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
 
 // #1224: typing a `}` inside a layout or component brace body, and deleting it
 // again, changes which lines the blocks around it hold. An incremental compile
@@ -44,13 +44,11 @@ end
 
 function pick(p: any) {
   return {
-    compiled: p.compiled,
+    chunks: programContent(p.chunks),
     context: p.context,
     sparkle: p.sparkle,
     diagnostics: p.diagnostics,
     ui: p.ui,
-    pathLocations: p.pathLocations,
-    dataLocations: p.dataLocations,
   };
 }
 
@@ -93,15 +91,16 @@ function posAt(text: string, offset: number) {
 // and character): the typed one when it closes nothing (`null`), otherwise
 // the `}` that used to close the outermost block, which the `}` before it now
 // closes. Typed inside the `for` branch, the `}` after it closes the `for`
-// (reported as missing its `end`), and the `end` of the `for` then ends the
-// layout, so no `}` is left inside the layout to be stray.
+// (reported as missing its `end`), and the panel with it. The `else` below is
+// then a line the layout cannot read, so the layout stops there, before any
+// `}` is left inside it to be stray, and is reported as missing its `end`.
 const EDITS = [
   { name: "after a one-line block", after: "choice.0 { text }", stray: [{ line: 25, character: 2 }], missing: [] },
   {
     name: "inside a block in a `for` branch",
     after: "        image #src={item.icon}",
     stray: [],
-    missing: [15],
+    missing: [15, 11],
     // The row closes after its image, the button joins the `for`, and the
     // row's own `}` ends the `for` and then closes the panel.
     tree: ["column[text[],choice[text[]],for[row[image[]],button[]|else:]]"],

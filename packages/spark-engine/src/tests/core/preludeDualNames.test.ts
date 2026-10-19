@@ -17,12 +17,13 @@
 //   2. `applyBuiltinOverrides`' back-fill gate keyed on post-scoping
 //      identifiers, which differ between the prelude pass and the user pass
 //      for exactly these names — a user override of a dual-defined builtin
-//      instance silently lost every field it didn't restate. The gate now
-//      keys on the stable bare name.
+//      instance silently lost every field it didn't restate. The gate keyed
+//      on the stable bare name; since #1951 the authored `__def` fills its
+//      table at runtime from the member registered under that bare name.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { programStoryOf } from "../harness/compileProgram";
 import { convertDefine } from "../../game/core/utils/buildContextFromStory";
 
 const URI = "file:///main.sd";
@@ -45,7 +46,7 @@ function compileStory(source: string): any {
     ],
   } as never);
   const result = compiler.compile({ textDocument: { uri: URI } });
-  return new Story(result.program.compiled as Record<string, any>);
+  return programStoryOf(result.program);
 }
 
 const metaVal = (v: any, key: string): any =>
@@ -104,13 +105,13 @@ end
 `;
 
   test("the story still compiles and the authored override wins", () => {
-    // compileStory throws here pre-fix: `program.compiled` is undefined once
+    // compileStory throws here pre-fix: the program is not built once
     // the aborted resolve pass poisons serialization.
     const story = compileStory(SOURCE);
     const override = findDefine(story, "ambient", "channel");
     expect(override).toBeDefined();
     // Authored value wins; prelude fields the author didn't restate survive
-    // via the override back-fill.
+    // via the override fill.
     const struct: any = convertDefine(override, story);
     expect(struct.loop).toBe(true);
     expect(struct.mixer).toBe("sound");
@@ -172,7 +173,7 @@ end
     expect(override).toBeDefined();
     const struct: any = convertDefine(override, story);
     expect(struct.loop).toBe(true); // authored
-    // Back-filled from the prelude's channel-typed `typewriter` — the
+    // Filled from the prelude's channel-typed `typewriter` — the
     // channel ROOT's default is a `mixer.none` REF, so a plain "sound"
     // proves the INSTANCE's value survived, not just chain inheritance.
     expect(struct.mixer).toBe("sound");

@@ -222,9 +222,7 @@ export default function Account(_p: AccountProps) {
             Save Remote Project
           </FabRow>
           <div class="flex-1" />
-          {/* Account row + popup. Preact-native (not Radix) per memory:
-              feedback_radix_dialog_breaks_ssr — Radix portal helpers
-              trip Vite's CJS interop during SSR module load. */}
+          {/* Account row + popup. */}
           <div ref={accountRowRef} class="relative">
             <button
               type="button"

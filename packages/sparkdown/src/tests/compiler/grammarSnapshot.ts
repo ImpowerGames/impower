@@ -1,12 +1,12 @@
-import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
-import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
+import { createSparkdownParser } from "../../compiler/utils/createSparkdownParser";
 
 let cachedParser: TextmateGrammarParser | undefined;
 
 export function getParser(): TextmateGrammarParser {
   if (!cachedParser) {
-    cachedParser = new TextmateGrammarParser(GRAMMAR_DEFINITION as any);
+    cachedParser = createSparkdownParser();
   }
   return cachedParser;
 }

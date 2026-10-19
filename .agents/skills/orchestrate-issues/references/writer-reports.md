@@ -1,0 +1,37 @@
+# Writer reports and requests
+
+Messages between the coordinator and its writers are hints: they can queue, arrive late, be cut short or be lost. GitHub (issues, PR heads, review comments, CI) and each writer's own transcript are the authorities, so every decision rests on them, not on a message alone.
+
+## The wake routine
+
+Run it at every periodic check-in, on the first wake after the coordinator itself restarted or resumed from a summary, and before acting on any writer's report or request. A request a writer sent while the coordinator was not running is found only this way.
+
+1. Snapshot GitHub and plan with an observation of every writer the record holds. The plan's `sweep` says which transcripts to read.
+2. Read the end of the transcript of every writer under `sweep.read`, which lists every writer the record holds whose turn has ended, whatever its ticket's state, where the [writing routes](../../references/runner-writing.md) say its route keeps it (a detached CLI writer's is `out.jsonl` in its launch directory). Writers under `sweep.notRead` are running and are not read: a running writer cannot be waiting on the coordinator. Record each request found, as below.
+3. Act on each ticket's action, reading every open PR's checks and merge state from its entry, and on every pending request in the record (`answer-request`) and every writer a previous coordinator briefed (`update-contact`).
+4. Settle every `settle-delivery`: a brief its writer has not acknowledged within one check-in interval is a failed delivery. Confirm that the record's coordinator id is this session's own id. When the writer's turn has ended, read its transcript and record `acknowledged` if it shows one; a running writer's transcript is not read. Otherwise resend with `deliver --retry`, send that copy, and record `delivered`.
+5. Raise every entry under `sweep.deadLaunches`, which checks every open PR, with its writer: a reviewer plan whose launcher ran, with no journal and no process naming it, died before its journal existed, and its `.coordinator.err.log` says why.
+6. Dispatch the dependency-eligible tickets the plan admits, and act on its `checkIn` entry.
+7. Record the outcome with `checked-in --outcome "<what was done>"`, or `--outcome "no change"` when nothing needed action.
+
+## How writers reach the coordinator
+
+Each route's way of messaging the coordinator is in the runner configuration (`reports` in `.claude/writer-defaults.json`, keyed by the coordinator's runner), and the brief carries it with the coordinator's session id from the record; no command takes the id per call. A writer sends every report, blocker and question by message, then ends its turn. A Codex writer cannot message a Claude coordinator, and no message from a Codex writer to another Codex thread has been verified; such a writer ends each decision point with the report as its turn's last message, and the check-in reads it from its transcript.
+
+The writer's first act is an acknowledgement naming its assignment and the model, effort and permission mode it confirmed from its own metadata. Record it with `acknowledged --ticket N --model --effort --permission-mode --evidence "<where it was read>"`. It shows the brief arrived and the coordinator id reaches this session; a confirmation that differs from the start plans as `stop-writer`.
+
+## Read a writer's report in full
+
+A note that a writer ended its turn, or a message relaying its report, may be a fixed-length excerpt: treat it as a pointer to the report, never the report itself. A report is complete only when it names the model, effort and permission mode the writer read itself, the PR, the last independently reviewed commit, the rounds used per reviewer route, the outstanding findings (or None), the verification, the state of each CI check on the final head, and the writer's next action. When a note lacks any of these, read the end of that writer's transcript before deciding anything, and confirm the PR facts on GitHub. Store the full report with `result`; one naming another model, effort or mode than the start is kept and plans as `stop-writer`.
+
+## Record each request and its answer
+
+When a writer asks for a decision (another review round, a design question, a blocker), record it with `request --ticket N --text "<the request>" --source "<where it was read>"`, which prints its id. The request belongs to the writer that asked it: it closes when that writer is released, and a new writer asks its own. The plan shows the ticket as `answer-request` until the answer has been delivered. A request passed to the maintainer is recorded with `relay --ticket N --request <id> --to "the maintainer"` and stays open while they decide.
+
+An answer is a message, so it is recorded around its sending. `answer --ticket N --request <id> --text "<the answer>"` records the intent and prints the message to send; send it exactly as printed, then record `answered --ticket N --request <id>`. A detached CLI writer's process ends with its turn, so its request stays open after that and is answered by resuming its session, the same way it is resumed to continue work it stopped on: write the printed message to a file and run `resume` with it as the prompt, as the [writing routes](../../references/runner-writing.md) describe, then record `answered`. The resumed process becomes the writer; its assignment and requests stay the same. Each copy quotes the question it answers, names the request and its delivery, and tells the writer to ignore a copy once one has arrived. If the coordinator stops between the two records, the answer may still be queued: when the writer's turn has ended and its transcript shows it, record `answered` with that evidence; otherwise wait, or resend with `answer --retry`, which prints the same answer with a new delivery id. Never record a new answer over an unconfirmed one.
+
+The brief went with the writer's start, and a resend follows the same steps: `deliver --retry` prints the stored brief under a new delivery id, `delivered` confirms it, and every copy names the assignment so the writer acts on the first it receives. An existing writer adopted with its work already has its assignment and is not briefed again.
+
+After a takeover, a writer a previous coordinator briefed still reports to that coordinator. Before any brief resend reaches it, `contact --ticket N` records the intent and prints a notice naming this coordinator's id and how to reach it; send it, then record `contacted`, with the same retry rule as an answer. A resent brief names this coordinator too but never settles the contact, since a writer that already has its assignment ignores the copy. An answer from this coordinator, and a resume of a writer whose turn ended, end with a contact line that holds even when the writer sets the rest aside as a copy it already has, so recording either delivered records the contact.
+
+Writers do not post a separate protocol of comments for these exchanges; their normal review comments stay on the PR's review thread (the PR, or its internal ticket once the cutover switch is on).

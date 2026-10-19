@@ -2,9 +2,8 @@
 // Reads a V8 CPU profile written by engine-bench.mjs or preview-bench.mjs with
 // --cpu-prof and divides the time spent under one function into shares.
 //
-//   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ContinueAsync --groups scripts/bench/profile-groups.mjs:STEPPING
-//   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ExportRuntime --inclusive ResolveReferences,CheckForNamingCollisions
-//   node scripts/bench/profile-shares.mjs <mode.cpuprofile> --under "(root)" --gaps
+//   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under resolve --inclusive ResolveWith,CheckForNamingCollisions
+//   node scripts/bench/profile-shares.mjs <mode.cpuprofile> --under "(root)" --gaps --groups scripts/bench/profile-groups.mjs:GAPS
 //
 // Several profiles of the same candidate may be named; the group and inclusive
 // shares are then printed as min, median and max over them, and the function
@@ -28,6 +27,14 @@
 //                        With --under "(root)" this charges the benchmark's
 //                        unattributed row to functions, the collector included
 //   --json <file>        also write the result
+//   --by-path            name a function by its source file's path from the
+//                        repository root (`packages/.../Weave.ts:<name>`, or
+//                        `node_modules/...`) instead of the file's name, so
+//                        that groups can match a directory (#1712)
+//   --windows            only samples taken during the benchmark's measured
+//                        samples count (<mode>.windows.json beside the
+//                        profile), leaving out its warm-up and first compile;
+//                        prints the profiled time under --under per sample
 //
 // A sampling profiler charges call-heavy code more than it costs unprofiled,
 // so these are shares to set beside an unprofiled time, never times themselves.
@@ -55,6 +62,8 @@ export function parseShareArgs(args) {
     else if (name === "--min") out.min = Number(next());
     else if (name === "--json") out.json = next();
     else if (name === "--gaps") out.gaps = true;
+    else if (name === "--by-path") out.byPath = true;
+    else if (name === "--windows") out.windows = true;
     else if (name.startsWith("--")) throw new Error(`unknown argument ${name}`);
     else out.profiles.push(name);
   }
@@ -168,7 +177,16 @@ export function summarizeShares(results) {
 
 // Names a call frame `<source file>:<function>` through the bundle's source
 // map, or `<bundle file>:<function>` without one.
-function sourceNamer(profilePath) {
+// A source map's path for a source, from the first `packages/`,
+// `node_modules/` or `scripts/` directory on (the map's paths are relative to
+// the bundle, which lived in a temporary directory).
+export function repositoryPath(source) {
+  const s = source.replace(/\\/g, "/");
+  const at = s.search(/(^|\/)(packages|node_modules|scripts)\//);
+  return at < 0 ? path.basename(s) : s.slice(s[at] === "/" ? at + 1 : at);
+}
+
+function sourceNamer(profilePath, byPath = false) {
   const maps = new Map();
   return (frame) => {
     const fn = frame.functionName || "(anonymous)";
@@ -180,7 +198,7 @@ function sourceNamer(profilePath) {
       maps.set(bundle, found ? new SourceMap(JSON.parse(fs.readFileSync(found, "utf8"))) : null);
     }
     const entry = maps.get(bundle)?.findEntry(frame.lineNumber, frame.columnNumber);
-    const file = entry?.originalSource ? path.basename(entry.originalSource) : path.basename(bundle);
+    const file = entry?.originalSource ? (byPath ? repositoryPath(entry.originalSource) : path.basename(entry.originalSource)) : path.basename(bundle);
     return `${file}:${fn}`;
   };
 }
@@ -204,13 +222,24 @@ async function main(args) {
       const gaps = samples.flat().sort((a, b) => a[0] - b[0]);
       keep = (timestamp) => within(gaps, timestamp);
       perSample = samples.length;
+    } else if (options.windows) {
+      const windowsFile = file.replace(/\.cpuprofile$/, "") + ".windows.json";
+      if (!fs.existsSync(windowsFile)) throw new Error(`--windows needs ${windowsFile}, which preview-bench.mjs --cpu-prof writes`);
+      const { samples } = JSON.parse(fs.readFileSync(windowsFile, "utf8"));
+      const windows = samples.flat().sort((a, b) => a[0] - b[0]);
+      keep = (timestamp) => within(windows, timestamp);
+      perSample = samples.length;
     }
-    const result = profileShares(JSON.parse(fs.readFileSync(file, "utf8")), { under: options.under, inclusive: options.inclusive, groups, keep, nameOf: sourceNamer(path.resolve(file)) });
+    const result = profileShares(JSON.parse(fs.readFileSync(file, "utf8")), { under: options.under, inclusive: options.inclusive, groups, keep, nameOf: sourceNamer(path.resolve(file), options.byPath) });
+    if (options.windows) return { ...result, underMsPerSample: result.underMs / perSample };
     return options.gaps ? { ...result, gapMsPerSample: result.keptMs / perSample } : result;
   });
   const result = results[0];
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(results.length > 1 ? results : result, null, 2));
   const pct = (share) => (share * 100).toFixed(1).padStart(6) + "%";
+  if (options.windows) {
+    console.log(`only the measured samples: ${results.map((r) => r.underMsPerSample.toFixed(1)).join(", ")} ms of profiled time under ${options.under.join(", ")} per benchmark sample`);
+  }
   if (options.gaps) {
     console.log(`only the unattributed stretches: ${results.map((r) => r.gapMsPerSample.toFixed(1)).join(", ")} ms of profiled time per benchmark sample`);
     if (results.every((r) => r.keptSamples === 0)) {

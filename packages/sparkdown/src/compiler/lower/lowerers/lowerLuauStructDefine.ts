@@ -19,6 +19,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 import { contextValueToExpression } from "./lowerLuauDefine";
 import { readMorphBody } from "../../morph/readMorphBody";
 import { parseStructBodyTyped } from "./lowerStructBodyTyped";
+import { validateBlockStructure } from "../utils/validateBlockStructure";
 
 // `animation NAME [as PARENT] with <body> end` / `theme NAME …` — structural
 // presentation keywords (style-family). They produce BOTH:
@@ -49,6 +50,7 @@ export function lowerLuauStructDefine(
   ctx: LowerContext,
   type: "animation" | "theme" | "morph",
 ): CompiledBlock {
+  ctx.diagnostics?.push(...validateBlockStructure(nodeRef.node, ctx, type));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return { content: [] };
   const name = ctx.read(nameNode.from, nameNode.to).trim();

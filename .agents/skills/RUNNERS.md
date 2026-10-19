@@ -1,18 +1,17 @@
 # Runner notes
 
-Use this map when a runner capability is unclear.
-
 | Capability              | Claude Code                                                            | Codex                                                                               |
 | ----------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Repository instructions | CLAUDE.md imports AGENTS.md                                            | AGENTS.md is the project entry point                                                |
-| Discover skills         | Installer link under the harness project directory                     | Native .agents/skills discovery; the installer also provides the compatibility link |
+| Repository instructions | CLAUDE.md imports AGENTS.md                                            | AGENTS.md directly                                                                  |
+| Discover skills         | Installer link under the harness project directory                     | Native .agents/skills discovery, plus the installer's compatibility link            |
 | Invoke a skill          | Skill tool, named by frontmatter                                       | Use the discovered skill or read its SKILL.md directly                              |
 | Read and edit files     | Read, Grep, Glob, Write/Edit                                           | File reading and apply_patch/editor capability exposed by the host                  |
-| Rename a session        | set_session_title when offered, loaded through tool search before the call | set_thread_title when offered; the CLI has none and uses the hook's acknowledgement command |
-| Own model and effort    | Desktop `get_session` on `self`; `CLAUDE_EFFORT` in shells             | Latest `turn_context` row of the session rollout file                               |
+| Rename a session        | set_session_title via tool search when offered; else the hook's acknowledgement | set_thread_title when offered; else the hook's acknowledgement |
+| Own model, effort, mode | Desktop `get_session` on `self`, mode set in the app; CLI launch flags and `CLAUDE_EFFORT` | Latest `turn_context` row of the session rollout file                               |
+| Periodic check-in       | `CronCreate`, recurring; ends with the session, expires after 7 days   | None verified; wake routine each turn                                               |
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
-| Private artifacts       | Unique directory under system temp; a scratchpad is usable if private  | Unique directory under system temp or a host-provided private directory             |
-| Observe completion      | Await task status or CLI process exit, then read paginated PR comments | Await task status or CLI process exit, then read paginated PR comments              |
+| Private artifacts       | Exclusive directory per agent/attempt; parent scratchpads may be shared; resolve-issue writers use its [allocator](resolve-issue/SKILL.md#0-preflight) | Same                                                                                |
+| Observe completion      | Await task status or CLI process exit, then read the review thread's paginated comments | Same                                                                                |
 | Shell backslashes       | Bash tool collapses `\\` to `\`; PowerShell tool preserves them        | Not measured                                                                        |
 
 ## Review execution

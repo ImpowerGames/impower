@@ -10,8 +10,6 @@ import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarc
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import {
   AstExpr,
-  AstExprError,
-  AstExprLocal,
   AstStatAssign,
   AstStatCompoundAssign,
   AstStatExpr,
@@ -30,6 +28,7 @@ import {
   targetIdentifier,
 } from "../utils/lowerPropertyTargetAssignment";
 import { offsetAt } from "../utils/luauAst";
+import { publishesConst, reassignedConstName, reportReassignedConst } from "../utils/publishesConst";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import type { StatementSite } from "./lowerLuauStatement";
 
@@ -47,7 +46,7 @@ export function lowerAssignment(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  const vars = stat.vars.map(reassignedConst);
+  const vars = stat.vars.map((target) => reassignedConst(target, site, ctx));
   if (vars.length === 1 && stat.values.length <= 1) {
     const value = stat.values[0];
     return lowerSingleAssignment(
@@ -62,19 +61,16 @@ export function lowerAssignment(
 }
 
 // A const's name as an assignment target: the converter reads the target as
-// Luau's error, which the type checker reports; the compiler reports the
-// const's re-assignment with its own wording, so the assignment is lowered
-// with its name.
-function reassignedConst(target: AstExpr): AstExpr {
-  if (
-    target instanceof AstExprError &&
-    target.expressions.length === 1 &&
-    target.expressions[0] instanceof AstExprLocal &&
-    target.expressions[0].local.isConst
-  ) {
-    return target.expressions[0];
-  }
-  return target;
+// Luau's error. The compiler reports a published const's re-assignment with
+// its own wording, so in story text the assignment is lowered with its name.
+// In a function the const is Luau's, a local whose re-assignment is Luau's
+// error (`reportReassignedConst`), and the assignment is not lowered (the
+// reading of a function's body holds none of the story's constants, so a
+// const it reads as a local is the function's own).
+function reassignedConst(target: AstExpr, site: StatementSite, ctx: LowerContext): AstExpr {
+  reportReassignedConst(target, site.node, ctx);
+  const local = reassignedConstName(target);
+  return local && publishesConst(ctx) ? local : target;
 }
 
 /** `target op= value` (`+=`, `..=`, …), which reads and writes the target once each. */
@@ -84,7 +80,7 @@ export function lowerCompoundAssignment(
   ctx: LowerContext,
 ): CompiledBlock {
   return lowerSingleAssignment(
-    reassignedConst(stat.variable),
+    reassignedConst(stat.variable, site, ctx),
     lowerExpression(stat.value, site.source, ctx),
     `${binaryOpToString(stat.op)}=`,
     site,
@@ -117,9 +113,13 @@ function lowerSingleAssignment(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
+  // A value the parser could not read (`x =` with nothing after it), which
+  // the type checker reports, assigns nothing: an assignment with no value
+  // would take whatever is on the evaluation stack, or nothing, and leave
+  // the target holding no value at all.
+  if (!value) return {};
   const store = storeTarget(target, site.source, ctx);
   if (store) {
-    if (!value) return {};
     return wrapInWeave(
       propertyStore(
         store.base,
@@ -168,15 +168,18 @@ function lowerSingleAssignment(
     });
   }
 
-  let expr = value;
-  if (opText !== "=" && expr) {
-    const current = new VariableReference([targetIdentifier(target, ctx)!]);
-    expr = new BinaryExpression(current, expr, opText.slice(0, -1));
-  }
+  const expr =
+    opText === "="
+      ? value
+      : new BinaryExpression(
+          new VariableReference([targetIdentifier(target, ctx)!]),
+          value,
+          opText.slice(0, -1),
+        );
   return wrapInWeave([
     new VariableAssignment({
       variableIdentifier: identifier,
-      assignedExpression: expr ?? undefined,
+      assignedExpression: expr,
     }),
   ]);
 }

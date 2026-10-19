@@ -48,12 +48,18 @@ describe("syntax diagnostics", () => {
   });
 
   test("a construct the parser cannot finish is reported, once per place", () => {
+    // Luau reads a `;` right after a `repeat`'s `until` condition; the
+    // grammar's loop cannot end before it (#1988).
+    const found = checkLuau("\n\n    repeat local x = 1 until x;\n").syntaxDiagnostics;
+    expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
+      [2, 30, `Sparkdown could not finish reading the Luau before ";"`],
+    ]);
+  });
+
+  test("Luau the grammar leaves unread is Luau's to report, and the function keeps its end", () => {
     const found = checkLuau("\n\n    local x = 1 )\n").syntaxDiagnostics;
     expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
-      // Luau's own error there, which the checker reports.
       [2, 16, "Expected identifier when parsing expression, got ')'"],
-      [2, 16, `Sparkdown ended the snippet's function before ")"`],
-      [2, 16, `Sparkdown could not finish reading the Luau before ")"`],
     ]);
   });
 

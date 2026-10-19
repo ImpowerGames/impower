@@ -735,6 +735,20 @@ export class ScriptEditorController {
                   tr.startState.doc,
                   tr.changes,
                 );
+                // What `onSelectionChanged` sends after the edit, which the
+                // editor's work on the edit can hold back (#1881).
+                const selection = tr.selection
+                  ? {
+                      selectedRange: {
+                        start: convertToPosition(
+                          tr.newDoc,
+                          tr.selection.main.anchor,
+                        ),
+                        end: convertToPosition(tr.newDoc, tr.selection.main.head),
+                      },
+                      userEvent: Boolean(tr.annotation(Transaction.userEvent)),
+                    }
+                  : undefined;
                 sendProtocolMessage(
                   DidChangeTextDocumentMessage.type.notification({
                     textDocument: {
@@ -742,6 +756,8 @@ export class ScriptEditorController {
                       version: afterVersion,
                     },
                     contentChanges,
+                    changedAt: Date.now(),
+                    selection,
                   }),
                   this.host,
                 );

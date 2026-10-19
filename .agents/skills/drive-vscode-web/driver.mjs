@@ -38,6 +38,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { desktop } from "./desktop.mjs";
+import { debugWorkbench } from "./web-debug.mjs";
 import {
   consoleLine,
   partitionConsole,
@@ -355,6 +357,7 @@ export const REBUILD_STEPS = ["npm run build:sparkdown-language-server", "node s
 // the steps must run.
 export function rebuildCommand(groups) {
   const wanted = new Set(groups.flatMap((g) => g.steps));
+  if (wanted.has("npm run build")) return "cd vscode-sparkdown && npm run build";
   return `cd vscode-sparkdown && ${REBUILD_STEPS.filter((s) => wanted.has(s)).join(" && ")}`;
 }
 
@@ -371,7 +374,7 @@ export function rebuildCommand(groups) {
 // source is refused rather than guarded by nothing. The copies under
 // out/data are `copied`: a copy carries its source's time, so it says when
 // the source was written and nothing about when the build ran.
-export function buildRule(extDir, packagesDir, io = fs) {
+export function buildRule(extDir, packagesDir, io = fs, surface = "editor") {
   const out = path.join(extDir, "out");
   const list = (dir) => (io.existsSync(dir) ? io.readdirSync(dir) : []);
   const present = (p) => io.existsSync(p);
@@ -386,6 +389,20 @@ export function buildRule(extDir, packagesDir, io = fs) {
   ];
   for (const f of list(path.join(extDir, "data"))) {
     if (io.statSync(path.join(extDir, "data", f)).isFile()) groups.push({ artifact: path.join(out, "data", f), sources: [path.join(extDir, "data", f)], steps: [self], copied: true });
+  }
+  if (surface === "desktop") {
+    const buildInputs = list(packagesDir).flatMap(p => ["esbuild.js", "package.json", "tsconfig.json"].map(file => path.join(packagesDir, p, file))).filter(present);
+    groups.push({ artifact: path.join(out, "workers", "sparkdown-screenplay-pdf.js"), sources: shared, steps: ["npm run build"] });
+    for (const name of ["game", "screenplay", "screen", "inspector"]) {
+      groups.push({ artifact: path.join(out, "webviews", `${name}-webview.js`), sources: [path.join(extDir, "webviews", `${name}-webview`), ...shared], steps: ["npm run build"] });
+    }
+    // The player and its workers are embedded in game-webview.js. Its shared
+    // package sources above must therefore invalidate that artifact as well.
+    for (const group of groups.filter(g => !g.copied)) {
+      // esbuild discovers the nearest tsconfig for each bundled TS/TSX input.
+      // JSX emission and class-field settings can change bytes without a src edit.
+      group.sources.push(path.join(extDir, "scripts"), path.join(extDir, "package.json"), path.join(extDir, "tsconfig.json"), ...buildInputs);
+    }
   }
   return groups;
 }
@@ -1013,7 +1030,7 @@ export const liveDeps = {
   exists: (p) => fs.existsSync(p),
   readFile: (p) => fs.readFileSync(p, "utf8"),
   mkdirp: (p) => fs.mkdirSync(p, { recursive: true }),
-  checkBuild: () => checkBuild(liveDeps),
+  checkBuild: surface => checkBuild({ ...liveDeps, surface }),
   pickPort,
   otherWorktreeRecords,
   unpackedCommit,
@@ -1045,7 +1062,7 @@ export const liveDeps = {
 export function checkBuild(deps = liveDeps) {
   const { repoRoot, extDir, packagesDir } = deps;
   const io = deps.io ?? fs;
-  const stampFile = path.join(extDir, "out", STAMP_NAME);
+  const stampFile = path.join(extDir, "out", deps.surface === "desktop" ? ".drive-vscode-desktop-build.json" : STAMP_NAME);
   const rel = (p) => path.relative(repoRoot, p).replaceAll("\\", "/");
   const sha1 = (p) => createHash("sha1").update(io.readFileSync(p)).digest("hex");
   const cache = new Map();
@@ -1055,7 +1072,7 @@ export function checkBuild(deps = liveDeps) {
   };
   let groups;
   try {
-    groups = buildRule(extDir, packagesDir, io);
+    groups = buildRule(extDir, packagesDir, io, deps.surface);
   } catch (err) {
     deps.die(firstLine(err));
   }
@@ -1319,6 +1336,10 @@ const VERIFY_FLAGS = {
   "--probe": "value",
   "--settle": "number",
   "--headed": "flag",
+  "--debug": "flag",
+  "--expression": "value",
+  "--result": "value",
+  "--debug-shot": "value",
 };
 
 // Opens the file from the explorer, waits for the language server's
@@ -1331,6 +1352,7 @@ export async function verify(args, deps = liveDeps) {
   const { opts, error } = parseFlags(args, VERIFY_FLAGS);
   if (error) deps.die(`verify: ${error}`);
   for (const f of ["--hover-shot", "--hover-image", "--line"]) if (opts[f] && !opts["--hover"]) deps.die(`verify: ${f} needs --hover`);
+  for (const f of ["--expression", "--result", "--debug-shot"]) if (opts[f] && !opts["--debug"]) deps.die(`verify: ${f} needs --debug`);
   const settleBudgetS = opts["--settle"] ?? DEFAULT_SETTLE_S;
   if (settleBudgetS < SETTLE_FLOOR_S) {
     deps.die(`verify: --settle ${settleBudgetS} is below ${SETTLE_FLOOR_S}, the ${SETTLE.minReads} readings (one a second) a file the server finds clean needs before the settle rule can call it settled plus ${READ_ALLOWANCE_S} s to take them; the default is ${DEFAULT_SETTLE_S}`);
@@ -1339,7 +1361,7 @@ export async function verify(args, deps = liveDeps) {
   if (!s?.url) deps.die("no server URL; run `node .agents/skills/drive-vscode-web/driver.mjs up --sd <file.sd>` first");
   if (!(await deps.recordStands(s))) deps.die(`${deps.stateFile} records pid ${s.pid}, which is not the server it started; \`down\` then \`up\``);
   if (!(await deps.isUp(s.url))) deps.die(`${s.url} does not answer; \`down\` then \`up\``);
-  const build = deps.checkBuild();
+  const build = deps.checkBuild(opts["--debug"] ? "desktop" : "editor");
 
   const file = opts["--file"] ?? "main.sd";
   const report = { url: s.url, project: s.project, file, build, failed: [] };
@@ -1378,6 +1400,10 @@ export async function verify(args, deps = liveDeps) {
         }
 
         if (opts["--hover"] && report.opened) await hoverOn(page, opts, report, fail, deps);
+        if (opts["--debug"] && report.opened) {
+          report.debug = await debugWorkbench(page, { expression: opts["--expression"] ?? "1 + 1", result: opts["--result"] ?? "2", screenshot: opts["--debug-shot"] });
+          report.failed.push(...report.debug.failed);
+        }
 
         if (opts["--probe"]) {
           try {
@@ -1403,6 +1429,7 @@ export async function verify(args, deps = liveDeps) {
       const captured = partitionConsole(consoleLines, WORKBENCH_CONSOLE_NOISE, 20);
       report.consoleErrors = captured.errors;
       report.consoleNoise = captured.noise;
+      if (captured.errors.length) fail(`unclassified console errors: ${captured.errors.join("; ")}`);
     });
   } catch (err) {
     fail(`verify threw: ${firstLine(err)}`);
@@ -1502,6 +1529,10 @@ switch (cmd) {
   case "down":
     await down();
     break;
+  case "desktop": {
+    process.exitCode = await desktop(rest);
+    break;
+  }
   case "verify": {
     const { exitCode } = await verify(rest);
     process.exitCode = exitCode;
@@ -1516,6 +1547,7 @@ switch (cmd) {
         "  status             is it up? prints the URL and the served folder",
         "  down               stop the server",
         "  verify [options]   open a file in the served workbench, read diagnostics and a hover, screenshot; JSON report",
+        "  desktop --code <executable> --mode full|f5 [--project <folder>] [--scenario <json>] [--out <directory>] [--timeout <seconds>]",
         "",
         "up options (one of --sd or --project):",
         "  --sd <file.sd>       serve a one-file project holding this script as main.sd",
@@ -1531,6 +1563,10 @@ switch (cmd) {
         "  --hover-image        the hover must carry an image, or the run fails",
         "  --shot <out.png>     screenshot the page",
         "  --hover-shot <png>   screenshot the hover widget alone",
+        "  --debug             verify web debugger pause, variables, evaluation, step and continue",
+        "  --expression <text> expression to evaluate with --debug (default: 1 + 1)",
+        "  --result <text>     exact expected evaluation result (default: 2)",
+        "  --debug-shot <png>  screenshot the paused web debugger",
         "  --probe <file.js>    body of an async fn evaluated in the page; result -> JSON",
         `  --settle <seconds>   how long to wait for diagnostics to stop changing (default ${DEFAULT_SETTLE_S}, at least ${SETTLE_FLOOR_S}: ${SETTLE.minReads} readings a second apart plus ${READ_ALLOWANCE_S} s to take them); not settling is a failure`,
         "  --headed             run a visible browser instead of headless",

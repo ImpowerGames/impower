@@ -48,8 +48,8 @@ const EXEMPTIONS = [
   "Lexical commentLocations are not part of the converter's AST",
 ] as const;
 const KNOWN: { input: string; issue: number }[] = [
-  // This is the official-parser list. Port-only #1304/#1305/#1306 no longer
-  // disagree here, so inheriting that oracle's list would hide passing inputs.
+  // This is the official-parser list. It stays separate from the port's
+  // KNOWN_DISAGREEMENTS, whose entries would otherwise hide passing inputs here.
 ];
 if (!officialLuauAvailable)
   console.warn(
@@ -242,7 +242,20 @@ describe.skipIf(!officialLuauAvailable)(
             return true;
           },
         });
+        const documentLines = input.text.split("\n");
         const oursJson = printOfficialAst(root, (node) => {
+          // `store` is blanked; a `store function` begins at its `function`
+          // (#1341), as a `local function` would begin at `local`.
+          if (
+            node instanceof AstStatFunction &&
+            documentLines[node.location.begin.line]?.startsWith("store", node.location.begin.column)
+          ) {
+            return new AstStatFunction(
+              new Location(node.func.location.begin, node.location.end),
+              node.name,
+              node.func,
+            );
+          }
           const replacement = baseView(node);
           if (
             node instanceof AstStatSparkdownStore &&

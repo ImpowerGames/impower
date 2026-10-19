@@ -1,11 +1,12 @@
+import { lineBreakValues } from "./assignmentLineBreak";
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import type { LowerContext } from "../context";
 import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
-import { REASSIGNMENT_NAMES } from "../../utils/reassignmentNames";
+import { REASSIGNMENT_NAMES, reassignmentParts } from "../../utils/reassignmentNames";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import {
   VARIABLE_DEFINITION_BEGIN_NAMES,
@@ -13,12 +14,13 @@ import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, readingCarriesOnTo } from "../../typecheck/LuauUnitNodes";
 import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
-import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
+import { isLuauNameAt, luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
-import { commaBeforeStatement, typeUnionLineValue } from "./lineContinuation";
-import { validateExplicitStatement } from "./validateExplicitStatement";
+import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
+import { isUnreadTokenAt } from "../../utils/unreadTokens";
+import { storyIslandEnd } from "../../utils/storyIslands";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
 // declaration: a value missing after `=` or after a comma, a second `=`, a
@@ -69,9 +71,22 @@ export function validateStatementNode(
   ctx: LowerContext,
 ): void {
   if (REASSIGNMENT_NAMES.has(node.name)) {
-    const content = node.getChild(`${node.name}_content`) ?? node;
-    validateReassignmentList(content, continuation, ctx);
-    const op = (content.getChild("LuauAssignmentOperation") ?? content.getChild("LuauSparkdownExplicitAssignmentOperation"));
+    const parts = reassignmentParts(node);
+    const isOperation = (part: SyntaxNode) => isExplicitRuleName(part.name, "LuauAssignmentOperation");
+    // A target list that ends its line with a comma goes on at the next
+    // line. When that line is unindented the reassignment ends at its
+    // start (`a,` then `g = 1, 2`, or `g` alone), and the converter reads
+    // the nodes there as the rest of this one, up to its operation.
+    let rest = continuation;
+    while (!parts.some(isOperation)) {
+      const at = rest.findIndex((n) => !isInsignificant(n.name));
+      const next = at < 0 ? undefined : rest[at];
+      if (!next) break;
+      parts.push(...rest.slice(0, at), ...(REASSIGNMENT_NAMES.has(next.name) ? reassignmentParts(next) : [next]));
+      rest = rest.slice(at + 1);
+    }
+    validateReassignmentList(parts, rest, ctx);
+    const op = parts.find(isOperation);
     if (op) validateAssignmentValue(op, ctx);
     return;
   }
@@ -79,12 +94,8 @@ export function validateStatementNode(
     validateVariableDefinition(node, continuation, ctx);
     return;
   }
-  if (node.name === "LuauExplicitStatement" || node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
-    // Stylistic diagnostic: inside a function body, the `&` prefix is
-    // redundant.
-    const diagnostics = validateExplicitStatement(node, ctx);
-    if (diagnostics.length > 0) ctx.diagnostics?.push(...diagnostics);
-    const declaration = getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node);
+  if (node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
+    const declaration = getDescendent(["LuauSparkdownVariableDefinition"], node);
     if (declaration) {
       validateVariableDefinition(declaration, continuation, ctx);
       return;
@@ -92,7 +103,7 @@ export function validateStatementNode(
     // A comma that ends the statement's value list: the statement ends at
     // its line, so the comma is left without a value (`& a, b = 1,`).
     const content = node.getChild(`${node.name}_content`);
-    if (content) validateReassignmentList(content, continuation, ctx);
+    if (content) validateReassignmentList(childrenOf(content), continuation, ctx);
     return;
   }
   // In a function body, a target and its operation (`x = 1`), or a call or
@@ -100,6 +111,12 @@ export function validateStatementNode(
   // (`o:get().x = 6`, `(t)[k] = v`), are sibling nodes.
   const op = siblingAssignmentOperation(node);
   if (op) validateAssignmentValue(op, ctx);
+}
+
+function childrenOf(node: SyntaxNode): SyntaxNode[] {
+  const children: SyntaxNode[] = [];
+  for (let child = node.firstChild; child; child = child.nextSibling) children.push(child);
+  return children;
 }
 
 // The links a store through a call or a parenthesized value goes through,
@@ -151,6 +168,23 @@ function siblingAssignmentOperation(node: SyntaxNode): SyntaxNode | null {
 // the parse tree (a comment node is not a value), not from raw source text.
 //
 // `opNode` is a `LuauAssignmentOperation` grammar node.
+/**
+ * Whether the token at `offset` is one the grammar left unread whose errors
+ * a reading of Luau reports: the type checker's, or the lowerer's of a
+ * define's method, in either spelling (`f()` … `end`, `function f()` …
+ * `end`), or of a Sparkle closure (`reportBodySyntaxErrors`). A define's
+ * property value has no such reading.
+ */
+function luauReadingReportsUnread(node: SyntaxNode, offset: number, read: (from: number, to: number) => string): boolean {
+  if (!isUnreadTokenAt(node, offset)) return false;
+  if (checkerReadsOnTo(node, offset, read)) return true;
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.name === "LuauMethodDefinition_content" || parent.name === "LuauSparkleHandlerClosure_content") return true;
+    if (parent.name === "LuauFunctionDefinition" && parent.parent?.name === "LuauDefine_content") return true;
+  }
+  return false;
+}
+
 export function validateAssignmentValue(
   opNode: SyntaxNode,
   ctx: LowerContext,
@@ -161,16 +195,22 @@ export function validateAssignmentValue(
   // The value node (string/number/table/access-path/…) is a SIBLING of the
   // operator inside the operation. If every sibling after the operator is
   // whitespace or a comment, there's no value.
+  // The line break after an `=` holds an if expression that begins a later
+  // line, and otherwise only comments and line breaks.
   for (let sib = operator.nextSibling; sib; sib = sib.nextSibling) {
-    if (!isInsignificant(sib.name)) return;
+    if (sib.name === "LuauAssignmentLineBreak" ? lineBreakValues(sib).length > 0 : !isInsignificant(sib.name)) return;
   }
   const range = operatorTokenRange(operator, ctx);
   // The highlighting node may end at the line-ending operator while Luau
   // reads a value on the following line. Validate the converter's value.
   const read = (from: number, to: number) => ctx.read(from, to);
-  const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText);
+  const islandEnd = authoredIslandEnd(opNode, wholeDocument(opNode, read, ctx.documentText));
+  const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText, islandEnd);
+  // A value that begins with a token the grammar left unread (`x = @5`) is
+  // Luau's reading's to report, as it reports the statement's other errors.
+  if (next && luauReadingReportsUnread(opNode, next.from, read)) return;
   if (checkerReadsOnTo(opNode, next?.from, read)) {
-    const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read, ctx.documentText));
+    const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read, ctx.documentText), islandEnd);
     if (value.errors.every((error) => error.message.startsWith("Expected the end of the expression"))) return;
   }
   if (typeCheckerReportsMissingValue(opNode, operator.to, read, ctx.documentText)) return;
@@ -202,6 +242,20 @@ export function validateListComma(
   if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, (from, to) => ctx.read(from, to), ctx.documentText)) {
     return;
   }
+  // As after an `=` (`validateAssignmentValue`).
+  const read = (from: number, to: number) => ctx.read(from, to);
+  const after = nextSignificantToken(comma, at + 1, read, ctx.documentText, authoredIslandEnd(comma, wholeDocument(comma, read, ctx.documentText)));
+  if (after && luauReadingReportsUnread(comma, after.from, read)) return;
+  // Before the `=`, a token Luau's lexer reads as a name is the next binding
+  // name wherever Luau's reading carries the declaration on to it
+  // (`readingCarriesOnTo`: the lowerer reads a function value, a method or a
+  // handler as Luau too, where the type checker does not), whatever
+  // statement the grammar begins at its word
+  // on the comma's line (`local a, const = 1, 2`): only a token that is not
+  // a name is a missing one there. Where the reading ends the declaration
+  // before a statement the tree begins on a later line, the binding it lacks
+  // is Sparkdown's to report, as below.
+  if (!afterAssignment && after && isLuauNameAt(after.from, wholeDocument(comma, read, ctx.documentText)) && readingCarriesOnTo(comma, after.from, read)) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
   const parsing = afterAssignment ? "expression" : "binding name";
   ctx.diagnostics.push({
@@ -240,8 +294,8 @@ export function validateSecondAssignment(
 // which continue the last value), a comma followed by an operator that
 // cannot begin a value (`a, g = 1,` then `+ 2`), and a second `=` after a
 // comma that ends its line (`a, g = 1,` then `x = 99`). Each is reported
-// once, at the first. `content` is the statement's content node, whose
-// children are its targets, commas, operation and values.
+// once, at the first. `parts` are the statement's targets, commas,
+// operation and values, in order.
 //
 // A compound operator (`+=`) takes one target and one value: after a target
 // list Luau expects `=` there (`a, g += 1`), and a comma after its value
@@ -250,7 +304,7 @@ export function validateSecondAssignment(
 // with a comma last Luau is missing the next target (`a,` then `end`), and
 // otherwise the `=` (`a,` then `g` then `end`).
 export function validateReassignmentList(
-  content: SyntaxNode,
+  parts: readonly SyntaxNode[],
   continuation: readonly SyntaxNode[],
   ctx: LowerContext,
 ): void {
@@ -261,11 +315,11 @@ export function validateReassignmentList(
   let onlyTargets = true;
   let sawTargetComma = false;
   let last: SyntaxNode | null = null;
-  for (let child = content.firstChild; child; child = child.nextSibling) {
+  for (const child of parts) {
     if (isInsignificant(child.name)) continue;
     if (!sawAssignment && !isExplicitRuleName(child.name, "LuauAssignmentOperation")) {
       if (isListCommaName(child.name)) sawTargetComma = true;
-      else if (!isExplicitRuleName(child.name, "LuauAccessPath")) onlyTargets = false;
+      else if (!isExplicitRuleName(child.name, "LuauAccessPath") && child.name !== "LuauVariable") onlyTargets = false;
     }
     if (isExplicitRuleName(child.name, "LuauAssignmentOperation")) {
       if (sawAssignment) {
@@ -480,7 +534,7 @@ export function validateVariableDefinition(
       }
     }
   }
-  if (!firstOp && !sawAssignmentOp) firstOp = typeUnionLineValue(node);
+  if (!firstOp && !sawAssignmentOp) firstOp = typeOperatorLineValue(node);
   if (firstOp) validateAssignmentValue(firstOp, ctx);
 }
 
@@ -510,17 +564,20 @@ export function cannotBeginValue(node: SyntaxNode, ctx: LowerContext): boolean {
 // node of the tree after `pos` that is not whitespace or a comment, read
 // from the leaf that holds it (a name or keyword whole, any other token by
 // its first character), with its document offset, or null (rendered as
-// `<eof>`) when the document has none.
+// `<eof>`) when the document has none, or when the token is past the end of
+// the story statement that holds `anyNode` (#1907).
 function nextTokenAfter(
   anyNode: SyntaxNode,
   pos: number,
   ctx: LowerContext,
 ): { text: string; from: number } | null {
+  const islandEnd = authoredIslandEnd(anyNode, wholeDocument(anyNode, (from, to) => ctx.read(from, to), ctx.documentText));
   let top = anyNode;
   while (top.parent) top = top.parent;
   let node: SyntaxNode | null = top.resolveInner(pos, 1);
   while (node) {
     const token = firstTokenIn(node, pos, ctx);
+    if (token && islandEnd !== undefined && token.from >= islandEnd) return null;
     if (token) {
       // A story line that begins with `--` (an em-dash action line) is a
       // comment to Luau, which reads on from the next line, or, after a
@@ -636,7 +693,7 @@ export function typeCheckerReportsMissingValue(
   document?: () => string,
 ): boolean {
   const text = wholeDocument(node, read, document);
-  const authoredEnd = authoredIslandEnd(node);
+  const authoredEnd = authoredIslandEnd(node, text);
   const reading = readLuauExpressionAfter(pos, text, authoredEnd);
   let expr = reading.expr;
   // A leading binary operator (`+ 1`) leaves its missing left operand in
@@ -654,16 +711,13 @@ export function typeCheckerReportsMissingValue(
   return checkerReadsOnTo(node, got?.from, read);
 }
 
-// A marked story island has its own authored EOF. Reading the following
-// prose as an operand or method name would report at a story token while
-// the bounded checker separately reports the missing token at EOF.
-// A genuine function inside the island keeps its multiline Luau ownership.
-export function authoredIslandEnd(node: SyntaxNode): number | undefined {
-  for (let parent: SyntaxNode | null = node; parent; parent = parent.parent) {
-    if (parent.name === "LuauFunctionBody") return undefined;
-    if (parent.name === "LuauSparkdownExplicitStatement") return parent.to;
-  }
-  return undefined;
+// A story statement has its own authored EOF (`storyIslandEnd`, #1907).
+// Reading the following prose as an operand or method name would report at
+// a story token while the bounded checker separately reports the missing
+// token at EOF. A genuine function inside the island keeps its multiline
+// Luau ownership.
+export function authoredIslandEnd(node: SyntaxNode, text: string): number | undefined {
+  return storyIslandEnd(node, text);
 }
 
 function wholeDocument(node: SyntaxNode, read: (from: number, to: number) => string, document?: () => string): string {

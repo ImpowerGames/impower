@@ -1,11 +1,11 @@
 // A script is included once per compile. The first `include` that reaches it
 // places its content; a later `include` of the same script, from any file,
 // adds nothing, so the flows it declares are declared once.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { programContent } from "../programListing";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -49,7 +49,7 @@ function configure(compiler: SparkdownCompiler, project: Project, version: numbe
 
 function compileOnce(project: Project) {
   return quiet(() => {
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     configure(compiler, project, 1);
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
@@ -66,7 +66,7 @@ function errors(program: any): string[] {
 // Every line the story shows from its start, or from the scene `scene`,
 // choosing the first choice whenever it offers any.
 function play(program: any, scene?: string): string {
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   if (scene) {
     story.ChoosePathString(scene);
   }
@@ -97,7 +97,7 @@ describe("a script included from two places", () => {
   it("declares its scene once", () => {
     const program = compileOnce(twice(["scene shared_scene", "  Shared.", "end", ""].join("\n")));
     expect(errors(program)).toEqual([]);
-    expect(program.compiled).toBeDefined();
+    expect(program.chunks).toBeDefined();
   });
 
   it("declares its function once", () => {
@@ -119,9 +119,9 @@ describe("a script included from two places", () => {
   it("declares its layout's binding evaluators once", () => {
     const program = compileOnce(twice(["store a = 1", "", "layout la with", '  text "{a}"', "end", ""].join("\n")));
     expect(errors(program)).toEqual([]);
-    const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding_\w+/)?.[0];
+    const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding\$\w+/)?.[0];
     expect(id).toBeDefined();
-    expect(new RuntimeStory(program.compiled as Record<string, any>).EvaluateFunction(id!)).toBe(1);
+    expect(testStory(program.chunks).EvaluateFunction(id!)).toBe(1);
   });
 
   it("shows its display content once, where it is first included", () => {
@@ -149,7 +149,7 @@ describe("a script included from two places", () => {
     expect(offset).toBeGreaterThanOrEqual(0);
     const edited = { ...project, [name]: text.slice(0, offset) + replace + text.slice(offset + find.length) };
     const [incremental, cold] = quiet(() => {
-      const compiler = new SparkdownCompiler();
+      const compiler = testCompiler();
       configure(compiler, project, 1);
       compiler.compile({ textDocument: { uri: MAIN_URI } });
       compiler.updateDocument({
@@ -162,13 +162,13 @@ describe("a script included from two places", () => {
         ],
       });
       const incremental = compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
-      const fresh = new SparkdownCompiler();
+      const fresh = testCompiler();
       configure(fresh, edited, 2);
       return [incremental, fresh.compile({ textDocument: { uri: MAIN_URI } }).program];
     });
     expect(errors(incremental)).toEqual([]);
     expect(errors(cold)).toEqual([]);
-    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
     expect(play(incremental, "main_one")).toContain("Value 7");
   });
 });
@@ -193,5 +193,43 @@ describe("a script that includes the script including it", () => {
     expect(errors(program)).toEqual([]);
     expect(play(program, "main_one")).toContain("Main.");
     expect(play(program, "chapter_one")).toContain("Chapter.");
+  });
+});
+
+// #316: an include of a script the project does not have is an error at the
+// include, in a cold compile and in one after an edit elsewhere.
+describe("an include of a script that does not exist", () => {
+  const errorLines = (program: any): [number, string][] =>
+    Object.values(program.diagnostics ?? {}).flatMap((list: any) =>
+      list
+        .filter((d: any) => d.severity === 1)
+        .map((d: any) => [d.range.start.line, typeof d.message === "string" ? d.message : d.message?.value]),
+    );
+  const main = ["Opening.", "include nope.sd", "", "scene main_one", "  Main.", "end", ""].join("\n");
+  const missing: [number, string] = [1, "Could not find 'nope.sd' for 'include' statement."];
+
+  it("is an error at the include", () => {
+    expect(errorLines(compileOnce({ main }))).toEqual([missing]);
+  });
+
+  it("is an error at the include after an edit elsewhere", () => {
+    const program = quiet(() => {
+      const compiler = testCompiler();
+      configure(compiler, { main }, 1);
+      compiler.compile({ textDocument: { uri: MAIN_URI } });
+      const at = main.indexOf("Main.");
+      compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version: 2 },
+        contentChanges: [{ range: { start: posAt(main, at), end: posAt(main, at + 5) }, text: "Main, edited." }],
+      });
+      return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
+    });
+    expect(errorLines(program)).toEqual([missing]);
+  });
+
+  // An `include` with no path is the neighbouring mistake (#1956 review).
+  it.each(["include", "include  # tag"])("is an error at `%s`, which names no script", (line) => {
+    const text = main.replace("include nope.sd", line);
+    expect(errorLines(compileOnce({ main: text }))).toEqual([[1, "Expected a file path after 'include'."]]);
   });
 });

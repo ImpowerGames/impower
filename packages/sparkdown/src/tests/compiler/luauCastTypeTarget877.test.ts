@@ -1,4 +1,3 @@
-import "../../inkjs/engine/Container";
 import { beforeAll, describe, expect, test } from "vitest";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
@@ -259,6 +258,10 @@ describe("casts read their targets as types (#877)", () => {
     const units = readLuauUnits(parseSource(source), source);
     expect(units.prelude.errors.length).toBeGreaterThan(0);
     expect(printAst(units.prelude.root)).toContain("StatReturn\n          ExprConstantNumber 55");
+    // `typeof`'s argument is a value, whose parentheses read on across lines
+    // as a call's do (#1382), so the tree holds the `return` in them; the
+    // reading still recovers there, as above. A type ends before it.
+    if (target.startsWith("typeof")) return;
     let node = parseSource(source).resolveInner(source.indexOf("return 55"), 1);
     const ancestors: string[] = [];
     for (; node.parent; node = node.parent) ancestors.push(node.name);

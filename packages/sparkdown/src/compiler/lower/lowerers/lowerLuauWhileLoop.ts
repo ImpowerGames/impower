@@ -5,7 +5,7 @@ import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Di
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
-import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
+import { NativeFunctionCall } from "../../../runtime/NativeFunctionCall";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { AstStatWhile } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
@@ -14,10 +14,10 @@ import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
-import { loopOf, openBody } from "../utils/statementShape";
+import { openBody, recordLoop } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
 // the loop's source position in the enclosing weave. The tail-jump is
@@ -76,7 +76,7 @@ export function lowerLuauWhileLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, WHILE_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "while", ctx);
   // The condition is the AST's. The body lives inside the loop node's
   // LuauDoBlock > LuauDoBlock_content. A loop in a scene or at the top level
   // parses as `LuauSparkdownWhileLoop` holding a `LuauSparkdownDoBlock`, in
@@ -117,6 +117,7 @@ export function lowerLuauWhileLoop(
   });
   const body = openBody(
     ctx,
+    node.from,
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );
@@ -164,13 +165,13 @@ export function lowerLuauWhileLoop(
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
   if (body) {
-    loopOf.set(gather, {
+    recordLoop(gather, {
       kind: "while",
       body,
       objects: [gather, breakGather],
       test: branch,
       init: [],
-    });
+    }, [gather, breakGather, tailDivert]);
   }
 
   // A chunk's content reaches the enclosing scene or top-level flow only

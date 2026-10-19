@@ -11,6 +11,7 @@ import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
+import { officialSyntaxErrors } from "../compiler/officialSyntax";
 
 function compileAndCapture(source: string): {
   errors: string[];
@@ -34,10 +35,10 @@ function compileAndCapture(source: string): {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     return { errors: ["NO_COMPILED"], recorded: [], text: "" };
   }
-  const story = testStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.chunks);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);
@@ -73,6 +74,18 @@ function ifDiagnostics(source: string): string[] {
     .map((d: any) => {
       const { start, end } = d.range;
       return `${start.line + 1}:${start.character + 1}-${end.line + 1}:${end.character + 1} ${d.message?.value ?? d.message}`;
+    });
+}
+
+// The official parser's "when parsing" errors, in `ifDiagnostics`'s form. Where
+// Sparkdown ends a statement at a column-0 line, the errors after the first
+// are Luau's recovery reading on into that line, so a row compares the first.
+function officialIfDiagnostics(source: string): string[] {
+  return officialSyntaxErrors(source)
+    .filter((e) => e.message.includes("when parsing"))
+    .map((e) => {
+      const { begin, end } = e.location;
+      return `${begin.line + 1}:${begin.column + 1}-${end.line + 1}:${end.column + 1} ${e.message}`;
     });
 }
 
@@ -637,10 +650,8 @@ describe("if expression without an else", () => {
     ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
     ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
     ["a then arm with only a chain of unary operators", "  local y = if true then\n    not not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
-    // A cast's `::` is Sparkdown's to report, and a value at column 0 is
-    // one Luau reads as the arm's, where Sparkdown ends the statement.
+    // A cast's `::` is Sparkdown's to report.
     ["a then arm with only a cast","  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm at column 0 on the line after then", "  local y = if true then\n1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:5-4:9"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
   ])("%s: reports it where it is missing and keeps what follows", (_name, partial, message, at) => {
@@ -651,18 +662,45 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\nYou walk through it.\n");
   });
 
+  // Sparkdown ends the statement at the value at column 0, but the `else`
+  // after it closes nothing there (#1906), so the lines are Luau's to read,
+  // and Luau reads the value as the arm's.
+  test("a then arm at column 0 on the line after then is read as Luau reads it", () => {
+    const source = "function f()\n  local y = if true then\n1\n  else 2\n  return y\nend\nSum {f()}.\n";
+    expect(ifDiagnostics(source)).toEqual([]);
+    expect(officialSyntaxErrors(source.slice(0, source.indexOf("Sum")))).toEqual([]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Sum 1.\n");
+  });
+
   // The function's own `end` at column 0 comes straight after the unfinished
   // expression, so nothing indented separates the two.
   test.each([
     ["a then arm with only a comment", "  local y = if true\n    then -- still writing\n", `${MISSING_CONDITION}, got 'end'`, "4:1-4:4"],
-    ["no else yet", "  local y = if true\n    then 1\n", MISSING_ELSE, "2:13-2:15"],
+    // A missing else is Luau's error, at the token Luau finds instead (#1501).
+    ["no else yet", "  local y = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
     ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
-    ["a reassignment with no else yet", "  x = if true\n    then 1\n", MISSING_ELSE, "2:7-2:9"],
+    ["a reassignment with no else yet", "  x = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
   ])("%s, right before the function's end: keeps the next function", (_name, body, message, at) => {
     const source = `function f()\n${body}end\nfunction g()\n  return 6\nend\nSum {g()}.\n`;
     expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
+    if (message.startsWith(MISSING_ELSE)) expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
+  });
+
+  // Where Sparkdown's own syntax ends the expression, the missing else is
+  // reported there: a marked `&` statement at its line's end, as its
+  // authored end of file, whatever follows it (#1501); a `store`
+  // declaration, which the checker does not read, on its `if`.
+  test.each([
+    ["an & statement before story", "& x = 0\n& x = if true then 1\nStory follows.\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
+    ["an & statement before another", "& x = 0\n& x = if true then 1\n& x = 2\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
+    ["an & statement before a scene's end", "scene s\n  & x = if true then 1\nend\n", `2:23-2:23 ${MISSING_ELSE}, got <eof>`],
+    ["a store declaration before story", "store x = if true then 1\nStory follows.\n", `1:11-1:13 ${MISSING_ELSE}`],
+  ])("in %s: reports it where Sparkdown ends the expression", (_name, source, diagnostic) => {
+    expect(ifDiagnostics(source)).toEqual([diagnostic]);
   });
 
   test("an & statement ends before a following narrative then line", () => {
@@ -677,7 +715,8 @@ describe("if expression without an else", () => {
     ["a compound assignment", "+="],
   ])("in %s, followed by a statement at column 0", (_name, op) => {
     const source = `Value {f()}.\nfunction f()\n  local x = 0\n  x ${op} if true\n    then 1\nx = 6\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual([`4:${op.length + 6}-4:${op.length + 8} ${MISSING_ELSE}`]);
+    expect(ifDiagnostics(source)).toEqual([`6:1-6:2 ${MISSING_ELSE}, got 'x'`]);
+    expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source).slice(0, 1));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
@@ -710,21 +749,23 @@ describe("if expression without an else", () => {
     ["a for loop", "for i = 6, 6 do x = i end"],
   ])("in a reassignment, followed by %s at column 0", (_name, next) => {
     const source = `Value {f()}.\nlocal x = 0\nfunction set(v)\n  x = v\nend\nfunction f()\n  x = if true\n    then 1\n${next}\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual([`7:7-7:9 ${MISSING_ELSE}`]);
+    expect(ifDiagnostics(source)).toEqual([expect.stringMatching(/^9:1-9:\d+ Expected 'else' when parsing if then else expression, got '/)]);
+    expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source).slice(0, 1));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
 
   // A column-0 line after an if expression's line that belongs to the
-  // expression still does: a clause keyword, a continuation, and the value of
-  // an else arm.
+  // expression still does in Luau code: a clause keyword, a continuation, and
+  // the value of an else arm. A story declaration ends at its line instead
+  // (#1907, #1658), as storyBodyLineRule pins.
   test.each([
     ["then and else at column 0", "local a = true\nlocal x = if a\nthen 1\nelse 2\n", "Value 1.\n"],
     ["a continuation at column 0", 'local a = true\nlocal x = if a then "x"\n.. "z"\nelse "y"\n', "Value xz.\n"],
     ["an else value at column 0", 'local a = false\nlocal x = if a then "a" else\n"c"\n', "Value c.\n"],
     ["an else value at column 0 that is a name", "local a = false\nlocal n = 4\nlocal x = if a then 1 else\nn\n", "Value 4.\n"],
   ])("%s stays in the expression", (_name, lines, value) => {
-    const ctx = makeRuntimeStoryFromSource(`${lines}Value {x}.\n`);
+    const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n${lines}return x\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(value);
   });

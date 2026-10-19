@@ -451,7 +451,7 @@ export default class WorkspaceWindow {
   }
 
   setSimulationOptions(
-    simulatePath: string,
+    simulateFlow: string,
     options: {
       favoredChoices?: (number | undefined)[];
       favoredConditions?: (boolean | undefined)[];
@@ -463,7 +463,7 @@ export default class WorkspaceWindow {
         ...this.store.debug,
         simulationOptions: {
           ...this.store.debug.simulationOptions,
-          [simulatePath]: options,
+          [simulateFlow]: options,
         },
       },
     });

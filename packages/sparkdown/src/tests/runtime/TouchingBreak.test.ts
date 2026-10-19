@@ -10,7 +10,7 @@ import {
   continueShowedSomething,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import type { TestStory } from "../engineUnderTest";
 
 interface Step {
   text: string;
@@ -23,7 +23,7 @@ interface Step {
 
 // Every step that shows something: its text, the routing of its first routed
 // table, and the flags its tables carry.
-function steps(story: RuntimeStory): Step[] {
+function steps(story: TestStory): Step[] {
   const out: Step[] = [];
   let guard = 0;
   while (story.canContinue && guard++ < 50) {

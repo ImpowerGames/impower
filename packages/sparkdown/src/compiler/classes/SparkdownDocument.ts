@@ -54,6 +54,29 @@ export class SparkdownDocument implements TextDocument {
     this.text = TextDocument.create(uri, languageId, version, content);
   }
 
+  /**
+   * A copy of this document at its version, which an update can edit while
+   * this one stays as it is. The line offsets the text document computes on
+   * first use are copied with it, so the copy's first position lookup does not
+   * scan the whole text again.
+   */
+  clone(): SparkdownDocument {
+    const copy = new SparkdownDocument(
+      this.uri,
+      this.languageId,
+      this.version,
+      this.getText(),
+    );
+    const lineOffsets = (this.text as { _lineOffsets?: number[] })
+      ._lineOffsets;
+    if (lineOffsets) {
+      (copy.text as { _lineOffsets?: number[] })._lineOffsets =
+        lineOffsets.slice();
+    }
+    copy._cachedText = this._cachedText;
+    return copy;
+  }
+
   getText(range?: Range): string {
     return this.text.getText(range);
   }
@@ -146,19 +169,32 @@ export class SparkdownDocument implements TextDocument {
    */
   static readonly CHUNK_TARGET_SIZE = 16384;
 
+  /**
+   * The text from `from` to the next slice end. Slices end right after the
+   * line break at or after each multiple of {@link CHUNK_TARGET_SIZE} (the
+   * tokenizer's window loop expects a slice to end a line), at the same
+   * places whatever position a read starts from. The tokenizer's window
+   * ends where the last slice it read ends, and a lookahead sees the end of
+   * the input there, so a parse that restarts mid-document has to see the
+   * window end where a parse from the start does.
+   */
   chunk(from: number): string {
     const text = this.cachedText;
     if (from >= text.length) {
       return "";
     }
-    let end = from + SparkdownDocument.CHUNK_TARGET_SIZE;
-    if (end >= text.length) {
-      return text.slice(from);
+    const size = SparkdownDocument.CHUNK_TARGET_SIZE;
+    const lineEndAfter = (pos: number) => {
+      const newline = text.indexOf("\n", pos);
+      return newline === -1 ? text.length : newline + 1;
+    };
+    // The first slice end past `from`: the one for the multiple at or
+    // before `from` when its line runs past `from`, otherwise the next.
+    const multiple = Math.floor(from / size) * size;
+    let end = multiple > 0 ? lineEndAfter(multiple) : 0;
+    if (end <= from) {
+      end = lineEndAfter(multiple + size);
     }
-    // Extend to the end of the line containing `end` so slices always break
-    // right after a newline (the tokenizer's window loop expects that).
-    const newline = text.indexOf("\n", end);
-    end = newline === -1 ? text.length : newline + 1;
     return text.slice(from, end);
   }
 }

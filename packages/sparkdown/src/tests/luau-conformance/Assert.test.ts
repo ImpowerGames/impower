@@ -1,7 +1,6 @@
 // End-to-end test for native `assert(cond [, message])`. The
 // implementation routes `assert` through the `STDLIB` registry
-// (StdLib.ts) → generic `RunStdLibFunction` ControlCommand →
-// runtime dispatcher that calls `entry.fn(story, args)`, which in
+// (StdLib.ts) → the program engine's `CallStd` instruction, which calls `entry.fn(story, args)`, which in
 // `assert`'s case raises a runtime error via `story.AddError` on
 // falsy condition.
 
@@ -26,10 +25,10 @@ function compileAndRun(source: string) {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     return { result, errors: ["NO_COMPILED"] };
   }
-  const story = testStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.chunks);
   const errors: string[] = [];
   story.onError = (m: string) => errors.push(m);
   story.ContinueMaximally();

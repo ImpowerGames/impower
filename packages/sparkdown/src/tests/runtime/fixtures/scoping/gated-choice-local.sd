@@ -1,0 +1,13 @@
+local lit = false
+choose
+  if true then
+    local lit = true
+    * A {lit}
+    * B {lit}
+      In B {lit}.
+  end
+  * if (not lit) [Global]
+    In global {lit}.
+end
+After {lit}.
+done

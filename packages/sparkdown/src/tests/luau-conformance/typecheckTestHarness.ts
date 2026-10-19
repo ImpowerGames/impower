@@ -700,16 +700,19 @@ interface WrappedSnippet {
   length: number;
 }
 
-// `run` compiles the file as `& <wrapper>()`, then `function <wrapper>()`,
-// the file's text, and `end`, in a document of its own. Find that document
-// and check the snippet sits in it unchanged, so that a change to how `run`
-// wraps a file fails here rather than skewing every position.
+// `run` compiles the file as a blank line, then `function <wrapper>()`, the
+// file's text, and `end`, in a declaration document of its own, and the call
+// `& <wrapper>()` in a call document of the `run` statement's (`&site=`).
+// Find the declaration and check the snippet sits in it unchanged, so that a
+// change to how `run` wraps a file fails here rather than skewing every
+// position.
 function wrappedSnippet(
   documents: SparkdownDocumentRegistry,
   source: string,
 ): WrappedSnippet {
-  const uris = [...documents.keys()].filter((uri) =>
-    uri.startsWith(`${SNIPPET_URI}?run=`),
+  const uris = [...documents.keys()].filter(
+    (uri) =>
+      uri.startsWith(`${SNIPPET_URI}?run=`) && !uri.includes("&site="),
   );
   if (uris.length !== 1) {
     throw new Error(
@@ -722,7 +725,7 @@ function wrappedSnippet(
   if (!document || !tree) throw new Error(`no parsed document for ${uri}`);
   const text = document.getText();
   const wrapper = uri.slice(uri.indexOf("?run=") + "?run=".length);
-  const prefix = `& ${wrapper}()\nfunction ${wrapper}()\n`;
+  const prefix = `\nfunction ${wrapper}()\n`;
   const suffix = "\nend\n";
   if (
     !text.startsWith(prefix) ||

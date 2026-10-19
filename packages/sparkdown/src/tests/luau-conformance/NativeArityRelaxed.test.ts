@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Sparkdown's `FunctionCall.GenerateIntoContainer` previously
+// Sparkdown's call code generation (deleted in #705) previously
 // asserted that a NativeFunctionCall site supplied exactly the
 // registered arity (e.g. `math.abs` expects 1 parameter, `math.max`
 // expects 2). Any miscount became a compile-time ERROR — which broke

@@ -10,6 +10,7 @@
 // the workspace sends them.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PreviewCompileProgramMessage } from "../../compiler/classes/messages/PreviewCompileProgramMessage";
+import { RemoveCompilerFileMessage } from "../../compiler/classes/messages/RemoveCompilerFileMessage";
 import { UpdateCompilerFileMessage } from "../../compiler/classes/messages/UpdateCompilerFileMessage";
 import type { File } from "../../compiler/types/File";
 import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
@@ -30,6 +31,7 @@ class TestWorkspace extends SparkdownWorkspace {
   constructor() {
     super("");
     this._compilerConfigured = true;
+    this._projectLoaded = true;
     this._imageFilePattern = /\.png$/;
     this._compilerChannelConnection = {
       sendRequest: (type: { method: string }) =>
@@ -140,5 +142,42 @@ describe("a preview compile asked for while a project file changes", () => {
       UpdateCompilerFileMessage.method,
       PreviewCompileProgramMessage.method,
     ]);
+  });
+
+  it("waits for a second change to the same file that waits behind the first", async () => {
+    const workspace = new TestWorkspace();
+    const changing = workspace.changeFile(IMAGE);
+    const deleting = workspace.deleteFile(IMAGE);
+    // Both changes move the revision as they arrive, though the delete is
+    // applied only after the change before it.
+    expect(workspace.filesRevision).toBe(2);
+
+    const preview = workspace.previewCompile({
+      textDocument: { uri: MAIN, version: 1 },
+      contentChanges: [],
+      startFrom: { file: MAIN, line: 0 },
+    });
+    workspace.loads.shift()!({ uri: IMAGE, name: "mia~happy", type: "image", ext: "png" } as File);
+    await settle();
+    expect(workspace.sent).toEqual([UpdateCompilerFileMessage.method]);
+
+    workspace.requests[0]!.resolve(undefined);
+    await settle();
+    // The delete, not the preview, goes next.
+    expect(workspace.sent).toEqual([
+      UpdateCompilerFileMessage.method,
+      RemoveCompilerFileMessage.method,
+    ]);
+
+    workspace.requests[1]!.resolve(undefined);
+    await Promise.all([changing, deleting]);
+    await settle();
+    expect(workspace.sent).toEqual([
+      UpdateCompilerFileMessage.method,
+      RemoveCompilerFileMessage.method,
+      PreviewCompileProgramMessage.method,
+    ]);
+    workspace.requests[2]!.resolve({ textDocument: { uri: MAIN, version: 1 } });
+    await preview;
   });
 });

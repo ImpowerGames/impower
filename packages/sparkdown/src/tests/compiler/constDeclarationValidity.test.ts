@@ -10,7 +10,6 @@
 // uninitialized global, and the resulting nil arithmetic throws out of
 // `ResetState`, so `program.compiled` came back undefined and the author got
 // NO diagnostic at all — the game simply didn't run.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
@@ -51,10 +50,15 @@ function check(body: string) {
     const p = compile(
       body + "\nscene main\n:\n  Value {SHOW}.\n-> DONE\nend\n",
     );
+    // The program's constants are the names its story registers as constant
+    // (`ProgramRoot.tables.constantNames`, which the current engine's
+    // compiled JSON listed as `constants`, and left out when there were
+    // none).
+    const constants = [...(p.chunks?.tables?.constantNames ?? [])];
     return {
-      hasProgram: Boolean(p.compiled),
+      hasProgram: Boolean(p.chunks),
       errors: errorsOf(p).length,
-      constants: (p.compiled?.constants ?? null) as string[] | null,
+      constants: (constants.length > 0 ? constants : null) as string[] | null,
     };
   } finally {
     console.warn = realWarn;

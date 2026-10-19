@@ -1,5 +1,6 @@
 import { type Container, type Renderer } from "pixi.js";
 import { type Message } from "../../../jsonrpc/src/common/types/Message";
+import { type RequestMessage } from "../../../jsonrpc/src/common/types/RequestMessage";
 import { type Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import type { AudioClock } from "./AudioClock";
 import type AssetManager from "./managers/AssetManager";
@@ -74,4 +75,9 @@ export interface IApplication {
    * Emit a message to communicate with the game.
    */
   emit: (message: Message, transfer?: ArrayBuffer[]) => void;
+  /**
+   * Answer a request a manager met inside another message once `work`
+   * settles, as every request the page receives is answered.
+   */
+  answer: (message: RequestMessage, work: Promise<unknown>) => void;
 }

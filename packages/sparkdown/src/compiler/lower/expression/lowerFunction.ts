@@ -25,7 +25,7 @@ import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/Parsed
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import {
   AstExprCall,
   AstExprFunction,
@@ -45,7 +45,10 @@ import {
   type AstLocal,
   type AstNode,
 } from "../../typecheck/Ast";
+import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -54,6 +57,7 @@ import {
   enclosingNode,
   nodeAfterAttributes,
   offsetAt,
+  rangeOf,
   readBlockAst,
   type LuauSource,
 } from "../utils/luauAst";
@@ -97,20 +101,70 @@ export function parameterNames(func: AstExprFunction): string[] {
 }
 
 /**
- * The AST of a function body's statements, read from the body's syntax
- * nodes, for a function whose header Luau has no syntax for (a `define`'s
+ * A function body's statements, read from the body's syntax nodes as one
+ * block, for a function whose header Luau has no syntax for (a `define`'s
  * `name(args) ... end` method), so that only its body is read.
  */
-export function bodyAst(
+export function readBodyAst(
   content: SyntaxNode | null,
   skipNames: ReadonlySet<string>,
   ctx: LowerContext,
-): AstStatBlock | null {
+): { unit: LuauAstUnit } | null {
   const nodes: SyntaxNode[] = [];
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (!skipNames.has(child.name)) nodes.push(child);
   }
-  return readBlockAst(nodes, ctx)?.unit.root ?? null;
+  return readBlockAst(nodes, ctx);
+}
+
+/**
+ * Reports, for a body the type checker does not read (a `define`'s method,
+ * a sparkle handler's closure), the syntax errors of Luau's reading that
+ * the type checker reports in a function's body and the validator leaves
+ * to it: those of a statement that holds a token the grammar left unread
+ * (`LuauSyntaxError.unread`), and those that find a statement or an
+ * attribute malformed (`Hello` on a line of its own,
+ * `@[deprecated{reason=reason}]`). Only errors from `bodyFrom` on are the
+ * body's (a method's header is read with it). Called once the body is
+ * lowered, it leaves out an error the lowering already reported at the
+ * same place.
+ */
+export function reportBodySyntaxErrors(
+  errors: readonly LuauSyntaxError[],
+  ctx: LowerContext,
+  bodyFrom = 0,
+): void {
+  reportSyntaxErrors(errors.filter((error) => error.unread || error.malformed === "statement" || error.malformed === "attribute"), ctx, bodyFrom);
+}
+
+/**
+ * Reports syntax errors of a reading no other reader reports, those from
+ * `from` on, leaving out an error already reported at the same place.
+ */
+export function reportSyntaxErrors(
+  errors: readonly LuauSyntaxError[],
+  ctx: LowerContext,
+  bodyFrom = 0,
+): void {
+  const diagnostics = ctx.diagnostics;
+  if (!diagnostics) return;
+  const reported = new Set(
+    diagnostics.map((d) => `${d.source?.startLineNumber}:${d.source?.startCharacterNumber} ${d.message}`),
+  );
+  for (const error of errors) {
+    const { from, to } = rangeOf(error.location, ctx);
+    if (from < bodyFrom) continue;
+    const source = {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(from) + 1,
+      endLineNumber: ctx.lineNumber(to) + 1,
+      startCharacterNumber: ctx.characterNumber(from) + 1,
+      endCharacterNumber: ctx.characterNumber(to) + 1,
+    };
+    if (reported.has(`${source.startLineNumber}:${source.startCharacterNumber} ${error.message}`)) continue;
+    diagnostics.push({ message: error.message, severity: ErrorType.Error, source });
+  }
 }
 
 /**
@@ -400,15 +454,16 @@ export function bodyReferencesNameAsCall(
 
 /**
  * The names the statements of `block` declare as locals themselves
- * (`local x`, `local function f`), not those declared inside the blocks
- * within it: what a `repeat` loop's `until` condition sees of its body.
+ * (`local x`, `local function f`, and a `const` unless the story publishes
+ * it, `publishesConst`), not those declared inside the blocks within it:
+ * what a `repeat` loop's `until` condition sees of its body.
  */
-export function blockLocalNames(block: AstStatBlock): string[] {
+export function blockLocalNames(block: AstStatBlock, constsAreLocal: boolean): string[] {
   const names: string[] = [];
   for (const stat of block.body) {
-    if (stat instanceof AstStatLocal && !stat.isConst) {
+    if (stat instanceof AstStatLocal && (constsAreLocal || !stat.isConst)) {
       names.push(...stat.vars.map((v) => v.name));
-    } else if (stat instanceof AstStatLocalFunction && !stat.isConst) {
+    } else if (stat instanceof AstStatLocalFunction && (constsAreLocal || !stat.isConst)) {
       names.push(stat.name.name);
     }
   }
@@ -483,6 +538,9 @@ export function lowerFunctionBody(
   const content = getFunctionBodyContent(node);
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
+  ctx.functionBindingsStack?.push(
+    functionBindings([...(func.self ? [func.self] : []), ...func.args], func.body, ctx),
+  );
   ctx.declaredLocalsStack?.push(
     immediateBodyDeclarations(parameterNames(func), func.body),
   );
@@ -492,9 +550,12 @@ export function lowerFunctionBody(
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, skipNames, shape);
+  // The function bodies its types hold lower no code; check them here.
+  reportErasedConstErrors(func, node, ctx);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
+  ctx.functionBindingsStack?.pop();
   ctx.functionScopeStack?.pop();
   return {
     hoisted,

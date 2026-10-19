@@ -67,6 +67,9 @@ export class TextmateGrammarParse implements PartialParse {
    * @param fragments - The fragments to be used for determining reuse of
    *   previous parses.
    * @param ranges - The ranges of the document to parse.
+   * @param lookaheadStart - The earliest position of a token whose matching
+   *   can have read the text at a position (see
+   *   `TextmateGrammarParser.lookaheadStart`).
    */
   constructor(
     grammar: Grammar,
@@ -74,6 +77,7 @@ export class TextmateGrammarParse implements PartialParse {
     input: Input,
     fragments: readonly TreeFragment[],
     ranges: { from: number; to: number }[],
+    lookaheadStart?: (input: Input, pos: number) => number,
   ) {
     // console.log(
     //   "NEW PARSE",
@@ -112,6 +116,7 @@ export class TextmateGrammarParse implements PartialParse {
             this.region.edit.from,
             this.region.edit.to,
             this.region.edit.offset,
+            lookaheadStart && ((pos) => lookaheadStart(input, pos)),
           );
           if (restartFrom != null) {
             this.region.from = restartFrom;
@@ -233,6 +238,7 @@ export class TextmateGrammarParse implements PartialParse {
     const to = Math.min(this.region.original.length, this.parsedPos);
     const length = to - start;
 
+    this.compiler.settleReparsedFrom();
     const result = this.compiler.finish(length);
 
     if (result) {
@@ -319,6 +325,72 @@ export class TextmateGrammarParse implements PartialParse {
     if (delta > 0) {
       this.tokenizer.skip(delta);
     }
+  }
+
+  /** Where the last tokenizer step started, so that a splice at a position
+   *  happens before any step there has added its tokens. */
+  protected lastStepFrom = -1;
+
+  /** Whether the reused-ahead chunks end within the region being parsed.
+   *  A pure splice appends all of them, and `finish` cuts the tree's length
+   *  at the region's end but not the nodes past it, so chunks that run on
+   *  past a range the caller bounded would put nodes outside it. */
+  protected aheadEndsInRegion(): boolean {
+    return (this.compiler.ahead?.last?.to ?? 0) <= this.region.to;
+  }
+
+  /**
+   * Tries to splice the reused-ahead chunks in at a top-level boundary the
+   * head has just arrived at, before any step runs there (#1637).
+   * {@link tryToReuseAhead} looks only when a chunk is emitted, and a chunk
+   * is emitted when its held-back token is flushed, by the step that has
+   * already opened the next construct. So when top-level constructs follow
+   * one another with nothing between them (a run of declarations), the head
+   * never stands at an old pure boundary with no open frames, and the parse
+   * re-tokenizes everything after the edit.
+   *
+   * The boundary must start a line: the restart anchor keeps the line's
+   * prefix visible to `^` and lookbehind assertions, and the old chunks
+   * were tokenized with the prefix the line had then, which an edit earlier
+   * on the same line changes.
+   */
+  protected tryPureSplice(): boolean {
+    const ahead = this.compiler.ahead;
+    if (!ahead?.first || !this.region.contiguous) {
+      return false;
+    }
+    if (!this.tokenizer.flushableNow || this.tokenizer.done) {
+      return false;
+    }
+    const pos = this.parsedPos;
+    if (pos === this.lastStepFrom) {
+      return false;
+    }
+    if (pos > ahead.first.from) {
+      // Passed the first boundary: the next one at or after the head.
+      const splitAhead = ahead.findAheadSplitPoint(pos - 1);
+      if (!splitAhead.chunk || splitAhead.index == null) {
+        return false;
+      }
+      this.compiler.ahead = ahead.split(splitAhead.index).right;
+    }
+    const first = this.compiler.ahead!.first;
+    if (
+      !first ||
+      first.from !== pos ||
+      !first.startsPure ||
+      !this.aheadEndsInRegion() ||
+      pos === 0 ||
+      this.region.input.read(pos - 1, pos) !== "\n"
+    ) {
+      return false;
+    }
+    this.flushPendingIntoCompiler();
+    this.compiler.append(this.compiler.ahead!);
+    this.compiler.ahead = undefined;
+    this.advanceTokenizerTo(this.compiler.packet.last!.to);
+    this.parsedPos = this.compiler.packet.last!.to;
+    return true;
   }
 
   /**
@@ -418,11 +490,12 @@ export class TextmateGrammarParse implements PartialParse {
       this.parsedPos < this.region.to ||
       (this.tokenizer.hasOpenFrames && !this.tokenizer.done)
     ) {
-      if (this.tryImpureSplice()) {
+      if (this.tryImpureSplice() || this.tryPureSplice()) {
         return true;
       }
 
       const pos = this.parsedPos;
+      this.lastStepFrom = pos;
 
       const step = this.tokenizer.step();
       let matchLength = step.length;
@@ -508,7 +581,8 @@ export class TextmateGrammarParse implements PartialParse {
       if (this.compiler.ahead.first) {
         if (
           this.parsedPos === this.compiler.ahead.first.from &&
-          this.compiler.ahead.first.startsPure
+          this.compiler.ahead.first.startsPure &&
+          this.aheadEndsInRegion()
         ) {
           this.flushPendingIntoCompiler();
           this.compiler.append(this.compiler.ahead);
@@ -535,7 +609,8 @@ export class TextmateGrammarParse implements PartialParse {
             this.compiler.ahead = aheadSplitBuffer.right;
             if (
               this.parsedPos === this.compiler.ahead.first?.from &&
-              this.compiler.ahead.first.startsPure
+              this.compiler.ahead.first.startsPure &&
+              this.aheadEndsInRegion()
             ) {
               this.flushPendingIntoCompiler();
               this.compiler.append(this.compiler.ahead);

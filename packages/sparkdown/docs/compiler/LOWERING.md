@@ -1,10 +1,10 @@
 # Sparkdown Lowering Guide
 
-The lowerer translates the **Lezer parse tree** (produced by the grammar — see [`GRAMMAR.md`](./GRAMMAR.md)) into the **inkjs `ParsedHierarchy`** that inkjs's `ExportRuntime` then converts to runtime bytecode. It's the layer that decides "what does this construct *mean*?" — every grammar node either becomes a `ParsedObject` of some kind, becomes part of a parent's ParsedObject, or is intentionally discarded.
+The lowerer translates the **Lezer parse tree** (produced by the grammar — see [`GRAMMAR.md`](./GRAMMAR.md)) into the **inkjs `ParsedHierarchy`**, which the program path's resolver resolves and the program writer emits as statement chunks (`docs/engine/binary-program.md`). It's the layer that decides "what does this construct *mean*?" — every grammar node either becomes a `ParsedObject` of some kind, becomes part of a parent's ParsedObject, or is intentionally discarded.
 
 If the grammar is "shape of the syntax," the lowerer is "shape of the runtime semantics." When they agree well, the lowerer is short and obvious. When they don't, the lowerer ends up doing parse-tree archaeology — which is a sign the grammar layer needs more structure (see [GRAMMAR.md §2 "Golden Rule"](./GRAMMAR.md#2-the-golden-rule)).
 
-> **Companion docs:** [`GRAMMAR.md`](./GRAMMAR.md) covers the TextMate grammar layer. [`RUNTIME.md`](./RUNTIME.md) covers the bytecode interpreter.
+> **Companion docs:** [`GRAMMAR.md`](./GRAMMAR.md) covers the TextMate grammar layer. [`RUNTIME.md`](../runtime/RUNTIME.md) covers the binary-program interpreter.
 
 ---
 
@@ -292,7 +292,7 @@ To illustrate the layering, here's how the existing discard-call statement got b
 **Grammar** — captures `&` + access-path:
 
 ```yaml
-LuauExplicitStatement:
+LuauSparkdownExplicitStatement:
   begin: ({{WS}}*)([&])($|{{WS}}+)
   beginCaptures:
     1: { patterns: [{ include: "#Indent" }] }
@@ -305,7 +305,7 @@ LuauExplicitStatement:
   end: (?={{BEAT}})|$
 ```
 
-The grammar produces a `LuauExplicitStatement` node containing a `LuauAccessPath` (the call path).
+The grammar produces a `LuauSparkdownExplicitStatement` node containing a `LuauAccessPath` (the call path). The marker exists only in narrative bodies: a function body is Luau throughout, and a call there is written without it (#1374).
 
 **Lowerer** — `lowerExplicitStatement.ts`:
 
@@ -328,7 +328,7 @@ if (!opNode) {
 **Dispatcher** wiring (already present):
 
 ```typescript
-case "LuauExplicitStatement":
+case "LuauSparkdownExplicitStatement":
   return lowerExplicitStatement(nodeRef, ctx);
 ```
 
@@ -379,7 +379,7 @@ Every producer of visible text lowers to a call of the `display` stdlib function
 - `buildDisplayCall(target, character, body, range, ctx, tags, { pause, extend, glue, inherit, group, open, continues })` makes `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, open?, continues?, tags? })`. The routing is resolved at compile time: a dialogue line names `target = "dialogue"` and its cue as `character` (the name, then the parenthetical written after it, `readCue`), a write line names its layer, and every other line type names itself. A table with no `target` renders on the default target. `text` is a `StringExpression` over the body's ParsedObjects, so interpolations are evaluated when the call runs. The call is stamped with `range`, which gives its beat a path location.
 - `buildLoadCall` makes `display({ load })` for a `load <names>` line, and `buildOrderedDisplayCall` makes `display({ parts })` for a picked choice whose `# tag`s sit between its words, so text and tags evaluate in the order written.
 - A line's `# tag`s ride the table's `tags` (`separateTags`), because a tag cannot end inside a captured string. An inline-glued alternator arm's tag is a runtime `Tag` object instead (see `lowerArmContent`).
-- A `>` break anywhere in a display statement, spaced or touching the words around it, splits it into one call per beat (`splitBodyRangeAtBreaks`), and each beat a break ends carries `pause`. A break with no text before it adds a text-free beat in an inline line, stamped where the break stands, and only splits a block. The tags written after a break that ends its line stay with the beat before it. Glue joins two lines only when both are marked, and every mark lowers from its own line alone, so a line's calls never depend on the lines around it. A beat whose text ends with `..` carries `glue`, or `extend` when a `>` break ends the beat (`A .. >`), and a beat whose text begins with `..` carries `continues`: the statement's own mark (`statementLeads`, which also reads the first line of a block body), a mark that begins the part after a mid-line break (`A .. > .. B`, `MID_LINE_LEAD`), or one that begins the block line after a break that ends its line. `display` joins the two as the story runs (`docs/runtime/RUNTIME.md` §3.1). Inside a block body both lines are known, and `joinMidBodyGlue` resolves the marks in the captured text: a line that ends with `..` joins the next when that one begins with `..`, and a mark without its partner is dropped, keeping the line break, and each lone leading mark gets a `__unjoined()` call before the beat's, stamped with the mark, which raises the same runtime warning as a `continues` line that joins nothing, on the mark's own line. An action line that begins with `..` is a glued continuation, whose calls name no target so that it takes the routing of the beat it joins. Its calls carry `group`, which names the continuation by its file and the offset it starts at, since offsets start again in every script. Its beats after one of its breaks also carry `inherit`, because their routing is that of the beat the continuation joins, which only the run knows; they name the routing the source reads for the line before the continuation (`lexicalRouting`, which follows chains of continuations back through `precedingConstruct`) as the answer for a run that never joined them. A continuation that names a speaker keeps its own routing. A `..` that ends a line after a break (`A > ..`) begins no part, so it marks nothing. A `load` line ending with `..` is a reported error, and no join lowers to a `Glue` object. A beat of text after a break in a `load` statement joins as any other. A `..` line with nothing after it but tags or a comment lowers to nothing. The grammar reads what follows a top-level interpolation on its line as an action of its own, so the marks that end such a line (`{x} ..`, `{x} .. >`, `{x} > >`) make that line's beats (`lineEndMarks`): the interpolation's call is the first, each further `>` adds an empty beat that waits, a `..` with no `>` marks the beat `glue`, and a `..` right before the last `>` marks the beat that `>` ends `extend`. A `..` with anything else after it there is text.
+- A `>` break anywhere in a display statement, spaced or touching the words around it, splits it into one call per beat (`splitBodyRangeAtBreaks`), and each beat a break ends carries `pause`. A break with no text before it adds a text-free beat in an inline line, stamped where the break stands, and only splits a block. The tags written after a break that ends its line stay with the beat before it. Glue joins two lines only when both are marked, and every mark lowers from its own line alone, so a line's calls never depend on the lines around it. A beat whose text ends with `..` carries `glue`, or `extend` when a `>` break ends the beat (`A .. >`), and a beat whose text begins with `..` carries `continues`: the statement's own mark (`statementLeads`, which also reads the first line of a block body), a mark that begins the part after a mid-line break (`A .. > .. B`, `MID_LINE_LEAD`), or one that begins the block line after a break that ends its line. `display` joins the two as the story runs (`docs/runtime/RUNTIME.md` §3.1). Inside a block body both lines are known, and `joinMidBodyGlue` resolves the marks in the captured text: a line that ends with `..` joins the next when that one begins with `..`, and a mark without its partner is dropped, keeping the line break, and each lone leading mark gets a `__unjoined()` call before the beat's, stamped with the mark, which raises the same runtime warning as a `continues` line that joins nothing, on the mark's own line. An action line that begins with `..` is a glued continuation, whose calls name no target so that it takes the routing of the beat it joins. Its calls carry `group`, which names the continuation by its file and the offset it starts at, since offsets start again in every script. Its beats after one of its breaks also carry `inherit`, because their routing is that of the beat the continuation joins, which only the run knows; they name the routing the source reads for the line before the continuation (`lexicalRouting`, which follows chains of continuations back through `precedingConstruct`) as the answer for a run that never joined them. A continuation that names a speaker keeps its own routing. A `..` that ends a line after a break (`A > ..`) begins no part, so it marks nothing. A `load` line ending with `..` is a reported error, and no join lowers to a `Glue` object. A beat of text after a break in a `load` statement joins as any other. A `..` line with nothing after it but tags or a comment lowers to nothing. A line that starts with an interpolation is a display statement like any other (#1746): the grammar no longer reads the interpolation as a statement of its own at top level, so its marks, breaks and tags lower through the display statement path above. `lineEndMarks` and the top-level `lowerLuauInterpolatedStringExpression` entry remain for a top-level interpolation node, which the grammar no longer produces.
 - A mid-line divert follows the line's call, which is `open`, so the target's first line joins the beat. Text after the divert is dropped: the line's call is already made. A picked choice's call is `open` when an arrow follows it or its flow ends after it, and so is a single-line alternator arm's call when a divert follows it.
 - The display lines of a `choose` block before its first choice are its caption. The last caption call carries `caption` (`markCaption` in `lowerSparkdownChooseBlock.ts`, `captionDisplayCall` in `utils/displayCall.ts`), and a call already `open` keeps `open` instead. Whether anything between the caption and the choices shows something is decided by the run, not the compiler: `display` leaves the caption's newline pending, and the engine writes it before the first output that shows something (`docs/runtime/RUNTIME.md` §3.1).
 
@@ -391,7 +391,7 @@ The runtime side of the table, and how the engine builds a beat from it, is in `
 
 ### 11.1 Snapshot tests
 
-`src/tests/compiler/compileSnapshot.test.ts` walks `src/tests/compiler/__snapshots__/compile/**` and snapshots the **lowered ParsedHierarchy JSON** (the input to inkjs's `ExportRuntime`). When you change a lowerer, these are the tests that catch regressions.
+`src/tests/compiler/compileSnapshot.test.ts` walks `src/tests/compiler/__snapshots__/compile/**` and snapshots the **lowered ParsedHierarchy JSON** (the input to the program path's resolver and writer). When you change a lowerer, these are the tests that catch regressions.
 
 Reading a failing compile snapshot diff requires familiarity with the inkjs ParsedObject vocabulary (`VariableAssignment`, `FunctionCall`, `Conditional`, `Divert`, etc.). The same advice as grammar snapshots applies: **read the diff**. Don't reflexively regenerate.
 
@@ -416,7 +416,7 @@ If a runtime test fails, the failure is usually visible in:
 
 1. **The grammar tree** (`dumpTree`) — is the structure what you expected?
 2. **The lowered hierarchy** (`compileSnapshot.test.ts`) — does the lowered shape do what you want?
-3. **The bytecode** (`ctx.story.ToJson()`) — is the final emit correct?
+3. **The binary program** (`ctx.root`) — is the final emit correct?
 
 Inspect them in that order. The bug is almost always at the lowest level that doesn't match your mental model.
 
@@ -426,10 +426,10 @@ A useful one-off debug pattern (used in this project's investigation work):
 
 ```typescript
 const ctx = makeRuntimeStoryFromSource(src);
-console.log(JSON.stringify(JSON.parse(ctx.story.ToJson()).root, null, 2));
+console.dir(ctx.root, { depth: null });
 ```
 
-You'll see the runtime container structure: `ev`/`/ev` for eval sections, `out` for outputs, `VAR?`/`VAR=` for variable ops, `f()` for function calls, conditional containers, etc. See [`RUNTIME.md`](./RUNTIME.md) for the bytecode vocabulary.
+You'll see the compiled `ProgramRoot`: its sequences, typed-array chunks, and interned table. Each chunk contains instruction words and metadata, rather than a JSON container tree. See the [binary-program specification](../../../../docs/engine/binary-program.md) sections 1–3 for the chunk layout and instruction vocabulary, and [`RUNTIME.md`](../runtime/RUNTIME.md) for how `ProgramStory` executes it.
 
 ---
 

@@ -6,7 +6,6 @@
 // same warnings and types as a cold check of the same text, and that it
 // reuses what it should.
 
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";

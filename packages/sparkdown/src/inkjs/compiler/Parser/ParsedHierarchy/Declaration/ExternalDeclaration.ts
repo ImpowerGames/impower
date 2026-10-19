@@ -1,7 +1,7 @@
-import type { INamedContent } from "../../../../engine/INamedContent";
+import type { INamedContent } from "../../../../../runtime/INamedContent";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Identifier } from "../Identifier";
+import { resolutionTap } from "../ResolutionTap";
 
 export class ExternalDeclaration extends ParsedObject implements INamedContent {
   public get name(): string | null {
@@ -20,12 +20,23 @@ export class ExternalDeclaration extends ParsedObject implements INamedContent {
     return "external";
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
+  /** Adds the declaration to the story's externals, which every compile
+   *  builds anew; the program path's resolver adds it again for a statement
+   *  it does not prepare again (`ResolutionTap.external`). */
+  public readonly RegisterExternal = (): void => {
     this.story.AddExternal(this);
-
-    // No runtime code exists for an external, only metadata
-    return null;
   };
+
+  /** The external its preparation registers. */
+  protected override Prepare(): boolean {
+    const tap = resolutionTap();
+    if (tap) {
+      tap.external(this, this.RegisterExternal);
+    } else {
+      this.RegisterExternal();
+    }
+    return false;
+  }
 
   public override toString(): string {
     return `external ${this.identifier?.name}`;

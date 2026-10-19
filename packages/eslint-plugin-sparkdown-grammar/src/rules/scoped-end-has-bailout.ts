@@ -83,7 +83,7 @@ function matchesAt(regex: RegExp, text: string, at: number): boolean {
 
 // Replaces back-references with a sentinel no probe holds. Escapes are
 // walked pairwise so an escaped backslash before a digit is left alone.
-function withoutBackreferences(source: string): string {
+export function withoutBackreferences(source: string): string {
   return source.replace(/\\(?:[1-9]|k<[^>]*>|[^])/g, (escape) =>
     /^\\(?:[1-9]|k<)/.test(escape) ? BACKREFERENCE_SENTINEL : escape,
   );
@@ -128,7 +128,7 @@ function atLineBoundary(regex: RegExp): boolean {
 
 // Substitutes variables (all of them, or all but `BEAT`, which then stays
 // as a literal token). Undefined names and cycles stay as tokens.
-function resolveVariables(
+export function resolveVariables(
   index: GrammarIndex,
   source: string,
   keepBeat: boolean,

@@ -1,0 +1,49 @@
+{
+  "orchestrators": {
+    "claude": {
+      "model": "claude-opus-5-5",
+      "checkIn": { "capability": "CronCreate with recurring true, the cron expression and the prompt that the schedule command prints; the job is session-scoped, so it ends with the coordinator's session", "expiresAfterDays": 7 }
+    },
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "checkIn": null
+    }
+  },
+  "routes": {
+    "claude": [
+      {
+        "route": "claude-cli",
+        "selfCheck": "the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort",
+        "turns": "Your process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.",
+        "reports": {
+          "claude": { "mechanism": "SendMessage with to set to that session id" },
+          "codex": { "unsupported": "a Claude session cannot message a Codex thread" }
+        }
+      }
+    ],
+    "codex": [
+      {
+        "route": "codex-cli",
+        "selfCheck": "the latest turn_context row of your rollout reports the model and effort",
+        "reports": {
+          "claude": { "unsupported": "a Codex writer cannot message a Claude session" },
+          "codex": { "unsupported": "no message from a Codex writer to another Codex thread has been verified" }
+        }
+      },
+      {
+        "route": "codex-app",
+        "selfCheck": "the latest turn_context row of your rollout reports the model and effort",
+        "reports": {
+          "claude": { "unsupported": "a Codex writer cannot message a Claude session" },
+          "codex": { "unsupported": "no message from a Codex writer to another Codex thread has been verified" }
+        }
+      }
+    ]
+  },
+  "reportFallback": "the coordinator reads the end of your transcript at each periodic check-in",
+  "retiredRoutes": {
+    "claude-desktop": "a desktop session starts only in a turn the user's own message began, and an unattended coordinator has none",
+    "claude-adopted": "the app resumes an adopted session at its own default effort and permission mode, and raising the mode shows the maintainer an approval card an unattended coordinator cannot answer",
+    "claude-agent": "an Agent-tool writer ends with the coordinator's session, so an unattended run would lose it"
+  }
+}

@@ -30,6 +30,130 @@ import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/util
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
+import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
+import {
+  BeatMessage,
+  type BeatParams,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
+
+/** What a composed beat does with one of its text or image writes
+ *  (`UIManager.planBeat`, #1820). */
+type WriteDecision =
+  /** A clear its next write undoes: not applied. */
+  | "skip"
+  /** The target holds this write already: nothing changes, nothing reveals. */
+  | "same"
+  /** Applied as it stands. */
+  | "write"
+  /** The target shows this text write over a subtree that has changed
+   *  since: emptied and written again. */
+  | "rebuild";
+
+type WriteKind = typeof WriteTextMessage.type | typeof WriteImageMessage.type;
+
+type WriteParams = { target: string; instructions: any[]; elements?: string[] };
+
+/** What an element holds, as `planBeat` follows it through a beat. */
+interface HeldState {
+  txt?: string;
+  txtRev?: number;
+  all?: unknown[];
+  allRev?: number;
+  img?: string;
+  imgRev?: number;
+  /** Whether it has text or stroke content elements. */
+  leaves: boolean;
+  /** Whether those are all empty. */
+  empty: boolean;
+}
+
+/** A played beat waiting for the instant its text starts revealing (#1820),
+ *  kept on the overlay with the manager that received it. Only that
+ *  manager's application can put it up: its teardown calls it off. */
+interface PendingBeat {
+  params: BeatParams;
+  ops: IMessage[];
+  plan: Map<IMessage, WriteDecision>;
+  /** Its commit instant on the document timeline. */
+  at: number;
+  timer?: ReturnType<typeof setTimeout>;
+  owner: UIManager;
+}
+
+type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
+
+/** The furthest ahead of the page's clock a played beat's display time may
+ *  be for the page to wait for it. A beat is stamped a little ahead of its
+ *  writes (the beat lead plus the audio output latency); a stamp further off
+ *  is a clock out of step, not a wait. The delay before the beat's first
+ *  letter comes on top. */
+const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+/** A beat's ops in order, each batch's ops in its place. */
+function beatOps(params: BeatParams): IMessage[] {
+  return params.messages.flatMap((message) =>
+    BatchElementsMessage.type.isNotification(message as NotificationMessage)
+      ? (((message as NotificationMessage).params as { messages?: IMessage[] })
+          ?.messages ?? [])
+      : [message],
+  );
+}
+
+/** Whether `msg` only lets a layout that has retired go: the batch the
+ *  engine sends once its exit has played (#1820), or one of its ops. */
+function retiredOnly(msg: IMessage): boolean {
+  if (BatchElementsMessage.type.isNotification(msg as NotificationMessage)) {
+    const ops = ((msg as NotificationMessage).params as { messages?: IMessage[] })?.messages ?? [];
+    return ops.length > 0 && ops.every(retiredOnly);
+  }
+  return (msg as { params?: { retired?: boolean } }).params?.retired === true;
+}
+
+/** Whether two lists hold the same elements. */
+function sameElements(a: HTMLElement[], b: HTMLElement[]): boolean {
+  return a.length === b.length && a.every((el) => b.includes(el));
+}
+
+/** What a create sets on its node, by which a reused node already showing
+ *  it is left untouched. */
+function createSignature(params: {
+  type: string;
+  name?: string;
+  content?: unknown;
+  style?: unknown;
+  attributes?: unknown;
+}): string {
+  return JSON.stringify([
+    params.type,
+    params.name ?? null,
+    params.content ?? null,
+    params.style ?? null,
+    params.attributes ?? null,
+  ]);
+}
+
+/** Every src the image writes of the beat waiting on `overlay` will paint
+ *  once it commits (#1820). Until then the page shows the old beat, so what
+ *  they paint is in no image layer yet, and the asset cache must keep it
+ *  resident anyway (`AssetManager.derivedPins`). */
+export function pendingBeatImageSrcs(
+  overlay: HTMLElement | null | undefined,
+): string[] {
+  const pending = (overlay as OverlayWithBeat | null | undefined)?.__sdBeat;
+  if (!pending) {
+    return [];
+  }
+  return beatOps(pending.params).flatMap((op) =>
+    WriteImageMessage.type.isRequest(op as RequestMessage)
+      ? (op as ReturnType<typeof WriteImageMessage.type.request>).params.instructions.flatMap(
+          (i) =>
+            (i.content?.srcs ?? []).filter(
+              (src): src is string => typeof src === "string" && !!src,
+            ),
+        )
+      : [],
+  );
+}
 
 /**
  * Apply one engine-sent attribute to a realized element.
@@ -151,6 +275,21 @@ export default class UIManager extends Manager {
   protected _staleImageTargets = new Set<HTMLElement>();
 
   /**
+   * The same reconcile state, for WRITTEN TEXT (#1813): targets showing text
+   * the previous render's writes left that no write has reached this pass.
+   *
+   * A write adds to what its target holds, and a target with text of its own
+   * is not cleared on continue, so the restore a connect sends would add the
+   * saved text after what the target already showed. The first write that
+   * reaches one of these in a pass a connect opened replaces what writes
+   * left on it, and the writes after it in the pass add to it: two targets
+   * that name one element both restore onto it. One no write reaches is
+   * cleared at the sweep, back to the placeholder text the layout put there,
+   * which a write replaces (the maintainer's rule, #1813).
+   */
+  protected _staleTextTargets = new Set<HTMLElement>();
+
+  /**
    * Per-reconcile-pass insertion cursor: parent → the last child we placed under
    * it this pass. The create stream re-emits a parent's children in document
    * order with `before=null` (append). Anchoring each append AFTER this cursor
@@ -161,6 +300,13 @@ export default class UIManager extends Manager {
    */
   protected _placeCursor = new Map<Element, Element>();
 
+  /** Whether a `ui/reconcile-begin` opened the pass a sweep closes. */
+  protected _passBegun = false;
+
+  /** What the beat being applied decided for the write now handled
+   *  (`planBeat`); unset outside a beat, where a write dedupes itself. */
+  protected _decision?: WriteDecision;
+
   override async onInit() {
     await super.onInit();
     // A fresh UIManager built for a re-render inherits the prior render's overlay
@@ -170,11 +316,20 @@ export default class UIManager extends Manager {
   }
 
   /** Start a reconcile pass: adopt every currently-rendered element as a
-   *  reuse-or-sweep candidate. Idempotent; safe to call before each re-render. */
-  beginReconcilePass() {
+   *  reuse-or-sweep candidate. Idempotent; safe to call before each re-render.
+   *
+   *  A content pass (#657), which a beat-only display opens, adopts only the
+   *  written content: the text and pictures writes left are candidates to
+   *  replace or clear, by the same rules as in a full pass, and the elements
+   *  and the insertion cursors stand, since the stream re-emits none of
+   *  them. */
+  beginReconcilePass(content = false) {
     this._staleIds.clear();
     this._staleImageTargets.clear();
-    this._placeCursor.clear();
+    this._staleTextTargets.clear();
+    if (!content) {
+      this._placeCursor.clear();
+    }
     const overlay = this.app.overlay;
     if (overlay) {
       // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
@@ -186,7 +341,9 @@ export default class UIManager extends Manager {
         const el = node as HTMLElement;
         const structural = (el as any).__sdId;
         if (structural) {
-          this._staleIds.add(structural);
+          if (!content) {
+            this._staleIds.add(structural);
+          }
           this._elements.set(structural, el);
         }
         // Written image content is keyed by the target node rather than by an
@@ -194,6 +351,10 @@ export default class UIManager extends Manager {
         // previous render until this pass writes it again.
         if ((el as any).__sdImg !== undefined) {
           this._staleImageTargets.add(el);
+        }
+        // Likewise a target carrying a text write signature.
+        if ((el as any).__sdTxt !== undefined) {
+          this._staleTextTargets.add(el);
         }
       });
     }
@@ -203,6 +364,8 @@ export default class UIManager extends Manager {
    *  but weren't re-emitted (touched) this pass — the mark-and-sweep tail. */
   sweepReconcile() {
     for (const id of this._staleIds) {
+      // A destroy, as `touchesOf` has it.
+      this.touch([this.getElement(id)?.parentElement]);
       this.removeElementById(id);
     }
     this._staleIds.clear();
@@ -212,6 +375,49 @@ export default class UIManager extends Manager {
       }
     }
     this._staleImageTargets.clear();
+    for (const el of this._staleTextTargets) {
+      if (el.isConnected) {
+        this.clearWrittenText(el);
+      }
+    }
+    this._staleTextTargets.clear();
+  }
+
+  /** Drop the text a target's writes left, as a `ui/write-text` carrying no
+   *  instructions does: the spans the writes built in its `text` and
+   *  `stroke` content elements go, and what the layout put there (an element
+   *  it made, which carries a structural id, or its own text) stays, as the
+   *  placeholder a page opened at this point shows. With `all`, the layout's
+   *  text goes too: a write replaces it (#1813). The write signature goes
+   *  with them, so the next write is not mistaken for one already shown. */
+  protected clearWrittenText(el: HTMLElement, all = false) {
+    for (const leaf of [
+      ...this.getContentElements(el, "text"),
+      ...this.getContentElements(el, "stroke"),
+    ]) {
+      if (all) {
+        leaf.replaceChildren();
+      } else {
+        this.removeWritten(leaf);
+      }
+    }
+    (el as any).__sdWait?.cancel();
+    delete (el as any).__sdWait;
+    delete (el as any).__sdTxt;
+    delete (el as any).__sdTxtRev;
+    (el as any).__sdAll = [];
+    (el as any).__sdAllRev = (el as any).__sdRev ?? 0;
+  }
+
+  /** Remove the spans writes built in a `text` or `stroke` content element.
+   *  A write only ever adds elements of its own, which carry no structural
+   *  id; the layout's elements and text stay. */
+  protected removeWritten(leaf: HTMLElement) {
+    for (const child of Array.from(leaf.children)) {
+      if (!(child as any).__sdId) {
+        child.remove();
+      }
+    }
   }
 
   /** Drop the image layers a target is still showing, exactly as the engine's
@@ -270,6 +476,15 @@ export default class UIManager extends Manager {
     }
     this._listeners = {};
     this._elements.clear();
+    // A played beat still waiting for its commit belonged to the run being
+    // torn down (STOP, or the rebuild a new run makes): it never goes up, and
+    // the screen stays as it is until the next display (#1820).
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const pending = overlay?.__sdBeat;
+    if (overlay && pending?.owner === this) {
+      overlay.__sdBeat = undefined;
+      clearTimeout(pending.timer);
+    }
   }
 
   getElement(id: string | null | undefined) {
@@ -297,7 +512,656 @@ export default class UIManager extends Manager {
     return found;
   }
 
+  /**
+   * A beat the engine composed (#1820): everything a display or a played
+   * beat changes on the screen, in the order the engine sent it. The
+   * maintainer's rule: the old beat stays fully visible until the instant
+   * the new beat's text starts revealing, and at that same instant the
+   * targets the new beat does not write are emptied and the written ones
+   * replaced. A beat shown at once goes up as it arrives; a played beat
+   * waits for that instant.
+   */
+  protected receiveBeat(params: BeatParams) {
+    this.flushPendingBeat();
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const ops = beatOps(params);
+    const plan = this.planBeat(ops);
+    const wait = this.waitToCommit(params, ops, plan);
+    if (!overlay || wait <= 0) {
+      this.applyBeat(params, ops, plan);
+      return;
+    }
+    const at = Number(overlay.ownerDocument.timeline?.currentTime) + wait;
+    const pending: PendingBeat = { params, ops, plan, at, owner: this };
+    pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), wait);
+    overlay.__sdBeat = pending;
+  }
+
+  /** Put the waiting beat up in the first animation frame whose timeline
+   *  has reached its commit instant: the reveals run on that timeline, so
+   *  that frame shows the beat's first letter too. */
+  protected commitWhenDue(pending: PendingBeat) {
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    if (overlay?.__sdBeat !== pending) {
+      return;
+    }
+    const doc = overlay.ownerDocument;
+    const view = doc.defaultView;
+    if (
+      view?.requestAnimationFrame &&
+      Number(doc.timeline?.currentTime) < pending.at
+    ) {
+      view.requestAnimationFrame(() => pending.owner.commitWhenDue(pending));
+      return;
+    }
+    this.flushPendingBeat();
+  }
+
+  /** Put up the beat waiting for its commit at once: a screen op sent
+   *  after it has arrived, and goes up after it. */
+  protected flushPendingBeat() {
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const pending = overlay?.__sdBeat;
+    if (!overlay || !pending) {
+      return;
+    }
+    overlay.__sdBeat = undefined;
+    clearTimeout(pending.timer);
+    // As planned when it arrived: nothing but a retired layout's going, which
+    // touches no target, reaches the screen while it waits.
+    this.applyBeat(pending.params, pending.ops, pending.plan);
+  }
+
+  /**
+   * How long a played beat waits, in milliseconds, for the instant its text
+   * starts revealing: the display time its stamp gives plus the delay of the
+   * first letter it reveals. Which writes reveal is the beat's own plan
+   * (`planBeat`): a write the plan leaves as the target shows it (an
+   * unchanged name) reveals nothing, and one it writes or rebuilds does.
+   * Neither do the letters a continuation keeps (`shown`) or a space count.
+   * A beat that reveals no text commits at its display time. A display time
+   * far from the page's clock (a clock that has not synced) is not waited
+   * for.
+   */
+  protected waitToCommit(
+    params: BeatParams,
+    ops: IMessage[],
+    plan: Map<IMessage, WriteDecision>,
+  ): number {
+    if (params.time == null) {
+      return 0;
+    }
+    const now = Number(this.app.overlay?.ownerDocument?.timeline?.currentTime);
+    const shown = this.getDisplayTime(params.time);
+    if (!Number.isFinite(now) || shown == null || shown - now > COMMIT_WAIT_LIMIT_MS) {
+      return 0;
+    }
+    let first: number | undefined;
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!WriteTextMessage.type.isRequest(msg)) {
+        continue;
+      }
+      const decision = plan.get(op);
+      const write = msg.params;
+      if (write.instructions.length === 0 || (decision !== "write" && decision !== "rebuild")) {
+        continue;
+      }
+      for (const instruction of write.instructions.slice(write.shown ?? 0)) {
+        // A space paints nothing: the beat starts revealing with the first
+        // letter that shows.
+        if (instruction.text != null && !/\S/.test(instruction.text)) {
+          continue;
+        }
+        const after = instruction.after ?? 0;
+        first = first == null ? after : Math.min(first, after);
+      }
+    }
+    const wait = shown + (first ?? 0) * 1000 - now;
+    return wait >= 1 ? wait : 0;
+  }
+
+  /** Apply a beat, in this one task: its ops in the order the engine sent
+   *  them, each write as the beat's plan decided, then its sweep. */
+  protected applyBeat(
+    params: BeatParams,
+    ops: IMessage[],
+    plan: Map<IMessage, WriteDecision>,
+  ) {
+    for (const op of ops) {
+      const decision = plan.get(op);
+      if (decision !== "skip") {
+        this.applyBeatMessage(op, decision);
+      }
+    }
+    if (params.sweep && this._passBegun) {
+      this._passBegun = false;
+      this.sweepReconcile();
+    }
+  }
+
+  /** Apply one of a beat's ops, a write as `decision` says. An animation is
+   *  answered once it has played, or failed, as any request the page
+   *  receives: the engine waits on that answer (an exit transition's
+   *  element is destroyed once it has played out). */
+  protected applyBeatMessage(message: IMessage, decision?: WriteDecision) {
+    if ("id" in message) {
+      const request = message as RequestMessage;
+      // Read by the write's handler before it first waits.
+      this._decision = decision;
+      let done: Promise<unknown>;
+      try {
+        done = this.onReceiveRequest(request);
+      } finally {
+        this._decision = undefined;
+      }
+      if (AnimateElementsMessage.type.isRequest(request)) {
+        this.app.answer(request, done);
+      } else {
+        done.catch((error) => {
+          console.error(`${request.method} failed in a beat`, error);
+        });
+      }
+    } else {
+      this.onReceiveNotification(message as NotificationMessage);
+    }
+  }
+
+  /**
+   * The beat's one decision of what each of its text and image writes does
+   * (#1820), taken once, as it arrives, in the beat's order. Every op before
+   * a write counts, as it will stand when the beat is applied: what the
+   * writes before it put in the target, and what the structural ops before
+   * it change in the target's subtree, by the one rule the manager applies
+   * (`touchesOf`). The apply follows it, the commit instant is read from it,
+   * and each write's own dedupe takes it, so none of them can disagree.
+   *
+   * - A clear and its next write to the same elements: when that write is
+   *   exactly what every element holds (all of it, `__sdAll`; for an image,
+   *   the picture it shows), written over the subtree as it is (no op in
+   *   between has changed it), the clear is skipped and the write is
+   *   `same`. Any other write or clear that reaches those elements first,
+   *   under another selector, keeps the clear.
+   * - A text write with no clear before it is `same` when every element's
+   *   last write was this one, over the subtree as it is. When the subtree
+   *   has changed since, and it is all the target holds, it is `rebuild`:
+   *   emptied and written again. A target that has gathered more than it
+   *   (writes with no clear between) keeps it, as the uncomposed page does.
+   * - An image write is `same` only when every element shows it, over the
+   *   subtree as it is; otherwise it is written, replacing the layers.
+   * - A text write to an element that shows no write yet (never written,
+   *   or cleared since), or, in a connect's pass, the first to reach an
+   *   element that shows what earlier writes left (#1813), is decided as
+   *   though a clear of that element came just before it: `same` when it is
+   *   all the element holds, else written in place of what it showed. The
+   *   layout's own text in a written target is a placeholder the write
+   *   replaces (the maintainer's rule).
+   * - An element the beat makes, or makes again, is followed as it is made:
+   *   empty, with the text and stroke leaves the beat gives it, and its
+   *   writes are decided as any other's.
+   */
+  protected planBeat(ops: IMessage[]): Map<IMessage, WriteDecision> {
+    const plan = new Map<IMessage, WriteDecision>();
+    const overlay = this.app.overlay;
+    const revs = new Map<Element, number>();
+    const rev = (el: Element): number => revs.get(el) ?? (el as any).__sdRev ?? 0;
+    const states = new Map<HTMLElement, HeldState>();
+    const state = (el: HTMLElement): HeldState => {
+      let s = states.get(el);
+      if (!s && making.has(el)) {
+        s = { leaves: making.get(el)!.leaves, empty: true };
+        states.set(el, s);
+      }
+      if (!s) {
+        const leaves = [
+          ...this.getContentElements(el, "text"),
+          ...this.getContentElements(el, "stroke"),
+        ];
+        const a = el as any;
+        s = {
+          txt: a.__sdTxt,
+          txtRev: a.__sdTxtRev,
+          all: a.__sdAll,
+          allRev: a.__sdAllRev,
+          img: a.__sdImg,
+          imgRev: a.__sdImgRev,
+          leaves: leaves.length > 0,
+          empty: leaves.length > 0 && leaves.every((l) => !l.hasChildNodes()),
+        };
+        states.set(el, s);
+      }
+      return s;
+    };
+    // Nodes the beat removes or replaces: an id of theirs written later is
+    // a new element when the beat is applied.
+    const gone = new Set<Element>();
+    const remove = (node: Element | null | undefined) => {
+      if (node) {
+        gone.add(node);
+        node.querySelectorAll("*").forEach((d) => gone.add(d));
+      }
+    };
+    // Elements the beat makes, by id: each stands for itself in the plan
+    // (`key`), under the element it is made in.
+    type Made = {
+      key: HTMLElement;
+      parent?: Made;
+      /** The element on the page the made subtree stands under. */
+      anchor: Element | null | undefined;
+      leaves: boolean;
+    };
+    const made = new Map<string, Made>();
+    const making = new Map<HTMLElement, Made>();
+    const make = (id: string, parent: Made | undefined, anchor: Element | null | undefined) => {
+      const m: Made = { key: {} as HTMLElement, parent, anchor, leaves: false };
+      made.set(id, m);
+      making.set(m.key, m);
+      return m;
+    };
+    const bump = (n: Element | null | undefined) => {
+      for (; n && n !== overlay; n = n.parentElement) {
+        revs.set(n, rev(n) + 1);
+      }
+    };
+    // A change in the subtree of a made element: it and every element above
+    // it, made or on the page.
+    const bumpMade = (m: Made | undefined, anchor?: Element | null) => {
+      let last: Made | undefined;
+      for (let n = m; n; n = n.parent) {
+        revs.set(n.key, rev(n.key) + 1);
+        last = n;
+      }
+      bump(last ? last.anchor : anchor);
+    };
+    // A text or stroke leaf made in `m`, or in an element on the page.
+    const leafMade = (name: string, m: Made | undefined, el: Element | null | undefined) => {
+      if (!/(^|\s)(text|stroke)(\s|$)/.test(name ?? "")) {
+        return;
+      }
+      if (m) {
+        m.leaves = true;
+        const st = states.get(m.key);
+        if (st) {
+          st.leaves = true;
+        }
+      } else if (el && el !== overlay) {
+        const st = state(el as HTMLElement);
+        if (!st.leaves) {
+          st.leaves = true;
+          st.empty = true;
+        }
+      }
+    };
+    const cursor = new Map<Element, Element | null>(this._placeCursor);
+    const targets = (p: WriteParams): HTMLElement[] | undefined => {
+      const els = p.elements
+        ? p.elements.map(
+            (id) => made.get(id)?.key ?? this._elements.get(id) ?? this.getElement(id),
+          )
+        : this.findTargetElements(p.target);
+      return els.length > 0 &&
+        els.every((el) => el && el !== overlay && (making.has(el) || !gone.has(el)))
+        ? (els as HTMLElement[])
+        : undefined;
+    };
+    // Clears waiting for the write that decides them, with each element's
+    // revision and what it held at the clear.
+    const waiting: {
+      clears: IMessage[];
+      kind: WriteKind;
+      target: string;
+      els: HTMLElement[];
+      at: Map<HTMLElement, { rev: number; held: HeldState }>;
+    }[] = [];
+    const applyClear = (w: (typeof waiting)[number]) => {
+      for (const clear of w.clears) {
+        plan.set(clear, "write");
+      }
+      for (const el of w.els) {
+        const s = state(el);
+        const at = w.at.get(el)!.rev;
+        if (w.kind === WriteTextMessage.type) {
+          s.txt = "[]";
+          s.txtRev = at;
+          s.all = [];
+          s.allRev = at;
+          s.empty = s.leaves && rev(el) === at;
+        } else {
+          s.img = "[]";
+          s.imgRev = at;
+        }
+      }
+    };
+    // A connect's pass (#1813): the first text write to reach a target that
+    // shows what earlier writes left replaces it, as a clear before it would.
+    // A pass opened before the beat has the page's own record of them; one
+    // the beat opens, every target written before it.
+    let passOpen = this._passBegun;
+    let passInBeat = false;
+    const passTouched = new Set<HTMLElement>();
+    const stale = (el: HTMLElement) =>
+      !making.has(el) &&
+      (passInBeat ? state(el).txt !== undefined : this._staleTextTargets.has(el));
+    for (const op of ops) {
+      if (BeginReconcileMessage.type.isNotification(op as NotificationMessage)) {
+        // A content pass (#657) re-emits no element, so the insertion
+        // cursors stand, as they do on the page.
+        if (!(op as NotificationMessage<string, { content?: boolean }>).params?.content) {
+          cursor.clear();
+        }
+        passOpen = true;
+        passInBeat = true;
+        passTouched.clear();
+        continue;
+      }
+      const msg = op as RequestMessage;
+      const kind: WriteKind | undefined = WriteTextMessage.type.isRequest(msg)
+        ? WriteTextMessage.type
+        : WriteImageMessage.type.isRequest(msg)
+          ? WriteImageMessage.type
+          : undefined;
+      if (!kind) {
+        const params = msg.params as any;
+        if (CreateElementMessage.type.isRequest(msg)) {
+          const inMade = made.get(params.parent);
+          const parent = inMade ? undefined : this.getElement(params.parent);
+          const existing =
+            params.element && !made.has(params.element)
+              ? this.getElement(params.element)
+              : undefined;
+          if (inMade) {
+            // In an element the beat makes.
+            if (params.element) {
+              make(params.element, inMade, inMade.anchor);
+            }
+            bumpMade(inMade);
+            leafMade(params.name, inMade, undefined);
+          } else if (!existing || gone.has(existing) || made.has(params.element)) {
+            // A new element, or one made again, under its parent.
+            if (params.element) {
+              make(params.element, undefined, parent);
+            }
+            bump(parent);
+            leafMade(params.name, undefined, parent);
+          } else {
+            for (const node of this.touchesOf(msg, cursor)) {
+              bump(node);
+            }
+            if (existing.tagName.toLowerCase() !== params.type.toLowerCase()) {
+              remove(existing);
+              make(params.element, undefined, parent);
+              leafMade(params.name, undefined, parent);
+            }
+          }
+          if (parent) {
+            cursor.set(parent, existing && !gone.has(existing) ? existing : null);
+          }
+          continue;
+        }
+        const m = made.get(params.element);
+        if (m) {
+          // An op on an element the beat made: its content changes its own
+          // subtree; anything else, its parent's.
+          if (UpdateElementMessage.type.isRequest(msg) && params.content != undefined) {
+            bumpMade(m);
+          }
+          if (
+            !UpdateElementMessage.type.isRequest(msg) ||
+            params.style != undefined ||
+            params.attributes != undefined
+          ) {
+            bumpMade(m.parent, m.anchor);
+          }
+          if (DestroyElementMessage.type.isRequest(msg)) {
+            for (const [id, n] of [...made]) {
+              for (let a: Made | undefined = n; a; a = a.parent) {
+                if (a === m) {
+                  made.delete(id);
+                  break;
+                }
+              }
+            }
+          }
+          continue;
+        }
+        const el = this.getElement(params.element);
+        for (const node of this.touchesOf(msg, cursor)) {
+          bump(node);
+        }
+        if (DestroyElementMessage.type.isRequest(msg)) {
+          remove(el);
+        }
+        continue;
+      }
+      const p = msg.params as WriteParams;
+      const els = targets(p);
+      const sig = JSON.stringify(p.instructions);
+      if (kind === WriteTextMessage.type && els) {
+        // An element that shows no write yet shows the layout's placeholder,
+        // which the write replaces, as one that shows the previous render's.
+        const replaced = els.filter(
+          (el) =>
+            state(el).txt === undefined ||
+            state(el).txt === "[]" ||
+            (passOpen && !passTouched.has(el) && stale(el)),
+        );
+        if (passOpen) {
+          for (const el of els) {
+            passTouched.add(el);
+          }
+        }
+        if (replaced.length > 0 && p.instructions.length > 0) {
+          // Decided as a clear of those elements just before this write.
+          waiting.push({
+            clears: [],
+            kind,
+            target: p.target,
+            els: replaced,
+            at: new Map(replaced.map((el) => [el, { rev: rev(el), held: { ...state(el) } }])),
+          });
+        }
+      }
+      // The clears this op settles: those that reach its elements.
+      for (const w of [...waiting]) {
+        if (w.kind !== kind || !els || !w.els.some((el) => els.includes(el))) {
+          continue;
+        }
+        const same = w.target === p.target && sameElements(w.els, els);
+        if (same && p.instructions.length === 0) {
+          // A second clear of the same target: decided with the first.
+          w.clears.push(op);
+          plan.set(op, "skip");
+          break;
+        }
+        waiting.splice(waiting.indexOf(w), 1);
+        const shows =
+          kind === WriteTextMessage.type ||
+          (p.instructions as { control?: string; content?: unknown }[]).some(
+            (e) => e.control === "show" && e.content != null,
+          );
+        const undone =
+          same &&
+          p.instructions.length > 0 &&
+          shows &&
+          els.every((el) => {
+            const at = w.at.get(el)!;
+            const h = at.held;
+            return (
+              rev(el) === at.rev &&
+              (kind === WriteTextMessage.type
+                ? h.txt === sig && JSON.stringify(h.all) === sig && h.allRev === at.rev
+                : h.img === sig && h.imgRev === at.rev)
+            );
+          });
+        if (undone) {
+          for (const clear of w.clears) {
+            plan.set(clear, "skip");
+          }
+          plan.set(op, "same");
+        } else {
+          applyClear(w);
+        }
+      }
+      if (plan.has(op)) {
+        continue;
+      }
+      if (!els) {
+        plan.set(op, "write");
+        continue;
+      }
+      if (p.instructions.length === 0) {
+        plan.set(op, "skip");
+        waiting.push({
+          clears: [op],
+          kind,
+          target: p.target,
+          els,
+          at: new Map(els.map((el) => [el, { rev: rev(el), held: { ...state(el) } }])),
+        });
+        continue;
+      }
+      let decision: WriteDecision;
+      if (kind === WriteTextMessage.type) {
+        const shown = els.every((el) => state(el).txt === sig);
+        decision = !shown
+          ? "write"
+          : els.every((el) => state(el).txtRev === rev(el))
+            ? "same"
+            : els.every((el) => JSON.stringify(state(el).all) === sig)
+              ? "rebuild"
+              : "same";
+      } else {
+        decision = els.every((el) => state(el).img === sig && state(el).imgRev === rev(el))
+          ? "same"
+          : "write";
+      }
+      plan.set(op, decision);
+      if (decision === "same") {
+        continue;
+      }
+      for (const el of els) {
+        const s = state(el);
+        if (kind === WriteTextMessage.type) {
+          const empty = decision === "rebuild" ? s.leaves : s.empty;
+          s.all = empty ? [...p.instructions] : s.all ? [...s.all, ...p.instructions] : undefined;
+          if (empty) {
+            s.allRev = rev(el);
+          }
+          s.txt = sig;
+          s.txtRev = rev(el);
+          s.empty = false;
+        } else {
+          s.img = sig;
+          s.imgRev = rev(el);
+        }
+      }
+    }
+    // A clear no write undoes empties its target.
+    for (const w of waiting) {
+      applyClear(w);
+    }
+    return plan;
+  }
+
+  /** The elements a write goes to: those a composed write names, by their
+   *  structural ids, as its target resolved where the write stands in the
+   *  beat (#1820); the target as it resolves now otherwise. */
+  protected writeTargets(target: string, elements?: string[]): HTMLElement[] {
+    if (!elements) {
+      return this.findTargetElements(target);
+    }
+    return elements
+      .map((id) => this._elements.get(id) ?? this.getElement(id))
+      .filter((el): el is HTMLElement => el != null && el !== this.app.overlay);
+  }
+
+  /**
+   * The nodes whose subtree a structural op changes (#1820), judged against
+   * the page as it stands before the op. Every node at or above one of them
+   * holds something its writes did not put there, so its text and image
+   * signatures (`__sdTxt` with `__sdAll`, `__sdImg`) are older than its
+   * subtree. One rule for every op the manager applies:
+   *
+   * - a node created, destroyed, moved or put elsewhere by a create (a leaf
+   *   replaced is one destroyed and one created): its parent, old and new;
+   * - a node whose own content is replaced: the node;
+   * - a node whose style, class or attributes change: its parent. A target's
+   *   own box (the engine's display toggles) is not what it holds.
+   *
+   * `cursor` is where creates under each parent have reached, for an op not
+   * applied yet (`planBeat`).
+   */
+  protected touchesOf(
+    m: IMessage,
+    cursor: Map<Element, Element | null> = this._placeCursor,
+  ): (Element | null | undefined)[] {
+    const msg = m as RequestMessage;
+    const params = msg.params as any;
+    if (CreateElementMessage.type.isRequest(msg)) {
+      const parent = this.getElement(params.parent);
+      const existing = params.element ? this.getElement(params.element) : undefined;
+      if (!existing || existing.tagName.toLowerCase() !== params.type.toLowerCase()) {
+        return [existing?.parentElement, parent];
+      }
+      const touched: (Element | null | undefined)[] = [];
+      if ((existing as any).__sdCreate !== createSignature(params)) {
+        touched.push(params.content ? existing : existing.parentElement);
+      }
+      if (parent && existing.parentElement !== parent) {
+        touched.push(existing.parentElement, parent);
+      } else if (parent) {
+        const moves = params.before
+          ? existing.nextElementSibling !== this.getElement(params.before)
+          : existing.previousElementSibling !== (cursor.get(parent) ?? null);
+        if (moves) {
+          touched.push(parent);
+        }
+      }
+      return touched;
+    }
+    if (UpdateElementMessage.type.isRequest(msg)) {
+      const element = this.getElement(params.element);
+      return [
+        params.content != undefined ? element : undefined,
+        params.style != undefined || params.attributes != undefined
+          ? element?.parentElement
+          : undefined,
+      ];
+    }
+    if (
+      DestroyElementMessage.type.isRequest(msg) ||
+      MoveElementMessage.type.isRequest(msg)
+    ) {
+      return [this.getElement(params.element)?.parentElement];
+    }
+    return [];
+  }
+
+  /** Mark every node from each of `nodes` up as holding something new: a
+   *  signature written before this no longer stands for what it holds. */
+  protected touch(nodes: (Element | null | undefined)[]) {
+    const overlay = this.app.overlay;
+    for (const node of nodes) {
+      for (let n = node; n && n !== overlay; n = n.parentElement) {
+        (n as any).__sdRev = ((n as any).__sdRev ?? 0) + 1;
+      }
+    }
+  }
+
   override async onReceiveRequest(msg: RequestMessage) {
+    // What a composed beat decided for this write, read before the first
+    // wait.
+    const decision = this._decision;
+    // A screen op that arrives after a beat waiting for its commit goes up
+    // after it. Messages for the page's other managers (assets, audio, the
+    // game's reports) reach this one too, and leave the beat waiting, as
+    // does the going of a layout that has retired.
+    if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
+      this.flushPendingBeat();
+    }
+    // What the op changes leaves the signatures written above it older than
+    // their subtree (#1820), whichever handler below applies it.
+    this.touch(this.touchesOf(msg));
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
@@ -363,19 +1227,14 @@ export default class UIManager extends Manager {
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
-      const sig = JSON.stringify([
-        params.type,
-        params.name ?? null,
-        params.content ?? null,
-        params.style ?? null,
-        params.attributes ?? null,
-      ]);
+      const sig = createSignature(params);
       // Apply class/content/style/attrs only when this is a fresh node or its
       // create-params actually changed — an unchanged reused node is left
       // untouched (no restyle / recalc / devtools flash). The signature lives ON
       // the node (`__sdCreate`), not in a per-manager map, because buildApp makes
       // a NEW UIManager every edit while the DOM node is preserved.
-      if (!reused || (el as any).__sdCreate !== sig) {
+      const changed = !reused || (el as any).__sdCreate !== sig;
+      if (changed) {
         // Full-replace className so a reused node matches the new render exactly.
         el.className = params.name || "";
         if (params.content) {
@@ -551,6 +1410,8 @@ export default class UIManager extends Manager {
         params.instant,
         this.getDisplayTime(params.time),
         params.shown,
+        params.elements,
+        decision,
       );
       return WriteTextMessage.type.result(params.target);
     }
@@ -560,6 +1421,8 @@ export default class UIManager extends Manager {
         params.target,
         params.instructions,
         this.getDisplayTime(params.time),
+        params.elements,
+        decision,
       );
       return WriteImageMessage.type.result(params.target);
     }
@@ -590,14 +1453,34 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    if (BeatMessage.type.isNotification(msg)) {
+      this.receiveBeat(msg.params);
+      return;
+    }
+    // A screen op that arrives after a beat waiting for its commit goes up
+    // after it. Messages for the page's other managers (assets, audio, the
+    // game's reports) reach this one too, and leave the beat waiting, as
+    // does the going of a layout that has retired (#1820): it is no part of
+    // any beat.
+    if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
+      this.flushPendingBeat();
+    }
     // The game opens a pass at every connect and closes it once the stream
     // has written everything it shows.
     if (BeginReconcileMessage.type.isNotification(msg)) {
-      this.beginReconcilePass();
+      this.beginReconcilePass(msg.params?.content === true);
+      this._passBegun = true;
       return;
     }
     if (SweepReconcileMessage.type.isNotification(msg)) {
-      this.sweepReconcile();
+      // Only a pass a begin opened here is swept. A preview that repeats one
+      // taken over before its sweep sweeps for it (#1820); a manager built
+      // since adopted the whole overlay as stale and saw no begin, so a sweep
+      // there would remove the screen it is showing.
+      if (this._passBegun) {
+        this._passBegun = false;
+        this.sweepReconcile();
+      }
       return;
     }
     // A `ui/batch` coalesces a synchronous run of fire-and-forget ops. Dispatch
@@ -882,16 +1765,42 @@ export default class UIManager extends Manager {
     instant: boolean,
     startTime?: number,
     shown = 0,
+    elements?: string[],
+    decision?: WriteDecision,
   ) {
-    const targetEls = this.findTargetElements(target);
+    const targetEls = this.writeTargets(target, elements);
+    // The first write in a connect's pass to reach a target showing what the
+    // previous render's writes left replaces it (#1813).
+    const stale = this._passBegun
+      ? targetEls.filter((el) => this._staleTextTargets.has(el))
+      : [];
+    for (const el of targetEls) {
+      this._staleTextTargets.delete(el);
+    }
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
-    // target already shows exactly this write, leave it untouched. Stored on the
-    // node so it survives the per-edit UIManager swap.
+    // target already shows exactly this write, leave it untouched; a target
+    // the write replaces, only when this write is all it holds, over the
+    // subtree as it is. Stored on the node so it survives the per-edit
+    // UIManager swap. In a composed beat the beat's plan has decided it
+    // (#1820), by the same rule.
     const sig = JSON.stringify(instructions);
+    // Never written, or cleared since: whatever it shows is the layout's.
+    const holdsNoWrite = (el: HTMLElement) => {
+      const txt = (el as any).__sdTxt;
+      return txt === undefined || txt === "[]";
+    };
+    const holds = (el: HTMLElement) => {
+      const a = el as any;
+      return (
+        a.__sdTxt === sig &&
+        (!stale.includes(el) ||
+          (JSON.stringify(a.__sdAll) === sig && a.__sdAllRev === (a.__sdRev ?? 0)))
+      );
+    };
     if (
-      targetEls.length > 0 &&
-      targetEls.every((el) => (el as any).__sdTxt === sig)
+      decision === "same" ||
+      (decision == null && targetEls.length > 0 && targetEls.every(holds))
     ) {
       if (instant) {
         // The same write shown at once, as when a beat shown in full repeats
@@ -904,7 +1813,18 @@ export default class UIManager extends Manager {
       return;
     }
     for (const el of targetEls) {
+      if (
+        instructions.length > 0 &&
+        (decision === "rebuild" || stale.includes(el) || holdsNoWrite(el))
+      ) {
+        // Written again from empty: the subtree changed under what it showed,
+        // what it showed is the previous render's, or it shows no write yet,
+        // only the layout's placeholder, which a write replaces (#1813).
+        this.clearWrittenText(el, true);
+      }
       (el as any).__sdTxt = sig;
+      // The subtree it was written over (#1820), as `__sdAllRev`.
+      (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
     }
     const enter: {
       element: HTMLElement;
@@ -952,14 +1872,29 @@ export default class UIManager extends Manager {
         for (const strokeEl of strokeEls) {
           this.processText(strokeEl, instructions, instant, enter, shown, enterNow);
         }
+        // Everything the target holds, for a composed beat's dedupe of a
+        // clear (#1820): `__sdTxt` records only the last write, and writes
+        // to a target that was not cleared accumulate. Known from the subtree
+        // it was first written over (`__sdAllRev`), which an op that changes
+        // that subtree leaves behind (`touch`).
+        const held: unknown[] | undefined = (targetEl as any).__sdAll;
+        if (empty) {
+          (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
+        }
+        (targetEl as any).__sdAll = empty
+          ? [...instructions]
+          : held
+            ? [...held, ...instructions]
+            : undefined;
       } else {
-        // Clear text + stroke (the `null`-sequence / clear path).
-        for (const textEl of textEls) {
-          textEl.replaceChildren();
+        // Clear text + stroke (the `null`-sequence / clear path): what writes
+        // left. A placeholder the connect has put back stays until a write
+        // replaces it (#1813).
+        for (const contentEl of contentEls) {
+          this.removeWritten(contentEl);
         }
-        for (const strokeEl of strokeEls) {
-          strokeEl.replaceChildren();
-        }
+        (targetEl as any).__sdAll = [];
+        (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
       }
     }
     // The letters already on the page appear now, not at the beat's start.
@@ -1034,8 +1969,10 @@ export default class UIManager extends Manager {
     target: string,
     instructions: WriteImageInstruction[],
     startTime?: number,
+    elements?: string[],
+    decision?: WriteDecision,
   ) {
-    const targetEls = this.findTargetElements(target);
+    const targetEls = this.writeTargets(target, elements);
     // This target has been written this pass, so the sweep must leave its layers
     // alone. Marked BEFORE the dedup below: re-writing the image already on
     // screen is the commonest case on a re-render (restore replays it), and
@@ -1048,16 +1985,27 @@ export default class UIManager extends Manager {
     // layers — and their already-DECODED <img>s — are correct, so skip the
     // rebuild + crossfade. This is what stops a live-preview edit from
     // re-decoding an unchanged backdrop (the dominant cost). The signature is
-    // stored ON the target node so it survives the per-edit UIManager swap.
+    // stored ON the target node so it survives the per-edit UIManager swap. It
+    // stands only for the subtree it was written over (#1820): a layer added
+    // since (a mask) is painted by writing again, which replaces the layers.
+    // In a composed beat the beat's plan has decided it.
     const sig = JSON.stringify(instructions);
     if (
-      targetEls.length > 0 &&
-      targetEls.every((el) => (el as any).__sdImg === sig)
+      decision === "same" ||
+      (decision == null &&
+        targetEls.length > 0 &&
+        targetEls.every(
+          (el) =>
+            (el as any).__sdImg === sig &&
+            (el as any).__sdImgRev === ((el as any).__sdRev ?? 0),
+        ))
     ) {
       return;
     }
     for (const el of targetEls) {
       (el as any).__sdImg = sig;
+      // The subtree it was written over (#1820), as `__sdAllRev`.
+      (el as any).__sdImgRev = (el as any).__sdRev ?? 0;
     }
     const targetEffects: { element: HTMLElement; animations: Animation[] }[] =
       [];

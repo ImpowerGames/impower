@@ -12,7 +12,7 @@ import {
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
-import { Tag as RuntimeTag } from "../../../inkjs/engine/Tag";
+import { Tag as RuntimeTag } from "../../../runtime/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
@@ -20,6 +20,10 @@ import { lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lower } from "../lower";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 import { findChildByName } from "../../utils/findChildByName";
+import { isTrivia } from "../../lint/luauTree";
+import { reportSyntaxErrors } from "../expression/lowerFunction";
+import { readExpressionAst } from "./luauAst";
+import { containsUnreadToken } from "../../utils/unreadTokens";
 
 // The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
 // a literal, a name or path, a parenthesized value, a table, a divert
@@ -48,9 +52,9 @@ const ARM_VALUES = nodeNameSet([
 // `expression/lowerExpression.ts > lowerDivertTargetLiteral` does for
 // the value form, but produces a bare `Divert` (which executes as
 // flow control) instead of wrapping in `DivertTarget` (which produces
-// a `DivertTargetValue` and emits it to the output stream). Used by
+// the target's symbol value and prints it to the output stream). Used by
 // the inline-alternator arm path so `{chain | -> next | other end}`
-// transfers control on arm 1 instead of emitting "DivertTargetValue(next)".
+// transfers control on arm 1 instead of printing the target as a value.
 function buildDivertFromTargetLiteral(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -92,10 +96,23 @@ export function lowerArms(
   const arms: AlternatorArm[] = [];
   if (!content) return arms;
   let current: AlternatorArm | null = null;
+  // The nodes of the current arm. The type checker reads an alternator as a
+  // value of any type, not its arms, so an arm holding a token no rule read
+  // (`cycle "a" | ! end`, `cycle "a" | (!b) end`) has the errors of its
+  // reading as an expression.
+  let armNodes: SyntaxNode[] = [];
+  const reportUnreadArm = () => {
+    if (armNodes.some(containsUnreadToken)) {
+      reportSyntaxErrors(readExpressionAst(armNodes, ctx)?.source.errors ?? [], ctx);
+    }
+    armNodes = [];
+  };
 
   let child = content.firstChild;
   while (child) {
+    if (current && child.name !== "LuauAlternatorSeparator" && !isTrivia(child)) armNodes.push(child);
     if (child.name === "LuauAlternatorSeparator") {
+      reportUnreadArm();
       const keyNode = getDescendent("LuauAlternatorAssignmentName", child);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : null;
       current = { key, body: [] };
@@ -135,7 +152,7 @@ export function lowerArms(
       // no Sparkdown prefix) use `#LuauExpression` for arm content. A
       // `-> target` literal inside an arm would normally lower as a
       // `LuauDivertTargetLiteral` value expression (producing a
-      // `DivertTargetValue` emitted to the output stream — not what the
+      // symbol value printed to the output stream — not what the
       // author meant). Detect the divert-shape and route it through the
       // statement-form divert lowerer so the chosen arm's runtime
       // transfers control instead of emitting the target as a value.
@@ -191,6 +208,7 @@ export function lowerArms(
     }
     child = child.nextSibling;
   }
+  reportUnreadArm();
   return arms;
 }
 

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -19,7 +20,7 @@ if (unlinked.length) throw new Error(`Skill discovery links missing or foreign: 
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
-const EXPECTED_CHECKS = 54;
+const EXPECTED_CHECKS = 72;
 // The grammar and lowerer scanners need the full tree and run in typecheck.yml.
 const FULL_TREE_CHECKS = ["scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"];
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && !FULL_TREE_CHECKS.includes(f));
@@ -38,6 +39,13 @@ const tierOf = (file) => (DRIVER_PREFIXES.some((prefix) => file.startsWith(prefi
 const args = process.argv.slice(2);
 let tier = "all";
 const only = [];
+// Checks run as independent child processes, several at a time. The default
+// is the machine's core count capped at four, the size of a hosted runner;
+// AGENT_TOOLING_CONCURRENCY or --concurrency overrides it, and 1 restores the
+// serial order for local debugging. A check that cannot share the machine
+// declares `agent-tooling-serial: <reason>` in its first lines and then runs
+// with no other check active.
+let concurrencyArg = process.env.AGENT_TOOLING_CONCURRENCY || undefined;
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   const value = () => { if (i + 1 >= args.length) throw new Error(`${arg} needs a value`); return args[++i]; };
@@ -45,9 +53,13 @@ for (let i = 0; i < args.length; i++) {
   else if (arg.startsWith("--tier=")) tier = arg.slice("--tier=".length);
   else if (arg === "--only") only.push(value());
   else if (arg.startsWith("--only=")) only.push(arg.slice("--only=".length));
-  else throw new Error(`Unknown argument ${arg}; use --tier skills|drivers|all and --only <path substring> (repeatable)`);
+  else if (arg === "--concurrency") concurrencyArg = value();
+  else if (arg.startsWith("--concurrency=")) concurrencyArg = arg.slice("--concurrency=".length);
+  else throw new Error(`Unknown argument ${arg}; use --tier skills|drivers|all, --only <path substring> (repeatable) and --concurrency <1-64>`);
 }
 if (!["skills", "drivers", "all"].includes(tier)) throw new Error(`--tier must be skills, drivers or all, not ${tier}`);
+const concurrency = concurrencyArg === undefined ? Math.min(4, os.availableParallelism()) : Number(concurrencyArg);
+if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 64) throw new Error(`--concurrency (or AGENT_TOOLING_CONCURRENCY) must be an integer from 1 to 64, not ${concurrencyArg}`);
 const candidates = discovered.filter((f) => (tier === "all" || tierOf(f) === tier) && (!only.length || only.some((needle) => f.includes(needle))));
 if (!candidates.length) throw new Error(`No check selected by --tier ${tier}${only.length ? ` --only ${only.join(" ")}` : ""}; ${discovered.length} discovered`);
 const selection = `${tier === "all" ? "every tier" : `the ${tier} tier`}${only.length ? `, paths containing ${only.map((n) => JSON.stringify(n)).join(", ")}` : ""}`;
@@ -69,34 +81,49 @@ const missingFixtures = [];
 const attemptedFiles = new Set();
 console.log(`Discovered ${discovered.length} tracked check files and ${fixtures.length} data fixtures`);
 console.log(`Selected ${candidates.length} of ${discovered.length} checks: ${selection}`);
-console.log(`Verified Bash: ${bash}; per-check timeout: ${timeoutMs} ms`);
+console.log(`Verified Bash: ${bash}; per-check timeout: ${timeoutMs} ms; concurrency: ${concurrency}`);
 for (const file of fixtures) {
   if (!fs.existsSync(path.join(root, file))) { console.error(`FAILED: missing data fixture ${file}`); missingFixtures.push(file); failed++; }
   else console.log(`FIXTURE: ${file}: non-executable data, excluded from check coverage`);
 }
-for (const file of candidates) {
+// A check's lines are buffered and written together once it completes, so
+// concurrent checks stay grouped in the log; only the RUNNING heartbeat is
+// written live, since its job is to show that a long check is still alive.
+const header = (file) => fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/, 10).join("\n");
+const serialOf = (file) => header(file).match(/^(?:\/\/|#) agent-tooling-serial: (.+)$/m)?.[1];
+async function runCheck(file, onTimeout) {
+  const buffered = [];
+  const out = (text) => buffered.push([process.stdout, `${text}\n`]);
+  const err = (text) => buffered.push([process.stderr, `${text}\n`]);
+  const flush = () => { for (const [stream, text] of buffered) stream.write(text); };
   if (!/\.test\.(?:mjs|sh)$/.test(file) || !fs.existsSync(path.join(root, file))) {
     const hint = /\.(?:json|snap|md|txt)$/i.test(file) ? "; data fixture extensions must be lowercase (.json, .snap, .md, .txt)" : "";
-    console.error(`FAILED: unsupported or missing check ${file}${hint}`); failed++; continue;
+    err(`FAILED: unsupported or missing check ${file}${hint}`); failed++; flush(); return {};
   }
   // A check whose honest run time is close to the default declares its own
   // bound in its first lines, so machine load does not turn a pass into a timeout.
-  const declared = fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/, 10).join("\n").match(/^(?:\/\/|#) agent-tooling-timeout-ms: (\d+)$/m);
+  const declared = header(file).match(/^(?:\/\/|#) agent-tooling-timeout-ms: (\d+)$/m);
   const checkTimeoutMs = declared ? Number(declared[1]) : timeoutMs;
-  if (!Number.isSafeInteger(checkTimeoutMs) || checkTimeoutMs < 100 || checkTimeoutMs > 3600000) { console.error(`FAILED: ${file}: declared agent-tooling-timeout-ms must be an integer from 100 to 3600000`); failed++; continue; }
-  console.log(`CHECK: ${file}${declared ? `; declared timeout: ${checkTimeoutMs} ms` : ""}`);
+  if (!Number.isSafeInteger(checkTimeoutMs) || checkTimeoutMs < 100 || checkTimeoutMs > 3600000) { err(`FAILED: ${file}: declared agent-tooling-timeout-ms must be an integer from 100 to 3600000`); failed++; flush(); return {}; }
+  const serial = serialOf(file);
+  out(`CHECK: ${file}${declared ? `; declared timeout: ${checkTimeoutMs} ms` : ""}${serial ? `; serial-only: ${serial}` : ""}`);
   const started = Date.now();
   let output = "";
   const child = spawn(file.endsWith(".sh") ? bash : process.execPath, [file], { cwd: root, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32", env });
-  child.stdout.on("data", (chunk) => { output += chunk; process.stdout.write(chunk); });
-  child.stderr.on("data", (chunk) => { output += chunk; process.stderr.write(chunk); });
+  child.stdout.on("data", (chunk) => { output += chunk; buffered.push([process.stdout, chunk]); });
+  child.stderr.on("data", (chunk) => { output += chunk; buffered.push([process.stderr, chunk]); });
   const result = await new Promise((resolve) => {
     let timedOut = false, cleanupError = null, cleanupTimer;
     const finish = (result) => { clearTimeout(timer); clearTimeout(cleanupTimer); clearInterval(progress); resolve({ ...result, timedOut, cleanupError }); };
     const progress = setInterval(() => console.log(`RUNNING: ${file}: ${Date.now() - started} ms; awaiting exit`), 30000);
     const timer = setTimeout(() => {
       timedOut = true;
-      console.error(`TIMEOUT: ${file}; stopping launched ${process.platform === "win32" ? "process tree" : "process group"} ${child.pid}`);
+      // The scheduler stops launching now, not when the child's close is
+      // confirmed: that can take up to the cleanup deadline, during which
+      // another check's completion would otherwise admit queued checks
+      // beside a child whose cleanup is still unconfirmed.
+      onTimeout();
+      err(`TIMEOUT: ${file}; stopping launched ${process.platform === "win32" ? "process tree" : "process group"} ${child.pid}`);
       try {
         if (child.exitCode !== null || child.signalCode !== null) throw new Error("launched parent already exited; refusing an unowned process identifier, inspect remaining descendants");
         if (process.platform === "win32") {
@@ -117,20 +144,42 @@ for (const file of candidates) {
   if (result.timedOut) timedOut++;
   if (result.cleanupUnconfirmed) exitUnconfirmed++;
   const passed = result.status === 0 && !result.timedOut;
-  console.log(`DONE: ${file}: ${passed ? "passed" : result.timedOut ? "timed out" : "failed"}; exit=${result.status ?? "unconfirmed"}; signal=${result.signal ?? "none"}; ${Date.now() - started} ms`);
-  if (!passed) { console.error(`FAILED: ${file}: ${result.error ?? result.status}`); failed++; }
+  out(`DONE: ${file}: ${passed ? "passed" : result.timedOut ? "timed out" : "failed"}; exit=${result.status ?? "unconfirmed"}; signal=${result.signal ?? "none"}; ${Date.now() - started} ms`);
+  if (!passed) { err(`FAILED: ${file}: ${result.error ?? result.status}`); failed++; }
   for (const line of output.split(/\r?\n/)) if (line.startsWith("SKIP:")) skipped.push(`${file}: ${line}`);
+  let abort = false;
   if (result.cleanupError || result.cleanupUnconfirmed) {
-    console.error(`ABORT: cleanup was not confirmed: ${result.cleanupError || result.error}; remaining checks were not run`);
-    break;
+    err(`ABORT: cleanup was not confirmed: ${result.cleanupError || result.error}; remaining checks were not run`); abort = true;
+  } else if (result.timedOut) {
+    err("ABORT: timed-out check requires inspection before later checks; detached descendants are not proven stopped by the parent's exit"); abort = true;
   }
-  if (result.timedOut) {
-    console.error("ABORT: timed-out check requires inspection before later checks; detached descendants are not proven stopped by the parent's exit");
-    break;
-  }
+  flush();
+  return { abort };
 }
+// Launch in inventory order, at most `concurrency` at a time. A serial-only
+// check waits for every running check to finish and holds the machine until
+// it exits. An abort (a timeout the moment it fires, or an unconfirmed
+// cleanup) stops further launches; checks already running finish.
+await new Promise((resolve) => {
+  const queue = [...candidates];
+  let active = 0, exclusive = false, aborted = false;
+  const abort = () => { aborted = true; };
+  const pump = () => {
+    while (!aborted && !exclusive && queue.length && active < concurrency) {
+      const serial = fs.existsSync(path.join(root, queue[0])) && /\.test\.(?:mjs|sh)$/.test(queue[0]) && serialOf(queue[0]) !== undefined;
+      if (serial && active > 0) break;
+      const file = queue.shift();
+      active++;
+      if (serial) exclusive = true;
+      runCheck(file, abort).then((result) => { active--; if (serial) exclusive = false; if (result.abort) abort(); pump(); });
+      if (serial) break;
+    }
+    if (active === 0 && (aborted || !queue.length)) resolve();
+  };
+  pump();
+});
 for (const file of candidates) if (!attemptedFiles.has(file)) console.log(`NOT RUN: ${file}: no invocation attempted`);
-const summary = `Tooling checks (${selection}): ${ran} run, ${failed} failed, ${candidates.length - ran} not run; ${timedOut} timed out, ${exitUnconfirmed} exit unconfirmed; ${fixtures.length} data fixtures`;
+const summary = `Tooling checks (${selection}): ${ran} run, ${failed} failed, ${candidates.length - ran} not run; ${timedOut} timed out, ${exitUnconfirmed} exit unconfirmed; ${fixtures.length} data fixtures; concurrency ${concurrency}`;
 console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);

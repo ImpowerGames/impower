@@ -487,3 +487,41 @@ describe("a preview displayed from the worker's game", () => {
     }
   }, 120_000);
 });
+
+describe("a preview the same point repeats while it waits for its picture (#1820)", () => {
+  it("ends the held display once the picture arrives, with no time limit", async () => {
+    let releaseA!: () => void;
+    const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+      holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
+    });
+    try {
+      await h.compile();
+      expect(h.overlay.textContent).toContain("The beat that takes over.");
+
+      const first = await h.selectWithoutWaiting(WAITING);
+      await settle(40);
+      // Another line of the same beat: the worker repeats the preview that
+      // is still waiting for a.png, and that one, taken over, never sweeps.
+      // Until a sweep sends its composed beat, the page shows the old one.
+      const repeat = await h.selectWithoutWaiting(lineOf("[[SPRITE_A]]"));
+      await settle(40);
+      expect(h.overlay.textContent).toContain("The beat that takes over.");
+
+      releaseA();
+      await first.previewed;
+      await repeat.previewed;
+      await settle(40);
+
+      // The repeat swept for it: the display the first one composed went up,
+      // and nothing waits on the page.
+      expect((h.overlay as any).__sdBeat).toBeUndefined();
+      expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
+      expect(h.overlay.textContent).not.toContain("The beat that takes over.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});

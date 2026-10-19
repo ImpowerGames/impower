@@ -8,14 +8,12 @@
 // The failures ARE the to-build list.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 // Hint/Information diagnostics are stylistic (faded in VS Code), not
 // blockers — filter them so the inventory reflects only real issues.
 const HINT_NOISE = [
   "Unreachable statement detected",
-  "discard prefix is redundant",
 ];
 
 // Compile + run a snippet, binding a `host_record` recorder so
@@ -30,7 +28,7 @@ function probe(source: string): {
   compiled: boolean;
   runtimeError: string | null;
 } {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -64,11 +62,9 @@ function probe(source: string): {
   const recorded: unknown[] = [];
   let output = "";
   let runtimeError: string | null = null;
-  const compiled = result.program.compiled != null;
+  const compiled = result.program.chunks != null;
   if (compiled) {
-    const story = new RuntimeStory(
-      result.program.compiled as Record<string, any>,
-    );
+    const story = testStory(result.program.chunks);
     story.BindExternalFunction("host_record", (v: unknown) => {
       recorded.push(v);
       return v;

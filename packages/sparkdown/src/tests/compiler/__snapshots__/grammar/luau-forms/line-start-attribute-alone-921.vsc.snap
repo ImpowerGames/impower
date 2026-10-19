@@ -1,0 +1,8 @@
+text.source.sparkdown [0..15]
+ ├─ keyword.operator.attribute.luau [0..1]: "@"
+ ├─ storage.type.attribute.luau [1..7]: "native"
+ ├─ Newline [7..8]: "\n"
+ ├─ string.display.text.chunk.sd [8..14]
+ │   ├─ markup.raw.text.sd [8..13]: "Hello"
+ │   └─ markup.raw.punctuation.sd [13..14]: "."
+ └─ Newline [14..15]: "\n"

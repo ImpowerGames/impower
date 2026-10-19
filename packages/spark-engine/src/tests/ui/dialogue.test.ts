@@ -8,7 +8,7 @@
 //
 // Two driving modes:
 //  - preview()  → the real INSTANT screen-construction + reveal path.
-//  - jumpTo("start") + nextBeat() + display(beat, false) → an ANIMATED beat
+//  - jumpToFlow("start") + nextBeat() + display(beat, false) → an ANIMATED beat
 //    fanned out exactly as Coordinator.display() does, using the *real*
 //    interpreter Instructions.
 
@@ -44,7 +44,7 @@ describe("dialogue", () => {
   test("animated dialogue line (per-glyph create + per-letter animate)", async () => {
     const harness = createHarness(story(`  HERO: Hi.`));
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     expect(beat).toBeTruthy();
@@ -56,7 +56,7 @@ describe("dialogue", () => {
   test("instant dialogue line (no per-letter timing)", async () => {
     const harness = createHarness(story(`  HERO: Hi.`));
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     await harness.display(beat!, /* instant */ true);
@@ -67,7 +67,7 @@ describe("dialogue", () => {
   test("character name + parenthetical routing", async () => {
     const harness = createHarness(story(`  HERO (cheerfully): Hi there.`));
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     // The real interpreter output drives the targets — lock the routing.
@@ -82,7 +82,7 @@ describe("dialogue", () => {
       story(`  HERO: This is **bold** and *italic* text.`),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     await harness.display(beat!, true);
@@ -95,7 +95,7 @@ describe("dialogue", () => {
       story(`  HERO: Line one.\n  ^Centered line.^`),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     await harness.display(beat!, true);
@@ -109,7 +109,7 @@ describe("dialogue", () => {
   test("a body containing a colon still routes to dialogue (no regex mis-extract)", async () => {
     const harness = createHarness(story(`  HERO: Well: hello.`));
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const beat = harness.nextBeat();
     // The whole line (including the colon) lands on the dialogue target...
     const dialogueText = (beat?.text?.["dialogue"] ?? [])

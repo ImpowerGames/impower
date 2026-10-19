@@ -2711,7 +2711,6 @@ local baz = foo[bar]
     // TypeInfer.tables.test.cpp:3486 TEST_CASE_FIXTURE(BuiltinsFixture, "access_index_metamethod_that_returns_variadic")
     name: "access_index_metamethod_that_returns_variadic",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         type Foo = {x: string}
         local t = {}
@@ -2745,7 +2744,6 @@ local baz = foo[bar]
       },
       {
         module: "Module/Backend",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         local Types = require(script.Types)
         type Fiber = Types.Fiber
@@ -3987,7 +3985,6 @@ return {}
       },
       {
         module: "game/library",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local Worker = require(game.worker)
 
@@ -4900,7 +4897,6 @@ end
     // TypeInfer.tables.test.cpp:6116 TEST_CASE_FIXTURE(BuiltinsFixture, "oss_1797_intersection_of_tables_arent_disjoint")
     name: "oss_1797_intersection_of_tables_arent_disjoint",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         --!strict
 
@@ -5200,7 +5196,6 @@ end
     // TypeInfer.tables.test.cpp:6427 TEST_CASE_FIXTURE(Fixture, "result_like_tagged_union")
     name: "result_like_tagged_union",
     fixture: "Fixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
 --!strict
 local function retry(func: (...any) -> ...any): { type: "ok", value: any } | { type: "failed" }
@@ -5449,7 +5444,6 @@ end
     name: "bidirectional_inference_variadic_type_pack",
     fixture: "BuiltinsFixture",
     flags: { DebugLuauAssertOnForcedConstraint: true },
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         local foo: { (...string) -> () } = {
             function (foobar)

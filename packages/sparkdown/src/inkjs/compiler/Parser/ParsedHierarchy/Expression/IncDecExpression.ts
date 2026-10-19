@@ -1,19 +1,16 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ContentList } from "../ContentList";
 import { Expression } from "./Expression";
 import { FlowBase } from "../Flow/FlowBase";
-import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
-import { IntValue } from "../../../../engine/Value";
 import { Story } from "../Story";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../engine/VariableAssignment";
-import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Weave } from "../Weave";
 import { Identifier } from "../Identifier";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
 export class IncDecExpression extends Expression {
-  private _runtimeAssignment: RuntimeVariableAssignment | null = null;
+  // Whether preparation made the assignment; kept until the next
+  // preparation.
+  private _preparedAssignment = false;
 
   public isInc: boolean;
   public expression: Expression | null = null;
@@ -40,40 +37,10 @@ export class IncDecExpression extends Expression {
     return "IncDecExpression";
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    // x = x + y
-    // ^^^ ^ ^ ^
-    //  4  1 3 2
-    // Reverse polish notation: (x 1 +) (assign to x)
-
-    // 1.
-    container.AddContent(
-      new RuntimeVariableReference(this.identifier?.name || null),
-    );
-
-    // 2.
-    // - Expression used in the form ~ x += y
-    // - Simple version: ~ x++
-    if (this.expression) {
-      this.expression.GenerateIntoContainer(container);
-    } else {
-      container.AddContent(new IntValue(1));
-    }
-
-    // 3.
-    container.AddContent(
-      NativeFunctionCall.CallWithName(this.isInc ? "+" : "-"),
-    );
-
-    // 4.
-    this._runtimeAssignment = new RuntimeVariableAssignment(
-      this.identifier?.name || null,
-      false,
-    );
-    container.AddContent(this._runtimeAssignment);
-  };
+  public override PrepareIntoContainer(): void {
+    this.expression?.PrepareIntoContainer();
+    this._preparedAssignment = true;
+  }
 
   // The variable, the step (the expression or 1), `+` or `-`, and the
   // variable written back.
@@ -89,8 +56,8 @@ export class IncDecExpression extends Expression {
     emitter.emit(Op.SetVar, name);
   }
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
 
     const varResolveResult = context.ResolveVariableWithName(
       this.identifier?.name || "",
@@ -103,11 +70,9 @@ export class IncDecExpression extends Expression {
       );
     }
 
-    if (!this._runtimeAssignment) {
+    if (!this._preparedAssignment) {
       throw new Error();
     }
-
-    this._runtimeAssignment.isGlobal = varResolveResult.isGlobal;
 
     if (
       !(this.parent instanceof Weave) &&

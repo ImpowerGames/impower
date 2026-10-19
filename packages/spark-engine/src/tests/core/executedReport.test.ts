@@ -49,12 +49,12 @@ const labels = (report: ExecutedReport) => ({
   reported: {
     first: report.params.firstLocation,
     last: report.params.lastLocation,
-    lastExecutedPath: report.params.lastExecutedPath,
+    lastExecutedAddress: report.params.lastExecutedAddress,
   },
   expected: {
     first: report.locations[0],
     last: report.locations.at(-1),
-    lastExecutedPath: report.paths.at(-1),
+    lastExecutedAddress: report.paths.at(-1),
   },
 });
 
@@ -112,7 +112,7 @@ describe("the executed report", { timeout: 60_000 }, () => {
     expect(reports).toHaveLength(1);
     const report = reports[0]!;
     expect(report.params.executedLines).toBeUndefined();
-    expect(report.params.lastExecutedPath).toBeUndefined();
+    expect(report.params.lastExecutedAddress).toBeUndefined();
     expect(report.params.conditions).toEqual([]);
     const l = labels(report);
     expect(l.reported.first).toEqual(l.expected.first);
@@ -154,7 +154,7 @@ describe("the executed report", { timeout: 60_000 }, () => {
       expect(reported).toEqual(expected);
       const l = labels(report);
       expect(l.reported).toEqual(l.expected);
-      expect(report.params.lastExecutedPath).toBeTruthy();
+      expect(report.params.lastExecutedAddress).toBeTruthy();
     }
   });
 });

@@ -91,6 +91,14 @@ const SPACED_PUNCTUATION_OPERATORS: Partial<
   LuauAssignmentOperator: { spelling: "..=", forceAfter: false },
 };
 
+/** The spacing of a punctuation operator, or its bounded counterpart's. */
+function spacedPunctuationOperator(name: string): { spelling: string; forceAfter: boolean } | undefined {
+  for (const [original, spacing] of Object.entries(SPACED_PUNCTUATION_OPERATORS)) {
+    if (isExplicitRuleName(name, original)) return spacing;
+  }
+  return undefined;
+}
+
 function isInsideInlineAlternator(
   node: SparkdownSyntaxNodeRef,
   read: (from: number, to: number) => string,
@@ -161,7 +169,7 @@ function isBetweenLengthAndOperator(node: SparkdownSyntaxNodeRef): boolean {
   const operation = ancestorNamed(opNode, "LuauArithmeticOperation");
   if (!operation || significantBefore(opNode.prevSibling)) return false;
   return (
-    significantBefore(operation.prevSibling)?.name === "LuauLengthOperator"
+    isExplicitRuleName(significantBefore(operation.prevSibling)?.name, "LuauLengthOperator")
   );
 }
 
@@ -411,7 +419,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     // `and (y or z)`, `or{}` instead of `or {}`). Emit
     // `keyword_separator` right after the keyword text to force the
     // space.
-    if (nodeRef.name === "LuauLogicalOperator") {
+    if (isExplicitRuleName(nodeRef.name, "LuauLogicalOperator")) {
       // Skip leading WS captured inside the operator's range to find
       // the keyword's start.
       let kwStart = nodeRef.from;
@@ -455,7 +463,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     // `..` (concat) is the main one — `"a".."b"` should be
     // `"a" .. "b"` — and `::` (type cast) is the other: `y :: number`
     // keeps its space before the `::`.
-    const spacedOperator = SPACED_PUNCTUATION_OPERATORS[nodeRef.name];
+    // A story statement reads its operators with their bounded
+    // counterparts (#1907), which space as the Luau ones do.
+    const spacedOperator = spacedPunctuationOperator(nodeRef.name);
     if (spacedOperator) {
       // Find the operator's position by scanning past any leading WS
       // the operator scope captured into its begin pattern.

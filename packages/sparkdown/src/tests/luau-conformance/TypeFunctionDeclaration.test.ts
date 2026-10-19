@@ -55,7 +55,7 @@ function run(files: Array<{ uri: string; text: string }>) {
       else if ((d as any).severity === 2) warnings.push(message);
     }
   }
-  const story = testStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.chunks);
   const recorded: unknown[] = [];
   story.BindExternalFunction("harness_record", (v: unknown) => {
     recorded.push(v);
@@ -82,7 +82,7 @@ describe("type function declaration", () => {
       { uri: "inmemory:///main.sd", text: `external harness_record(v)\nrun "helpers"\ndone\n` },
       {
         uri: "inmemory:///helpers.luau",
-        text: `local a = 5\n& harness_record(a)\ntype function F(t)\n    return t\nend\n& harness_record(a)\n`,
+        text: `local a = 5\nharness_record(a)\ntype function F(t)\n    return t\nend\nharness_record(a)\n`,
       },
     ]);
     expect(errors).toEqual([]);

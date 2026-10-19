@@ -30,9 +30,9 @@ const countSearches = (h: any) => {
   const game = h.workerState.gameState.game;
   const searched: string[] = [];
   const routeResumption = game.routeResumption.bind(game);
-  game.routeResumption = (fromPath: string, toPath: string) => {
-    searched.push(toPath);
-    return routeResumption(fromPath, toPath);
+  game.routeResumption = (from: string, to: string) => {
+    searched.push(to);
+    return routeResumption(from, to);
   };
   return searched;
 };
@@ -75,21 +75,16 @@ describe("route searches for a selection", () => {
           text: "angry",
         },
       ]);
+      // The parse throws, which any compile runs.
       const compiler: any = h.workerState.compilerState.compiler;
-      const kept = {
-        note: compiler.noteFlowShapesWithoutEmitting,
-        serialize: compiler.serializeCompiledProgram,
-      };
-      const fail = () => {
+      const parseIncrementally = compiler.parseIncrementally;
+      compiler.parseIncrementally = () => {
         throw new Error("the compile threw");
       };
-      compiler.noteFlowShapesWithoutEmitting = fail;
-      compiler.serializeCompiledProgram = fail;
       try {
         await h.compile();
       } finally {
-        compiler.noteFlowShapesWithoutEmitting = kept.note;
-        compiler.serializeCompiledProgram = kept.serialize;
+        compiler.parseIncrementally = parseIncrementally;
       }
       expect(h.workerState.compilerState.compiler.isProgramOutdated()).toBe(false);
 

@@ -1,5 +1,6 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
+import { documentString } from "../utils/documentString";
 import {
   ChangeDesc,
   ChangeSet,
@@ -15,7 +16,10 @@ import {
   assignmentListName,
   VARIABLE_DEFINITION_CONTENT_NAMES,
 } from "../utils/variableDefinitionNames";
-import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
+import {
+  DefineTypeNameIndex,
+  type DefineTypeNameIndexSnapshot,
+} from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
 import { CompilationAnnotator } from "./annotators/CompilationAnnotator";
@@ -28,7 +32,10 @@ import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
 import { SemanticAnnotator } from "./annotators/SemanticAnnotator";
 import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
-import { SparkdownAnnotator } from "./SparkdownAnnotator";
+import {
+  SparkdownAnnotator,
+  type SparkdownAnnotatorSnapshot,
+} from "./SparkdownAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -69,7 +76,6 @@ const DELIMITED_VALUE_NAMES = nodeNameSet([
   "LuauFunctionDefinition",
   "LuauFunctionBody",
   "LuauParenthetical",
-  "LuauSparkdownExplicitParenthetical",
   "LuauFunctionCallParameters",
 ]);
 
@@ -169,6 +175,15 @@ export interface SparkdownAnnotators {
   semantics: SemanticAnnotator;
 }
 
+/**
+ * Everything the annotators of one document carry across updates: each
+ * annotator's own state, and the define-type-name set they share.
+ */
+export interface SparkdownCombinedAnnotatorSnapshot {
+  annotators: Map<string, SparkdownAnnotatorSnapshot>;
+  defineTypeNames: DefineTypeNameIndexSnapshot;
+}
+
 export class SparkdownCombinedAnnotator {
   current: SparkdownAnnotators;
 
@@ -221,6 +236,40 @@ export class SparkdownCombinedAnnotator {
       string,
       SparkdownAnnotator,
     ][];
+  }
+
+  /**
+   * Save what the annotators hold now, so a hypothetical edit can be undone by
+   * putting it back rather than by annotating the edit's inverse.
+   *
+   * Only the annotators `annotate` selects are saved, because they are the
+   * only ones an update touches; the others are left out of the snapshot and
+   * untouched by the restore.
+   */
+  snapshot(
+    annotate?: Set<keyof SparkdownAnnotators>,
+  ): SparkdownCombinedAnnotatorSnapshot {
+    const annotators = new Map<string, SparkdownAnnotatorSnapshot>();
+    for (const [key, annotator] of this._currentEntries) {
+      if (!annotate || annotate.has(key as keyof SparkdownAnnotators)) {
+        annotators.set(key, annotator.snapshot());
+      }
+    }
+    return {
+      annotators,
+      defineTypeNames: this._defineTypeNames.snapshot(),
+    };
+  }
+
+  /** Take back the state `snapshot` recorded. */
+  restore(snapshot: SparkdownCombinedAnnotatorSnapshot) {
+    for (const [key, annotator] of this._currentEntries) {
+      const saved = snapshot.annotators.get(key);
+      if (saved) {
+        annotator.restore(saved);
+      }
+    }
+    this._defineTypeNames.restore(snapshot.defineTypeNames);
   }
 
   get(): SparkdownAnnotations {
@@ -436,10 +485,12 @@ export class SparkdownCombinedAnnotator {
       } else {
         this._defineTypeNames.invalidate();
       }
-      // Rebuild all annotations from scratch
-      for (const [key, add] of Object.entries(
-        this.annotate(tree, undefined, undefined, annotate),
-      )) {
+      // Rebuild all annotations from scratch. The parse rebuilt every node,
+      // so no statement is served from a memo.
+      this.current.compilations.rebuilt = { from: 0, to: text.length };
+      const rebuiltAll = this.annotate(tree, undefined, undefined, annotate);
+      this.current.compilations.settle();
+      for (const [key, add] of Object.entries(rebuiltAll)) {
         if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
           if (annotator) {
@@ -528,6 +579,15 @@ export class SparkdownCombinedAnnotator {
       editStart,
       reparsedTo ?? undefined,
     );
+    // The statements the parse rebuilt are lowered whatever their memos say
+    // (`StatementMemoSession`); the others of a block lowered again may be
+    // served from them.
+    if (runsCompilations) {
+      this.current.compilations.rebuilt = {
+        from: editStart,
+        to: windowTo ?? text.length,
+      };
+    }
     this.reannotate(
       tree,
       editStart,
@@ -537,6 +597,7 @@ export class SparkdownCombinedAnnotator {
       annotate,
       changeDesc,
     );
+    this.current.compilations.settle();
     if (!annotate || annotate.has("validations")) {
       const wide = this.validationWindow(tree, text, editStart, windowTo);
       if (
@@ -587,8 +648,7 @@ export class SparkdownCombinedAnnotator {
       text.sliceString(a, Math.min(b, text.length));
     // All trivia probes in this window share the same immutable document.
     // Materialize it only when a probe needs token lookahead.
-    let source: string | undefined;
-    const document = () => source ??= text.toString();
+    const document = () => documentString(text);
     type Line = ReturnType<Text["line"]>;
     const isCode = (line: Line) => !this.holdsOnlyTrivia(tree, line, read, document);
     const previousCode = (line: Line): Line | null => {
@@ -667,6 +727,22 @@ export class SparkdownCombinedAnnotator {
     }
     const next = nextSignificantToken(tree.topNode, comment.to, read, document);
     return next == null || next.from > line.to;
+  }
+
+  /**
+   * Lowers again the top-level nodes over each of `ranges`, for the
+   * compilation annotator only: the compiler's way to lower again the blocks
+   * holding a statement served from a memo it could not compile from
+   * (`StatementMemoRetry`), once it has marked those memos stale.
+   */
+  relowerCompilations(tree: Tree, ranges: readonly { from: number; to: number }[]) {
+    const compilationsOnly = new Set<keyof SparkdownAnnotators>([
+      "compilations",
+    ]);
+    this.current.compilations.settle(true);
+    for (const { from, to } of ranges) {
+      this.reannotate(tree, from, to, from, to, compilationsOnly);
+    }
   }
 
   /**

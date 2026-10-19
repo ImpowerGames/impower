@@ -336,8 +336,7 @@ describe("faithful fixture and query execution", () => {
     expect(session.modules.has("game/A")).toBe(false);
   });
   // Actual pinned Parser + RequireTracer.cpp output, with Fixture.cpp's
-  // resolver model, compared with the actual compiled AST. Existing #879 parse
-  // diagnostics remain in the checker result; no error-free parse is claimed.
+  // resolver model, compared with the actual compiled AST.
   test.each([
     ["local M=require(game.A)\nreturn M", ["0:8|game/A|game/A"]],
     ["local M=require(pick(game.A))\nreturn M", ["0:8|<absent>|"]],
@@ -427,8 +426,7 @@ describe("faithful fixture and query execution", () => {
           "game/A": "export type T=number\nlocal bad:number='bad'\nreturn 1",
         },
       });
-      // #879 remains the natural-source parser boundary; these assertions
-      // inspect the actual checker, not a fabricated error-free parse.
+      // These assertions inspect the actual checker.
       expect(result.checked).toBe(true);
       expect(
         result.find({ type: "M" }).is(result.find({ builtin: "error" })),
@@ -544,8 +542,7 @@ describe("faithful fixture and query execution", () => {
           'type MixedTable = {[number]: number, x: number}\nlocal t: MixedTable = {"fail"}\nreturn 1',
       },
     });
-    // Actual checker errors are asserted; this is not a claim that #879's
-    // require source has become syntax-diagnostic-free.
+    // Actual checker errors are asserted.
     expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
       ["game/A", "TypeMismatch"],
       ["game/A", "MissingProperties"],
@@ -649,12 +646,12 @@ describe("faithful fixture and query execution", () => {
       "type T = Mod.  X",
     );
   });
-  test("prepared native AST preserves mixed variadic lists while #876 blocks source parsing", async () => {
+  test("prepared native AST preserves mixed variadic lists", async () => {
     const { decorateSource } = await import("./typecheckDecoration");
     const source = "type T=(number,...string)->(number,...string)";
-    // This natural source remains a Sparkdown grammar defect; no parse success
-    // or conformance skip is fabricated. Exercise the genuine prepared AST and
-    // real checker separately, as the definition setup boundary permits.
+    // Exercise the genuine prepared AST and real checker separately from
+    // Sparkdown's grammar, which reads this source too since #876 (#1924),
+    // as the definition setup boundary permits.
     const parse = await loadOfficialLuau("typecheck"),
       parsed = parse(source);
     expect(parsed.errors).toBe(0);
@@ -1377,8 +1374,7 @@ describe("faithful fixture and query execution", () => {
         "game/Unused": "local unused:number='u'\nreturn 1",
       },
     });
-    // The existing require-parser defect #879 is distinct from real prepared
-    // module checking here; this does not claim natural-source parse success.
+    // Real prepared module checking.
     expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
       ["game/C", "TypeMismatch"],
       ["game/A", "TypeMismatch"],
@@ -1402,7 +1398,7 @@ describe("faithful fixture and query execution", () => {
         },
       },
     );
-    // The require syntax boundary #879 does not hide real module errors.
+    // A require does not hide real module errors.
     expect(result.checked).toBe(true);
     expect(result.diagnostics.map((d) => [d.module, d.code])).toEqual([
       ["game/A", "TypeMismatch"],

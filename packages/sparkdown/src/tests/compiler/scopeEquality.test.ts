@@ -65,6 +65,22 @@ const TARGETED: Record<string, string> = {
   "blockaction-comment-lines":
     ":\n    Line one.\n    // a comment line\n    Line two.\nnot indented\n",
 
+  // --- a column-0 line after an if expression whose condition, `then` or
+  // then arm ends its line: the reassignment around it ends at the start of
+  // that line. After an `else` that ends its line, the arm takes that line as
+  // its value unless it begins a statement or a reassignment (`y = 6`), where
+  // the arm and the statement around it end. Both engines must read these
+  // lines alike, in a narrative body (the root, a scene, an `if` block) and
+  // in a function body (#1494).
+  "column-0-after-if-expression-narrative":
+    "scene s\n  x = if c then 1\nprint(x)\n  x = if c then\nHello.\n  if c then\n    x = if c\nprint(x)\n  end\nend\n",
+  "column-0-after-else-narrative":
+    "x = if c then 1 else\nprint(x)\nscene s\n  x = if c then 1 else\nHello.\n  x = if c then 1 else\ny = 6\nend\n",
+  "column-0-after-if-expression-function":
+    "function f(c)\n  x = if c then 1\nprint(x)\n  x = if c then\nprint(x)\n  return x\nend\n",
+  "column-0-after-else-function":
+    "function f(c)\n  x = if c then 1 else\nprint(x)\n  local y = if c then 1 else\ny = 6\n  return y\nend\n",
+
   // --- a sampling of other top-level constructs
   "include": "include script.sd\n",
   "front-matter": "---\ntitle: Test\n---\n\nAction line.\n",
@@ -119,6 +135,55 @@ const TARGETED: Record<string, string> = {
   "tag-interpolation-midbody": "# a tag {var} more\n",
   "tag-plain-no-interp": "# plain tag no interp\n",
   "tag-multi-with-interp": "# a # b {x}\n",
+
+  // --- a pure-Luau body or bracket tiles with `LuauUnreadToken` (#1905), so
+  // both engines read a token its rules lack the same way, and the function
+  // keeps its own `end`: the reproductions the #1904 prototype measured at
+  // zero divergence.
+  "unread-attribute-list-921":
+    "Value {g()}.\nfunction g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\n",
+  "unread-semicolon-in-call-1258": "function f(t)\n  print(1;)\nend\nAfter.\n",
+  "unread-table-type-assignment-1261":
+    "function f(t)\n  local x: {\n    bar\n    baz = 1 +\n  } = {}\n  2\nend\nAfter.\n",
+  "unread-stray-closers-1290":
+    "function f()\n  print(1)\n  )\n  ]\n  }\n  print(1); )\n  return 5\nend\nAfter.\n",
+  "unread-export-in-function-1318": "function f()\n  export local a = 1\n  return a\nend\n: {f()}\n",
+  "unread-union-instantiation-1376":
+    "local function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\nValue {f()}.\n",
+  "unread-stray-then-1596": "function f(c)\nthen\nend\nAfter.\n",
+  "unread-if-expression-after-comment-1647":
+    "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
+  // A name with a non-ASCII letter ends where both engines agree: a struct
+  // key, a scene name, and an ASCII Luau name a non-ASCII letter follows
+  // (#1266, #1906).
+  "non-ascii-names-1266":
+    "theme t with\n  g:\n    名 = 2\n    tail = 3\nend\nscene 場面\n  Hello.\nend\nfunction f()\n  local x名 = 1\nend\n",
+  // Reserved words are never names, structural words are names outside
+  // their shape, and closers only close (#1906).
+  "token-classes-1906":
+    "function f(c)\n  local style, match, queue, continue = 1, 2, 3, 4\n  local y = style + match + queue + continue\n  if match then y = layout end\n  if match == (2)then y = 2 end\n  while y == (0)do y = 1 end\n  repeat\n    repeat y = (y + 1)until true\n  until y > 2\n  local z =\n    if c then 1 else 2\n  do local w = (1)end\n  if c then\n    while c do y = 1 else y = 2 end\n  end\n  return y\nend\n",
+  // A story statement ends at its line unless a bracket, a long string or a
+  // block comment carries it on (#1907): a trailing operator, an if
+  // expression's `then` or `else`, a type before a `|` or `&` line and an
+  // indented line leave the next line to the story; a story `if` header
+  // ends at its line too; an unclosed bracket stops at the next header.
+  "story-line-rule-trailing-operator-1254":
+    "local a = 1 +\nThe first story line.\nscene s\n  local b = \"x\" ..\n  Story.\n  b = true and\n  Story.\nend\n",
+  "story-line-rule-if-arms-1658":
+    "store ready = true\nstore x = 0\nx = if ready then 1 else\nThe hero waits.\nlocal y = if ready then\n  1 else 2\nlocal z = if ready then 1 else\nender\n",
+  "story-line-rule-comments-1200-1207":
+    "local --[[c]] r = 1\nlocal --[[c]]q = 1\nlocal a --[[b]]print(1)\nlocal a2: number --[[b]] print(1)\nlocal a3 --[[b\n]]print(1)\nstore s --[[b]]print(1)\nlocal s2 = [[a\nb]]\n",
+  "story-line-rule-if-header-1199":
+    "store flag = true\nif flag:\n  Went down the true side.\nend\nif\n  flag\nthen\n  Story.\nelseif\n  Story.\nend\n",
+  "story-line-rule-brackets":
+    "store inventory = {\n  sword = 1,\n}\nlocal x = math.max(1,\n  2)\n& print(1,\n  2)\nlocal t: {\n  a: number\n} = { a = 1 }\nstore f = @[\n  native\n] function() return 5 end\nlocal y = f(g(\n  1\nbranch b\n  After.\nend\n",
+  "story-line-rule-type-lines":
+    "local v: number?\n| string\nlocal w: number\n& w = 2\nstore second = @[native]\nfunction() return 9 end\n",
+  // A statement rule open at a character it cannot read: vscode-textmate
+  // passes over it inside the rule, and the tree ends the rule there and
+  // reads it as an unread token of the body.
+  "unread-character-in-open-statement":
+    "function f()\n  x = 1 @@ 2\n  y = $5\nend\ndefine X with\n  b = $5\nend\nlayout main with\n  button @click={ x = 1 @@ 2 }\nend\n",
 };
 
 interface Fixture {

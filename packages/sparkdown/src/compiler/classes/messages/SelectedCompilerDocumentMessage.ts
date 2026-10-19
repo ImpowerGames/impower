@@ -1,3 +1,4 @@
+import type { ProgramAddress } from "../../types/ProgramAddress";
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { Range } from "../../types/SparkDiagnostic";
@@ -17,19 +18,19 @@ export interface SelectedCompilerDocumentParams {
    *  field of the same name on `CompiledProgramParams`. */
   simulationFailure?: SimulationFailure;
   /**
-   * The story path a route search reached a DEFINITE answer about for this
+   * The address a route search reached a DEFINITE answer about for this
    * selection: present with a `checkpoint` means the route was found and
-   * replayed to this path and the checkpoint is the story state there; present
-   * with no `checkpoint` means no route to this path exists; absent means
+   * replayed to this address and the checkpoint is the story state there; present
+   * with no `checkpoint` means no route to this address exists; absent means
    * nothing definite is known and a client must run its own search.
    *
    * Mirrors the field of the same name on `CompiledProgramParams`, where the
    * reasoning is spelled out.
    */
-  simulatedPath?: string | null;
+  simulatedAddress?: ProgramAddress | null;
   /**
    * Identity of the program the route search ran against, sent with — and only
-   * with — `simulatedPath`, and required to match before the answer is reused.
+   * with — `simulatedAddress`, and required to match before the answer is reused.
    * Mirrors the field of the same name on `CompiledProgramParams`, where the
    * reasoning is spelled out.
    */
@@ -39,7 +40,7 @@ export interface SelectedCompilerDocumentParams {
   simulationErrors?: SimulationError[];
   /**
    * A script the compiled program was built from has been edited since that
-   * compile, so its path locations describe where this document's lines used
+   * compile, so its locations describe where this document's lines used
    * to be and this selection cannot be resolved against it. The compile the
    * edit scheduled starts from this selection and answers it when it lands.
    */

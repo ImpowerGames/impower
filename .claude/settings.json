@@ -6,6 +6,7 @@
     ]
   },
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Write(../impower.review-jobs/**)",
       "PowerShell(Start-Process node *agent-handoff.mjs*)",
@@ -47,6 +48,16 @@
         ]
       },
       {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "onFailure": "block",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/worktree-cleanup.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"cleanup hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'cleanup hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; node \"$f\" || { printf '%s\\n' 'cleanup hook: the check itself failed, so the command is refused' >&2; exit 2; }"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
@@ -76,6 +87,15 @@
             "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'session title hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; node \"$f\" pre || { printf '%s\\n' 'session title hook: the check itself failed, so the command is refused' >&2; exit 2; }"
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task|Workflow|Bash|PowerShell|mcp__.*__start_session|mcp__.*__hand_off_to_session|mcp__.*__set_session_model",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/no-fable-launch-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"no-fable hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'no-fable hook: node is not on PATH, so the launch cannot be checked' >&2; exit 2; }; node \"$f\" || { printf '%s\\n' 'no-fable hook: the launch is refused (see the reason above, or the node runtime could not run the check)' >&2; exit 2; }"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -84,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "p=$(cat); case \"$p\" in *[wW][oO][rR][kK][tT][rR][eE][eE]*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'session title hook: node is not on PATH, so the worktree title was not recorded' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" post || { printf '%s\\n' 'session title hook: recording the worktree title failed' >&2; exit 2; };; esac"
+            "command": "p=$(cat); case \"$p\" in *[wW][oO][rR][kK][tT][rR][eE][eE]*|*orchestrate-issues*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'session title hook: node is not on PATH, so the session title was not recorded' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" post || { printf '%s\\n' 'session title hook: recording the session title failed' >&2; exit 2; };; esac"
           }
         ]
       },
@@ -98,5 +118,10 @@
         ]
       }
     ]
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
   }
 }

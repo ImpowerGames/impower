@@ -15,6 +15,7 @@
 // lower it. The Luau statement lowerers hold the statement's AST and lower
 // its expressions with `lowerExpression`.
 
+import { lineBreakValues } from "../utils/assignmentLineBreak";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
@@ -41,12 +42,12 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import {
   isBuiltinMethod,
   lookupStdLibConstant,
   METHOD_PREFIX,
-} from "../../../inkjs/engine/StdLib";
+} from "../../../runtime/StdLib";
 import {
   AstExpr,
   AstExprBinary,
@@ -130,7 +131,8 @@ export const FUNCTION_CALL_SHORTHAND_NODES = nodeNameSet(
 
 // The nodes a rule puts around its content (`{` and `}` of an
 // interpolation), and the operator before a value, which are no part of the
-// value a container holds.
+// value a container holds. The line break after an `=` stands for the value
+// it holds, an if expression that begins a later line, if any.
 const RULE_DELIMITER = /_(begin|end)(_c\d+)*$/;
 const NOT_VALUE = nodeNameSet(["LuauAssignmentOperator"]);
 
@@ -142,7 +144,8 @@ export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {
   }
   const nodes: SyntaxNode[] = [];
   for (let child = (content ?? parent).firstChild; child; child = child.nextSibling) {
-    if (!RULE_DELIMITER.test(child.name) && !NOT_VALUE.has(child.name)) {
+    if (child.name === "LuauAssignmentLineBreak") nodes.push(...lineBreakValues(child));
+    else if (!RULE_DELIMITER.test(child.name) && !NOT_VALUE.has(child.name)) {
       nodes.push(child);
     }
   }
@@ -1033,9 +1036,9 @@ function lowerInterpolatedString(
   return new StringExpression(parts);
 }
 
-// `-> name(.path)*` as a value: a `DivertTarget` whose runtime
-// `DivertTargetValue` can be stored, compared with `==`, or diverted to
-// with `-> x`.
+// `-> name(.path)*` as a value: a `DivertTarget`, which runs as the symbol
+// value of the function, flow or label it names, and can be stored, compared
+// with `==`, or diverted to with `-> x`.
 function lowerDivertTargetLiteral(
   node: SyntaxNode,
   ctx: LowerContext,

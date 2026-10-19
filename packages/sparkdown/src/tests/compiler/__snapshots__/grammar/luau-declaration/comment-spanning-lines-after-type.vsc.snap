@@ -134,7 +134,7 @@ text.source.sparkdown [0..415]
  │       ├─ keyword.operator.type.luau [178..179]: ":"
  │       ├─ punctuation.whitespace.optional.sd [179..180]: " "
  │       ├─ punctuation.definition.template-expression.begin.sd [180..181]: "{"
- │       ├─ variable.property.luau [181..187]: "number"
+ │       ├─ support.type.primitive.luau [181..187]: "number"
  │       ├─ punctuation.definition.template-expression.end.sd [187..188]: "}"
  │       ├─ punctuation.whitespace.optional.sd [188..189]: " "
  │       └─ comment.block.luau [189..194]

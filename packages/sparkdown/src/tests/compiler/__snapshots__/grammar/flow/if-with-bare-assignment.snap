@@ -9,40 +9,39 @@ sparkdown [0..25]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [2..3]
  │   │           └─ OptionalWhitespace [2..3]: " "
  │   ├─ LuauSparkdownIfBlock_content [3..21]
- │   │   ├─ LuauIfBlockCondition [3..12]
- │   │   │   ├─ LuauIfBlockCondition_begin 3
- │   │   │   ├─ LuauIfBlockCondition_content [3..7]
+ │   │   ├─ LuauSparkdownExplicitIfCondition [3..12]
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 3
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [3..7]
  │   │   │   │   └─ LuauBoolean [3..7]
  │   │   │   │       ├─ LuauBoolean_c1 [3..7]: "true"
  │   │   │   │       └─ LuauBoolean_c2 7
- │   │   │   └─ LuauIfBlockCondition_end [7..12]
- │   │   │       ├─ LuauIfBlockCondition_end_c1 [7..8]
- │   │   │       │   └─ LuauIfBlockCondition_end_c1 [7..8]
+ │   │   │   └─ LuauSparkdownExplicitIfCondition_end [7..12]
+ │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [7..8]
+ │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [7..8]
  │   │   │       │       └─ OptionalWhitespace [7..8]: " "
- │   │   │       └─ LuauIfBlockCondition_end_c2 [8..12]
+ │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [8..12]
  │   │   │           └─ LuauThenKeyword [8..12]: "then"
  │   │   ├─ Newline [12..13]: "\n"
  │   │   ├─ LuauSparkdownReassignment [13..20]
- │   │   │   ├─ LuauSparkdownReassignment_begin [13..15]
- │   │   │   │   └─ LuauSparkdownReassignment_begin_c1 [13..15]
- │   │   │   │       └─ OptionalWhitespace [13..15]: "  "
- │   │   │   ├─ LuauSparkdownReassignment_content [15..20]
- │   │   │   │   ├─ LuauAccessPath [15..17]
- │   │   │   │   │   ├─ LuauAccessPath_begin 15
- │   │   │   │   │   ├─ LuauAccessPath_content [15..16]
- │   │   │   │   │   │   └─ LuauAccessPart [15..16]
- │   │   │   │   │   │       └─ LuauVariable [15..16]
- │   │   │   │   │   │           └─ LuauVariable_c1 [15..16]
- │   │   │   │   │   │               └─ LuauVariableName [15..16]: "x"
- │   │   │   │   │   └─ LuauAccessPath_end [16..17]
- │   │   │   │   │       └─ LuauAccessPath_end_c1 [16..17]
- │   │   │   │   │           └─ LuauAccessPath_end_c1 [16..17]
- │   │   │   │   │               └─ OptionalWhitespace [16..17]: " "
- │   │   │   │   └─ LuauAssignmentOperation [17..20]
- │   │   │   │       ├─ LuauAssignmentOperation_begin 17
- │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 17
- │   │   │   │       │       └─ OptionalWhitespace 17
- │   │   │   │       ├─ LuauAssignmentOperation_content [17..20]
+ │   │   │   ├─ LuauSparkdownReassignment_begin [13..16]
+ │   │   │   │   ├─ LuauSparkdownReassignment_begin_c1 [13..15]
+ │   │   │   │   │   └─ OptionalWhitespace [13..15]: "  "
+ │   │   │   │   └─ LuauSparkdownReassignment_begin_c2 [15..16]
+ │   │   │   │       └─ LuauAccessPath [15..16]
+ │   │   │   │           ├─ LuauAccessPath_begin 15
+ │   │   │   │           ├─ LuauAccessPath_content [15..16]
+ │   │   │   │           │   └─ LuauAccessPart [15..16]
+ │   │   │   │           │       └─ LuauVariable [15..16]
+ │   │   │   │           │           └─ LuauVariable_c1 [15..16]
+ │   │   │   │           │               └─ LuauVariableName [15..16]: "x"
+ │   │   │   │           └─ LuauAccessPath_end 16
+ │   │   │   │               └─ LuauAccessPath_end_c1 16
+ │   │   │   ├─ LuauSparkdownReassignment_content [16..20]
+ │   │   │   │   └─ LuauSparkdownAssignmentOperation [16..20]
+ │   │   │   │       ├─ LuauSparkdownAssignmentOperation_begin [16..17]
+ │   │   │   │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 [16..17]
+ │   │   │   │       │       └─ OptionalWhitespace [16..17]: " "
+ │   │   │   │       ├─ LuauSparkdownAssignmentOperation_content [17..20]
  │   │   │   │       │   ├─ LuauAssignmentOperator [17..19]
  │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [17..19]
  │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 17
@@ -55,7 +54,7 @@ sparkdown [0..25]
  │   │   │   │       │   └─ LuauNumericDecimal [19..20]
  │   │   │   │       │       ├─ LuauNumericDecimal_c1 [19..20]: "5"
  │   │   │   │       │       └─ LuauNumericDecimal_c2 20
- │   │   │   │       └─ LuauAssignmentOperation_end 20
+ │   │   │   │       └─ LuauSparkdownAssignmentOperation_end 20
  │   │   │   └─ LuauSparkdownReassignment_end 20
  │   │   └─ Newline [20..21]: "\n"
  │   └─ LuauSparkdownIfBlock_end [21..24]

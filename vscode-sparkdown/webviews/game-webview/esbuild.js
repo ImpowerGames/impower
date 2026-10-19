@@ -104,7 +104,7 @@ const esbuildProblemMatcher = () => ({
           `    ${location.file}:${location.line}:${location.column}:`,
         );
       });
-      console.log(LOG_PREFIX + `build finished`);
+      console.log(LOG_PREFIX + (result.errors.length ? "build failed" : "build finished"));
     });
   },
 });

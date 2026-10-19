@@ -5,10 +5,9 @@
 
 import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { ObjectValue, StringValue } from "../../inkjs/engine/Value";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { ControlCommand } from "../../runtime/ControlCommand";
+import { ObjectValue, StringValue } from "../../runtime/Value";
 
 interface Step {
   text: string;
@@ -19,7 +18,7 @@ interface Step {
 }
 
 function compile(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -36,10 +35,10 @@ function compile(source: string) {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("display-call producer fixture failed to compile");
   }
-  return new RuntimeStory(result.program.compiled as Record<string, any>);
+  return testStory(result.program.chunks);
 }
 
 // Runs the story to its end, picking the first choice whenever it stops on
@@ -237,9 +236,11 @@ describe("producers outside display statements", () => {
     expect(step!.tables).toEqual([{ text: "A", tags: ["t"] }]);
   });
 
+  // A line that starts with an interpolation is an action line like any other
+  // (#1746), so its table names the action target, as `Here.` above does.
   test("a bare {expr} line", () => {
     const [step] = displayCallSteps(`{1 + 2}\ndone\n`, [["3\n", []]]);
-    expect(step!.tables).toEqual([{ text: "3" }]);
+    expect(step!.tables).toEqual([{ target: "action", text: "3" }]);
   });
 
   test("a {x}{y} chain is one call", () => {
@@ -247,7 +248,7 @@ describe("producers outside display statements", () => {
       `store x = 5\nstore y = 4\n{x}{y}\ndone\n`,
       [["54\n", []]],
     );
-    expect(step!.tables).toEqual([{ text: "54" }]);
+    expect(step!.tables).toEqual([{ target: "action", text: "54" }]);
   });
 
   test("print() pushes a table on the default target", () => {

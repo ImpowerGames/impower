@@ -9,6 +9,7 @@ import { type AssetsProgressParams } from "../../../../spark-engine/src/game/mod
 import { AssetCache } from "../assets/AssetCache";
 import { createDomAssetCacheDeps } from "../assets/domAssetCacheDeps";
 import { Manager } from "../Manager";
+import { pendingBeatImageSrcs } from "./UIManager";
 
 /**
  * The page's side of the asset protocol (docs/engine/asset-preloading-spec.md).
@@ -95,6 +96,10 @@ export default class AssetManager extends Manager {
           keys.add(src);
         }
       }
+    }
+    // A beat waiting for its commit paints its images in no layer yet.
+    for (const src of pendingBeatImageSrcs(overlay)) {
+      keys.add(src);
     }
     for (const key of this.app.audio?.playingKeys?.() ?? []) {
       keys.add(key);

@@ -17,6 +17,8 @@ import noUnreferencedVariable from "./rules/no-unreferenced-variable.ts";
 import noRepeatedFragment from "./rules/no-repeated-fragment.ts";
 import nameLongPatternParts from "./rules/name-long-pattern-parts.ts";
 import scopedEndHasBailout from "./rules/scoped-end-has-bailout.ts";
+import noLineCrossingClass from "./rules/no-line-crossing-class.ts";
+import luauUnreadToken from "./rules/luau-unread-token.ts";
 
 // Rules whose existing findings are baselined, keyed by rule name, then by
 // owner (`repository.Name`, `variables.NAME` or `patterns`) with the
@@ -56,6 +58,8 @@ const plugin = {
     "no-repeated-fragment": noRepeatedFragment,
     "name-long-pattern-parts": nameLongPatternParts,
     "scoped-end-has-bailout": scopedEndHasBailout,
+    "no-line-crossing-class": noLineCrossingClass,
+    "luau-unread-token": luauUnreadToken,
   },
   configs: {} as Record<string, unknown>,
 };
@@ -89,6 +93,8 @@ plugin.configs["recommended"] = {
     "sparkdown-grammar/scoped-end-has-bailout": withBaseline(
       "scoped-end-has-bailout",
     ),
+    "sparkdown-grammar/no-line-crossing-class": "error",
+    "sparkdown-grammar/luau-unread-token": "error",
   },
 };
 

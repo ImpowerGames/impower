@@ -1,8 +1,13 @@
-import { Story } from "../../inkjs/engine/Story";
+import type { StructDefinitionTable } from "../../runtime/StructDefinition";
 
 export interface SparkdownCompilerState {
   defaultDefinitions?: { [type: string]: any };
-  story?: Story;
+  /** Whether the last compile produced a program that runs: its statement
+   *  chunks. */
+  produced?: boolean;
+  /** The struct definitions of the last compile that produced a program, by
+   *  type and name: its root's (`ProgramRoot.tables`). */
+  structDefinitions?: StructDefinitionTable;
   /**
    * Shared mutable container holding the URI of the file whose `include`
    * statements are currently being resolved. The `IFileHandler.
@@ -18,6 +23,10 @@ export interface SparkdownCompilerState {
    * instead of recursing forever. Pushed before recursive descent and
    * popped on return.
    *
+   * `runDeclared` holds the resolved URIs of the `.luau` files whose wrapper
+   * function this compile has declared: the first `run` of a file the
+   * compile reaches declares it, and every `run` of the file calls it.
+   *
    * `includedUris` holds the entry script and every script an `include` has
    * reached in this compile. A script is included once: a later `include` of
    * a script already in the set adds nothing, so the flows it declares are
@@ -26,6 +35,7 @@ export interface SparkdownCompilerState {
   fileResolutionState?: {
     currentParentUri: string;
     runStack?: string[];
+    runDeclared?: Set<string>;
     includedUris: Set<string>;
   };
 }

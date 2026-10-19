@@ -1,15 +1,13 @@
 // How much of a project the binary program's writer emits (#694, #695, #698): the
-// project compiled cold as the player's worker compiles it, with statement
-// chunks on, and the statements of its flows and its declaration sequences
-// counted by what became of them.
+// project compiled cold as the player's worker compiles it, and the statements
+// of its flows and its declaration sequences counted by what became of them.
 //
 // Run through preview-bench.mjs --mode coverage, with the configuration as one
 // JSON argument: { project, json }. The report gives the statements the writer
 // emits, of which how many are declarations, the ones it has no emit path for
 // counted by the construct each names, how many functions the program has (the
 // statements of their bodies are among the statements counted), and the
-// construct the program falls back for, with its script and line.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
+// construct that kept the program from being built, with its script and line.
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -27,9 +25,7 @@ function main() {
   const realLog = silenceConsole();
   const startFrom = { file: MAIN_URI, line: 0 };
   const compiler = new SparkdownCompiler();
-  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom, {
-    programChunks: true,
-  });
+  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom);
   const t0 = performance.now();
   compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any);
   const compileMs = performance.now() - t0;
@@ -47,7 +43,7 @@ function main() {
     unsupportedStatements: unsupported.reduce((n, [, count]) => n + count, 0),
     declarations: build.declarations,
     functions: build.functions,
-    fallback: build.fallback ?? null,
+    fallback: build.unsupported ?? null,
   };
   if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
   const share = (n: number) =>
@@ -56,7 +52,7 @@ function main() {
   const out = [
     `coverage: ${report.statements} statements in the program's flows, functions and declaration sequences (${plural(report.declarations, "declaration")}, ${plural(report.functions, "function")}), of which the writer emits ${report.emitted} (${share(report.emitted)})`,
     report.fallback
-      ? `  the program falls back for ${report.fallback.construct} at ${report.fallback.uri} line ${report.fallback.line + 1}`
+      ? `  the program was not built: ${report.fallback.construct} at ${report.fallback.uri} line ${report.fallback.line + 1}`
       : "  the program runs from its chunks",
   ];
   if (unsupported.length) {

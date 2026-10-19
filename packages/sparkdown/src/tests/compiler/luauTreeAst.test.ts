@@ -65,9 +65,9 @@ interface StructuralDisagreement {
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
 ];
 
-// #1304/#1305/#1306 still disagree about extracted syntax/diagnostics, but their
-// full tree ASTs agree with C++ and remain ordinary comparisons here.
-const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.issue === 1298 || entry.limitation).map((entry) => entry.fixture));
+// Fixtures excluded from the extracted-syntax agreement suite are excluded here
+// too; every other fixture's full tree AST is compared with C++.
+const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.limitation).map((entry) => entry.fixture));
 const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
 
 /** The first line at which two printed trees differ, with a few lines around it from each. */
@@ -505,22 +505,16 @@ describe("Unfinished and boundary input", () => {
     }
   });
 
-  test("marked breaks keep their following statements in the block", () => {
+  test("breaks keep their following statements in the block", () => {
     // Sparkdown runs none of them, and the unreachable-code lint reports the first (#1286).
     for (const text of [
-      "function f()\n  while true do\n    & break\n    & x = 2\n  end\nend\n",
+      "function f()\n  while true do\n    break\n    x = 2\n  end\nend\n",
     ]) {
       const { tree, luau } = preludeErrors(text);
       expect(luau.length).toBeGreaterThan(0);
       expect(tree).toEqual([]);
     }
-    expect(preludeErrors("function f()\n  & x = 2\n  & return 1\nend\n")).toEqual({ tree: [], luau: [] });
-  });
-
-  test("a marked Luau return reports the required block closer at the following token (#1298)", () => {
-    const { tree, luau } = preludeErrors("function f()\n  & return 1\n  & x = 2\nend\n");
-    expect(tree).toEqual(["2:4 Expected 'end' (to close 'function' at line 1), got 'x'"]);
-    expect(tree[0]).toBe(luau[0]);
+    expect(preludeErrors("function f()\n  x = 2\n  return 1\nend\n")).toEqual({ tree: [], luau: [] });
   });
 
   test("a plain Luau return reports the required block closer at the following token (#1298)", () => {

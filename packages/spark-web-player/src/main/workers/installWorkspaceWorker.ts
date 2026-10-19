@@ -11,7 +11,6 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import type { File, Range } from "@impower/sparkdown/src/compiler";
 import type { SelectCompilerDocumentResult } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
-import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
 import { applyPreviewHint } from "../utils/previewHint";
@@ -43,6 +42,18 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     // The worker can be restarted in place (#679), so the text of each open
     // document is kept here too.
     protected override _mirrorDocumentTexts = true;
+
+    // The page shows the story, and judges every program by its point in it
+    // (`compiledElsewhere`). A compile of a script the story does not
+    // include (each script VS Code opens, and the document compiled last
+    // when a file changes) compiles the story first; when the story changed,
+    // the page takes that program, which names it to the worker and gives a
+    // display the story compile took over a new one (#1874).
+    protected override publishesStoryOfStandaloneCompiles = true;
+
+    // The preview's compile waits a debounce from the key, not from when the
+    // edit got here past the editor's own work on it (#1881).
+    protected override debouncesFromEdit = true;
 
     protected _watchdog!: WorkerWatchdog;
 
@@ -124,9 +135,40 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       this._documentsRevision += 1;
     }
 
+    /** An edit that says where it left the author's selection moves the
+     *  point its compile routes to at once. The selection the editor sends
+     *  after it can be handled after the compile is sent, which would route
+     *  to where the author was before the edit (#1881). */
+    override async changeTextDocument(
+      params: Parameters<SparkdownWorkspace["changeTextDocument"]>[0] & {
+        selection?: { selectedRange: Range; userEvent?: boolean };
+      },
+    ) {
+      const { selection, textDocument } = params;
+      if (selection && this.movesCompilePoint(selection)) {
+        this._documentSelected = {
+          file: textDocument.uri,
+          line: selection.selectedRange.start.line,
+        };
+      }
+      return super.changeTextDocument(params);
+    }
+
     protected override compileStartFrom() {
       const selected = super.compileStartFrom();
       return selected && !this.isSetAside(selected) ? selected : undefined;
+    }
+
+    /** Only the author's selections move the point compiles route to, as
+     *  only they move the page's preview point
+     *  (`GamePlayerController.handleSelectedCompilerDocument`). The page and
+     *  the worker each judge a program by the point it was compiled for
+     *  (`compiledElsewhere`), so the two points must agree: one a selection
+     *  the author did not make moved (a jump from the Problems panel) would
+     *  have the worker keep, as a program the page can name, one the page
+     *  never takes, and drop one the page takes (#1874). */
+    protected override movesCompilePoint(params: { userEvent?: boolean }) {
+      return Boolean(params.userEvent);
     }
 
     override async selectTextDocument(params: {
@@ -142,12 +184,16 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       if (!this.isSetAside(point)) {
         return super.selectTextDocument(params);
       }
+      const received = this.receiveSelection();
       // The worker routes to a selection as it arrives, and a route to this
       // point is what stopped it answering: the selection is the author's,
       // but the worker is not asked to route to it until the project changes.
-      this._documentSelected = point;
+      const movesCompilePoint = this.movesCompilePoint(params);
+      if (movesCompilePoint) {
+        this._documentSelected = point;
+      }
       const result: SelectCompilerDocumentResult = { ...params };
-      this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+      this.publishSelection(received, result, movesCompilePoint);
       return result;
     }
 

@@ -196,20 +196,21 @@ describe("the reported layouts", () => {
 
   // In a Sparkdown document the checker reads its Luau statements with the
   // rest left out: the error at the end of that Luau runs to the next line as
-  // Luau's end-of-file range does, and one before a scene's `end` names that
-  // `end`. A `store` declaration and a scene's parameters are Sparkdown's own,
+  // Luau's end-of-file range does. A story declaration ends at its line
+  // (#1907), so what follows it, a scene's `end` too, is never what its Luau
+  // meets. A `store` declaration and a scene's parameters are Sparkdown's own,
   // and the validator reports them, with the range the checker would give.
   test.each([
     ["local x:", ["0:8-1:0 Expected type, got <eof>"]],
     ["local x: --[[c]]\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
-    ["scene s\n  local x:\nend", ["1:10-2:0 Expected type, got 'end'"]],
+    ["scene s\n  local x:\nend", ["1:10-2:0 Expected type, got <eof>"]],
     ["local x --[[c]] :: number", ["0:16-0:18 Expected identifier when parsing expression, got '::'"]],
     ["store x: = 1", ["0:8-0:10 Expected type, got '='"]],
     ["store x:", ["0:8-1:0 Expected type, got <eof>"]],
     ["store x:\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
     ["store x: -- note\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
-    ["store x:\nlocal y = 1", ["0:8-1:0 Expected type, got 'local'"]],
-    ["scene s\n  store x:\nend", ["1:10-2:0 Expected type, got 'end'"]],
+    ["store x:\nlocal y = 1", ["0:8-1:0 Expected type, got <eof>"]],
+    ["scene s\n  store x:\nend", ["1:10-2:0 Expected type, got <eof>"]],
     ["scene s(a: )\nend", ["0:10-0:12 Expected type, got ')'"]],
     ["scene s(a: --[[c]] ?)\nend", ["0:10-0:20 Expected type, got '?'"]],
     ["scene s(: number)\nend", ["0:8-0:9 Expected identifier when parsing variable name, got ':'"]],

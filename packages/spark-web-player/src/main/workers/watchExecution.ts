@@ -1,4 +1,4 @@
-import type { WatchedStory } from "@impower/sparkdown/src/inkjs/engine/ExecutionWatch";
+import type { WatchedStory } from "@impower/sparkdown/src/runtime/ExecutionWatch";
 
 /** A stretch of story execution that has run this long without yielding is
  *  reported to the page. Well under anything the page acts on, so the page

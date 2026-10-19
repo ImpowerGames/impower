@@ -12,7 +12,8 @@
 // (`setup()` is what attaches listeners), so it can be driven directly with a
 // stand-in for its link to the worker.
 
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { afterEach, describe, expect, test } from "vitest";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
 import { displayPreviewFrom } from "../main/workers/displayPreviewFrom";
@@ -20,21 +21,33 @@ import { displayPreviewFrom } from "../main/workers/displayPreviewFrom";
 const PROGRAM = {
   uri: "file://proj/main.sd",
   version: 2,
-  pathLocations: pathLocationTableOf({}),
   scripts: { "file://proj/main.sd": {} },
 } as any;
+
+/** The program a compile of `text` as the script `uri` makes, at `version`. */
+function compiledProgram(uri: string, text: string, version: number) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri, type: "script", name: "main", ext: "sd", text, version, languageId: "sparkdown" }],
+  } as never);
+  const program = compiler.compile({ textDocument: { uri } }).program;
+  expect(program.chunks).toBeTruthy();
+  return { ...program, version } as any;
+}
 
 /** A game that records the order it is called in, and nothing else. */
 function recordingGame(calls: string[], state = "previewing") {
   return {
     state,
     program: { uri: PROGRAM.uri, version: 1 },
-    // No path resolves from the empty `pathLocations`, so the controller falls
-    // back to the game's remembered preview point — which is what a real one
-    // does between edits.
-    previewPath: "0.0",
+    // No address resolves in `PROGRAM`, which holds no statement, so the
+    // controller falls back to the game's remembered preview point — which
+    // is what a real one does between edits.
+    previewAddress: 0,
     previewFrom: { file: PROGRAM.uri, line: 4 },
-    previewedPath: undefined as string | undefined,
+    previewedAddress: undefined as number | undefined,
+    // The flow a route to an address starts from: here, the top level.
+    routeStartOf: (_address: number) => "0",
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
     endSimulation: () => {},
@@ -47,7 +60,7 @@ function recordingGame(calls: string[], state = "previewing") {
     load: () => calls.push("load"),
     preview: () => {
       calls.push("preview");
-      return "0.0";
+      return 0;
     },
   } as any;
 }
@@ -136,7 +149,7 @@ describe("preview session ordering", () => {
   test("a repeated path still waits for the engine's pending image gate", async () => {
     const game = recordingGame([]);
     game.program = PROGRAM;
-    game.previewedPath = "0.0";
+    game.previewedAddress = 0;
     let finish!: () => void;
     game.preview = () => new Promise<void>((resolve) => { finish = resolve; });
     let settled = false;
@@ -159,14 +172,21 @@ describe("preview session ordering", () => {
     // program, the one `preview()` will resolve, not the path it had before.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
-    const program = {
-      ...PROGRAM,
-      pathLocations: pathLocationTableOf({ "1.0": [0, 4, 0, 4, 5] }),
-    };
+    game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
+    const program = compiledProgram(
+      PROGRAM.uri,
+      ["Line zero.", "Line one.", "Line two.", "Line three.", "Line four.", ""].join("\n"),
+      PROGRAM.version,
+    );
+    const locator = programLocator(program);
+    const now = locator.addressAt(PROGRAM.uri, 4, { beat: "last" });
+    // The address the point had before the program changed: another beat's.
+    const before = locator.addressAt(PROGRAM.uri, 1, { beat: "last" });
+    expect(now != null && before != null && now !== before).toBe(true);
+    game.previewAddress = before;
     await displayIn(game, stubApp(calls)).display(program, "file://proj/other.sd", 1);
-    expect(calls).toContain("markPreviewing:1.0");
-    expect(calls).not.toContain("markPreviewing:0.0");
+    expect(calls).toContain(`markPreviewing:${now}`);
+    expect(calls).not.toContain(`markPreviewing:${before}`);
   });
 
   test("marks nothing for a remembered point that no longer resolves, and still previews", async () => {
@@ -177,15 +197,16 @@ describe("preview session ordering", () => {
     // The preview still happens, so the game can reveal what it has.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
-    const program = {
-      ...PROGRAM,
-      pathLocations: pathLocationTableOf({ "0.0": [0, 4, 0, 4, 5] }),
-      scripts: { "file://proj/other.sd": {} },
-    };
+    game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
+    const program = compiledProgram(
+      "file://proj/other.sd",
+      ["Line zero.", "Line one.", "Line two.", "Line three.", "Line four.", ""].join("\n"),
+      PROGRAM.version,
+    );
+    expect(Object.keys(program.scripts)).toEqual(["file://proj/other.sd"]);
     await displayIn(game, stubApp(calls)).display(program, "file://proj/third.sd", 1);
     expect(calls).toContain("markPreviewing:undefined");
-    expect(calls).not.toContain("markPreviewing:0.0");
+    expect(calls).not.toContain("markPreviewing:0");
     expect(calls).toContain("preview");
   });
 
@@ -195,10 +216,10 @@ describe("preview session ordering", () => {
     // for it, and it is marked without resolving the point again.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
     game.program = { uri: PROGRAM.uri, version: PROGRAM.version };
     await displayIn(game, stubApp(calls)).display(PROGRAM, PROGRAM.uri, 9);
-    expect(calls).toContain("markPreviewing:0.0");
+    expect(calls).toContain("markPreviewing:0");
   });
 
   test("the game leaves the editors' part out of its report while it shows a suggestion, and puts it back for the document", async () => {
@@ -229,8 +250,8 @@ describe("preview session ordering", () => {
     // would skip the reconnect and freeze its bindings.
     const calls: string[] = [];
     const game = recordingGame(calls);
-    game.previewPath = undefined;
-    game.previewedPath = undefined;
+    game.previewAddress = undefined;
+    game.previewedAddress = undefined;
     game.program = { uri: PROGRAM.uri, version: PROGRAM.version };
     await displayIn(game, stubApp(calls)).display(PROGRAM, PROGRAM.uri, 4);
     expect(calls).toContain("connectGame");
@@ -241,11 +262,11 @@ describe("preview session ordering", () => {
     // a sweep before that would take the previous preview's elements away
     // and then the beat's writes with them (#429).
     const calls: string[] = [];
-    let settlePreview = (_path: string | null) => {};
+    let settlePreview = (_address: number | null) => {};
     const game = recordingGame(calls);
     game.preview = () => {
       calls.push("preview");
-      return new Promise<string | null>((resolve) => {
+      return new Promise<number | null>((resolve) => {
         settlePreview = resolve;
       });
     };
@@ -255,7 +276,7 @@ describe("preview session ordering", () => {
     }
     expect(calls).toContain("preview");
     expect(calls).not.toContain("sweepReconcile");
-    settlePreview("0.0");
+    settlePreview(0);
     await updating;
     expect(calls.indexOf("preview")).toBeLessThan(calls.indexOf("sweepReconcile"));
   });
@@ -293,11 +314,11 @@ describe("preview session ordering", () => {
     // that beat is written, and leave the second's own sweep nothing to
     // remove.
     const calls: string[] = [];
-    const settles: Array<(path: string | null) => void> = [];
+    const settles: Array<(address: number | null) => void> = [];
     const game = recordingGame(calls);
     game.preview = () => {
       calls.push(`preview:${settles.length + 1}`);
-      return new Promise<string | null>((resolve) => {
+      return new Promise<number | null>((resolve) => {
         settles.push(resolve);
       });
     };
@@ -315,7 +336,7 @@ describe("preview session ordering", () => {
     settles[0]!(null);
     await first;
     expect(calls).not.toContain("sweepReconcile");
-    settles[1]!("0.0");
+    settles[1]!(0);
     await second;
     expect(calls.filter((c) => c === "sweepReconcile")).toHaveLength(1);
     expect(calls.indexOf("preview:2")).toBeLessThan(calls.indexOf("sweepReconcile"));
@@ -376,7 +397,7 @@ describe("the controller's preview updates", () => {
         },
       },
     } as any);
-    const program = { ...PROGRAM, pathLocations: undefined, files: {}, summary: true, runnable: true };
+    const program = { ...PROGRAM, files: {}, summary: true, runnable: true };
     const controller: any = controllerWith(stubApp(calls));
     controller._program = program;
     controller._workerGame = { program };

@@ -1,7 +1,8 @@
 // A one-line `repeat ... until cond` whose last body statement is a `local`
 // declaration runs its body once and leaves the statements after it to run:
-// the declaration ends before `until`, so the `until` clause is the loop's
-// next sibling rather than a part of the declaration (#1092).
+// the declaration ends before `until`, which the loop takes, and the
+// condition is the loop's next sibling rather than a part of the
+// declaration (#1092).
 
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
@@ -63,35 +64,35 @@ describe("a repeat loop whose body ends with a local declaration", () => {
     expect(r.output).toBe("Count 1.\n");
   });
 
-  test("the until clause is the top-level loop's sibling, not the declaration's child", () => {
+  test("the until clause is the top-level loop's own, and its condition the loop's sibling", () => {
     const tree = stripAnsi(
       dumpTree("store n = 0\nrepeat n = n + 1 local z = 1 until true\nCount {n}.\n"),
     );
     expect(tree).not.toContain("ERROR_INCOMPLETE");
-    expect(tree).toMatch(/^ [├└]─ LuauSparkdownRepeatLoop \[12\.\.40\]$/m);
-    expect(tree).toMatch(/^ [├└]─ LuauUntilStatement \[40\.\.51\]$/m);
+    expect(tree).toMatch(/^ [├└]─ LuauSparkdownRepeatLoop \[12\.\.46\]$/m);
+    expect(tree).toMatch(/─ LuauSparkdownRepeatLoop_end_c2 \[41\.\.46\]\n.*─ LuauUntilKeyword \[41\.\.46\]: "until"$/m);
+    // A story `until` condition ends at its line, read with the bounded rule (#1907).
+    expect(tree).toMatch(/^ [├└]─ LuauSparkdownExplicitUntilCondition \[46\.\.51\]$/m);
   });
 });
 
-// A loop whose `until` is still read inside one of its statements, here an
-// `&` statement, cannot be paired with its condition; it is reported rather
-// than dropped without a word.
-describe("a repeat loop whose until is read inside a statement", () => {
-  test("is reported inside a closed block of the loop", () => {
+// An `until` after a statement on the loop's line, a declaration or an `&`
+// statement, is never read into the statement: no rule reads `until` but a
+// loop's end (#1906), so the statement ends before it and the loop takes it,
+// as Luau reads it.
+describe("a repeat loop whose until follows a statement on its line", () => {
+  test("inside a block left without its end, reports Luau's error at the until", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "function f()\n  repeat\n    if true then\n      & local z = 1 until true\n    end\nend\n",
+      "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n",
     );
     expect(ctx.errorMessages).toEqual([
-      "This `repeat` loop could not be read up to its `until`, so it and the lines after it in its block are left out. Put `until` on its own line.",
+      "Expected 'end' (to close 'then' at line 3), got 'until'",
     ]);
   });
 
-  test("is reported", () => {
-    const ctx = makeRuntimeStoryFromSource(
-      "store n = 0\nrepeat & local z = 1 until true\nCount {n}.\n",
-    );
-    expect(ctx.errorMessages).toEqual([
-      "This `repeat` loop could not be read up to its `until`, so it and the lines after it in its block are left out. Put `until` on its own line.",
-    ]);
+  test("at the top level, runs the loop", () => {
+    const r = run("store n = 0\nrepeat & n = n + 1 until n >= 3\nCount {n}.\n");
+    expect(r.errors).toEqual([]);
+    expect(r.output).toBe("Count 3.\n");
   });
 });
