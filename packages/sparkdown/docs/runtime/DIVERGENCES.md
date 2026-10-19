@@ -417,7 +417,9 @@ Sparkdown's own statements (`store`, `const`, `define`, `scene`, `branch`,
 wherever Luau allows a name: a `local`, a parameter, a function's name, a
 table key. One gap remains: the grammar still reads `define` and `store`
 inside a function as Sparkdown's declarations where a value or a statement
-begins (`local store = 1`, `return define`), ImpowerGames/impower-internal#1328.
+begins (`local store = 1`, `return define`), and `const` at the start of the
+line that continues a list of names (`local a,` then `const = 1, 2`, which is
+reported as a missing name), ImpowerGames/impower-internal#1328.
 
 ### Math builtins use Luau names, not ink's all-caps form
 

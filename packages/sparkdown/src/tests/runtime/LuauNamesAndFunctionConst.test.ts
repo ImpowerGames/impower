@@ -132,6 +132,38 @@ describe("names in a list (#1292)", () => {
     expect(errors).toEqual([]);
     expect(text).toBe("Go 7.\n");
   });
+
+  test.each([
+    ["a local's", "local"],
+    ["a const's", "const"],
+  ])("%s list continued on the next line takes a name there", (_label, keyword) => {
+    const { errors, text } = run(
+      `Go {f()}.\nfunction f()\n  ${keyword} a,\n    scene = 1, 2\n  return a + scene\nend\n`,
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 3.\n");
+  });
+
+  // The tree begins a `const` declaration at `const` on the next line, and
+  // the reading ends the list before it (`STATEMENT_BREAKS`), so the missing
+  // binding is reported rather than the program silently reading nil. Luau
+  // reads `const` there as the next name: GRAMMAR_GAP_BUG.
+  test("a list continued with `const` on the next line reports its missing name", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      "Go {f()}.\nfunction f()\n  local a,\n    const = 1, 2\n  return 1\nend\n",
+    );
+    expect([...ctx.errorMessages]).toEqual([
+      "Expected identifier when parsing binding name, got 'const'",
+    ]);
+  });
+
+  test("a comment between the comma and the name", () => {
+    const { errors, text } = run(
+      "Go {f()}.\nfunction f()\n  local a, --[[ next ]] const = 1, 2\n  return a + const\nend\n",
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 3.\n");
+  });
 });
 
 describe("a Luau keyword is still not a name (#1292)", () => {
@@ -211,6 +243,17 @@ describe("a `const` inside a function follows Luau (#1293)", () => {
     );
     expect(errors).toEqual([]);
     expect(text).toBe("Go 1:2:nil.\n");
+  });
+
+  test.each([
+    ["a const", "const"],
+    ["a local", "local"],
+  ])("%s with more values than names still evaluates every value", (_label, keyword) => {
+    const { errors, text } = run(
+      `Go {f()}.\nfunction f()\n  local t = {n = 0}\n  local function bump()\n    t.n += 1\n    return 2\n  end\n  ${keyword} x = 1, bump()\n  return x + t.n\nend\n`,
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 2.\n");
   });
 
   test.each([

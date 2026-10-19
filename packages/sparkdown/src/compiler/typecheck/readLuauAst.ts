@@ -4715,12 +4715,13 @@ export function lexLuauDocumentForTesting(documentText: string): readonly { kind
 }
 
 /** The next token as Luau reads it, past whitespace and comments. */
-export function nextLuauToken(from: number, documentText: string, to = documentText.length): { text: string; from: number } | null {
+export function nextLuauToken(from: number, documentText: string, to = documentText.length): { text: string; from: number; name: boolean } | null {
   const tokens = lexAhead(documentText, from);
   const token = tokens[firstFrom(tokens, from)];
   if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
-  return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
+  // `name` is whether Luau's lexer reads the token as a name, not a keyword.
+  return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from, name: token.kind === "name" };
 }
 
 /** Read the expression after an operator the grammar ends without a value. */

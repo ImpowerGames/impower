@@ -180,7 +180,15 @@ export function lowerVariableDefinition(
   }
 
   // Single target. If there are multiple RHS expressions (`local x = a, b`),
-  // Lua truncates to the first value.
+  // Lua truncates to the first value, but still evaluates the rest
+  // (`local x = 1, bump()` calls `bump`), as the multiple assignment does
+  // (`lowerReassignment.ts`, `lowerMultipleAssignment`).
+  if (scope === "local" && expressions.length > 1) {
+    if (lastIdentifier.name) shadowSiblingSubFlow(lastIdentifier.name, ctx);
+    return wrapInWeave([
+      new MultiVariableAssignment([lastIdentifier], expressions, true),
+    ]);
+  }
   //
   // A declaration with no value (`local x`, `store x`, or either with an
   // `=` whose value the parser could not read, which the type checker

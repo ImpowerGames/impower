@@ -14,7 +14,7 @@ import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { checkerReadsOnTo, RESERVED } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
 import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
 import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
@@ -246,11 +246,16 @@ export function validateListComma(
   const read = (from: number, to: number) => ctx.read(from, to);
   const after = nextSignificantToken(comma, at + 1, read, ctx.documentText, authoredIslandEnd(comma, wholeDocument(comma, read, ctx.documentText)));
   if (after && luauReadingReportsUnread(comma, after.from, read)) return;
+  // Before the `=`, a token Luau's lexer reads as a name on the comma's line
+  // is the next binding name: the converter's reading, which the lowering
+  // runs, carries the declaration on to it whatever statement the grammar
+  // begins at its word (`local a, const = 1, 2`), since it ends a statement
+  // before one the tree begins only at the end of a line (`statementBreak`
+  // in `readLuauAst.ts`). Only a token that is not a name is a missing one
+  // there. On a later line the reading ends the declaration before such a
+  // statement, and the binding it lacks is Sparkdown's to report, as below.
+  if (!afterAssignment && after?.name && !ctx.read(at, after.from).includes("\n")) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
-  // A name after the comma on its line, before the `=`, is the next binding
-  // name to Luau, whatever statement the grammar begins at its word
-  // (`local a, const = 1, 2`): only a token that is not a name is missing one.
-  if (!afterAssignment && got && isLuauName(got.text) && !ctx.read(at, got.from).includes("\n")) return;
   const parsing = afterAssignment ? "expression" : "binding name";
   ctx.diagnostics.push({
     message: `Expected identifier when parsing ${parsing}, got ${display(got)}`,
@@ -673,11 +678,6 @@ function tokenAt(
   return { text: trimmed.slice(0, end), from: start };
 }
 
-/** Whether a token is a name to Luau: a word that is not one of its keywords. */
-function isLuauName(text: string): boolean {
-  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(text) && !RESERVED.has(text);
-}
-
 function display(got: { text: string } | null): string {
   return got == null ? "<eof>" : `'${got.text}'`;
 }
@@ -732,7 +732,7 @@ export function nextSignificantToken(
   read: (from: number, to: number) => string,
   document?: () => string,
   to?: number,
-): { text: string; from: number } | null {
+): { text: string; from: number; name: boolean } | null {
   return nextLuauToken(pos, wholeDocument(node, read, document), to);
 }
 
