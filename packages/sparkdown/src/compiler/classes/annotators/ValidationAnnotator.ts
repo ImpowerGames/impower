@@ -965,6 +965,29 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
+   * Whether a node directly follows a `for` loop variable, an access path of
+   * one name in the loop's header with no `in` or `=` before it
+   * (`for k: then`), where a `:` is the variable's type annotation.
+   */
+  protected followsForBinding(node: SyntaxNode): boolean {
+    const path = node.prevSibling;
+    if (!path || !isExplicitRuleName(path.name, "LuauAccessPath") || path.parent?.name !== "LuauForCondition_content") {
+      return false;
+    }
+    const content = childNamed(path, `${path.name}_content`);
+    const part = content?.firstChild;
+    if (!part || !isExplicitRuleName(part.name, "LuauAccessPart") || part.nextSibling) {
+      return false;
+    }
+    for (let before = path.prevSibling; before; before = before.prevSibling) {
+      if (before.name === "LuauInKeyword" || isExplicitRuleName(before.name, "LuauAssignmentOperation")) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
    * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
    * directly after `for` or after a comma before the loop's `in` or `=`.
@@ -1201,6 +1224,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // A reserved word as a method's name (`a:do`): Luau's first error is the
     // missing name, at the word (I-1318).
     if (nodeRef.name === "LuauKeywordMethodName") {
+      // After a `for` loop variable the `:` is its type's, and the word is
+      // the type Luau found missing (`for k: then`), which the type checker
+      // reports.
+      const accessor = nodeRef.node.parent?.parent;
+      if (accessor && isExplicitRuleName(accessor.name, "LuauExpressionKeywordMethodAccessor") && this.followsForBinding(accessor)) {
+        return annotations;
+      }
       this.error(
         annotations,
         `${MISSING_METHOD_NAME}, got '${this.read(nodeRef.from, nodeRef.to)}'`,

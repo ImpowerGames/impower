@@ -4494,8 +4494,8 @@ repository:
       - { include: "#LuauNewExpression" }
       - { include: "#LuauAccessPath" }
       # A `:` the path ended before, with `do` or `then` as the method's name
-      # (`local b = a:do`), or one after brackets with any keyword as the
-      # name (`(t):end`); a header's condition reads the first `:` first.
+      # (`local b = a:do`, `(t):do()`); a header's condition reads the `:`
+      # before its own keyword first.
       - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauTable" }
       # `LuauChainedFunctionCall` must come BEFORE
@@ -8092,6 +8092,7 @@ repository:
       - { include: "#LuauUnitKeywords" }
       - { include: "#LuauNewExpression" }
       - { include: "#LuauAccessPath" }
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauTable" }
       - { include: "#LuauChainedFunctionCall" }
       - { include: "#LuauChainedPropertyAccess" }
@@ -11928,18 +11929,20 @@ repository:
       - { include: "#LuauKeywordMethodName" }
     end: (?<=[a-z])|$
 
-  # A method access whose name is a reserved word on the `:`'s line, after
-  # a value that no access path holds the `:` of, in an expression, which
-  # Luau reads as the method's name, in error, as `LuauKeywordMethodAccessor`
-  # reads it inside a path. That is a header's keyword (`local b = a:  do`,
-  # `a: --[[c]] then()`), since the access path ends before a `:` that one
-  # follows (`LUAU_COLON_BEFORE_HEADER_END`) so a header can read the `:`
-  # alone first before its own keyword (`LuauLoopHeaderMethodColon`,
-  # `LuauIfHeaderMethodColon`), and this reads the other header's keyword
-  # (`if t:do() then`), or any keyword after a value in brackets (`(t):end`). The word opens no block and closes none, so the
-  # function keeps its own `end`. The spaces and block comments between
-  # the `:` and the word, and the word, are read inside the rule, which
-  # ends right after the word.
+  # A method access whose name is `do` or `then` on the `:`'s line, in an
+  # expression (`local b = a:  do`, `a: --[[c]] then()`), which Luau reads as
+  # the method's name, in error, as `LuauKeywordMethodAccessor` reads the
+  # other keywords inside a path. The access path ends before the `:`
+  # (`LUAU_COLON_BEFORE_HEADER_END`) so a header can read the `:` alone
+  # first before its own keyword (`LuauLoopHeaderMethodColon`,
+  # `LuauIfHeaderMethodColon`); this reads the keyword everywhere else,
+  # including the other header's keyword in a condition (`if t:do() then`)
+  # and after a value in brackets (`(t):do()`). The word opens no block, so
+  # the function keeps its own `end`. The spaces and block comments between
+  # the `:` and the word, and the word, are read inside the rule, which ends
+  # right after the word. It takes only these two words: after a `for`
+  # loop's variable the `:` is its type's (`for k: in t`), which this rule
+  # cannot tell from a method's, and the other words never leave a path.
   #
   # lookaround: the begin's lookahead is what tells this `:` from the rivals
   # that begin at the same character (`LuauTypeAnnotationOperation`,
@@ -11961,7 +11964,7 @@ repository:
   # `:`. The `$` is the end's bail-out, which the begin's lookahead never
   # leaves it to need.
   LuauExpressionKeywordMethodAccessor:
-    begin: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_KEYWORD}})
+    begin: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})
     beginCaptures:
       1:
         patterns:

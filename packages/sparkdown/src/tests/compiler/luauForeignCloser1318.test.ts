@@ -152,8 +152,12 @@ const CASES: Record<string, Form[]> = {
     { form: "local t = {}\n  while (t): do\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
     { form: "local t = {}\n  local b = x and t: do", errors: ["Expected identifier when parsing method name, got 'do'"] },
     { form: "local t = {}\n  local c = 1 + t:then", errors: ["Expected identifier when parsing method name, got 'then'"] },
-    { form: "local t = {}\n  local b = (t):end", errors: ["Expected identifier when parsing method name, got 'end'"] },
-    { form: "local t = {}\n  (t):until()", errors: ["Expected identifier when parsing method name, got 'until'"] },
+    { form: "local t = {}\n  (t):do()", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    // A `for` loop variable's `:` is its type's (round 3 CI).
+    { form: "for k: do end", errors: ["Expected type, got 'do'"] },
+    { form: "for k, v: in pairs({}) do end", errors: ["Expected type, got 'in'"] },
+    { form: "for k: then do end", errors: ["Expected type, got 'then'"] },
+    { form: "local t = {}\n  for k in t: then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  local b = (t): --[[c]] then", errors: ["Expected identifier when parsing method name, got 'then'"] },
     // The other header's keyword in a condition is the method's name (round
     // 3, `ax` finding 1).
