@@ -225,6 +225,8 @@ try {
   }
   assert.equal(ig.invokes(split(`/orchestrate-issues #I-${ISSUE + 1}`)), false, "another prefixed number is not this parent");
   assert.equal(ig.invokes(split(`/orchestrate-issues ${ISSUE}`)), false, "a bare number without # or the prefix names no issue");
+  assert.equal(ig.invokes(split(`/orchestrate-issues FIXI-${ISSUE}`)), false, "the prefixed number inside a longer word names no issue");
+  assert.equal(ig.invokes(split(`/orchestrate-issues (I-${ISSUE})`)), true, "punctuation before the prefix still starts a token");
   assert.equal(ig.invokes(quoted(`/orchestrate-issues #I-${ISSUE}`)), false, "the one-repository position keeps the #N rule");
   assert.equal(ig.invokes({ ...quoted(`/orchestrate-issues I-${ISSUE}`), repository: "o/code" }), false, "a record without a tickets repository keeps the #N rule");
   for (const text of ["Use orchestrate-issues for #40, but stop at ready PRs.", "Use orchestrate-issues for #40 and do not merge anything.", "Use orchestrate-issues for #40 --stop-at-ready."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);

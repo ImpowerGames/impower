@@ -56,12 +56,13 @@ const noneOutstanding = (findings) => (Array.isArray(findings) ? findings.length
 // coordinator that recorded it; a quote that names neither grants nothing.
 // Once the record names a tickets repository apart from the code repository,
 // the parent may also be named with the autolink prefix, as #<prefix>N or
-// <prefix>N. Every form refuses a longer number.
+// <prefix>N. Every form refuses a longer number, and the bare form a longer word.
 export const invokes = (record, repos = readRepos()) => {
   const text = record.invocation?.text ?? "";
   if (!/orchestrate-issues/i.test(text)) return false;
   const prefix = String(repos.autolinkPrefix ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const ref = repositoriesOf(record).split && prefix ? `(?:#|#?${prefix})` : "#";
+  // A bare <prefix>N must start a token, so FIXI-40 does not name I-40.
+  const ref = repositoriesOf(record).split && prefix ? `(?:#|#${prefix}|(?<![A-Za-z0-9_])${prefix})` : "#";
   return new RegExp(`${ref}${record.issue}(?![0-9])`).test(text);
 };
 
