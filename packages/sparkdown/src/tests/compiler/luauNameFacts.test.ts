@@ -181,6 +181,16 @@ describe("shared AST name facts", () => {
     expect(facts.globals.filter((d: any) => d.name === "n")).toEqual([]); // not a node name
   });
 
+  test("a Sparkle handler's const is a local declaration, not a global", () => {
+    const source = "store g = 0\nlayout form with\n  button \"Go\" @click={ const a = 1 g = a }\nend\nValue {g}.\n";
+    const facts = names(script(source));
+    expect(facts.globals.filter((d: any) => d.name === "a")).toEqual([]); // not a node name
+    const constant = facts.declarations.find((d: any) => d.name === "a"); // not a node name
+    expect(constant?.local.isConst).toBe(true);
+    const read = facts.references.find((r: any) => r.name === "a" && r.access === "read"); // not a node name
+    expect(read?.local === constant.local).toBe(true);
+  });
+
   test("chained consts in a function each shadow the one before", () => {
     const source = "Value {inspect()}.\nfunction inspect() local n = 1; const n = 2; const n = 3; return n end\n";
     const runtime = makeRuntimeStoryFromSource(source);

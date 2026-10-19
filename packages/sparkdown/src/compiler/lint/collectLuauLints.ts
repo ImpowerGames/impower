@@ -870,7 +870,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       // Carry that exact node; an authored function with the same name is real.
       syntheticFunction: unit.kind === "flow" && unit.root.body[0] instanceof AstStatLocalFunction ? unit.root.body[0] : undefined,
     }));
-    roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined) })));
+    roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined), functionBody: statements && expr instanceof AstExprFunction })));
     const names = collectNameFacts(roots, text);
     names.uncertainNames = uncertainNames(nodes, text, names);
     facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots };

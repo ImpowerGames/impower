@@ -65,6 +65,8 @@ export interface NameRoot {
   offsets: { range(location: Location): NameRange };
   /** The converter's flow wrapper, identified by unit provenance, never by name. */
   syntheticFunction?: AstStatLocalFunction;
+  /** The root is the body of a function (a Sparkle handler's statements), so a `const` in it is a local, never the story's published constant. */
+  functionBody?: boolean;
 }
 
 /** Missing identifiers have this recovery name in the converter, never in authored code. */
@@ -83,7 +85,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
   // constants (`lower/utils/publishesConst.ts`), each declared before any
   // name that reads it.
   const published = new Set<AstLocal>();
-  for (const { root, offsets, syntheticFunction } of roots) {
+  for (const { root, offsets, syntheticFunction, functionBody } of roots) {
     let enclosingFunction: AstExprFunction | undefined;
     let scope: AstStatBlock | undefined;
     // A flow's checking wrapper has no runtime binding. Keep the original
@@ -101,7 +103,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
       if (!isAuthoredLuauName(local.name)) return;
       if (locals.has(local)) return;
       locals.add(local);
-      if (local.isConst && !enclosingFunction) {
+      if (local.isConst && !enclosingFunction && !functionBody) {
         published.add(local);
         facts.globals.push({ name: local.name, kind: "const", ...offsets.range(local.location), node: stat ?? fn ?? root, enclosingFunction, function: fn, scope: declarationScope });
       }
