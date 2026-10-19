@@ -156,7 +156,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         if (node instanceof AstStatLocal) for (let i = 0; i < node.vars.length; i++) declaration(node.vars[i]!, "local", node.values[i] instanceof AstExprFunction ? node.values[i] as AstExprFunction : undefined, node);
         else if (node instanceof AstStatLocalFunction && node !== syntheticFunction) {
           declaration(node.name, "function", node.func, node);
-          if (isAuthoredLuauName(node.name.name)) facts.functions.push({ name: node.name.name, target: node.name, local: node.name.isConst && !enclosingFunction ? undefined : node.name, method: false, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
+          if (isAuthoredLuauName(node.name.name)) facts.functions.push({ name: node.name.name, target: node.name, local: node.name.isConst && !enclosingFunction && !functionBody ? undefined : node.name, method: false, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
         }
         else if (node instanceof AstStatFor) declaration(node.variable, "loop", undefined, node, node.body);
         else if (node instanceof AstStatForIn) for (const local of node.vars) declaration(local, "loop", undefined, node, node.body);

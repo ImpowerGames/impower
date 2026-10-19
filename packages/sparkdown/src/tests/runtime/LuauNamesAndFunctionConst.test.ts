@@ -325,6 +325,21 @@ describe("a function's `const` errors in every place Luau is read", () => {
     ["a define's function-valued property", "define box as thing with\n  sum = function()\n    const a = 1\n    a = 2\n    return a\n  end\nend\nGo.\n", REASSIGNED],
     ["a Sparkle handler", "store g = 0\nlayout form with\n  button \"Go\" @click={ const a = 1 a = 2 g = a }\nend\nValue {g}.\n", REASSIGNED],
     ["a function statement over the const", "Go {f()}.\nfunction f()\n  const a = 1\n  function a() end\n  return 1\nend\n", REASSIGNED],
+    [
+      "a nested function value in an interpolation",
+      "Go {(function() const a = 1; local f = function() a = 2 end; f(); return a end)()}.\n",
+      REASSIGNED,
+    ],
+    [
+      "a nested function value in an interpolation, never called",
+      "Go {(function() const a = 1; local f = function() a = 2 end; return a end)()}.\n",
+      REASSIGNED,
+    ],
+    [
+      "a nested function in a function",
+      "Go {f()}.\nfunction f()\n  const a = 1\n  local function g()\n    a = 2\n  end\n  g()\n  return a\nend\n",
+      REASSIGNED,
+    ],
   ])("in %s", (_label, source, message) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect([...ctx.errorMessages]).toEqual([message]);

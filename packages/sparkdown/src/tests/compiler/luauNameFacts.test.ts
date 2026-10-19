@@ -191,6 +191,15 @@ describe("shared AST name facts", () => {
     expect(read?.local === constant.local).toBe(true);
   });
 
+  test("a Sparkle handler's const function keeps its local in the function facts", () => {
+    const source = "layout form with\n  button \"Go\" @click={ const function x() return 1 end local y = x() }\nend\nGo.\n";
+    const facts = names(script(source));
+    const declared = facts.declarations.find((d: any) => d.name === "x"); // not a node name
+    const fn = facts.functions.find((f: any) => f.name === "x"); // not a node name
+    expect(declared).toBeDefined();
+    expect(fn?.local === declared.local).toBe(true);
+  });
+
   test("chained consts in a function each shadow the one before", () => {
     const source = "Value {inspect()}.\nfunction inspect() local n = 1; const n = 2; const n = 3; return n end\n";
     const runtime = makeRuntimeStoryFromSource(source);
