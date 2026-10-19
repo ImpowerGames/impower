@@ -4624,6 +4624,25 @@ export function readLuauStatementCandidate(
  * Reads the one Luau expression some nodes hold (an interpolation's,
  * a choice's condition, a struct's value), with every name read as a global.
  */
+/**
+ * Luau's errors for a string node the tree read, as its reading reports
+ * them: the string, then the document's next token, which an interpolation
+ * left open names (`Malformed interpolated string, got 'end'`, I-1318). Only
+ * the errors that begin in the string are its own. The validator reports
+ * them for a backtick string left open, so they are the converter's reading
+ * wherever the string stands.
+ */
+export function readLuauStringErrors(node: SyntaxNode, documentText: string): LuauSyntaxError[] {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  tokenizer.read(node);
+  const tokens = lexAhead(documentText, node.to);
+  const next = tokens[firstFrom(tokens, node.to)];
+  if (next) tokenizer.tokens.push({ ...next, location: tokenizer.location(next.from, next.to) });
+  const end = index.position(node.to);
+  return parseLoneTokens(tokenizer, documentText, index).errors.filter((error) => end.gt(error.location.begin));
+}
+
 export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
