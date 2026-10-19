@@ -84,6 +84,16 @@ describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
       ["helper.sd", 1, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
     ]);
   });
+  test.each([
+    "do\n  local math = {}\nend\n& math = {}\nReady.\n",
+    "& if true then local math = {} end\n& math = {}\nReady.\n",
+    "& for math = 1, 2 do end\n& math = {}\nReady.\n",
+    "scene intro()\n  & do local math = {} end\n  & math = {}\nend\n",
+  ])("a local in a nested top-level block does not silence a later write: %s", (source) => {
+    const ds = diagnoseDetailed(source).filter((d) => d.code === "BuiltinGlobalWrite");
+    const lines = source.split("\n");
+    expect(ds.map((d) => lines[d.range!.start.line]!.trim())).toEqual(["& math = {}"]);
+  });
   test("an uncertain occurrence of the name anywhere silences it, but creates no warning", () => {
     const write = { name: "math", kind: "assignment" as const, from: 0, to: 4, node: {} as never };
     const uncertain = { name: "math", from: 9, to: 13, reason: "grammar-keyword" as const };

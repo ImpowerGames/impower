@@ -791,8 +791,8 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_CONSTANTS)].map((name) => name.split(".")[0]!));
 
 /** Luau's BuiltinGlobalWrite over the whole program: a write or global
- * function definition that replaces a standard library name. A binding
- * outside every function (a script's top-level local, which later scenes,
+ * function definition that replaces a standard library name. A local in a
+ * unit's outermost block (a script's top-level local, which later scenes,
  * callbacks and including scripts can see) or an uncertain occurrence of the
  * name anywhere in the program silences the name everywhere, since the
  * converter AST cannot show which writes such a binding reaches; an explicit
@@ -803,7 +803,7 @@ export function lintBuiltinGlobalWrites(program: LuauProgramNames): { uri: strin
     if (!BUILTIN_GLOBALS.has(name) || program.uncertainNames.has(name)) continue;
     let hidden = false;
     for (const names of program.scripts.values()) {
-      if (names.declarations.some((d) => d.name === name && !d.enclosingFunction)) { hidden = true; break; }
+      if (names.declarations.some((d) => d.name === name && d.outermost)) { hidden = true; break; }
     }
     for (const { uri, from, to, kind } of global.definitions) {
       // `store` and published `const` declare the global itself, whatever local is visible.
