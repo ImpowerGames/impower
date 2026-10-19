@@ -371,7 +371,7 @@ sparkdown [0..766]
  │   │       │   │   │       └─ LuauVariableAssignment_end 181
  │   │       │   │   └─ LuauVariableDefinition_end 181
  │   │       │   ├─ Newline [181..182]: "\n"
- │   │       │   ├─ LuauVariableDefinition [182..198]
+ │   │       │   ├─ LuauVariableDefinition [182..196]
  │   │       │   │   ├─ LuauVariableDefinition_begin [182..190]
  │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [182..184]
  │   │       │   │   │   │   └─ OptionalWhitespace [182..184]: "  "
@@ -380,19 +380,19 @@ sparkdown [0..766]
  │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [189..190]
  │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [189..190]
  │   │       │   │   │           └─ OptionalWhitespace [189..190]: " "
- │   │       │   │   ├─ LuauVariableDefinition_content [190..198]
- │   │       │   │   │   └─ LuauVariableAssignment [190..198]
+ │   │       │   │   ├─ LuauVariableDefinition_content [190..196]
+ │   │       │   │   │   └─ LuauVariableAssignment [190..196]
  │   │       │   │   │       ├─ LuauVariableAssignment_begin [190..192]
  │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [190..191]
  │   │       │   │   │       │   │   └─ LuauVariableName [190..191]: "b"
  │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [191..192]
  │   │       │   │   │       │       └─ OptionalWhitespace [191..192]: " "
- │   │       │   │   │       ├─ LuauVariableAssignment_content [192..198]
- │   │       │   │   │       │   └─ LuauAssignmentOperation [192..198]
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [192..196]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [192..196]
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 192
  │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 192
  │   │       │   │   │       │       │       └─ OptionalWhitespace 192
- │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [192..198]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [192..196]
  │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [192..194]
  │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [192..194]
  │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 192
@@ -402,26 +402,22 @@ sparkdown [0..766]
  │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [193..194]
  │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [193..194]: " "
  │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 194
- │   │       │   │   │       │       │   └─ LuauAccessPath [194..198]
+ │   │       │   │   │       │       │   └─ LuauAccessPath [194..196]
  │   │       │   │   │       │       │       ├─ LuauAccessPath_begin 194
- │   │       │   │   │       │       │       ├─ LuauAccessPath_content [194..198]
+ │   │       │   │   │       │       │       ├─ LuauAccessPath_content [194..196]
  │   │       │   │   │       │       │       │   ├─ LuauAccessPart [194..195]
  │   │       │   │   │       │       │       │   │   └─ LuauVariable [194..195]
  │   │       │   │   │       │       │       │   │       └─ LuauVariable_c1 [194..195]
  │   │       │   │   │       │       │       │   │           └─ LuauVariableName [194..195]: "a"
- │   │       │   │   │       │       │       │   └─ LuauAccessPart [195..198]
- │   │       │   │   │       │       │       │       └─ LuauKeywordMethodAccessor [195..198]
- │   │       │   │   │       │       │       │           ├─ LuauKeywordMethodAccessor_c1 195
- │   │       │   │   │       │       │       │           ├─ LuauKeywordMethodAccessor_c2 [195..196]
- │   │       │   │   │       │       │       │           │   └─ LuauAccessorOperator [195..196]: ":"
- │   │       │   │   │       │       │       │           ├─ LuauKeywordMethodAccessor_c3 196
- │   │       │   │   │       │       │       │           └─ LuauKeywordMethodAccessor_c4 [196..198]
- │   │       │   │   │       │       │       │               └─ LuauKeywordMethodName [196..198]: "do"
- │   │       │   │   │       │       │       └─ LuauAccessPath_end 198
- │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 198
- │   │       │   │   │       │       └─ LuauAssignmentOperation_end 198
- │   │       │   │   │       └─ LuauVariableAssignment_end 198
- │   │       │   │   └─ LuauVariableDefinition_end 198
+ │   │       │   │   │       │       │       │   └─ LuauAccessPart [195..196]
+ │   │       │   │   │       │       │       │       └─ LuauTypeAnnotationMissingType [195..196]: ":"
+ │   │       │   │   │       │       │       └─ LuauAccessPath_end 196
+ │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 196
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 196
+ │   │       │   │   │       └─ LuauVariableAssignment_end 196
+ │   │       │   │   └─ LuauVariableDefinition_end 196
+ │   │       │   ├─ LuauKeywordAfterMethodColon [196..198]
+ │   │       │   │   └─ LuauKeywordAfterMethodColon_c1 [196..198]: "do"
  │   │       │   ├─ Newline [198..199]: "\n"
  │   │       │   ├─ LuauVariableDefinition [199..216]
  │   │       │   │   ├─ LuauVariableDefinition_begin [199..207]

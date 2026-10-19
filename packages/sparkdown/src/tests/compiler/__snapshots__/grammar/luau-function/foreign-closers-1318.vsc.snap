@@ -110,7 +110,7 @@ text.source.sparkdown [0..766]
  │       ├─ keyword.operator.assignment.luau [192..193]: "="
  │       ├─ punctuation.whitespace.optional.sd [193..194]: " "
  │       ├─ variable.other.readwrite.luau [194..195]: "a"
- │       ├─ meta.template.expression.accessor.sd [195..196]: ":"
+ │       ├─ invalid.illegal.luau [195..196]: ":"
  │       └─ invalid.illegal.luau [196..198]: "do"
  ├─ Newline [198..199]: "\n"
  ├─ meta.function.luau [199..216]

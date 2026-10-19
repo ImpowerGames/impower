@@ -121,6 +121,11 @@ const CASES: Record<string, Form[]> = {
     { form: "local t = {}\n  while t: do end", errors: ["Expected identifier when parsing method name, got 'do'"] },
     { form: "local t = {}\n  if t: then end", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  for k, v in t: do end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    // The header's `do` ends its line, and code follows the loop (round 2,
+    // `ax` finding 1).
+    { form: "local t = {}\n  while t: do\n    t:done()\n  end\n  return 7", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  for k, v in t: do\n    print(k)\n  end\n  return 7", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  if t: then\n    print(t)\n  end\n  return 7", errors: ["Expected identifier when parsing method name, got 'then'"] },
   ],
   // A loop left without its `do` or `until` before the function's `end`
   // (I-1295). Luau's reading then closes the loop at that `end` and reports
