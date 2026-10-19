@@ -77,6 +77,21 @@ assert(not pcall(function() return c < d end))
 `);
   });
 
+  test("a builtin set as `__eq` on two metatables is one handler", () => {
+    // `type(a, b)` returns "table", a true result, only when it is called.
+    passes(`
+local a = setmetatable({}, { __eq = type })
+local b = setmetatable({}, { __eq = type })
+assert(a == b)
+local c = setmetatable({}, { __lt = type })
+local d = setmetatable({}, { __lt = type })
+assert(c < d)
+local e = setmetatable({}, { __lt = function() return true end })
+local f = setmetatable({}, { __lt = function() return true end })
+assert(not pcall(function() return e < f end))
+`);
+  });
+
   test("`__eq` fires for a table compared with itself", () => {
     passes(`
 local calls = 0

@@ -345,7 +345,17 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
   if (a == null || b == null) return false;
   if (a === b) return true;
   if (a instanceof ObjectValue && b instanceof ObjectValue) {
-    return a.value === b.value;
+    if (a.value === b.value) return true;
+    // A builtin is the same function wherever it is referenced, though
+    // each reference builds its own marker (`__eq = print` on two
+    // metatables).
+    const tagA = (a.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
+    const tagB = (b.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
+    return (
+      tagA instanceof StringValue &&
+      tagB instanceof StringValue &&
+      tagA.value === tagB.value
+    );
   }
   if (a instanceof SymbolValue && b instanceof SymbolValue) {
     return a.ref.Equals(b.ref);
