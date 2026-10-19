@@ -8,6 +8,7 @@
 // future rule cannot start warning on them.
 
 import { describe, expect, test } from "vitest";
+import { indexProgramNames, lintBuiltinGlobalWrites } from "../../compiler/lint/collectLuauLints";
 import { testCompiler } from "../engineUnderTest";
 import {
   diagnoseWithLintsInFunction,
@@ -73,12 +74,26 @@ describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
       ["helper.sd", 2, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
     ]);
   });
-  test("a local in the including script does not shadow an earlier included script", () => {
+  test("a top-level local in any script silences that name program-wide", () => {
+    // Conservative: the AST cannot show which writes a top-level local reaches.
     const ds = diagnoseFilesDetailed({
       "main.sd": "include helper.sd\nlocal math = {}\nReady.\n",
-      "helper.sd": "& math = {}\n",
+      "helper.sd": "& math = {}\nfunction f() assert = 1 end\n",
     }).filter((d) => d.code === "BuiltinGlobalWrite");
-    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["helper.sd", 0]]);
+    expect(ds.map((d) => [d.file, d.range?.start.line, d.message])).toEqual([
+      ["helper.sd", 1, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
+    ]);
+  });
+  test("an uncertain occurrence of the name anywhere silences it, but creates no warning", () => {
+    const write = { name: "math", kind: "assignment" as const, from: 0, to: 4, node: {} as never };
+    const uncertain = { name: "math", from: 9, to: 13, reason: "grammar-keyword" as const };
+    const facts = (globals: typeof write[], uncertainNames: typeof uncertain[]) => ({ declarations: [], references: [], functions: [], globals, uncertainNames });
+    expect(lintBuiltinGlobalWrites(indexProgramNames([
+      { uri: "a", names: facts([write], []) },
+      { uri: "b", names: facts([], [uncertain]) },
+    ]))).toEqual([]);
+    expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "b", names: facts([], [uncertain]) }]))).toEqual([]);
+    expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "a", names: facts([write], []) }])).map((f) => f.uri)).toEqual(["a"]);
   });
   test("a genuinely global write in the including script still warns", () => {
     const ds = diagnoseFilesDetailed({

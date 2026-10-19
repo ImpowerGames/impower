@@ -27,9 +27,7 @@
 // and the Luau inside, but do not compare its arms' conditions.
 
 import { Tree, TreeBuffer, type NodeSet, type SyntaxNode } from "@lezer/common";
-// StdLib reaches the engine's cyclic value/object modules; prime their entry point.
-import "../../inkjs/engine/Container";
-import { STDLIB, STDLIB_CONSTANTS } from "../../inkjs/engine/StdLib";
+import { STDLIB, STDLIB_CONSTANTS } from "../../runtime/StdLib";
 import {
   AstExpr,
   AstExprBinary,
@@ -86,7 +84,7 @@ import { NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typ
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
-import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type NameRoot } from "./luauNames";
+import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type LuauProgramNames, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
 /** The rules, by the name each warning carries as its diagnostic code. */
@@ -792,12 +790,28 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 // Only own registry keys are built-ins; Object.prototype names are ordinary globals.
 const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_CONSTANTS)].map((name) => name.split(".")[0]!));
 
-/** Luau's BuiltinGlobalWrite, checking the binding being replaced rather than its members. */
-function lintBuiltinGlobalWrites(names: LuauNameFacts, out: LuauLint[]): void {
-  for (const { name, from, to } of names.globals) {
-    if (!BUILTIN_GLOBALS.has(name)) continue;
-    out.push({ code: "BuiltinGlobalWrite", from, to, message: `Built-in global '${name}' is overwritten here; consider using a local or changing the name` });
+/** Luau's BuiltinGlobalWrite over the whole program: a write or global
+ * function definition that replaces a standard library name. A binding
+ * outside every function (a script's top-level local, which later scenes,
+ * callbacks and including scripts can see) or an uncertain occurrence of the
+ * name anywhere in the program silences the name everywhere, since the
+ * converter AST cannot show which writes such a binding reaches; an explicit
+ * `store` or published `const` still warns. */
+export function lintBuiltinGlobalWrites(program: LuauProgramNames): { uri: string; lint: LuauLint }[] {
+  const found: { uri: string; lint: LuauLint }[] = [];
+  for (const [name, global] of program.globals) {
+    if (!BUILTIN_GLOBALS.has(name) || program.uncertainNames.has(name)) continue;
+    let hidden = false;
+    for (const names of program.scripts.values()) {
+      if (names.declarations.some((d) => d.name === name && !d.enclosingFunction)) { hidden = true; break; }
+    }
+    for (const { uri, from, to, kind } of global.definitions) {
+      // `store` and published `const` declare the global itself, whatever local is visible.
+      if (hidden && kind !== "store" && kind !== "const") continue;
+      found.push({ uri, lint: { code: "BuiltinGlobalWrite", from, to, message: `Built-in global '${name}' is overwritten here; consider using a local or changing the name` } });
+    }
   }
+  return found;
 }
 
 // ---------------------------------------------------------------------------
@@ -895,7 +909,6 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   }
   const { narrativeIfs } = facts;
   const out: LuauLint[] = [];
-  lintBuiltinGlobalWrites(facts.names, out);
   // Separate AST readings can share a document line (two interpolations).
   const sameLines = new Set<number>();
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {

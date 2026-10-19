@@ -8,6 +8,8 @@ import {
 import {
   collectLuauLints,
   indexProgramNames,
+  lintBuiltinGlobalWrites,
+  type LuauLint,
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
@@ -5578,6 +5580,17 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
     const scripts: { uri: string; names: LuauScriptLints["names"] }[] = [];
+    const report = (scriptUri: string, lint: LuauLint) => {
+      const doc = this.documents.get(scriptUri);
+      if (!doc) return;
+      ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+        range: doc.range(lint.from, lint.to),
+        code: lint.code,
+        severity: DiagnosticSeverity.Warning,
+        message: { kind: "markdown", value: lint.message },
+        source: LANGUAGE_NAME,
+      });
+    };
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
@@ -5588,17 +5601,11 @@ export class SparkdownCompiler {
         this._lintsByTree.set(tree, script);
       }
       scripts.push({ uri: scriptUri, names: script.names });
-      for (const lint of script.lints) {
-        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
-          range: doc.range(lint.from, lint.to),
-          code: lint.code,
-          severity: DiagnosticSeverity.Warning,
-          message: { kind: "markdown", value: lint.message },
-          source: LANGUAGE_NAME,
-        });
-      }
+      for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);
+    // Program-wide rules rerun on every compile over the cached facts.
+    for (const { uri: scriptUri, lint } of lintBuiltinGlobalWrites(names)) report(scriptUri, lint);
     profile("end", this._profilerId, "validateLints", uri);
     return names;
   }
