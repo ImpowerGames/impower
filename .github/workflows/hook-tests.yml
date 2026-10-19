@@ -56,7 +56,7 @@ jobs:
   # reviewer prompt template the prompt builder tests, the generated reviewer
   # definitions, and the package manifests and ignore file the link and
   # test-suite checks read. The filing preservation check also reads the hooks
-  # and their adapter wiring, and the migration tool's check reads the repos
+  # and their adapter wiring, and the review and handoff checks read the repos
   # file and its loader. The Test Suite workflow is read only by the
   # skills-tier checks under .github/scripts, so it is not listed here; the two
   # workflow files that define this leg are, so a change to the leg runs it.
