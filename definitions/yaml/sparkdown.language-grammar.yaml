@@ -719,7 +719,7 @@ variables:
   # lookaround: a `|` inside a comment (`LuauComment`) is not an arm's.
   LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--|\[=*\[)[^\n|"'`])
   # A string literal that ends on its line, quoted as Luau quotes one.
-  LUAU_LINE_STRING: (?:{{LUAU_LINE_DOUBLE_QUOTED}}|{{LUAU_LINE_SINGLE_QUOTED}}|{{LUAU_LINE_BACKTICK_QUOTED}}|{{LUAU_LINE_LONG_STRING}})
+  LUAU_LINE_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}}|{{LUAU_LINE_LONG_STRING}})
   # A long string (`[[a|b]]`, `[=[a|b]=]`), whose brackets are a block
   # comment's after its `--`, or one of a higher level (`[====[a|b]====]`).
   LUAU_LINE_LONG_STRING: (?:\[{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_LINE_HIGH_LONG_STRING}})
@@ -734,9 +734,6 @@ variables:
   # lookaround: LuauMultilineString reads the string; here its closing
   # bracket ends it, and any other `]` is its text.
   LUAU_LINE_HIGH_LONG_STRING: (?:\[={4,}\[(?:[^\]\n]|\](?!=+\]))*\]=+\])
-  LUAU_LINE_DOUBLE_QUOTED: (?:"[^"\\\n]*(?:\\.[^"\\\n]*)*")
-  LUAU_LINE_SINGLE_QUOTED: (?:'[^'\\\n]*(?:\\.[^'\\\n]*)*')
-  LUAU_LINE_BACKTICK_QUOTED: (?:`[^`\\\n]*(?:\\.[^`\\\n]*)*`)
   # The name after a structural keyword (`style`, `layout`, `screen`,
   # `component`, `animation`, `theme`, `morph`), which its block opens only
   # before: anywhere else the keyword is a name (`local y = style`, #984).
@@ -1052,9 +1049,13 @@ variables:
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   # An attribute's name in a header's prefix, which a lookbehind reads.
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
-  # A quoted string on its line. A backslash is only ever an escape with
-  # the character after it, so an escaped quote (`"\"]"`) never closes the
-  # string, and a run of backslashes reads one way.
+  # A quoted string on its line, one per quote kind, shared by a header's
+  # attribute prefix and the alternator arm scan (`LUAU_LINE_STRING`). A
+  # backslash is only ever an escape with the character after it, so an
+  # escaped quote (`"\"]"`) never closes the string, and a run of
+  # backslashes reads one way.
+  # Neither `\r` nor `\n` is string content: a Windows line ending is the
+  # line's end, so a string still open there does not close on its line.
   LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"(?:\\.|[^"\\\r\n])*")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'(?:\\.|[^'\\\r\n])*')
