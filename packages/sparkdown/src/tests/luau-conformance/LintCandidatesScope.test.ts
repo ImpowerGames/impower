@@ -94,6 +94,13 @@ describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
     const lines = source.split("\n");
     expect(ds.map((d) => lines[d.range!.start.line]!.trim())).toEqual(["& math = {}"]);
   });
+  test.each([
+    ["& math = {}\nlocal math = {}\nReady.\n", 1],
+    ["local math = {}\n& math = {}\nReady.\n", 0],
+    ["scene intro()\n  & math = {}\n  & local math = {}\nend\n", 1],
+  ] as const)("a top-level local does not silence a write before it in its block: %s", (source, count) => {
+    expect(diagnoseDetailed(source).filter((d) => d.code === "BuiltinGlobalWrite")).toHaveLength(count);
+  });
   test("an uncertain occurrence of the name anywhere silences it, but creates no warning", () => {
     const write = { name: "math", kind: "assignment" as const, from: 0, to: 4, node: {} as never };
     const uncertain = { name: "math", from: 9, to: 13, reason: "grammar-keyword" as const };

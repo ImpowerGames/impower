@@ -794,19 +794,21 @@ const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_C
  * function definition that replaces a standard library name. A local in a
  * unit's outermost block (a script's top-level local, which later scenes,
  * callbacks and including scripts can see) or an uncertain occurrence of the
- * name anywhere in the program silences the name everywhere, since the
- * converter AST cannot show which writes such a binding reaches; an explicit
+ * name anywhere in the program silences the name, since the converter AST
+ * cannot show which writes such a binding reaches. Only a write earlier in
+ * the local's own block is known to be out of its reach. An explicit
  * `store` or published `const` still warns. */
 export function lintBuiltinGlobalWrites(program: LuauProgramNames): { uri: string; lint: LuauLint }[] {
   const found: { uri: string; lint: LuauLint }[] = [];
   for (const [name, global] of program.globals) {
     if (!BUILTIN_GLOBALS.has(name) || program.uncertainNames.has(name)) continue;
-    let hidden = false;
-    for (const names of program.scripts.values()) {
-      if (names.declarations.some((d) => d.name === name && d.outermost)) { hidden = true; break; }
+    const locals: { uri: string; from: number; scope?: AstStatBlock }[] = [];
+    for (const [uri, names] of program.scripts) {
+      for (const d of names.declarations) if (d.name === name && d.outermost) locals.push({ uri, from: d.from, scope: d.scope });
     }
-    for (const { uri, from, to, kind } of global.definitions) {
+    for (const { uri, from, to, kind, scope } of global.definitions) {
       // `store` and published `const` declare the global itself, whatever local is visible.
+      const hidden = locals.some((local) => !(local.uri === uri && local.scope === scope && to <= local.from));
       if (hidden && kind !== "store" && kind !== "const") continue;
       found.push({ uri, lint: { code: "BuiltinGlobalWrite", from, to, message: `Built-in global '${name}' is overwritten here; consider using a local or changing the name` } });
     }
