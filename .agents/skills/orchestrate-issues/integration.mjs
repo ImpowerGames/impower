@@ -645,7 +645,7 @@ const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) thr
 
 // The parent issue's snapshot, taken afresh each time a command needs one.
 const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
-const liveScope = (record) => () => readIssueScope({ issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
+const liveScope = (record) => () => readIssueScope({ issue: record.issue, tickets: repositoriesOf(record).tickets, split: repositoriesOf(record).split }, githubClient(record, record.checkout));
 
 export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot, scopeFor = liveScope } = {}) {
   const { command, o } = parse(argv);
