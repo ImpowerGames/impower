@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 243,
-  "previous": "824dc8763e403eef4953b1b23ca9afd73d22bb06",
+  "seq": 244,
+  "previous": "71c1defc563bf3dfec75512930033c9ad776c925",
   "snapshotParents": [],
-  "time": "2026-10-19T07:49:46.042Z",
+  "time": "2026-10-19T08:28:25.031Z",
   "kind": "auto",
-  "transition": "resume of #1967",
+  "transition": "release of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 224,
+    "recordRevision": 225,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3964,80 +3964,86 @@
       ]
     },
     "1967": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "high",
-        "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
-        "branch": "feat/1967-archive-scrub-cutover",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
-        "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
-        "handle": {
-          "kind": "process",
-          "pid": 31376,
-          "start": "639279929830523384",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-729f2393-a8ae-4820-ace6-1e07e1b2fe7f"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8. You are the writer for ImpowerGames/impower ticket #1967 (Build the pull request archive and scrub tool and run the tracker cutover), a slice of Feature #1961, coordinated by coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c an acknowledgement naming assignment 02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1967 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover on branch feat/1967-archive-scrub-cutover from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961, and keep every artifact in it.\nSettled decisions:\n- Cutover switch (maintainer, 2026-10-16, comment 6221962821 on #1961): .agents/repos.json carries cutover: false, and flipping it is a step of the cutover window, never of the tooling PR. Read that comment, comment 6226441508 (the internal repository exists), and what #1962 to #1966 merged on main: the guard, ticketsRepo() and reviewThread(), the review pipeline on the ticket thread, orchestrate-feature on two repositories, and scripts/migrate-tracker.mjs with its modes. Your work splits in two phases. Phase A, now, under this orchestration: build scripts/scrub-pull-requests.mjs with --archive, --scrub and --dry-run and its tests; write the cutover runbook; prepare the internal repository; open the draft PR with the tool, its tests and a copy of the runbook; take it through review to a checkpoint report and the merge gate. Phase B, the cutover window itself (the migration run, the archive and scrub, the public label, milestone and template cleanup, the switch flip and the reference updates), starts only when the coordinator resumes you with an explicit go that carries the maintainer's approval. Until then run nothing but --dry-run against the real repositories, delete no comment, transfer no issue, flip nothing, and change nothing on the public repository's labels, milestones or templates.\n- The internal repository ImpowerGames/impower-internal exists (private, issues on, wiki and Discussions off). Its current default branch is orchestrate-state/feature-37, a throwaway state branch from #1965's dry run, because the repository was empty when it was pushed; delete nothing else there. Phase A may and should prepare it as runbook step 1 says: create main with the runbook README, set main as the default branch, then delete orchestrate-state/feature-37; copy the 24 labels (colors and descriptions) and 7 milestones by name (label 'workflow: tickets' and milestone 'Folio redesign' already exist from a rehearsal, keep them); add the internal issue templates under .github/ISSUE_TEMPLATE/ matching .agents/templates/issues/ so #1963's template-sync test stops skipping; configure the I- autolink on the public repository pointing at the internal repository's issues; and turn off Project automations only inside the window, not now. Internal issue numbers 1 to 38 are consumed by rehearsals and probes and are deleted, so the migration's numbers start at 39 or later; verify the current highest number before you state it in the runbook.\n- Migration tool facts from #1966's final report, to carry into the runbook: the first command is node scripts/migrate-tracker.mjs --snapshot <attempt dir outside any Git work tree>/migration --dry-run from a checkout at main, then the same without --dry-run, then --transfer, --restore, --rewrite, --map and --verify each with --dry-run first; at default pacing (4,500 requests an hour, writes 60 a minute and 450 an hour) the window needs about 7.5 hours of transfer writes, up to 1.5 hours of restore, about 5,600 gate renders plus 3.8 hours of rewrite writes, and about 3,700 verify renders, at least 11 to 13 hours in all unless --writes-per-hour is raised; restore and rewrite each wait 120 seconds after the last transfer; GitHub's secondary limit on the markdown endpoint can pause a paced run, which retries; texts the tool cannot read consistently are listed in left-as-transferred.json and in rewrite's and verify's output, and verify fails until the maintainer reads them by hand; the 35 kept issues are the outsider-filed ones the dry run lists. The archive must be read back against the API's comment counts before any scrub, and the scrub must be journaled and resumable. Nothing in the tools may read tickets through gh api graphql; use gh issue -R and REST.\n- Window protocol, which the runbook states and the coordinator enforces: no orchestration in flight (this run included: once the switch flips, every coordinator command on the public tracker is refused by design, so this run ends with your tooling PR merged and the window is run by you on the coordinator's go), ORCH #1904's writers idle or finished and its coordinator told an hour ahead, live pull requests merged or closed, and the stale codex/* draft PRs left open with their closing lines rewritten by the tool. In-window pull requests (the switch flip with the public template move, and the reference updates once the map exists: AGENTS.md, the feedback inbox constant and the skills' references) are opened by you and merged by the maintainer, because the orchestration gate cannot read the Feature once it has migrated. The Feature's own acceptance checks are runbook step 8; report their results on the migrated Feature and to the coordinator. Write the runbook so a human can run it line by line with the exact commands, their expected output and the stop points.\n- Other writers run on this machine (the #1904 run); reviewer slots and the vitest reservation are shared. Merge origin/main into your branch before each review round, run node --test for the script tests directly, and pass --wait to node scripts/test-suite.mjs when you need vitest. If SendMessage to the coordinator's local_ id fails with no agent reachable, run ListAgents and send to the session titled exactly 'ORCH #1961: private internal tracker'. Any subagent you launch (a filer) reports to the coordinator, not to you: note 'filer launched, report pending' and continue. Reviewer scratch (probe clones, runtime temp, npm caches, fixture journals) must not be left under impower.review-jobs/pr-<N> (Bug #1866): have each adjudication confirm it is gone. Keep all private artifacts under the artifact parent this brief names.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "7cdc43f9",
-          "attempts": 1,
-          "time": "2026-10-17T09:04:58.647Z",
-          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
-        },
-        "since": "2026-10-17T09:04:58.648Z",
-        "sessionId": "4b0d553c-7961-4f25-bf16-8776d5f38c13",
-        "acknowledged": {
-          "time": "2026-10-17T09:05:42.303Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "high",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
+            "branch": "feat/1967-archive-scrub-cutover",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
+            "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
+            "handle": {
+              "kind": "process",
+              "pid": 31376,
+              "start": "639279929830523384",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-729f2393-a8ae-4820-ace6-1e07e1b2fe7f"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8. You are the writer for ImpowerGames/impower ticket #1967 (Build the pull request archive and scrub tool and run the tracker cutover), a slice of Feature #1961, coordinated by coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c an acknowledgement naming assignment 02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1967 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover on branch feat/1967-archive-scrub-cutover from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961, and keep every artifact in it.\nSettled decisions:\n- Cutover switch (maintainer, 2026-10-16, comment 6221962821 on #1961): .agents/repos.json carries cutover: false, and flipping it is a step of the cutover window, never of the tooling PR. Read that comment, comment 6226441508 (the internal repository exists), and what #1962 to #1966 merged on main: the guard, ticketsRepo() and reviewThread(), the review pipeline on the ticket thread, orchestrate-feature on two repositories, and scripts/migrate-tracker.mjs with its modes. Your work splits in two phases. Phase A, now, under this orchestration: build scripts/scrub-pull-requests.mjs with --archive, --scrub and --dry-run and its tests; write the cutover runbook; prepare the internal repository; open the draft PR with the tool, its tests and a copy of the runbook; take it through review to a checkpoint report and the merge gate. Phase B, the cutover window itself (the migration run, the archive and scrub, the public label, milestone and template cleanup, the switch flip and the reference updates), starts only when the coordinator resumes you with an explicit go that carries the maintainer's approval. Until then run nothing but --dry-run against the real repositories, delete no comment, transfer no issue, flip nothing, and change nothing on the public repository's labels, milestones or templates.\n- The internal repository ImpowerGames/impower-internal exists (private, issues on, wiki and Discussions off). Its current default branch is orchestrate-state/feature-37, a throwaway state branch from #1965's dry run, because the repository was empty when it was pushed; delete nothing else there. Phase A may and should prepare it as runbook step 1 says: create main with the runbook README, set main as the default branch, then delete orchestrate-state/feature-37; copy the 24 labels (colors and descriptions) and 7 milestones by name (label 'workflow: tickets' and milestone 'Folio redesign' already exist from a rehearsal, keep them); add the internal issue templates under .github/ISSUE_TEMPLATE/ matching .agents/templates/issues/ so #1963's template-sync test stops skipping; configure the I- autolink on the public repository pointing at the internal repository's issues; and turn off Project automations only inside the window, not now. Internal issue numbers 1 to 38 are consumed by rehearsals and probes and are deleted, so the migration's numbers start at 39 or later; verify the current highest number before you state it in the runbook.\n- Migration tool facts from #1966's final report, to carry into the runbook: the first command is node scripts/migrate-tracker.mjs --snapshot <attempt dir outside any Git work tree>/migration --dry-run from a checkout at main, then the same without --dry-run, then --transfer, --restore, --rewrite, --map and --verify each with --dry-run first; at default pacing (4,500 requests an hour, writes 60 a minute and 450 an hour) the window needs about 7.5 hours of transfer writes, up to 1.5 hours of restore, about 5,600 gate renders plus 3.8 hours of rewrite writes, and about 3,700 verify renders, at least 11 to 13 hours in all unless --writes-per-hour is raised; restore and rewrite each wait 120 seconds after the last transfer; GitHub's secondary limit on the markdown endpoint can pause a paced run, which retries; texts the tool cannot read consistently are listed in left-as-transferred.json and in rewrite's and verify's output, and verify fails until the maintainer reads them by hand; the 35 kept issues are the outsider-filed ones the dry run lists. The archive must be read back against the API's comment counts before any scrub, and the scrub must be journaled and resumable. Nothing in the tools may read tickets through gh api graphql; use gh issue -R and REST.\n- Window protocol, which the runbook states and the coordinator enforces: no orchestration in flight (this run included: once the switch flips, every coordinator command on the public tracker is refused by design, so this run ends with your tooling PR merged and the window is run by you on the coordinator's go), ORCH #1904's writers idle or finished and its coordinator told an hour ahead, live pull requests merged or closed, and the stale codex/* draft PRs left open with their closing lines rewritten by the tool. In-window pull requests (the switch flip with the public template move, and the reference updates once the map exists: AGENTS.md, the feedback inbox constant and the skills' references) are opened by you and merged by the maintainer, because the orchestration gate cannot read the Feature once it has migrated. The Feature's own acceptance checks are runbook step 8; report their results on the migrated Feature and to the coordinator. Write the runbook so a human can run it line by line with the exact commands, their expected output and the stop points.\n- Other writers run on this machine (the #1904 run); reviewer slots and the vitest reservation are shared. Merge origin/main into your branch before each review round, run node --test for the script tests directly, and pass --wait to node scripts/test-suite.mjs when you need vitest. If SendMessage to the coordinator's local_ id fails with no agent reachable, run ListAgents and send to the session titled exactly 'ORCH #1961: private internal tracker'. Any subagent you launch (a filer) reports to the coordinator, not to you: note 'filer launched, report pending' and continue. Reviewer scratch (probe clones, runtime temp, npm caches, fixture journals) must not be left under impower.review-jobs/pr-<N> (Bug #1866): have each adjudication confirm it is gone. Keep all private artifacts under the artifact parent this brief names.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "7cdc43f9",
+              "attempts": 1,
+              "time": "2026-10-17T09:04:58.647Z",
+              "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+            },
+            "since": "2026-10-17T09:04:58.648Z",
+            "sessionId": "4b0d553c-7961-4f25-bf16-8776d5f38c13",
+            "acknowledged": {
+              "time": "2026-10-17T09:05:42.303Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "high",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from writer session impower-14 at 2026-10-17 ~13:30Z naming assignment 02ea0ef4, its claude command line --model claude-opus-5-5 --effort high --permission-mode bypassPermissions and CLAUDE_EFFORT=high; out.jsonl init line reports model claude-opus-5-5 and permissionMode bypassPermissions",
+              "deliveryId": "7cdc43f9"
+            },
+            "resumes": [
+              {
+                "id": "0134ce4f-9965-4ffe-a2c7-fd55ac57afb1",
+                "time": "2026-10-17T11:33:33.416Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-0134ce4f-9965-4ffe-a2c7-fd55ac57afb1"
+              },
+              {
+                "id": "8e976a23-751b-4eab-a711-f56e15e25b1b",
+                "time": "2026-10-17T23:26:19.376Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-8e976a23-751b-4eab-a711-f56e15e25b1b"
+              },
+              {
+                "id": "51b3b88b-f075-42f1-ab84-f958f6ca963f",
+                "time": "2026-10-17T23:59:28.222Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-51b3b88b-f075-42f1-ab84-f958f6ca963f"
+              },
+              {
+                "id": "a9e36123-f7ff-46ea-a460-b55a1e5c2bf8",
+                "time": "2026-10-18T14:16:33.328Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-a9e36123-f7ff-46ea-a460-b55a1e5c2bf8"
+              },
+              {
+                "id": "f59b361f-1d7b-4967-a7fa-d12a51de44f1",
+                "time": "2026-10-19T04:41:55.662Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-f59b361f-1d7b-4967-a7fa-d12a51de44f1"
+              },
+              {
+                "id": "729f2393-a8ae-4820-ace6-1e07e1b2fe7f",
+                "time": "2026-10-19T07:49:43.329Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-729f2393-a8ae-4820-ace6-1e07e1b2fe7f"
+              }
+            ]
           },
-          "evidence": "cross-session message from writer session impower-14 at 2026-10-17 ~13:30Z naming assignment 02ea0ef4, its claude command line --model claude-opus-5-5 --effort high --permission-mode bypassPermissions and CLAUDE_EFFORT=high; out.jsonl init line reports model claude-opus-5-5 and permissionMode bypassPermissions",
-          "deliveryId": "7cdc43f9"
-        },
-        "resumes": [
-          {
-            "id": "0134ce4f-9965-4ffe-a2c7-fd55ac57afb1",
-            "time": "2026-10-17T11:33:33.416Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-0134ce4f-9965-4ffe-a2c7-fd55ac57afb1"
-          },
-          {
-            "id": "8e976a23-751b-4eab-a711-f56e15e25b1b",
-            "time": "2026-10-17T23:26:19.376Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-8e976a23-751b-4eab-a711-f56e15e25b1b"
-          },
-          {
-            "id": "51b3b88b-f075-42f1-ab84-f958f6ca963f",
-            "time": "2026-10-17T23:59:28.222Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-51b3b88b-f075-42f1-ab84-f958f6ca963f"
-          },
-          {
-            "id": "a9e36123-f7ff-46ea-a460-b55a1e5c2bf8",
-            "time": "2026-10-18T14:16:33.328Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-a9e36123-f7ff-46ea-a460-b55a1e5c2bf8"
-          },
-          {
-            "id": "f59b361f-1d7b-4967-a7fa-d12a51de44f1",
-            "time": "2026-10-19T04:41:55.662Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-f59b361f-1d7b-4967-a7fa-d12a51de44f1"
-          },
-          {
-            "id": "729f2393-a8ae-4820-ace6-1e07e1b2fe7f",
-            "time": "2026-10-19T07:49:43.329Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-729f2393-a8ae-4820-ace6-1e07e1b2fe7f"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 31376 is gone and no process names its launch directory; the writer's final turn (resume 729f2393) ended with a result event after posting the window-closed report on I-1270 (6262949008) and I-1276 (6262949577) and closing I-1276 as completed; process 31376 and its children are gone",
+          "time": "2026-10-19T08:28:23.004Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-17T11:35:01.100Z",
@@ -5271,248 +5277,7 @@
   ],
   "diskRecoveries": [],
   "verifications": [],
-  "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover": {
-      "ticket": 1967,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
-      "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-19T07:49:45.317Z",
-      "held": true,
-      "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
-      "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 2057,
-      "reviewJobs": [
-        {
-          "job": "pr-2057/round-1/launch-data-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-data",
-            "reviewerId": "data",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "109a8b7d86747977dce34b4ce895f04d81417b1e",
-            "completedRoundReviewers": null,
-            "time": "2026-10-17T09:40:51.785Z"
-          },
-          "round": 1,
-          "reviewerId": "data",
-          "attempt": 1,
-          "reviewedHead": "109a8b7d86747977dce34b4ce895f04d81417b1e",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "data": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6232559384
-          ]
-        },
-        {
-          "job": "pr-2057/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
-            "completedRoundReviewers": {
-              "data": 1
-            },
-            "time": "2026-10-17T10:12:28.611Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "data": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6232764561
-          ]
-        },
-        {
-          "job": "pr-2057/round-2/launch-data-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-data",
-            "reviewerId": "data",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "54169dbc582eecf33dc8f4fbc51d9854f9a1925a",
-            "completedRoundReviewers": {
-              "data": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T10:30:40.526Z"
-          },
-          "round": 2,
-          "reviewerId": "data",
-          "attempt": 1,
-          "reviewedHead": "54169dbc582eecf33dc8f4fbc51d9854f9a1925a",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "data": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6232918945
-          ]
-        },
-        {
-          "job": "pr-2057/round-2/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "c84b56346fabcb1733832469be8192e4e61a7962",
-            "completedRoundReviewers": {
-              "data": 1
-            },
-            "time": "2026-10-17T10:46:40.101Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "c84b56346fabcb1733832469be8192e4e61a7962",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "data": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6233069271
-          ]
-        },
-        {
-          "job": "pr-2057/round-3/launch-data-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-data",
-            "reviewerId": "data",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "b58331658f6c51350af4b1d37a03ba14cd101aa6",
-            "completedRoundReviewers": {
-              "data": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T10:59:53.043Z"
-          },
-          "round": 3,
-          "reviewerId": "data",
-          "attempt": 1,
-          "reviewedHead": "b58331658f6c51350af4b1d37a03ba14cd101aa6",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "data": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6233177427
-          ]
-        },
-        {
-          "job": "pr-2057/round-3/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
-            "completedRoundReviewers": {
-              "data": 1
-            },
-            "time": "2026-10-17T11:11:25.044Z"
-          },
-          "round": 3,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "data": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6233268234
-          ]
-        }
-      ]
-    }
-  },
+  "work": {},
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -5563,15 +5328,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:16:11.338Z",
-      "event": "checkpoint-intent",
-      "ticket": 1966,
-      "id": "afa4eb6f",
-      "kind": "accept-unreviewed",
-      "round": 6,
-      "head": "0ce68b477e72852e265ea00656ce216e181137e7"
-    },
     {
       "time": "2026-10-17T06:16:14.496Z",
       "event": "checkpoint-published",
@@ -6253,6 +6009,12 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-729f2393-a8ae-4820-ace6-1e07e1b2fe7f"
       }
+    },
+    {
+      "time": "2026-10-19T08:28:23.004Z",
+      "event": "released",
+      "ticket": 1967,
+      "reason": "process 31376 is gone and no process names its launch directory"
     }
   ]
 }
