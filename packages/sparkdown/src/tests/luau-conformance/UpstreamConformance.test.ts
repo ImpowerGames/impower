@@ -36,8 +36,6 @@ const SKIP_FILES = new Set([
   "buffers.luau",
   "coroutine.luau",
   "cyield.luau",
-  "events.luau", // metatables
-  "tmerror.luau", // metatable error
   "vector.luau",
   "vector_library.luau",
   "userdata.luau",
@@ -240,6 +238,7 @@ describe("Luau upstream conformance baseline", () => {
     "closure.luau",
     "constructs.luau",
     "datetime.luau",
+    "events.luau",
     "ifelseexpr.luau",
     "iter.luau",
     "math.luau",
@@ -250,6 +249,7 @@ describe("Luau upstream conformance baseline", () => {
     "stringinterp.luau",
     "strings.luau",
     "tables.luau",
+    "tmerror.luau",
     "tpack.luau",
     "utf8.luau",
     "vararg.luau",

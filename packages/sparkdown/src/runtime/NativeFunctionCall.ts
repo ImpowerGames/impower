@@ -20,6 +20,7 @@ import {
   callBuiltinMethod,
   isPureNumberStdLibOp,
   luauNumberToString,
+  luauTableBorder,
   luauTypeOf,
   parseLuauNumber,
 } from "./StdLib";
@@ -714,23 +715,7 @@ export class NativeFunctionCall extends InkObject {
       // t[10] of a filled create(10) gives 9 (walk down), reverse-
       // filling 5..2 gives 0 until t[1] lands (walk up from 0), and
       // create(5,42) keeps #t == 5 after t[1] is cleared (cache).
-      this.AddObjectUnaryOp(this.Length, (x: Map<string, any>) => {
-        // Capacity fast path: when the last array-part slot is
-        // occupied, Luau's getn returns sizearray (and beyond, via
-        // unbound search) regardless of interior holes —
-        // `t = table.create(5); t[5] = 5; #t == 5`.
-        const cap: number = (x as any).__luauCapacity ?? 0;
-        if (cap > 0 && x.has(String(cap))) {
-          let n = cap;
-          while (x.has(String(n + 1))) n++;
-          return n;
-        }
-        let b: number = (x as any).__luauBoundary ?? 0;
-        while (b > 0 && !x.has(String(b))) b--;
-        while (x.has(String(b + 1))) b++;
-        (x as any).__luauBoundary = b;
-        return b;
-      });
+      this.AddObjectUnaryOp(this.Length, luauTableBorder);
 
       let divertTargetsEqual = (d1: SymbolRef, d2: SymbolRef) => d1.Equals(d2);
       let divertTargetsNotEqual = (d1: SymbolRef, d2: SymbolRef) =>

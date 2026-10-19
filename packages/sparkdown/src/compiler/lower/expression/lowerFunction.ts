@@ -302,7 +302,7 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
   // Functions
   "assert", "collectgarbage", "error", "gcinfo", "getfenv",
   "getmetatable", "ipairs", "loadstring", "newproxy", "next",
-  "pairs", "pcall", "print", "rawequal", "rawget", "rawset",
+  "pairs", "pcall", "print", "rawequal", "rawget", "rawlen", "rawset",
   "require", "select", "setfenv", "setmetatable", "tonumber",
   "tostring", "type", "typeof", "unpack", "xpcall",
   // Keywords / control (shouldn't be referenced as values but just in case)

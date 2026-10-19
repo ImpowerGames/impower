@@ -337,6 +337,33 @@ function requireTableArg(
 }
 
 /**
+ * A table's length without its `__len`, as `#t` and `rawlen(t)` read it:
+ * Luau's border, walked from the boundary the last length left (down
+ * while that slot is empty, then up while the next is filled). This
+ * reproduces the fixture-observable behaviors: deleting t[10] of a
+ * filled create(10) gives 9 (walk down), reverse-filling 5..2 gives 0
+ * until t[1] lands (walk up from 0), and create(5,42) keeps #t == 5
+ * after t[1] is cleared (cache).
+ */
+export function luauTableBorder(x: Map<string, any>): number {
+  // Capacity fast path: when the last array-part slot is occupied,
+  // Luau's getn returns sizearray (and beyond, via unbound search)
+  // regardless of interior holes — `t = table.create(5); t[5] = 5;
+  // #t == 5`.
+  const cap: number = (x as any).__luauCapacity ?? 0;
+  if (cap > 0 && x.has(String(cap))) {
+    let n = cap;
+    while (x.has(String(n + 1))) n++;
+    return n;
+  }
+  let b: number = (x as any).__luauBoundary ?? 0;
+  while (b > 0 && !x.has(String(b))) b--;
+  while (x.has(String(b + 1))) b++;
+  (x as any).__luauBoundary = b;
+  return b;
+}
+
+/**
  * Lua/Luau `type(v)` semantics: returns one of `"nil"`, `"number"`,
  * `"string"`, `"boolean"`, `"table"`, `"function"`, `"userdata"`.
  * Approximated for sparkdown's runtime by inspecting the wrapped
@@ -3151,9 +3178,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // `__tostring` metamethod — fires first for ObjectValue with a
       // metatable carrying the field. The metamethod is invoked via
       // `story.CallLuauFunction` (same path used by `__add` /
-      // `__index` function-form callbacks). The return value is
-      // expected to be a string; non-string returns fall through to
-      // the default representation.
+      // `__index` function-form callbacks). A string return is the
+      // result and a number return its text, as Luau's
+      // `luaL_tolstring` takes both; anything else is Luau's error.
       if (v instanceof ObjectValue && v.metatable instanceof ObjectValue) {
         const handler = (v.metatable.value as Map<string, AbstractValue>)?.get(
           "__tostring",
@@ -3165,11 +3192,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
           if (first != null && "value" in (first as any)) {
             const raw = (first as any).value;
             if (typeof raw === "string") return raw;
+            if (typeof raw === "number") {
+              return STDLIB["tostring"]!.fn(story, [first]);
+            }
           }
-          // Non-string return from __tostring — fall through to the
-          // default. Luau errors here; sparkdown is more lenient
-          // since narrative-fiction code often relies on string
-          // coercion working broadly.
+          story.Error("'__tostring' must return a string");
+          return;
         }
       }
       const ctorName = v?.constructor?.name;
@@ -3281,10 +3309,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // conformance test suite). Production hosts (LSP) leave the
       // formatter unset — source/line is surfaced through the
       // diagnostic UI separately, so a prefix in the message body
-      // would be redundant.
-      const message = story.errorMessageFormatter
-        ? story.errorMessageFormatter(story, raw)
-        : raw;
+      // would be redundant. Luau places the message at the function
+      // that called `error`, so `pcall(error, msg)`, called by a
+      // builtin, gets no prefix (`errorCalledByBuiltin`).
+      const message =
+        story.errorMessageFormatter && !story.errorCalledByBuiltin
+          ? story.errorMessageFormatter(story, raw)
+          : raw;
       // `story.Error` THROWS (raises a `StoryException`), so it's
       // trappable by `pcall`. `story.AddError` would call
       // `ForceEnd`, wiping the call stack and defeating pcall's
@@ -3308,6 +3339,21 @@ export const STDLIB: Record<string, StdLibEntry> = {
           ? (b as any).value
           : b;
       return av === bv;
+    },
+  },
+
+  // `rawlen(v)` — a table's or a string's length without `__len`.
+  rawlen: {
+    arity: 1,
+    validatesArgs: true,
+    fn: (story, [v]) => {
+      if (v instanceof ObjectValue && v.value instanceof Map) {
+        return luauTableBorder(v.value as Map<string, any>);
+      }
+      if (v instanceof StringValue) return (v.value ?? "").length;
+      return story.Error(
+        "invalid argument #1 to 'rawlen' (table or string expected)",
+      );
     },
   },
 
@@ -3518,10 +3564,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // field if the metatable carries one (Luau metatable protection
   // pattern — lets a class hide its real metatable behind a sentinel
   // so user code can't tamper with it via `setmetatable`).
-  // Non-table args return nil (matches Lua's tolerant behavior).
+  // Non-table args return nil (matches Lua's tolerant behavior); no
+  // argument at all is Luau's error, as `pcall(getmetatable)` raises it.
   getmetatable: {
     arity: 1,
-    fn: (_, [t]) => {
+    fn: (story, args) => {
+      if (args.length === 0) {
+        story.Error("missing argument #1 to 'getmetatable'");
+        return;
+      }
+      const t = args[0];
       if (!(t instanceof ObjectValue)) return new NullValue();
       const mt = t.metatable;
       if (!(mt instanceof ObjectValue)) return new NullValue();
