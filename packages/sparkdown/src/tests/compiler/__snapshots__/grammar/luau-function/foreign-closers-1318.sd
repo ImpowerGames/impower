@@ -1,0 +1,46 @@
+function paren()
+  (::,
+end
+function untilSemicolon()
+  local x = 0
+  repeat x = x + 1 until x >= 3;
+  repeat until 1; repeat until true;
+end
+function keywordMethod()
+  local a = {}
+  local b = a:do
+  local c = a:end
+end
+function whileWithoutDo()
+  while true
+end
+function forWithoutDo()
+  for x in t
+end
+function repeatWithoutUntil()
+  repeat
+  x = 1
+end
+function openInterpolation()
+  f(`expression = {--[[ bla bla bla ]]`)
+  f(`a {b`)
+  f(`a {b} c)
+end
+function openString()
+  local x: "a = 1
+  f(x)
+end
+function foreignBracket()
+  local t = { g(1 }
+  local u = ( { 1 )
+  local x: {a: number) = 1
+end
+function strayCloser()
+  return f(1 ]
+  print(a) ]
+  if (a ] then end
+  while (a } do end
+  for k, v in pairs(t ] do end
+  repeat until (x ]
+end
+After {paren()}.

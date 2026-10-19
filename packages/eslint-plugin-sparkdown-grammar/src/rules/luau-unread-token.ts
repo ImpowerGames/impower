@@ -64,6 +64,27 @@ export function exemption(name: string): string | undefined {
   return EXEMPT.find((entry) => entry.names.test(name))?.reason;
 }
 
+/**
+ * Why a `begin`/`end` rule is closer-bounded, with the closer its `end:`
+ * consumes (none for a rule that holds a block's body and consumes no
+ * closer) and its compiled `end:`; undefined when it is not, or when its
+ * `end:` does not compile.
+ */
+export function closerBounded(
+  index: GrammarIndex,
+  mapping: YAMLMapping,
+): { why: string; closer?: string; regex: RegExp } | undefined {
+  const end = findPair(mapping, "end");
+  if (!findPair(mapping, "begin") || !end || !isScalar(end.value) || typeof end.value.value !== "string") return undefined;
+  const regex = compile(index, end.value.value);
+  if (!regex) return undefined;
+  const consumed = CLOSERS.find((token) => consumes(regex, token));
+  const closer = consumed !== undefined && !ORDINARY.some((token) => consumes(regex, token)) ? consumed : undefined;
+  if (patternIncludes(mapping).includes(BLOCK_BODY)) return { why: `it holds \`#${BLOCK_BODY}\``, closer, regex };
+  if (closer !== undefined) return { why: `its \`end:\` consumes \`${closer}\``, closer, regex };
+  return undefined;
+}
+
 function compile(index: GrammarIndex, end: string): RegExp | null {
   try {
     return new RegExp(withoutBackreferences(resolveVariables(index, end, false)), "muy");
@@ -166,16 +187,10 @@ const { rule, find } = defineBaselinedRule(
       const regex = compile(index, end.value.value);
       if (!regex) continue;
       const includes = patternIncludes(mapping);
-      const closer = CLOSERS.find((token) => consumes(regex, token));
-      const ordinary = ORDINARY.some((token) => consumes(regex, token));
-      const why = includes.includes(BLOCK_BODY)
-        ? `it holds \`#${BLOCK_BODY}\``
-        : closer !== undefined && !ordinary
-          ? `its \`end:\` consumes \`${closer}\``
-          : undefined;
-      if (why !== undefined) {
+      const bounded = closerBounded(index, mapping);
+      if (bounded !== undefined) {
         if (exemption(owner.name) !== undefined || includes[includes.length - 1] === UNREAD_TOKEN) continue;
-        findings.push({ owner: owner.id, loc: end.value.loc, messageId: "missing", data: { name, why } });
+        findings.push({ owner: owner.id, loc: end.value.loc, messageId: "missing", data: { name, why: bounded.why } });
       } else if (included && !consumesAnything(regex)) {
         findings.push({ owner: owner.id, loc: end.value.loc, messageId: "zeroWidth", data: { name } });
       }

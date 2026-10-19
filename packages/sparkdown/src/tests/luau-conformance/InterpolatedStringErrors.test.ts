@@ -160,21 +160,14 @@ describe.skip("call without parens (diverges: a backtick after a name is not a c
 // Luau: parse_interpolated_string_weird_token
 // "Malformed interpolated string, got '!'"
 //
-// The interpolation `{42 !!}` is reported, but as an unterminated `{`: the
-// grammar's interpolation scope ends at the first `}` it can match, and a
-// stray token inside it is not distinguished from a missing brace.
+// The interpolation reads the stray tokens as tokens it left unread, as a
+// bracket does (I-1318), and goes on to its `}`, so Luau's first error is
+// reported at them.
 describe("a stray token inside an interpolation", () => {
-  test("`??? {42 !!}` is reported", () => {
-    const msgs = diagnoseInFunction("local a = `??? {42 !!}`");
-    expect(msgs.some((m) => m.includes(MISSING_BRACE))).toBe(true);
-  });
-
-  describe.skip("verbatim (diverges: reported as a missing `}`)", () => {
-    test("`??? {42 !!}`", () => {
-      expect(diagnoseInFunction("local a = `??? {42 !!}`")).toContain(
-        "Malformed interpolated string, got '!'",
-      );
-    });
+  test("`??? {42 !!}`", () => {
+    expect(diagnoseInFunction("local a = `??? {42 !!}`")).toContain(
+      "Malformed interpolated string, got '!'",
+    );
   });
 });
 

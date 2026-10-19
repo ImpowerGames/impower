@@ -526,6 +526,14 @@ const KEYWORDS = new Set([
 // The keywords that close a block, which the grammar reads only as closers.
 const BLOCK_CLOSERS = new Set(["end", "else", "elseif", "until"]);
 
+// The symbols that close a bracket, before each of which the grammar closes
+// a bracket that did not open it (`LUAU_NOT_PARENTHESIS_CLOSER` and the
+// like), a type's included (`Array<(number>`).
+const BRACKET_CLOSERS = new Set([")", "]", "}", ">"]);
+
+// The loops of Luau code whose body is a `do` block.
+const LUAU_LOOPS = new Set(["LuauWhileLoop", "LuauForLoop"]);
+
 // The reserved words a type can hold, among a `local`'s annotated names.
 const TYPE_KEYWORDS = new Set(["nil", "true", "false"]);
 
@@ -543,7 +551,8 @@ function isIfExpressionKeyword(node: SyntaxNode | undefined): boolean {
 // of its own construct (an `elseif` to its `if`'s `else`). The grammar
 // closes a block before any other closer, with nothing in its `_end`, and
 // leaves it to the block around (`LUAU_BRANCH_OR_UNTIL_AHEAD` and the like).
-// A bracket takes none.
+// A bracket takes none: its own closer is in its `_end`, and it closes with
+// nothing there before any other closer, a bracket's included (I-1318).
 const OWN_CLOSERS: Readonly<Record<string, ReadonlySet<string>>> = (() => {
   const end = new Set(["end"]);
   const branches = new Set(["end", "else", "elseif"]);
@@ -571,6 +580,13 @@ const OWN_CLOSERS: Readonly<Record<string, ReadonlySet<string>>> = (() => {
     LuauTableIndexDeclaration: none,
     LuauTypeofFunctionParameters: none,
     LuauSparkleHandlerClosure: none,
+    LuauTypeFunctionParameters: none,
+    LuauTypeTableStruct: none,
+    LuauTypeTableIndexer: none,
+    LuauNamedTypeArguments: none,
+    LuauTypeGenerics: none,
+    LuauGenericsDeclaration: none,
+    LuauGenericsInstantiation: none,
   };
 })();
 
@@ -709,6 +725,8 @@ class Tokenizer {
    * closer closes a block around it, as Luau closes it.
    */
   private closedBefore?: { at: number; owned: ReadonlySet<string> };
+  /** The index of the token after a Luau loop with no `do` block (`readHeaderOnlyLoop`), where Luau may find the `do` missing. */
+  private headerOnlyLoopEnd?: number;
 
   constructor(
     readonly text: string,
@@ -738,9 +756,18 @@ class Tokenizer {
     // an `if` with no `end`, #1209) is where Luau reports the block left
     // open, so the errors there are Luau's to report, as at a token the
     // grammar left unread.
+    // A bracket closer right after a bracket the tree closed before it
+    // (`{ f(1 }`, I-1318) is where Luau reports the bracket left open too.
     const closed = this.closedBefore;
-    if (closed?.at === this.tokens.length && kind === "keyword" && BLOCK_CLOSERS.has(token.text) && !closed.owned.has(token.text)) {
+    const closer = (kind === "keyword" && BLOCK_CLOSERS.has(token.text)) || (kind === "symbol" && BRACKET_CLOSERS.has(token.text));
+    if (closed?.at === this.tokens.length && closer && !closed.owned.has(token.text)) {
       token.unread = true;
+    }
+    // The token after a Luau loop with no `do` block is where Luau may
+    // report the `do` missing (`readHeaderOnlyLoop`).
+    if (this.headerOnlyLoopEnd === this.tokens.length) {
+      token.loopHeader = true;
+      this.headerOnlyLoopEnd = undefined;
     }
     // So is a reserved word where a `local` needs its name (`local end`,
     // #1906): the grammar ends the declaration with no name, and the word
@@ -960,7 +987,26 @@ class Tokenizer {
       this.readFunctionDefinition(node);
       return;
     }
+    if (LUAU_LOOPS.has(name) && !node.getChild(`${name}_content`)?.getChild("LuauDoBlock")) {
+      this.readHeaderOnlyLoop(node);
+      return;
+    }
     this.readChildren(node);
+  }
+
+  /**
+   * A `while` or `for` loop in Luau code with no `do` block ends at its
+   * header's line, or before a closer it does not own (`while true` before
+   * the function's `end`, I-1318). Luau's error for the missing `do` (or
+   * `in`) is at a token of the header or at the token after it, which no
+   * rule of the grammar reports, so the errors there are the loop's, as a
+   * story loop's are (#1907); the lowerer reports nothing for it.
+   */
+  private readHeaderOnlyLoop(node: SyntaxNode): void {
+    const first = this.tokens.length;
+    this.readChildren(node);
+    for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.loopHeader = true;
+    this.headerOnlyLoopEnd = this.tokens.length;
   }
 
   /**
@@ -3726,6 +3772,10 @@ class Parser {
     return quotedValue(token.text.slice(1, token.text.length - 1));
   }
 
+  private locationOf(from: number, to: number): Location {
+    return new Location(this.ctx.index.position(from), this.ctx.index.position(to));
+  }
+
   private parseString(): AstExpr {
     const token = this.current();
     this.next();
@@ -3744,37 +3794,42 @@ class Parser {
    * interpolations; `unclosed` when an interpolation is missing its closing
    * brace, after which the string's own end is not where the tree ends it.
    */
-  private stringParts(token: Token, interpolation: string): { strings: string[]; expressions: AstExpr[]; unclosed: boolean } | undefined {
+  private stringParts(token: Token, interpolation: string, after?: Token): { strings: string[]; expressions: AstExpr[]; unclosed: boolean; segment: Location } | undefined {
     const node = token.node!;
     const strings: string[] = [];
     const expressions: AstExpr[] = [];
     const text = this.ctx.text;
     let at = token.from + 1;
+    // Where the string's current section (Luau's lexeme) begins: the opening
+    // quote, then each interpolation's closing brace.
+    let section = token.from;
     const close = token.to - 1;
     for (const child of stringPartNodes(node, interpolation)) {
       const isShorthand = CALL_SHORTHANDS.has(child.name);
       const value = quotedValue(text.slice(at, child.from));
       if (value === undefined) return undefined;
       strings.push(value);
-      const part = this.interpolation(child, isShorthand);
+      const segment = this.locationOf(section, child.from + (isShorthand ? 2 : 1));
+      const part = this.interpolation(child, isShorthand, segment, after);
       expressions.push(part.expr);
       if (!part.closed) {
         strings.push("");
-        return { strings, expressions, unclosed: true };
+        return { strings, expressions, unclosed: true, segment };
       }
       at = child.to;
+      section = child.to - (isShorthand ? 2 : 1);
     }
     const value = quotedValue(text.slice(at, Math.max(at, close)));
     if (value === undefined) return undefined;
     strings.push(value);
-    return { strings, expressions, unclosed: false };
+    return { strings, expressions, unclosed: false, segment: this.locationOf(section, token.to) };
   }
 
   /**
    * The expression of an interpolation (`{x}`), or of a `{{f}}` shorthand,
    * and whether its closing braces are written.
    */
-  private interpolation(node: SyntaxNode, shorthand: boolean): { expr: AstExpr; closed: boolean } {
+  private interpolation(node: SyntaxNode, shorthand: boolean, segment?: Location, after?: Token): { expr: AstExpr; closed: boolean } {
     const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
     tokenizer.readChildren(node);
     const inner = tokenizer.tokens;
@@ -3788,11 +3843,25 @@ class Parser {
     const location = new Location(this.ctx.index.position(node.from), this.ctx.index.position(node.to));
     // The reading of the expression ends at its closing braces, or where the interpolation ends.
     const end = closed ? Location.span(closers[0]!.location, closers[closers.length - 1]!.location) : new Location(location.end, location.end);
+    // A backtick string's interpolation left open, which goes on over lines
+    // and ends before a closer it did not open (I-1318), is reported as
+    // Luau's parser reports it, at the string's section that opened it
+    // (`segment`): a string Luau's lexer could not finish on its line right
+    // after the `{` (`` `a {"x ``), or a token after the expression other than
+    // such a string (`` `a {b `` and then `end`, the token after the
+    // interpolation, `after`).
+    const broken = (token: Token | undefined) => (token?.kind === "string" || token?.kind === "interp") && !isFinished(token);
+    if (segment && !closed && broken(body[0])) {
+      return { expr: this.reportExprError(segment, [], "Malformed interpolated string; did you forget to add a '`'?"), closed };
+    }
     const expr = this.withTokens(body, end, () => {
       if (body.length === 0) return this.reportExprError(location, [], "Malformed interpolated string, expected expression inside '{}'");
       const e = this.parseExpr();
       // Without its closing brace, the interpolation ends where its expression does, as Luau reports it.
-      if (!closed) this.report(this.current().location, "Malformed interpolated string; did you forget to add a '}'?");
+      if (!closed && segment && !broken(this.current()) && (this.current().kind !== "eof" || after)) {
+        const found = this.current().kind === "eof" ? after! : this.current();
+        this.report(segment, `Malformed interpolated string, got ${describe(found)}`);
+      } else if (!closed) this.report(this.current().location, "Malformed interpolated string; did you forget to add a '}'?");
       else if (this.current().kind !== "eof") this.report(this.current().location, `Malformed interpolated string, got ${describe(this.current())}`);
       return e;
     });
@@ -3820,13 +3889,17 @@ class Parser {
   private parseInterpString(): AstExpr {
     const token = this.current();
     this.next();
-    const parts = this.stringParts(token, BACKTICK_INTERPOLATION);
+    const parts = this.stringParts(token, BACKTICK_INTERPOLATION, this.current());
     if (!parts) return this.reportExprError(token.location, [], "Interpolated string literal contains malformed escape sequence");
     if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
     // The closing backtick is the string node's own end, not a backtick inside it.
     const end = token.node?.getChild("LuauInterpolatedString_end");
     if (!end || !/`/.test(this.ctx.text.slice(end.from, end.to))) {
-      return this.reportExprError(token.location, parts.expressions, "Malformed interpolated string; did you forget to add a '`'?");
+      // The string ends at its line (I-1318). Luau's lexer reads one with no
+      // interpolation as a string it could not finish, and one with an
+      // interpolation as its last section, from the last `}`, unfinished.
+      if (parts.expressions.length === 0) return this.reportExprError(token.location, [], "Malformed string; did you forget to finish it?");
+      return this.reportExprError(parts.segment, parts.expressions, "Malformed interpolated string; did you forget to add a '`'?");
     }
     // A string with no interpolation is a plain string to Luau.
     if (parts.expressions.length === 0) return new AstExprConstantString(token.location, parts.strings[0]!, QuoteStyle.QuotedSimple);

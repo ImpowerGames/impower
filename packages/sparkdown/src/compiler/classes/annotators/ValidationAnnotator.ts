@@ -131,6 +131,28 @@ const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
 const LUAU_WHITESPACE_RUN = /^[ \t\r\n\v\f]+$/;
 
 const MALFORMED_STRING = "Malformed string; did you forget to finish it?";
+// Luau's errors for a backtick string its line ends inside after an
+// interpolation, and for an interpolation left open before a string its line
+// ends inside (I-1318).
+const UNFINISHED_INTERPOLATED_STRING =
+  "Malformed interpolated string; did you forget to add a '`'?";
+const UNCLOSED_INTERPOLATION =
+  "Malformed interpolated string; did you forget to add a '}'?";
+const BACKTICK_INTERPOLATIONS = nodeNameSet([
+  "LuauBacktickStringInterpolation",
+  "LuauBacktickFunctionCallShorthand",
+]);
+// The ends of a backtick string's interpolations, which take a string their
+// line ends inside.
+const BACKTICK_INTERPOLATION_ENDS = nodeNameSet([
+  "LuauBacktickStringInterpolation_end",
+  "LuauBacktickFunctionCallShorthand_end",
+]);
+
+/** The number of braces an interpolation opens and closes with: two for the `{{f}}` shorthand. */
+function interpolationBraces(node: { name: string }): number {
+  return node.name === "LuauBacktickFunctionCallShorthand" ? 2 : 1;
+}
 const MALFORMED_NUMBER = "Malformed number";
 const UNSUPPORTED_INTEGER =
   "Luau 64-bit integer literals are not supported in Sparkdown";
@@ -741,6 +763,67 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * up as wrong program behavior rather than an error at the typo. The
    * wording matches Luau's parser so its diagnostic tests apply verbatim.
    */
+  /** A backtick string's interpolations and `{{f}}` shorthands, in order. */
+  protected backtickInterpolations(stringNode: any): any[] {
+    const content = childNamed(stringNode, `${stringNode.name}_content`);
+    const parts: any[] = [];
+    for (let c = content?.firstChild; c; c = c.nextSibling) {
+      if (BACKTICK_INTERPOLATIONS.has(c.name)) parts.push(c);
+    }
+    return parts;
+  }
+
+  /** Whether an interpolation ends with its closing braces. */
+  protected isClosedInterpolation(node: any): boolean {
+    const end = childNamed(node, `${node.name}_end`);
+    return !!end && this.read(end.from, end.to).startsWith("}");
+  }
+
+  /**
+   * Luau's error for a backtick string's interpolation left open (I-1318), as
+   * its parser reports it after the interpolation's opening section (from
+   * the string's opening quote, or from the `}` before, through the `{`):
+   * a string its line ends inside, which the interpolation's end takes, is
+   * the token after the expression (`` `a {b`) ``), or the expression itself
+   * when nothing comes before it (`` `a {"x ``), and any other token after
+   * the expression is the one Luau finds there (`` `a {b `` and then `end`).
+   */
+  protected unclosedBacktickInterpolation(node: any): {
+    message: string;
+    from: number;
+    to: number;
+  } {
+    const braces = interpolationBraces(node);
+    let section = node.parent?.parent?.from ?? node.from;
+    for (const part of this.backtickInterpolations(node.parent?.parent)) {
+      if (part.from >= node.from) break;
+      section = part.to - interpolationBraces(part);
+    }
+    const opening = { from: section, to: node.from + braces };
+    const content = childNamed(node, `${node.name}_content`);
+    let expression = false;
+    for (let c = content?.firstChild; c && !expression; c = c.nextSibling) {
+      expression = !/Comment/.test(c.name) && this.read(c.from, c.to).trim() !== "";
+    }
+    const end = childNamed(node, `${node.name}_end`);
+    let broken: any = null;
+    for (let c = end?.firstChild; c && !broken; c = c.nextSibling) {
+      if (LUAU_STRING.has(c.name)) broken = c;
+      else for (let d = c.firstChild; d && !broken; d = d.nextSibling) if (LUAU_STRING.has(d.name)) broken = d;
+    }
+    if (broken && !expression) return { message: UNFINISHED_INTERPOLATED_STRING, ...opening };
+    if (broken) return { message: UNCLOSED_INTERPOLATION, from: broken.from, to: broken.to };
+    return { message: `Malformed interpolated string, got ${this.describeTokenAt(node.to)}`, ...opening };
+  }
+
+  /** The token at or after a position, as Luau's parser names it in an error. */
+  protected describeTokenAt(pos: number): string {
+    const rest = this.read(pos, Math.min(pos + 256, this.text?.length ?? pos)).replace(/^[ \t\r\n\v\f]+/, "");
+    if (!rest) return "<eof>";
+    const word = /^[A-Za-z0-9_]+/.exec(rest)?.[0];
+    return `'${word ?? rest[0]}'`;
+  }
+
   protected validateLuauLiteral(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -761,34 +844,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           ? "Interpolated string literal contains malformed escape sequence"
           : "String literal contains malformed escape sequence";
       const content = childNamed(node, `${name}_content`);
-      // `\z` skips every ASCII whitespace character after it (Luau's lexer
-      // set: space, tab, CR, LF, VT, FF), line breaks included, so a newline
-      // inside that run is not the end of the string. A non-breaking space or
-      // any other Unicode space ends the run, as it does in Luau.
-      let skippingWhitespace = false;
-      let prev: any = null;
-      for (let c = content?.firstChild; c; prev = c, c = c.nextSibling) {
-        if (
-          skippingWhitespace &&
-          LUAU_WHITESPACE_RUN.test(this.read(c.from, c.to))
-        ) {
-          continue;
-        }
-        skippingWhitespace = false;
-        // A quoted string ends at its line unless the newline is escaped
-        // with `\` + newline.
-        if (c.name === "Newline") {
-          if (!prev || prev.name !== "LuauEscapeLine") {
-            this.error(annotations, MALFORMED_STRING, nodeRef.from, c.from);
-            return true;
-          }
-          continue;
-        }
+      // A quoted string's line break is either the line it is not finished
+      // on, where the grammar ends it (see below), or one a `\` or a `\z`
+      // carries it over, which `LuauEscapeLine` takes with the escape.
+      for (let c = content?.firstChild; c; c = c.nextSibling) {
         const esc = this.read(c.from, c.to);
         let malformed = false;
-        if (c.name === "LuauEscapeStandard" && esc === "\\z") {
-          skippingWhitespace = true;
-        } else if (c.name === "LuauEscapeAny") {
+        if (c.name === "LuauEscapeAny") {
           // `\x` and `\u` only reach here when their digits are missing.
           malformed = esc === "\\x" || esc === "\\u";
         } else if (c.name === "LuauEscapeDecimal") {
@@ -805,10 +867,31 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return true;
         }
       }
-      // No newline and no closing quote: the string runs to the end of the
-      // file (a quoted string is always the last thing on its line, so the
-      // newline check above reports every other unfinished one).
-      if (!childNamed(node, `${name}_end`)) {
+      // No closing quote: the string ends at its line, or at the end of the
+      // file, with nothing in its `_end`, as Luau's lexer ends it there.
+      const end = childNamed(node, `${name}_end`);
+      if (!end || end.from === end.to) {
+        // A string a backtick string's interpolation ended with
+        // (`` `a {b`) ``) is the interpolation's error, reported at it.
+        if (ancestorMatching(nodeRef.node, BACKTICK_INTERPOLATION_ENDS)) {
+          return true;
+        }
+        // A backtick string with an interpolation is unfinished in its last
+        // section, from that interpolation's `}`, as Luau's lexer reads it;
+        // an interpolation left open is reported at the interpolation.
+        const parts = this.backtickInterpolations(node);
+        const last = parts[parts.length - 1];
+        if (last) {
+          if (this.isClosedInterpolation(last)) {
+            this.error(
+              annotations,
+              UNFINISHED_INTERPOLATED_STRING,
+              last.to - interpolationBraces(last),
+              nodeRef.to,
+            );
+          }
+          return true;
+        }
         this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
         return true;
       }
@@ -1630,6 +1713,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
       const closed = raw.trimEnd().endsWith("}");
+      // A backtick string's interpolation may go on over lines, so it is
+      // left open where Luau's parser meets what ends it (I-1318).
+      if (!closed && BACKTICK_INTERPOLATIONS.has(nodeRef.name)) {
+        const error = this.unclosedBacktickInterpolation(nodeRef.node);
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message: error.message,
+            severity: "error",
+          }).range(error.from, error.to),
+        );
+        return annotations;
+      }
       if (!closed) {
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
