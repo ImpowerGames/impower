@@ -51,6 +51,26 @@ const POSITIONS: [string, (word: string) => string, string][] = [
     "Go 3.\n",
   ],
   [
+    "the second name of a local's list",
+    (word) => `Go {f()}.\nfunction f()\n  local a, ${word} = 1, 2\n  return a + ${word}\nend\n`,
+    "Go 3.\n",
+  ],
+  [
+    "the second name of a const's list",
+    (word) => `Go {f()}.\nfunction f()\n  const a, ${word} = 1, 2\n  return a + ${word}\nend\n`,
+    "Go 3.\n",
+  ],
+  [
+    "the second parameter",
+    (word) => `Go {f(1, 2)}.\nfunction f(a, ${word})\n  return a + ${word}\nend\n`,
+    "Go 3.\n",
+  ],
+  [
+    "a generic for's second variable",
+    (word) => `Go {f()}.\nfunction f()\n  local n = 0\n  for _, ${word} in ipairs({1, 2}) do\n    n = n + ${word}\n  end\n  return n\nend\n`,
+    "Go 3.\n",
+  ],
+  [
     "a table key",
     (word) => `Go {f()}.\nfunction f()\n  local t = {${word} = 4}\n  t.${word} = t.${word} + 1\n  return t.${word}\nend\n`,
     "Go 5.\n",
@@ -91,6 +111,27 @@ describe.skip(`\`define\` and \`store\` as Luau names (grammar gap, ${GRAMMAR_GA
       expect(text).toBe(expected);
     });
   }
+});
+
+describe("names in a list (#1292)", () => {
+  test("ink-era words as names together, a const among them", () => {
+    const { errors, text } = run(
+      [
+        "Go {scene(5)}.",
+        "function scene(include)",
+        "  local var = {temp = include}",
+        "  const branch, const = var.temp, 2",
+        "  do",
+        "    const branch = 3",
+        "  end",
+        "  return branch + const",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 7.\n");
+  });
 });
 
 describe("a Luau keyword is still not a name (#1292)", () => {
@@ -166,10 +207,10 @@ describe("a `const` inside a function follows Luau (#1293)", () => {
 
   test("a call that returns fewer values than names leaves the rest nil", () => {
     const { errors, text } = run(
-      "Go {run()}.\nfunction run()\n  local function two()\n    return 1, 2\n  end\n  const X, Y, Z = two()\n  return X + Y, Z\nend\n",
+      "Go {run()}.\nfunction run()\n  local function two()\n    return 1, 2\n  end\n  const X, Y, Z = two()\n  return X .. \":\" .. Y .. \":\" .. tostring(Z)\nend\n",
     );
     expect(errors).toEqual([]);
-    expect(text).toBe("Go 3.\n");
+    expect(text).toBe("Go 1:2:nil.\n");
   });
 
   test.each([

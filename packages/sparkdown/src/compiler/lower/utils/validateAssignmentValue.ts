@@ -14,7 +14,7 @@ import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, RESERVED } from "../../typecheck/LuauUnitNodes";
 import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
 import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
@@ -247,6 +247,10 @@ export function validateListComma(
   const after = nextSignificantToken(comma, at + 1, read, ctx.documentText, authoredIslandEnd(comma, wholeDocument(comma, read, ctx.documentText)));
   if (after && luauReadingReportsUnread(comma, after.from, read)) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
+  // A name after the comma on its line, before the `=`, is the next binding
+  // name to Luau, whatever statement the grammar begins at its word
+  // (`local a, const = 1, 2`): only a token that is not a name is missing one.
+  if (!afterAssignment && got && isLuauName(got.text) && !ctx.read(at, got.from).includes("\n")) return;
   const parsing = afterAssignment ? "expression" : "binding name";
   ctx.diagnostics.push({
     message: `Expected identifier when parsing ${parsing}, got ${display(got)}`,
@@ -667,6 +671,11 @@ function tokenAt(
   let end = 1;
   while (end < trimmed.length && isNameChar(trimmed.charCodeAt(end))) end++;
   return { text: trimmed.slice(0, end), from: start };
+}
+
+/** Whether a token is a name to Luau: a word that is not one of its keywords. */
+function isLuauName(text: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(text) && !RESERVED.has(text);
 }
 
 function display(got: { text: string } | null): string {
