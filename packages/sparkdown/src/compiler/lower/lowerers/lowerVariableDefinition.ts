@@ -18,6 +18,7 @@ import {
   type PathName,
 } from "../expression/lowerExpression";
 import { rangeOf } from "../utils/luauAst";
+import { publishesConst, reportMissingConstInitializer } from "../utils/publishesConst";
 import { statementSource } from "../utils/statementSource";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -26,9 +27,11 @@ import type { StatementSite } from "./lowerLuauStatement";
 /**
  * A declaration: `local` names (a temporary of the enclosing flow or
  * function), `store` names (globals the story saves, registered at the story
- * level and evaluated at its start) and a `const` (a global that does not
- * change). The validators of the declaration's syntax node report what its
- * list leaves missing (`validateVariableDefinition`).
+ * level and evaluated at its start) and a `const` outside every function (a
+ * global that does not change). A `const` inside a function is Luau's, and
+ * is lowered as a `local`: its names, its values and its errors are Luau's
+ * (`publishesConst`). The validators of the declaration's syntax node report
+ * what its list leaves missing (`validateVariableDefinition`).
  */
 export function lowerVariableDefinition(
   stat: AstStatLocal | AstStatSparkdownStore,
@@ -38,9 +41,12 @@ export function lowerVariableDefinition(
   const scope =
     stat instanceof AstStatSparkdownStore
       ? "store"
-      : stat.isConst
+      : stat.isConst && publishesConst(ctx)
         ? "const"
         : "local";
+  // A function's `const` with more names than values, and no call or `...`
+  // last to give the rest, is Luau's error on the declaration.
+  if (stat instanceof AstStatLocal) reportMissingConstInitializer(stat, site.node, ctx);
   const targets: PathName[] =
     stat instanceof AstStatLocal
       ? stat.vars.map((v) => ({ name: v.name, location: v.location }))
@@ -177,7 +183,15 @@ export function lowerVariableDefinition(
   }
 
   // Single target. If there are multiple RHS expressions (`local x = a, b`),
-  // Lua truncates to the first value.
+  // Lua truncates to the first value, but still evaluates the rest
+  // (`local x = 1, bump()` calls `bump`), as the multiple assignment does
+  // (`lowerReassignment.ts`, `lowerMultipleAssignment`).
+  if (scope === "local" && expressions.length > 1) {
+    if (lastIdentifier.name) shadowSiblingSubFlow(lastIdentifier.name, ctx);
+    return wrapInWeave([
+      new MultiVariableAssignment([lastIdentifier], expressions, true),
+    ]);
+  }
   //
   // A declaration with no value (`local x`, `store x`, or either with an
   // `=` whose value the parser could not read, which the type checker

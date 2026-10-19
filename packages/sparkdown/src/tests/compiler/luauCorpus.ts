@@ -92,15 +92,6 @@ export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
     "typecheck/TypeInfer.test.cpp/fuzzer_missing_follow_in_assign_index_constraint",
     "typecheck/TypeInfer.singletons.test.cpp/table_properties_alias_or_parens_is_indexer",
   ]),
-  ...failing(1991, "syntax", "Sparkdown rejects a local named `var` or `temp` as a reserved keyword; Luau accepts it", [
-    "typecheck/TypeInfer.singletons.test.cpp/oss_2010",
-    "typecheck/TypeInfer.tables.test.cpp/indexers_get_quantified_too",
-  ]),
-  ...failing(1992, "syntax", "Sparkdown applies its story-wide `const` rules to a function-local `const`; Luau accepts it", [
-    "typecheck/TypeInfer.const.test.cpp/const_extra_lvalues_are_nil_and_syntax_error_from_call",
-    "typecheck/TypeInfer.const.test.cpp/const_shadowing",
-    "typecheck/TypeInfer.tables.test.cpp/oss_2597_constraint_forcing_bad_refinement",
-  ]),
 ];
 
 function failing(issue: number, check: CorpusCheck, reason: string, inputs: string[]): KnownCorpusFailure[] {

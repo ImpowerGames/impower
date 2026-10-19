@@ -132,6 +132,25 @@ export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (fr
   return isCheckedLuau(root.resolveInner(position, 1), read);
 }
 
+/**
+ * Whether the type checker reports a syntax error of Luau's reading at a
+ * document position: the position is Luau it reads (`isCheckedLuau`), and
+ * not in a double-quoted string's interpolation, which is Sparkdown's own
+ * syntax, whose errors the reading leaves unflagged and the checker drops
+ * (`sparkdownDepth` in `readLuauAst.ts`). Elsewhere a lowerer that reads the
+ * Luau reports what must be reported.
+ */
+export function checkerReportsSyntaxAt(anyNode: SyntaxNode, position: number, read: (from: number, to: number) => string): boolean {
+  let root = anyNode;
+  while (root.parent) root = root.parent;
+  const node = root.resolveInner(position, 1);
+  if (!isCheckedLuau(node, read)) return false;
+  for (let n: SyntaxNode | null = node; n; n = n.parent) {
+    if (n.name === "LuauDoubleQuotedStringInterpolation") return false;
+  }
+  return true;
+}
+
 // Luau's reserved words, which are never a name.
 export const RESERVED: ReadonlySet<string> = new Set([
   "and",
@@ -198,6 +217,17 @@ export function breaksStatement(text: string): boolean {
 }
 
 /**
+ * Whether the reading ends a statement before one the tree begins that
+ * `breaksStatement` lets end it, given the text between the last token
+ * before that statement and its first word: only across a line end. On the
+ * line of the statement before, the reading carries that statement on
+ * (`local a, const = 1, 2` is one declaration), as Luau does.
+ */
+export function breaksAcrossLine(between: string): boolean {
+  return between.includes("\n");
+}
+
+/**
  * Whether the type checker's reading ends the statement before a node the
  * tree begins (`STATEMENT_BREAKS`), given the last Luau token before it,
  * comments aside. The reading carries a statement on into an assignment
@@ -228,16 +258,32 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   if (tokenFrom === undefined) return true;
   let root = node;
   while (root.parent) root = root.parent;
+  if (!isCheckedLuau(root.resolveInner(tokenFrom, 1), read)) return false;
+  return readingCarriesOnTo(node, tokenFrom, read);
+}
+
+/**
+ * Whether Luau's reading of a construct, the type checker's or a lowerer's
+ * own, carries its statement on to the token at `tokenFrom`: no statement
+ * the tree begins at the token is one the reading ends the construct's
+ * statement before (`STATEMENT_BREAKS`, `breaksStatement`, across a line
+ * end). Whether the type checker reads the construct at all is
+ * `checkerReadsOnTo`'s question, not this one's.
+ */
+export function readingCarriesOnTo(node: SyntaxNode, tokenFrom: number, read: (from: number, to: number) => string): boolean {
+  let root = node;
+  while (root.parent) root = root.parent;
   const token = root.resolveInner(tokenFrom, 1);
-  if (!isCheckedLuau(token, read)) return false;
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
     // The construct's last word, comments aside, is the token the reading
     // holds before this one.
-    const lastWord = /(?:^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)$/.exec(textWithoutComments(node, read).trimEnd())?.[1];
+    const own = textWithoutComments(node, read).trimEnd();
+    const lastWord = /(?:^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)$/.exec(own)?.[1];
     if (!endsStatementBefore(n.name, lastWord)) return true;
     const text = read(n.from, n.to);
-    return !(n.from + text.length - text.trimStart().length === tokenFrom && breaksStatement(text));
+    if (n.from + text.length - text.trimStart().length !== tokenFrom || !breaksStatement(text)) return true;
+    return !breaksAcrossLine(read(node.from + own.length, tokenFrom));
   }
   return true;
 }

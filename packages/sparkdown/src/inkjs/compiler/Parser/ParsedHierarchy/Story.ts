@@ -28,6 +28,7 @@ import { Path } from "./Path";
 import { VariableAssignment } from "./Variable/VariableAssignment";
 import { DebugMetadata } from "../../../../runtime/DebugMetadata";
 import { Stitch } from "./Stitch";
+import { RESERVED } from "../../../../compiler/typecheck/LuauUnitNodes";
 import { ObjectExpression } from "./Expression/ObjectExpression";
 import { VariableReference } from "./Variable/VariableReference";
 
@@ -122,38 +123,14 @@ export function sitesNaming(
 }
 
 export class Story extends FlowBase {
-  public static readonly IsReservedKeyword = (name?: string): boolean => {
-    switch (name) {
-      case "true":
-      case "false":
-      case "not":
-      case "return":
-      case "else":
-      case "temp":
-      case "INCLUDE":
-      case "include":
-      case "EXTERNAL":
-      case "external":
-      case "VAR":
-      case "var":
-      case "store":
-      case "CONST":
-      case "const":
-      // `LIST` / `list` are intentionally NOT reserved — sparkdown
-      // replaced ink's LIST type with Luau tables (see
-      // docs/runtime/DIVERGENCES.md), so the words are free for user identifiers
-      // (`store list = {…}`, `function list_all() end`, etc.).
-      case "DEFINE":
-      case "define":
-      case "function":
-      case "system":
-      case "scene":
-      case "branch":
-        return true;
-    }
-
-    return false;
-  };
+  /**
+   * Luau's keywords, the only words a name may not be. Sparkdown's own
+   * statements (`store`, `const`, `define`, `scene`, `branch`, ...) are
+   * recognized by their shape, so their words are names wherever Luau allows
+   * one (docs/runtime/DIVERGENCES.md, "Only Luau's keywords are reserved").
+   */
+  public static readonly IsReservedKeyword = (name?: string): boolean =>
+    name !== undefined && RESERVED.has(name);
 
   private _errorHandler: ErrorHandler | null = null;
   private _hadError: boolean = false;
@@ -956,9 +933,19 @@ export class Story extends FlowBase {
     typeNameOverride: string = "",
   ): void => {
     const typeNameToPrint: string = typeNameOverride || obj.typeName;
+    // Luau's keywords are reserved for Luau's names: a local, a parameter, a
+    // global, a struct and a function. A scene, a branch, a choice or a
+    // gather label is the story's own name, diverted to, which its
+    // construct's shape recognizes, so it may be any word (`+ (then)`).
+    const luauName =
+      symbolType === SymbolType.Temp ||
+      symbolType === SymbolType.Arg ||
+      symbolType === SymbolType.Var ||
+      symbolType === SymbolType.Struct ||
+      (obj instanceof FlowBase && obj.isFunction);
     if (identifier?.name) {
       for (const part of identifier.name.split(".")) {
-        if (Story.IsReservedKeyword(part)) {
+        if (luauName && Story.IsReservedKeyword(part)) {
           obj.Error(
             `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
             identifier?.debugMetadata,

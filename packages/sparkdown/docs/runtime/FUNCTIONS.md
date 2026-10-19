@@ -121,9 +121,10 @@ closure points at it. Each invocation reads and writes the same slot.
   closures share environment references, mutations are visible to all
   closures that captured the same frame.
 
-**`store` and `const` are exempt** — they're global, not lexically
-scoped. References to `store`/`const` go straight to globals, not
-through the environment chain.
+**`store` and a top-level `const` are exempt** — they're global, not
+lexically scoped. References to them go straight to globals, not
+through the environment chain. A `const` inside a function is a local
+of its block, like Luau's (`docs/runtime/DIVERGENCES.md`).
 
 > **Note on iteration variables**: numeric `for` (e.g. `for i = 1, 10 do`) drives a hidden index, and the user variable `i` is a fresh copy of it each iteration, so a body write to `i` does not change how the loop iterates (`src/tests/luau-conformance/LuaLoops.test.ts`). Loop variables are declared by the loop itself, so numeric and generic `for` loops compile inside anonymous functions and may shadow an outer local (`src/tests/luau-conformance/ForLoopVarCapture.test.ts`).
 
@@ -284,8 +285,8 @@ Order rationale:
 Sparkdown draws a sharp line between **persistent state** and
 **transient runtime state**:
 
-- **`store` and `const`** are the only persistent variable kinds. They
-  declare top-level globals. Save state contains exactly the
+- **`store` and a top-level `const`** are the only persistent variable
+  kinds. They declare top-level globals. Save state contains exactly the
   top-level `store` values (plus narrative flow position, read counts,
   random seed, etc. — all already handled by inkjs's existing
   serializer).

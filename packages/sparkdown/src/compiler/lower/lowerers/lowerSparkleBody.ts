@@ -13,7 +13,9 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { reportBodySyntaxErrors } from "../expression/lowerFunction";
-import { closureSyntaxErrors } from "../utils/luauAst";
+import { closureBodyAst, closureSyntaxErrors } from "../utils/luauAst";
+import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
 import {
   type Binding,
@@ -543,7 +545,17 @@ function lowerHandlerClosure(
     // With statement shapes on, each statement of the closure is recorded on
     // the evaluator's body, for the binary program (`openEvaluatorBody`).
     const shape = openEvaluatorBody(ctx, closureNode.from, closureNode.to);
+    // The closure runs as a function: a `const` in it is Luau's local.
+    const localConsts = ctx.localConsts;
+    ctx.localConsts = true;
+    const closureBody = body ? closureBodyAst(body, ctx) : null;
+    ctx.functionBindingsStack?.push(
+      functionBindings(loopVars.map((name) => ({ name })), closureBody, ctx),
+    );
     const stmts = lowerStatements(body, ctx, undefined, shape);
+    if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
+    ctx.functionBindingsStack?.pop();
+    ctx.localConsts = localConsts;
     if (body) reportBodySyntaxErrors(closureSyntaxErrors(body, ctx), ctx);
     const fn = new Function(
       new Identifier(exprId),

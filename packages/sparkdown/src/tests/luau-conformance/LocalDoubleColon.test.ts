@@ -12,7 +12,6 @@ describe("a local target followed by `::`", () => {
     "local x::number",
     "local a, b :: number",
     "local x :: number = 1",
-    "const x :: number = 1",
     "local x :: number -- note",
     "function f() local x :: number end",
   ])(
@@ -26,6 +25,17 @@ describe("a local target followed by `::`", () => {
       ]);
     },
   );
+
+  // A `const` of Luau's (here a Luau unit's) with no value before its `::`
+  // has no initializer either, which both official parsers report on the
+  // declaration before the `::` (#1319).
+  test("\"const x :: number = 1\" reports its missing initializer and the `::`", () => {
+    const { syntaxDiagnostics } = checkLuau("const x :: number = 1\n");
+    expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toEqual([
+      [0, 0, 0, 7, "Missing initializer in const declaration"],
+      [0, 8, 0, 10, "Expected identifier when parsing expression, got '::'"],
+    ]);
+  });
 
   // A narrative declaration ends at its line, even when it ends in a type
   // that a `|` line could go on with in Luau code (#1907).
