@@ -48,6 +48,7 @@ import {
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { checkerReportsSyntaxAt } from "../../typecheck/LuauUnitNodes";
+import { publishesConst } from "../utils/publishesConst";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -168,7 +169,7 @@ export function reportSyntaxErrors(
 
 /**
  * Reports Luau's errors for the `const`s of a function value and of the
- * functions in it (`LuauSyntaxError.luauConst`) where the type checker does
+ * functions in it (`LuauSyntaxError.constError`) where the type checker does
  * not report them (`checkerReportsSyntaxAt`): a function value in an
  * interpolation of the story or of a double-quoted string, a define's
  * property. The bodies are each read again as they lower, without the
@@ -186,7 +187,9 @@ function reportFunctionValueConstErrors(
   const to = offsetAt(func.location.end, ctx);
   const read = (a: number, b: number) => ctx.read(a, b);
   const errors = source.errors.filter((error) => {
-    if (!error.luauConst) return false;
+    // A const declared outside the value is a function's too when the
+    // value lowers inside a function, whose body the reading holds alone.
+    if (!error.constError || (!error.luauConst && publishesConst(ctx))) return false;
     const at = offsetAt(error.location.begin, ctx);
     return at >= from && at <= to && !checkerReportsSyntaxAt(node, at, read);
   });

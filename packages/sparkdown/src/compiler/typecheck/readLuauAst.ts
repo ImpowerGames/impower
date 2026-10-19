@@ -154,10 +154,14 @@ export interface LuauSyntaxError {
    */
   unread?: true;
   /**
-   * Not part of Luau: the error is one of Luau's for a `const` of a function
-   * (`isLuauConst`), a name with no value or a reassignment, which a lowerer
-   * reports where the type checker does not read the Luau.
+   * Not part of Luau: the error is one of Luau's for a `const`, a name with
+   * no value or a reassignment, which a lowerer reports where the type
+   * checker does not (`constError`); `luauConst` when the reading itself
+   * sees the const declared in a Luau function (`isLuauConst`). A reading
+   * of a function's body alone sees its own consts at its top, so only the
+   * lowerer, which knows the body is a function's, can tell those.
    */
+  constError?: true;
   luauConst?: true;
 }
 
@@ -2609,7 +2613,7 @@ class Parser {
       const message = `Variable '${expr.local.name}' is constant and may not be reassigned`;
       const luauConst = this.isLuauConst(expr.local);
       const node = this.reportExprError(expr.location, [expr], message, luauConst ? "statement" : undefined);
-      if (luauConst) this.markLuauConst(expr.location, message);
+      this.markConstError(expr.location, message, luauConst);
       return node;
     }
     return this.reportExprError(expr.location, [expr], "Assigned expression must be a variable or a field", "expression");
@@ -2625,10 +2629,12 @@ class Parser {
     return local.functionDepth >= this.storyFunctions;
   }
 
-  /** Not part of Luau: marks the error just reported at `location` as a function's const's (`LuauSyntaxError.luauConst`). */
-  private markLuauConst(location: Location, message: string): void {
+  /** Not part of Luau: marks the error just reported at `location` as a const's (`LuauSyntaxError.constError`), and a Luau function's const's (`luauConst`). */
+  private markConstError(location: Location, message: string, luauConst: boolean): void {
     const last = this.errors[this.errors.length - 1];
-    if (last && last.message === message && last.location.equals(location)) last.luauConst = true;
+    if (!last || last.message !== message || !last.location.equals(location)) return;
+    last.constError = true;
+    if (luauConst) last.luauConst = true;
   }
 
   private parseFunctionStat(attributes: AstAttr[]): AstStat {
@@ -2673,7 +2679,7 @@ class Parser {
     if (isConst && !isEnoughValues(values, vars.length)) {
       const luauConst = vars[0] !== undefined && this.isLuauConst(vars[0]);
       this.report(node.location, "Missing initializer in const declaration", luauConst ? "statement" : undefined);
-      if (luauConst) this.markLuauConst(node.location, "Missing initializer in const declaration");
+      this.markConstError(node.location, "Missing initializer in const declaration", luauConst);
       // Not part of Luau: a `::` after the names is an annotation written
       // with it (`const x :: number = 1`), the author's own mistake, which
       // the statement read from it reports; the declaration did not stop at
