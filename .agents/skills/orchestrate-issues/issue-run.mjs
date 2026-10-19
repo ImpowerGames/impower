@@ -503,15 +503,19 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
 // discovery, review checkpoints and the merge gate all read.
 export const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(branch ?? "")?.[1]) || null;
 // Whether a PR, its closing references already kept to the tickets
-// repository, is ticket n's: one that closes n always is. Otherwise its branch
-// must name n, and once tickets live apart its references must be empty too:
-// a pre-cutover PR's branch names its old public number while its closing
-// reference was rewritten to the internal one, so a PR that closes other
-// tickets is theirs whatever its branch says. A fresh draft with no
-// references yet is still found by its branch.
+// repository, is ticket n's. In one repository a PR that closes n or names it
+// in its branch is. Once tickets live apart, a pre-cutover PR's branch names
+// its old public number while its closing reference was rewritten to the
+// internal one, so the references decide: a PR with none (a fresh draft) is
+// its branch's ticket's; one whose branch ticket is among them is that
+// ticket's only, so a sibling's PR that closes a Bug is seen from the
+// sibling's side; and one whose branch ticket is not among them belongs to
+// the tickets it closes, whatever its branch says.
 export const ownsPull = (p, n, split) => {
-  const refs = p.closingIssuesReferences ?? [];
-  return refs.some((r) => r.number === n) || (branchTicket(p.headRefName) === n && (!split || refs.length === 0));
+  const refs = p.closingIssuesReferences ?? [], branch = branchTicket(p.headRefName);
+  const closes = (k) => refs.some((r) => r.number === k);
+  if (!split) return closes(n) || branch === n;
+  return refs.length === 0 ? branch === n : closes(n) && (branch === n || !closes(branch));
 };
 
 export function parseWorktrees(text) {
@@ -531,14 +535,14 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   // prefix a claim allows (codex/fix/<N>-) is found by the second query, the
   // shared account's PRs whose text names the number, as its closing
   // reference does. Either query only narrows the list: a PR is the ticket's
-  // by its author and its branch.
+  // by its author and ownsPull.
   const accountPulls = (n) => {
     account ??= run("gh", ["api", "user", "--jq", ".login"]).trim();
     const heads = DISCOVERY_TYPES.map((type) => `head:${type}/${n}-`).join(" ");
     const found = new Map();
     for (const search of [heads, String(n)]) for (const p of JSON.parse(run("gh", ["pr", "list", "--repo", code, "--author", "@me", "--state", "all", "--search", search, "--limit", "100", "--json", `${fields},author`]))) found.set(p.number, p);
     return [...found.values()].sort((a, b) => b.number - a.number)
-      .filter((p) => p.author?.login === account && branchTicket(p.headRefName) === n)
+      .filter((p) => p.author?.login === account)
       .map(({ author, ...p }) => ({ ...p, closingIssuesReferences: closingIn(p.closingIssuesReferences, tickets, code) }))
       .filter((p) => ownsPull(p, n, true));
   };

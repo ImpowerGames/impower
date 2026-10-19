@@ -620,7 +620,7 @@ try {
   {
     const ref = (slug, number) => ({ number, repository: { name: slug.split("/")[1], owner: { login: slug.split("/")[0] } } });
     const pr = (number, branch, login, refs) => ({ number, state: "OPEN", isDraft: true, headRefName: branch, headRefOid: `h${number}`, baseRefName: "main", closingIssuesReferences: refs, mergeCommit: null, author: { login } });
-    const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 7)])];
+    const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 70)])];
     // GitHub's head: qualifier matches a branch name's start, so a branch with
     // a prefix a claim allows is answered only by the search for the number.
     const prefixed = pr(704, "codex/fix/7-prefixed", "shared", [ref(INTERNAL, 7)]);
@@ -711,6 +711,11 @@ try {
       // The actual client applies it too.
       const { client: staleGh } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => [{ ...stale, author: { login: "shared" } }]));
       assert.deepEqual(staleGh.pulls(1322), [], "the client does not give the ticket a PR closing another ticket");
+      assert.deepEqual(staleGh.pulls(873).map((p) => p.number), [1357], "and gives it to the ticket it closes");
+      // A sibling slice's PR on its own branch still is not a Bug's own PR.
+      const sibling = { ...stale, number: 1358, headRefName: "feat/7-x", closingIssuesReferences: [ref(INTERNAL, 7), ref(INTERNAL, 8)], author: { login: "shared" } };
+      const { client: siblingGh } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => [sibling]));
+      assert.deepEqual([siblingGh.pulls(7).map((p) => p.number), siblingGh.pulls(8)], [[1358], []], "a PR whose branch ticket it closes is that ticket's only");
     }
     const splitBrief = run.brief(run.readRecord(file), splitPlanFile, 7, [], defaults);
     assert.match(splitBrief, new RegExp(`You are the writer for ${INTERNAL} ticket #7 `));
