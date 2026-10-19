@@ -1188,6 +1188,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // `->`, with no type before the token after it that cannot start one;
     // Luau names the token it found instead. After a name in a value, the `:`
     // starts a method call, which is missing its name.
+    // A reserved word as a method's name (`a:do`): Luau's first error is the
+    // missing name, at the word (I-1318).
+    if (nodeRef.name === "LuauKeywordMethodName") {
+      this.error(
+        annotations,
+        `${MISSING_METHOD_NAME}, got '${this.read(nodeRef.from, nodeRef.to)}'`,
+        nodeRef.from,
+        nodeRef.to,
+      );
+      return annotations;
+    }
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const isMethodColon = this.isMethodColon(nodeRef.node);
       // An unfinished narrative method call owns its island's EOF. A genuine

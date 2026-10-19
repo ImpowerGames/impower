@@ -416,7 +416,7 @@ sparkdown [0..766]
  │   │       │   │   │       │       │       │           │   └─ LuauAccessorOperator [195..196]: ":"
  │   │       │   │   │       │       │       │           ├─ LuauKeywordMethodAccessor_c3 196
  │   │       │   │   │       │       │       │           └─ LuauKeywordMethodAccessor_c4 [196..198]
- │   │       │   │   │       │       │       │               └─ LuauUnreadName [196..198]: "do"
+ │   │       │   │   │       │       │       │               └─ LuauKeywordMethodName [196..198]: "do"
  │   │       │   │   │       │       │       └─ LuauAccessPath_end 198
  │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 198
  │   │       │   │   │       │       └─ LuauAssignmentOperation_end 198
@@ -468,7 +468,7 @@ sparkdown [0..766]
  │   │       │   │   │       │       │       │           │   └─ LuauAccessorOperator [212..213]: ":"
  │   │       │   │   │       │       │       │           ├─ LuauKeywordMethodAccessor_c3 213
  │   │       │   │   │       │       │       │           └─ LuauKeywordMethodAccessor_c4 [213..216]
- │   │       │   │   │       │       │       │               └─ LuauStrayCloser [213..216]: "end"
+ │   │       │   │   │       │       │       │               └─ LuauKeywordMethodName [213..216]: "end"
  │   │       │   │   │       │       │       └─ LuauAccessPath_end 216
  │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 216
  │   │       │   │   │       │       └─ LuauAssignmentOperation_end 216

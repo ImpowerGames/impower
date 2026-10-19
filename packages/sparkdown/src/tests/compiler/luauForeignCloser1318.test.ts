@@ -110,11 +110,17 @@ const CASES: Record<string, Form[]> = {
     { form: "repeat until 1; repeat until true;", errors: [] },
   ],
   // A method name that is a reserved word (I-1290), reported with Luau's
-  // error that begins first at the word's token.
+  // first error, at the word. A `do` that a loop's header holds after a `:`
+  // left without a name still opens the loop's block, which takes the `end`
+  // after it as Luau's loop does (round 1, `undirected` finding 2).
   "a keyword as a method name": [
-    { form: "local a = {}\n  local b = a:do", errors: ["Expected function call arguments after '('"] },
-    { form: "local a = {}\n  local b = a:end", errors: ["Expected function call arguments after '('"] },
+    { form: "local a = {}\n  local b = a:do", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local a = {}\n  local b = a:end", errors: ["Expected identifier when parsing method name, got 'end'"] },
     { form: "local a = {}\n  a:function()", errors: ["Expected identifier when parsing method name, got 'function'"] },
+    { form: "local a = {}\n  a:do()", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  while t: do end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  if t: then end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local t = {}\n  for k, v in t: do end", errors: ["Expected identifier when parsing method name, got 'do'"] },
   ],
   // A loop left without its `do` or `until` before the function's `end`
   // (I-1295). Luau's reading then closes the loop at that `end` and reports
@@ -178,6 +184,10 @@ const CASES: Record<string, Form[]> = {
     { form: "local s = `a {'b\\z\n  c'} d`", errors: [] },
     { form: "local s = `a {`b\\z\n  c`} d`", errors: [] },
     { form: "local s = `a {`b {1 +\n  2} c`} d`", errors: [] },
+    // A `}` in a long string or a comment closes no interpolation
+    // (round 1, `undirected` finding 1).
+    { form: "local s = `a {`b {[[}\nx]]} c`} d`", errors: [] },
+    { form: "local s = `a {`b {--[[}\nx]] 1} c`} d`", errors: [] },
   ],
   // An interpolation that ends with a string its line ends inside is left
   // open, whatever that string holds (finding 3).

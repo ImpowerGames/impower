@@ -89,6 +89,14 @@ variables:
   LUAU_BRANCH_OR_UNTIL: (?:(?:else|elseif|until){{LUAU_NAME_END}})
   LUAU_UNTIL: (?:until{{LUAU_NAME_END}})
   LUAU_END_OR_BRANCH: (?:(?:end|else|elseif){{LUAU_NAME_END}})
+  # A reserved word read as a method's name after `:`
+  # (`LuauKeywordMethodAccessor`): any of them, but `do` and `then`, which
+  # end a loop's or an `if`'s header, only where a call's arguments or the
+  # line's end follow them.
+  # lookaround: `LuauDoBlock` and `LuauIfBlockCondition` own a `do` or `then` that something else follows on its line, which ends a header whose `:` before it was left without a name.
+  LUAU_METHOD_KEYWORD: (?:{{LUAU_HEADER_END_KEYWORD}}(?={{LUAU_METHOD_ARGUMENTS_OR_LINE_END}})|(?!{{LUAU_HEADER_END_KEYWORD}}){{LUAU_KEYWORD}})
+  LUAU_HEADER_END_KEYWORD: (?:(?:do|then){{LUAU_NAME_END}})
+  LUAU_METHOD_ARGUMENTS_OR_LINE_END: (?:{{WS}}*(?:[({"'`\[]|$))
   # A bracket also ends before a bracket closer it did not open, as Luau's
   # expression parser stops at it and reports the bracket left open
   # (`{ f(1 }` closes the call before the `}`, which the table takes):
@@ -1098,7 +1106,12 @@ variables:
   LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^"\\\r\n])*)
   LUAU_UNFINISHED_SINGLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^'\\\r\n])*)
   LUAU_UNFINISHED_BACKTICK_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|{{LUAU_CLOSED_INTERPOLATION_ON_LINE}}|[^`{\\\r\n])*)
-  LUAU_CLOSED_INTERPOLATION_ON_LINE: (?:\{[^{}`\r\n]*\})
+  # An interpolation that closes on its line, with no long bracket or
+  # comment in it: the `}` of one (`{[[}`, `{--[[}`) is no closer, and its
+  # text may go on over the next lines.
+  LUAU_CLOSED_INTERPOLATION_ON_LINE: (?:[{]{{LUAU_INTERPOLATION_TEXT_ON_LINE}}*[}])
+  # lookaround: `LuauMultilineString` and `LuauComment` own a `[[`, `[=` or `--` in an interpolation, whose `}` is their text.
+  LUAU_INTERPOLATION_TEXT_ON_LINE: (?:[^{}`\[\r\n-]|\[(?![\[=])|-(?!-))
   # lookaround: `LuauEscapeSkipWhitespace` owns a `\z` the line ends after, which carries the string to the next line.
   LUAU_ESCAPE_ON_LINE: (?:\\z(?![ \t\v\f]*$)|\\[^z\r\n])
   # The character a string continued onto a new line takes into the escape
@@ -11854,15 +11867,20 @@ repository:
 
   # A method access whose name is a reserved word on the `:`'s line
   # (`a:do`, `a:end`), which Luau reads as the method's name, in error
-  # (`Expected identifier when parsing method name, got 'do'`). The word is
-  # one unread token, so it opens no block and closes none (`a:end` leaves
-  # the function its own `end`), and the converter reports Luau's errors at
-  # it. It is tried before `LuauTypeAnnotationMissingType`, which would read
-  # the `:` as an annotation missing its type and leave the word to begin a
-  # statement.
-  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`; this access takes a single `:`.
+  # (`Expected identifier when parsing method name, got 'do'`, which the
+  # validator reports at the word, Luau's first error). The word is the
+  # method's name (`LuauKeywordMethodName`), so it opens no block and closes
+  # none (`a:end` leaves the function its own `end`). A `do` or a `then` is
+  # the name only where a call's arguments or the line's end follow it:
+  # elsewhere it ends a loop's or an `if`'s header that a `:` before it left
+  # without a name (`while t: do end`), and the loop's block opens, as
+  # Luau's loop takes the `end` after it. It is tried before
+  # `LuauTypeAnnotationMissingType`,
+  # which would read the `:` as an annotation missing its type and leave the
+  # word to begin a statement.
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which this access never takes.
   LuauKeywordMethodAccessor:
-    match: ({{WS}}*)([:](?![:]))({{WS}}*)({{LUAU_KEYWORD}})
+    match: ({{WS}}*)([:](?![:]))({{WS}}*)({{LUAU_METHOD_KEYWORD}})
     captures:
       1:
         patterns:
@@ -11875,8 +11893,13 @@ repository:
           - { include: "#ExtraWhitespace" }
       4:
         patterns:
-          - { include: "#LuauUnreadName" }
-          - { include: "#LuauStrayCloser" }
+          - { include: "#LuauKeywordMethodName" }
+
+  # A reserved word in a method's name (`LuauKeywordMethodAccessor`).
+  LuauKeywordMethodName:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{LUAU_WORD}})
 
   LuauFunctionAccessor:
     match: ({{WS}}*)({{LUAU_ACCESSOR_OPERATOR}})({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})

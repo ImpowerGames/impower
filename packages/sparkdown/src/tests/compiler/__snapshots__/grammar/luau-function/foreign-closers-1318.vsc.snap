@@ -111,7 +111,7 @@ text.source.sparkdown [0..766]
  │       ├─ punctuation.whitespace.optional.sd [193..194]: " "
  │       ├─ variable.other.readwrite.luau [194..195]: "a"
  │       ├─ meta.template.expression.accessor.sd [195..196]: ":"
- │       └─ variable.other.readwrite.luau [196..198]: "do"
+ │       └─ invalid.illegal.luau [196..198]: "do"
  ├─ Newline [198..199]: "\n"
  ├─ meta.function.luau [199..216]
  │   └─ meta.function.body.luau [199..216]
@@ -124,7 +124,7 @@ text.source.sparkdown [0..766]
  │       ├─ punctuation.whitespace.optional.sd [210..211]: " "
  │       ├─ variable.other.readwrite.luau [211..212]: "a"
  │       ├─ meta.template.expression.accessor.sd [212..213]: ":"
- │       └─ invalid.illegal.unread.luau [213..216]: "end"
+ │       └─ invalid.illegal.luau [213..216]: "end"
  ├─ Newline [216..217]: "\n"
  ├─ meta.function.luau [217..220]
  │   └─ keyword.control.end.luau [217..220]: "end"
