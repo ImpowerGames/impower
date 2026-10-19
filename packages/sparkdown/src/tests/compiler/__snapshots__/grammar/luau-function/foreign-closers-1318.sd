@@ -10,6 +10,10 @@ function keywordMethod()
   local a = {}
   local b = a:do
   local c = a:end
+  local d = a:  --[[x]] then
+  while a:  do
+    print(a)
+  end
 end
 function whileWithoutDo()
   while true

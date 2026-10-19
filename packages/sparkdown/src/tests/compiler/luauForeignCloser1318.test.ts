@@ -126,6 +126,34 @@ const CASES: Record<string, Form[]> = {
     { form: "local t = {}\n  while t: do\n    t:done()\n  end\n  return 7", errors: ["Expected identifier when parsing method name, got 'do'"] },
     { form: "local t = {}\n  for k, v in t: do\n    print(k)\n  end\n  return 7", errors: ["Expected identifier when parsing method name, got 'do'"] },
     { form: "local t = {}\n  if t: then\n    print(t)\n  end\n  return 7", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    // Spaces, tabs or a block comment between the `:` and the keyword, and
+    // `then` in a statement (round 2, `undirected` findings 1 and 3).
+    { form: "local a = {}\n  local b = a:  do", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local a = {}\n  local b = a:\t\tdo", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local a = {}\n  local b = a: --[[x]] do", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local a = {}\n  a:  do()", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local a = {}\n  local b = a:then", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local a = {}\n  local b = a:  then", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local a = {}\n  a:then()", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local a = {}\n  local b = a: --[[x]] end", errors: ["Expected identifier when parsing method name, got 'end'"] },
+    { form: "local t = {}\n  while t:  do\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  while t: --[[x]] do end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  while t:do end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  if t:then end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local t = {}\n  if t.a:  then\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local t = {}\n  if t.a then\n    print(t)\n  elseif t:then\n  end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local t = {}\n  for i = 1, t:  do end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  local x = if t: then 1 else 2", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local t = {}\n  local x = if t:then 1 else 2", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    // The `:` after an operator's operand, and after a value in brackets.
+    { form: "local t = {}\n  while not t: do\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  while t.a and t: do\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  if 1 + t: then\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "local t = {}\n  while (t): do\n    print(t)\n  end", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  local b = x and t: do", errors: ["Expected identifier when parsing method name, got 'do'"] },
+    { form: "local t = {}\n  local b = (t):end", errors: ["Expected identifier when parsing method name, got 'end'"] },
+    { form: "local t = {}\n  (t):until()", errors: ["Expected identifier when parsing method name, got 'until'"] },
+    { form: "local t = {}\n  local b = (t): --[[c]] then", errors: ["Expected identifier when parsing method name, got 'then'"] },
   ],
   // A loop left without its `do` or `until` before the function's `end`
   // (I-1295). Luau's reading then closes the loop at that `end` and reports
@@ -193,6 +221,11 @@ const CASES: Record<string, Form[]> = {
     // (round 1, `undirected` finding 1).
     { form: "local s = `a {`b {[[}\nx]]} c`} d`", errors: [] },
     { form: "local s = `a {`b {--[[}\nx]] 1} c`} d`", errors: [] },
+    // Nor does a `}` in a quoted string (round 2, `undirected` finding 2).
+    { form: 'local s = `a {`b {"}" ..\n  "x"} c`} d`', errors: [] },
+    { form: "local s = `a {`b {'}' ..\n  'x'} c`} d`", errors: [] },
+    { form: 'local s = `a {"}" ..\n  "x"} d`', errors: [] },
+    { form: "local s = `a {`b {`}`} c` ..\n  `x`} d`", errors: [] },
   ],
   // An interpolation that ends with a string its line ends inside is left
   // open, whatever that string holds (finding 3).

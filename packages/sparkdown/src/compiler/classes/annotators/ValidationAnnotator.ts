@@ -171,11 +171,13 @@ const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
 ]);
 const MISSING_TYPE = "Expected type";
 // The grammar's tokens for a type that is missing or malformed, and for a
-// declaration target's `::`.
+// declaration target's `::`, and the `:` a header's `do` or `then` follows
+// with no method name between (I-1318).
 const TYPE_ERROR_TOKENS = nodeNameSet([
   "LuauTypeStrayOptionalOperator",
   "LuauTypeStrayColon",
   "LuauTypeAnnotationMissingType",
+  "LuauHeaderMethodColon",
   "LuauTypeBinaryOperatorMissingType",
   "LuauFunctionReturnMissingType",
   "LuauTargetTypeCastOperator",
@@ -191,6 +193,7 @@ const DECLARATION_COMMA = nodeNameSet([
 const DECLARATION_ASSIGNMENT = nodeNameSet(["LuauAssignmentOperation"]);
 const MISSING_TYPE_NODES = nodeNameSet([
   "LuauTypeAnnotationMissingType",
+  "LuauHeaderMethodColon",
   "LuauTypeBinaryOperatorMissingType",
   "LuauFunctionReturnMissingType",
 ]);
@@ -962,8 +965,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
    * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
    * directly after `for` or after a comma before the loop's `in` or `=`.
+   * A header's `:` before its `do` or `then` is always a method's (I-1318).
    */
   protected isMethodColon(node: SyntaxNode): boolean {
+    if (node.name === "LuauHeaderMethodColon") {
+      return true;
+    }
     const part = node.parent;
     if (!part || !isExplicitRuleName(part.name, "LuauAccessPart")) {
       return false;
