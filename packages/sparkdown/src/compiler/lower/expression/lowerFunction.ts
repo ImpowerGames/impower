@@ -47,6 +47,8 @@ import {
 } from "../../typecheck/Ast";
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -452,15 +454,16 @@ export function bodyReferencesNameAsCall(
 
 /**
  * The names the statements of `block` declare as locals themselves
- * (`local x`, `local function f`), not those declared inside the blocks
- * within it: what a `repeat` loop's `until` condition sees of its body.
+ * (`local x`, `local function f`, and a `const` unless the story publishes
+ * it, `publishesConst`), not those declared inside the blocks within it:
+ * what a `repeat` loop's `until` condition sees of its body.
  */
-export function blockLocalNames(block: AstStatBlock): string[] {
+export function blockLocalNames(block: AstStatBlock, constsAreLocal: boolean): string[] {
   const names: string[] = [];
   for (const stat of block.body) {
-    if (stat instanceof AstStatLocal && !stat.isConst) {
+    if (stat instanceof AstStatLocal && (constsAreLocal || !stat.isConst)) {
       names.push(...stat.vars.map((v) => v.name));
-    } else if (stat instanceof AstStatLocalFunction && !stat.isConst) {
+    } else if (stat instanceof AstStatLocalFunction && (constsAreLocal || !stat.isConst)) {
       names.push(stat.name.name);
     }
   }
@@ -535,6 +538,9 @@ export function lowerFunctionBody(
   const content = getFunctionBodyContent(node);
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
+  ctx.functionBindingsStack?.push(
+    functionBindings([...(func.self ? [func.self] : []), ...func.args], func.body, ctx),
+  );
   ctx.declaredLocalsStack?.push(
     immediateBodyDeclarations(parameterNames(func), func.body),
   );
@@ -544,9 +550,12 @@ export function lowerFunctionBody(
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, skipNames, shape);
+  // The function bodies its types hold lower no code; check them here.
+  reportErasedConstErrors(func, node, ctx);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
+  ctx.functionBindingsStack?.pop();
   ctx.functionScopeStack?.pop();
   return {
     hoisted,

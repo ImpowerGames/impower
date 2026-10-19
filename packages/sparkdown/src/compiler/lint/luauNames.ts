@@ -65,6 +65,8 @@ export interface NameRoot {
   offsets: { range(location: Location): NameRange };
   /** The converter's flow wrapper, identified by unit provenance, never by name. */
   syntheticFunction?: AstStatLocalFunction;
+  /** The root is the body of a function (a Sparkle handler's statements), so a `const` in it is a local, never the story's published constant. */
+  functionBody?: boolean;
 }
 
 /** Missing identifiers have this recovery name in the converter, never in authored code. */
@@ -79,7 +81,11 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
   const facts: LuauNameFacts = { declarations: [], references: [], globals: [], functions: [], uncertainNames: [] };
   const seen = new Set<AstNode>();
   const locals = new Set<AstLocal>();
-  for (const { root, offsets, syntheticFunction } of roots) {
+  // The consts declared outside every function, the story's published
+  // constants (`lower/utils/publishesConst.ts`), each declared before any
+  // name that reads it.
+  const published = new Set<AstLocal>();
+  for (const { root, offsets, syntheticFunction, functionBody } of roots) {
     let enclosingFunction: AstExprFunction | undefined;
     let scope: AstStatBlock | undefined;
     // A flow's checking wrapper has no runtime binding. Keep the original
@@ -87,16 +93,20 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
     // globals; a real authored local of the same spelling remains local.
     const binding = (node: AstExprLocal | AstExprGlobal): AstLocal | undefined => {
       let local = node instanceof AstExprLocal ? node.local : undefined;
-      // A const is global at runtime. Its checking-only local preserves the
-      // binding it shadows, which still wins over that global at runtime.
-      while (local?.isConst) local = local.shadow;
+      // A const outside every function is global at runtime. Its
+      // checking-only local preserves the binding it shadows, which still
+      // wins over that global at runtime. A const in a function is a local.
+      while (local && published.has(local)) local = local.shadow;
       return local === syntheticFunction?.name ? undefined : local;
     };
     const declaration = (local: AstLocal, kind: LuauNameDeclaration["kind"], fn?: AstExprFunction, stat?: AstNode, declarationScope = scope) => {
       if (!isAuthoredLuauName(local.name)) return;
       if (locals.has(local)) return;
       locals.add(local);
-      if (local.isConst) facts.globals.push({ name: local.name, kind: "const", ...offsets.range(local.location), node: stat ?? fn ?? root, enclosingFunction, function: fn, scope: declarationScope });
+      if (local.isConst && !enclosingFunction && !functionBody) {
+        published.add(local);
+        facts.globals.push({ name: local.name, kind: "const", ...offsets.range(local.location), node: stat ?? fn ?? root, enclosingFunction, function: fn, scope: declarationScope });
+      }
       else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope });
     };
     const reference = (node: AstExprGlobal | AstExprLocal, access: LuauNameReference["access"]) => {
@@ -146,7 +156,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         if (node instanceof AstStatLocal) for (let i = 0; i < node.vars.length; i++) declaration(node.vars[i]!, "local", node.values[i] instanceof AstExprFunction ? node.values[i] as AstExprFunction : undefined, node);
         else if (node instanceof AstStatLocalFunction && node !== syntheticFunction) {
           declaration(node.name, "function", node.func, node);
-          if (isAuthoredLuauName(node.name.name)) facts.functions.push({ name: node.name.name, target: node.name, local: node.name.isConst ? undefined : node.name, method: false, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
+          if (isAuthoredLuauName(node.name.name)) facts.functions.push({ name: node.name.name, target: node.name, local: node.name.isConst && !enclosingFunction && !functionBody ? undefined : node.name, method: false, function: node.func, node, scope, enclosingFunction, ...offsets.range(node.name.location) });
         }
         else if (node instanceof AstStatFor) declaration(node.variable, "loop", undefined, node, node.body);
         else if (node instanceof AstStatForIn) for (const local of node.vars) declaration(local, "loop", undefined, node, node.body);

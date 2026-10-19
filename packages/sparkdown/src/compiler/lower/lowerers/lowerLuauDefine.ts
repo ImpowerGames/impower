@@ -67,6 +67,8 @@ import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import { syntheticId } from "../utils/documentTag";
 import {
   closeFunctionBody,
@@ -669,12 +671,16 @@ function lowerDefineMethod(
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
   ctx.declaredLocalsStack?.push(new Set(["self"]));
+  ctx.functionBindingsStack?.push(
+    functionBindings([{ name: "self" }, ...params.map((name) => ({ name }))], reading?.unit.root ?? null, ctx, content.from),
+  );
   const hoistedDecls: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, METHOD_BODY_SKIP, shape);
+  if (reading) reportErasedConstErrors(reading.unit.root, node, ctx);
   // Its body's errors, as Luau reports them for the function the method
   // stands for (or is, in the `function name() … end` form), its `end`
   // included.
@@ -686,6 +692,7 @@ function lowerDefineMethod(
   }
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
+  ctx.functionBindingsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 

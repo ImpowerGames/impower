@@ -56,9 +56,10 @@ describe("const without an initializer", () => {
 });
 
 // Luau: error_const_not_initialized (multi-name cases)
-// Diverges: the multi-name forms report sparkdown's own rule, "A `const`
-// takes one name and one value", instead.
-describe.skip("const with several names (diverges: see above)", () => {
+// A `const` inside a function is Luau's (#1319). At the top level a `const`
+// is the story's published constant, which takes one name and one value
+// (`ConstMultiDeclaration.test.ts`).
+describe("const with several names", () => {
   test.each([
     ["const a, b = nil", "const a, b = nil"],
     ["const a, b, c = f(), 42", "const a, b, c = f(), 42"],
@@ -72,30 +73,24 @@ describe.skip("const with several names (diverges: see above)", () => {
 
 // Luau: error_const_reassignment / error_const_function_reassignment
 // "Variable 'a' is constant and may not be reassigned"
+// Inside a function, in Luau's words (#1319). A top-level `const` is the
+// story's published constant, whose re-assignment the compiler reports in its
+// own words (`LuauNamesAndFunctionConst.test.ts`).
 describe("const reassignment", () => {
-  // Reported, with sparkdown's own wording.
-  test("const a = 42; a = 43", () => {
-    expect(diagnoseInFunction("const a = 42; a = 43")).toContain(
-      "Cannot re-assign the const `a`.",
+  test.each([
+    ["const a = 42; a = 43", "const a = 42; a = 43"],
+    ["local b; const a = 42; a, b = 43", "local b; const a = 42; a, b = 43"],
+    ["local b; const a = 42; b, a = 43", "local b; const a = 42; b, a = 43"],
+    ["local b; const a = 42; b, a = ...", "local b; const a = 42; b, a = ..."],
+    ["const a = 42; function a() end", "const a = 42; function a() end"],
+    [
+      "const function a() return 42 end; a = 43",
+      "const function a() return 42 end; a = 43",
+    ],
+  ])("%s", (_label, source) => {
+    expect(diagnoseInFunction(source)).toContain(
+      "Variable 'a' is constant and may not be reassigned",
     );
-  });
-
-  describe.skip("verbatim wording (diverges: sparkdown phrases it differently)", () => {
-    test.each([
-      ["const a = 42; a = 43", "const a = 42; a = 43"],
-      ["local b; const a = 42; a, b = 43", "local b; const a = 42; a, b = 43"],
-      ["local b; const a = 42; b, a = 43", "local b; const a = 42; b, a = 43"],
-      ["local b; const a = 42; b, a = ...", "local b; const a = 42; b, a = ..."],
-      ["const a = 42; function a() end", "const a = 42; function a() end"],
-      [
-        "const function a() return 42 end; a = 43",
-        "const function a() return 42 end; a = 43",
-      ],
-    ])("%s", (_label, source) => {
-      expect(diagnoseInFunction(source)).toContain(
-        "Variable 'a' is constant and may not be reassigned",
-      );
-    });
   });
 });
 

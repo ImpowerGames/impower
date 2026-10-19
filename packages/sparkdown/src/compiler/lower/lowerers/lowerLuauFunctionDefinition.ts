@@ -37,6 +37,7 @@ import {
 } from "../expression/lowerFunction";
 import { lowerStoreBase } from "../utils/lowerPropertyTargetAssignment";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { reportReassignedConst } from "../utils/publishesConst";
 import { syntheticId } from "../utils/documentTag";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
@@ -76,6 +77,8 @@ export function lowerLuauFunctionDefinition(
       : stat.name instanceof AstExprGlobal || stat.name instanceof AstExprLocal
         ? astIdentifier(pathNames(stat.name)![0]!, ctx)
         : null;
+  // `function X()` over a function's `const X` reassigns it: Luau's error.
+  if (stat instanceof AstStatFunction) reportReassignedConst(stat.name, site.node, ctx);
   if (!identifier) return {};
 
   // Detect whether this definition itself is lexically nested —

@@ -105,6 +105,23 @@ export interface LowerContext {
    */
   sparkleLoopVars?: string[];
   /**
+   * Set while the statements of a Sparkle handler's closure (`@e={ ... }`)
+   * lower: the closure runs as a function, though it is not on
+   * `functionScopeStack`, so a `const` in it is Luau's, a local, rather than
+   * the story's published constant (`publishesConst`).
+   */
+  localConsts?: boolean;
+  /**
+   * The names each function lowering around the statement binds, innermost
+   * last, with the ranges they bind over (`functionBindings`): pushed with
+   * `declaredLocalsStack` by a function's body, a define's method and a
+   * Sparkle handler's closure. An assignment whose reading does not hold the
+   * binding it targets resolves it here (`resolveFunctionBinding`), so a
+   * function's `const` reassigned from a body read on its own is Luau's
+   * error (`reportReassignedConst`).
+   */
+  functionBindingsStack?: import("./utils/functionBindings").FunctionBinding[][];
+  /**
    * The continuation lines and own-line blocks of the Sparkle body being
    * built, joined to the elements they continue (`joinSparkleContinuations`).
    * Set by `buildSparkleBody` around the body.

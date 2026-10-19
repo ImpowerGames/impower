@@ -20,6 +20,7 @@ import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { untilKeywordOf } from "../utils/validateBlockEnds";
 import { syntheticId } from "../utils/documentTag";
+import { publishesConst } from "../utils/publishesConst";
 import {
   extendStatement,
   recordLoop,
@@ -96,7 +97,7 @@ export function lowerLuauRepeatLoop(
   // rest of the body (`shadowSiblingSubFlow`), from a block of their own
   // that ends with the condition.
   ctx.blockEndStack?.push([]);
-  for (const name of blockLocalNames(stat.body)) {
+  for (const name of blockLocalNames(stat.body, !publishesConst(ctx))) {
     shadowSiblingSubFlow(name, ctx);
   }
   const condExpr = lowerExpression(stat.condition, site.source, ctx);

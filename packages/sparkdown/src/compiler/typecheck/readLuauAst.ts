@@ -123,7 +123,7 @@ import {
   type SparkdownSource,
 } from "./Ast";
 import { Location, Position } from "./Location";
-import { breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
+import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
@@ -997,7 +997,7 @@ class Tokenizer {
     // statement before only at the end of a line.
     if (!before || before.kind === "mark") return;
     const begin = at === this.tokens.length ? from : this.tokens[at]!.from;
-    if (!this.text.slice(before.to, begin).includes("\n")) return;
+    if (!breaksAcrossLine(this.text.slice(before.to, begin))) return;
     if (at === this.tokens.length) {
       this.push("break", from, from + /^[A-Za-z_][A-Za-z0-9_]*/.exec(text)![0].length);
       return;
@@ -1555,6 +1555,16 @@ class Parser {
 
   /** The block depth whose statements are recorded in `statements`, with the tokens each was read from. */
   recordDepth = -1;
+  /**
+   * Not part of Luau: how many of the functions being read, outermost first,
+   * hold the story's own statements rather than a Luau function's body: the
+   * chunk, and in a flow the flow's wrapper too. A `run` file has none, since
+   * all of its text is the body of the function a `run` calls. A `const`
+   * declared in a Luau function is Luau's, a local that cannot be
+   * reassigned; one declared in the story is the story's published constant,
+   * which the compiler reports on itself (`isLuauConst`).
+   */
+  storyFunctions = 1;
   readonly statements: { statement: AstStat; first: number; end: number }[] = [];
 
   constructor(
@@ -2590,8 +2600,18 @@ class Parser {
 
   private reportLValueError(expr: AstExpr): AstExprError {
     if (expr instanceof AstExprLocal && expr.local.isConst)
-      return this.reportExprError(expr.location, [expr], `Variable '${expr.local.name}' is constant and may not be reassigned`);
+      return this.reportExprError(expr.location, [expr], `Variable '${expr.local.name}' is constant and may not be reassigned`, this.isLuauConst(expr.local) ? "statement" : undefined);
     return this.reportExprError(expr.location, [expr], "Assigned expression must be a variable or a field", "expression");
+  }
+
+  /**
+   * Not part of Luau: whether a `const`'s name is Luau's own, declared in a
+   * Luau function, whose errors (a name with no value, a reassignment) are
+   * the statement's to report as Luau reports them, rather than the story's
+   * published constant (see `storyFunctions`).
+   */
+  private isLuauConst(local: AstLocal): boolean {
+    return local.functionDepth >= this.storyFunctions;
   }
 
   private parseFunctionStat(attributes: AstAttr[]): AstStat {
@@ -2634,7 +2654,7 @@ class Parser {
     const end = values.length === 0 ? this.previousLocation() : values[values.length - 1]!.location;
     const node = new AstStatLocal(Location.span(start, end), vars, values, equalsSignLocation, isConst);
     if (isConst && !isEnoughValues(values, vars.length)) {
-      this.report(node.location, "Missing initializer in const declaration");
+      this.report(node.location, "Missing initializer in const declaration", vars[0] && this.isLuauConst(vars[0]) ? "statement" : undefined);
       // Not part of Luau: a `::` after the names is an annotation written
       // with it (`const x :: number = 1`), the author's own mistake, which
       // the statement read from it reports; the declaration did not stop at
@@ -3953,6 +3973,7 @@ function readUnit(
   const parser = new Parser(tokenizer.tokens, ctx, new Location(start, start), eof);
   for (const span of tokenizer.returnTriviaSpans) parser.recordSourceDependency(span.from, span.to);
   parser.recordDepth = recordDepth;
+  parser.storyFunctions = kind === "flow" ? 2 : kind === "file" ? 0 : 1;
   let root: AstStatBlock;
   try {
     root = parser.parseChunk();
@@ -4700,6 +4721,13 @@ export function nextLuauToken(from: number, documentText: string, to = documentT
   if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
   return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
+}
+
+/** Whether Luau's lexer reads the token that begins at `from` as a name, rather than a keyword or a symbol. */
+export function isLuauNameAt(from: number, documentText: string): boolean {
+  const tokens = lexAhead(documentText, from);
+  const token = tokens[firstFrom(tokens, from)];
+  return token?.from === from && token.kind === "name";
 }
 
 /** Read the expression after an operator the grammar ends without a value. */

@@ -7,6 +7,7 @@
 
 import type { SyntaxNode } from "@lezer/common";
 import type { AstExprError, AstStatError } from "../../typecheck/Ast";
+import { AstExprFunction } from "../../typecheck/Ast";
 import type { Location, Position } from "../../typecheck/Location";
 import {
   readLuauBlock,
@@ -144,6 +145,12 @@ export function methodSyntaxErrors(node: SyntaxNode, ctx: LowerContext): readonl
 /** The syntax errors of a Sparkle closure's body, read as the body of the function value it runs as (`readLuauStatements`). */
 export function closureSyntaxErrors(content: SyntaxNode, ctx: LowerContext): readonly LuauSyntaxError[] {
   return readLuauStatements([content], documentText(ctx)).errors;
+}
+
+/** A Sparkle closure's body, read as the body of the function value it runs as (`readLuauStatements`), or null when the reading is not one. */
+export function closureBodyAst(content: SyntaxNode, ctx: LowerContext): import("../../typecheck/Ast").AstStatBlock | null {
+  const { expr } = readLuauStatements([content], documentText(ctx));
+  return expr instanceof AstExprFunction ? expr.body : null;
 }
 
 /** The message of the syntax error an error node names. */
