@@ -21,6 +21,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
+import { readRepos } from "../../repos.mjs";
 import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
@@ -53,7 +54,17 @@ const noneOutstanding = (findings) => (Array.isArray(findings) ? findings.length
 // The recorded invocation names the skill and the parent issue. Whether the user
 // asked for orchestration or only discussed it is read from that quote by the
 // coordinator that recorded it; a quote that names neither grants nothing.
-export const invokes = (record) => /orchestrate-issues/i.test(record.invocation?.text ?? "") && new RegExp(`#${record.issue}(?![0-9])`).test(record.invocation.text);
+// Once the record names a tickets repository apart from the code repository,
+// the parent may also be named with the autolink prefix, as #<prefix>N or
+// <prefix>N. Every form refuses a longer number, and the bare form a longer word.
+export const invokes = (record, repos = readRepos()) => {
+  const text = record.invocation?.text ?? "";
+  if (!/orchestrate-issues/i.test(text)) return false;
+  const prefix = String(repos.autolinkPrefix ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // A bare <prefix>N must start a token, so FIXI-40 does not name I-40.
+  const ref = repositoriesOf(record).split && prefix ? `(?:#|#${prefix}|(?<![A-Za-z0-9_])${prefix})` : "#";
+  return new RegExp(`${ref}${record.issue}(?![0-9])`).test(text);
+};
 
 // --- CI -------------------------------------------------------------------------
 
