@@ -1,0 +1,18 @@
+& x = (1 ]
+After a statement.
+store y = (1 ]
+After a declaration.
+if (a ] then
+  In the if.
+elseif (b ] then
+  In the elseif.
+end
+while (a } do
+  In the loop.
+end
+repeat
+  In the repeat.
+until (x ]
+Value {(1 ]}.
+Value {{f(1 ]}}.
+After the values.

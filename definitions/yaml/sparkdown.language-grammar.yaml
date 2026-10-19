@@ -1085,8 +1085,28 @@ variables:
   LUAU_SINGLE_QUOTED_STRING_TEXT: (?:(?:\\.|[^'\\\r\n])*)
   LUAU_BACKTICK_STRING_TEXT: (?:(?:\\.|[^`\\\r\n])*)
   # A quoted string of any kind that its line ends inside, which Luau's
-  # lexer reads as a string it could not finish (I-1318).
-  LUAU_UNFINISHED_LINE_STRING: (?:(?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}|'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}|`{{LUAU_BACKTICK_STRING_TEXT}})$)
+  # lexer reads as a string it could not finish (I-1318). A `\` or a `\z`
+  # with only whitespace after it that ends the line carries the string on
+  # (`LuauEscapeLine`, `LuauEscapeSkipWhitespace`), so its text is no text
+  # that ends on the line, and a backtick string whose interpolation is still
+  # open at the line's end is not one either: its expression may go on over
+  # the next lines, as in Luau, so its text is read only up to an
+  # interpolation that does not close on the line, and a closed one is part
+  # of it. These are not the `_STRING_TEXT` bodies above, which a header's
+  # lookbehind holds and so take no lookahead.
+  LUAU_UNFINISHED_LINE_STRING: (?:(?:"{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}|'{{LUAU_UNFINISHED_SINGLE_QUOTED_TEXT}}|`{{LUAU_UNFINISHED_BACKTICK_TEXT}})$)
+  LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^"\\\r\n])*)
+  LUAU_UNFINISHED_SINGLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^'\\\r\n])*)
+  LUAU_UNFINISHED_BACKTICK_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|{{LUAU_CLOSED_INTERPOLATION_ON_LINE}}|[^`{\\\r\n])*)
+  LUAU_CLOSED_INTERPOLATION_ON_LINE: (?:\{[^{}`\r\n]*\})
+  # lookaround: `LuauEscapeSkipWhitespace` owns a `\z` the line ends after, which carries the string to the next line.
+  LUAU_ESCAPE_ON_LINE: (?:\\z(?![ \t\v\f]*$)|\\[^z\r\n])
+  # The character a string continued onto a new line takes into the escape
+  # that carried it there (`LuauEscapeLine`, `LuauEscapeSkipWhitespace`),
+  # and the ones it leaves to the string's own rules.
+  LUAU_STRING_CARRIED_CHARACTER: (?:[^"'`{\\\r\n])
+  LUAU_STRING_CARRIED_TEXT_START: (?:[^"'`{\\ \t\v\f\r\n])
+  LUAU_STRING_UNCARRIED_CHARACTER: (?:["'`{\\])
   # An attribute list's text on its line, for a header's attribute prefix,
   # which a lookbehind reads (`LUAU_HEADER_ATTRIBUTE`): a string, a long
   # bracket as `LUAU_PLAIN_BLOCK_COMMENT` reads it, since a lookbehind holds
@@ -8721,7 +8741,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
-    end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[}])|$
+    end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[)\]}])|$
     endCaptures:
       1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauThenKeyword" }] }
@@ -9205,7 +9225,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    end: ([}])([}])?|$
+    end: ([}])([}])?|$|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -10370,7 +10390,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
     # See `LuauUntilCondition`.
-    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})"
+    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   SparkdownExplicitTag:
     tag: docComment
@@ -12655,7 +12675,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?=$)|([}])
+    end: (?=$)|([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12675,7 +12695,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}])
+    end: ([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12697,7 +12717,7 @@ repository:
       - include: "#Newline"
     # The `"` string around it ends at its line (`LuauDoubleQuotedString`),
     # which Luau does not read past, so the interpolation ends there too.
-    end: ([}])|(?=["])|$
+    end: ([}])|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       "1":
         patterns:
@@ -12766,7 +12786,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}])([}])?
+    end: ([}])([}])?|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12795,7 +12815,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}])([}])?|(?=["])|$
+    end: ([}])([}])?|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12872,18 +12892,30 @@ repository:
 
   # A `\` that ends its line carries a string on to the next line, as Luau's
   # lexer reads it. It takes the line break with it, so the string's end at
-  # its line (`$`) is never met there.
+  # its line (`$`) is never met there, and it takes the next line's first
+  # character as the string's text too, so the string never stands at the
+  # start of that line, where a backtick string ends before a closer that
+  # begins the line (`LuauInterpolatedString`): `` `a\ `` and then `end` is
+  # text. A quote, an interpolation's `{` or another escape is left to the
+  # string (`LUAU_STRING_UNCARRIED_CHARACTER`).
   LuauEscapeLine:
-    tag: escape
-    name: constant.character.escape.luau
-    match: \\(?:{{NL}}|$)
+    begin: (\\)({{NL}}|$)
+    beginCaptures:
+      1:
+        tag: escape
+        name: constant.character.escape.luau
+      2:
+        patterns:
+          - { include: "#Newline" }
+    end: ({{LUAU_STRING_CARRIED_CHARACTER}})|(?={{LUAU_STRING_UNCARRIED_CHARACTER}})|$
 
   # A `\z` skips the whitespace after it, line breaks and blank lines
   # included, as Luau's lexer reads it, so the string goes on at the next
-  # character that is not whitespace; while it is open the string's end at
-  # its line (`$`) is not tried. The whitespace is the ASCII set Luau's lexer
-  # skips, so a non-breaking space ends the run as it does in Luau. It is
-  # tried before `LuauEscapeStandard`, which would read the `\z` alone.
+  # character that is not whitespace, which it takes as the string's text as
+  # `LuauEscapeLine` does; while it is open the string's end at its line
+  # (`$`) is not tried. The whitespace is the ASCII set Luau's lexer skips,
+  # so a non-breaking space ends the run as it does in Luau. It is tried
+  # before `LuauEscapeStandard`, which would read the `\z` alone.
   LuauEscapeSkipWhitespace:
     begin: (\\z)
     beginCaptures:
@@ -12893,7 +12925,7 @@ repository:
     patterns:
       - { include: "#Newline" }
       - { include: "#LuauEscapeSkippedWhitespace" }
-    end: (?=[^ \t\r\n\v\f])
+    end: ({{LUAU_STRING_CARRIED_TEXT_START}})|(?={{LUAU_STRING_UNCARRIED_CHARACTER}})
 
   # The whitespace a `\z` skips on a line.
   LuauEscapeSkippedWhitespace:

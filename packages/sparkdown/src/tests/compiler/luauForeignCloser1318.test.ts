@@ -21,8 +21,12 @@ const STORY = "After {run()}.\n";
 interface Form {
   /** The lines in the function, the first indented by the header. */
   form: string;
-  /** Sparkdown's syntax errors, each one of the official parser's, at its range unless `range` says otherwise. */
-  errors: string[];
+  /**
+   * Sparkdown's syntax errors, each one of the official parser's, at its
+   * range unless `range` says otherwise, or `"official"` for every one of
+   * the official parser's errors, each at its range.
+   */
+  errors: string[] | "official";
   /** A range Sparkdown gives on purpose that differs from the official parser's, by message. */
   range?: Record<string, string>;
 }
@@ -64,9 +68,14 @@ function expectForm({ form, errors, range = {} }: Form): void {
 
   const story = topLevelAt(text, luau.length);
   const control = topLevelAt(`${HEADER}x = 1${FOOTER}${STORY}`, `${HEADER}x = 1${FOOTER}`.length);
-  expect(story?.name, "the line after the function is read as it is after a function without the form").toBe(control?.name);
+  expect([story?.name, story?.from], "the line after the function is read as it is after a function without the form").toEqual([control?.name, luau.length]);
 
   const official = luauErrors(luau);
+  if (errors === "official") {
+    expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
+    expect(sparkdownErrors(text)).toEqual([...official].sort());
+    return;
+  }
   const expected = errors.map((message) => {
     const found = official.find((e) => e.slice(e.indexOf(" ") + 1) === message);
     expect(found, `the official parser reports ${JSON.stringify(message)}:\n${official.join("\n")}`).toBeDefined();
@@ -155,6 +164,28 @@ const CASES: Record<string, Form[]> = {
     { form: "local x: (number] = 1", errors: ["Expected ')' (to close '(' at column 12), got ']'"] },
     { form: "local x: {a: number) = 1", errors: ["Expected '}' (to close '{' at column 12), got ')'"] },
   ],
+  // A `\` or a `\z` that ends its line carries the string on, so a closer
+  // that begins the next line is text (round 1, finding 1), and a string in
+  // an interpolation that goes on over lines is the interpolation's
+  // expression (finding 2).
+  "a string a line continuation carries on": [
+    { form: "local s = `a\\\nend`", errors: [] },
+    { form: "local s = `a\\z\nend`", errors: [] },
+    { form: "local s = `a\\\n)`", errors: [] },
+    { form: 'local s = "a\\\nend"', errors: [] },
+    { form: "local s = 'a\\z\n\n  end'", errors: [] },
+    { form: 'local s = `a {"b\\z\n  c"} d`', errors: [] },
+    { form: "local s = `a {'b\\z\n  c'} d`", errors: [] },
+    { form: "local s = `a {`b\\z\n  c`} d`", errors: [] },
+    { form: "local s = `a {`b {1 +\n  2} c`} d`", errors: [] },
+  ],
+  // An interpolation that ends with a string its line ends inside is left
+  // open, whatever that string holds (finding 3).
+  "an interpolation that ends with a string left open": [
+    { form: 'local s = `a {"y}', errors: "official" },
+    { form: 'local s = `a {1 "y}', errors: "official" },
+    { form: "local s = `a {1 `y}", errors: "official" },
+  ],
   // The forms that were read correctly keep their reading.
   "well-formed code": [
     { form: "if x then x = 1 end;", errors: [] },
@@ -203,6 +234,28 @@ describe("a Luau construct yields at a closer it does not own (I-1318)", () => {
       const fn = parseSource(text).topNode.firstChild!;
       expect([fn.name, fn.from, fn.to]).toEqual(["LuauFunctionDefinition", 0, luau.length - 1]);
       expect(luauErrors(luau).length, "the official parser reports the closer").toBeGreaterThan(0);
+    });
+  }
+
+  // The same at story scope: a story condition, a marked statement, a
+  // declaration and Sparkdown's interpolations end before a bracket closer a
+  // bracket in them did not open, and the story line after them is its own.
+  for (const story of [
+    "& x = (1 ]",
+    "store x = (1 ]",
+    "if (a ] then\n  Hi.\nend",
+    "if a then\n  Hi.\nelseif (b ] then\n  Ho.\nend",
+    "while (a } do\n  Hi.\nend",
+    "repeat\n  Hi.\nuntil (x ]",
+    "& if (a ] then end",
+    "Value {(1 ]}.",
+    "Value {{f(1 ]}}.",
+    'store s = "a {(1 ]} b"',
+  ]) {
+    test(`a stray closer in the story ${JSON.stringify(story)} leaves the next line its own`, () => {
+      const text = `${story}\nAfter.\n`;
+      expect(stripAnsi(dumpTree(text))).not.toContain("ERROR_INCOMPLETE");
+      expect(topLevelAt(text, text.indexOf("After."))?.from).toBe(text.indexOf("After."));
     });
   }
 

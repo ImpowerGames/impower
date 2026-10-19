@@ -1712,10 +1712,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      const closed = raw.trimEnd().endsWith("}");
       // A backtick string's interpolation may go on over lines, so it is
-      // left open where Luau's parser meets what ends it (I-1318).
-      if (!closed && BACKTICK_INTERPOLATIONS.has(nodeRef.name)) {
+      // left open where Luau's parser meets what ends it (I-1318). Whether
+      // it closed is its `_end`'s: the text can end in a `}` that a string
+      // its end took holds (`` `a {"y}``).
+      const backtick = BACKTICK_INTERPOLATIONS.has(nodeRef.name);
+      const closed = backtick
+        ? this.isClosedInterpolation(nodeRef.node)
+        : raw.trimEnd().endsWith("}");
+      if (!closed && backtick) {
         const error = this.unclosedBacktickInterpolation(nodeRef.node);
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
