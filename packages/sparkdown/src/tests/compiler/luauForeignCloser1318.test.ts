@@ -162,6 +162,10 @@ const CASES: Record<string, Form[]> = {
     { form: "for k --[[x]] : then do end", errors: ["Expected type, got 'then'"] },
     { form: "for k --[[x]] : do end", errors: ["Expected type, got 'do'"] },
     { form: "for k, v --[[x]]: in pairs({}) do end", errors: ["Expected type, got 'in'"] },
+    // A colon after the loop's values, with a comment before it, is a
+    // method's, not a variable's type (round 3 checkpoint dea02585).
+    { form: "local t = {}\n  for k in t --[[c]] : then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "for k = 1 --[[c]] : then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  for k in t: then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  local b = (t): --[[c]] then", errors: ["Expected identifier when parsing method name, got 'then'"] },
     // The other header's keyword in a condition is the method's name (round
