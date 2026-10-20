@@ -121,8 +121,9 @@ sparkdown [0..88]
  │       ├─ LuauSparkdownChooseBlock_end_c1 [71..73]
  │       │   └─ LuauSparkdownChooseBlock_end_c1 [71..73]
  │       │       └─ OptionalWhitespace [71..73]: "  "
- │       └─ LuauSparkdownChooseBlock_end_c2 [73..76]
- │           └─ LuauEndKeyword [73..76]: "end"
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [73..76]
+ │       │   └─ LuauEndKeyword [73..76]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 76
  ├─ Newline [76..77]: "\n"
  ├─ DoneStatement [77..83]
  │   ├─ DoneStatement_c1 [77..79]

@@ -140,8 +140,9 @@ sparkdown [0..367]
  │       ├─ LuauSparkdownDoBlock_end_c1 336
  │       │   └─ LuauSparkdownDoBlock_end_c1 336
  │       │       └─ OptionalWhitespace 336
- │       └─ LuauSparkdownDoBlock_end_c2 [336..339]
- │           └─ LuauEndKeyword [336..339]: "end"
+ │       ├─ LuauSparkdownDoBlock_end_c2 [336..339]
+ │       │   └─ LuauEndKeyword [336..339]: "end"
+ │       └─ LuauSparkdownDoBlock_end_c3 339
  ├─ Newline [339..340]: "\n"
  ├─ LuauSparkdownWhileLoop [340..345]
  │   ├─ LuauSparkdownWhileLoop_begin [340..345]
@@ -222,6 +223,7 @@ sparkdown [0..367]
  │       ├─ LuauSparkdownDoBlock_end_c1 363
  │       │   └─ LuauSparkdownDoBlock_end_c1 363
  │       │       └─ OptionalWhitespace 363
- │       └─ LuauSparkdownDoBlock_end_c2 [363..366]
- │           └─ LuauEndKeyword [363..366]: "end"
+ │       ├─ LuauSparkdownDoBlock_end_c2 [363..366]
+ │       │   └─ LuauEndKeyword [363..366]: "end"
+ │       └─ LuauSparkdownDoBlock_end_c3 366
  └─ Newline [366..367]: "\n"

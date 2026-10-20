@@ -171,7 +171,8 @@ sparkdown [0..116]
  │       ├─ LuauSparkdownChooseBlock_end_c1 [107..109]
  │       │   └─ LuauSparkdownChooseBlock_end_c1 [107..109]
  │       │       └─ OptionalWhitespace [107..109]: "  "
- │       └─ LuauSparkdownChooseBlock_end_c2 [109..112]
- │           └─ LuauEndKeyword [109..112]: "end"
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [109..112]
+ │       │   └─ LuauEndKeyword [109..112]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 112
  ├─ Newline [112..113]: "\n"
  └─ LuauEndKeyword [113..116]: "end"

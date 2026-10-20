@@ -87,6 +87,7 @@ sparkdown [0..49]
  │       ├─ LuauLayout_end_c1 45
  │       │   └─ LuauLayout_end_c1 45
  │       │       └─ OptionalWhitespace 45
- │       └─ LuauLayout_end_c2 [45..48]
- │           └─ LuauEndKeyword [45..48]: "end"
+ │       ├─ LuauLayout_end_c2 [45..48]
+ │       │   └─ LuauEndKeyword [45..48]: "end"
+ │       └─ LuauLayout_end_c3 48
  └─ Newline [48..49]: "\n"
