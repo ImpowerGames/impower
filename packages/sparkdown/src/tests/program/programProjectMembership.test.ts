@@ -176,6 +176,30 @@ describe("a script other than main", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["The intro 6 4.\n", "More.\n"]);
   });
 
+  it("reports a top-level local function, and not a function whose body declares a local", () => {
+    const program = compileProject({
+      [MAIN]: lines("Main {twice(2)}."),
+      [LIB]: lines(
+        "local function helper() return 1 end",
+        "@native local function fast() return 2 end",
+        "function twice(n)",
+        "  local doubled = n * 2",
+        "  return doubled",
+        "end",
+        "@native function thrice(n)",
+        "  local tripled = n * 3",
+        "  return tripled",
+        "end",
+      ),
+    });
+    expect(reported(program, OUTSIDE_SCENE)).toEqual([
+      [LIB, 0],
+      [LIB, 1],
+    ]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Main 4.\n"]);
+  });
+
   it("declares an external without a report of its own", () => {
     // The program engine does not run an external wherever it is declared,
     // which its own error says; it is a declaration all the same.

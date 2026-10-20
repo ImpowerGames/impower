@@ -1,4 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { nodeNameSet } from "./nodeNameSet";
 
 /** What a script other than main reports at each line of its top level that
@@ -82,12 +83,32 @@ const declares = (
   if (DECLARATIONS.has(node.name)) {
     return true;
   }
-  const keyword = /^\s*(\w+)/.exec(read(node.from, Math.min(node.to, node.from + 64)))?.[1];
   if (FUNCTIONS.has(node.name)) {
-    return keyword !== "local";
+    return scopeOf(node, read) !== "local";
   }
   if (VARIABLES.has(node.name)) {
-    return keyword === "store" || keyword === "const";
+    const scope = scopeOf(node, read);
+    return scope === "store" || scope === "const";
   }
   return false;
+};
+
+/** The scope a variable or function definition is written with (`local`,
+ *  `store`, `const`), from the scope modifier the grammar gives its header,
+ *  or undefined when it has none. A function's own modifier stands before its
+ *  name; one after it is a statement of its body. */
+const scopeOf = (
+  node: SyntaxNode,
+  read: (from: number, to: number) => string,
+): string | undefined => {
+  const definition =
+    node.name === "LuauFunctionAttributes"
+      ? (getDescendent("LuauFunctionDefinition", node) ?? node)
+      : node;
+  const modifier = getDescendent("LuauScopeModifier", definition);
+  const name = getDescendent("LuauFunctionDeclarationName", definition);
+  if (!modifier || (name && modifier.from > name.from)) {
+    return undefined;
+  }
+  return read(modifier.from, modifier.to).trim();
 };
