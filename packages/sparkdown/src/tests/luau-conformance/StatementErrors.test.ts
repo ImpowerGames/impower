@@ -2,11 +2,13 @@
 // (`luau/tests/Parser.test.cpp`). Snippets and expected messages are quoted
 // verbatim; the upstream test-case name is in the comment above each group.
 //
-// Most of these are `describe.skip`, each with the reason. The grammar is a
-// TextMate-style tokenizer that recovers from an unexpected token by treating
-// the remainder as narrative text, so it has no notion of "expected `end`" or
-// "unexpected token" at the statement level. Each skip is a todo for parity;
-// a silent omission would read as "covered".
+// Every syntax error Luau's reading of a function body reports is reported
+// (I-1322), so an unexpected token, a bad assignment target or an ambiguous
+// call is reported as Luau words it. The groups still `describe.skip` say
+// the reason each does not match yet: the grammar closes a block at its own
+// `end` where Luau's indentation hint names another, story after a `return`
+// is read on, and non-ASCII text is narrative. Each skip is a todo for
+// parity; a silent omission would read as "covered".
 
 import { describe, expect, test } from "vitest";
 import {
@@ -179,7 +181,7 @@ describe.skip("incomplete statement (diverges: a bare name is a call)", () => {
 
 // Luau: extra_token_in_consume / extra_token_in_consume_match /
 // extra_token_in_consume_match_end
-describe.skip("unexpected token (diverges: the rest of the line becomes narrative text)", () => {
+describe("unexpected token", () => {
   test("function test + (a, f)", () => {
     const msgs = diagnoseInFunction(
       "function test + (a, f) return a + f end\nreturn test(2, 3)",
@@ -336,7 +338,7 @@ end`);
 });
 
 // Luau: parse_compound_assignment_error_call / _not_lvalue / _multiple
-describe.skip("compound assignment targets (diverges: accepted silently)", () => {
+describe("compound assignment targets", () => {
   test("a() += 5", () => {
     expect(diagnoseInFunction("a() += 5")).toContain(
       "Expected identifier when parsing expression, got '+='",
@@ -358,7 +360,7 @@ describe.skip("compound assignment targets (diverges: accepted silently)", () =>
 
 // Luau: parse_error_assignment_lvalue
 // "Assigned expression must be a variable or a field"
-describe.skip("parenthesized assignment target (diverges: accepted silently)", () => {
+describe("parenthesized assignment target", () => {
   test.each([
     ["(2), b = b, a", "local a, b\n(2), b = b, a"],
     ["a, (3) = b, a", "local a, b\na, (3) = b, a"],
@@ -371,7 +373,7 @@ describe.skip("parenthesized assignment target (diverges: accepted silently)", (
 
 // Luau: parse_error_confusing_function_call
 // A parenthesized expression on the line after a callable is ambiguous.
-describe.skip("ambiguous call across a newline (diverges: read as a separate statement)", () => {
+describe("ambiguous call across a newline", () => {
   const expected =
     "Ambiguous syntax: this looks like an argument list for a function call, but could also be a start of new statement; use ';' to separate statements";
 

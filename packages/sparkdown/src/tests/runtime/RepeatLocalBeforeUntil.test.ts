@@ -85,8 +85,12 @@ describe("a repeat loop whose until follows a statement on its line", () => {
     const ctx = makeRuntimeStoryFromSource(
       "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n",
     );
-    expect(ctx.errorMessages).toEqual([
+    // The `until` closes the `if` and the `repeat`, so the `end` written for
+    // the `if` closes the function, and the function's own `end` closes
+    // nothing (#774), past Luau's first error, where its parser has stopped.
+    expect([...ctx.errorMessages].sort()).toEqual([
       "Expected 'end' (to close 'then' at line 3), got 'until'",
+      "Expected <eof>, got 'end'",
     ]);
   });
 

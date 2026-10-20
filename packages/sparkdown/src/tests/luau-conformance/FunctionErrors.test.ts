@@ -8,7 +8,7 @@ import { diagnoseInFunction } from "./diagnosticTestHarness";
 
 // Luau: parse_error_function_call
 // "Expected '(', '{' or <string> when parsing function call, got '2'"
-describe.skip("method call with a bare argument (diverges: accepted silently)", () => {
+describe("method call with a bare argument", () => {
   test("t:Parse 2", () => {
     const msgs = diagnoseInFunction(
       "function stringifyTable(t)\n    local foo = t:Parse 2\n    return foo\nend",
@@ -21,7 +21,7 @@ describe.skip("method call with a bare argument (diverges: accepted silently)", 
 
 // Luau: parse_error_function_call_newline
 // "Expected function call arguments after '('"
-describe.skip("method call with no argument list (diverges: accepted silently)", () => {
+describe("method call with no argument list", () => {
   test("t:Parse then newline", () => {
     const msgs = diagnoseInFunction(
       "function stringifyTable(t)\n    local foo = t:Parse\n    return foo\nend",
@@ -33,11 +33,11 @@ describe.skip("method call with no argument list (diverges: accepted silently)",
 // Luau: parse_error_varargs
 // "Cannot use '...' outside of a vararg function"
 //
-// `...` lowers to a read of the function's hidden varargs variable. In a
-// function with no `...` parameter that variable does not exist, and what
-// surfaces is a warning naming the internal `__varargs$` rather than an
-// error naming the rule.
-describe.skip("varargs outside a vararg function (diverges: warns about the internal variable)", () => {
+// The type checker reports Luau's error for a function's body (I-1322). The
+// lowering still reads `...` as the function's hidden varargs variable, which
+// a function with no `...` parameter lacks, so a warning naming the internal
+// `__varargs$` comes with it (LintSparkdownWarnings.test.ts, I-1254).
+describe("varargs outside a vararg function", () => {
   test("function add(x, y) return ... end", () => {
     expect(
       diagnoseInFunction("function add(x, y) return ... end"),
@@ -54,7 +54,7 @@ describe("varargs inside a vararg function are well-formed", () => {
 // Luau: variadics_must_be_last
 // `...` has to be the final parameter; in a type position the list is
 // closed by `)`.
-describe.skip("variadic not last (diverges: accepted silently; the type cases are N/A)", () => {
+describe("variadic not last (the type cases are N/A)", () => {
   test("function foo(..., a) end", () => {
     expect(diagnoseInFunction("function foo(..., a) end")).toContain(
       "Expected ')' (to close '(' at column 13), got ','",

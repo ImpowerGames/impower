@@ -5,7 +5,8 @@ describe("Luau casts to type targets (#877)", () => {
   test.each(["return 55", "local b = 55\nreturn b", "if true then return 55 end"])
     ("preserves unindented statement after unfinished qualification: %s", (statement) => {
       const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  local a = 55 :: types.Number. --[[c]]\n${statement}\nend\n`);
-      expect(ctx.errorMessages).toEqual([expect.stringContaining("takes at most one module prefix")]);
+      // Sparkdown's hint first, then Luau's recovery errors (I-1322).
+      expect(ctx.errorMessages[0]).toEqual(expect.stringContaining("takes at most one module prefix"));
       expect(ctx.story.ContinueMaximally()).toBe("Value 55.\n");
     });
   test.each(["types --[[c]] .Number?", "types. --[[c]] Array<number>", "types --[====[long\ncomment]====] .Number?", "types. --[====[long\ncomment]====] Number?"])

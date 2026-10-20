@@ -5744,23 +5744,51 @@ export class SparkdownCompiler {
         else report(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", unknownModeMessage(setting.value));
       }
       // A name Sparkdown's own resolver cannot find is already reported there,
-      // and so is a token Sparkdown already reports an error at.
+      // and so is a token Sparkdown already reports an error at. A syntax
+      // error of Luau's reading is Luau's own, in its words at its range, so
+      // Sparkdown's report of the same error where its range meets the
+      // reading's gives way to it; a different one at the reading's token (a
+      // Sparkdown limitation such as a 64-bit integer literal) keeps the
+      // token.
       const unresolved: { name: string; range: Range }[] = [];
-      const errors: Range[] = [];
+      const errors: SparkDiagnostic[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error) errors.push(d.range);
+        if (d.severity === DiagnosticSeverity.Error) errors.push(d);
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       // A syntax error's range ends with the token the reading found.
       const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });
+      const messageOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
+      // Two ranges meet where either holds the other's start, or the
+      // reading's token (an error at `<eof>` ends at the next line's start),
+      // or where only space lies between them (a comma Sparkdown marks and
+      // the token after it that Luau names).
+      const meets = (e: Range, d: { start: Range["start"]; end: Range["end"] }) => {
+        if (rangeContains(e, d.start) || rangeContains(e, tokenOf(d)) || rangeContains(d, e.start)) return true;
+        const from = doc.offsetAt(e.end);
+        const to = doc.offsetAt(d.start);
+        return from <= to && /^\s*$/.test(doc.read(from, to));
+      };
+      const replaced = new Set<SparkDiagnostic>();
+      const replacing = new Set<(typeof checked)[number]>();
+      for (const d of checked) {
+        if (!d.syntax) continue;
+        for (const e of errors) {
+          if (messageOf(e) === d.message && meets(e.range, d)) {
+            replaced.add(e);
+            replacing.add(d);
+          }
+        }
+      }
       for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
-        if (d.syntax && errors.some((range) => rangeContains(range, tokenOf(d)))) continue;
+        if (d.syntax && !replacing.has(d) && errors.some((e) => !replaced.has(e) && rangeContains(e.range, tokenOf(d)))) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
+      if (replaced.size > 0) program.diagnostics![scriptUri] = program.diagnostics![scriptUri]!.filter((d) => !replaced.has(d));
     }
     this._typechecker.endCompile();
     profile("end", this._profilerId, "validateTypes", uri);

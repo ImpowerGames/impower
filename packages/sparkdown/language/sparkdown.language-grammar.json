@@ -1909,13 +1909,16 @@
           "include": "#Annotation"
         },
         {
+          "include": "#LuauLineComment"
+        },
+        {
           "include": "#Unknown"
         }
       ],
       "end": "$"
     },
     "SceneWithParametersDeclaration": {
-      "begin": "((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
+      "begin": "(?<=^(?:[^\\S\\n\\r])*scene(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1940,7 +1943,7 @@
       "end": "(?=$|(?:[-][-])|(?:[^\\S\\n\\r])*(?![(]))"
     },
     "SceneWithoutParametersDeclaration": {
-      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
+      "match": "(?<=^(?:[^\\S\\n\\r])*scene(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "patterns": [
@@ -2007,13 +2010,16 @@
           "include": "#BranchWithoutParametersDeclaration"
         },
         {
+          "include": "#LuauLineComment"
+        },
+        {
           "include": "#Unknown"
         }
       ],
       "end": "$"
     },
     "BranchWithParametersDeclaration": {
-      "begin": "((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
+      "begin": "(?<=^(?:[^\\S\\n\\r])*branch(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2038,7 +2044,7 @@
       "end": "(?=$|(?:[-][-])|(?:[^\\S\\n\\r])*(?![(]))"
     },
     "BranchWithoutParametersDeclaration": {
-      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
+      "match": "(?<=^(?:[^\\S\\n\\r])*branch(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "patterns": [
@@ -16043,6 +16049,9 @@
           "include": "#LuauKeywordMethodAccessor"
         },
         {
+          "include": "#LuauNextLineMethodAccessor"
+        },
+        {
           "include": "#LuauTypeAnnotationMissingType"
         },
         {
@@ -16067,6 +16076,53 @@
           "include": "#LuauVariable"
         }
       ]
+    },
+    "LuauNextLineMethodAccessor": {
+      "begin": "((?:[^\\S\\n\\r])*)([:](?![:]))(?=(?:[^\\S\\n\\r])*(?:$|(?:[-][-])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauAccessorOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)((?!\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b)(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))|(?!(?:[^\\S\\n\\r])|$|(?:[-][-])|(?!\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b)(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauFunctionName"
+            }
+          ]
+        }
+      }
     },
     "LuauKeywordMethodAccessor": {
       "begin": "((?:[^\\S\\n\\r])*)([:](?![:]))(?=(?:(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[(?:\\[(?:[^\\]\\n]|\\](?!\\]))*\\]\\]|=\\[(?:[^\\]\\n]|\\](?!=\\]))*\\]=\\]|==\\[(?:[^\\]\\n]|\\](?!==\\]))*\\]==\\]|===\\[(?:[^\\]\\n]|\\](?!===\\]))*\\]===\\])(?:(?:[^\\S\\n\\r])*))*)(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))",
@@ -16264,7 +16320,7 @@
       "end": "(?!(?:[^\\S\\n\\r])*[:](?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?:[^\\S\\n\\r])*(?:<<|[({\"']|\\[=*\\[))"
     },
     "LuauChainedPropertyAccess": {
-      "begin": "(?<=\\))((?:[^\\S\\n\\r])*)(?=[.](?![.])|\\[(?!=*\\[))",
+      "begin": "(?<=[)}\"'`])((?:[^\\S\\n\\r])*)(?=[.](?![.])|\\[(?!=*\\[))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -17696,7 +17752,7 @@
       }
     },
     "LuauNil": {
-      "match": "(nil(?!:))\\b(?:((?:[^\\S\\n\\r])*)(?=(?:(?:(?:\\b(?:and|or|not)\\b|(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|(?:==|~=|<=?|>=?)|(?:\\+|-(?!-)|%|\\*|\\/\\/|\\/|\\^)|(?<![.])(?:[.][.])(?![.])|(?:[:][:]))|[&]|[-][>]|(?:[-][-]))|[?]))|(?=$|.))",
+      "match": "(nil)\\b(?:((?:[^\\S\\n\\r])*)(?=(?:(?:(?:\\b(?:and|or|not)\\b|(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|(?:==|~=|<=?|>=?)|(?:\\+|-(?!-)|%|\\*|\\/\\/|\\/|\\^)|(?<![.])(?:[.][.])(?![.])|(?:[:][:]))|[&]|[-][>]|(?:[-][-]))|[?]))|(?=$|.))",
       "captures": {
         "1": {
           "tag": "null",

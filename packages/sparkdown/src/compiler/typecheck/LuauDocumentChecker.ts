@@ -66,8 +66,13 @@ export interface LuauUnit {
  * a column in UTF-16 code units, as the document does.
  */
 export function documentPosition(unit: LuauUnit, position: Position): { line: number; character: number } {
-  const index = Math.min(Math.max(position.line, 0), unit.lines.length - 1);
-  return { line: unit.lines[index] ?? 0, character: position.column };
+  return { line: documentLine(unit, position.line), character: position.column };
+}
+
+/** The document line a unit's line (from 0) stands on. */
+export function documentLine(unit: LuauUnit, line: number): number {
+  const index = Math.min(Math.max(line, 0), unit.lines.length - 1);
+  return unit.lines[index] ?? 0;
 }
 
 /** The UTF-16 column of the character a UTF-8 byte column points at. */

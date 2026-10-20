@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { checkLuau, describeDiagnostic, expectLuauSyntax } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
 
@@ -106,9 +106,7 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["after a type alias's `=` and a block comment", "type T = --[[c]] ?\n", 8, 18],
     ["after an exported type alias's `=` and a block comment", "export type T = --[[c]] ?\n", 15, 25],
   ])("a `?` with no type before it, %s, is reported", (_name, snippet, from, to) => {
-    expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
-      `1:${from}-1:${to} SyntaxError: Expected type, got '?'`,
-    ]);
+    expectLuauSyntax(`\n${snippet}`, [`1:${from}-1:${to} SyntaxError: Expected type, got '?'`]);
   });
 
   test.each([
@@ -147,7 +145,7 @@ describe("the code after a type ending in `?` still runs", () => {
     "after `%s`, which is reported, the rest of the function still runs",
     (line) => {
       const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  ${line}\n  return 5\nend\n`);
-      expect(ctx.errorMessages).toEqual(["Expected type, got '?'"]);
+      expect(ctx.errorMessages).toContain("Expected type, got '?'");
       expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
     },
   );

@@ -47,11 +47,11 @@ describe("string literal escapes", () => {
     expect(diagnoseInFunction(source)).toEqual([]);
   });
 
-  // Luau accepts code points up to `\u{7FFFFFFF}` (extended UTF-8); a JS
-  // string cannot represent one above U+10FFFF, so sparkdown lowers those to
-  // U+FFFD rather than crashing. Documented in DIVERGENCES.md.
-  test("code points above U+10FFFF are accepted, not crashed on", () => {
-    expect(diagnoseInFunction('return "\\u{110000}"')).toEqual([]);
+  // Luau's parser rejects a code point above U+10FFFF (upstream's
+  // `utf8.luau` writes `"\u{110000}"` only as Lua 5.4's), and in Luau code
+  // its error is reported (I-1322).
+  test("code points above U+10FFFF are malformed, not crashed on", () => {
+    expect(diagnoseInFunction('return "\\u{110000}"')).toEqual([expected]);
   });
 });
 
@@ -119,18 +119,24 @@ describe("unfinished string literals", () => {
   });
 });
 
-// Luau encodes `\u{110000}` through `\u{7FFFFFFF}` as extended UTF-8; a JS
-// string cannot hold a code point above U+10FFFF, so sparkdown lowers those
-// to U+FFFD (DIVERGENCES.md). The value, not just the absence of a crash.
-describe("extended code points lower to U+FFFD", () => {
-  test('"\\u{110000}" == "\\u{FFFD}"', () => {
-    // Compared as a number so the test cannot pass by both sides lowering
-    // to the same wrong value.
+// Luau's parser rejects `\u{110000}` through `\u{7FFFFFFF}`, and Luau code
+// reports its error for each (I-1322); U+10FFFF, the last code point, stays
+// as written.
+describe("code points above U+10FFFF", () => {
+  test('"\\u{110000}" and "\\u{7FFFFFFF}" are malformed escapes', () => {
     const r = runConformanceSource(
       'assert(utf8.codepoint("\\u{110000}") == 0xFFFD, "expected U+FFFD")\n' +
-        'assert(utf8.codepoint("\\u{7FFFFFFF}") == 0xFFFD, "expected U+FFFD")\n' +
-        'assert(utf8.codepoint("\\u{10FFFF}") == 0x10FFFF, "in range stays")\n',
+        'assert(utf8.codepoint("\\u{7FFFFFFF}") == 0xFFFD, "expected U+FFFD")\n',
     );
+    expect(r.errorMessages).toEqual([
+      "String literal contains malformed escape sequence",
+      "String literal contains malformed escape sequence",
+    ]);
+  });
+
+  test('"\\u{10FFFF}" stays U+10FFFF', () => {
+    // Compared as a number so the test cannot pass by a wrong lowering.
+    const r = runConformanceSource('assert(utf8.codepoint("\\u{10FFFF}") == 0x10FFFF, "in range stays")\n');
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });

@@ -153,7 +153,7 @@ describe("names in a list (#1292)", () => {
       "Go {f()}.\nfunction f()\n  local a,\n    const = 1, 2\n  return 1\nend\n",
     );
     expect([...ctx.errorMessages]).toEqual([
-      "Expected identifier when parsing binding name, got 'const'",
+      "Expected identifier when parsing variable name, got 'const'",
     ]);
   });
 
@@ -184,7 +184,7 @@ describe("names in a list (#1292)", () => {
   ])("%s takes a name after the comma", (_label, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(
-      [...ctx.errorMessages].filter((m) => m.includes("when parsing binding name")),
+      [...ctx.errorMessages].filter((m) => m.includes("when parsing variable name")),
     ).toEqual([]);
   });
 

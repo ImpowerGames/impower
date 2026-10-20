@@ -422,17 +422,18 @@ end
   },
   {
     // TypeInfer.test.cpp:634 TEST_CASE_FIXTURE(Fixture, "tc_after_error_recovery_no_assert")
-    // Luau rejects the snippet (`function +()` has no name); Sparkdown reads it
-    // without complaint, so the error is left to the checker.
+    // Luau rejects the snippet (`function +()` has no name), and so does
+    // Sparkdown (I-1322).
     name: "tc_after_error_recovery_no_assert",
     fixture: "Fixture",
+    malformed: "`function +()` has no name",
     source: `function +() local _ = true end`,
     expect: [{ errors: "some" }],
   },
   {
     // TypeInfer.test.cpp:640 TEST_CASE_FIXTURE(BuiltinsFixture, "tc_after_error_recovery_no_replacement_name_in_error")
-    // Luau rejects the fourth snippet's nameless local functions too; Sparkdown
-    // reads them without complaint, so their errors are left to the checker.
+    // Luau rejects the fourth snippet's nameless local functions too, and so
+    // does Sparkdown (I-1322).
     name: "tc_after_error_recovery_no_replacement_name_in_error",
     fixture: "BuiltinsFixture",
     checks: [
@@ -465,6 +466,7 @@ end
         expect: [],
       },
       {
+        malformed: "`local function ()` has no name",
         source: `
             --!strict
             local function () end
@@ -2046,6 +2048,7 @@ end
     // TypeInfer.test.cpp:2422 TEST_CASE_FIXTURE(Fixture, "fuzzer_missing_follow_in_assign_index_constraint")
     name: "fuzzer_missing_follow_in_assign_index_constraint",
     fixture: "Fixture",
+    malformed: "`{nil=_,}` has a reserved word as a field name",
     source: `
         _._G = nil
         for _ in ... do
