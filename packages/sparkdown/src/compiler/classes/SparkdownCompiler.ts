@@ -9,6 +9,7 @@ import {
   collectLuauLints,
   indexProgramNames,
   lintGlobalShadows,
+  lintUnusedGlobalFunctions,
   type LuauLint,
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
@@ -5590,22 +5591,19 @@ export class SparkdownCompiler {
 
   /** Luau lints (unused locals, unreachable code, repeated conditions,
    *  suspicious numeric `for` ranges, reads of the placeholder `_`, locals
-   *  hiding another variable); see
+   *  hiding another variable, functions nothing uses); see
    *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
-    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals">)[] = [];
+    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "brokenFunctions">)[] = [];
+    // Each script's lints, its own and the program-wide rules', reported in
+    // source order as Luau sorts its warnings.
+    const lints = new Map<string, LuauLint[]>();
     const report = (scriptUri: string, lint: LuauLint) => {
-      const doc = this.documents.get(scriptUri);
-      if (!doc) return;
-      ((program.diagnostics ??= {})[scriptUri] ??= []).push({
-        range: doc.range(lint.from, lint.to),
-        code: lint.code,
-        severity: DiagnosticSeverity.Warning,
-        message: { kind: "markdown", value: lint.message },
-        source: LANGUAGE_NAME,
-      });
+      let list = lints.get(scriptUri);
+      if (!list) lints.set(scriptUri, (list = []));
+      list.push(lint);
     };
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
@@ -5616,19 +5614,37 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
-      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals });
+      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, brokenFunctions: script.brokenFunctions });
       for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);
     // Program-wide rules rerun on every compile over the cached facts. The
-    // prelude's own compile, which seeds the prelude's globals, has none.
-    if (!program.scripts[BUILTINS_PRELUDE_URI] && scripts.some((script) => script.globalShadows.length)) {
+    // prelude's own compile, which seeds the prelude's globals, has none (its
+    // script's version is 0, so presence is tested, not the version).
+    if (!(BUILTINS_PRELUDE_URI in program.scripts)) {
       const builtins = new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
-      const shadows = lintGlobalShadows(names, scripts, builtins, (name, reference, own) => {
-        const line = (this.documents.get(reference.uri)?.positionAt(reference.from).line ?? 0) + 1;
-        return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri)}'`}`;
-      });
-      for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
+      for (const { uri: scriptUri, lint } of lintUnusedGlobalFunctions(names, scripts, builtins)) report(scriptUri, lint);
+      if (scripts.some((script) => script.globalShadows.length)) {
+        const shadows = lintGlobalShadows(names, scripts, builtins, (name, reference, own) => {
+          const line = (this.documents.get(reference.uri)?.positionAt(reference.from).line ?? 0) + 1;
+          return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri)}'`}`;
+        });
+        for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
+      }
+    }
+    for (const [scriptUri, list] of lints) {
+      const doc = this.documents.get(scriptUri);
+      if (!doc) continue;
+      list.sort((a, b) => a.from - b.from || a.to - b.to);
+      for (const lint of list) {
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range: doc.range(lint.from, lint.to),
+          code: lint.code,
+          severity: DiagnosticSeverity.Warning,
+          message: { kind: "markdown", value: lint.message },
+          source: LANGUAGE_NAME,
+        });
+      }
     }
     profile("end", this._profilerId, "validateLints", uri);
     return names;

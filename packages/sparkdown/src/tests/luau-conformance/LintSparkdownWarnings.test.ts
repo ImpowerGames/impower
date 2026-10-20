@@ -78,10 +78,11 @@ describe("an empty choice", () => {
 
 // `...` in a function without a `...` parameter reads the hidden variable
 // the lowering gives varargs, and the warning names that variable. Luau's
-// error for the same mistake is in FunctionErrors.test.ts.
+// error for the same mistake is in FunctionErrors.test.ts. The call keeps
+// FunctionUnused out of the way.
 describe("varargs outside a vararg function", () => {
   test("the warning names the internal variable", () => {
-    expect(diagnoseWithLints("function add(x, y) return ... end\n")).toEqual([
+    expect(diagnoseWithLints("function add(x, y) return ... end\n& add(1, 2)\n")).toEqual([
       "Cannot find variable named `__varargs$`",
     ]);
   });

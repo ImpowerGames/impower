@@ -78,6 +78,9 @@ function lint(scripts: Script[], entries: Script[]): Finding[] {
     if (!script) continue;
     for (const d of diagnostics) {
       if (!LINT_CODES.has(String(d.code))) continue;
+      // The wrapper a conformance file is read in is the corpus's, and
+      // nothing calls it.
+      if (script.offset && d.code === "FunctionUnused" && d.range.start.line === 0) continue;
       out.push({
         label: script.label,
         line: d.range.start.line + 1 - script.offset,
