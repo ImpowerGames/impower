@@ -158,11 +158,14 @@ const METHOD_HEADER = new Set([
  * and its lowerer reports every syntax error of Luau's reading of the body
  * alone, its `end` included (`reportBodySyntaxErrors`, I-1368): a define's
  * method, in either spelling (`f()` … `end`, `function f()` … `end`), or a
- * Sparkle handler's closure. Null outside them, and in a method's header,
- * whose errors are not its body's.
+ * Sparkle handler's closure. Null outside them, in a method's header,
+ * whose errors are not its body's, and in Sparkdown's own constructs and
+ * expressions in the body (an alternator), which the reading reads as one
+ * opaque value, as the type checker's does (`isCheckedLuau`).
  */
 export function loweredLuauBodyOf(node: SyntaxNode | null): SyntaxNode | null {
   for (let n = node; n?.parent; n = n.parent) {
+    if (SPARKDOWN_ONLY.has(n.name) || SPARKDOWN_EXPRESSIONS.has(n.name)) return null;
     const content = n.parent;
     const method =
       content.name === "LuauMethodDefinition_content" ||

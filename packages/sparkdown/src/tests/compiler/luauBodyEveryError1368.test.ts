@@ -120,6 +120,25 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
   });
 });
 
+// An alternator is Sparkdown's own expression, which a body's reading reads
+// as one opaque value: its arms' errors stay Sparkdown's to report, in a
+// method or a closure as in a function (round 2 of the review).
+describe("an alternator's arm in these bodies is reported as in a function (I-1368)", () => {
+  const ARM = "local t = cycle 0 | (1 +) end";
+  const MISSING = "Expected identifier when parsing expression, got ')'";
+  test("the function control", () => {
+    expect(sparkdownErrors(`function f()\n    ${ARM}\nend\n`)).toEqual([`1:28-1:29 ${MISSING}`]);
+  });
+  for (const header of ["f()", "function f()"]) {
+    test(`a method spelled ${header}`, () => {
+      expect(sparkdownErrors(`define X with\n  ${header}\n    ${ARM}\n  end\nend\n`)).toEqual([`2:28-2:29 ${MISSING}`]);
+    });
+  }
+  test("a handler closure", () => {
+    expect(sparkdownErrors(`layout main with\n  button @click={\n    ${ARM}\n  }\nend\n`)).toEqual([`2:28-2:29 ${MISSING}`]);
+  });
+});
+
 // A block that took the method's `end` leaves the function open at the end
 // of its reading, ranged as in a function (to the next line's start).
 describe("a method left open is ranged as a function is (I-1368)", () => {
