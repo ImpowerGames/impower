@@ -198,8 +198,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
 > {
   // Cache the globally-addressable callable names per parse tree.
   // Computed lazily by walking the top-level statements once: every
-  // `LuauExternalDeclaration` and every top-level `LuauFunctionDefinition`
-  // / variable definition lands in the set. Used by
+  // `LuauExternalDeclaration`, every top-level `LuauFunctionDefinition`
+  // and every top-level `store` / `const` lands in the set; a plain
+  // `local` does not, so a closure captures it (I-822). Used by
   // `scanFreeVariables` in `lowerExpression.ts` to skip these when
   // collecting closure upvals — they're already reachable from any
   // nested-function call site via the regular divert resolver, so
