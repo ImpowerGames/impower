@@ -153,6 +153,24 @@ describe("LocalShadow of a global", () => {
     ]);
   });
 
+  test("a published const is a global, not a local the function's local hides", () => {
+    expect(messages("const state = 1\n& print(state)\nfunction f()\n  local state = 2\n  return state\nend\n")).toEqual(["Variable 'state' shadows a global variable used at line 2"]);
+  });
+
+  test("a handler local's own initializer is a global use", () => {
+    expect(messages(`layout main with\n  button @click={ local state = state; print(state) }\nend\n${subject}`)).toEqual(["Variable 'state' shadows a global variable used at line 2"]);
+  });
+
+  test("a type in a scene's parameter list is not a parameter", () => {
+    const source = (type: string) => `${subject}const state = 1\nscene inspect(value: ${type})\n  : {state}.\nend\n`;
+    expect(messages(source("number"))).toEqual(["Variable 'state' shadows a global variable used at line 7"]);
+    expect(messages(source("state"))).toEqual(["Variable 'state' shadows a global variable used at line 7"]);
+  });
+
+  test("a scene's parameter does not name the global after the scene's end", () => {
+    expect(messages(`${subject}const state = 1\nscene inspect(state)\n  : {state}.\nend\n: {state}.\n`)).toEqual(["Variable 'state' shadows a global variable used at line 9"]);
+  });
+
   test("an interpolation inside a function with a local of the name is not a global use", () => {
     expect(messages(`function g(state)\n return \`State: {state}.\`\nend\n${subject}`)).toEqual([]);
   });

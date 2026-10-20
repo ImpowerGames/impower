@@ -589,7 +589,7 @@ export interface GlobalShadowCandidate extends NameRange {
   name: string;
 }
 
-function lintLocalShadows(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], globals: GlobalShadowCandidate[]): void {
+function lintLocalShadows(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], globals: GlobalShadowCandidate[], published: (local: AstLocal) => boolean): void {
   const declared: AstLocal[] = [];
   const statementOf = new Map<AstLocal, AstNode>();
   const localFunctions = new Set<AstLocal>();
@@ -624,7 +624,9 @@ function lintLocalShadows(fn: AstExprFunction, tree: Tree, text: string, offsets
   const uncertain = new Set(keywordWords(tree, text, offsets.of(fn.location.begin), offsets.of(fn.location.end), names).map(({ name }) => name));
   for (const local of declared) {
     if (!used.has(local) || !isAuthoredLuauName(local.name) || local.name.startsWith("_") || uncertain.has(local.name)) continue;
-    const shadow = local.shadow;
+    // A published const is global at runtime; its checking local hides nothing.
+    let shadow = local.shadow;
+    while (shadow && published(shadow)) shadow = shadow.shadow;
     if (!shadow) {
       globals.push({ name: local.name, ...offsets.range(local.location) });
       continue;
@@ -641,26 +643,33 @@ function lintLocalShadows(fn: AstExprFunction, tree: Tree, text: string, offsets
 // Only own registry keys are built-ins; Object.prototype names are ordinary globals.
 const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_CONSTANTS)].map((name) => name.split(".")[0]!));
 
-/** The names in each scene's or branch's parameter list, with the span they
- * can be read in: from the header to the next scene's, which holds a branch's
- * as well. A flow without Luau statements has no unit, so the names its
- * narrative reads look global. */
+/** The parameter names of each scene and branch, with the span they can be
+ * read in: from the header to the `end` that closes it, paired as
+ * `readLuauUnits` pairs them (a branch inside a scene is closed first). A
+ * flow without Luau statements has no unit, so the names its narrative reads
+ * look global. */
 function flowParameters(tree: Tree, text: string): { from: number; to: number; names: Set<string> }[] {
   const flows: { from: number; to: number; names: Set<string> }[] = [];
+  const open: { from: number; to: number; names: Set<string> }[] = [];
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+    if (node.name === "LuauEndKeyword") {
+      const closed = open.pop();
+      if (closed) closed.to = node.to;
+      continue;
+    }
     if (!FLOW_HEADERS.has(node.name)) continue;
-    if (node.name === "Scene") for (const flow of flows) flow.to = Math.min(flow.to, node.from);
-    const names = new Set<string>();
+    const flow = { from: node.from, to: tree.length, names: new Set<string>() };
     tree.iterate({
       from: node.from,
       to: node.to,
       enter(inner) {
-        if (inner.name !== "LuauFunctionParameters") return true;
-        for (const match of text.slice(inner.from, inner.to).matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) names.add(match[0]);
+        if (!isExplicitRuleName(inner.name, "LuauFunctionParameter")) return true;
+        flow.names.add(text.slice(inner.from, inner.to));
         return false;
       },
     });
-    if (names.size) flows.push({ from: node.from, to: tree.length, names });
+    open.push(flow);
+    if (flow.names.size) flows.push(flow);
   }
   return flows;
 }
@@ -673,9 +682,9 @@ function flowParameters(tree: Tree, text: string): { from: number; to: number; n
  * expression
  * read outside every unit (an
  * interpolation, a handler), which is read without the locals around it, one
- * that a local of its name could reach or that names a parameter of the
- * scene or branch it is in. A unit's own references are bound as Luau binds
- * them.
+ * that a local of its name outside that expression could reach or that names
+ * a parameter of the scene or branch it is in. A unit's own references are
+ * bound as Luau binds them.
  */
 function uncertainGlobalUses(names: LuauNameFacts, outside: NameRange[], flows: { from: number; to: number; names: Set<string> }[], errors: NameRange[]): Set<number> {
   const uncertain = new Set<number>();
@@ -689,9 +698,11 @@ function uncertainGlobalUses(names: LuauNameFacts, outside: NameRange[], flows: 
     if (reference.local) continue;
     const { name, from } = reference;
     if (errors.some((error) => error.from <= from && from < error.to)) uncertain.add(from);
-    else if (!outside.some((range) => range.from <= from && from <= range.to)) continue;
-    else if (flows.some((flow) => flow.from <= from && from < flow.to && flow.names.has(name))) uncertain.add(from);
-    else if (declarations.get(name)?.some((d) => d.from <= from && from <= (d.scopeTo ?? Infinity))) uncertain.add(from);
+    const reading = outside.find((range) => range.from <= from && from <= range.to);
+    if (!reading) continue;
+    if (flows.some((flow) => flow.from <= from && from < flow.to && flow.names.has(name))) uncertain.add(from);
+    // A local the same reading declares is bound in its AST already.
+    else if (declarations.get(name)?.some((d) => d.from <= from && from <= (d.scopeTo ?? Infinity) && !(reading.from <= d.from && d.from <= reading.to))) uncertain.add(from);
   }
   return uncertain;
 }
@@ -1093,10 +1104,13 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   // Separate AST readings can share a document line (two interpolations).
   const sameLines = new Set<number>();
   const globalShadows: GlobalShadowCandidate[] = [];
+  // A const outside every function goes to the facts' globals, not their declarations.
+  const declaredLocals = new Set(facts.names.declarations.map((d) => d.local));
+  const published = (local: AstLocal) => local.isConst && !declaredLocals.has(local);
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
     for (const fn of functions) {
       lintUnusedLocals(fn, tree, text, offsets, out);
-      lintLocalShadows(fn, tree, text, offsets, out, globalShadows);
+      lintLocalShadows(fn, tree, text, offsets, out, globalShadows, published);
       lintPlaceholderReads(fn, offsets, out);
       lintUnreachable(fn, offsets, out);
     }
