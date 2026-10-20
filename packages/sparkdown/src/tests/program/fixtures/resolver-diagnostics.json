@@ -5,7 +5,10 @@
  },
  "bindings/game-ink-back-and-forth.sd": {
   "fallback": "external",
-  "diagnostics": []
+  "diagnostics": [
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'topExternal' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":20,\"line\":2},\"start\":{\"character\":9,\"line\":2}},\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'inkInc' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":15,\"line\":4},\"start\":{\"character\":9,\"line\":4}},\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
  },
  "bindings/lookup-safe-or-not-with-post-glue.sd": {
   "fallback": "external",
@@ -356,7 +359,10 @@
  "evaluation/evaluating-functions-from-host.sd": {
   "fallback": null,
   "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":35,\"line\":7},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":35,\"line\":7},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":35,\"line\":7},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":35,\"line\":7},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'func1' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":14,\"line\":5},\"start\":{\"character\":9,\"line\":5}},\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'func2' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":14,\"line\":6},\"start\":{\"character\":9,\"line\":6}},\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'add' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":12,\"line\":7},\"start\":{\"character\":9,\"line\":7}},\"severity\":2,\"source\":\"sparkdown\"}"
   ]
  },
  "evaluation/exponentiation.sd": {
@@ -381,7 +387,9 @@
  },
  "evaluation/function-variable-state.sd": {
   "fallback": null,
-  "diagnostics": []
+  "diagnostics": [
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'function_to_evaluate' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":29,\"line\":10},\"start\":{\"character\":9,\"line\":10}},\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
  },
  "evaluation/increment.sd": {
   "fallback": null,
@@ -402,7 +410,10 @@
  "functions/argument-name-collisions.sd": {
   "fallback": null,
   "diagnostics": [
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'aTarget' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":16,\"line\":2},\"start\":{\"character\":9,\"line\":2}},\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'pass_divert' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":20,\"line\":4},\"start\":{\"character\":9,\"line\":4}},\"severity\":2,\"source\":\"sparkdown\"}",
    "inmemory:///main.sd {\"code\":\"LocalShadow\",\"message\":{\"kind\":\"markdown\",\"value\":\"Variable 'aTarget' shadows a global variable used at line 3\"},\"range\":{\"end\":{\"character\":28,\"line\":4},\"start\":{\"character\":21,\"line\":4}},\"severity\":2,\"source\":\"sparkdown\"}",
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'variable_param_test' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":28,\"line\":6},\"start\":{\"character\":9,\"line\":6}},\"severity\":2,\"source\":\"sparkdown\"}",
    "inmemory:///main.sd {\"code\":\"LocalShadow\",\"message\":{\"kind\":\"markdown\",\"value\":\"Variable 'global_var' shadows a global variable used at line 1\"},\"range\":{\"end\":{\"character\":39,\"line\":6},\"start\":{\"character\":29,\"line\":6}},\"severity\":2,\"source\":\"sparkdown\"}"
   ]
  },
@@ -994,7 +1005,9 @@
  },
  "function screenplay": {
   "fallback": null,
-  "diagnostics": []
+  "diagnostics": [
+   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'reset' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":18,\"line\":70},\"start\":{\"character\":13,\"line\":70}},\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
  },
  "capture screenplay": {
   "fallback": null,

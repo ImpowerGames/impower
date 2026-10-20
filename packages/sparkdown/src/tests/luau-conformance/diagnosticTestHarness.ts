@@ -18,7 +18,8 @@
 // Other lints remain to catch false warnings in malformed snippets. The
 // linter ports use `diagnoseWithLints`, `diagnoseWithLintsInFunction` or
 // `lintInFunction`. The wrapper `run` is the harness's, not the snippet's, and
-// nothing calls it, so those leave out the FunctionUnused warning on its name.
+// nothing calls it, so every helper leaves out the FunctionUnused warning on
+// its name, in a snippet that writes the wrapper itself too.
 //
 // None of those upstream tests runs Luau's type checker either, so no helper
 // here reports its warnings; the ports of Luau's type-checker tests in
@@ -48,7 +49,16 @@ export interface DetailedDiagnostic {
   };
 }
 
-/** Every diagnostic of the compile but the type checker's warnings, lint warnings included. */
+/** The FunctionUnused warning on the name of the wrapper the snippets are
+ *  placed in, `function run()` on a script's first line, which nothing
+ *  calls. */
+function isWrapperWarning(d: SparkDiagnostic) {
+  return d.code === "FunctionUnused" && d.range?.start.line === 0 && d.range.start.character === "function ".length && diagnosticMessage(d).startsWith("Function 'run' ");
+}
+
+/** Every diagnostic of the compile but the type checker's warnings and the
+ *  wrapper's FunctionUnused warning (`isWrapperWarning`), lint warnings
+ *  included. */
 export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   return diagnoseFilesDetailed({ "main.sd": source });
 }
@@ -75,6 +85,7 @@ export function diagnoseFilesDetailed(
   for (const [uri, ds] of Object.entries(result.program.diagnostics ?? {})) {
     for (const d of ds) {
       if (d.code !== "SyntaxError" && TYPE_ERROR_KINDS.has(String(d.code))) continue;
+      if (isWrapperWarning(d)) continue;
       out.push({
         file: uri.replace("inmemory:///", ""),
         message: diagnosticMessage(d),
@@ -98,11 +109,6 @@ const PARSER_EXCLUDED_LINTS = new Set<LuauLintCode>([
   "LocalUnused", "FunctionUnused", "SameLineStatement", "MultiLineStatement",
 ]);
 
-/** The FunctionUnused warning on the name of the harness's own wrapper, `function run()` on the first line. */
-function isWrapperWarning(d: DetailedDiagnostic) {
-  return d.code === "FunctionUnused" && d.range?.start.line === 0 && d.range.start.character === "function ".length && d.message.startsWith("Function 'run' ");
-}
-
 /** Diagnostic messages except unused-local and statement-layout lints. */
 export function diagnose(source: string): string[] {
   return diagnoseDetailed(source)
@@ -120,7 +126,7 @@ export function diagnoseWithLints(source: string): string[] {
 }
 
 export function diagnoseWithLintsInFunction(body: string): string[] {
-  return diagnoseDetailed(`function run()\n${body}\nend\n`).filter((d) => !isWrapperWarning(d)).map((d) => d.message);
+  return diagnoseWithLints(`function run()\n${body}\nend\n`);
 }
 
 export interface Lint {
@@ -134,7 +140,7 @@ export interface Lint {
  *  0-based line the upstream test checks. */
 export function lintInFunction(body: string, code?: LuauLintCode): Lint[] {
   return diagnoseDetailed(`function run()${body}\nend\n`)
-    .filter((d) => isLint(d) && !isWrapperWarning(d) && (code === undefined || d.code === code))
+    .filter((d) => isLint(d) && (code === undefined || d.code === code))
     .map((d) => ({ line: d.range!.start.line, message: d.message }));
 }
 
