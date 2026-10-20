@@ -52,6 +52,9 @@ describe("DuplicateLocal", () => {
     ["a function written in a type", " local t: typeof(function(a, a) end) = nil\n return t"],
     ["a parameter list holding a syntax error", " local function g(a, b c, a) return a end\n return g"],
     ["a local list holding a syntax error", " local a, b c, a = 1, 2\n print(a)"],
+    ["a parameter list holding a syntax error after the repeated name", " local function g(a, a, b c) return a end\n return g"],
+    ["a local list holding a syntax error after the repeated name", " local x, x, y. = 1, 2, 3\n return x, y"],
+    ["a local list ending in a comma", " local x, x, = 1, 2\n return x"],
   ])("is silent for %s", (_label, body) => {
     expect(inFunction(body)).toEqual([]);
   });
@@ -59,6 +62,10 @@ describe("DuplicateLocal", () => {
   test("an error in a value or the body does not change the names", () => {
     expect(inFunction(" local a, a = ...\n return a")).toEqual(["Variable 'a' already defined on column 8"]);
     expect(inFunction(" local function g(a, a)\n  public y\n  return a\n end\n return g")).toEqual(["Function parameter 'a' already defined on column 19"]);
+  });
+
+  test("a name after the list without a comma starts the next statement, as Luau reads it", () => {
+    expect(inFunction(" local x, x, y z = 1, 2, 3\n return x, y, z")).toEqual(["Variable 'x' already defined on column 8"]);
   });
 
   test("a name the grammar can read as a keyword is still a name in a list", () => {

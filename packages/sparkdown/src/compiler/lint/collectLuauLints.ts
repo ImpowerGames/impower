@@ -81,7 +81,7 @@ import {
   type AstNode,
 } from "../typecheck/Ast";
 import { doesCallError } from "../typecheck/DataFlowGraph";
-import { Location, type Position } from "../typecheck/Location";
+import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
@@ -1176,18 +1176,18 @@ function lintUnbalancedAssignments(root: AstNode, text: string, offsets: Offsets
 // is not checked, nor is a published `const`, which is a global. The rule
 // concludes from two names the reading holds, so a name it lacks (a Sparkdown
 // keyword's reading) can hide a warning but never make one. A syntax error
-// between the start of the statement or function and the repeated name
-// leaves it alone, since recovery there can read a list the author did not
-// write; one elsewhere, in a value (`...` outside a vararg function) or a
-// body, does not change the names.
+// in the list, from the start of the statement or function to its first
+// value or its body, or to the end of its line for a `local` without values,
+// leaves the list alone, since recovery there can read a list the author did
+// not write; one in a value (`...` outside a vararg function) or the body
+// does not change the names.
 function lintDuplicateLocals(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], published: (local: AstLocal) => boolean, skip?: AstExprFunction): void {
-  const check = (owner: AstNode, declared: readonly AstLocal[], checked: readonly AstLocal[], kind: string, self?: AstLocal) => {
+  const check = (owner: AstNode, inList: (location: Location) => boolean, declared: readonly AstLocal[], checked: readonly AstLocal[], kind: string, self?: AstLocal) => {
     const own = new Set(declared);
     for (const local of checked) {
       const shadow = local.shadow;
       if (!shadow || !own.has(shadow) || local.name === "_" || !isAuthoredLuauName(local.name) || published(local)) continue;
-      const list = new Location(owner.location.begin, local.location.end);
-      if (errors.some((error) => list.overlaps(error.location))) continue;
+      if (errors.some(({ location }) => location.end.ge(owner.location.begin) && inList(location))) return;
       const line = offsets.line(shadow.location.begin);
       const message =
         shadow === self ? "Function parameter 'self' already defined implicitly"
@@ -1199,8 +1199,15 @@ function lintDuplicateLocals(root: AstNode, offsets: Offsets, out: LuauLint[], e
   visitAst(root, {
     visit(node) {
       if (node instanceof AstType || node instanceof AstTypePack) return false;
-      if (node instanceof AstStatLocal) check(node, node.vars, node.vars, "Variable");
-      else if (node instanceof AstExprFunction && node !== skip) check(node, [...(node.self ? [node.self] : []), ...node.args], node.args, "Function parameter", node.self);
+      if (node instanceof AstStatLocal) {
+        // An error that starts where the first value does is the value's.
+        // Without values, recovery may have ended the list at its last name
+        // (`local x, x, y.`), so an error on that line is the list's.
+        const first = node.values[0]?.location.begin;
+        check(node, (location) => (first ? location.begin.lt(first) : location.begin.line <= node.location.end.line), node.vars, node.vars, "Variable");
+      } else if (node instanceof AstExprFunction && node !== skip) {
+        check(node, (location) => location.begin.lt(node.body.location.begin), [...(node.self ? [node.self] : []), ...node.args], node.args, "Function parameter", node.self);
+      }
       return true;
     },
   });
