@@ -286,8 +286,8 @@ describe("a function used only in a type", () => {
 // Luau: DeadLocalsUsed (adapted)
 // Sparkdown has no `--!nolint` (#598), so the directive is dropped, which
 // moves every line up by one, and the loop variable's LocalShadow warning is
-// expected too.
-describe.skip("locals read but never assigned (not implemented: UninitializedLocal, UnbalancedAssignment)", () => {
+// expected too, first in the source order the warnings are reported in.
+describe("locals read but never assigned", () => {
   test("x hidden by a loop variable, c without a value", () => {
     expect(
       lintMessagesInFunction(`
@@ -310,8 +310,8 @@ do
 end
     `),
     ).toEqual([
-      "Variable 'x' defined at line 3 is never initialized or assigned; initialize with 'nil' to silence",
       "Variable 'x' shadows previous declaration at line 3",
+      "Variable 'x' defined at line 3 is never initialized or assigned; initialize with 'nil' to silence",
       "Assigning 2 values to 3 variables initializes extra variables with nil; add 'nil' to value list to silence",
       "Variable 'c' defined at line 11 is never initialized or assigned; initialize with 'nil' to silence",
     ]);
