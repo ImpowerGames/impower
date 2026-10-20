@@ -65,7 +65,7 @@ afterEach(() => {
   for (const view of views.splice(0)) view.destroy();
 });
 
-function mount(doc: string, cursor: number, answer: Answer) {
+function mount(doc: string, cursor: number | EditorSelection, answer: Answer) {
   const server = new StandInServer(answer);
   const client = new LSPClient({
     extensions: [serverCompletions({ override: true })],
@@ -78,8 +78,12 @@ function mount(doc: string, cursor: number, answer: Answer) {
   const view = new EditorView({
     state: EditorState.create({
       doc,
-      selection: EditorSelection.cursor(cursor),
-      extensions: [client.plugin({ uri: URI, version: 0 })],
+      selection:
+        typeof cursor === "number" ? EditorSelection.cursor(cursor) : cursor,
+      extensions: [
+        EditorState.allowMultipleSelections.of(true),
+        client.plugin({ uri: URI, version: 0 }),
+      ],
     }),
     parent: document.body.appendChild(document.createElement("div")),
   });
@@ -109,14 +113,15 @@ async function settle(view: EditorView) {
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
-/** Type `text` at the cursor the way a keystroke does. */
+/** Type `text` at every cursor the way a keystroke does. */
 function type(view: EditorView, text: string) {
-  const at = view.state.selection.main.head;
-  view.dispatch({
-    changes: { from: at, insert: text },
-    selection: { anchor: at + text.length },
-    userEvent: "input.type",
-  });
+  view.dispatch(
+    view.state.changeByRange((r) => ({
+      changes: { from: r.head, insert: text },
+      range: EditorSelection.cursor(r.head + text.length),
+    })),
+    { userEvent: "input.type" },
+  );
 }
 
 const range = (line: number, start: number, end: number): lsp.Range => ({
@@ -244,6 +249,72 @@ describe("accepting a language-server completion", () => {
     await open(view);
     const { accepted, preview } = accept(view);
     expect(accepted).toBe("[[mia:hat]]\n");
+    expect(preview).toBe(accepted);
+  });
+
+  it("filters on the text before the cursor, not the suffix it will replace", async () => {
+    // `[[mia:far-|right]]`: the server offers `far-left` for the prefix
+    // `far-` and replaces the whole `far-right` token. The old suffix must
+    // not hide the offered choice.
+    const doc = "[[mia:far-right]]\n";
+    const cursor = "[[mia:far-".length;
+    const { view } = mount(doc, cursor, [
+      {
+        label: "far-left",
+        textEdit: { newText: "far-left", range: range(0, 6, 15) },
+      },
+    ]);
+    await open(view);
+    expect(currentCompletions(view.state).map((c) => c.label)).toEqual([
+      "far-left",
+    ]);
+    const { accepted, preview } = accept(view);
+    expect(accepted).toBe("[[mia:far-left]]\n");
+    expect(preview).toBe(accepted);
+  });
+
+  it("previews what acceptance makes after typing at several cursors", async () => {
+    // Both cursors type while the list is open, so the main cursor's range
+    // moves with the text typed at the cursor before it.
+    const doc = "ha\nha\n";
+    const { view } = mount(
+      doc,
+      EditorSelection.create(
+        [EditorSelection.cursor(2), EditorSelection.cursor(5)],
+        1,
+      ),
+      [
+        {
+          label: "hatch",
+          textEdit: { newText: "hatch", range: range(1, 0, 2) },
+        },
+      ],
+    );
+    await open(view);
+    type(view, "t");
+    await settle(view);
+    expect(view.state.doc.toString()).toBe("hat\nhat\n");
+    const { accepted, preview } = accept(view);
+    expect(accepted).toBe("hatch\nhatch\n");
+    expect(preview).toBe(accepted);
+  });
+
+  it("replaces the list's word for an item without a range beside items with one", async () => {
+    // The list filters on the server's word `look.ha`, so an item without a
+    // range is shown only when its label continues that word, and it
+    // replaces that word rather than the text after the dot.
+    const doc = "[[mia:look.ha]]\n";
+    const cursor = "[[mia:look.ha".length;
+    const { view } = mount(doc, cursor, [
+      { label: "look.hat" },
+      {
+        label: "look.happy",
+        textEdit: { newText: "look.happy", range: range(0, 6, 13) },
+      },
+    ]);
+    await open(view);
+    const { accepted, preview } = accept(view);
+    expect(accepted).toBe("[[mia:look.hat]]\n");
     expect(preview).toBe(accepted);
   });
 

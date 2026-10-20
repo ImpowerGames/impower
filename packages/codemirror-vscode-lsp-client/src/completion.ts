@@ -314,33 +314,32 @@ export const serverCompletionSource: CompletionSource = (context) => {
       const ranges = items.map((item) =>
         getEditRange(item, itemDefaults, state.doc, pos),
       );
-      // CodeMirror filters and replaces one range for the whole list. It is
-      // the server's range for the first item that names one, so the word
-      // the list filters on is the server's word even when it holds a
-      // trigger character; an item naming a different range still replaces
-      // its own (see `serverCompletionOption`). Without a server range the
-      // word is the text since the last trigger character, up to the cursor.
-      const range = ranges.find((r) => r != null) ?? {
-        from: active?.from ?? pos,
-        to: pos,
-      };
+      // CodeMirror filters one word for the whole list, from the list's start
+      // to the cursor. The list starts where the first item naming a server
+      // range starts, so the word is the server's even when it holds a
+      // trigger character; without a server range it starts after the last
+      // trigger character. Only the text before the cursor is the word: a
+      // suffix the edit will replace (`far-|right`) must not hide the
+      // choices offered for the prefix. Each item replaces its own range,
+      // suffix included, and an item naming none replaces the list's word
+      // (see `serverCompletionOption`).
+      const first = ranges.find((r) => r != null);
+      const range = { from: first?.from ?? active?.from ?? pos, to: pos };
       const options = items.map((item, index) =>
         serverCompletionOption(item, index, itemDefaults, validFor, plugin, {
           result: range,
           item: ranges[index] ?? range,
-          pos,
+          lineFrom: state.doc.lineAt(pos).from,
         }),
       );
       return {
         from: range.from,
-        to: range.to,
         validFor: keepsWord(state.sliceDoc(range.from, pos), triggerCharacters),
         options,
         commitCharacters: itemDefaults?.commitCharacters,
         map: (result, changes) => ({
           ...result,
           from: changes.mapPos(result.from),
-          to: result.to == null ? result.to : changes.mapPos(result.to, 1),
         }),
       };
     },
@@ -362,12 +361,13 @@ interface OffsetRange {
 }
 
 /** The ranges a completion request settled on, as offsets into the document
- *  it was asked for: the one CodeMirror replaces for the whole list, the one
- *  this item's edit replaces, and the cursor then. */
+ *  it was asked for: the list's word, from its start to the cursor, which is
+ *  the range CodeMirror replaces; the range this item's edit replaces; and
+ *  the start of the cursor's line. */
 interface CompletionRequestRange {
   result: OffsetRange;
   item: OffsetRange;
-  pos: number;
+  lineFrom: number;
 }
 
 /**
@@ -462,10 +462,11 @@ export function serverCompletionOption(
   }
   // The edit alone, kept apart from the command that follows it, so a
   // preview can compute what accepting would insert without running
-  // anything else acceptance does. `from` and `to` are the list's range as
-  // CodeMirror holds it now; the item's own range sits at the same distance
-  // from each end as it did when the list was asked for, since the author
-  // can only have typed inside the list's range while the list stayed open.
+  // anything else acceptance does. `from` and `to` are the list's word as
+  // CodeMirror holds it now, from its start to the cursor; the item's own
+  // range sits at the same distance from each end as it did when the list
+  // was asked for, since the author can only have typed at the cursor while
+  // the list stayed open.
   const edit: CompletionEdit = (view, completion, listFrom, listTo) => {
     const from =
       listFrom + (request ? request.item.from - request.result.from : 0);
@@ -521,14 +522,15 @@ const previewableCompletions = new WeakMap<
  * The changes accepting `completion` would make to `state`, or null when they
  * cannot be known.
  *
- * Acceptance replaces the completion result's range. CodeMirror keeps that
- * range privately, so it is recomputed here from the range the request
- * settled on: while the list stays open the author has only typed or deleted
- * at the cursor inside it, so its start has not moved and its end is as far
- * past the cursor as it was then. An option built without a request range replaces
- * from where `validFor` stops matching before the cursor up to the cursor,
- * the start staying put while CodeMirror keeps the result for the same
- * reason. The edit then runs against a view that records the
+ * Acceptance hands the option the completion result's range, from its start
+ * to the cursor. CodeMirror keeps that range privately, so it is recomputed
+ * here. For an option with a request range, the start is where the request
+ * put it within the cursor's line: while the list stays open the author has
+ * only typed or deleted at the cursors, and the list is asked for again on a
+ * line break, so edits at other cursors move the start's offset but not its
+ * column. An option built without a request range starts where `validFor`
+ * stops matching before the cursor, which stays put while CodeMirror keeps
+ * the result for the same reason. The edit then runs against a view that records the
  * transaction instead of dispatching it, so the changes are the ones
  * acceptance itself makes (snippet placeholders, every cursor of a multiple
  * selection, the text after the cursor left in place) rather than a second
@@ -546,11 +548,11 @@ export function completionChanges(
   const { request } = previewable;
   const head = state.selection.main.head;
   const from = request
-    ? request.result.from
+    ? state.doc.lineAt(head).from + request.result.from - request.lineFrom
     : (new CompletionContext(state, head, false).matchBefore(
         previewable.validFor,
       )?.from ?? head);
-  const to = request ? head + request.result.to - request.pos : head;
+  const to = head;
   // No transaction may be created, not even one that is never dispatched:
   // creating one runs the state's transaction extenders, and a host's extender
   // can announce the change to everything listening (the web editor's reports
