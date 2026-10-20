@@ -112,6 +112,23 @@ describe("an error at an assignment's operator keeps its range", () => {
   });
 });
 
+// Many spaced comments that the position cannot take (code follows them, or
+// no `function`) are read in time linear in their number: each comment owns
+// only the whitespace after it, so a failing match has one split to try.
+describe("many comments before a failing suffix parse quickly", () => {
+  const comments = "--[[a]]    ".repeat(30);
+  test.each([
+    ["after `end`", `function f() end ${comments}Text.\n`],
+    ["after a scope modifier", `function g()\n  local ${comments}x = 1\nend\n`],
+    ["after an assignment operator", `function g()\n  local x = ${comments}\nend\n`],
+    ["after a type operator", `function g()\n  type F = () -> ${comments}number\nend\n`],
+  ])("%s", (_name, source) => {
+    const started = performance.now();
+    parseSource(source);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+});
+
 describe("a comment after a closing `end` at story scope belongs to its block", () => {
   test.each([
     ["function m() return 1 end", "LuauFunctionDefinition"],

@@ -1316,7 +1316,7 @@ variables:
   # scope nothing is displayed for them. A comment with code after it on the
   # line is left to the rule that reads that code. This matches only when
   # there is a comment, so whitespace alone after `end` stays where it is.
-  LUAU_END_TRAILING_COMMENTS: (?:(?:{{LUAU_BLOCK_COMMENTS_ON_LINE}}{{LUAU_LINE_COMMENT_ON_LINE}}?|{{LUAU_LINE_COMMENT_ON_LINE}})$)
+  LUAU_END_TRAILING_COMMENTS: (?:{{WS}}*(?:{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}+{{LUAU_LINE_COMMENT_TO_LINE_END}}?|{{LUAU_LINE_COMMENT_TO_LINE_END}})$)
   # One or more block comments that close on their line, with the
   # whitespace around them, where no value or type has begun: between a
   # scope modifier and `function`, after an assignment operator, and after a
@@ -1326,11 +1326,16 @@ variables:
   # capture moves the captures after it, and an `end` reads `\N` as the
   # begin's capture. So levels up to eight are spelled out, each closing
   # only at its own level (`--[====[a]=====]b]====]` is one comment), and a
-  # longer level closes at the first close of nine or more `=`.
-  LUAU_BLOCK_COMMENTS_ON_LINE: (?:{{LUAU_ANY_LEVEL_BLOCK_COMMENT_ON_LINE}}+)
+  # longer level closes at the first close of nine or more `=`. The
+  # whitespace before the first comment is read once, and each comment
+  # takes only the whitespace after it, so a run of spaces between two
+  # comments has one reading: with whitespace on both sides of each, a
+  # failing match tried every split of every run, which grew exponentially
+  # with the number of comments on the line.
+  LUAU_BLOCK_COMMENTS_ON_LINE: (?:{{WS}}*{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}+)
   # A block comment of any level that closes on its line, with the
-  # whitespace around it.
-  LUAU_ANY_LEVEL_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[{{LUAU_ANY_LEVEL_BLOCK_COMMENT_REST}}{{WS}}*)
+  # whitespace after it.
+  LUAU_ANY_LEVEL_BLOCK_COMMENT: (?:{{LUAU_COMMENT_START}}\[{{LUAU_ANY_LEVEL_BLOCK_COMMENT_REST}}{{WS}}*)
   # The rest of a block comment of any level after `--[`.
   LUAU_ANY_LEVEL_BLOCK_COMMENT_REST: (?:{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_BLOCK_COMMENT_LEVELS_4_TO_8_REST}}|{{LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST}})
   # The rest of a block comment of level four to eight after `--[`.
@@ -1366,7 +1371,7 @@ variables:
   # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
   LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST: (?:=========+\[(?:[^\]\r\n]|\](?!=========+\]))*\]=========+\])
   # A line comment and the rest of its line.
-  LUAU_LINE_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_LINE_COMMENT_START}}[^\r\n]*)
+  LUAU_LINE_COMMENT_TO_LINE_END: (?:{{LUAU_LINE_COMMENT_START}}[^\r\n]*)
   # Block comments after an operator with code after them on the line, which
   # the operator takes (`w = --[[ c ]] --[[ d ]] if c then`, #1298).
   # lookaround: LuauAssignmentLineBreak and the operation's LuauComment read
@@ -7827,7 +7832,7 @@ repository:
     # Block comments between the scope modifier and `function` are trivia
     # (`local --[[c]] function k()`, #1305): the begin takes them, so the
     # modifier is not read as a variable declaration without a name.
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{LUAU_BLOCK_COMMENTS_ON_LINE}}?))?(function)\b({{WS}}*)
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}*))?(function)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
