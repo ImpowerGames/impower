@@ -203,6 +203,7 @@ function indexThroughMetatable(
   story: any,
   base: any,
   keyStr: string,
+  key: AbstractValue | null = null,
   depth: number = 0,
 ): AbstractValue | null {
   const MAX_DEPTH = 32;
@@ -212,32 +213,29 @@ function indexThroughMetatable(
   if (direct != null) return direct as AbstractValue;
   const indexFn = lookupMetamethod(base, "__index");
   if (indexFn == null) return null;
-  if (indexFn instanceof ObjectValue) {
-    // Treat closure-shaped ObjectValues (`__closure_fn` marker) as
-    // function-form even though they're ObjectValues. Otherwise an
-    // ObjectValue is a plain table — recurse.
-    if (
-      (indexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
-      null
-    ) {
-      const results = story.CallLuauFunction(indexFn, [
-        base,
-        new StringValue(keyStr),
-      ]);
-      return oneValue((results[0] as AbstractValue) ?? null);
-    }
-    return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
-  }
-  // A function held by reference — function form. An index is one value:
-  // the handler's first, or nil when it returns none.
-  if (isFunctionReference(indexFn)) {
+  // Function form — a closure, a function held by reference or a builtin,
+  // which are `ObjectValue`s too — receives the key as written (`t[2]`
+  // passes the number 2). An index is one value: the handler's first, or
+  // nil when it returns none. Otherwise an `ObjectValue` is a table to
+  // index in turn.
+  if (isMetamethodFunction(indexFn)) {
     const results = story.CallLuauFunction(indexFn, [
       base,
-      new StringValue(keyStr),
+      key ?? new StringValue(keyStr),
     ]);
     return oneValue((results[0] as AbstractValue) ?? null);
   }
+  if (indexFn instanceof ObjectValue) {
+    return indexThroughMetatable(story, indexFn, keyStr, key, depth + 1);
+  }
   return null;
+}
+
+// Whether a metamethod is a function to call, rather than a table to
+// index or store into: a closure, a function held by reference, or a
+// builtin (`__newindex = rawset`), each of which Luau calls.
+function isMetamethodFunction(v: unknown): boolean {
+  return luauTypeOf(v) === "function";
 }
 
 /** Whether `v` is a function held by reference: a symbol value. */
@@ -360,7 +358,16 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
   if (a instanceof SymbolValue && b instanceof SymbolValue) {
     return a.ref.Equals(b.ref);
   }
-  return false;
+  // A handler that is no function (`__le = 42` on two metatables) is
+  // still compared rawequal, by value, as Luau's `get_compTM` does; the
+  // call then raises.
+  const rawA = (a as { value?: unknown }).value;
+  const rawB = (b as { value?: unknown }).value;
+  return (
+    ["number", "string", "boolean"].includes(typeof rawA) &&
+    typeof rawA === typeof rawB &&
+    rawA === rawB
+  );
 }
 
 // Direct JS-side dispatch for `__stdlib_fn` marker values — stdlib
@@ -1325,14 +1332,13 @@ function newindexThroughMetatable(
   }
   const passedKey =
     (key as AbstractValue | null) ?? (new NullValue() as AbstractValue);
+  // A builtin (`__newindex = rawset`) is a function too, not a table to
+  // store into.
+  if (isMetamethodFunction(newindexFn)) {
+    story.CallLuauFunction(newindexFn, [base, passedKey, newVal]);
+    return true;
+  }
   if (newindexFn instanceof ObjectValue) {
-    if (
-      (newindexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
-      null
-    ) {
-      story.CallLuauFunction(newindexFn, [base, passedKey, newVal]);
-      return true;
-    }
     return newindexThroughMetatable(
       story,
       newindexFn,
@@ -1341,10 +1347,6 @@ function newindexThroughMetatable(
       newVal,
       depth + 1,
     );
-  }
-  if (isFunctionReference(newindexFn)) {
-    story.CallLuauFunction(newindexFn, [base, passedKey, newVal]);
-    return true;
   }
   return false;
 }
@@ -1520,7 +1522,12 @@ export function indexValue(
     if (direct != null) {
       resolved = direct;
     } else {
-      resolved = indexThroughMetatable(story, indexBase, keyStr);
+      resolved = indexThroughMetatable(
+        story,
+        indexBase,
+        keyStr,
+        asOrNull(indexKey, AbstractValue),
+      );
     }
   } else if (indexBase instanceof StringValue) {
     // 1-indexed character access, matching Luau's string indexing.

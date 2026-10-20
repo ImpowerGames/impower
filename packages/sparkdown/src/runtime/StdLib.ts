@@ -3347,8 +3347,19 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: 1,
     validatesArgs: true,
     fn: (story, [v]) => {
-      if (v instanceof ObjectValue && v.value instanceof Map) {
-        return luauTableBorder(v.value as Map<string, any>);
+      // A table, not a function or `newproxy` value that is an
+      // `ObjectValue` too. The border it finds is left on the table as a
+      // hint, which is part of what the table is: written as `#t` writes
+      // it (`callNativeFunction`), so a restored state does not keep it.
+      if (isPlainTable(v)) {
+        const map = v.value as Map<string, any>;
+        const hint = (map as any).__luauBoundary;
+        story.state.variablesState.PrepareTableWrite?.(v);
+        const border = luauTableBorder(map);
+        if ((map as any).__luauBoundary !== hint) {
+          story.state.variablesState.WriteBarrier(v);
+        }
+        return border;
       }
       if (v instanceof StringValue) return (v.value ?? "").length;
       return story.Error(

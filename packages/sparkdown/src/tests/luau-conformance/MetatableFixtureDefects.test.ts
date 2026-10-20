@@ -92,6 +92,19 @@ assert(not pcall(function() return e < f end))
 `);
   });
 
+  test("an equal handler that is no function is shared, and calling it raises", () => {
+    passes(`
+local lt = function() return false end
+local a = setmetatable({}, { __le = 42, __lt = lt })
+local b = setmetatable({}, { __le = 42, __lt = lt })
+local ok, err = pcall(function() return a <= b end)
+assert(not ok and err:match("attempt to call a number value"))
+local c = setmetatable({}, { __eq = 42 })
+local d = setmetatable({}, { __eq = 42 })
+assert(not pcall(function() return c == d end))
+`);
+  });
+
   test("`__eq` fires for a table compared with itself", () => {
     passes(`
 local calls = 0
@@ -137,6 +150,16 @@ assert(not ok and err:match("table or string expected"))
 `);
   });
 
+  test("rawlen rejects a function, a closure and a userdata", () => {
+    passes(`
+local n = 0
+local function closure() n = n + 1 end
+assert(not pcall(rawlen, print))
+assert(not pcall(function() return rawlen(closure) end))
+assert(not pcall(function() return rawlen(newproxy()) end))
+`);
+  });
+
   test("getmetatable with no argument raises", () => {
     passes(`
 assert(pcall(function() return getmetatable() end) == false)
@@ -153,6 +176,28 @@ t[2] = 1
 t.b = 1
 assert(type(keys[1]) == "number" and keys[1] == 2)
 assert(type(keys[2]) == "string" and keys[2] == "b")
+`);
+  });
+
+  test("a builtin `__newindex` or `__index` is called, not stored into or indexed", () => {
+    passes(`
+local t = setmetatable({}, { __newindex = rawset })
+t[2] = 7
+assert(rawget(t, 2) == 7)
+local frozen = setmetatable({}, { __newindex = rawset })
+table.freeze(frozen)
+assert(not pcall(function() frozen.x = 1 end))
+local u = setmetatable({}, { __index = rawequal })
+assert(u[u] == true and u.k == false)
+`);
+  });
+
+  test("an `__index` function receives the key as written", () => {
+    passes(`
+local seen
+local t = setmetatable({}, { __index = function(_, k) seen = k return nil end })
+local _ = t[3]
+assert(type(seen) == "number" and seen == 3)
 `);
   });
 
