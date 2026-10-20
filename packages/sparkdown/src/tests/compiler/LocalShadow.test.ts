@@ -136,15 +136,35 @@ describe("LocalShadow of a global", () => {
     expect(messages(`${scene}${subject}`)).toEqual([]);
   });
 
+  test("a local's own initializer is a global use", () => {
+    const source = "function f()\n local state = state\n return state\nend\n";
+    expect(messages(source)).toEqual(["Variable 'state' shadows a global variable used at line 2"]);
+    expect(messages(`${source}& print(state)\n`)).toEqual(["Variable 'state' shadows a global variable used at line 2"]);
+  });
+
+  test.each([
+    ["a scene parameter after the use", "& state = 1\nscene inspect(state)\n State: {state}.\nend\n", {}],
+    ["a Sparkle handler's local", "& state = 1\nlayout main with\n button @click={ local state = 3; print(state) }\nend\n", {}],
+    ["another script's scene parameter", "& state = 1\n", { "flow.sd": "scene inspect(state)\n & print(state)\nend\n" }],
+  ])("%s does not hide a global use elsewhere", (_label, use, more) => {
+    const includes = Object.keys(more).map((path) => `include ${path}\n`).join("");
+    expect(programShadows({ "main.sd": `include subject.sd\ninclude use.sd\n${includes}Ready.\n`, "subject.sd": subject, "use.sd": use, ...more })).toEqual([
+      "subject.sd: Variable 'state' shadows a global variable used at line 1 in 'use.sd'",
+    ]);
+  });
+
   test("an interpolation inside a function with a local of the name is not a global use", () => {
     expect(messages(`function g(state)\n return \`State: {state}.\`\nend\n${subject}`)).toEqual([]);
   });
 
   test("a name on a line with a syntax error is not a use", () => {
-    const sources = (use: string) => ({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function f()\n local i = 2\n return i\nend\n", "use.sd": use });
-    expect(programShadows(sources("& i = 1\n"))).toEqual(["subject.sd: Variable 'i' shadows a global variable used at line 1 in 'use.sd'"]);
+    const sources = (name: string, use: string) => ({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": `function f()\n local ${name} = 2\n return ${name}\nend\n`, "use.sd": use });
+    expect(programShadows(sources("i", "& i = 1\n"))).toEqual(["subject.sd: Variable 'i' shadows a global variable used at line 1 in 'use.sd'"]);
     // Luau's integer literal suffix, which the reading takes for a name.
-    expect(programShadows(sources("& v = 0x10i\n"))).toEqual([]);
+    expect(programShadows(sources("i", "& v = 0x10i\n"))).toEqual([]);
+    // Every name on that line, the write before the error included.
+    expect(programShadows(sources("v", "& v = 0x10i\n"))).toEqual([]);
+    expect(programShadows(sources("v", "& v = 0x10i\n& v = 1\n"))).toEqual(["subject.sd: Variable 'v' shadows a global variable used at line 2 in 'use.sd'"]);
   });
 
   test("a Sparkle handler is a use", () => {

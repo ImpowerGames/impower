@@ -641,12 +641,16 @@ function lintLocalShadows(fn: AstExprFunction, tree: Tree, text: string, offsets
 // Only own registry keys are built-ins; Object.prototype names are ordinary globals.
 const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_CONSTANTS)].map((name) => name.split(".")[0]!));
 
-/** Every name in a scene's or branch's parameter list. A flow without Luau
- * statements has no unit, so the names its narrative reads look global. */
-function flowParameterNames(tree: Tree, text: string): Set<string> {
-  const names = new Set<string>();
+/** The names in each scene's or branch's parameter list, with the span they
+ * can be read in: from the header to the next scene's, which holds a branch's
+ * as well. A flow without Luau statements has no unit, so the names its
+ * narrative reads look global. */
+function flowParameters(tree: Tree, text: string): { from: number; to: number; names: Set<string> }[] {
+  const flows: { from: number; to: number; names: Set<string> }[] = [];
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (!FLOW_HEADERS.has(node.name)) continue;
+    if (node.name === "Scene") for (const flow of flows) flow.to = Math.min(flow.to, node.from);
+    const names = new Set<string>();
     tree.iterate({
       from: node.from,
       to: node.to,
@@ -656,30 +660,25 @@ function flowParameterNames(tree: Tree, text: string): Set<string> {
         return false;
       },
     });
+    if (names.size) flows.push({ from: node.from, to: tree.length, names });
   }
-  return names;
+  return flows;
 }
 
 /**
  * The offsets of a script's global references that may not be global uses:
- * one that a local of its name in the script could reach (the reading of an
- * expression outside a unit, an interpolation, does not see the locals around
- * it), one naming a parameter of a scene or branch, and one on a line the
- * reading reported a syntax error on, where a name can be a misread piece of
- * something else (an integer literal's `i` suffix, a string's escape).
+ * one on a line the reading reported a syntax error on, where a name can be
+ * a misread piece of something else (an integer literal's `i` suffix, a
+ * string's escape) or a statement the author has not finished, and, in an
+ * expression
+ * read outside every unit (an
+ * interpolation, a handler), which is read without the locals around it, one
+ * that a local of its name could reach or that names a parameter of the
+ * scene or branch it is in. A unit's own references are bound as Luau binds
+ * them.
  */
-function uncertainGlobalUses(names: LuauNameFacts, parameters: Set<string>, errorLines: Set<number>, starts: number[]): Set<number> {
+function uncertainGlobalUses(names: LuauNameFacts, outside: NameRange[], flows: { from: number; to: number; names: Set<string> }[], errors: NameRange[]): Set<number> {
   const uncertain = new Set<number>();
-  const lineOf = (offset: number) => {
-    let low = 0;
-    let high = starts.length - 1;
-    while (low < high) {
-      const mid = (low + high + 1) >> 1;
-      if (starts[mid]! <= offset) low = mid;
-      else high = mid - 1;
-    }
-    return low;
-  };
   const declarations = new Map<string, LuauNameFacts["declarations"]>();
   for (const declaration of names.declarations) {
     let list = declarations.get(declaration.name);
@@ -689,7 +688,10 @@ function uncertainGlobalUses(names: LuauNameFacts, parameters: Set<string>, erro
   for (const reference of names.references) {
     if (reference.local) continue;
     const { name, from } = reference;
-    if (parameters.has(name) || errorLines.has(lineOf(from)) || declarations.get(name)?.some((d) => d.from <= from && from <= (d.scopeTo ?? Infinity))) uncertain.add(from);
+    if (errors.some((error) => error.from <= from && from < error.to)) uncertain.add(from);
+    else if (!outside.some((range) => range.from <= from && from <= range.to)) continue;
+    else if (flows.some((flow) => flow.from <= from && from < flow.to && flow.names.has(name))) uncertain.add(from);
+    else if (declarations.get(name)?.some((d) => d.from <= from && from <= (d.scopeTo ?? Infinity))) uncertain.add(from);
   }
   return uncertain;
 }
@@ -718,8 +720,9 @@ export interface GlobalShadowReference {
  * names, or `builtins`, the globals the prelude declares), a name the reading
  * could not place somewhere in the program, or only definitions without a
  * use (a `const`) report nothing. Neither does a name declared as a local
- * outside every function anywhere in the program: such a local can reach
- * later scenes and including scripts, which the reading does not show. A
+ * in a unit's outermost block anywhere in the program (`outermost`): such a
+ * local can reach later scenes and including scripts, which the reading does
+ * not show. A
  * script's uncertain references (`uncertainGlobalUses`) are not uses.
  */
 export function lintGlobalShadows(
@@ -738,7 +741,7 @@ export function lintGlobalShadows(
     firsts.set(name, first);
     const global = program.globals.get(name);
     if (!global || BUILTIN_GLOBALS.has(name) || builtins.has(name) || program.uncertainNames.has(name)) return first;
-    for (const names of program.scripts.values()) if (names.declarations.some((d) => d.name === name && !d.enclosingFunction)) return first;
+    for (const names of program.scripts.values()) if (names.declarations.some((d) => d.name === name && d.outermost)) return first;
     for (const reference of [...global.reads, ...global.writes]) {
       if (uncertain.get(reference.uri)?.has(reference.from)) continue;
       const own = first.own.get(reference.uri);
@@ -1072,13 +1075,17 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined), functionBody: statements && expr instanceof AstExprFunction })));
     const names = collectNameFacts(roots, text);
     names.uncertainNames = uncertainNames(nodes, text, names);
-    const errorLines = new Set<number>();
+    const documentOffsets = new Offsets(starts, undefined);
+    // The lines each syntax error spans.
+    const errors: NameRange[] = [];
+    const error = (offsets: Offsets, location: Location) => errors.push({ from: starts[offsets.line(location.begin)] ?? 0, to: starts[offsets.line(location.end) + 1] ?? text.length });
     for (const unit of [units.prelude, ...units.flows]) {
       const offsets = new Offsets(starts, unit.lines);
-      for (const { location } of unit.errors) for (let line = offsets.line(location.begin); line <= offsets.line(location.end); line++) errorLines.add(line);
+      for (const { location } of unit.errors) error(offsets, location);
     }
-    for (const { errors } of outside) for (const { location } of errors) for (let line = location.begin.line; line <= location.end.line; line++) errorLines.add(line);
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, flowParameterNames(tree, text), errorLines, starts) };
+    for (const { errors: found } of outside) for (const { location } of found) error(documentOffsets, location);
+    const outsideRanges = outside.map(({ expr }) => documentOffsets.range(expr.location));
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flowParameters(tree, text), errors) };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;

@@ -24,6 +24,10 @@ export interface LuauNameDeclaration extends NameRange {
   enclosingFunction?: AstExprFunction;
   function?: AstExprFunction;
   scope?: AstStatBlock;
+  /** Declared in its unit's outermost block, outside every authored
+   * function, nested block and Sparkle handler body, so later units can
+   * still see it. */
+  outermost?: boolean;
   /** The document offset where `scope` ends; absent without a scope. */
   scopeTo?: number;
 }
@@ -90,6 +94,10 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
   for (const { root, offsets, syntheticFunction, functionBody } of roots) {
     let enclosingFunction: AstExprFunction | undefined;
     let scope: AstStatBlock | undefined;
+    // Blocks entered below the unit's own (its root or its flow wrapper's body).
+    let nested = 0;
+    const unitBlocks = new Set<AstNode>([root]);
+    if (syntheticFunction) unitBlocks.add(syntheticFunction.func.body);
     // A flow's checking wrapper has no runtime binding. Keep the original
     // expression node while classifying accesses to that exact binding as
     // globals; a real authored local of the same spelling remains local.
@@ -109,7 +117,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         published.add(local);
         facts.globals.push({ name: local.name, kind: "const", ...offsets.range(local.location), node: stat ?? fn ?? root, enclosingFunction, function: fn, scope: declarationScope });
       }
-      else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope, scopeTo: declarationScope && offsets.range(declarationScope.location).to });
+      else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope, outermost: !enclosingFunction && !functionBody && nested === 0 && (kind === "local" || kind === "function"), scopeTo: declarationScope && offsets.range(declarationScope.location).to });
     };
     const reference = (node: AstExprGlobal | AstExprLocal, access: LuauNameReference["access"]) => {
       const local = binding(node);
@@ -138,8 +146,11 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         seen.add(node);
         if (node instanceof AstStatBlock) {
           const outer = scope;
+          const inner = !unitBlocks.has(node);
           scope = node;
+          if (inner) nested++;
           for (const stat of node.body) visitAst(stat, visitor);
+          if (inner) nested--;
           scope = outer;
           return false;
         }
