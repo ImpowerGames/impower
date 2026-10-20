@@ -112,6 +112,37 @@ describe("an error at an assignment's operator keeps its range", () => {
   });
 });
 
+// Known gap, I-1362: between a scope modifier and `function` and after
+// `end`, levels up to eight close at their own level, but a comment of level
+// nine or more ends at the first close of nine or more `=`, so one holding
+// another such close ends early (GRAMMAR.md 11.5, DIVERGENCES.md). These
+// fail until the engine places captures from match indices; `test.fails`
+// turns red once the gap closes, so remove it then.
+describe("known gap: a level-nine comment holding another level-nine close", () => {
+  const comment = "--[=========[a]==========]b]=========]";
+  test.fails("between a scope modifier and `function`", () => {
+    const source = `local ${comment} function k() return 5 end\nValue {k()}.\n`;
+    const top = parseSource(source).topNode.firstChild!;
+    expect(top.name).toBe("LuauFunctionDefinition");
+    expect([top.from, top.to]).toEqual([0, source.indexOf("\n")]);
+  });
+  test.fails("after a closing `end`", () => {
+    const source = `function k() return 5 end ${comment}\nValue {k()}.\n`;
+    const top = parseSource(source).topNode.firstChild!;
+    expect(top.name).toBe("LuauFunctionDefinition");
+    expect([top.from, top.to]).toEqual([0, source.indexOf("\n")]);
+  });
+  // The type-operator position reads the comment with `LuauComment`, so
+  // there it closes at its own level now.
+  test("after a type operator", () => {
+    const { tree, emptyMatches } = read(
+      `function g()\n  type F = () -> ${comment} <T>(T) -> T\nend\n`,
+    );
+    expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+    expect(emptyMatches).toBe(0);
+  });
+});
+
 // Many spaced comments that the position cannot take (code follows them, or
 // no `function`) are read in time linear in their number: each comment owns
 // only the whitespace after it, so a failing match has one split to try.
