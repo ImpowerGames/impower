@@ -108,6 +108,7 @@ import {
 } from "./bindings";
 import { buildClosureExpression, lowerFunctionExpression } from "./lowerFunction";
 import { lowerTable } from "./lowerTable";
+import { numberLiteralValue } from "../../utils/numberLiteralValue";
 
 // ============================================================================
 // Reading an expression from syntax nodes
@@ -809,19 +810,13 @@ function lowerNumber(
   const range = rangeOf(expr.location, ctx);
   const text = ctx.read(range.from, range.to).replaceAll("_", "");
   const prefix = text.slice(0, 2).toLowerCase();
-  if (prefix === "0x") return new NumberExpression(Number(text), "int");
-  if (prefix === "0b") {
-    const digits = text.slice(2);
-    const binary =
-      digits.length > 0 && [...digits].every((d) => d === "0" || d === "1");
-    return new NumberExpression(
-      binary ? parseInt(digits, 2) : Number(text),
-      "int",
-    );
+  const value = numberLiteralValue(text);
+  if (prefix === "0x" || prefix === "0b") {
+    return new NumberExpression(value, "int");
   }
   const isFloat =
     text.includes(".") || text.includes("e") || text.includes("E");
-  return new NumberExpression(Number(text), isFloat ? "float" : "int");
+  return new NumberExpression(value, isFloat ? "float" : "int");
 }
 
 // A string literal's value: a quoted string's text with its escapes

@@ -328,6 +328,9 @@ local _ = 0x10000000000000001
   });
 });
 
+// Sparkdown-specific: IntegerParsing against the runtime's own conversion,
+// its spelling boundary, and literals in Sparkdown's text, which upstream has
+// no counterpart for.
 describe("IntegerParsing boundaries and spellings", () => {
   test("the largest uint64 rounds, while the next integer stays exact", () => {
     expect(lintMessagesInFunction(`

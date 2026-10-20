@@ -92,6 +92,7 @@ import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY 
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
+import { numberLiteralValue } from "../utils/numberLiteralValue";
 import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type LuauProgramNames, type NameRange, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
@@ -1634,7 +1635,8 @@ function lintExpressionPrecedence(root: AstNode, offsets: Offsets, out: LuauLint
 // IntegerParsing
 
 // Luau's IntegerParsing, adapted to sparkdown's runtime: an integer literal
-// whose exact value differs from the double `lowerNumber` makes of it. Luau
+// whose exact value differs from the double `numberLiteralValue` (the
+// compiler's own conversion) makes of it. Luau
 // clamps binary and hexadecimal literals past 2^64 and warns that it did;
 // `lowerNumber` converts them as JavaScript does, so `0x10000000000000000`
 // stays exactly 2^64 and only a value a double cannot hold warns, with Luau's
@@ -1649,9 +1651,8 @@ function lintIntegerParsing(root: AstNode, text: string, offsets: Offsets, out: 
       const range = offsets.range(node.location);
       if (/[A-Za-z0-9_.]/.test(text[range.to] ?? "")) return true;
       const literal = text.slice(range.from, range.to).replaceAll("_", "");
-      const binary = /^0[bB][01]+$/.test(literal);
-      if (!binary && !/^0[xX][0-9a-fA-F]+$/.test(literal) && !/^[0-9]+$/.test(literal)) return true;
-      const value = binary ? parseInt(literal.slice(2), 2) : Number(literal);
+      if (!/^(0[bB][01]+|0[xX][0-9a-fA-F]+|[0-9]+)$/.test(literal)) return true;
+      const value = numberLiteralValue(literal);
       if (Number.isSafeInteger(value)) return true;
       if (!Number.isFinite(value) || BigInt(value) !== BigInt(literal)) {
         out.push({ code: "IntegerParsing", ...range, message: "Number literal exceeded available precision and was truncated to closest representable number" });
