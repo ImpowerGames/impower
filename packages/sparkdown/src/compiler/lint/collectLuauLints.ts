@@ -694,6 +694,15 @@ function uncertainGlobalUses(names: LuauNameFacts, parameters: Set<string>, erro
   return uncertain;
 }
 
+/** A URI as `URL` normalizes it, or as written when it does not parse. */
+function normalizedUri(uri: string): string {
+  try {
+    return new URL(uri).href;
+  } catch {
+    return uri;
+  }
+}
+
 /** A global reference, located for a `LocalShadow` message. */
 export interface GlobalShadowReference {
   uri: string;
@@ -734,7 +743,7 @@ export function lintGlobalShadows(
       if (uncertain.get(reference.uri)?.has(reference.from)) continue;
       const own = first.own.get(reference.uri);
       if (!own || reference.from < own.from) first.own.set(reference.uri, { uri: reference.uri, from: reference.from });
-      const key = new URL(reference.uri).href;
+      const key = normalizedUri(reference.uri);
       if (!first.any || key < first.any.key || (key === first.any.key && reference.from < first.any.from)) first.any = { uri: reference.uri, from: reference.from, key };
     }
     return first;
