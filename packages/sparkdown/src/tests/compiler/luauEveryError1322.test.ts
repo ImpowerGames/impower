@@ -160,6 +160,11 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
       "if flag:\n\nHello there.\n  then return 1 end",
       "if flag:\n  -- a note\nHello there.\n  then return 1 end",
       "if flag: -- a note\nHello there.\n  then return 1 end",
+      // A token that is no name, where a comment leaves the reading, is
+      // read as what it is, and Luau's errors are reported at it.
+      "flag:\n  --[[note]] (1)",
+      "flag:\n  --[[note]] 1",
+      "if flag:\n  --[[note]] then return 1 end",
     ]) {
       test(JSON.stringify(form), () => expectOfficial(form));
     }

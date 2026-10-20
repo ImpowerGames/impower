@@ -12109,9 +12109,11 @@ repository:
   # break, and the parent's `end:` cannot, since the path ends with its
   # line, so this rule's `end:` reads it, wherever the trivia the rule's
   # patterns read leaves it. The end's `BEAT` lookahead ends the rule before
-  # a header line (`scene`, `branch`), whose keyword story reads; its `^`
-  # lookahead ends it before a line whose first token is no name, blank or
-  # comment (`end`, a `(`), leaving what is there to be read as what it is.
+  # a header line (`scene`, `branch`), whose keyword story reads; its last
+  # lookahead ends it before a token that is no name, space, line break or
+  # comment, wherever the trivia leaves it (`end` at a line's start or after
+  # a block comment, a `(`), leaving what is there to be read as what it
+  # is, so the rule never closes incomplete (§17.2).
   LuauNextLineMethodAccessor:
     begin: ({{WS}}*)([:](?![:]))(?={{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
     beginCaptures:
@@ -12125,7 +12127,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)({{LUAU_UNRESERVED_IDENTIFIER}})|^(?!{{WS}}*(?:{{LUAU_UNRESERVED_IDENTIFIER}}|{{LUAU_COMMENT_START}}|$))
+    end: (?={{BEAT}})|({{WS}}*)({{LUAU_UNRESERVED_IDENTIFIER}})|(?!{{WS}}|$|{{LUAU_COMMENT_START}}|{{LUAU_UNRESERVED_IDENTIFIER}})
     endCaptures:
       1:
         patterns:
