@@ -231,6 +231,25 @@ describe("a script other than main", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Silver 2.\n"]);
   });
 
+  it("declares a member or method function, marked or not, for main to call", () => {
+    const program = compileProject({
+      [MAIN]: lines("store api = {}", "-> s", "scene s", "  Answer {api.f()} {api.g()} {api:h()} {api.k()}.", "end"),
+      [LIB]: lines(
+        "function api.f() return 3 end",
+        "& function api.g() return 4 end",
+        "function api:h() return 5 end",
+        "function api.k()",
+        "  local six = 6",
+        "  return six",
+        "end",
+      ),
+    });
+    expect(errorsOf(program)).toEqual([]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.errors).toEqual([]);
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Answer 3 4 5 6.\n"]);
+  });
+
   it("reports a top-level local function, and not a function whose body declares a local", () => {
     const program = compileProject({
       [MAIN]: lines("Main {twice(2)}."),
@@ -361,6 +380,23 @@ describe("declaration order", () => {
     const shown = quiet(() => storyRun(new ProgramStory(program.chunks!), [0]));
     expect(shown.errors).toEqual([]);
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Main 1 2 3.\n", "Pick\n", "Picked 2.\n"]);
+  });
+
+  it("orders a script by its path whether a host registers it encoded or as written", () => {
+    // VS Code registers `scripts/é.sd` as `scripts/%C3%A9.sd`, the web editor
+    // as written; either way it comes after `scripts/a.sd`, whose store it
+    // reads.
+    for (const name of ["%C3%A9", "é"]) {
+      const program = compileProject({
+        [MAIN]: lines("Main {a} {b}."),
+        [`${ROOT}scripts/a.sd`]: lines("store a = 1"),
+        [`${ROOT}scripts/${name}.sd`]: lines("store b = a + 1"),
+      });
+      expect(errorsOf(program), name).toEqual([]);
+      expect(Object.keys(program.scripts), name).toEqual([MAIN, `${ROOT}scripts/a.sd`, `${ROOT}scripts/${name}.sd`]);
+      const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+      expect(shown.beats.map((beat) => beat.text), name).toEqual(["Main 1 2.\n"]);
+    }
   });
 
   it("registers main's declarations first and then each script's by path", () => {

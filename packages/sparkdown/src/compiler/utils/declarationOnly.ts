@@ -1,5 +1,4 @@
 import type { SyntaxNode } from "@lezer/common";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { nodeNameSet } from "./nodeNameSet";
 
 /** What a script other than main reports at each line of its top level that
@@ -41,6 +40,9 @@ const VARIABLES = nodeNameSet([
 // does.
 const EXPLICIT = nodeNameSet(["LuauSparkdownExplicitStatement"]);
 
+// What separates the statements of a marked line.
+const SEPARATORS = nodeNameSet(["LuauSemicolonSeparator"]);
+
 // The flows: a scene, and a branch, which runs to its `end` as a scene does.
 const FLOWS = nodeNameSet(["Scene", "Branch"]);
 
@@ -49,21 +51,20 @@ const FLOWS = nodeNameSet(["Scene", "Branch"]);
 const STRUCTURE = nodeNameSet(["LuauEndKeyword", "Include"]);
 
 /**
- * The statements of a script's top level outside every flow, by where each
- * starts, each with whether its syntax declares: false for the lines only
- * main runs (a display line, a choice, a divert, a top-level `local`, an
- * assignment, a call, a control block, a `run`). A scene's or a branch's body
- * is written at the top level up to its `end`, so the flows are followed as
+ * The top-level statements of a script other than main that are neither
+ * declarations nor inside a flow, by where each starts: the lines only main
+ * runs (a display line, a choice, a divert, a top-level `local`, an
+ * assignment, a call, a control block, a `run`, and a marked line that holds
+ * one of those beside a declaration). A scene's or a branch's body is written
+ * at the top level up to its `end`, so the flows are followed as
  * `validateSceneStructure` follows them, and everything up to the matching
- * `end` is inside one. A statement whose syntax declares can still run
- * something it holds after its declaration (`& store x = 1; x = 2`), which
- * only what it lowered to shows (`onlyDeclares`).
+ * `end` is inside one.
  */
-export function topLevelStatements(
+export function contentOutsideScenes(
   top: SyntaxNode,
   read: (from: number, to: number) => string,
-): Map<number, boolean> {
-  const found = new Map<number, boolean>();
+): Set<number> {
+  const found = new Set<number>();
   let depth = 0;
   for (let node = top.firstChild; node; node = node.nextSibling) {
     if (FLOWS.has(node.name)) {
@@ -73,9 +74,10 @@ export function topLevelStatements(
     } else if (
       depth === 0 &&
       !STRUCTURE.has(node.name) &&
-      !node.name.endsWith("Comment")
+      !node.name.endsWith("Comment") &&
+      !declares(node, read)
     ) {
-      found.set(node.from, declares(node, read));
+      found.add(node.from);
     }
   }
   return found;
@@ -90,10 +92,12 @@ const declares = (
   }
   if (EXPLICIT.has(node.name)) {
     // `& store x = 1`, `& const x = 1` and `& function f() end` declare as
-    // the statements they mark do; `& x = 1` and `& f()` run.
+    // the statements they mark do; `& x = 1` and `& f()` run. A marked line
+    // can hold several statements (`& store x = 1; x = 2`), and declares only
+    // when each of them does.
     const content = childEndingWith(node, "_content");
-    const marked = content && childEndingWith(content, "");
-    return !!marked && declares(marked, read);
+    const marked = content ? statementsOf(content) : [];
+    return marked.length > 0 && marked.every((statement) => declares(statement, read));
   }
   if (FUNCTIONS.has(node.name)) {
     return scopeOf(node, read) !== "local";
@@ -105,15 +109,41 @@ const declares = (
   return false;
 };
 
-/** The first child of `node` whose name ends with `suffix`, other than the
- *  whitespace the grammar gives a node of its own. */
+/** The first child of `node` whose name ends with `suffix`. */
 const childEndingWith = (
   node: SyntaxNode,
   suffix: string,
 ): SyntaxNode | undefined => {
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name.endsWith(suffix) && !child.name.endsWith("Whitespace")) {
+    if (child.name.endsWith(suffix)) {
       return child;
+    }
+  }
+  return undefined;
+};
+
+/** The statements a marked line's content holds, without the separators and
+ *  the whitespace between them. An assignment is read as its target and its
+ *  operation, each a child of its own, and neither declares. */
+const statementsOf = (content: SyntaxNode): SyntaxNode[] => {
+  const statements: SyntaxNode[] = [];
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (!SEPARATORS.has(child.name) && !child.name.endsWith("Whitespace")) {
+      statements.push(child);
+    }
+  }
+  return statements;
+};
+
+/** The first node named `name` inside `node`, at any depth. */
+const findWithin = (node: SyntaxNode, name: string): SyntaxNode | undefined => {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === name) {
+      return child;
+    }
+    const found = findWithin(child, name);
+    if (found) {
+      return found;
     }
   }
   return undefined;
@@ -121,20 +151,17 @@ const childEndingWith = (
 
 /** The scope a variable or function definition is written with (`local`,
  *  `store`, `const`), from the scope modifier the grammar gives its header,
- *  or undefined when it has none. A function's own modifier stands before its
- *  name; one after it is a statement of its body. */
+ *  or undefined when it has none. The modifier is looked for in the header
+ *  alone, since a statement of a function's body can have one of its own. */
 const scopeOf = (
   node: SyntaxNode,
   read: (from: number, to: number) => string,
 ): string | undefined => {
   const definition =
     node.name === "LuauFunctionAttributes"
-      ? (getDescendent("LuauFunctionDefinition", node) ?? node)
+      ? (findWithin(node, "LuauFunctionDefinition") ?? node)
       : node;
-  const modifier = getDescendent("LuauScopeModifier", definition);
-  const name = getDescendent("LuauFunctionDeclarationName", definition);
-  if (!modifier || (name && modifier.from > name.from)) {
-    return undefined;
-  }
-  return read(modifier.from, modifier.to).trim();
+  const header = childEndingWith(definition, "_begin");
+  const modifier = header && findWithin(header, "LuauScopeModifier");
+  return modifier ? read(modifier.from, modifier.to).trim() : undefined;
 };

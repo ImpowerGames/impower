@@ -162,7 +162,7 @@ import {
 import { debugFileName } from "../utils/debugFileName";
 import {
   CONTENT_OUTSIDE_SCENE_MESSAGE,
-  topLevelStatements,
+  contentOutsideScenes,
 } from "../utils/declarationOnly";
 import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
@@ -286,19 +286,13 @@ function displayScriptPath(scriptUri: string, mainUri: string): string {
   return scriptUri;
 }
 
-/** Whether the objects a top-level statement lowered to only declare: flows
- *  (a function), globals and constants, and externals, held directly or in
- *  the statement's weave. Anything else runs where the statement stands. */
-function onlyDeclares(content: readonly ParsedObject[] | undefined): boolean {
-  return (content ?? []).every(
-    (obj) =>
-      obj instanceof FlowBase ||
-      obj instanceof ExternalDeclaration ||
-      obj instanceof ConstantDeclaration ||
-      (obj instanceof ParsedVariableAssignment && obj.isGlobalDeclaration) ||
-      (obj instanceof Weave && onlyDeclares(obj.content)),
-  );
-}
+/** Whether a top-level object of a script declares something the story
+ *  initializes or registers before any content runs, wherever the object is
+ *  placed: a global, a constant or an external. */
+const isHoistedDeclaration = (obj: ParsedObject): boolean =>
+  (obj instanceof ParsedVariableAssignment && obj.isGlobalDeclaration) ||
+  obj instanceof ConstantDeclaration ||
+  obj instanceof ExternalDeclaration;
 
 let _preludeGlobalNames: Set<string> | undefined;
 /** The bare global names the seeded prelude creates at runtime: the type
@@ -784,6 +778,10 @@ export class SparkdownCompiler {
   // the included script, and the line and compiled block of the `include` or
   // `run` statement in the script that includes it (`programFlows`,
   // `includedAt`).
+  // For a script other than main, the part of its top level that runs where
+  // it is placed (a member function's write), as a story of its own, by the
+  // story `parseIncrementally` built for the script's declarations.
+  protected _memberWrites = new WeakMap<Story, Story>();
   protected _includedAt = new WeakMap<
     ParsedObject,
     { uri: string; line: number; block: object }
@@ -2708,13 +2706,11 @@ export class SparkdownCompiler {
     };
 
     // A script other than main holds declarations only: the statements of its
-    // top level that run are reported and left out (`topLevelStatements`):
-    // those whose syntax runs, and those whose syntax declares but that
-    // lowered to something that runs as well (`onlyDeclares`).
+    // top level that run are reported and left out (`contentOutsideScenes`).
     const tree = declarationOnly ? this.documents.tree(uri) : undefined;
-    const topLevel =
+    const outsideScenes =
       tree && document
-        ? topLevelStatements(tree.topNode, (from, to) =>
+        ? contentOutsideScenes(tree.topNode, (from, to) =>
             document.read(from, to),
           )
         : undefined;
@@ -2774,12 +2770,7 @@ export class SparkdownCompiler {
         hoistedKnots,
       } = rec.block;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
-      const declares = topLevel?.get(rec.from);
-      if (
-        declares === false ||
-        (declares === true &&
-          !(onlyDeclares(content) && onlyDeclares(hoistedKnots)))
-      ) {
+      if (outsideScenes?.has(rec.from)) {
         // Only main runs a line outside a scene. The statement is reported
         // and left out of the program, as if it were not written; what its
         // lowering itself reported still stands.
@@ -3258,7 +3249,11 @@ export class SparkdownCompiler {
     // their declarations register after main's and in path order: the story
     // places each one's top level after the entry's
     // (`Story.PreProcessTopLevelObjects`), where its globals initialize after
-    // main's. Each holds declarations only, which run nothing there.
+    // main's. A declaration that runs where it is written, a member function
+    // (`function api.f()` writes the function into `api`), is placed before
+    // the entry's own top level instead (`_memberWrites`), so it has run
+    // whatever the entry's top level does first, as it ran when an include
+    // line at the top of main placed it.
     if (!isInclude) {
       for (const member of state.projectScripts ?? []) {
         const memberStory = this.parseIncrementally(
@@ -3270,6 +3265,10 @@ export class SparkdownCompiler {
           onDiagnostic,
           true,
         );
+        const writes = this._memberWrites.get(memberStory);
+        if (writes) {
+          topLevelIncludedFileObjs.push(new IncludedFile(writes));
+        }
         projectFileObjs.push(new IncludedFile(memberStory));
       }
     }
@@ -3338,10 +3337,29 @@ export class SparkdownCompiler {
       autoTerminate(flow);
     }
 
+    let topLevelObjs = topLevelWeaveObjs.flatMap((w) => w.content);
+    if (declarationOnly) {
+      // A script other than main: what its top level holds besides the
+      // globals, constants and externals it declares runs where it is placed,
+      // which is a member function's write, and goes before the entry's top
+      // level (see the project's scripts above).
+      const writes = topLevelObjs.filter((obj) => !isHoistedDeclaration(obj));
+      if (writes.length > 0) {
+        topLevelObjs = topLevelObjs.filter(isHoistedDeclaration);
+        const writesStory = new Story(writes, true);
+        const combined = new Story(
+          [...topLevelIncludedFileObjs, ...topLevelObjs, ...topLevelFlowBaseObjs],
+          isInclude,
+        );
+        this._memberWrites.set(combined, writesStory);
+        return combined;
+      }
+    }
+
     const combinedParsedStory = new Story(
       [
         ...topLevelIncludedFileObjs,
-        ...topLevelWeaveObjs.flatMap((w) => w.content),
+        ...topLevelObjs,
         ...projectFileObjs,
         ...topLevelFlowBaseObjs,
       ],

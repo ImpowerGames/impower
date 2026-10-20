@@ -58,7 +58,7 @@ export function isInProject(
  * The scripts of the project a compile that starts from `entryUri` reads, in
  * the order their declarations register: the entry first, then every other
  * script of `scriptUris` in the project (`isInProject`) by its path below the
- * root as the host spells it, in byte order. A URI with no folder is a project
+ * root, decoded, in byte order (`pathOf`). A URI with no folder is a project
  * of itself alone.
  */
 export function projectScripts(
@@ -77,11 +77,25 @@ export function projectScripts(
       (uri) =>
         uri !== entryUri && isInProject(root, uri, mainScriptFilename, has),
     )
-    .map((uri) => ({ uri, path: uri.slice(root.length) }))
+    .map((uri) => ({ uri, path: pathOf(uri.slice(root.length)) }))
     .sort((a, b) => compareCodePoints(a.path, b.path))
     .map(({ uri }) => uri);
   return [entryUri, ...members];
 }
+
+/**
+ * A script's path below the root, for ordering. VS Code registers a URI with
+ * its path percent-encoded (`%C3%A9` for `é`) and the web editor its path as
+ * written, so the path is decoded for both to order a file alike. A path that
+ * does not decode (a raw `%` the web editor kept) is its own.
+ */
+const pathOf = (relative: string): string => {
+  try {
+    return decodeURIComponent(relative);
+  } catch {
+    return relative;
+  }
+};
 
 /** Orders two strings by their code points, which is the byte order of their
  *  UTF-8 encodings, where `<` compares UTF-16 code units. */
