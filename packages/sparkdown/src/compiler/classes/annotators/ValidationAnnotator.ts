@@ -1630,8 +1630,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // column 0, #1906), the missing part is reported here.
       const after = found ? this.luauTokenAt(found.at?.to ?? nodeRef.to, authoredIslandEnd(nodeRef.node, this.statementDocumentText())) : undefined;
       // In a define's method or a Sparkle handler's closure, the lowerer's
-      // reading reports it where its errors hold one in the expression's
-      // words; at a closure's `}` they do not (`atClosureReadingEnd`).
+      // reading reports it where its errors, as the lowerer reports them
+      // (a closure's at its `}`, `closureReadingErrors`), hold one that
+      // begins with the expression's words.
       const lowered = this.loweredReadingErrors(nodeRef.node);
       const readingReports = lowered
         ? lowered.some((error) => !!found && error.message.startsWith(found.message) && error.from >= nodeRef.from)
