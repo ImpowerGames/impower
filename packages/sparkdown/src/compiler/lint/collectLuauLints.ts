@@ -187,17 +187,34 @@ function readToEnd(fn: AstNode): boolean {
  * (`local f = function() end`, an argument, a table field). A block missing
  * its `end` makes the reading take a later `end` as its own, so a function
  * holding one, and every function inside it, does not hold what the author
- * wrote in it. A function inside a complete one is read with it.
+ * wrote in it. A function inside a complete one is read with it. One inside
+ * a type (`typeof(function() ... end)`) is also recorded in `typeOnly`.
  */
 function completeFunctions(root: AstNode, functions: AstExprFunction[]): void {
-  visitAst(root, {
-    visit(node) {
+  let inType = false;
+  const visitor = {
+    visit(node: AstNode): boolean {
+      if ((node instanceof AstType || node instanceof AstTypePack) && !inType) {
+        inType = true;
+        visitAst(node, visitor);
+        inType = false;
+        return false;
+      }
       if (!(node instanceof AstExprFunction)) return true;
-      if (readToEnd(node)) functions.push(node);
+      if (readToEnd(node)) {
+        functions.push(node);
+        if (inType) typeOnly.add(node);
+      }
       return false;
     },
-  });
+  };
+  visitAst(root, visitor);
 }
+
+/** The functions `completeFunctions` found inside a type, which only describe
+ * one. Luau's linter reads them for LocalUnused alone; its other rules do not
+ * walk into types. */
+const typeOnly = new WeakSet<AstExprFunction>();
 
 /** The Luau functions a unit's statements define (`completeFunctions`). */
 function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
@@ -916,10 +933,11 @@ function returnsMany(expr: AstExpr | undefined): boolean {
 // Luau's UninitializedLocal: a local its `local` statement gives no value,
 // which no assignment or `function` statement writes, reported at its first
 // read. A compound assignment (`x += 1`) reads it. As in Luau, a name in a
-// type (`typeof(x)`) is not a read. A function holding a syntax error, whose
-// reading can lose a write, is left alone, and so is a name the grammar reads
-// as a Sparkdown keyword in the function (`keywordWords`), which may be a
-// write the reading lacks.
+// type (`typeof(x)`) is not a read, and a function inside a type is not
+// checked (`typeOnly`). A function holding a syntax error, whose reading can
+// lose a write, is left alone, and so is a name the grammar reads as a
+// Sparkdown keyword in the function (`keywordWords`), which may be a write
+// the reading lacks.
 function lintUninitializedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], broken: boolean): void {
   if (broken) return;
   const locals = new Map<AstLocal, { defined: boolean; initialized: boolean; assigned: boolean; firstUse?: AstExprLocal }>();
@@ -975,16 +993,18 @@ function lintUninitializedLocals(fn: AstExprFunction, tree: Tree, text: string, 
 
 // Luau's UnbalancedAssignment: a `local` statement or an assignment whose
 // values are more than its names, or fewer when the last value is not a call,
-// `...` or `nil`. Recovery can end a list where the author did not (`local k
-// = 1, m = 2`) or read a line as an assignment the author did not write as
-// one (a loop's range after its header), so a statement on a line holding a
-// syntax error, or inside an outermost statement holding one
-// (`LuauScriptLints.misreadStatements`), is left alone (`unsure`). So is a
-// `store`, which the units read as an assignment (`readSparkdownStatements`)
-// but is not Luau's.
+// `...` or `nil`. As in Luau, a statement inside a type
+// (`typeof(function() ... end)`) is not checked. Recovery can end a list
+// where the author did not (`local k = 1, m = 2`) or read a line as an
+// assignment the author did not write as one (a loop's range after its
+// header), so a statement on a line holding a syntax error, or inside an
+// outermost statement holding one (`LuauScriptLints.misreadStatements`), is
+// left alone (`unsure`). So is a `store`, which the units read as an
+// assignment (`readSparkdownStatements`) but is not Luau's.
 function lintUnbalancedAssignments(root: AstNode, text: string, offsets: Offsets, out: LuauLint[], unsure: (range: NameRange) => boolean): void {
   visitAst(root, {
     visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
       if (!(node instanceof AstStatLocal || node instanceof AstStatAssign)) return true;
       const vars = node.vars.length;
       const values = node.values.length;
@@ -1342,7 +1362,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintUnusedLocals(fn, tree, text, offsets, out, broken);
       lintLocalShadows(fn, tree, text, offsets, out, globalShadows, published);
       lintPlaceholderReads(fn, offsets, out);
-      lintUninitializedLocals(fn, tree, text, offsets, out, broken);
+      if (!typeOnly.has(fn)) lintUninitializedLocals(fn, tree, text, offsets, out, broken);
       lintUnreachable(fn, offsets, out);
     }
   };

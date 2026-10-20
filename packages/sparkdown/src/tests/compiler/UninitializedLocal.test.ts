@@ -75,6 +75,24 @@ describe("UninitializedLocal", () => {
   });
 });
 
+// luau-analyze 0.721 reports neither rule inside a type; of these rules'
+// neighbours, only LocalUnused reads a function there.
+describe("a function inside a type", () => {
+  test.each([
+    ["a type alias in a function", inFunction("type T = typeof(function() local a, b = 1; local x; return a, b, x end)")],
+    ["a local's annotation", inFunction("local y: typeof((function() local a, b = 1; local x; return a, b, x end)()) = 1\nprint(y)")],
+    ["a top-level type alias", "type T = typeof(function() local a, b = 1; local x; return a, b, x end)\n"],
+  ])("is not checked in %s", (_label, source) => {
+    expect(diagnoseDetailed(source).filter((d) => d.code === "SyntaxError")).toEqual([]);
+    expect(messages(uninitialized(source))).toEqual([]);
+    expect(messages(unbalanced(source))).toEqual([]);
+  });
+
+  test("LocalUnused still reads it, as Luau does", () => {
+    expect(messages(of("LocalUnused")("type T = typeof(function() local unused = 1 end)\n"))).toEqual(["Variable 'unused' is never used; prefix with '_' to silence"]);
+  });
+});
+
 describe("UnbalancedAssignment", () => {
   test("warns on the statement's range", () => {
     expect(unbalanced(inFunction(" local a, b, c = 1, 2\n print(a, b, c)"))).toEqual([
