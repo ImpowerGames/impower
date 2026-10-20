@@ -9,11 +9,14 @@
 // A format Sparkdown's runtime runs is never reported, so where Luau's
 // validator rejects a literal the runtime accepts, the lint stays silent
 // (docs/compiler/LINTS.md):
+// - A literal is reported only when the string the runtime holds for it
+//   (`stringLiteralValue`), which an escape can make differ from Luau's, is
+//   malformed too (`lintFormatStringCall`).
 // - A match pattern Luau rejects is reported only when the runtime's own
-//   translator (`luaPatternToJs`) rejects the string the runtime holds
-//   (`stringLiteralValue`) too. It runs an escape of a character that is
-//   not a class (`%q`, `%,`) as that character, and a class before a `-` in
-//   a set (`[%a-b]`) as the class, a `-` and the next character.
+//   translator (`luaPatternToJs`) rejects it too. It runs an escape of a
+//   character that is not a class (`%q`, `%,`) as that character, and a
+//   class before a `-` in a set (`[%a-b]`) as the class, a `-` and the next
+//   character.
 // - The other validators read three formats as the runtime does, each
 //   marked "Sparkdown" below: `%1` in a `gsub` replacement for a pattern with
 //   no capture, which is the whole match, as in Lua (`expandGsubStringRepl`);
@@ -208,6 +211,12 @@ function runtimeRunsPattern(pattern: string): boolean {
   }
 }
 
+/** A pattern's count of captures as Luau's validator reads it, or -1 when it rejects the pattern. */
+function capturesOf(pattern: string): number {
+  const result = checkStringMatch(pattern);
+  return "error" in result ? -1 : result.captures;
+}
+
 // ---------------------------------------------------------------------------
 // The calls
 
@@ -216,8 +225,15 @@ function runtimeRunsPattern(pattern: string): boolean {
  * finds them: a method on a string literal (`("%d"):format(n)`, the literal
  * in parentheses once) or a function of the global `string` or `os` library.
  * Luau also checks a method on a value its type checker types as a string,
- * which needs types (`FormatStringTyped`). `runtimeValue` is the string the
- * runtime holds for a literal, which a pattern is checked against.
+ * which needs types (`FormatStringTyped`).
+ *
+ * `runtimeValue` is the string the runtime holds for a literal, which can
+ * differ from Luau's reading where an escape does (`\z` before a space
+ * outside ASCII, which the runtime skips and Luau keeps). A literal is
+ * reported only when the runtime's reading is malformed too: for a pattern,
+ * when the runtime's translator rejects it, and otherwise when the same
+ * validator rejects the runtime's reading, since the runtime rejects every
+ * string the validators do.
  */
 export function lintFormatStringCall(
   node: AstExprCall,
@@ -226,19 +242,21 @@ export function lintFormatStringCall(
 ): void {
   const func = node.func;
   if (!(func instanceof AstExprIndexName)) return;
+  const check = (kind: string, literal: AstExpr | undefined, validate: (data: string) => string | undefined) => {
+    if (!(literal instanceof AstExprConstantString)) return;
+    const error = validate(literal.value);
+    if (error && validate(runtimeValue(literal))) report(literal, `Invalid ${kind}: ${error}`);
+  };
   if (node.self) {
     const self = func.expr instanceof AstExprGroup ? func.expr.expr : func.expr;
-    if (self instanceof AstExprConstantString) matchStringCall(func.index, self, node.args, runtimeValue, report);
+    if (self instanceof AstExprConstantString) matchStringCall(func.index, self, node.args, runtimeValue, report, check);
     return;
   }
   if (!(func.expr instanceof AstExprGlobal)) return;
   if (func.expr.name === "string") { // not a node name
-    if (node.args.length > 0) matchStringCall(func.index, node.args[0]!, node.args.slice(1), runtimeValue, report);
+    if (node.args.length > 0) matchStringCall(func.index, node.args[0]!, node.args.slice(1), runtimeValue, report, check);
   } else if (func.expr.name === "os" && func.index === "date" && node.args.length > 0) { // not a node name
-    const fmt = node.args[0];
-    if (!(fmt instanceof AstExprConstantString)) return;
-    const error = checkDateFormat(fmt.value);
-    if (error) report(fmt, `Invalid date format: ${error}`);
+    check("date format", node.args[0], checkDateFormat);
   }
 }
 
@@ -248,7 +266,9 @@ function matchStringCall(
   args: AstExpr[],
   runtimeValue: (literal: AstExprConstantString) => string,
   report: (literal: AstExprConstantString, message: string) => void,
+  check: (kind: string, literal: AstExpr | undefined, validate: (data: string) => string | undefined) => void,
 ): void {
+  /** Checks a pattern and returns its count of captures, or -1 when unknown. */
   const matchPattern = (pat: AstExpr | undefined) => {
     if (!(pat instanceof AstExprConstantString)) return -1;
     const result = checkStringMatch(pat.value);
@@ -257,13 +277,9 @@ function matchStringCall(
     return -1;
   };
   if (name === "format") {
-    if (!(self instanceof AstExprConstantString)) return;
-    const error = checkStringFormat(self.value);
-    if (error) report(self, `Invalid format string: ${error}`);
+    check("format string", self, checkStringFormat);
   } else if (name === "pack" || name === "packsize" || name === "unpack") {
-    if (!(self instanceof AstExprConstantString)) return;
-    const error = checkStringPack(self.value, name === "packsize");
-    if (error) report(self, `Invalid pack format: ${error}`);
+    check("pack format", self, (data) => checkStringPack(data, name === "packsize"));
   } else if ((name === "match" || name === "gmatch") && args.length > 0) {
     matchPattern(args[0]);
   } else if (name === "find" && args.length > 0 && args.length <= 2) {
@@ -273,10 +289,14 @@ function matchStringCall(
     const mode = args[2];
     if (mode instanceof AstExprConstantBool && !mode.value) matchPattern(args[0]);
   } else if (name === "gsub" && args.length > 1) {
-    const captures = matchPattern(args[0]);
+    const pat = args[0];
+    const captures = matchPattern(pat);
     const rep = args[1];
     if (!(rep instanceof AstExprConstantString)) return;
     const error = checkStringReplace(rep.value, captures);
-    if (error) report(rep, `Invalid match replacement: ${error}`);
+    if (!error) return;
+    // The runtime's reading of the pattern can hold other captures.
+    const runtimeCaptures = captures >= 0 && pat instanceof AstExprConstantString ? capturesOf(runtimeValue(pat)) : -1;
+    if (checkStringReplace(runtimeValue(rep), runtimeCaptures)) report(rep, `Invalid match replacement: ${error}`);
   }
 }

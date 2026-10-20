@@ -1771,8 +1771,11 @@ function isLength(expr: AstExpr, table: AstExpr): boolean {
 //
 // As Luau's linter does, they leave code written in a type alone. A call
 // holding a syntax error is left alone, since recovery can read arguments
-// the author did not write.
-function lintStdlibCalls(root: AstNode, text: string, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
+// the author did not write. An expression read outside every unit is read
+// without the locals around it, so there a call of a library (`string`,
+// `os`, `table`) or function (`getfenv`) whose name a local of the script
+// declares (`localNames`) is left alone: Luau reports only the global.
+function lintStdlibCalls(root: AstNode, text: string, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], localNames?: ReadonlySet<string>): void {
   const report = (code: LuauLintCode, expr: AstExpr, message: string) => out.push({ code, ...offsets.range(expr.location), message });
   const zero = (name: string, expr: AstExpr) => report("TableOperations", expr, `table.${name} uses index 0 but arrays are 1-based; did you mean 1 instead?`);
   const runtimeValue = (literal: AstExprConstantString) => {
@@ -1784,6 +1787,8 @@ function lintStdlibCalls(root: AstNode, text: string, offsets: Offsets, out: Lua
     visit(node) {
       if (node instanceof AstType || node instanceof AstTypePack) return false;
       if (!(node instanceof AstExprCall) || errors.some((error) => node.location.overlaps(error.location))) return true;
+      const global = node.func instanceof AstExprIndexName ? node.func.expr : node.func;
+      if (localNames && global instanceof AstExprGlobal && localNames.has(global.name)) return true;
       lintFormatStringCall(node, runtimeValue, formatString);
       if (node.self) return true;
       const { func, args } = node;
@@ -2038,6 +2043,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
+  const localNames = new Set(facts.names.declarations.map((d) => d.name));
   for (const { expr, statements, errors } of facts.outside) {
     const functions: AstExprFunction[] = [];
     // The function written around statements is not the author's; those inside it are.
@@ -2052,7 +2058,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintIntegerParsing(expr, text, documentOffsets, out, errors);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
     lintTableLiterals(expr, documentOffsets, out, errors);
-    lintStdlibCalls(expr, text, documentOffsets, out, errors);
+    lintStdlibCalls(expr, text, documentOffsets, out, errors, localNames);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
   return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, mentionsUnplacedVariable: facts.mentionsUnplacedVariable, misreadStatements: facts.misreadStatements, topLevelMembers: facts.topLevelMembers };

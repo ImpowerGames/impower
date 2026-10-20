@@ -74,6 +74,29 @@ describe("FormatString in Sparkdown", () => {
   test("a NUL byte that ends an os.date conversion is reported", () => {
     expect(inFunction(' print(os.date("%\\0"))')).toEqual(["Invalid date format: date format can not contain null characters"]);
   });
+
+  // After `\z` the runtime skips a space outside ASCII, which Luau keeps.
+  const NBSP = String.fromCharCode(0xa0);
+  test.each([
+    ["string.format", ` print(string.format("%\\z${NBSP}d", 7))`],
+    ["string.pack", ` print(string.packsize("i\\z${NBSP}4"))`],
+    ["os.date", ` print(os.date("%\\z${NBSP}c"))`],
+    ["a gsub replacement", ` print(string.gsub(s, "(a)", "%\\z${NBSP}1"))`],
+    ["a match pattern", ` print(string.match(s, "%\\z${NBSP}d"))`],
+  ])("%s that only the runtime's reading of an escape makes valid is not reported", (_name, body) => {
+    expect(inFunction(body)).toEqual([]);
+  });
+
+  test("a literal both readings find malformed is reported with Luau's message", () => {
+    expect(inFunction(` print(string.format("%\\z${NBSP}"))`)).toEqual(["Invalid format string: invalid format specifier: must be a string format specifier or %"]);
+  });
+
+  test.each([
+    ["a script's local", 'local string = { format = tostring }\nValue: {string.format("%")}\n'],
+    ["a scene's local", 'scene s\n  local os = {}\n  Hi {os.date("%")}.\nend\n'],
+  ])("a library %s names is left alone in an interpolation, which is read without its locals", (_name, source) => {
+    expect(covered(source)).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------
