@@ -2,6 +2,7 @@ import {
   autocompletion,
   Completion,
   CompletionContext,
+  CompletionResult,
   CompletionSource,
   completionStatus,
   insertCompletionText,
@@ -11,6 +12,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import {
+  ChangeDesc,
   ChangeSet,
   EditorState,
   Extension,
@@ -329,19 +331,24 @@ export const serverCompletionSource: CompletionSource = (context) => {
         serverCompletionOption(item, index, itemDefaults, validFor, plugin, {
           result: range,
           item: ranges[index] ?? range,
-          lineFrom: state.doc.lineAt(pos).from,
         }),
       );
-      return {
+      // `end` is the end of the list's word, the cursor, as each change
+      // moves it.
+      const listResult = (end: number): CompletionResult => ({
         from: range.from,
         validFor: keepsWord(state.sliceDoc(range.from, pos), triggerCharacters),
         options,
         commitCharacters: itemDefaults?.commitCharacters,
-        map: (result, changes) => ({
-          ...result,
-          from: changes.mapPos(result.from),
-        }),
-      };
+        map: (current, changes) =>
+          keepsRanges(current.from, end, changes)
+            ? {
+                ...listResult(changes.mapPos(end, 1)),
+                from: changes.mapPos(current.from),
+              }
+            : null,
+      });
+      return listResult(pos);
     },
     (err): null => {
       if (
@@ -362,12 +369,30 @@ interface OffsetRange {
 
 /** The ranges a completion request settled on, as offsets into the document
  *  it was asked for: the list's word, from its start to the cursor, which is
- *  the range CodeMirror replaces; the range this item's edit replaces; and
- *  the start of the cursor's line. */
+ *  the range CodeMirror replaces, and the range this item's edit replaces. */
 interface CompletionRequestRange {
   result: OffsetRange;
   item: OffsetRange;
-  lineFrom: number;
+}
+
+/**
+ * Whether a list whose word runs from `from` to `end` still holds after
+ * `changes`. The items' ranges are kept as distances from the word's start
+ * and from the cursor at its end, which hold only while every change typed
+ * or deleted at the end of the word: an edit anywhere else (another cursor,
+ * the suffix an item replaces, text before the word) would move a range
+ * without moving those anchors. Such an edit drops the list, and CodeMirror
+ * asks for it again when the author next types, with the server's ranges for
+ * the document as it then stands.
+ */
+function keepsRanges(from: number, end: number, changes: ChangeDesc) {
+  let kept = true;
+  changes.iterChangedRanges((fromA, toA) => {
+    if (toA !== end || fromA < from) {
+      kept = false;
+    }
+  });
+  return kept;
 }
 
 /**
@@ -465,8 +490,8 @@ export function serverCompletionOption(
   // anything else acceptance does. `from` and `to` are the list's word as
   // CodeMirror holds it now, from its start to the cursor; the item's own
   // range sits at the same distance from each end as it did when the list
-  // was asked for, since the author can only have typed at the cursor while
-  // the list stayed open.
+  // was asked for, since the list survives only edits at the end of its word
+  // (see `keepsRanges`).
   const edit: CompletionEdit = (view, completion, listFrom, listTo) => {
     const from =
       listFrom + (request ? request.item.from - request.result.from : 0);
@@ -525,12 +550,11 @@ const previewableCompletions = new WeakMap<
  * Acceptance hands the option the completion result's range, from its start
  * to the cursor. CodeMirror keeps that range privately, so it is recomputed
  * here. For an option with a request range, the start is where the request
- * put it within the cursor's line: while the list stays open the author has
- * only typed or deleted at the cursors, and the list is asked for again on a
- * line break, so edits at other cursors move the start's offset but not its
- * column. An option built without a request range starts where `validFor`
- * stops matching before the cursor, which stays put while CodeMirror keeps
- * the result for the same reason. The edit then runs against a view that records the
+ * put it: the list survives only edits at the end of its word (see
+ * `keepsRanges`), which never move its start. An option built without a
+ * request range starts where `validFor` stops matching before the cursor,
+ * which stays put while CodeMirror keeps the result. The edit then runs
+ * against a view that records the
  * transaction instead of dispatching it, so the changes are the ones
  * acceptance itself makes (snippet placeholders, every cursor of a multiple
  * selection, the text after the cursor left in place) rather than a second
@@ -548,7 +572,7 @@ export function completionChanges(
   const { request } = previewable;
   const head = state.selection.main.head;
   const from = request
-    ? state.doc.lineAt(head).from + request.result.from - request.lineFrom
+    ? request.result.from
     : (new CompletionContext(state, head, false).matchBefore(
         previewable.validFor,
       )?.from ?? head);

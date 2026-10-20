@@ -273,31 +273,90 @@ describe("accepting a language-server completion", () => {
     expect(preview).toBe(accepted);
   });
 
-  it("previews what acceptance makes after typing at several cursors", async () => {
-    // Both cursors type while the list is open, so the main cursor's range
-    // moves with the text typed at the cursor before it.
-    const doc = "ha\nha\n";
-    const { view } = mount(
-      doc,
-      EditorSelection.create(
-        [EditorSelection.cursor(2), EditorSelection.cursor(5)],
-        1,
-      ),
-      [
-        {
-          label: "hatch",
-          textEdit: { newText: "hatch", range: range(1, 0, 2) },
-        },
+  // Typing at a second cursor moves the main cursor's range without moving
+  // the list's anchors, so the list is asked for again with the server's
+  // ranges for the document as it then stands, and the preview and
+  // acceptance agree on them.
+  for (const c of [
+    {
+      name: "on another line",
+      doc: "ha\nha\n",
+      cursors: [2, 5],
+      before: range(1, 0, 2),
+      after: range(1, 0, 3),
+      typed: "hat\nhat\n",
+      expected: "hatch\nhatch\n",
+    },
+    {
+      name: "earlier on the same line",
+      doc: "  ha ha\n",
+      cursors: [4, 7],
+      before: range(0, 5, 7),
+      after: range(0, 6, 9),
+      typed: "  hat hat\n",
+      expected: "  hatch hatch\n",
+    },
+  ]) {
+    it(`asks again after typing at a second cursor ${c.name}`, async () => {
+      const item = (r: lsp.Range): lsp.CompletionItem[] => [
+        { label: "hatch", textEdit: { newText: "hatch", range: r } },
+      ];
+      const { view, server } = mount(
+        c.doc,
+        EditorSelection.create(
+          c.cursors.map((p) => EditorSelection.cursor(p)),
+          c.cursors.length - 1,
+        ),
+        item(c.before),
+      );
+      await open(view);
+      const asked = server.completions.length;
+      server.answer = item(c.after);
+      type(view, "t");
+      await settle(view);
+      expect(view.state.doc.toString()).toBe(c.typed);
+      expect(server.completions.length).toBe(asked + 1);
+      const { accepted, preview } = accept(view);
+      expect(accepted).toBe(c.expected);
+      expect(preview).toBe(accepted);
+    });
+  }
+
+  // An edit that is not typing at the end of the list's word, such as one a
+  // host or a collaborator dispatches, would move an item's range without
+  // moving the list's anchors: the list closes rather than replace the wrong
+  // text.
+  for (const c of [
+    {
+      name: "the suffix an item replaces",
+      doc: '"near"\n',
+      cursor: 3,
+      edit: { from: 4, to: 5 },
+      edited: '"nea"\n',
+      items: [
+        { label: "near", textEdit: { newText: "near", range: range(0, 1, 5) } },
       ],
-    );
-    await open(view);
-    type(view, "t");
-    await settle(view);
-    expect(view.state.doc.toString()).toBe("hat\nhat\n");
-    const { accepted, preview } = accept(view);
-    expect(accepted).toBe("hatch\nhatch\n");
-    expect(preview).toBe(accepted);
-  });
+    },
+    {
+      name: "text before the word",
+      doc: "  ha\n",
+      cursor: 4,
+      edit: { from: 0, insert: "x" },
+      edited: "x  ha\n",
+      items: [
+        { label: "hat", textEdit: { newText: "hat", range: range(0, 2, 4) } },
+      ],
+    },
+  ]) {
+    it(`closes the list when another edit changes ${c.name}`, async () => {
+      const { view } = mount(c.doc, c.cursor, c.items);
+      await open(view);
+      view.dispatch({ changes: c.edit });
+      expect(completionStatus(view.state)).toBeNull();
+      expect(acceptCompletion(view)).toBe(false);
+      expect(view.state.doc.toString()).toBe(c.edited);
+    });
+  }
 
   it("replaces the list's word for an item without a range beside items with one", async () => {
     // The list filters on the server's word `look.ha`, so an item without a
