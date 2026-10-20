@@ -37,6 +37,7 @@ describe("a comment between a modifier and `function` keeps the function", () =>
     ["local", "local", "local --[[c]]"],
     ["attribute and local", "@native local", "@native local --[[c]]"],
     ["two comments", "local", "local --[[a]] --[=[b]=]"],
+    ["a level-four comment", "local", "local --[====[ helper ]====]"],
   ])("%s", (_name, plain, commented) => {
     for (const head of [plain, commented]) {
       const source = `${head} function k(x: number)\n  return x\nend\nValue {k(5)}.\n`;
@@ -64,11 +65,23 @@ describe("comments between `=` and a value are not a value", () => {
     ["twoFn", "--[[ a ]] --[[ b ]] function() return 1 end", "w()", "1"],
     ["oneFn", "--[[ a ]] function() return 1 end", "w()", "1"],
     ["threeIf", "--[[ c ]] --[[ d ]] --[==[ e ]==] if c then 1 else 2", "w", "1"],
+    ["levelFourIf", "--[====[ c ]====] --[[ d ]] if c then 1 else 2", "w", "1"],
   ])("%s", (_name, value, read, expected) => {
     const source = `function f(c)\n  local w = ${value}\n  return ${read}\nend\nValue {f(true)}.\n`;
     const result = play(source);
     expect(result.errors).toEqual([]);
     expect(result.lines[0]).toBe(`Value ${expected}.\n`);
+  });
+
+  // The comments are no part of the operator: `=` stays a plain `=`, so a
+  // list of targets keeps its assignment (validateAssignmentValue reads the
+  // operator's own token).
+  test("a multiple assignment", () => {
+    const source =
+      "function f()\n  local a, w = 0, 0\n  a, w = --[[ c ]] --[[ d ]] 1, 2\n  return a + w\nend\nValue {f()}.\n";
+    const result = play(source);
+    expect(result.errors).toEqual([]);
+    expect(result.lines[0]).toBe("Value 3.\n");
   });
 
   test("an assignment", () => {
@@ -123,6 +136,7 @@ describe("a comment after a closing `end` at story scope is not story text", () 
       "Values {x}.",
     ],
     ["a for block", "local x = 0\nfor i = 1, 1 do x = i end", "Values {x}."],
+    ["an `&` do line", "local x = 0\n& do x = 1 end", "Values {x}."],
     [
       "a multi-line function",
       "function m()\n  return 1\nend",
@@ -139,7 +153,7 @@ describe("a comment after a closing `end` at story scope is not story text", () 
       "end",
     ],
   ];
-  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c"]) {
+  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c", "--[====[ c ]====]"]) {
     test.each(blocks)(`%s, then \`${comment}\``, (_name, block, line) => {
       const controlSource = `${block}\n${line}\n`;
       const control = play(controlSource);

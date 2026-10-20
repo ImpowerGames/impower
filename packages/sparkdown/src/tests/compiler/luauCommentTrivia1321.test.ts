@@ -3,11 +3,37 @@
 // keeps the type whole (I-1299), and a comment after a closing `end` at story
 // scope belongs to the block it follows (I-1314).
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
+import { officialSyntaxErrors } from "./officialSyntax";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
+import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+const URI = "inmemory:///main.sd";
+
+/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
+function sparkdownErrors(text: string): string[] {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  const program = compiler.compile({ textDocument: { uri: URI } } as never).program;
+  return (program.diagnostics?.[URI] ?? [])
+    .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+    .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
+    .sort();
+}
+
+/** The official parser's errors for the same Luau, in the same form. */
+function luauErrors(luau: string): string[] {
+  return officialSyntaxErrors(luau)
+    .map((e) => `${e.location.begin.line}:${e.location.begin.column}-${e.location.end.line}:${e.location.end.column} ${e.message}`)
+    .sort();
+}
 
 /** The tree of a document and the parser's empty-match warnings. */
 function read(source: string) {
@@ -67,6 +93,19 @@ describe("a comment after a function type's `->` keeps the type", () => {
     expect(emptyMatches).toBe(0);
     expect(tree, tree).toContain("LuauCompareOperation");
     expect(tree, tree).not.toContain("PunctuationAngleOpen");
+  });
+});
+
+// The comments after an `=` are the operator's, but an error placed on the
+// operator stays on its own token, as Luau places it, with or without them.
+describe("an error at an assignment's operator keeps its range", () => {
+  test.each([
+    "local w = --[[ c ]] ;",
+    "local w = --[====[ c ]====] ;",
+    "local a, b = 1, 2\n  a, b += --[[ c ]] 1",
+  ])("%s", (statement) => {
+    const luau = `function f()\n  ${statement}\nend\n`;
+    expect(sparkdownErrors(`${luau}Story.\n`)).toEqual(luauErrors(luau));
   });
 });
 

@@ -1316,7 +1316,11 @@ variables:
   # scope nothing is displayed for them. A comment with code after it on the
   # line is left to the rule that reads that code. This matches only when
   # there is a comment, so whitespace alone after `end` stays where it is.
-  LUAU_END_TRAILING_COMMENTS: (?:(?:{{LUAU_BLOCK_COMMENT_ON_LINE}}+{{LUAU_LINE_COMMENT_ON_LINE}}?|{{LUAU_LINE_COMMENT_ON_LINE}})$)
+  # Block comments are `LUAU_PLAIN_BLOCK_COMMENTS`, so a comment of level four
+  # or more counts too when its text holds no `]` (`end --[====[c]====]`),
+  # as here, between a scope modifier and `function`, after an assignment
+  # operator and after a type operator.
+  LUAU_END_TRAILING_COMMENTS: (?:(?:{{LUAU_PLAIN_BLOCK_COMMENTS}}{{LUAU_LINE_COMMENT_ON_LINE}}?|{{LUAU_LINE_COMMENT_ON_LINE}})$)
   # A line comment and the rest of its line.
   LUAU_LINE_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_LINE_COMMENT_START}}[^\r\n]*)
   # Block comments after an operator with code after them on the line, which
@@ -1324,10 +1328,10 @@ variables:
   # lookaround: LuauAssignmentLineBreak and the operation's LuauComment read
   # comments that end the line or come before a line comment, so the value
   # is read from the next line (`w = --[[c]]` then `5`). The operator's
-  # begin can see only its own line, so it tells the two apart by what
+  # end can see only its own line, so it tells the two apart by what
   # follows the last comment; reordering cannot, since both begin at the
   # same comment.
-  LUAU_OPERATOR_COMMENTS_BEFORE_CODE: (?:{{LUAU_BLOCK_COMMENT_ON_LINE}}+(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))
+  LUAU_OPERATOR_COMMENTS_BEFORE_CODE: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))
   # What follows a block comment that ends a type: anything but a type
   # operator, the `?` suffix, a qualifier or generics, or what ends the type
   # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
@@ -7779,7 +7783,7 @@ repository:
     # Block comments between the scope modifier and `function` are trivia
     # (`local --[[c]] function k()`, #1305): the begin takes them, so the
     # modifier is not read as a variable declaration without a name.
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{LUAU_BLOCK_COMMENT_ON_LINE}}*))?(function)\b({{WS}}*)
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{LUAU_PLAIN_BLOCK_COMMENTS}}?))?(function)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -9264,7 +9268,7 @@ repository:
       - { include: "#LuauSparkdownExplicitConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|(?=[,;)\]}])|$
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|$
     endCaptures:
       1:
         emit: true
@@ -9273,9 +9277,6 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
-      3:
-        patterns:
-          - { include: "#LuauComment" }
 
   LuauSparkdownExplicitSequentialAlternatorBlock:
     # See `LuauSparkdownSequentialAlternatorBlock` for the leading-
@@ -9305,7 +9306,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|(?=[,;)\]}])|$
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|$
     endCaptures:
       1:
         emit: true
@@ -9314,9 +9315,6 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
-      3:
-        patterns:
-          - { include: "#LuauComment" }
 
   LuauSparkdownExplicitFunctionCallShorthand:
     tag: meta
@@ -14435,7 +14433,7 @@ repository:
   # operand. The rules that hold a type after a `:` or `=` include it too
   # (`function(): --[[c]] <T>(T) -> T`, `type F = --[[c]] <T>(T) -> T`).
   LuauTypeOperatorComments:
-    begin: ({{LUAU_BLOCK_COMMENT_ON_LINE}}+)
+    begin: ({{LUAU_PLAIN_BLOCK_COMMENTS}})
     beginCaptures:
       1:
         patterns:
