@@ -141,8 +141,10 @@ method that an older save holds passes the same parameters. The binding is
 by name as the function runs, not by where it is written: a function
 written above `local a` reads that local once it exists, a second
 `local a` in the same scope replaces the one a function written
-between the two reads, and a scene's `local a`, which shares the top
-level's frame, is the one it reads while it holds. A name of the
+between the two reads, a scene's `local a`, which shares the top
+level's frame, is the one it reads while it holds, and with no `a` in
+the top level's own scope, a block's `a` there (a loop's variable, an
+`if`'s local) is the one it reads while the block runs. A name of the
 standard library (`count`, `math`, `table`) that no function around it
 declares is bound the same way by every function, closures included,
 since a closure cannot capture a builtin: a top-level `local count`
