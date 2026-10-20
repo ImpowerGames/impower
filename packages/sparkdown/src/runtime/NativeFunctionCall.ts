@@ -406,6 +406,25 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
+    // A single nil operand is an error too: without this guard it falls
+    // through coercion with no matching type and `Call` returns null,
+    // which the engine pushes and a later line dereferences. `not` is
+    // handled above, so nil is valid there. Luau's messages for `#` and
+    // unary minus; any other one-operand op keeps the binary wording.
+    if (parameters.length === 1 && parameters[0] instanceof NullValue) {
+      if (this.name === NativeFunctionCall.Length) {
+        throw new StoryException("attempt to get length of a nil value");
+      }
+      if (this.name === NativeFunctionCall.Negate) {
+        throw new StoryException(
+          "attempt to perform arithmetic (unm) on a nil value",
+        );
+      }
+      throw new StoryException(
+        `Attempting to perform ${this.name} on a nil value.`,
+      );
+    }
+
     // (set defined at module scope below the class — see
     // ARITHMETIC_OP_NAMES)
     // Lua arithmetic string coercion: numeric-string operands of the
