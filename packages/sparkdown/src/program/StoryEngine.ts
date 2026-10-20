@@ -120,6 +120,9 @@ export interface StoryEngine {
   CallFramePath(index: number): string | null;
   onError: StoryErrorHandler | null;
   errorMessageFormatter?: (story: any, message: string) => string;
+  /** Whether the `error` builtin running was called by `pcall` or
+   *  `xpcall`, so its message names no line. */
+  errorCalledByBuiltin?: boolean;
 
   // What a game hears as the story runs.
   onExecute: ((address: number) => void) | null;

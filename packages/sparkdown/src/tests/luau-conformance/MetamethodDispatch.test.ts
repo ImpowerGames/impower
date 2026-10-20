@@ -102,7 +102,10 @@ end
 });
 
 describe("__eq same-handler rule", () => {
-  test("primitive identity wins — handler is not consulted for a == a", () => {
+  // Luau, unlike Lua 5.x, has no identity shortcut: `luaV_equalval`
+  // calls the handler `get_compTM` finds even for a table compared with
+  // itself (events.luau: `t ~= t` under `__eq = print`).
+  test("the handler is consulted for a == a", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -113,7 +116,7 @@ host_record(a == a)
 end
 `);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual([true]);
+    expect(recorded).toEqual([false]);
   });
 
   test("same metatable fires the handler", () => {

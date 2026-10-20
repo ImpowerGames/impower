@@ -282,7 +282,7 @@ A table is an `ObjectValue` (`runtime/Value.ts`), which wraps a `Map<string, Abs
 
 - `MakeTable pairs` pops the keys and values a table literal pushed and builds the table (`tableFromPairs`).
 - `Index` pops a key and a base and pushes the member (`indexValue`): a key present in the map is returned directly, and a miss goes through `__index`. A string base is indexed by character, from 1.
-- `StoreIndex` pops a value, a key and a base and writes the member in place (`storeIndex`), through `__newindex` on a miss, and refuses a frozen table.
+- `StoreIndex` pops a value, a key and a base and writes the member in place (`storeIndex`), through `__newindex` on a miss (a key absent from a frozen table included), and refuses a raw write to a frozen table.
 - The same `Map` is shared by every variable that holds the table, so a write through one is seen through all of them, as in Luau.
 - A save writes each table once and refers to it again by id (`objid` and `objref` in `runtime/JsonSerialisation.ts`), so aliasing, cycles and a `define`'s class table survive a load.
 
