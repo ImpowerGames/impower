@@ -1918,7 +1918,7 @@
       "end": "$"
     },
     "SceneWithParametersDeclaration": {
-      "begin": "(?<=\\bscene(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
+      "begin": "(?<=^(?:[^\\S\\n\\r])*scene(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1943,7 +1943,7 @@
       "end": "(?=$|(?:[-][-])|(?:[^\\S\\n\\r])*(?![(]))"
     },
     "SceneWithoutParametersDeclaration": {
-      "match": "(?<=\\bscene(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
+      "match": "(?<=^(?:[^\\S\\n\\r])*scene(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "patterns": [
@@ -2019,7 +2019,7 @@
       "end": "$"
     },
     "BranchWithParametersDeclaration": {
-      "begin": "(?<=\\bbranch(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
+      "begin": "(?<=^(?:[^\\S\\n\\r])*branch(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2044,7 +2044,7 @@
       "end": "(?=$|(?:[-][-])|(?:[^\\S\\n\\r])*(?![(]))"
     },
     "BranchWithoutParametersDeclaration": {
-      "match": "(?<=\\bbranch(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
+      "match": "(?<=^(?:[^\\S\\n\\r])*branch(?:[^\\S\\n\\r])+)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "patterns": [
@@ -16046,10 +16046,10 @@
       "emit": true,
       "patterns": [
         {
-          "include": "#LuauNextLineMethodAccessor"
+          "include": "#LuauKeywordMethodAccessor"
         },
         {
-          "include": "#LuauKeywordMethodAccessor"
+          "include": "#LuauNextLineMethodAccessor"
         },
         {
           "include": "#LuauTypeAnnotationMissingType"
@@ -16078,7 +16078,7 @@
       ]
     },
     "LuauNextLineMethodAccessor": {
-      "begin": "((?:[^\\S\\n\\r])*)([:](?![:]))(?=(?:[^\\S\\n\\r])*$)",
+      "begin": "((?:[^\\S\\n\\r])*)([:](?![:]))(?=(?:[^\\S\\n\\r])*(?:$|(?:[-][-])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -16097,13 +16097,16 @@
       },
       "patterns": [
         {
+          "include": "#LuauComment"
+        },
+        {
           "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|^((?:[^\\S\\n\\r])*)((?!\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b)(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))|^(?!(?:[^\\S\\n\\r])*(?!\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b)(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)((?!\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b)(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))|^(?!(?:[^\\S\\n\\r])*(?:(?!\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b)(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))|(?:[-][-])|$))",
       "endCaptures": {
         "1": {
           "patterns": [

@@ -153,12 +153,28 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
   // A method call whose name is on the next line, read as Luau reads it
   // (I-780): the story line is part of the function.
   describe("a method name on the next line", () => {
-    for (const form of ["if flag:\nHello there.\n  then return 1 end", "flag:\nHello there."]) {
+    for (const form of [
+      "if flag:\nHello there.\n  then return 1 end",
+      "flag:\nHello there.",
+      // Luau reads past blank lines and comments to the name.
+      "if flag:\n\nHello there.\n  then return 1 end",
+      "if flag:\n  -- a note\nHello there.\n  then return 1 end",
+      "if flag: -- a note\nHello there.\n  then return 1 end",
+    ]) {
       test(JSON.stringify(form), () => expectOfficial(form));
     }
-    // A method call across the line break is one, and a `for` loop
-    // variable's `:` before a type on the next line is the type's.
-    for (const form of ["local t = {}\n  t:\n    m()", "local t = {}\n  local x = t:\n    m()\n  return x", "for k:\n    number in pairs({}) do end"]) {
+    // A method call across the line break is one, across blank lines and
+    // comments too, and a `for` loop variable's `:` before a type on the
+    // next line is the type's.
+    for (const form of [
+      "local t = {}\n  t:\n    m()",
+      "local t = {}\n  local x = t:\n    m()\n  return x",
+      "for k:\n    number in pairs({}) do end",
+      "if flag:\n\n    Hello()\n  then return 1 end",
+      "if flag: -- a note\n    Hello()\n  then return 1 end",
+      "if flag:\n    --[[ a note ]]\n    Hello()\n  then return 1 end",
+      "local t = {}\n  t: --[[ a note ]] m()",
+    ]) {
       test(`${JSON.stringify(form)} stays valid`, () => expectOfficial(form, { reported: false }));
     }
 
@@ -236,6 +252,9 @@ describe("text after a scene or branch header is reported on the header line (I-
     ["a word after a scene's name", scene("scene start oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
     ["a word after a branch's name", branch("  branch side oops"), "14-18 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
     ["a word after a branch's parameters", branch("  branch side(k) oops"), "17-21 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
+    // A name that is the header's keyword is still the only name.
+    ["a word after a scene named `scene`", scene("scene scene oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
+    ["a word after a branch named `branch`", branch("  branch branch oops"), "16-20 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
   ])("%s is reported", (_name, source, expected) => {
     expect(onHeaderLine(source)).toEqual([expected]);
   });
@@ -248,6 +267,8 @@ describe("text after a scene or branch header is reported on the header line (I-
     ["a header alone", scene("scene start(n: number)")],
     ["tags after a scene's name", scene("scene start # arc")],
     ["tags and a comment after a branch's parameters", branch("  branch side(k) # arc -- a note")],
+    ["a scene named `scene`", scene("scene scene")],
+    ["a branch named `branch`", branch("  branch branch")],
   ])("%s is not reported", (_name, source) => {
     expect(onHeaderLine(source)).toEqual([]);
   });
@@ -328,6 +349,9 @@ describe("a .luau file's errors are the official parser's", () => {
     // A root `end`, and nothing after the first, where Luau's parser stops.
     "end\nend\n",
     "function f()\n  do\n    until true\n  end\nend\n",
+    // A line that reads like a scene's header is Luau's, after the root
+    // `end` where Luau's parser stops.
+    "end\nscene start oops\nend\n",
     // A token that reads like a line reference is the author's.
     "local \"(to close 'function' at line 999)\" = 1\n",
     "function f(\"(to close 'function' at line 999)\") end\n",

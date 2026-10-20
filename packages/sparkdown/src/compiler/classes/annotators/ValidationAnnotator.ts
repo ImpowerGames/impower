@@ -1817,7 +1817,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // (`scene start oops`), which the grammar reads to the line's end as
     // `Unknown` (#674). A `--` comment there is a comment, as after a
     // definition's `end`.
-    if (nodeRef.name === "Unknown" && HEADER_CONTENT.has(nodeRef.node.parent?.name ?? "")) {
+    // A `.luau` or `run` file has no scene or branch, whatever its tree
+    // reads: Luau's reading reports its lines.
+    if (nodeRef.name === "Unknown" && HEADER_CONTENT.has(nodeRef.node.parent?.name ?? "") && !this.inLuauDocument()) {
       const raw = this.read(nodeRef.from, nodeRef.to);
       const from = nodeRef.from + (raw.length - raw.trimStart().length);
       const kind = nodeRef.node.parent!.name === "Scene_content" ? "scene" : "branch";

@@ -2505,13 +2505,14 @@ repository:
 
   # The name is the word right after the keyword; a word after the header
   # is `Unknown`, which the validator reports (#674).
-  # lookaround: the lookbehind keeps the name to the word right after
-  # `scene`, so a word later on the header line is `Unknown`'s rather than a
-  # second name; the begin's `(` lookahead and the end's leave the parameter
+  # lookaround: the lookbehind keeps the name to the word right after the
+  # line's own `scene` keyword, from the line's start, so a word later on
+  # the header line is `Unknown`'s rather than a second name, even after a
+  # name that is itself `scene` (`scene scene oops`); the begin's `(` lookahead and the end's leave the parameter
   # list to `LuauFunctionParameters` and the rest of the line to `Unknown`
   # or `LuauLineComment`.
   SceneWithParametersDeclaration:
-    begin: (?<=\bscene{{WS}}+)({{IDENTIFIER}})({{WS}}*)(?=[(])
+    begin: (?<=^{{WS}}*scene{{WS}}+)({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -2526,7 +2527,7 @@ repository:
   # lookaround: as `SceneWithParametersDeclaration`'s, so a word after the
   # name is `Unknown`'s rather than a second name.
   SceneWithoutParametersDeclaration:
-    match: (?<=\bscene{{WS}}+)({{IDENTIFIER}})({{WS}}*)
+    match: (?<=^{{WS}}*scene{{WS}}+)({{IDENTIFIER}})({{WS}}*)
     captures:
       1:
         patterns:
@@ -2577,7 +2578,7 @@ repository:
   # word later on the line is `Unknown`'s; `LuauFunctionParameters` reads the
   # list the `(` lookahead leaves it.
   BranchWithParametersDeclaration:
-    begin: (?<=\bbranch{{WS}}+)({{IDENTIFIER}})({{WS}}*)(?=[(])
+    begin: (?<=^{{WS}}*branch{{WS}}+)({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -2592,7 +2593,7 @@ repository:
   # lookaround: as `SceneWithParametersDeclaration`'s, after `branch`, so a
   # word after the name is `Unknown`'s rather than a second name.
   BranchWithoutParametersDeclaration:
-    match: (?<=\bbranch{{WS}}+)({{IDENTIFIER}})({{WS}}*)
+    match: (?<=^{{WS}}*branch{{WS}}+)({{IDENTIFIER}})({{WS}}*)
     captures:
       1:
         patterns:
@@ -12071,8 +12072,8 @@ repository:
   LuauAccessPart:
     emit: true
     patterns:
-      - { include: "#LuauNextLineMethodAccessor" }
       - { include: "#LuauKeywordMethodAccessor" }
+      - { include: "#LuauNextLineMethodAccessor" }
       - { include: "#LuauTypeAnnotationMissingType" }
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauDanglingAccessor" }
@@ -12082,32 +12083,37 @@ repository:
       - { include: "#LuauFunctionCall" }
       - { include: "#LuauVariable" }
 
-  # A method access whose `:` ends its line (`flag:` with `Hello there.` on
-  # the next line), which Luau reads across the line break: the first word
-  # of the next line is the method's name, and what follows it the call's
-  # arguments, in error (#780). The function's line after it is part of the
-  # function, as Luau's rules say. A next line that begins with no name
-  # (`end`, a `(`) leaves the `:` alone, so the word stays the token it is
-  # and Luau's error for the missing name is reported at it. A `for` loop
-  # variable's `:` is its type's: the path ends before it. The rule's `end:`
-  # reads the name, since only the rule that reads the `:` knows the next
-  # line's first word is a method's name.
+  # A method access whose `:` ends its line, or is followed on it only by a
+  # comment (`flag:` with `Hello there.` on the next line), which Luau reads
+  # across the line break and its trivia: the first name after the `:`,
+  # past spaces, blank lines and comments, is the method's name, and what
+  # follows it the call's arguments, in error (#780). The function's line
+  # after it is part of the function, as Luau's rules say. A line that
+  # begins with no name and is no blank or comment line (`end`, a `(`)
+  # leaves the `:` alone, so the word stays the token it is and Luau's error
+  # for the missing name is reported at it. A `for` loop variable's `:` is
+  # its type's: the path ends before it. The rule's `end:` reads the name,
+  # since only the rule that reads the `:` knows the next word is a method's
+  # name.
+  # It is tried after `LuauKeywordMethodAccessor`, which reads a keyword
+  # the `:`'s own line holds after block comments (`a: --[[x]] end`).
   # lookaround: the begin's lookahead keeps the rule to a `:` that ends its
-  # line, the one `:` whose method name is on the next line. The §10.1
-  # alternatives: ordering alone cannot do it, since without the lookahead
-  # this rule, tried first, takes every `:` of a path, and tried after the
-  # rivals that read what follows a `:` on its own line (a name and its
-  # call, `LuauFunctionAccessor`; a keyword, `LuauKeywordMethodAccessor`; a
-  # missing type, `LuauTypeAnnotationMissingType`), it takes the `:` they
-  # leave mid-line too. A `begin:` cannot read the name, since a regex never
-  # spans the line break, and the parent's `end:` cannot, since the path
-  # ends with its line, so this rule's `end:` reads it. The end's `BEAT`
-  # lookahead ends the rule before a header line (`scene`, `branch`), whose
-  # keyword story reads; its `^` lookahead ends it before a line whose first
-  # word is no name (`end`, a `(`, a blank line), leaving what is there to
-  # be read as what it is.
+  # line or a comment follows, the one `:` whose method name is past the
+  # line's end or a comment. The §10.1 alternatives: ordering alone cannot
+  # do it, since without the lookahead this rule, tried first, takes every
+  # `:` of a path, and tried after the rivals that read what follows a `:`
+  # on its own line (a name and its call, `LuauFunctionAccessor`; a keyword,
+  # `LuauKeywordMethodAccessor`; a missing type,
+  # `LuauTypeAnnotationMissingType`), it takes the `:` they leave mid-line
+  # too. A `begin:` cannot read the name, since a regex never spans the line
+  # break, and the parent's `end:` cannot, since the path ends with its
+  # line, so this rule's `end:` reads it, wherever the trivia the rule's
+  # patterns read leaves it. The end's `BEAT` lookahead ends the rule before
+  # a header line (`scene`, `branch`), whose keyword story reads; its `^`
+  # lookahead ends it before a line whose first token is no name, blank or
+  # comment (`end`, a `(`), leaving what is there to be read as what it is.
   LuauNextLineMethodAccessor:
-    begin: ({{WS}}*)([:](?![:]))(?={{WS}}*$)
+    begin: ({{WS}}*)([:](?![:]))(?={{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
     beginCaptures:
       1:
         patterns:
@@ -12116,9 +12122,10 @@ repository:
         patterns:
           - { include: "#LuauAccessorOperator" }
     patterns:
+      - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|^({{WS}}*)({{LUAU_UNRESERVED_IDENTIFIER}})|^(?!{{WS}}*{{LUAU_UNRESERVED_IDENTIFIER}})
+    end: (?={{BEAT}})|({{WS}}*)({{LUAU_UNRESERVED_IDENTIFIER}})|^(?!{{WS}}*(?:{{LUAU_UNRESERVED_IDENTIFIER}}|{{LUAU_COMMENT_START}}|$))
     endCaptures:
       1:
         patterns:
