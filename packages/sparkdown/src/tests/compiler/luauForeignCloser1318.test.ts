@@ -157,6 +157,11 @@ const CASES: Record<string, Form[]> = {
     { form: "for k: do end", errors: ["Expected type, got 'do'"] },
     { form: "for k, v: in pairs({}) do end", errors: ["Expected type, got 'in'"] },
     { form: "for k: then do end", errors: ["Expected type, got 'then'"] },
+    // A comment between the variable and its `:` (round 3, `undirected`
+    // finding 1).
+    { form: "for k --[[x]] : then do end", errors: ["Expected type, got 'then'"] },
+    { form: "for k --[[x]] : do end", errors: ["Expected type, got 'do'"] },
+    { form: "for k, v --[[x]]: in pairs({}) do end", errors: ["Expected type, got 'in'"] },
     { form: "local t = {}\n  for k in t: then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  local b = (t): --[[c]] then", errors: ["Expected identifier when parsing method name, got 'then'"] },
     // The other header's keyword in a condition is the method's name (round

@@ -967,16 +967,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   /**
    * Whether a node directly follows a `for` loop variable, an access path of
    * one name in the loop's header with no `in` or `=` before it
-   * (`for k: then`), where a `:` is the variable's type annotation.
+   * (`for k: then`), where a `:` is the variable's type annotation. Comments
+   * may stand between them (`for k --[[c]] : then`).
    */
   protected followsForBinding(node: SyntaxNode): boolean {
-    const path = node.prevSibling;
+    let path = node.prevSibling;
+    while (path && isTrivia(path)) {
+      path = path.prevSibling;
+    }
     if (!path || !isExplicitRuleName(path.name, "LuauAccessPath") || path.parent?.name !== "LuauForCondition_content") {
       return false;
     }
     const content = childNamed(path, `${path.name}_content`);
     const part = content?.firstChild;
-    if (!part || !isExplicitRuleName(part.name, "LuauAccessPart") || part.nextSibling) {
+    let after = part?.nextSibling;
+    while (after && isTrivia(after)) {
+      after = after.nextSibling;
+    }
+    if (!part || !isExplicitRuleName(part.name, "LuauAccessPart") || after) {
       return false;
     }
     for (let before = path.prevSibling; before; before = before.prevSibling) {
