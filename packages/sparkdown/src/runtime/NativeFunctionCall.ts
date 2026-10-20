@@ -19,7 +19,9 @@ import {
   METHOD_PREFIX,
   callBuiltinMethod,
   isPureNumberStdLibOp,
+  lookupAnyStdLib,
   luauNumberToString,
+  stdLibRequiredArgs,
   luauTableBorder,
   luauTypeOf,
   parseLuauNumber,
@@ -209,11 +211,15 @@ export class NativeFunctionCall extends InkObject {
     // individual parameters. Earlier MultiValues still truncate to
     // their first value (the per-arg loops below). Must run before
     // the pure-number coercion, which would otherwise truncate the
-    // pack to one value.
+    // pack to one value. A last call that returned nothing (`Void`)
+    // gives no arguments (`math.max(2, g0())` is 2); a `Void` before
+    // it stays and reads as a missing argument below.
     if (this._numberOfParameters === VARIADIC_ARITY && parameters.length > 0) {
       const last = parameters[parameters.length - 1];
       if (last instanceof MultiValue) {
         parameters.splice(parameters.length - 1, 1, ...last.values);
+      } else if (last instanceof Void) {
+        parameters.pop();
       }
     }
 
@@ -235,6 +241,14 @@ export class NativeFunctionCall extends InkObject {
         : this.name;
       if (parameters.length === 0 && this.numberOfParameters >= 1) {
         throw new StoryException(`missing argument #1 to '${shortName}'`);
+      }
+      if (this._numberOfParameters === VARIADIC_ARITY) {
+        const entry = lookupAnyStdLib(this.name);
+        if (entry && parameters.length < stdLibRequiredArgs(entry)) {
+          throw new StoryException(
+            `missing argument #${parameters.length + 1} to '${shortName}'`,
+          );
+        }
       }
       for (let i = 0; i < parameters.length; i++) {
         let p = parameters[i];
