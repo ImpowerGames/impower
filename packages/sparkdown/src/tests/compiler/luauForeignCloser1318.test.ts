@@ -29,6 +29,11 @@ interface Form {
   errors: string[] | "official";
   /** A range Sparkdown gives on purpose that differs from the official parser's, by message. */
   range?: Record<string, string>;
+  /**
+   * Luau's first error ends at the token of one that begins before it, and
+   * Sparkdown keeps that one of the token's errors (I-1174).
+   */
+  firstSharesToken?: true;
 }
 
 /** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
@@ -56,7 +61,7 @@ function topLevelAt(text: string, offset: number): SyntaxNode | null {
   return node;
 }
 
-function expectForm({ form, errors, range = {} }: Form): void {
+function expectForm({ form, errors, range = {}, firstSharesToken }: Form): void {
   const luau = `${HEADER}${form}${FOOTER}`;
   const text = `${luau}${STORY}`;
   const tree = stripAnsi(dumpTree(text));
@@ -76,6 +81,11 @@ function expectForm({ form, errors, range = {} }: Form): void {
     expect(sparkdownErrors(text)).toEqual([...official].sort());
     return;
   }
+  // Luau's first error is always one of them (round 4, `undirected`
+  // finding 1), so a later error of its recovery never stands in for it.
+  if (official.length > 0 && !firstSharesToken) {
+    expect(errors, `Luau's first error is expected:\n${official.join("\n")}`).toContain(official[0]!.slice(official[0]!.indexOf(" ") + 1));
+  }
   const expected = errors.map((message) => {
     const found = official.find((e) => e.slice(e.indexOf(" ") + 1) === message);
     expect(found, `the official parser reports ${JSON.stringify(message)}:\n${official.join("\n")}`).toBeDefined();
@@ -93,6 +103,7 @@ const CASES: Record<string, Form[]> = {
     {
       form: "(::,",
       errors: ["Assigned expression must be a variable or a field", "Expected type, got ','", "Expected identifier when parsing expression, got 'end'"],
+      firstSharesToken: true,
     },
     {
       form: "(::",
@@ -165,7 +176,17 @@ const CASES: Record<string, Form[]> = {
     // A colon after the loop's values, with a comment before it, is a
     // method's, not a variable's type (round 3 checkpoint dea02585).
     { form: "local t = {}\n  for k in t --[[c]] : then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
-    { form: "for k = 1 --[[c]] : then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    { form: "for k = i --[[c]] : then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
+    // After a value Luau calls no method on, its first error is the `:`
+    // (round 4, `undirected` finding 1).
+    { form: "for k = 1 --[[c]] : then do end", errors: ["Expected ',' when parsing index range, got ':'"] },
+    { form: "for k in 1 --[[c]] : then do end", errors: ["Expected 'do' when parsing for loop, got ':'"] },
+    { form: "while 1: do end", errors: ["Expected 'do' when parsing while loop, got ':'"] },
+    { form: "while 1 : do\n    print(1)\n  end", errors: ["Expected 'do' when parsing while loop, got ':'"] },
+    { form: "if 1: then end", errors: ["Expected 'then' when parsing if statement, got ':'"] },
+    { form: "local b = 1:do", errors: ["Expected identifier when parsing expression, got ':'"] },
+    { form: 'local b = "s":then', errors: ["Expected identifier when parsing expression, got ':'"] },
+    { form: "local b = (1):do", errors: ["Expected identifier when parsing method name, got 'do'"] },
     { form: "local t = {}\n  for k in t: then do end", errors: ["Expected identifier when parsing method name, got 'then'"] },
     { form: "local t = {}\n  local b = (t): --[[c]] then", errors: ["Expected identifier when parsing method name, got 'then'"] },
     // The other header's keyword in a condition is the method's name (round

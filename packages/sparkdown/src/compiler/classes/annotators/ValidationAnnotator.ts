@@ -174,6 +174,14 @@ const MISSING_TYPE = "Expected type";
 // between, which ends the header there (I-1318).
 const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
 const HEADER_METHOD_COLONS = nodeNameSet(HEADER_METHOD_COLON_NAMES);
+// The values Luau can call a method on, as its primary expression is: a name
+// or access path, a value in brackets, and a call or access chained onto one.
+const METHOD_RECEIVERS = nodeNameSet([
+  "LuauAccessPath",
+  "LuauParenthetical",
+  "LuauChainedFunctionCall",
+  "LuauChainedPropertyAccess",
+]);
 // The grammar's tokens for a type that is missing or malformed, and for a
 // declaration target's `::`, and a header's method colon.
 const TYPE_ERROR_TOKENS = nodeNameSet([
@@ -996,6 +1004,32 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
+   * Whether the value right before a node is one Luau can call a method on:
+   * a name or access path, a value in brackets, or a call or access chained
+   * onto one, as Luau's primary expression is. The value is the last one the
+   * previous sibling holds (`for k = i : then` reads `i` inside the `=`'s
+   * operation). A literal is none (`for k = 1 : then`), and there Luau's first
+   * error is the `:` itself, which the type checker reports.
+   */
+  protected followsMethodReceiver(node: SyntaxNode): boolean {
+    let value: SyntaxNode | null = node.prevSibling;
+    while (value && isTrivia(value)) {
+      value = value.prevSibling;
+    }
+    while (value) {
+      if (METHOD_RECEIVERS.has(value.name)) {
+        return true;
+      }
+      let last = value.lastChild;
+      while (last && isTrivia(last)) {
+        last = last.prevSibling;
+      }
+      value = last;
+    }
+    return false;
+  }
+
+  /**
    * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
    * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
    * directly after `for` or after a comma before the loop's `in` or `=`.
@@ -1235,8 +1269,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // After a `for` loop variable the `:` is its type's, and the word is
       // the type Luau found missing (`for k: then`), which the type checker
       // reports.
+      // After a value no method is called on (`for k = 1 : then`), Luau's
+      // first error is the `:`, which the type checker reports too.
       const accessor = nodeRef.node.parent?.parent;
-      if (accessor && isExplicitRuleName(accessor.name, "LuauExpressionKeywordMethodAccessor") && this.followsForBinding(accessor)) {
+      if (
+        accessor &&
+        isExplicitRuleName(accessor.name, "LuauExpressionKeywordMethodAccessor") &&
+        (this.followsForBinding(accessor) || !this.followsMethodReceiver(accessor))
+      ) {
         return annotations;
       }
       this.error(
@@ -1248,6 +1288,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
+      // A header's `:` after a value no method is called on (`while 1: do`):
+      // Luau's first error is the `:` itself, which the type checker reports.
+      if (HEADER_METHOD_COLONS.has(nodeRef.name) && !this.followsMethodReceiver(nodeRef.node)) {
+        return annotations;
+      }
       const isMethodColon = this.isMethodColon(nodeRef.node);
       // An unfinished narrative method call owns its island's EOF. A genuine
       // function still permits the method name on its next Luau line.

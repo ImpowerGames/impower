@@ -492,6 +492,8 @@ interface Token {
   loopHeaderEnd?: true;
   /** A token of such a header, where Luau's error is the loop's diagnostic too (`while true print(1)`). */
   loopHeader?: true;
+  /** The `:` of a method access the grammar reads outside an access path (`readMethodColon`), where Luau's error is the expression's. */
+  methodColon?: true;
   /** End offset of the grammar-owned marked narrative island containing this token. */
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
@@ -533,6 +535,8 @@ const BRACKET_CLOSERS = new Set([")", "]", "}", ">"]);
 
 // The loops of Luau code whose body is a `do` block.
 const LUAU_LOOPS = new Set(["LuauWhileLoop", "LuauForLoop"]);
+// The rules holding the `:` of a method access outside an access path (`readMethodColon`).
+const METHOD_COLON_RULES = new Set(["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon", "LuauExpressionKeywordMethodAccessor"]);
 
 // The reserved words a type can hold, among a `local`'s annotated names.
 const TYPE_KEYWORDS = new Set(["nil", "true", "false"]);
@@ -991,7 +995,29 @@ class Tokenizer {
       this.readHeaderOnlyLoop(node);
       return;
     }
+    if (METHOD_COLON_RULES.has(name)) {
+      this.readMethodColon(node);
+      return;
+    }
     this.readChildren(node);
+  }
+
+  /**
+   * The `:` of a method access whose name is a header's keyword or a
+   * reserved word the grammar reads outside an access path
+   * (`LuauLoopHeaderMethodColon`, `LuauIfHeaderMethodColon`,
+   * `LuauExpressionKeywordMethodAccessor`, I-1318). After a value Luau calls
+   * no method on (`while 1: do`, `for k = 1 : then`), Luau's first error is at
+   * the `:`, and the validator leaves it to the type checker, so the errors
+   * there are the expression's. After a value Luau calls a method on, Luau
+   * reads the `:` and reports nothing at it.
+   */
+  private readMethodColon(node: SyntaxNode): void {
+    const first = this.tokens.length;
+    this.readChildren(node);
+    for (let i = first; i < this.tokens.length; i++) {
+      if (this.tokens[i]!.text === ":") this.tokens[i]!.methodColon = true;
+    }
   }
 
   /**
@@ -1735,6 +1761,9 @@ class Parser {
     // A story loop header with no `do` on its line meets its end of input
     // where the `do` should be (#1907): Luau's error there is the loop's.
     malformed ??= (boundedStoryEnd && this.current().loopHeaderEnd) || this.current().loopHeader ? "statement" : undefined;
+    // So is one at the `:` of a method access after a value Luau calls no
+    // method on (`while 1: do`, `readMethodColon`).
+    malformed ??= this.current().methodColon ? "expression" : undefined;
     const sparkdownOwned = this.sparkdownDepth > 0 && malformed !== "attribute";
     const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation" || malformed === "attribute"));
     if (malformed && !follows && !consequence && !sparkdownOwned && !atSparkdown && !this.atAbandonedCloser()) {
