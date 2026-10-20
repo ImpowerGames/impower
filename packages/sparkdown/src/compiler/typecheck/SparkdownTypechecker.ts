@@ -24,6 +24,7 @@ import { lintComments } from "./Linter";
 import { Location } from "./Location";
 import {
   checkLuauUnit,
+  documentLine,
   documentPosition,
   isLuauFile,
   luauFileUnit,
@@ -32,7 +33,7 @@ import {
   type LuauUnit,
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
-import { inLuauFunction } from "./LuauUnitNodes";
+import { luauReadingReportsAllAt } from "./LuauUnitNodes";
 import { Mode } from "./Module";
 import { Scope } from "./Scope";
 import { follow, persist, TypeArena, TypeFun } from "./Type";
@@ -53,6 +54,15 @@ export interface TypecheckDiagnostic {
 // Syntax Sparkdown adds to Luau's, which the reading does not know: a label
 // (`::name::`) and a `goto` statement, which the grammar names.
 const SPARKDOWN_SYNTAX = new Set(["LuauLabel", "LuauGotoStatement"]);
+
+/**
+ * A message with each line it names (`to close 'function' at line 1`,
+ * `did you forget to close 'do' at line 2?`, `previously defined at line
+ * 3`), a line of the unit's Luau, named as the document's line it stands on.
+ */
+function inDocumentLines(unit: LuauUnit, message: string): string {
+  return message.replace(/\bat line (\d+)/g, (_, line: string) => `at line ${documentLine(unit, Number(line) - 1) + 1}`);
+}
 
 interface CachedUnit {
   check: LuauUnitCheck;
@@ -173,9 +183,13 @@ export class SparkdownTypechecker {
       return line + 1 < lineStartsOf().length ? { line: line + 1, character: 0 } : after ? end : start;
     };
     // Whether a document position is in a function's own Luau, its header or
-    // its body, read from the character before it (an error at the end of
-    // the unit begins right after the function's `end`).
-    const inFunction = (position: { line: number; character: number }) => inLuauFunction(tree.resolveInner(offsetOf(position), -1));
+    // its body, that the checker reads (`luauReadingReportsAllAt`; not a
+    // function value in a `store`'s, whose errors are Sparkdown's own), read
+    // from the character before it (an error at the end of the unit begins
+    // right after the function's `end`).
+    const read = (from: number, to: number) => text.slice(from, to);
+    const inFunction = (position: { line: number; character: number }) =>
+      luauReadingReportsAllAt(tree.resolveInner(offsetOf(position), -1), read);
     const report = (entry: CachedUnit, unit: LuauUnit, pureLuau: boolean) => {
       checks.push(entry.check);
       // In a story statement's Luau, which ends at its line, the tokens a
@@ -211,14 +225,14 @@ export class SparkdownTypechecker {
             if (reportedTokens.has(token)) continue;
             reportedTokens.add(token);
           }
-          diagnostics.push({ start, end, code: "SyntaxError", message, syntax: true });
+          diagnostics.push({ start, end, code: "SyntaxError", message: inDocumentLines(unit, message), syntax: true });
           continue;
         }
         const diagnostic: TypecheckDiagnostic = {
           start: documentPosition(unit, error.location.begin),
           end: documentPosition(unit, error.location.end),
           code: error.data.kind,
-          message: errorToString(error),
+          message: inDocumentLines(unit, errorToString(error)),
         };
         if (error.data.kind === "UnknownSymbol" && error.data.context === UnknownSymbolContext.Binding) {
           diagnostic.unknownGlobal = error.data.name;

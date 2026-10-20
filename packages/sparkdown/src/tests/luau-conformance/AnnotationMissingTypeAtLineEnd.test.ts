@@ -46,12 +46,12 @@ describe("a type annotation left empty at the end of its line", () => {
     expect(errorsIn("snippet.luau", { "snippet.luau": source })).toEqual([message]);
   });
 
-  // A function whose header ends the file is unclosed too, as Luau also says.
+  // A function whose header ends the file is unclosed too, which in a
+  // `.luau` file Luau's own error alone reports, as every error there
+  // (I-1322).
   test("a return type that ends a .luau file", () => {
     expect(errorsIn("snippet.luau", { "snippet.luau": "function g():\n" })).toEqual([
-      "0:0-0:13 This function is missing its closing `end` keyword. Without it, the lines below it are read as part of this function, up to the next `scene`, `branch` or the end of the file.",
       "0:13-1:0 Expected type, got <eof>",
-      // Luau's own error for the function left open (I-1322).
       "1:0-1:0 Expected 'end' (to close 'function' at line 1), got <eof>",
     ]);
   });

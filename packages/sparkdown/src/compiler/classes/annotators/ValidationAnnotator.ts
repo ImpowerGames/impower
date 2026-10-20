@@ -23,7 +23,7 @@ import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, inLuauFunction, isCheckedLuau, isLuauFile, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isCheckedLuau, isLuauDocument, isLuauFile, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -1040,8 +1040,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * keep one owner each, as before (#931, #1907).
    */
   protected inPureLuau(node: SyntaxNode): boolean {
-    if (this.uri && (isLuauFile(this.uri) || runWrapperName(this.uri) !== undefined)) return true;
-    return isCheckedLuau(node, (from, to) => this.read(from, to)) && inLuauFunction(node);
+    return luauReadingReportsAllAt(node, (from, to) => this.read(from, to), this.uri);
+  }
+
+  /** Whether the document is a `.luau` or `run` file, Luau from its first line to its last. */
+  protected inLuauDocument(): boolean {
+    return !!this.uri && isLuauDocument(this.uri);
   }
 
   /**
@@ -1634,7 +1638,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // grammar ends the condition there, so the branch's first line stays in
     // its body. Luau names the token after the condition's expression, which
     // is the first one the grammar could not read into it.
-    if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
+    // In a `.luau` or `run` file Luau's reading reports a missing `then`
+    // itself, as every error of the file's (I-1322), and no condition there
+    // is a story header's, which its line ends.
+    if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name) && !this.inLuauDocument()) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
         const authoredEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());

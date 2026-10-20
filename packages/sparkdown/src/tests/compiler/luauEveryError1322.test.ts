@@ -10,8 +10,8 @@ import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { officialErrorList } from "./officialSyntax";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
-import { checkLuau, describeDiagnostic } from "../luau-conformance/typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { diagnoseFilesDetailed } from "../luau-conformance/diagnosticTestHarness";
 
 const URI = "inmemory:///main.sd";
 const HEADER = "function run()\n  ";
@@ -167,15 +167,6 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.ContinueMaximally()).toBe("Before 1.\n");
     });
-
-    // The `.luau` snippet of I-775: its syntax diagnostics are the Luau
-    // parser port's.
-    test("a .luau snippet's syntax diagnostics are the parser port's", () => {
-      const r = checkLuau("local flag = true\nif flag:\n  print(1)\nend\n");
-      const port = r.diagnostics.filter((d) => d.code === "SyntaxError").map(describeDiagnostic);
-      expect(port.length).toBeGreaterThan(0);
-      expect(r.syntaxDiagnostics.map(describeDiagnostic)).toEqual(port);
-    });
   });
 });
 
@@ -262,24 +253,74 @@ describe("text after a scene or branch header is reported on the header line (I-
   });
 });
 
-// A `store` declaration's value is Luau, and Luau's first error in it is
-// reported with the errors that follow from it: in story as before, and in
-// a function with the rest of Luau's list. Each is Luau's for the same value
-// in a `local` (`store` and `local` are one length, so the columns agree).
+// A `store` declaration is Sparkdown's own (`isCheckedLuau`), in story or
+// in a function, and its value's errors are reported as a story
+// statement's: Luau's first error at a token the grammar left unread, with
+// the errors that follow from it, as before. Each is Luau's for the same
+// value in a `local` (`store` and `local` are one length, so the columns
+// agree). A function value in a store is left open with Sparkdown's report
+// alone, as before.
 describe("a store declaration's value keeps Luau's first error", () => {
+  const store = "store t = {1 ? 2}";
   test("a store in story", () => {
-    const store = "store t = {1 ? 2}";
     expect(sparkdownErrors(`${store}\nscene start\n  Hello.\nend\n`)).toEqual(
       officialErrorList(store.replace("store", "local")).sort(),
     );
   });
 
-  for (const value of ["{1 ? 2}", "{nil=1}"]) {
-    test(`a store in a function: ${JSON.stringify(value)}`, () => {
-      const luau = (keyword: string) => `function f()\n  ${keyword} t = ${value}\n  return 0\nend\n`;
-      const errors = sparkdownErrors(luau("store"));
-      expect(errors.length).toBeGreaterThan(0);
-      expect(errors).toEqual(officialErrorList(luau("local")).sort());
+  test("a store in a function", () => {
+    const luau = (statement: string) => `function f()\n  ${statement}\n  return 0\nend\n`;
+    expect(sparkdownErrors(luau(store))).toEqual(officialErrorList(luau(store.replace("store", "local"))).sort());
+  });
+
+  test("a function value a store leaves open", () => {
+    const errors = sparkdownErrors("store f = function()\n  local x = 1\n");
+    expect(errors).toEqual([expect.stringMatching(/^0:10-0:20 This function is missing its closing `end` keyword\./)]);
+  });
+});
+
+// Luau's errors name the lines of the document they stand on, as the
+// official parser's do over the same text, a unit's comments and blank
+// lines counted.
+describe("a syntax error's message names the document's lines", () => {
+  test.each([
+    ["a function after a comment and a blank line", "-- intro\n\nfunction f()\n  -- body comment\n  if x then\n    y()\n      end\n  while true d\nend\n"],
+    ["a function after blank lines", "\n\nfunction f()\n  while true d\nend\n"],
+  ])("%s", (_label, text) => {
+    const errors = sparkdownErrors(`${text}${STORY}`);
+    expect(errors.some((e) => / at line \d+/.test(e))).toBe(true);
+    expect(errors).toEqual(officialErrorList(text).sort());
+  });
+
+  test("a type warning names the document's line too", () => {
+    const text = "\n\nfunction f()\n  -- a note\n  type T = number\n  type T = string\nend\n";
+    const messages = compile(`${text}${STORY}`).map(messageOf);
+    expect(messages).toContain("Redefinition of type 'T', previously defined at line 5");
+  });
+});
+
+// A `.luau` file is Luau from its first line to its last, read on its own
+// or through a `run`: its errors are the official parser's for the file,
+// no more and no fewer, each at its range.
+describe("a .luau file's errors are the official parser's", () => {
+  const errorsIn = (sources: Record<string, string>) =>
+    diagnoseFilesDetailed(sources)
+      .filter((d) => d.file === "snippet.luau" && d.severity === DiagnosticSeverity.Error)
+      .map(({ range, message }) => `${range!.start.line}:${range!.start.character}-${range!.end.line}:${range!.end.character} ${message}`)
+      .sort();
+  for (const snippet of [
+    // I-775's snippet, and I-780's next-line method name.
+    "local flag = true\nif flag:\n  print(1)\nend\n",
+    "local flag = true\nif flag:\nHello there.\nend\n",
+    "local b = nil:do\n",
+    "while true do\n  x()\n",
+    "local t = {nil=1}\n",
+  ]) {
+    test(JSON.stringify(snippet), () => {
+      const official = officialErrorList(snippet, { luauFile: true }).sort();
+      expect(official.length).toBeGreaterThan(0);
+      expect(errorsIn({ "snippet.luau": snippet }), "read on its own").toEqual(official);
+      expect(errorsIn({ "main.sd": 'run "snippet"\n', "snippet.luau": snippet }), "through a `run`").toEqual(official);
     });
   }
 });

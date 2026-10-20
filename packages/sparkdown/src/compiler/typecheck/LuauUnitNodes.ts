@@ -5,7 +5,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
-import { RUN_QUERY } from "../utils/runWrapper";
+import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
 // The statements of a `.sd` file that are Luau, wherever they sit.
@@ -129,11 +129,13 @@ export function inLuauFunction(node: SyntaxNode | null): boolean {
 
 /**
  * Whether the type checker reports every syntax error of Luau's reading at
- * a node (I-1322): the node is Luau it reads (`isCheckedLuau`) in a
- * function's own Luau (`inLuauFunction`). There a validator or lowerer
- * reports none of Luau's own syntax errors.
+ * a node (I-1322): the node is in a `.luau` or `run` file (`uri`, the
+ * document's), whose whole text is Luau, or it is Luau the checker reads
+ * (`isCheckedLuau`) in a function's own Luau (`inLuauFunction`). There a
+ * validator or lowerer reports none of Luau's own syntax errors.
  */
-export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
+export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, to: number) => string, uri?: string): boolean {
+  if (uri !== undefined && isLuauDocument(uri)) return true;
   return inLuauFunction(node) && isCheckedLuau(node, read);
 }
 
@@ -141,6 +143,11 @@ export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, t
 export function isLuauFile(uri: string): boolean {
   const path = uri.split(/[?#]/, 1)[0]!;
   return path.endsWith(".luau") && !uri.includes(RUN_QUERY);
+}
+
+/** Whether a document is all Luau: a `.luau` file, or the `run` wrapper of one. */
+export function isLuauDocument(uri: string): boolean {
+  return isLuauFile(uri) || runWrapperName(uri) !== undefined;
 }
 
 /**
