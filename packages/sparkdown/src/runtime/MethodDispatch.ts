@@ -38,6 +38,7 @@ import {
   ObjectValue,
   StringValue,
 } from "./Value";
+import { Void } from "./Void";
 import { StoryException } from "./StoryException";
 import { oneValue, spreadCallArgs } from "./CallArgs";
 // StdLib imports this module too; these are only called at run time, after
@@ -141,7 +142,7 @@ export function checkNumberArg(
 ): number | undefined {
   const missing =
     v === undefined ||
-    v?.constructor?.name === "Void" ||
+    v instanceof Void ||
     (v instanceof MultiValue && v.values.length === 0);
   const raw = v instanceof MultiValue ? v.values[0] : v;
   if (optional && (missing || luauTypeOf(raw) === "nil")) {
