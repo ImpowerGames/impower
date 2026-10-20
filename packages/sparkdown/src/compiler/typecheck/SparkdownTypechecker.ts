@@ -55,15 +55,18 @@ export interface TypecheckDiagnostic {
 // (`::name::`) and a `goto` statement, which the grammar names.
 const SPARKDOWN_SYNTAX = new Set(["LuauLabel", "LuauGotoStatement"]);
 
-// The places a message names a line of the unit's Luau: the opener a
-// missing closer closes (`Expected 'end' (to close 'function' at line 1)`),
-// Luau's suggestion after it (`; did you forget to close 'do' at line 2?`),
-// and a type's earlier definition (`previously defined at line 3`). Nothing
-// else in a message is a line: a string's text can read `at line 9`.
+// The places a message names a line of the unit's Luau, each where its
+// template puts it: the opener a missing closer closes, at the start
+// (`Expected 'end' (to close 'function' at line 1), got ...`), Luau's
+// suggestion after the token found, at the end (`; did you forget to close
+// 'do' at line 2?`), and a type's earlier definition (`Redefinition of type
+// 'T', previously defined at line 3`). Nothing else in a message is a line:
+// the token found (`got "(to close 'function' at line 9)"`) and a string's
+// text are the author's.
 const LINE_REFERENCES = [
-  /(\(to close '[^']*' at line )(\d+)(\))/,
+  /^(Expected '[^']*' \(to close '[^']*' at line )(\d+)(\))/,
   /(; did you forget to close \S+ at line )(\d+)(\?)$/,
-  /(, previously defined at line )(\d+)()$/,
+  /^(Redefinition of type '[^']*', previously defined at line )(\d+)()$/,
 ];
 
 /** A message with each line it names (`LINE_REFERENCES`) named as the document's line it stands on. */

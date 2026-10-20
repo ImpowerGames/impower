@@ -286,6 +286,8 @@ describe("a syntax error's message names the document's lines", () => {
   test.each([
     ["a function after a comment and a blank line", "-- intro\n\nfunction f()\n  -- body comment\n  if x then\n    y()\n      end\n  while true d\nend\n"],
     ["a function after blank lines", "\n\nfunction f()\n  while true d\nend\n"],
+    // The token found is the author's, whatever it reads.
+    ["a string token that reads like a line reference", "\n\nfunction f()\n  local \"(to close 'function' at line 999)\" = 1\nend\n"],
   ])("%s", (_label, text) => {
     const errors = sparkdownErrors(`${text}${STORY}`);
     expect(errors.some((e) => / at line \d+/.test(e))).toBe(true);
@@ -326,6 +328,9 @@ describe("a .luau file's errors are the official parser's", () => {
     // A root `end`, and nothing after the first, where Luau's parser stops.
     "end\nend\n",
     "function f()\n  do\n    until true\n  end\nend\n",
+    // A token that reads like a line reference is the author's.
+    "local \"(to close 'function' at line 999)\" = 1\n",
+    "function f(\"(to close 'function' at line 999)\") end\n",
   ]) {
     test(JSON.stringify(snippet), () => {
       const official = officialErrorList(snippet, { luauFile: true }).sort();
