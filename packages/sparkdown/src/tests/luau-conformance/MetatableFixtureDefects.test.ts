@@ -229,6 +229,18 @@ assert(u[u] == true and u.k == false)
 `);
   });
 
+  test("an `__index` or `__newindex` that is a number is indexed, which raises", () => {
+    passes(`
+local r = setmetatable({}, { __index = 42 })
+local ok, err = pcall(function() return r.x end)
+assert(not ok and err:match("attempt to index a number value"))
+local w = setmetatable({}, { __newindex = 42 })
+ok, err = pcall(function() w.x = 1 end)
+assert(not ok and err:match("attempt to index a number value"))
+assert(rawget(w, "x") == nil)
+`);
+  });
+
   test("an `__index` function receives the key as written", () => {
     passes(`
 local seen

@@ -228,6 +228,10 @@ function indexThroughMetatable(
   if (indexFn instanceof ObjectValue) {
     return indexThroughMetatable(story, indexFn, keyStr, key, depth + 1);
   }
+  // Any other handler is indexed in turn, as Luau's `luaV_gettable` does,
+  // which raises for a number or a boolean (`__index = 42`).
+  const indexError = luauIndexTargetError(indexFn);
+  if (indexError) throw new StoryException(indexError);
   return null;
 }
 
@@ -1348,6 +1352,10 @@ function newindexThroughMetatable(
       depth + 1,
     );
   }
+  // Any other handler is stored into in turn, as Luau's `luaV_settable`
+  // does, which raises for a number or a boolean (`__newindex = 42`).
+  const indexError = luauIndexTargetError(newindexFn);
+  if (indexError) throw new StoryException(indexError);
   return false;
 }
 
