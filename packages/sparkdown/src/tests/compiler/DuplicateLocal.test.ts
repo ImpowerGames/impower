@@ -55,12 +55,16 @@ describe("DuplicateLocal", () => {
     ["a parameter list holding a syntax error after the repeated name", " local function g(a, a, b c) return a end\n return g"],
     ["a local list holding a syntax error after the repeated name", " local x, x, y. = 1, 2, 3\n return x, y"],
     ["a local list ending in a comma", " local x, x, = 1, 2\n return x"],
+    ["a parameter list missing its closer before end", " local function g(a, a end\n return g"],
+    ["a parameter list missing its closer before the body", " local function g(a, a\n  return a\n end\n return g"],
   ])("is silent for %s", (_label, body) => {
     expect(inFunction(body)).toEqual([]);
   });
 
   test.each([
     ["a scene's parameters, which are not Luau's", "scene inspect(a, a)\n & print(a)\nend\n"],
+    ["a branch's parameters, which the reading declares as a local", "scene inspect()\n branch inner(a, a)\n  & print(a)\n end\nend\n"],
+    ["a variadic branch's parameters", "scene inspect()\n branch inner(a, a, ...)\n  & print(a)\n end\nend\n"],
     ["a story constant, which is a global", "const a, a = 1, 2\nValue {a}.\n"],
   ])("leaves alone %s", (_label, source) => {
     expect(messages(source)).toEqual([]);
