@@ -783,6 +783,21 @@ try {
   const partial = verify({ criteria: criteria.map((c) => met(c, ["evidence"])) }, missing);
   assert.equal(partial.verdict, "incomplete");
   assert.match(partial.report, /#43: open with no merged PR/);
+  // A sub-issue closed as completed before the run, with no PR of its own, is
+  // history: it does not hold completion back, and the report lists it as
+  // delivered outside the run. One the run saw close without a PR still does.
+  {
+    const old = { title: "closed before the run", state: "closed", stateReason: "completed", closedAt: "2020-01-01T00:00:00Z", type: "Bug", parent: ISSUE, container: false, effort: null, delivered: false, blockers: [], prs: [], worktrees: [] };
+    const withHistory = snapshotNow(dst);
+    withHistory.tickets.push({ ...old, number: 46 });
+    const historic = verify({ criteria: criteria.map((c) => met(c, ["evidence"])) }, withHistory);
+    assert.equal(historic.verdict, "complete", "history does not count against completion");
+    assert.match(historic.report.split("\n").find((l) => l.startsWith("| #46 |")), /closed before the run, delivered outside it/);
+    const recent = snapshotNow(dst);
+    recent.tickets.push({ ...old, number: 47, closedAt: new Date(Date.now() + 3600000).toISOString() });
+    const late = verify({ criteria: criteria.map((c) => met(c, ["evidence"])) }, recent);
+    assert.equal(late.verdict, "incomplete", "a ticket closed during the run without a PR still holds completion back");
+  }
   // Every criterion met on the assembled implementation.
   const doneEvidence = { criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission and read-back"]), met(criteria[1], ["the final report names decision on PR #142 with its range"]), met(criteria[2], ["the unmet run above stayed open; this run closes with evidence"])] };
   const done = verify(doneEvidence);
