@@ -298,6 +298,36 @@ export function openVariablePointer(
   return newPtr;
 }
 
+/**
+ * The pointer at the top-level local `name` a function written at the top
+ * level reaches (`Op.BindRoot`): the binding of the name in the outermost
+ * scope of the current thread's root frame that binds it, registered there
+ * as an open upvalue, and shared with a closure that captured the same
+ * binding (`openVariablePointer`). Null when the root frame binds no such
+ * name, as before its `local` statement runs, or is the current frame.
+ */
+export function rootVariablePointer(
+  callStack: CallStack,
+  name: string,
+): VariablePointerValue | null {
+  const root = callStack.elements[0];
+  if (!root || callStack.elements.length < 2) return null;
+  const scopeIdx = root.temporaryScopes.findIndex((scope) => scope.has(name));
+  if (scopeIdx < 0) return null;
+  const slotValue = root.temporaryScopes[scopeIdx]!.get(name);
+  if (slotValue instanceof VariablePointerValue) {
+    return slotValue;
+  }
+  const existing = callStack.FindOpenUpvalue(1, name, scopeIdx);
+  if (existing) {
+    return existing;
+  }
+  const newPtr = new VariablePointerValue(name, 1);
+  newPtr.scopeIndex = scopeIdx;
+  callStack.RegisterOpenUpvalue(newPtr, 1);
+  return newPtr;
+}
+
 // Maps a `NativeFunctionCall` operator name to the Luau metamethod
 // that should be consulted when one or both operands carry a
 // metatable. Comparison ops `>` and `>=` are intentionally absent —

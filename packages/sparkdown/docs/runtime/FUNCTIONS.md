@@ -126,6 +126,22 @@ lexically scoped. References to them go straight to globals, not
 through the environment chain. A `const` inside a function is a local
 of its block, like Luau's (`docs/runtime/DIVERGENCES.md`).
 
+**A function or a `define`'s method written at the top level** reads
+and writes a top-level `local` declared above it, as Luau's upvalue
+(#823). It can be called from lines above its definition, and a
+define's table is built when the story starts, so it captures nothing
+when it is built: its entry binds each name it reads that none of its
+own scopes binds to the root frame's local of that name, when one
+exists as it runs (`BindRoot`), sharing the cell a closure over that
+local holds, and the name reads the global otherwise. The binding is
+by name as the function runs, not by where it is written: a function
+written above `local a` reads that local once it exists, and a scene's
+`local a`, which shares the top level's frame, is the one it reads
+while it holds. A `define` written in a function stores, where it is
+written, the closures of its methods that capture that function's
+locals in the define's table (`__defmethods`), so they read the locals
+of the call that ran it.
+
 > **Note on iteration variables**: numeric `for` (e.g. `for i = 1, 10 do`) drives a hidden index, and the user variable `i` is a fresh copy of it each iteration, so a body write to `i` does not change how the loop iterates (`src/tests/luau-conformance/LuaLoops.test.ts`). Loop variables are declared by the loop itself, so numeric and generic `for` loops compile inside anonymous functions and may shadow an outer local (`src/tests/luau-conformance/ForLoopVarCapture.test.ts`).
 
 ### Decision 2: Function value runtime representation — new `FunctionValue` ✅

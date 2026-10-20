@@ -14,7 +14,7 @@ import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
 import type { ProgramAddress } from "../compiler/types/ProgramAddress";
 import { lookupStateAwareStdLib, luauTypeOf } from "../runtime/StdLib";
-import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
+import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
@@ -165,13 +165,15 @@ const OPERATOR_NATIVES = new Set([
 
 /** The builtins the compiler calls for what is not a call in the script:
  *  a line's text and its directives (`display`, `__unjoined`), a plural
- *  alternator's category, and a declaration's define. `callsMade` does not
- *  count them; what their arguments call is counted as it runs. */
+ *  alternator's category, and a declaration's define and the methods it
+ *  rebinds. `callsMade` does not count them; what their arguments call is
+ *  counted as it runs. */
 const TEXT_BUILTINS = new Set([
   "display",
   "__unjoined",
   "plural.category",
   "__def",
+  "__defmethods",
   "__defs",
 ]);
 
@@ -2704,6 +2706,16 @@ export class ProgramStory implements StoryEngine {
           openVariablePointer(state.callStack, this.root.table.strings[arg]!),
         );
         break;
+      case Op.BindRoot: {
+        const cell = rootVariablePointer(
+          state.callStack,
+          this.root.table.strings[arg]!,
+        );
+        if (cell) {
+          state.variablesState.Assign(this.assignment(arg, SET_DECLARE), cell);
+        }
+        break;
+      }
       case Op.MakeTable: {
         const stack = state.evaluationStack;
         const between = stack.splice(stack.length - arg * 2, arg * 2);

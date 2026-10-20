@@ -1560,6 +1560,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       case Op.GetVar:
       case Op.SetVar:
       case Op.VarPtr:
+      case Op.BindRoot:
       case Op.CallVar:
       case Op.JumpVar:
       case Op.Tag:
@@ -2103,6 +2104,7 @@ export const describeInstruction = (
     case Op.GetVar:
     case Op.SetVar:
     case Op.VarPtr:
+    case Op.BindRoot:
       return `${name} ${table.strings[arg]}${flagText}`;
     case Op.CallVar:
       return `${name} ${table.strings[arg]}/${aux}${flagText}`;

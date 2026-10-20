@@ -22,6 +22,7 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { StructDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import { StructPropertyDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructPropertyDefinition";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -455,10 +456,16 @@ export function lowerLuauDefine(
   // A computed key's name is unknown until init, so it takes no modifier
   // list, struct property or context entry.
   const named = properties.filter((p) => !p.key);
+  // The closures of the methods that capture locals of the function the
+  // define is written in, made again where it is written (`__defmethods`).
+  const rebound: ObjectExpressionEntry[] = [];
   for (const method of methodNodes) {
-    const closure = lowerDefineMethod(method.name, method.node, ctx);
-    if (closure) {
-      entries.push(new ObjectExpressionEntry(method.name, closure));
+    const lowered = lowerDefineMethod(method.name, method.node, ctx);
+    if (lowered) {
+      entries.push(new ObjectExpressionEntry(method.name, lowered.closure));
+      if (lowered.rebound) {
+        rebound.push(new ObjectExpressionEntry(method.name, lowered.rebound));
+      }
     }
   }
   // Hidden modifier lists. `__storeProps` drives the copy-into-instance
@@ -547,7 +554,15 @@ export function lowerLuauDefine(
     isDefineDeclaration: true,
   });
 
-  const block = wrapInWeave([declaration]);
+  // A define written in a function has its table built when the story
+  // starts, like any other, and where it is written stores in that table the
+  // closures of its methods that capture the function's locals, made there,
+  // so they read the locals of the call that runs it.
+  const block = wrapInWeave(
+    rebound.length > 0
+      ? [declaration, reboundMethods(rebound, nameIdentifier, parentIdentifier)]
+      : [declaration],
+  );
 
   // ----- Compile-time struct registry (engine specs) for typed defines.
   //
@@ -631,6 +646,22 @@ export function lowerLuauDefine(
   return block;
 }
 
+// `__defmethods({ name = closure, ... }, "D", "T")`, its value discarded:
+// stores the closures in the table of the define `D` (as `T`).
+function reboundMethods(
+  rebound: ObjectExpressionEntry[],
+  nameIdentifier: Identifier,
+  parentIdentifier: Identifier | null,
+): FunctionCall {
+  const call = new FunctionCall(new Identifier("__defmethods"), [
+    new ObjectExpression(rebound),
+    new StringExpression([new Text(nameIdentifier.name ?? "")]),
+    new StringExpression([new Text(parentIdentifier?.name ?? "")]),
+  ]);
+  call.shouldPopReturnedValue = true;
+  return call;
+}
+
 // Lower one method member into a hoisted anonymous Function knot with
 // an implicit `self` first parameter, returning the closure-shaped
 // expression that the class table stores under the method's name.
@@ -641,7 +672,7 @@ function lowerDefineMethod(
   _methodName: string,
   node: SyntaxNode,
   ctx: LowerContext,
-): Expression | null {
+): { closure: Expression; rebound: Expression | null } | null {
   const content = getFunctionBodyContent(node);
   if (!content) return null;
 
@@ -653,11 +684,18 @@ function lowerDefineMethod(
     .filter((a) => !a.isVararg)
     .map((a) => a.identifier?.name ?? "");
   const reading = readBodyAst(content, METHOD_BODY_SKIP, ctx);
-  const upvals = freeVariables(
+  const free = freeVariables(
     params,
     reading?.unit.root ?? null,
     ctx,
   ).filter((n) => n !== "self");
+  // The define's table is built when the story starts, before the top level
+  // runs, so a method of a define written at the top level captures nothing:
+  // its entry binds each name it reads to the top-level local of that name
+  // as it runs (`RootBinding`), as a top-level function's does. A method of a
+  // define written in a function captures that function's locals.
+  const atTopLevel = !ctx.functionScopeStack?.length;
+  const upvals = atTopLevel ? [] : free;
   recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
@@ -696,6 +734,9 @@ function lowerDefineMethod(
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
+  if (atTopLevel) {
+    hoistedDecls.unshift(...free.map((name) => new RootBinding(name)));
+  }
   const fn = new Function(
     new Identifier(synthName),
     [...hoistedDecls, ...body, ...nested],
@@ -719,7 +760,13 @@ function lowerDefineMethod(
   }
 
   const userArity = 1 + userArgs.filter((a) => !a.isVararg).length;
-  return buildClosureExpression(synthName, upvals, userArity);
+  return {
+    closure: buildClosureExpression(synthName, upvals, userArity),
+    rebound:
+      upvals.length > 0
+        ? buildClosureExpression(synthName, upvals, userArity)
+        : null,
+  };
 }
 
 // ----------------------------------------------------------------------------
