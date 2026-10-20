@@ -153,7 +153,7 @@ export function lowerLuauFunctionDefinition(
   // entry binds to the top-level locals of those names (`RootBinding`): a
   // function written at the top level reads and writes a top-level local as
   // Luau's upvalue, though it is built before the local exists.
-  const rootNames = freeVariables(parameterNames(func), func.body, ctx, { node });
+  const rootNames = freeVariables(parameterNames(func), func.body, ctx);
   // The body opens a per-function buffer for any nested callables
   // (function values, nested named functions), so they live as subFlows of
   // this function rather than at the chunk's top level, and stacks this
@@ -213,7 +213,7 @@ function lowerNestedNamedFunction(
   assignsLocal = false,
 ): CompiledBlock {
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
-  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
+  const upvals = freeVariables(parameterNames(func), func.body, ctx);
 
   // Detect self-recursion: if the body calls the declared name, add
   // it to upvals so the closure captures a live pointer to the local
@@ -376,7 +376,7 @@ function lowerNestedAsSubFlow(
   // Free-variable scan BEFORE pushing this fn's own scope frames —
   // the scan binds the fn's params/locals internally and consults the
   // ENCLOSING declared-locals stack for what needs capturing.
-  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
+  const upvals = freeVariables(parameterNames(func), func.body, ctx);
   recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
@@ -452,7 +452,7 @@ function lowerPropertyTargetFunctionDefinition(
   // `Class` itself, the canonical Lua OOP pattern at basic.luau
   // lines 419-438). The colon form's implicit `self` is a
   // PARAMETER, not a free variable — exclude it from capture.
-  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node }).filter(
+  const upvals = freeVariables(parameterNames(func), func.body, ctx).filter(
     (n) => !(isColonForm && n === "self"),
   );
   recordCaptureRead(ctx, upvals);

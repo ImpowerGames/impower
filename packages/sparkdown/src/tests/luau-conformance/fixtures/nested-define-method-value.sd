@@ -1,0 +1,14 @@
+local a = 9
+define thing with
+  function get(p)
+    define child with
+      function get() return a end
+    end
+    return p
+  end
+end
+store held = nil
+held = thing.get
+First.
+Got {held(thing, 7)}.
+function callHeld() return held(thing, 7) end

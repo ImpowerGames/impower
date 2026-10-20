@@ -12,7 +12,6 @@ import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
@@ -54,7 +53,6 @@ import { reportErasedConstErrors } from "../utils/publishesConst";
 import type { Location } from "../../typecheck/Location";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
-import { defineMethodReads } from "../lowerers/lowerLuauDefine";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
@@ -360,22 +358,15 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * never declares is captured too.
  *
  * `stdlibReads`, when given, collects the stdlib names left uncaptured that
- * way (`_G` aside), which the function binds to a top-level local of the
- * name, if one exists as it runs (`stdlibRootReads`). `node`, the syntax node
- * the function is written at, adds the reads of the methods of each
- * `define` written inside it, which the converter's reading of the body
- * leaves out, and which a method takes from the scopes around it
- * (`defineMethodReads`): a name this function declares binds the read here,
- * and any other is read as the body's own reads are.
+ * way (`_G` aside), in the order they are first read, which the function
+ * binds to a top-level local of the name, if one exists as it runs
+ * (`stdlibRootReads`).
  */
 export function freeVariables(
   params: readonly string[],
   body: AstStatBlock | null,
   ctx: LowerContext,
-  {
-    stdlibReads,
-    node,
-  }: { stdlibReads?: string[]; node?: SyntaxNode | null } = {},
+  { stdlibReads }: { stdlibReads?: string[] } = {},
 ): string[] {
   if (!body) return [];
   // Names bound inside the function: its parameters, and the `store`s its
@@ -441,7 +432,8 @@ export function freeVariables(
   };
   const free: string[] = [];
   const seen = new Set<string>();
-  const readAt = (name: string, at: number) => {
+  const stdlibSeen = new Set<string>();
+  const read = (name: string, location: Location) => {
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
     // A variadic sibling is the innermost binding and wins over a
@@ -449,15 +441,16 @@ export function freeVariables(
     // to it, or its value, passes a pointer to each local it captures
     // (`withSiblingSubFlowUpvalArgs`), which this function captures in
     // turn so the pointer reaches the enclosing scope's cell.
-    const sibling = siblingSubFlowAt(name, at);
+    const sibling = siblingSubFlowAt(name, offsetAt(location.begin, ctx));
     if (sibling) {
-      for (const upval of sibling.upvals) readAt(upval, at);
+      for (const upval of sibling.upvals) read(upval, location);
       return;
     }
     if (!isShadowedLocal(name)) {
       if (isGlobalCallable(name)) return;
       if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) {
-        if (stdlibReads && name !== "_G" && !stdlibReads.includes(name)) {
+        if (stdlibReads && name !== "_G" && !stdlibSeen.has(name)) {
+          stdlibSeen.add(name);
           stdlibReads.push(name);
         }
         return;
@@ -466,8 +459,6 @@ export function freeVariables(
     seen.add(name);
     free.push(name);
   };
-  const read = (name: string, location: Location) =>
-    readAt(name, offsetAt(location.begin, ctx));
   const readNames = (node: AstNode): boolean => {
     if (node instanceof AstExprGlobal) read(node.name, node.location);
     else if (node instanceof AstExprLocal) {
@@ -492,14 +483,6 @@ export function freeVariables(
     return true;
   };
   walk(body, readNames);
-  if (node) {
-    const own = immediateBodyDeclarations(params, body);
-    for (const define of getDescendents("LuauDefine", node)) {
-      for (const name of defineMethodReads(define, ctx)) {
-        if (!own.has(name)) readAt(name, define.from);
-      }
-    }
-  }
   return free;
 }
 
@@ -788,7 +771,7 @@ export function lowerFunctionExpression(
   }
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
-  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
+  const upvals = freeVariables(parameterNames(func), func.body, ctx);
   recordCaptureRead(ctx, upvals);
   const userArity = func.args.length;
 

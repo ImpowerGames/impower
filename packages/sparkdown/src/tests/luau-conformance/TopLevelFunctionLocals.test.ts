@@ -279,45 +279,6 @@ describe("a define written in a function", () => {
     );
   });
 
-  // The converter's reading of a function's body leaves a define out, so
-  // each function around the define reads what its methods read.
-  test("in a function nested in another, has methods that read the outer function's local", () => {
-    expect(
-      run([
-        "function outer(v)",
-        "  local a = v",
-        "  function inner()",
-        "    define thing with",
-        "      function get()",
-        "        return a",
-        "      end",
-        "    end",
-        "    return thing.get()",
-        "  end",
-        "  return inner()",
-        "end",
-        "Got {outer(7)}.",
-      ]),
-    ).toEqual(got("Got 7."));
-  });
-
-  test("has methods that read a top-level local the function itself does not read", () => {
-    expect(
-      run([
-        "local b = 5",
-        "function outer()",
-        "  define thing with",
-        "    function get()",
-        "      return b",
-        "    end",
-        "  end",
-        "  return thing.get()",
-        "end",
-        "Got {outer()}.",
-      ]),
-    ).toEqual(got("Got 5."));
-  });
-
   test("leaves the methods of another define of its name alone", () => {
     expect(
       run([
@@ -401,6 +362,20 @@ describe("a save written before top-level methods bound top-level locals", () =>
     loaded.loadSave(save);
     const { beats, errors } = storyBeats(loaded);
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 3."));
+  });
+
+  // `nested-define-method-value-save-569cfe902.json`, which the engine at
+  // 569cfe902 wrote of `nested-define-method-value.sd` after `First.`, holds
+  // the closure of a top-level method that captures nothing, though a define
+  // written in it has a method that reads a top-level local: the method's
+  // parameters are what its own body reads.
+  test("loads, and a method whose define reads a top-level local passes its parameters", () => {
+    const text = readFileSync(join(FIXTURES, "nested-define-method-value.sd"), "utf-8");
+    const save = readFileSync(join(FIXTURES, "nested-define-method-value-save-569cfe902.json"), "utf-8");
+    const loaded = new ProgramStory(rootOf([text.trimEnd()]));
+    loaded.loadSave(save);
+    const { beats, errors } = storyBeats(loaded);
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 7."));
   });
 });
 

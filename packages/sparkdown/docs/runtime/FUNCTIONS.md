@@ -156,10 +156,15 @@ while it holds. A `define` written in a function has its methods read
 that function's locals through a global cell for each
 (`DefineCellBinding`), which the define's line points at the running
 call's local, so they read the locals of the last call that ran it,
-and a save keeps the cell. Each function around the define reads
-what its methods read, since the converter's reading of a function's
-body leaves a define out, so a method reaches a local of a function
-further out, or a top-level local, through them.
+and a save keeps the cell. The local must be one the function the
+define is written in binds itself (its own, or one it captures or
+binds because its own body reads it): the converter's reading of a
+function's body leaves a define out, so a method's read of a local of
+a function further out, or of a top-level local the function does not
+read, finds nothing there and reads nil. A direct call of a stdlib
+name or a member of a stdlib namespace (`type(x)`, `math.abs(x)`)
+still calls the builtin whatever local takes its name, in a function
+as at the top level.
 
 > **Note on iteration variables**: numeric `for` (e.g. `for i = 1, 10 do`) drives a hidden index, and the user variable `i` is a fresh copy of it each iteration, so a body write to `i` does not change how the loop iterates (`src/tests/luau-conformance/LuaLoops.test.ts`). Loop variables are declared by the loop itself, so numeric and generic `for` loops compile inside anonymous functions and may shadow an outer local (`src/tests/luau-conformance/ForLoopVarCapture.test.ts`).
 
