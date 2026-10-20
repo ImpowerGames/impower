@@ -1593,6 +1593,15 @@ export function indexValue(
       const ch =
         i >= 0 && i < indexBase.value.length ? indexBase.value[i] : "";
       resolved = new StringValue(ch ?? "");
+    } else if (indexKey instanceof StringValue) {
+      // The string metatable's `__index` is the `string` library, so
+      // `("abc"):byte(1)` calls `string.byte` with the receiver first.
+      const libName = `string.${keyStr}`;
+      if (isStdLibFunctionName(libName)) {
+        const marker = new Map<string, AbstractValue>();
+        marker.set("__stdlib_fn", new StringValue(libName));
+        resolved = new ObjectValue(marker);
+      }
     }
   }
   if (resolved === null) {
