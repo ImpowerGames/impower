@@ -16,7 +16,8 @@
 // interpolation or call shorthand, a divert's arguments, an alternator's
 // selector, a Sparkle handler and its `{ ... }` statements, a `define`'s
 // values and methods), wherever the tree marks a chain, a comparison, an `if`, a numeric
-// or generic `for` or a function, as the tree lints found them. The rules about locals and reachability read the Luau
+// or generic `for`, a function or a method call on a value in parentheses,
+// as the tree lints found them. The rules about locals and reachability read the Luau
 // functions a script defines (`function f()`, wherever it is written, and
 // function values): a local outside a function can be read from
 // interpolated text or later narrative the rules cannot scope. A function
@@ -76,6 +77,7 @@ import {
   AstTypeReference,
   AstTypeTable,
   BinaryOp,
+  QuoteStyle,
   binaryOpToString,
   TableItemKind,
   UnaryOp,
@@ -93,6 +95,8 @@ import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUni
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { numberLiteralValue } from "../utils/numberLiteralValue";
+import { stringLiteralValue } from "../utils/stringLiteralValue";
+import { lintFormatStringCall } from "./formatString";
 import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type LuauProgramNames, type NameRange, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
@@ -120,6 +124,7 @@ export const LUAU_LINT_CODES = [
   "MisleadingAndOr",
   "IntegerParsing",
   "ComparisonPrecedence",
+  "FormatString",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -251,8 +256,9 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // The nodes that mark Luau the rules read: an `and`/`or` chain, an `if`
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
-// Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauCompareOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
+// Sparkle handler's `{ ... }` or a layout). A method call on a value in
+// parentheses (`("%d"):format(n)`) has no access path, so its call marks it.
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauCompareOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauChainedFunctionCall", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
 const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 
 /** Relevant nodes in Lezer's public packed representation. Avoid constructing
@@ -468,7 +474,7 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
         readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([node], text), statements: true }) });
       } else {
-        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauCompareOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
+        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauCompareOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || isExplicitRuleName(node.name, "LuauChainedFunctionCall") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
         readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false }) });
@@ -1759,16 +1765,27 @@ function isLength(expr: AstExpr, table: AstExpr): boolean {
 // deprecations sparkdown reports, the compiler reports it as Information
 // tagged Deprecated (`SparkdownCompiler.validateLints`).
 //
-// As Luau's linter does, both leave code written in a type alone. A call
+// And Luau's FormatString, a malformed literal format, pattern or
+// replacement given to the `string` library or `os.date`, unless Sparkdown's
+// runtime runs it (`formatString.ts`).
+//
+// As Luau's linter does, they leave code written in a type alone. A call
 // holding a syntax error is left alone, since recovery can read arguments
 // the author did not write.
-function lintStdlibCalls(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
+function lintStdlibCalls(root: AstNode, text: string, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
   const report = (code: LuauLintCode, expr: AstExpr, message: string) => out.push({ code, ...offsets.range(expr.location), message });
   const zero = (name: string, expr: AstExpr) => report("TableOperations", expr, `table.${name} uses index 0 but arrays are 1-based; did you mean 1 instead?`);
+  const runtimeValue = (literal: AstExprConstantString) => {
+    const { from, to } = offsets.range(literal.location);
+    return stringLiteralValue(text.slice(from, to), literal.quoteStyle === QuoteStyle.QuotedRaw);
+  };
+  const formatString = (literal: AstExprConstantString, message: string) => report("FormatString", literal, message);
   visitAst(root, {
     visit(node) {
       if (node instanceof AstType || node instanceof AstTypePack) return false;
-      if (!(node instanceof AstExprCall) || node.self || errors.some((error) => node.location.overlaps(error.location))) return true;
+      if (!(node instanceof AstExprCall) || errors.some((error) => node.location.overlaps(error.location))) return true;
+      lintFormatStringCall(node, runtimeValue, formatString);
+      if (node.self) return true;
       const { func, args } = node;
       if (func instanceof AstExprGlobal && (func.name === "getfenv" || func.name === "setfenv") && args[0] instanceof AstExprConstantNumber) { // not a node name
         report("DeprecatedApi", node, `Function '${func.name}' is deprecated${func.name === "getfenv" ? "; consider using 'debug.info' instead" : ""}`); // not a node name
@@ -2017,7 +2034,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintIntegerParsing(source.statement, text, offsets, out, unit.errors);
       lintUnbalancedAssignments(source.statement, text, offsets, out, unsure);
       lintTableLiterals(source.statement, offsets, out, unit.errors);
-      lintStdlibCalls(source.statement, offsets, out, unit.errors);
+      lintStdlibCalls(source.statement, text, offsets, out, unit.errors);
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
@@ -2035,7 +2052,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintIntegerParsing(expr, text, documentOffsets, out, errors);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
     lintTableLiterals(expr, documentOffsets, out, errors);
-    lintStdlibCalls(expr, documentOffsets, out, errors);
+    lintStdlibCalls(expr, text, documentOffsets, out, errors);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
   return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, mentionsUnplacedVariable: facts.mentionsUnplacedVariable, misreadStatements: facts.misreadStatements, topLevelMembers: facts.topLevelMembers };
