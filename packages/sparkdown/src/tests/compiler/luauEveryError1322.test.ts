@@ -297,6 +297,14 @@ describe("a syntax error's message names the document's lines", () => {
     const messages = compile(`${text}${STORY}`).map(messageOf);
     expect(messages).toContain("Redefinition of type 'T', previously defined at line 5");
   });
+
+  // Only the places a message names a line are lines: a string's text that
+  // reads like one is the author's.
+  test("a string that reads like a line reference is left as written", () => {
+    const text = '---\ntypecheck: strict\n---\n\nfunction f()\n  local x: "at line 999" = "other"\n  return x\nend\n';
+    const messages = compile(`${text}${STORY}`).map(messageOf);
+    expect(messages).toContain(`Expected this to be '"at line 999"', but got '"other"'`);
+  });
 });
 
 // A `.luau` file is Luau from its first line to its last, read on its own
@@ -315,6 +323,9 @@ describe("a .luau file's errors are the official parser's", () => {
     "local b = nil:do\n",
     "while true do\n  x()\n",
     "local t = {nil=1}\n",
+    // A root `end`, and nothing after the first, where Luau's parser stops.
+    "end\nend\n",
+    "function f()\n  do\n    until true\n  end\nend\n",
   ]) {
     test(JSON.stringify(snippet), () => {
       const official = officialErrorList(snippet, { luauFile: true }).sort();
@@ -323,4 +334,14 @@ describe("a .luau file's errors are the official parser's", () => {
       expect(errorsIn({ "main.sd": 'run "snippet"\n', "snippet.luau": snippet }), "through a `run`").toEqual(official);
     });
   }
+
+  // Text after an `end` on its line is a statement to Luau, which reports
+  // it; a `.luau` file holds no story text to warn about.
+  test("text after an end is Luau's statement, not story text", () => {
+    const messages = diagnoseFilesDetailed({ "snippet.luau": "function f()\nend x\n" })
+      .filter((d) => d.file === "snippet.luau")
+      .map((d) => d.message);
+    expect(messages).toContain("Incomplete statement: expected assignment or a function call");
+    expect(messages.filter((m) => m.includes("read as a line of story text"))).toEqual([]);
+  });
 });

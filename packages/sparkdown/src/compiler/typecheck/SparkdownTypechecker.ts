@@ -55,13 +55,23 @@ export interface TypecheckDiagnostic {
 // (`::name::`) and a `goto` statement, which the grammar names.
 const SPARKDOWN_SYNTAX = new Set(["LuauLabel", "LuauGotoStatement"]);
 
-/**
- * A message with each line it names (`to close 'function' at line 1`,
- * `did you forget to close 'do' at line 2?`, `previously defined at line
- * 3`), a line of the unit's Luau, named as the document's line it stands on.
- */
+// The places a message names a line of the unit's Luau: the opener a
+// missing closer closes (`Expected 'end' (to close 'function' at line 1)`),
+// Luau's suggestion after it (`; did you forget to close 'do' at line 2?`),
+// and a type's earlier definition (`previously defined at line 3`). Nothing
+// else in a message is a line: a string's text can read `at line 9`.
+const LINE_REFERENCES = [
+  /(\(to close '[^']*' at line )(\d+)(\))/,
+  /(; did you forget to close \S+ at line )(\d+)(\?)$/,
+  /(, previously defined at line )(\d+)()$/,
+];
+
+/** A message with each line it names (`LINE_REFERENCES`) named as the document's line it stands on. */
 function inDocumentLines(unit: LuauUnit, message: string): string {
-  return message.replace(/\bat line (\d+)/g, (_, line: string) => `at line ${documentLine(unit, Number(line) - 1) + 1}`);
+  for (const pattern of LINE_REFERENCES) {
+    message = message.replace(pattern, (_, before: string, line: string, after: string) => `${before}${documentLine(unit, Number(line) - 1) + 1}${after}`);
+  }
+  return message;
 }
 
 interface CachedUnit {

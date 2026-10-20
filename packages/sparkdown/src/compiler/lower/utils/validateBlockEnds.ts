@@ -421,8 +421,10 @@ export function validateOpenBlocks(
       // reports one (#774): an extra `end` after a function, or the second
       // `end` of an if statement written where an if expression is read,
       // whose first `end` closed the function early. One that a `repeat`
-      // meets in place of its `until` is that loop's missing `until`.
-      if (open.length === 0) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
+      // meets in place of its `until` is that loop's missing `until`. In a
+      // `.luau` or `run` file Luau's reading reports it, and nothing after
+      // it, where Luau's parser stops (`luauReportsOpenBlock`).
+      if (open.length === 0 && !luauReportsOpenBlock(ctx)) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
       // An `end` cannot close a `repeat`, so a `repeat` still open inside the
       // block it reaches is left without its `until`.
       closeAbove(
@@ -450,7 +452,9 @@ export function validateOpenBlocks(
         ? loopBodyBlock(node as GrammarSyntaxNode<SparkdownNodeName>)
         : node;
       const block = holder ? asBlock(holder) : null;
-      const prose = block && holder ? proseEnd(node, holder, ctx) : null;
+      // A `.luau` or `run` file holds no story text: Luau reads what follows
+      // an `end` on its line as a statement and reports it.
+      const prose = block && holder && !luauReportsOpenBlock(ctx) ? proseEnd(node, holder, ctx) : null;
       if (block && prose) {
         report(
           diagnostics,
