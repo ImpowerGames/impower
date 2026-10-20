@@ -156,6 +156,12 @@ describe("where a candidate ends", () => {
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
   });
 
+  test("a condition that is itself an alternator leaves the outer word its arms", () => {
+    const source = 'Value {match match("x") | x = "mage" end | mage = "yes" end}.\n';
+    expect(errorsOf(source)).toEqual([]);
+    expect(tree(source).match(/─ LuauAlternatorArms \[/g)).toHaveLength(2);
+  });
+
   test("a candidate first on its line that no arms follow ends before the next statement", () => {
     const source = "Value {f()}.\nfunction f()\n  local match = function(n) return n end\n  match(1)\n\n  -- a note\n  return 7\nend\n\nAfter.\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 7.\nAfter.\n" });

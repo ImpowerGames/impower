@@ -729,9 +729,13 @@ variables:
   # Right after the `end` a candidate's arms took: the candidate ends with
   # them. A candidate takes no `end` of its own. A comment that ends its
   # line in a line-start candidate's head is read through the line break
-  # (`LuauAlternatorHeadComment`), so its last word is never this `end`.
-  # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
-  LUAU_AFTER_ALTERNATOR_ARMS: (?<=\bend)
+  # (`LuauAlternatorHeadComment`), so its last word is never this `end`,
+  # and an `end` that a `|` follows is a head's own (a condition that is
+  # itself an alternator, `match match(x) | a = 1 end | b = 2 end`), after
+  # which the candidate's arms open.
+  # lookaround: `LuauAlternatorArms` consumes the `end` this follows, and
+  # opens at the `|`.
+  LUAU_AFTER_ALTERNATOR_ARMS: (?<=\bend)(?!{{WS}}*[|])
   # The first character of a token that does not begin a comment.
   # lookaround: LuauComment reads a `--`.
   LUAU_TOKEN_NOT_COMMENT: (?:(?!--)\S)
