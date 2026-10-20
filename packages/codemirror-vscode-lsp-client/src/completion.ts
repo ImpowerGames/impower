@@ -14,6 +14,7 @@ import {
   ChangeSet,
   EditorState,
   Extension,
+  Text,
   Transaction,
   TransactionSpec,
 } from "@codemirror/state";
@@ -27,6 +28,7 @@ import {
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
+import { convertFromPosition } from "./pos";
 
 const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip": {
@@ -287,42 +289,58 @@ export const serverCompletionSource: CompletionSource = (context) => {
   }
   const validFor = getValidFor(triggerCharacters);
   const active = context.matchBefore(validFor);
-  const from = active?.from ?? context.pos;
-  return getCompletions(plugin, context.pos, serverContext, context).then(
+  const { state, pos } = context;
+  return getCompletions(plugin, pos, serverContext, context).then(
     (result) => {
       if (!result) return null;
       const items = Array.isArray(result) ? result : result.items;
       const itemDefaults = Array.isArray(result) ? {} : result.itemDefaults;
-      const options = items
-        .sort((a, b) => {
-          if (a.sortText != null && b.sortText != null) {
-            const aSortText = a.sortText;
-            const bSortText = b.sortText;
-            if (aSortText < bSortText) {
-              return -1;
-            }
-            if (aSortText > bSortText) {
-              return 1;
-            }
+      items.sort((a, b) => {
+        if (a.sortText != null && b.sortText != null) {
+          const aSortText = a.sortText;
+          const bSortText = b.sortText;
+          if (aSortText < bSortText) {
+            return -1;
           }
-          return 0;
-        })
-        .map((item: lsp.CompletionItem, index) =>
-          serverCompletionOption(item, index, itemDefaults, validFor, plugin),
-        );
-
-      if (options.length === 0) {
+          if (aSortText > bSortText) {
+            return 1;
+          }
+        }
+        return 0;
+      });
+      if (items.length === 0) {
         return null;
       }
-
+      const ranges = items.map((item) =>
+        getEditRange(item, itemDefaults, state.doc, pos),
+      );
+      // CodeMirror filters and replaces one range for the whole list. It is
+      // the server's range for the first item that names one, so the word
+      // the list filters on is the server's word even when it holds a
+      // trigger character; an item naming a different range still replaces
+      // its own (see `serverCompletionOption`). Without a server range the
+      // word is the text since the last trigger character, up to the cursor.
+      const range = ranges.find((r) => r != null) ?? {
+        from: active?.from ?? pos,
+        to: pos,
+      };
+      const options = items.map((item, index) =>
+        serverCompletionOption(item, index, itemDefaults, validFor, plugin, {
+          result: range,
+          item: ranges[index] ?? range,
+          pos,
+        }),
+      );
       return {
-        from,
-        validFor,
+        from: range.from,
+        to: range.to,
+        validFor: keepsWord(state.sliceDoc(range.from, pos), triggerCharacters),
         options,
         commitCharacters: itemDefaults?.commitCharacters,
         map: (result, changes) => ({
           ...result,
           from: changes.mapPos(result.from),
+          to: result.to == null ? result.to : changes.mapPos(result.to, 1),
         }),
       };
     },
@@ -337,22 +355,85 @@ export const serverCompletionSource: CompletionSource = (context) => {
   );
 };
 
+/** A range of the document as offsets. */
+interface OffsetRange {
+  from: number;
+  to: number;
+}
+
+/** The ranges a completion request settled on, as offsets into the document
+ *  it was asked for: the one CodeMirror replaces for the whole list, the one
+ *  this item's edit replaces, and the cursor then. */
+interface CompletionRequestRange {
+  result: OffsetRange;
+  item: OffsetRange;
+  pos: number;
+}
+
+/**
+ * The range `item`'s edit replaces, from its own `textEdit` or the list's
+ * default `editRange`, or null when it names none. For an insert/replace edit
+ * it is the replace range. A range LSP does not allow here (one not on a
+ * single line or not holding the cursor) is ignored rather than trusted.
+ */
+function getEditRange(
+  item: lsp.CompletionItem,
+  itemDefaults: lsp.CompletionList["itemDefaults"],
+  doc: Text,
+  pos: number,
+): OffsetRange | null {
+  const edit = item.textEdit ?? itemDefaults?.editRange;
+  if (!edit) {
+    return null;
+  }
+  const range: lsp.Range =
+    "range" in edit ? edit.range : "replace" in edit ? edit.replace : edit;
+  if (range.start.line !== range.end.line) {
+    return null;
+  }
+  const from = convertFromPosition(doc, range.start);
+  const to = convertFromPosition(doc, range.end);
+  return from <= pos && pos <= to ? { from, to } : null;
+}
+
+/**
+ * Whether a list asked for while `typed` stood before the cursor still holds
+ * for the text now before it: the author has only typed or deleted characters
+ * that are not trigger characters. Typing or deleting a trigger character
+ * changes what the server would offer, so the list is asked for again, as it
+ * was when the word itself stopped at every trigger character.
+ */
+function keepsWord(typed: string, triggerCharacters: string[] | undefined) {
+  const triggers = new Set(triggerCharacters ?? []);
+  return (_text: string, from: number, _to: number, state: EditorState) => {
+    const now = state.sliceDoc(from, state.selection.main.head);
+    const change = now.startsWith(typed)
+      ? now.slice(typed.length)
+      : typed.startsWith(now)
+        ? typed.slice(now.length)
+        : null;
+    return change != null && ![...change].some((c) => triggers.has(c));
+  };
+}
+
 /** The CodeMirror option for one language-server completion item, as
  *  `serverCompletionSource` offers it. `plugin` supplies the documentation
- *  panel; without it the option has none. */
+ *  panel; without it the option has none. `request` places the item's edit
+ *  relative to the range CodeMirror replaces; without it the item replaces
+ *  that range. */
 export function serverCompletionOption(
   item: lsp.CompletionItem,
   index: number,
   itemDefaults: lsp.CompletionList["itemDefaults"],
   validFor: RegExp,
   plugin?: LSPPlugin,
+  request?: CompletionRequestRange,
 ): Completion {
   const insertTextFormat =
     item.insertTextFormat ?? itemDefaults?.insertTextFormat;
   const commitCharacters =
     item.commitCharacters ?? itemDefaults?.commitCharacters;
-  const applyText =
-    item.textEdit?.newText || item.insertText || item.label;
+  const applyText = item.textEdit?.newText || item.insertText || item.label;
   let option: Completion & {
     command?: {
       title: string;
@@ -381,11 +462,16 @@ export function serverCompletionOption(
   }
   // The edit alone, kept apart from the command that follows it, so a
   // preview can compute what accepting would insert without running
-  // anything else acceptance does.
-  const edit: CompletionEdit = (view, completion, from, to) => {
+  // anything else acceptance does. `from` and `to` are the list's range as
+  // CodeMirror holds it now; the item's own range sits at the same distance
+  // from each end as it did when the list was asked for, since the author
+  // can only have typed inside the list's range while the list stayed open.
+  const edit: CompletionEdit = (view, completion, listFrom, listTo) => {
+    const from =
+      listFrom + (request ? request.item.from - request.result.from : 0);
+    const to = listTo + (request ? request.item.to - request.result.to : 0);
     if (
-      insertTextFormat ===
-      (2 satisfies typeof lsp.InsertTextFormat.Snippet)
+      insertTextFormat === (2 satisfies typeof lsp.InsertTextFormat.Snippet)
     ) {
       snippet(applyText.replaceAll(/\$(\d+)/g, "$${$1}"))(
         view as EditorView,
@@ -411,7 +497,7 @@ export function serverCompletionOption(
       startCompletion(view);
     }
   };
-  previewableCompletions.set(option, { validFor, edit });
+  previewableCompletions.set(option, { validFor, edit, request });
   return option;
 }
 
@@ -424,22 +510,25 @@ type CompletionEdit = (
 ) => void;
 
 /** What `serverCompletionSource` knows about each option it produced: the
- *  pattern that decides the start of the replaced range, and the edit. */
+ *  ranges its request settled on, or, for an option built without them, the
+ *  pattern that decides the start of the replaced range; and the edit. */
 const previewableCompletions = new WeakMap<
   Completion,
-  { validFor: RegExp; edit: CompletionEdit }
+  { validFor: RegExp; edit: CompletionEdit; request?: CompletionRequestRange }
 >();
 
 /**
  * The changes accepting `completion` would make to `state`, or null when they
  * cannot be known.
  *
- * Acceptance replaces the range from the start of the completion result to the
- * cursor. CodeMirror keeps that range privately, so it is recomputed here the
- * way the source computed it: the result starts where `validFor` stops
- * matching before the cursor, and CodeMirror keeps the result only while the
- * text from its start to the cursor still matches, which leaves the start
- * where it was. The edit then runs against a view that records the
+ * Acceptance replaces the completion result's range. CodeMirror keeps that
+ * range privately, so it is recomputed here from the range the request
+ * settled on: while the list stays open the author has only typed or deleted
+ * at the cursor inside it, so its start has not moved and its end is as far
+ * past the cursor as it was then. An option built without a request range replaces
+ * from where `validFor` stops matching before the cursor up to the cursor,
+ * the start staying put while CodeMirror keeps the result for the same
+ * reason. The edit then runs against a view that records the
  * transaction instead of dispatching it, so the changes are the ones
  * acceptance itself makes (snippet placeholders, every cursor of a multiple
  * selection, the text after the cursor left in place) rather than a second
@@ -454,10 +543,14 @@ export function completionChanges(
   if (!previewable) {
     return null;
   }
-  const to = state.selection.main.head;
-  const from =
-    new CompletionContext(state, to, false).matchBefore(previewable.validFor)
-      ?.from ?? to;
+  const { request } = previewable;
+  const head = state.selection.main.head;
+  const from = request
+    ? request.result.from
+    : (new CompletionContext(state, head, false).matchBefore(
+        previewable.validFor,
+      )?.from ?? head);
+  const to = request ? head + request.result.to - request.pos : head;
   // No transaction may be created, not even one that is never dispatched:
   // creating one runs the state's transaction extenders, and a host's extender
   // can announce the change to everything listening (the web editor's reports
