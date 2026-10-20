@@ -1111,6 +1111,55 @@ try {
     f.change((r) => run.adopt(r, { plan: write("r10-plan2.json", planOf(f, snap)), ticket: 1001, handleKind: "session", handle: "local_new", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
     assert.equal(actions(planOf(f, snap, { observations: { sessions: { local_new: { state: "idle" } } } }))[1001], "collect-report", "a new writer does not inherit its predecessor's question");
   }
+
+  // History: a sub-issue closed as completed before the run started, with no
+  // open or merged PR of its own, is done as history; so are the closed Bugs a
+  // closed umbrella carries and a closed Bug directly under the parent. One
+  // closed during the run, or closed as not planned, is still surfaced.
+  {
+    const f = fresh("closed-history");
+    const before = "2020-01-01T00:00:00Z", during = new Date(Date.now() + 3600000).toISOString();
+    const closed = (number, more) => ({ ...ticket(number), parent: 300, state: "closed", stateReason: "completed", closedAt: before, ...more });
+    const snap = snapshotOf(300, [
+      closed(1101, { type: "Task" }),
+      closed(1102, { type: "Bug", parent: 1101, deliveredBy: { ticket: 1101, via: "sub-issue", pr: null, merged: false } }),
+      closed(1103, { type: "Bug" }),
+      closed(1104, { type: "Bug", closedAt: during }),
+      closed(1105, { type: "Bug", stateReason: "not_planned" }),
+      closed(1106, { type: "Bug", prs: [{ number: 1199, state: "MERGED", branch: "fix/1106-thing", mergeCommit: "off-main" }] }),
+    ]);
+    const p = planOf(f, snap);
+    assert.deepEqual(actions(p), { 1101: "done", 1102: "done", 1103: "done", 1104: "decision-needed", 1105: "decision-needed", 1106: "decision-needed" });
+    for (const n of [1101, 1102, 1103]) assert.match(p.tickets.find((t) => t.number === n).reason, /closed before the run, delivered outside it/);
+    assert.match(p.tickets.find((t) => t.number === 1105).reason, /closed as not planned/);
+    assert.equal(p.concurrency.active, 0, "history holds no writer place");
+    // A ticket waiting on history is admitted; one waiting on a ticket closed
+    // during the run still waits.
+    const waiting = (blocker) => snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: blocker, state: "closed", delivered: false }] }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [1107])];
+    assert.equal(actions(planOf(f, waiting(1103), { preflights: pre }))[1107], "dispatch", "history counts as a delivered blocker");
+    assert.equal(actions(planOf(f, waiting(1104), { preflights: pre }))[1107], "wait-dependency", "a blocker closed during the run without its deliverable still holds");
+    // A history Bug's own unmet blocker does not hold its open deliverer.
+    const umbrella = snapshotOf(300, [
+      { ...ticket(1108), parent: 300, type: "Task" },
+      closed(1109, { type: "Bug", parent: 1108, deliveredBy: { ticket: 1108, via: "sub-issue", pr: null, merged: false }, blockers: [{ number: 900, state: "closed", delivered: false }] }),
+    ]);
+    assert.deepEqual(actions(planOf(f, umbrella, { preflights: [available("claude-cli", "claude-opus-5-5", [1108])] })), { 1108: "dispatch", 1109: "done" });
+    // GitHub reports closed_at in whole seconds: a closure in the start's own
+    // second may follow the start, so it is not history.
+    const record = run.readRecord(f.file), start = run.runStartedAt(record);
+    const second = new Date(Math.floor(Date.parse(start) / 1000) * 1000).toISOString().replace(".000Z", "Z");
+    assert.equal(run.closedBeforeRun(record, closed(1110, { closedAt: second })), false, "a closure in the start's second");
+    assert.equal(run.closedBeforeRun(record, closed(1110, { closedAt: new Date(Date.parse(second) - 1000).toISOString() })), true, "a closure in the second before");
+    // A reopen and close during the run changes the scope the final gate
+    // compares, since the closure decides whether the ticket is history.
+    const reclosed = snapshotOf(300, snap.tickets.map((t) => (t.number === 1103 ? { ...t, closedAt: during } : t)));
+    assert.notDeepEqual(run.snapshotScope(reclosed).slices, run.snapshotScope(snap).slices);
+    // The walk keeps what the rule reads from GitHub.
+    const client = { subIssues: (n) => (n === 300 ? [{ number: 1103, title: "t", state: "closed", state_reason: "completed", closed_at: before, type: { name: "Bug" }, body: "" }] : []), pulls: () => [] };
+    const [walked] = run.walkSubIssues(300, client);
+    assert.deepEqual([walked.stateReason, walked.closedAt], ["completed", before]);
+  }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
   for (const { pid } of started) { try { waitFor(() => !processIdentity(pid), `stand-in ${pid} to exit`, 15000); } catch (error) { console.error(error.message); } }
