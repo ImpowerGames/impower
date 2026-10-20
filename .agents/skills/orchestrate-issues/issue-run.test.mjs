@@ -1133,6 +1133,16 @@ try {
     for (const n of [1101, 1102, 1103]) assert.match(p.tickets.find((t) => t.number === n).reason, /closed before the run, delivered outside it/);
     assert.match(p.tickets.find((t) => t.number === 1105).reason, /closed as not planned/);
     assert.equal(p.concurrency.active, 0, "history holds no writer place");
+    // A ticket waiting on history is admitted; one waiting on a ticket closed
+    // during the run still waits.
+    const waiting = (blocker) => snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: blocker, state: "closed", delivered: false }] }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [1107])];
+    assert.equal(actions(planOf(f, waiting(1103), { preflights: pre }))[1107], "dispatch", "history counts as a delivered blocker");
+    assert.equal(actions(planOf(f, waiting(1104), { preflights: pre }))[1107], "wait-dependency", "a blocker closed during the run without its deliverable still holds");
+    // A reopen and close during the run changes the scope the final gate
+    // compares, since the closure decides whether the ticket is history.
+    const reclosed = snapshotOf(300, snap.tickets.map((t) => (t.number === 1103 ? { ...t, closedAt: during } : t)));
+    assert.notDeepEqual(run.snapshotScope(reclosed).slices, run.snapshotScope(snap).slices);
     // The walk keeps what the rule reads from GitHub.
     const client = { subIssues: (n) => (n === 300 ? [{ number: 1103, title: "t", state: "closed", state_reason: "completed", closed_at: before, type: { name: "Bug" }, body: "" }] : []), pulls: () => [] };
     const [walked] = run.walkSubIssues(300, client);

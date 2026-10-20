@@ -749,17 +749,22 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
+// A slice's line in the scope: a closed one names how and when it closed,
+// which decides whether it is history, so a reopen and close while the gate
+// runs changes the scope.
+const scopeLine = (t) => [`#${t.number}`, t.state, ...(t.state === "closed" ? [t.stateReason, t.closedAt].filter(Boolean) : [])].join(" ");
+
 // The parent issue's slices, each with its state, and its acceptance section, read
 // on their own: the sub-issue tree, then the body last. The final gate reads
 // it after every premise and compares it with the snapshot those premises
 // were judged on, so a slice that left, joined or reopened, or a criterion
 // that changed, while the slower reads ran stops the call.
 export function readIssueScope({ issue, tickets = null, split = false }, client) {
-  const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split })).map((t) => `#${t.number} ${t.state}`);
+  const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split })).map(scopeLine);
   return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(issue).body) };
 }
 // The same scope as a snapshot holds it.
-export const snapshotScope = (snapshot) => ({ slices: plannedNodes(snapshot.tickets).map((t) => `#${t.number} ${t.state}`).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
+export const snapshotScope = (snapshot) => ({ slices: plannedNodes(snapshot.tickets).map(scopeLine).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
 
 // --- Admission plan -------------------------------------------------------
 
@@ -969,7 +974,10 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     const retired = retiredReason(p.route, defaults);
     return `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : `find the started writer and record it with launched, or withdraw with evidence that none started${retired ? `, and never retry it there, since ${retired}` : ""}`} before any retry`;
   };
-  const undelivered = (t) => t.blockers.filter((b) => !b.delivered);
+  // A blocker that is history counts as delivered outside the run.
+  const historic = new Set(snapshot.tickets.filter((t) => closedBeforeRun(record, t)).map((t) => t.number));
+  const met = (b) => b.delivered || historic.has(b.number);
+  const undelivered = (t) => t.blockers.filter((b) => !met(b));
   const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
   // Sub-issues of a container whose own writer is still held wait until that
   // writer is settled; the snapshot lists a container before its sub-issues.
@@ -1000,7 +1008,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (!t.deliveredBy || t.delivered) continue;
     const s = t.deliveredBy.ticket;
     for (const b of t.blockers) {
-      if (b.delivered || b.number === s || deliveredBySlice.get(b.number) === s) continue;
+      if (met(b) || b.number === s || deliveredBySlice.get(b.number) === s) continue;
       if (!blockedDeliverers.has(s)) blockedDeliverers.set(s, []);
       blockedDeliverers.get(s).push({ ticket: t.number, blocker: b });
     }
