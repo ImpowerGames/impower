@@ -1,11 +1,9 @@
 // Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`): lints about
-// names and scopes that sparkdown does not have yet. Snippets and expected
-// messages are quoted verbatim inside a function body; the upstream test-case
-// name is in the comment above each group. Each `describe.skip` is the ready
-// specification for a lint not implemented (docs/compiler/LINTS.md); a rule
-// that implements one adds its code to `LUAU_LINT_CODES` in `collectLuauLints.ts` and
-// unskips it. Upstream cases whose expected result is silence run now, so a
-// future rule cannot start warning on them.
+// names and scopes. Snippets and expected messages are quoted verbatim inside
+// a function body; the upstream test-case name is in the comment above each
+// group, marked adapted where sparkdown's result differs. Upstream cases
+// whose expected result is silence run too, so no rule can start warning on
+// them.
 
 import { describe, expect, test } from "vitest";
 import { indexProgramNames, lintBuiltinGlobalWrites } from "../../compiler/lint/collectLuauLints";
