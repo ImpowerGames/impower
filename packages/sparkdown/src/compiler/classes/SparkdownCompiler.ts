@@ -547,10 +547,6 @@ export class SparkdownCompiler {
   // `.luau` file's text is parsed as a `run` wraps it (`luauFileUnit`).
   protected _typechecker = new SparkdownTypechecker((text) => this.documents.parser.parse(text));
 
-  // The diagnostics the grammar's validator reported (`validateSyntax`), which
-  // give way to a syntax error of Luau's reading at the same token.
-  protected _syntaxValidations = new WeakSet<SparkDiagnostic>();
-
   protected _files = new SparkdownFileRegistry();
   get files() {
     return this._files;
@@ -5433,7 +5429,7 @@ export class SparkdownCompiler {
                       : DiagnosticSeverity.Warning;
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];
-              const validation: SparkDiagnostic = {
+              program.diagnostics[uri].push({
                 range,
                 severity,
                 message: diagnosticMarkup(diagnostic.message),
@@ -5444,9 +5440,7 @@ export class SparkdownCompiler {
                   },
                 ],
                 source: LANGUAGE_NAME,
-              };
-              this._syntaxValidations.add(validation);
-              program.diagnostics[uri].push(validation);
+              });
             }
           }
           cur.next();
@@ -5726,9 +5720,10 @@ export class SparkdownCompiler {
       // A name Sparkdown's own resolver cannot find is already reported there,
       // and so is a token Sparkdown already reports an error at. A syntax
       // error of Luau's reading is Luau's own, in its words at its range, so
-      // the validator's report of the same error at the same token gives way
-      // to it; a different one there (a Sparkdown limitation such as a
-      // 64-bit integer literal) keeps the token.
+      // Sparkdown's report of the same error where its range meets the
+      // reading's gives way to it; a different one at the reading's token (a
+      // Sparkdown limitation such as a 64-bit integer literal) keeps the
+      // token.
       const unresolved: { name: string; range: Range }[] = [];
       const errors: SparkDiagnostic[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
@@ -5741,16 +5736,30 @@ export class SparkdownCompiler {
       // A syntax error's range ends with the token the reading found.
       const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });
       const messageOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
+      // Two ranges meet where either holds the other's start, or the
+      // reading's token (an error at `<eof>` ends at the next line's start),
+      // or where only space lies between them (a comma Sparkdown marks and
+      // the token after it that Luau names).
+      const meets = (e: Range, d: { start: Range["start"]; end: Range["end"] }) => {
+        if (rangeContains(e, d.start) || rangeContains(e, tokenOf(d)) || rangeContains(d, e.start)) return true;
+        const from = doc.offsetAt(e.end);
+        const to = doc.offsetAt(d.start);
+        return from <= to && /^\s*$/.test(doc.read(from, to));
+      };
       const replaced = new Set<SparkDiagnostic>();
+      const replacing = new Set<(typeof checked)[number]>();
       for (const d of checked) {
         if (!d.syntax) continue;
         for (const e of errors) {
-          if (this._syntaxValidations.has(e) && messageOf(e) === d.message && rangeContains(e.range, tokenOf(d))) replaced.add(e);
+          if (messageOf(e) === d.message && meets(e.range, d)) {
+            replaced.add(e);
+            replacing.add(d);
+          }
         }
       }
       for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
-        if (d.syntax && errors.some((e) => !replaced.has(e) && rangeContains(e.range, tokenOf(d)))) continue;
+        if (d.syntax && !replacing.has(d) && errors.some((e) => !replaced.has(e) && rangeContains(e.range, tokenOf(d)))) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
       if (replaced.size > 0) program.diagnostics![scriptUri] = program.diagnostics![scriptUri]!.filter((d) => !replaced.has(d));

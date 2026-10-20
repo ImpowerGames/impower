@@ -1,17 +1,18 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { officialSyntaxErrors } from "../compiler/officialSyntax";
+import { inPositionOrder, officialErrorList, officialSyntaxErrors } from "../compiler/officialSyntax";
 import { diagnosticMessage } from "./diagnosticTestHarness";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { functionSpans } from "../programListing";
 
 // An expression that is missing, or that cannot start with the token where
-// one must stand, is one syntax error wherever an expression can appear,
-// worded and placed as Luau's parser reports it: at the token Luau found
-// instead (#1175). So is a member access with no name after its `.` or `:`,
-// a named function where a value stands, and a statement that is a value
-// but not a call. The enclosing function still ends at its own `end`.
+// one must stand, is reported wherever an expression can appear, worded and
+// placed as Luau's parser reports it: at the token Luau found instead
+// (#1175), with every error of Luau's recovery after it (I-1322). So is a
+// member access with no name after its `.` or `:`, a named function where a
+// value stands, and a statement that is a value but not a call. The
+// enclosing function still ends at its own `end`.
 
 /** Luau's first syntax error for a source, as `line:column-line:column message`. */
 function luauFirstError(source: string): string[] {
@@ -38,6 +39,25 @@ function expectLuauReports(source: string, messages: readonly string[]) {
   for (const message of messages) {
     if (!SPARKDOWN_ONLY.test(message.slice(message.indexOf(" ") + 1))) expect(luau).toContain(message);
   }
+}
+
+/**
+ * Holds a document's errors to the messages listed for it. Where the
+ * document is a function written as Luau writes one and every message is
+ * Luau's, the errors are every one the official parser reports for it
+ * (I-1322), the listed ones among them; otherwise, where Sparkdown's own
+ * syntax or wording takes part (a scene's statements, a function with no
+ * parameter list, a hint), they are the listed ones.
+ */
+function expectReports(source: string, errors: readonly string[], messages: readonly string[]) {
+  const header = source.split("\n", 1)[0]!;
+  const luauOnly = /^function \w+\(/.test(header) && !messages.some((m) => SPARKDOWN_ONLY.test(m.slice(m.indexOf(" ") + 1)));
+  if (!luauOnly) {
+    expect(errors).toEqual(messages);
+    return;
+  }
+  expect(errors).toEqual(expect.arrayContaining([...messages]));
+  expect(inPositionOrder(errors)).toEqual(officialErrorList(`${source}\n`));
 }
 
 const URI = "inmemory:///main.sd";
@@ -141,23 +161,23 @@ for (const { name, template, followers } of POSITIONS) {
 describe("a malformed expression at every position", () => {
   // In a function body, which is Luau code.
   test.each(cases.map((c) => [c.position, c.shape, c.body] as const))(
-    "%s with %s: %j in a function reports Luau's first error",
+    "%s with %s: %j in a function reports Luau's errors",
     (_position, _shape, body) => {
       const lines = ["function f(t, get)", ...body.split("\n").map((line) => `  ${line}`), "end", ""];
       const text = lines.join("\n");
       const { errors, functions } = compileDocument(text);
-      expect(errors).toEqual(luauFirstError(text));
+      expect(inPositionOrder(errors)).toEqual(officialErrorList(text));
       expectSpans(functions, [{ path: "f", lines: [0, 0, lines.length - 2] }]);
     },
   );
 
   // In a Luau file, whose whole text is Luau.
   test.each(cases.map((c) => [c.position, c.shape, c.body] as const))(
-    "%s with %s: %j in a Luau file reports Luau's first error",
+    "%s with %s: %j in a Luau file reports Luau's errors",
     (_position, _shape, body) => {
       const source = `local t, get, a, b, y\n${body}\n`;
-      const luau = luauFirstError(source).map((d) => d.replace(/^(\S+) /, "$1 SyntaxError: "));
-      expect(checkLuau(source, { mode: "nonstrict" }).syntaxDiagnostics.map(describeDiagnostic)).toEqual(luau);
+      const luau = officialErrorList(source, { luauFile: true }).map((d) => d.replace(/^(\S+) /, "$1 SyntaxError: "));
+      expect(inPositionOrder(checkLuau(source, { mode: "nonstrict" }).syntaxDiagnostics.map(describeDiagnostic))).toEqual(luau);
     },
   );
 });
@@ -177,11 +197,11 @@ describe("the reported layouts", () => {
     // #1148: a named function as a value.
     ["local a, g = 1, function named() return 7 end", ["1:27-1:32 Expected '(' when parsing function, got 'named'"]],
     ["a, g = 1, function named() return 7 end", ["1:21-1:26 Expected '(' when parsing function, got 'named'"]],
-  ])("%j in a function reports %j", (body, messages) => {
+  ])("%j in a function reports Luau's errors, %j among them", (body, messages) => {
     const text = `function f(t)\n  ${body}\nend\n`;
     const { errors, functions } = compileDocument(text);
-    expect(errors).toEqual(messages);
-    expect(errors).toEqual(luauFirstError(text));
+    expect(errors).toEqual(expect.arrayContaining(messages));
+    expect(inPositionOrder(errors)).toEqual(officialErrorList(text));
     expectSpans(functions, [{ path: "f", lines: [0, 0, text.split("\n").length - 2] }]);
   });
 
@@ -203,8 +223,8 @@ describe("the reported layouts", () => {
     const lines = ["function f(t, get)", "  local z = 0", ...body.map((line) => `  ${line}`), "  return 1", "end", ""];
     const text = lines.join("\n");
     const { errors, functions } = compileDocument(text);
-    expect(errors).toHaveLength(1);
-    expect(errors).toEqual(luauFirstError(text));
+    expect(errors).toEqual(expect.arrayContaining(luauFirstError(text)));
+    expect(inPositionOrder(errors)).toEqual(officialErrorList(text));
     expectSpans(functions, [{ path: "f", lines: [0, 0, endLine] }]);
   });
 
@@ -355,21 +375,18 @@ describe("the reported layouts", () => {
     ]],
   ])("%j reports %j", (source, messages) => {
     const { errors, functions } = compileDocument(`${source}\n`);
-    expect(errors).toEqual(messages);
+    expectReports(source, errors, messages);
     if (source.startsWith("function")) {
       expectSpans(functions, [{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
       expectLuauReports(source, messages);
     }
   });
 
-  // Interim (#1283): the errors after the first in these follow from how
-  // Luau's parser recovers, most from its reading a keyword after a `.` with
-  // no name as that name (`t.a.return 1`), or `x + function() end` as a
-  // nameless declaration. Each first error is the specification's, as the
-  // layouts above are; how many follow it is how the reading of the syntax
-  // tree recovers (`readLuauAst.ts`), which follows Luau's parser, and a
-  // reading that reports one error for each malformed construct may change
-  // these expectations, with the reason given.
+  // The errors after the first in these follow from how Luau's parser
+  // recovers, most from its reading a keyword after a `.` with no name as
+  // that name (`t.a.return 1`), or `x + function() end` as a nameless
+  // declaration. Every one of them is reported (I-1322), as the official
+  // parser reports them; the messages listed are the first.
   test.each([
     ["function f(t)\n  t.a.return 1\nend", ["1:6-1:12 Expected identifier, got 'return'"]],
     ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],
@@ -398,9 +415,9 @@ describe("the reported layouts", () => {
       "1:30-1:31 Expected identifier when parsing expression, got '}'",
       "1:32-1:36 Expected identifier when parsing expression, got 'then'",
     ], false],
-  ] as [string, string[], boolean?][])("interim: %j reports %j", (source, messages, keepsEnd = true) => {
+  ] as [string, string[], boolean?][])("recovery: %j reports %j", (source, messages, keepsEnd = true) => {
     const { errors, functions } = compileDocument(`${source}\n`);
-    expect(errors).toEqual(messages);
+    expectReports(source, errors, messages);
     if (keepsEnd) expectSpans(functions, [{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
     expectLuauReports(source, messages);
   });
@@ -422,8 +439,8 @@ describe("the reported layouts", () => {
     const luauErrors = checkLuau(source, { mode: "nonstrict" })
       .syntaxDiagnostics.map(describeDiagnostic)
       .filter((d) => !d.includes("SyntaxError: Sparkdown "));
-    expect(luauErrors).toEqual(messages);
-    expectLuauReports(source, messages.map((m) => m.replace(" SyntaxError:", "")));
+    expect(luauErrors).toEqual(expect.arrayContaining(messages));
+    expect(inPositionOrder(luauErrors)).toEqual(officialErrorList(source, { luauFile: true }).map((d) => d.replace(/^(\S+) /, "$1 SyntaxError: ")));
   });
 
   // A function Sparkdown declares with no parameter list is read as Luau's

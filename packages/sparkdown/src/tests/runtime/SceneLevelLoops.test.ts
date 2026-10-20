@@ -143,9 +143,12 @@ end
 n is {n}.`),
       );
       // The header ends at its line (#1907), so Luau's reading meets its end
-      // of input where the `do` should be.
-      expect(ctx.errorMessages).toEqual([
+      // of input where the `do` should be. The `end` written for the loop
+      // then closes the scene, or nothing, so the last `end` closes nothing
+      // and is reported (#774).
+      expect([...ctx.errorMessages].sort()).toEqual([
         `Expected 'do' when parsing ${keyword} loop, got <eof>`,
+        "Expected <eof>, got 'end'",
       ]);
     });
   });

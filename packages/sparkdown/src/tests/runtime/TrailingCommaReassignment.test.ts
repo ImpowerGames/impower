@@ -340,7 +340,9 @@ describe("Luau code: a compound assignment with a list", () => {
     ["a comma that ends the line", "  g += 1,"],
   ])("%s: the comma is the error", (_name, body) => {
     const { errorMessages } = collectDiagnostics(fn(body, "return g"));
-    expect(errorMessages).toEqual([missingValue(",")]);
+    // Luau's reading then reads on from the token after the comma, and its
+    // errors there are reported too (I-1322).
+    expect(errorMessages[0]).toEqual(missingValue(","));
   });
 
   test("after a target list, the operator is the error", () => {

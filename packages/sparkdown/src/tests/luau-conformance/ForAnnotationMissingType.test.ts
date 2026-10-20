@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { checkLuau, describeDiagnostic, expectLuauSyntax } from "./typecheckTestHarness";
 
 // A `for` loop variable's type annotation with no type before the `=` or `,`
 // after it is one syntax error, as a `local`'s is (#1143). A `:` after a name
@@ -15,8 +15,8 @@ describe("a for loop variable's annotation with no type", () => {
     ["for i: --[[c]] = 1, 3 do end", "0:6-0:16 SyntaxError: Expected type, got '='"],
     ["for k: , v in pairs({}) do end", "0:6-0:8 SyntaxError: Expected type, got ','"],
     ["for k, v: , w in pairs({}) do end", "0:9-0:11 SyntaxError: Expected type, got ','"],
-  ])("%j reports only the missing type", (statement, message) => {
-    expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
+  ])("%j reports the missing type", (statement, message) => {
+    expectLuauSyntax(`${statement}\n`, [message]);
   });
 
   test.each([
@@ -44,7 +44,7 @@ describe("a `:` after a name in a value with no method name", () => {
       "1:21-1:22 SyntaxError: Expected identifier when parsing method name, got '='",
     ],
   ])("%j reports the missing method name", (source, message) => {
-    expect(checkLuau(`${source}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
+    expectLuauSyntax(`${source}\n`, [message]);
   });
 
   test.each([

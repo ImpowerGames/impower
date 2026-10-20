@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { checkLuau, describeDiagnostic, inDiagnosticOrder, luauSyntaxErrors } from "./typecheckTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
 
 // A `local` target annotated with a doubled colon (`local x :: number`) is
-// not an annotation, and Luau rejects it; the editor must say so (#1138).
+// not an annotation, and Luau rejects it; the editor must say so (#1138),
+// with the errors of Luau's recovery after it (I-1322).
 
 describe("a local target followed by `::`", () => {
   test.each([
@@ -17,12 +18,13 @@ describe("a local target followed by `::`", () => {
   ])(
     "%j reports the `::`",
     (statement) => {
-      const { syntaxDiagnostics } = checkLuau(`${statement}\n`);
+      const { syntaxDiagnostics, diagnostics } = checkLuau(`${statement}\n`);
       const col = statement.indexOf("::");
       // Compared without the code, so the expected text holds no error name.
-      expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toEqual([
+      expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toContainEqual(
         [0, col, 0, col + 2, "Expected identifier when parsing expression, got '::'"],
-      ]);
+      );
+      expect(inDiagnosticOrder(syntaxDiagnostics)).toEqual(luauSyntaxErrors(diagnostics));
     },
   );
 

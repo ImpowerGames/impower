@@ -114,6 +114,29 @@ export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number)
   return false;
 }
 
+/**
+ * Whether a node is in a function's own Luau, its header or its body, a
+ * pure-Luau body, where the type checker reports every error of Luau's
+ * reading, its recovery's included (I-1322). A story statement's Luau is
+ * bounded by its line, and its errors have one owner each (#931, #1907).
+ */
+export function inLuauFunction(node: SyntaxNode | null): boolean {
+  for (let n = node; n; n = n.parent) {
+    if (n.name === "LuauFunctionDefinition") return true;
+  }
+  return false;
+}
+
+/**
+ * Whether the type checker reports every syntax error of Luau's reading at
+ * a node (I-1322): the node is Luau it reads (`isCheckedLuau`) in a
+ * function's own Luau (`inLuauFunction`). There a validator or lowerer
+ * reports none of Luau's own syntax errors.
+ */
+export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
+  return inLuauFunction(node) && isCheckedLuau(node, read);
+}
+
 /** Whether a document is a Luau file, which is Luau from its first line to its last. */
 export function isLuauFile(uri: string): boolean {
   const path = uri.split(/[?#]/, 1)[0]!;

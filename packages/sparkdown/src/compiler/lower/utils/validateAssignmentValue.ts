@@ -14,8 +14,8 @@ import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { checkerReadsOnTo, readingCarriesOnTo } from "../../typecheck/LuauUnitNodes";
-import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
+import { checkerReadsOnTo, luauReadingReportsAllAt, readingCarriesOnTo } from "../../typecheck/LuauUnitNodes";
+import { AstExprBinary, AstExprCall, AstExprError, AstExprIndexExpr, AstExprIndexName, AstExprUnary } from "../../typecheck/Ast";
 import { isLuauNameAt, luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
@@ -256,8 +256,12 @@ export function validateListComma(
   // before a statement the tree begins on a later line, the binding it lacks
   // is Sparkdown's to report, as below.
   if (!afterAssignment && after && isLuauNameAt(after.from, wholeDocument(comma, read, ctx.documentText)) && readingCarriesOnTo(comma, after.from, read)) return;
+  // In a function's own Luau the type checker reports every error of Luau's
+  // reading (I-1322), the missing name too where it reads on to the token
+  // after the comma.
+  if (!afterAssignment && after && luauReadingReportsAllAt(comma, read) && checkerReadsOnTo(comma, after.from, read)) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
-  const parsing = afterAssignment ? "expression" : "binding name";
+  const parsing = afterAssignment ? "expression" : "variable name";
   ctx.diagnostics.push({
     message: `Expected identifier when parsing ${parsing}, got ${display(got)}`,
     severity: ErrorType.Error,
@@ -699,15 +703,24 @@ export function typeCheckerReportsMissingValue(
   // A leading binary operator (`+ 1`) leaves its missing left operand in
   // the AST while recovery reads the right operand. That missing operand
   // belongs to Luau's diagnostic just as a missing unary operand does.
-  while (expr instanceof AstExprUnary || expr instanceof AstExprBinary) {
-    expr = expr instanceof AstExprUnary ? expr.expr : expr.left;
+  // So does a value that never began with the suffixes Luau's reading reads
+  // on after it (`:method()`, `.x`, `[1]`), as Luau's parser does.
+  for (;;) {
+    if (expr instanceof AstExprUnary) expr = expr.expr;
+    else if (expr instanceof AstExprBinary) expr = expr.left;
+    else if (expr instanceof AstExprCall) expr = expr.func;
+    else if (expr instanceof AstExprIndexName || expr instanceof AstExprIndexExpr) expr = expr.expr;
+    else break;
   }
   if (!(expr instanceof AstExprError) || expr.expressions.length > 0) return false;
   const error = reading.errors[expr.messageIndex];
   if (!error?.message.startsWith("Expected identifier when parsing expression")) return false;
   const at = luauPositionOffset(error.location.begin, text);
   const got = nextLuauToken(at, text, authoredEnd);
-  if (got?.text === ":" || got?.text === "@") return false;
+  // A `:` or `@` where the value begins is Sparkdown's own syntax's to
+  // report, but in a function's own Luau, where the checker reports every
+  // error of Luau's reading (I-1322).
+  if ((got?.text === ":" || got?.text === "@") && !luauReadingReportsAllAt(node, read)) return false;
   return checkerReadsOnTo(node, got?.from, read);
 }
 

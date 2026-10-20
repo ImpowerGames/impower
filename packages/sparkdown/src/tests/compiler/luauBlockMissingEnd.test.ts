@@ -511,8 +511,9 @@ describe("Luau block without `end`", () => {
   test("a function that takes its scene's `end` leaves the scene without one", () => {
     // `Hi there.` is a line of the function's body, as any Luau line is
     // (#1158), so the `end` closes the function and the scene is left open.
-    // Luau reports the line as it reads it: `Hi` is not a statement, and the
-    // `.` after `there` has no name before the `end` (#1175).
+    // Luau reports the line as it reads it: `Hi` is not a statement, the
+    // `.` after `there` has no name before the `end` (#1175), and
+    // `there.` is no statement either (I-1322).
     const errs = compile(
       [
         "scene main",
@@ -525,6 +526,7 @@ describe("Luau block without `end`", () => {
     ).diags.filter((d) => d.severity === 1);
     expect(lineStarts(errs)).toEqual([
       [0, "Scene"],
+      [3, "Incomplete"],
       [3, "Incomplete"],
       [4, "Expected"],
     ]);
@@ -590,9 +592,11 @@ describe("Luau block without `end`", () => {
     "a `repeat` holding a line that is not a Luau statement %s is closed by its `until`",
     (_label, lines) => {
       // The line is reported on its own as Luau reads it (#1158, #1175): `Hello`
-      // is not a statement, and the `.` has no name before the `until`.
+      // is not a statement, nor is `there.` (I-1322), and the `.` has no
+      // name before the `until`.
       const { diags } = compile([...lines, ""].join("\n"));
       expect(lineStarts(diags.filter((d) => d.severity === 1))).toEqual([
+        [lines.findIndex((l) => l.includes("Hello")), "Incomplete"],
         [lines.findIndex((l) => l.includes("Hello")), "Incomplete"],
         [lines.findIndex((l) => l.includes("until")), "Expected"],
       ]);
@@ -610,14 +614,16 @@ describe("Luau block without `end`", () => {
       "done",
       "",
     ].join("\n");
-    // Luau's errors for the line, one at a token: the `end` that does not
-    // close the `repeat` is where the line's name is missing too, and that
-    // error, the first at the token, is the one reported.
+    // Luau's errors for the line, every one (I-1322): `Hello` and `there.`
+    // are no statements, and the `end` that does not close the `repeat` is
+    // where the line's name is missing and the `until` too.
     const errs = compile(source).diags.filter((d) => d.severity === 1).map((d) => [d.startLine, d.message]);
-    expect(errs).toEqual([
+    expect(errs).toHaveLength(4);
+    expect(errs).toEqual(expect.arrayContaining([
       [2, "Incomplete statement: expected assignment or a function call"],
+      [3, "Expected 'until' (to close 'repeat' at line 2), got 'end'"],
       [3, "Expected identifier, got 'end'"],
-    ]);
+    ]));
     expect(officialErrors(source)).toEqual(expect.arrayContaining(errs));
   });
 
@@ -737,6 +743,7 @@ describe("Luau block without `end`", () => {
       [2, "Scene"],
       [8, "Expected"],
       [8, "Incomplete"],
+      [8, "Incomplete"],
     ]);
   });
 
@@ -752,9 +759,9 @@ describe("Luau block without `end`", () => {
   test("an unclosed `if` inside a `repeat` in a function reports its blocks as it does with any Luau line", () => {
     // `Hi.` is a line of the `if`'s body, as `local y = 1` would be (#1158).
     // The `until` closes the `if` and goes to the `repeat`, as Luau reads it
-    // (#1209), so either line gets Luau's errors, at Luau's places, one at a
-    // token: after `Hi.` the `until` is where the name is missing too, and
-    // that error, the first at the token, is the one reported.
+    // (#1209), so either line gets Luau's errors, at Luau's places, every
+    // one (I-1322): after `Hi.` the `until` is where the name is missing
+    // and the `if`'s `end` too.
     const source = (line: string) =>
       ["function f()", "  repeat", "    if true then", `      ${line}`, "  until true", "end", "", "Closing line.", "done", ""].join("\n");
     const errors = (text: string) =>
@@ -765,7 +772,12 @@ describe("Luau block without `end`", () => {
     expect(errors(plain)).toEqual([[4, "Expected 'end' (to close 'then' at line 3), got 'until'"]]);
     expect(errors(plain)).toEqual(officialErrors(plain));
     const story = source("Hi.");
-    expect(errors(story)).toEqual([[4, "Expected identifier, got 'until'"]]);
+    expect(errors(story)).toEqual(expect.arrayContaining([
+      [3, "Incomplete statement: expected assignment or a function call"],
+      [4, "Expected 'end' (to close 'then' at line 3), got 'until'"],
+      [4, "Expected identifier, got 'until'"],
+    ]));
+    expect(errors(story)).toHaveLength(3);
     expect(officialErrors(story)).toEqual(expect.arrayContaining(errors(story)));
   });
 

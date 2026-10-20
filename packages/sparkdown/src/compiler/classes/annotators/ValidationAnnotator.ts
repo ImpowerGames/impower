@@ -23,7 +23,7 @@ import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, inLuauFunction, isCheckedLuau, isLuauFile, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -177,6 +177,14 @@ const MISSING_TYPE = "Expected type";
 // between, which ends the header there (I-1318).
 const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
 const HEADER_METHOD_COLONS = nodeNameSet(HEADER_METHOD_COLON_NAMES);
+// The values Luau can call a method on, as its primary expression is: a name
+// or access path, a value in brackets, and a call or access chained onto one.
+const METHOD_RECEIVERS = nodeNameSet([
+  "LuauAccessPath",
+  "LuauParenthetical",
+  "LuauChainedFunctionCall",
+  "LuauChainedPropertyAccess",
+]);
 // The grammar's tokens for a type that is missing or malformed, and for a
 // declaration target's `::`, and a header's method colon.
 const TYPE_ERROR_TOKENS = nodeNameSet([
@@ -968,6 +976,75 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
+   * Whether a node directly follows a `for` loop variable, an access path of
+   * one name in the loop's header with no `in` or `=` before it
+   * (`for k: then`), where a `:` is the variable's type annotation. Comments
+   * may stand between them (`for k --[[c]] : then`).
+   */
+  protected followsForBinding(node: SyntaxNode): boolean {
+    let path = node.prevSibling;
+    while (path && isTrivia(path)) {
+      path = path.prevSibling;
+    }
+    if (!path || !isExplicitRuleName(path.name, "LuauAccessPath") || path.parent?.name !== "LuauForCondition_content") {
+      return false;
+    }
+    const content = childNamed(path, `${path.name}_content`);
+    const part = content?.firstChild;
+    let after = part?.nextSibling;
+    while (after && isTrivia(after)) {
+      after = after.nextSibling;
+    }
+    if (!part || !isExplicitRuleName(part.name, "LuauAccessPart") || after) {
+      return false;
+    }
+    for (let before = path.prevSibling; before; before = before.prevSibling) {
+      if (before.name === "LuauInKeyword" || isExplicitRuleName(before.name, "LuauAssignmentOperation")) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Whether the value right before a node is one Luau can call a method on:
+   * a name or access path, a value in brackets, or a call or access chained
+   * onto one, as Luau's primary expression is. The value is the last one the
+   * previous sibling holds (`for k = i : then` reads `i` inside the `=`'s
+   * operation). A literal is none (`for k = 1 : then`), and there Luau's first
+   * error is the `:` itself, which the type checker reports.
+   */
+  protected followsMethodReceiver(node: SyntaxNode): boolean {
+    let value: SyntaxNode | null = node.prevSibling;
+    while (value && isTrivia(value)) {
+      value = value.prevSibling;
+    }
+    while (value) {
+      if (METHOD_RECEIVERS.has(value.name)) {
+        return true;
+      }
+      let last = value.lastChild;
+      while (last && isTrivia(last)) {
+        last = last.prevSibling;
+      }
+      value = last;
+    }
+    return false;
+  }
+
+  /**
+   * Whether a node is in a pure-Luau body (a `.luau` or `run` file, a
+   * function's own Luau the type checker reads), where Luau's reading
+   * reports every syntax error, its recovery's included (I-1322), so the
+   * validator reports none of Luau's own there. A story statement's errors
+   * keep one owner each, as before (#931, #1907).
+   */
+  protected inPureLuau(node: SyntaxNode): boolean {
+    if (this.uri && (isLuauFile(this.uri) || runWrapperName(this.uri) !== undefined)) return true;
+    return isCheckedLuau(node, (from, to) => this.read(from, to)) && inLuauFunction(node);
+  }
+
+  /**
    * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
    * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
    * directly after `for` or after a comma before the loop's `in` or `=`.
@@ -1202,10 +1279,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // Luau names the token it found instead. After a name in a value, the `:`
     // starts a method call, which is missing its name.
     // A reserved word as a method's name (`a:do`): Luau's first error is the
-    // missing name, at the word (I-1318). In Luau the type checker reads,
-    // Luau's reading reports it and every error around it (I-1322).
+    // missing name, at the word (I-1318). In a pure-Luau body Luau's reading
+    // reports it and every error around it (I-1322).
     if (nodeRef.name === "LuauKeywordMethodName") {
-      if (isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))) {
+      if (this.inPureLuau(nodeRef.node)) {
+        return annotations;
+      }
+      // After a `for` loop variable the `:` is its type's, and the word is
+      // the type Luau found missing (`for k: then`), which the type checker
+      // reports.
+      // After a value no method is called on (`for k = 1 : then`), Luau's
+      // first error is the `:`, which the type checker reports too.
+      const accessor = nodeRef.node.parent?.parent;
+      if (
+        accessor &&
+        isExplicitRuleName(accessor.name, "LuauExpressionKeywordMethodAccessor") &&
+        (this.followsForBinding(accessor) || !this.followsMethodReceiver(accessor))
+      ) {
         return annotations;
       }
       this.error(
@@ -1217,10 +1307,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
-      // A header's `:` before its `do` or `then` (`while t: do`): in Luau the
-      // type checker reads, Luau's reading reports every error there,
-      // whatever the value before the `:` (I-1322).
-      if (HEADER_METHOD_COLONS.has(nodeRef.name) && checkerReportsType) {
+      // A header's `:` before its `do` or `then` (`while t: do`): in a
+      // pure-Luau body Luau's reading reports every error there (I-1322).
+      // Elsewhere, after a value no method is called on (`while 1: do`),
+      // Luau's first error is the `:` itself, which the type checker reports.
+      if (HEADER_METHOD_COLONS.has(nodeRef.name) && (this.inPureLuau(nodeRef.node) || !this.followsMethodReceiver(nodeRef.node))) {
         return annotations;
       }
       const isMethodColon = this.isMethodColon(nodeRef.node);
@@ -1463,9 +1554,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       isExplicitRuleName(nodeRef.name, "LuauTernaryExpression") &&
       !isInlineConditional(nodeRef.node)
     ) {
-      const missing = missingIfExpressionPart(nodeRef.node, (from, to) =>
+      const found = missingIfExpressionPart(nodeRef.node, (from, to) =>
         this.read(from, to),
       );
+      // In a pure-Luau body where Luau's reading reads on past the missing
+      // part, it reports every error of the expression, at Luau's tokens and
+      // ranges (I-1322); where the tree ends the statement first (a line at
+      // column 0, #1906), the missing part is reported here.
+      const after = found ? this.luauTokenAt(found.at?.to ?? nodeRef.to, authoredIslandEnd(nodeRef.node, this.statementDocumentText())) : undefined;
+      const missing = found && this.inPureLuau(nodeRef.node) && after && this.checkerReadsOnTo(nodeRef.node, after.from) ? undefined : found;
       // A missing condition or arm value is a missing expression, which the
       // type checker reports with Luau's range where it reads the Luau and
       // Luau finds it missing too.

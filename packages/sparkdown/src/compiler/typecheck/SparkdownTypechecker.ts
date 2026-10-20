@@ -32,6 +32,7 @@ import {
   type LuauUnit,
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
+import { inLuauFunction } from "./LuauUnitNodes";
 import { Mode } from "./Module";
 import { Scope } from "./Scope";
 import { follow, persist, TypeArena, TypeFun } from "./Type";
@@ -50,8 +51,8 @@ export interface TypecheckDiagnostic {
 }
 
 // Syntax Sparkdown adds to Luau's, which the reading does not know: a label
-// (`::name::`), which the grammar names.
-const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
+// (`::name::`) and a `goto` statement, which the grammar names.
+const SPARKDOWN_SYNTAX = new Set(["LuauLabel", "LuauGotoStatement"]);
 
 interface CachedUnit {
   check: LuauUnitCheck;
@@ -171,15 +172,45 @@ export class SparkdownTypechecker {
       const line = after ? end.line : start.line;
       return line + 1 < lineStartsOf().length ? { line: line + 1, character: 0 } : after ? end : start;
     };
-    const report = (entry: CachedUnit, unit: LuauUnit) => {
+    // Whether a document position is in a function's own Luau, its header or
+    // its body, read from the character before it (an error at the end of
+    // the unit begins right after the function's `end`).
+    const inFunction = (position: { line: number; character: number }) => inLuauFunction(tree.resolveInner(offsetOf(position), -1));
+    const report = (entry: CachedUnit, unit: LuauUnit, pureLuau: boolean) => {
       checks.push(entry.check);
+      // In a story statement's Luau, which ends at its line, the tokens a
+      // syntax error has been reported at, each once.
+      const reportedTokens = new Set<string>();
       const parseErrors = entry.check.sourceModule.parseErrors;
       for (const error of entry.check.errors) {
-        if (parseErrors.includes(error)) {
+        const parseError = parseErrors.indexOf(error);
+        if (parseError >= 0) {
+          const syntaxError = entry.check.unit.errors[parseError];
+          // An error at a token that is Sparkdown's own, or in a `store`
+          // declaration, is Sparkdown's own syntax's to report.
+          if (syntaxError?.sparkdown) continue;
           const message = error.data.kind === "SyntaxError" ? error.data.message : "";
           const start = documentPosition(unit, error.location.begin);
           const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"), message.startsWith("Expected type"));
           if (isSparkdownSyntax(end)) continue;
+          // In a pure-Luau body (a `.luau` or `run` file, a function's own
+          // Luau) every error of Luau's reading is reported, in Luau's words
+          // at Luau's range, its recovery's included (I-1322). Elsewhere the
+          // Luau is a story statement's, bounded by its line, whose errors
+          // have one owner each (#931, #1907): the reading's for a construct
+          // only it finds malformed (`LuauSyntaxError.malformed`) and for a
+          // statement that holds a token the grammar left unread
+          // (`LuauSyntaxError.unread`), Sparkdown's own syntax's for the rest.
+          const inPureLuau = pureLuau || inFunction(start);
+          // Luau's parser stops at the end of the chunk; what the reading
+          // reads on after it is none of Luau's.
+          if (inPureLuau && syntaxError?.pastChunkEnd) continue;
+          if (!inPureLuau) {
+            if (!syntaxError?.malformed && !syntaxError?.unread) continue;
+            const token = `${end.line}:${end.character}`;
+            if (reportedTokens.has(token)) continue;
+            reportedTokens.add(token);
+          }
           diagnostics.push({ start, end, code: "SyntaxError", message, syntax: true });
           continue;
         }
@@ -199,7 +230,7 @@ export class SparkdownTypechecker {
     const fileUnit = isLuauFile(uri) ? this.luauFile(uri, text) : runFileUnit(uri, text, tree);
     if (fileUnit) {
       const entry = this.checkUnit(uri, fileUnit, mode, program.scope, program.key, false);
-      report(entry, fileUnit);
+      report(entry, fileUnit, true);
       // A `--!` directive Luau does not know, or would not read, is warned about as Luau's linter warns.
       for (const warning of lintComments(entry.check.sourceModule.hotcomments)) {
         diagnostics.push({
@@ -214,10 +245,10 @@ export class SparkdownTypechecker {
 
     const units = sparkdownUnits(tree, text);
     const prelude = this.checkUnit(uri, units.prelude, mode, program.scope, program.key, true);
-    report(prelude, units.prelude);
+    report(prelude, units.prelude, false);
     const exports = prelude.exports!;
     for (const flow of units.flows) {
-      report(this.checkUnit(uri, flow, mode, exports.scope, `prelude ${exports.id}`, false), flow);
+      report(this.checkUnit(uri, flow, mode, exports.scope, `prelude ${exports.id}`, false), flow, false);
     }
     return diagnostics;
   }

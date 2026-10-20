@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { checkLuau, describeDiagnostic, inDiagnosticOrder, luauSyntaxErrors } from "./typecheckTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
@@ -60,12 +60,14 @@ describe("a local target followed by a block comment lowers and runs", () => {
 });
 
 describe("a local target followed by a block comment and `::`", () => {
-  test("keeps the one error for the `::`", () => {
+  test("reports the `::` and Luau's recovery after it", () => {
     const statement = "local x --[[c]] :: number";
     const col = statement.indexOf("::");
-    expect(
-      checkLuau(`${statement}\n`).syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message]),
-    ).toEqual([[0, col, 0, col + 2, "Expected identifier when parsing expression, got '::'"]]);
+    const { syntaxDiagnostics, diagnostics } = checkLuau(`${statement}\n`);
+    expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toContainEqual(
+      [0, col, 0, col + 2, "Expected identifier when parsing expression, got '::'"],
+    );
+    expect(inDiagnosticOrder(syntaxDiagnostics)).toEqual(luauSyntaxErrors(diagnostics));
   });
 
   test("leaves a cast after an index in the value alone", () => {

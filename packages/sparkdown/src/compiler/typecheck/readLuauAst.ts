@@ -134,14 +134,29 @@ import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 
 /**
  * A syntax error the reading found, located in the document. The type
- * checker reports every one of a unit's errors, in Luau's words at Luau's
- * range (I-1322); the flags below say which of them a lowerer reports for a
- * body the checker does not read (`reportBodySyntaxErrors`), and which
- * statements the validator leaves to the reading (`unreadStatements`).
+ * checker reports every one of a unit's errors but those at Sparkdown's own
+ * tokens (`sparkdown`), in Luau's words at Luau's range (I-1322); the other
+ * flags say which of them a lowerer reports for a body the checker does not
+ * read (`reportBodySyntaxErrors`), and which statements the validator leaves
+ * to the reading (`unreadStatements`).
  */
 export interface LuauSyntaxError {
   location: Location;
   message: string;
+  /**
+   * Not part of Luau: the token the error names is Sparkdown's own (a line
+   * of story where the tree ends the statement, a statement's `&` mark, a
+   * `store`, a `choose` block's own keywords, a divert), which is no token
+   * of Luau's, or the error is in a `store` declaration, a statement of
+   * Sparkdown's own; Sparkdown's own syntax reports what is wrong there.
+   */
+  sparkdown?: true;
+  /**
+   * Not part of Luau: the error is in what the reading goes on to read after
+   * the end of the chunk, where Luau's parser stops at its `Expected <eof>`
+   * error, so Luau reports none of it.
+   */
+  pastChunkEnd?: true;
   /**
    * Not part of Luau: what the error finds malformed, where only Luau's
    * reading of the tokens sees it and Sparkdown's grammar, which reads a
@@ -498,6 +513,8 @@ interface Token {
   loopHeaderEnd?: true;
   /** A token of such a header, where Luau's error is the loop's diagnostic too (`while true print(1)`). */
   loopHeader?: true;
+  /** The `:` of a method access the grammar reads outside an access path (`readMethodColon`), where Luau's error is the expression's. */
+  methodColon?: true;
   /** End offset of the grammar-owned marked narrative island containing this token. */
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
@@ -539,6 +556,8 @@ const BRACKET_CLOSERS = new Set([")", "]", "}", ">"]);
 
 // The loops of Luau code whose body is a `do` block.
 const LUAU_LOOPS = new Set(["LuauWhileLoop", "LuauForLoop"]);
+// The rules holding the `:` of a method access outside an access path (`readMethodColon`).
+const METHOD_COLON_RULES = new Set(["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon", "LuauExpressionKeywordMethodAccessor"]);
 
 // The reserved words a type can hold, among a `local`'s annotated names.
 const TYPE_KEYWORDS = new Set(["nil", "true", "false"]);
@@ -997,7 +1016,29 @@ class Tokenizer {
       this.readHeaderOnlyLoop(node);
       return;
     }
+    if (METHOD_COLON_RULES.has(name)) {
+      this.readMethodColon(node);
+      return;
+    }
     this.readChildren(node);
+  }
+
+  /**
+   * The `:` of a method access whose name is a header's keyword or a
+   * reserved word the grammar reads outside an access path
+   * (`LuauLoopHeaderMethodColon`, `LuauIfHeaderMethodColon`,
+   * `LuauExpressionKeywordMethodAccessor`, I-1318). After a value Luau calls
+   * no method on (`while 1: do`, `for k = 1 : then`), Luau's first error is at
+   * the `:`, and the validator leaves it to the type checker, so the errors
+   * there are the expression's. After a value Luau calls a method on, Luau
+   * reads the `:` and reports nothing at it.
+   */
+  private readMethodColon(node: SyntaxNode): void {
+    const first = this.tokens.length;
+    this.readChildren(node);
+    for (let i = first; i < this.tokens.length; i++) {
+      if (this.tokens[i]!.text === ":") this.tokens[i]!.methodColon = true;
+    }
   }
 
   /**
@@ -1587,6 +1628,12 @@ class Parser {
   // the closing brackets given up on in the blocks being read (see
   // `parseBlockNoScope`).
   private sparkdownDepth = 0;
+  // Not part of Luau: whether the reading has gone on past the end of the
+  // chunk Luau's parser stops at (`parseChunk`).
+  private pastChunkEnd = false;
+  // Not part of Luau: how many `store` declarations are being read, whose
+  // errors are Sparkdown's own to report (`LuauSyntaxError.sparkdown`).
+  private storeDepth = 0;
   // Not part of Luau: how many attribute lists (`@[...]`) are being read;
   // every error met in one is the list's (`MalformedConstruct` "attribute").
   private attributeListDepth = 0;
@@ -1762,12 +1809,17 @@ class Parser {
     // A story loop header with no `do` on its line meets its end of input
     // where the `do` should be (#1907): Luau's error there is the loop's.
     malformed ??= (boundedStoryEnd && this.current().loopHeaderEnd) || this.current().loopHeader ? "statement" : undefined;
+    // So is one at the `:` of a method access after a value Luau calls no
+    // method on (`while 1: do`, `readMethodColon`).
+    malformed ??= this.current().methodColon ? "expression" : undefined;
     const sparkdownOwned = this.sparkdownDepth > 0 && malformed !== "attribute";
     const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation" || malformed === "attribute"));
     if (malformed && !follows && !consequence && !sparkdownOwned && !atSparkdown && !this.atAbandonedCloser()) {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
     }
+    if (atSparkdown || (this.storeDepth > 0 && malformed !== "attribute")) error.sparkdown = true;
+    if (this.pastChunkEnd) error.pastChunkEnd = true;
     if (this.tokens[errorPos]?.unread) this.errorsAtUnread.add(this.errors.length);
     this.errors.push(error);
     if (this.errors.length >= ERROR_LIMIT) throw new FatalReadError(location, `Reached error limit (${ERROR_LIMIT})`);
@@ -1953,7 +2005,8 @@ class Parser {
       // indented as if it closed something else.
       const at = this.current().location.begin;
       const opened = begin.location.begin;
-      if (at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
+      // A unit's own opener (a flow's wrapper function) is no author's.
+      if (begin.from < begin.to && at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
         this.endMismatchSuspect = begin;
       }
       this.nextExpected();
@@ -2041,6 +2094,9 @@ class Parser {
     const result = this.parseBlock();
     while (this.current().kind !== "eof") {
       this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`);
+      // Not part of Luau, whose parser stops there: the rest is read on for
+      // Sparkdown's own use, and its errors are none of Luau's.
+      this.pastChunkEnd = true;
       this.next();
       const rest = this.parseBlock();
       appendAll(result.body, rest.body);
@@ -2285,6 +2341,7 @@ class Parser {
     const values: AstExpr[] = [];
     // Not part of Luau: a `store` declaration's errors are Sparkdown's own (see `report`).
     this.sparkdownDepth++;
+    this.storeDepth++;
     try {
       this.parseBindingList(names);
       if (this.is("=")) {
@@ -2294,6 +2351,7 @@ class Parser {
       }
     } finally {
       this.sparkdownDepth--;
+      this.storeDepth--;
     }
     const vars = names.map((b) => new AstExprGlobal(b.name.location, b.name.name));
     const end = values.length === 0 ? this.previousLocation() : values[values.length - 1]!.location;
@@ -3798,9 +3856,20 @@ class Parser {
   private parseNumber(): AstExpr {
     const token = this.current();
     this.next();
-    const value = numberValue(token.text);
-    if (value === undefined) return this.reportExprError(token.location, [], "Malformed number");
-    return new AstExprConstantNumber(token.location, value);
+    // Luau's lexer reads a number on through the letters, digits and `_`
+    // written right after it (`0xZ`, `123x`), as one malformed number,
+    // where the tree ends the number before them.
+    let text = token.text;
+    let last = token;
+    while ((this.current().kind === "name" || this.current().kind === "keyword" || this.current().kind === "number") && this.current().from === last.to) {
+      last = this.current();
+      text += last.text;
+      this.next();
+    }
+    const location = Location.span(token.location, last.location);
+    const value = numberValue(text);
+    if (value === undefined) return this.reportExprError(location, [], "Malformed number");
+    return new AstExprConstantNumber(location, value);
   }
 
   /** A quoted or long string's value, or undefined when an escape is malformed. */

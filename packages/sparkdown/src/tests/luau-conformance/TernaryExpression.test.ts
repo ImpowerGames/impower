@@ -77,9 +77,7 @@ function ifDiagnostics(source: string): string[] {
     });
 }
 
-// The official parser's "when parsing" errors, in `ifDiagnostics`'s form. Where
-// Sparkdown ends a statement at a column-0 line, the errors after the first
-// are Luau's recovery reading on into that line, so a row compares the first.
+// The official parser's "when parsing" errors, in `ifDiagnostics`'s form.
 function officialIfDiagnostics(source: string): string[] {
   return officialSyntaxErrors(source)
     .filter((e) => e.message.includes("when parsing"))
@@ -87,6 +85,27 @@ function officialIfDiagnostics(source: string): string[] {
       const { begin, end } = e.location;
       return `${begin.line + 1}:${begin.column + 1}-${end.line + 1}:${end.column + 1} ${e.message}`;
     });
+}
+
+/**
+ * The official parser's "when parsing" errors for the source's function
+ * `f`, read alone, in `ifDiagnostics`'s form and in the source's lines:
+ * every one, Luau's recovery's included, as Sparkdown reports every one in a
+ * function's Luau (I-1322). Sorted, as `sortedIfDiagnostics` sorts
+ * Sparkdown's.
+ */
+function officialFunctionIfDiagnostics(source: string): string[] {
+  const from = source.indexOf("function f(");
+  const to = source.indexOf("\nend\n", from) + "\nend\n".length;
+  const lines = source.slice(0, from).split("\n").length - 1;
+  return officialIfDiagnostics(source.slice(from, to))
+    .map((d) => d.replace(/^(\d+):(\d+)-(\d+):(\d+)/, (_m, l1, c1, l2, c2) => `${Number(l1) + lines}:${c1}-${Number(l2) + lines}:${c2}`))
+    .sort();
+}
+
+// Sparkdown's "when parsing" errors for a source, sorted.
+function sortedIfDiagnostics(source: string): string[] {
+  return ifDiagnostics(source).sort();
 }
 
 // How many reassignment statements a source parses into.
@@ -622,9 +641,9 @@ describe("if expression without an else", () => {
     const ctx = makeRuntimeStoryFromSource(
       `The door is open.\nSum {g()}.\nfunction f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nYou walk through it.\n`,
     );
-    expect(ctx.errorMessages.filter((m) => m.includes("when parsing"))).toEqual([
-      expect.stringContaining(message),
-    ]);
+    expect(ctx.errorMessages.filter((m) => m.includes("when parsing"))).toEqual(
+      expect.arrayContaining([expect.stringContaining(message)]),
+    );
     expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(
       "The door is open.\nSum 6.\nYou walk through it.\n",
@@ -654,9 +673,10 @@ describe("if expression without an else", () => {
     ["a then arm with only a cast","  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:5-4:9"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
-  ])("%s: reports it where it is missing and keeps what follows", (_name, partial, message, at) => {
+  ])("%s: reports Luau's errors and keeps what follows", (_name, partial, message) => {
     const source = `function f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nSum {g()}.\nYou walk through it.\n`;
-    expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
+    expect(ifDiagnostics(source)).toEqual(expect.arrayContaining([expect.stringContaining(message)]));
+    expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\nYou walk through it.\n");
@@ -682,10 +702,10 @@ describe("if expression without an else", () => {
     ["no else yet", "  local y = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
     ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
     ["a reassignment with no else yet", "  x = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
-  ])("%s, right before the function's end: keeps the next function", (_name, body, message, at) => {
+  ])("%s, right before the function's end: keeps the next function", (_name, body, message) => {
     const source = `function f()\n${body}end\nfunction g()\n  return 6\nend\nSum {g()}.\n`;
-    expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
-    if (message.startsWith(MISSING_ELSE)) expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source));
+    expect(ifDiagnostics(source)).toEqual(expect.arrayContaining([expect.stringContaining(message)]));
+    expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
   });
@@ -715,8 +735,8 @@ describe("if expression without an else", () => {
     ["a compound assignment", "+="],
   ])("in %s, followed by a statement at column 0", (_name, op) => {
     const source = `Value {f()}.\nfunction f()\n  local x = 0\n  x ${op} if true\n    then 1\nx = 6\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual([`6:1-6:2 ${MISSING_ELSE}, got 'x'`]);
-    expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source).slice(0, 1));
+    expect(ifDiagnostics(source)).toContain(`6:1-6:2 ${MISSING_ELSE}, got 'x'`);
+    expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
@@ -724,14 +744,19 @@ describe("if expression without an else", () => {
   // Each clause that can end the line of an unfinished if expression. An
   // empty then or else arm stops the call when it runs, with or without the
   // next line, so every row also counts the two reassignments in the tree.
+  // A `then` missing before the line at column 0 is Luau's error at that
+  // line's first token, which Luau's reading reads on into (I-1322); a
+  // missing arm value there is reported where it is missing, since
+  // Sparkdown ends the statement at the reassignment at column 0 (#1906).
   test.each([
-    ["no then yet", "  x = if true\n", `4:7-4:9 ${MISSING_THEN}`, "Value 6.\n"],
+    ["no then yet", "  x = if true\n", "luau", "Value 6.\n"],
     ["then ending the line", "  x = if true then\n", `4:15-4:19 ${MISSING_CONDITION}`, null],
     ["else ending the line", "  x = if false then 1 else\n", `4:23-4:27 ${MISSING_CONDITION}`, null],
-    ["no then after elseif", "  x = if false then 1\n    elseif true\n", `5:5-5:11 ${MISSING_THEN}`, "Value 6.\n"],
+    ["no then after elseif", "  x = if false then 1\n    elseif true\n", "luau", "Value 6.\n"],
   ])("in a reassignment with %s, followed by a reassignment at column 0", (_name, partial, diagnostic, value) => {
     const source = `Value {f()}.\nfunction f()\n  local x = 0\n${partial}x = 6\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual([diagnostic]);
+    if (diagnostic === "luau") expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
+    else expect(ifDiagnostics(source)).toEqual([diagnostic]);
     expect(reassignmentCount(source)).toBe(2);
     if (value !== null) {
       const ctx = makeRuntimeStoryFromSource(source);
@@ -749,8 +774,8 @@ describe("if expression without an else", () => {
     ["a for loop", "for i = 6, 6 do x = i end"],
   ])("in a reassignment, followed by %s at column 0", (_name, next) => {
     const source = `Value {f()}.\nlocal x = 0\nfunction set(v)\n  x = v\nend\nfunction f()\n  x = if true\n    then 1\n${next}\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual([expect.stringMatching(/^9:1-9:\d+ Expected 'else' when parsing if then else expression, got '/)]);
-    expect(ifDiagnostics(source)).toEqual(officialIfDiagnostics(source).slice(0, 1));
+    expect(ifDiagnostics(source)).toEqual(expect.arrayContaining([expect.stringMatching(/^9:1-9:\d+ Expected 'else' when parsing if then else expression, got '/)]));
+    expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });

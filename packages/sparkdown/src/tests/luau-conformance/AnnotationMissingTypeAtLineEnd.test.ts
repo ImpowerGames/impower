@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { diagnoseFilesDetailed } from "./diagnosticTestHarness";
-import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { checkLuau, describeDiagnostic, expectLuauSyntax } from "./typecheckTestHarness";
 
 // A type annotation `:` with nothing after it on its line takes its type from
 // the next line, so a next line that starts a statement, closes a block or
@@ -26,7 +26,7 @@ describe("a type annotation left empty at the end of its line", () => {
     ["type function F(t):\n  return t\nend\n", "0:19-1:0 SyntaxError: Expected type, got 'return'"],
     ["type function F(t): = nil end\n", "0:19-0:21 SyntaxError: Expected type, got '='"],
   ])("%j reports the missing type", (source, message) => {
-    expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
+    expectLuauSyntax(source, [message]);
   });
 
   // Every error a script's compile reports, with its range.
@@ -51,6 +51,8 @@ describe("a type annotation left empty at the end of its line", () => {
     expect(errorsIn("snippet.luau", { "snippet.luau": "function g():\n" })).toEqual([
       "0:0-0:13 This function is missing its closing `end` keyword. Without it, the lines below it are read as part of this function, up to the next `scene`, `branch` or the end of the file.",
       "0:13-1:0 Expected type, got <eof>",
+      // Luau's own error for the function left open (I-1322).
+      "1:0-1:0 Expected 'end' (to close 'function' at line 1), got <eof>",
     ]);
   });
 

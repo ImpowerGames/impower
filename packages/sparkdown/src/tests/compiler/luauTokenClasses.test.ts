@@ -173,13 +173,25 @@ describe("closers close blocks and nothing else", () => {
     for (const source of [
       "function f()\n  until true\nend\n",
       "function f()\n  else\nend\n",
-      "function f()\n  do\n    until true\n  end\nend\n",
-      "function f(a)\n  while a do\n    else\n  end\nend\n",
-      "function f(a)\n  if a then\n    until true\n  end\nend\n",
       "function f()\n  local g = function()\n    until true\n  end\nend\n",
     ]) {
       expect(officialErrors(source), source).toHaveLength(1);
       expect(errorsOf(source), source).toEqual(officialErrors(source));
+    }
+  });
+
+  // A block closes before the closer it does not own, so the `end` written
+  // for the block is the function's, and the function's own `end` closes
+  // nothing: Sparkdown reports it (#774), past the first error, where Luau's
+  // parser has stopped.
+  test("a closer in a block leaves the function's own `end` at the top level", () => {
+    for (const source of [
+      "function f()\n  do\n    until true\n  end\nend\n",
+      "function f(a)\n  while a do\n    else\n  end\nend\n",
+      "function f(a)\n  if a then\n    until true\n  end\nend\n",
+    ]) {
+      expect(officialErrors(source), source).toHaveLength(1);
+      expect([...errorsOf(source)].sort(), source).toEqual([...officialErrors(source), "4:0-4:3 Expected <eof>, got 'end'"].sort());
     }
   });
 });
