@@ -47,6 +47,7 @@ import {
   type AstNode,
 } from "../../typecheck/Ast";
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
+import { withMessageLines } from "../../typecheck/messageLines";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
@@ -56,6 +57,7 @@ import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
+  documentText,
   enclosingNode,
   nodeAfterAttributes,
   offsetAt,
@@ -146,7 +148,11 @@ export function reportBodySyntaxErrors(
 /**
  * Reports syntax errors of a reading no other reader reports, those from
  * `from` on, each once, leaving out an error already reported at the same
- * place.
+ * place. A line a message names (`at line N`, of the document the reading
+ * read) is counted from the chunk's first line, as the error's range is,
+ * and the compile names the document's line again where it emits the
+ * chunk (`messageLinesInChunk`), so a chunk carried to another line names
+ * the lines it stands on.
  */
 export function reportSyntaxErrors(
   errors: readonly LuauSyntaxError[],
@@ -159,8 +165,16 @@ export function reportSyntaxErrors(
     diagnostics.map((d) => `${d.source?.startLineNumber}:${d.source?.startCharacterNumber} ${d.message}`),
   );
   for (const error of errors) {
-    const { from, to } = rangeOf(error.location, ctx);
+    const range = rangeOf(error.location, ctx);
+    const from = range.from;
     if (from < bodyFrom) continue;
+    // A missing type's range ends with the line it is missing from, as the
+    // type checker ranges one (`rangeEnd` in `SparkdownTypechecker.ts`).
+    let to = range.to;
+    if (error.message.startsWith("Expected type") && error.location.end.line > error.location.begin.line && (error.location.end.line > error.location.begin.line + 1 || error.location.end.column > 0)) {
+      const lineBreak = documentText(ctx).indexOf("\n", from);
+      if (lineBreak >= 0) to = lineBreak + 1;
+    }
     const source = {
       fileName: null,
       filePath: ctx.filePath ?? null,
@@ -169,10 +183,22 @@ export function reportSyntaxErrors(
       startCharacterNumber: ctx.characterNumber(from) + 1,
       endCharacterNumber: ctx.characterNumber(to) + 1,
     };
-    const key = `${source.startLineNumber}:${source.startCharacterNumber} ${error.message}`;
+    // The document's line the chunk begins on.
+    const chunkLine = error.location.begin.line - ctx.lineNumber(from);
+    let namesLine = false;
+    const message = withMessageLines(error.message, (line) => {
+      namesLine = true;
+      return line - chunkLine;
+    });
+    const key = `${source.startLineNumber}:${source.startCharacterNumber} ${message}`;
     if (reported.has(key)) continue;
     reported.add(key);
-    diagnostics.push({ message: error.message, severity: ErrorType.Error, source });
+    diagnostics.push({
+      message,
+      severity: ErrorType.Error,
+      source,
+      ...(namesLine ? { messageLinesInChunk: true as const } : {}),
+    });
   }
 }
 
