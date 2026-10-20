@@ -176,6 +176,27 @@ describe("a script other than main", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["The intro 6 4.\n", "More.\n"]);
   });
 
+  it("declares with a store, const or function marked with &, and reports a & statement that runs", () => {
+    const program = compileProject({
+      [MAIN]: lines("Gold {gold} {twice(LIMIT)}."),
+      [LIB]: lines(
+        "& store gold = 4",
+        "& const LIMIT = 3",
+        "& function twice(n) return n * 2 end",
+        "& gold = 5",
+        "& print(gold)",
+        "& local copper = 1",
+      ),
+    });
+    expect(reported(program, OUTSIDE_SCENE)).toEqual([
+      [LIB, 3],
+      [LIB, 4],
+      [LIB, 5],
+    ]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Gold 4 6.\n"]);
+  });
+
   it("reports a top-level local function, and not a function whose body declares a local", () => {
     const program = compileProject({
       [MAIN]: lines("Main {twice(2)}."),
@@ -257,6 +278,28 @@ describe("declaration order", () => {
       expect(message).toContain("main.sd");
       expect(message).toContain("scripts/ui.sd");
     }
+    // The first declaration stands in the reactive tree and the static
+    // definition alike.
+    expect(JSON.stringify(program.sparkle?.layouts?.["hud"])).toContain("Main");
+    expect(JSON.stringify(program.sparkle?.layouts?.["hud"])).not.toContain("UI");
+    expect(JSON.stringify(program.context?.["layout"]?.["hud"])).toContain("Main");
+    expect(JSON.stringify(program.context?.["layout"]?.["hud"])).not.toContain("UI");
+  });
+
+  it("reports a component declared in two scripts, and keeps the first in both its definitions", () => {
+    const UI = `${ROOT}scripts/ui.sd`;
+    const program = compileProject({
+      [MAIN]: lines("component badge with", '  text "Main"', "end", "Main."),
+      [UI]: lines("component badge with", '  text "UI"', "end"),
+    });
+    expect(reported(program, `Component \`badge\` is declared in main.sd and in scripts/ui.sd. Declare it in one script.`)).toEqual([
+      [MAIN, 0],
+      [UI, 0],
+    ]);
+    expect(JSON.stringify(program.sparkle?.components?.["badge"])).toContain("Main");
+    expect(JSON.stringify(program.sparkle?.components?.["badge"])).not.toContain("UI");
+    expect(JSON.stringify(program.context?.["component"]?.["badge"])).toContain("Main");
+    expect(JSON.stringify(program.context?.["component"]?.["badge"])).not.toContain("UI");
   });
 
   it("keeps a layout declared twice in one script as the later declaration, with no report", () => {

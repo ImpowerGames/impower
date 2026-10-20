@@ -37,6 +37,10 @@ const VARIABLES = nodeNameSet([
   "LuauSparkdownVariableDefinition",
 ]);
 
+// A statement marked with `&`, which declares when the statement it marks
+// does.
+const EXPLICIT = nodeNameSet(["LuauSparkdownExplicitStatement"]);
+
 // The flows: a scene, and a branch, which runs to its `end` as a scene does.
 const FLOWS = nodeNameSet(["Scene", "Branch"]);
 
@@ -83,6 +87,13 @@ const declares = (
   if (DECLARATIONS.has(node.name)) {
     return true;
   }
+  if (EXPLICIT.has(node.name)) {
+    // `& store x = 1`, `& const x = 1` and `& function f() end` declare as
+    // the statements they mark do; `& x = 1` and `& f()` run.
+    const content = childEndingWith(node, "_content");
+    const marked = content && childEndingWith(content, "");
+    return !!marked && declares(marked, read);
+  }
   if (FUNCTIONS.has(node.name)) {
     return scopeOf(node, read) !== "local";
   }
@@ -91,6 +102,20 @@ const declares = (
     return scope === "store" || scope === "const";
   }
   return false;
+};
+
+/** The first child of `node` whose name ends with `suffix`, other than the
+ *  whitespace the grammar gives a node of its own. */
+const childEndingWith = (
+  node: SyntaxNode,
+  suffix: string,
+): SyntaxNode | undefined => {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name.endsWith(suffix) && !child.name.endsWith("Whitespace")) {
+      return child;
+    }
+  }
+  return undefined;
 };
 
 /** The scope a variable or function definition is written with (`local`,

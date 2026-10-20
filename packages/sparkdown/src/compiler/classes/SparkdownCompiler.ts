@@ -3181,8 +3181,13 @@ export class SparkdownCompiler {
         // Record this chunk's pre-built structs for `buildContext`, which
         // applies them over the builtins in walk order. Keeping the merge out
         // of the walk is what lets the assembled result be reused by a compile
-        // whose contributing chunks are the same objects (#654).
-        this._contextContributions?.push(context);
+        // whose contributing chunks are the same objects (#654). A layout or
+        // component another script declared first contributes nothing, as
+        // its reactive tree below contributes nothing, so the static and
+        // the reactive definitions are the first script's alike.
+        if (!sparkleCollides) {
+          this._contextContributions?.push(context);
+        }
         this._contextKeyIds?.push(compiledBlock);
       }
       if (sparkle && !this._injectingPrelude) {
