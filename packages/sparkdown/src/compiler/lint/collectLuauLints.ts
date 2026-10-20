@@ -84,6 +84,7 @@ import {
   type AstNode,
 } from "../typecheck/Ast";
 import { doesCallError } from "../typecheck/DataFlowGraph";
+import { decodeBytes } from "../typecheck/Linter";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
@@ -1538,7 +1539,9 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 // walks into types, `typeof(...)` included, as Luau's does. A key in
 // parentheses (`[(1)]`) is not a literal key, nor a fractional, negative or
 // larger than 32-bit one. A table or table type holding a syntax error is
-// left alone, since recovery can read items the author did not write.
+// left alone, since recovery can read items the author did not write. A
+// string key is held as one character per UTF-8 byte (`readLuauAst.ts`), so
+// it is compared as read and decoded for the message; a name is ASCII.
 function lintTableLiterals(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
   const line = (location: Location) => offsets.line(location.begin) + 1;
   visitAst(root, {
@@ -1551,7 +1554,7 @@ function lintTableLiterals(root: AstNode, offsets: Offsets, out: LuauLint[], err
         for (const { key } of node.items) {
           if (key instanceof AstExprConstantString) {
             const previous = names.get(key.value);
-            if (previous) out.push({ code: "TableLiteral", ...offsets.range(key.location), message: `Table field '${key.value}' is a duplicate; previously defined at line ${previous}` });
+            if (previous) out.push({ code: "TableLiteral", ...offsets.range(key.location), message: `Table field '${decodeBytes(key.value)}' is a duplicate; previously defined at line ${previous}` });
             else names.set(key.value, line(key.location));
           } else if (key instanceof AstExprConstantNumber && Number.isInteger(key.value)) {
             if (key.value >= 1 && key.value <= count) {
@@ -1576,10 +1579,10 @@ function lintTableLiterals(root: AstNode, offsets: Offsets, out: LuauLint[], err
             continue;
           }
           const at = line(previous.location);
-          if (previous.access === prop.access) out.push({ code: "TableLiteral", ...offsets.range(prop.location), message: `Table type field '${prop.name}' is a duplicate; previously defined at line ${at}` });
-          else if (previous.access === AstTableAccess.ReadWrite) out.push({ code: "TableLiteral", ...offsets.range(prop.location), message: `Table type field '${prop.name}' is already read-write; previously defined at line ${at}` });
+          if (previous.access === prop.access) out.push({ code: "TableLiteral", ...offsets.range(prop.location), message: `Table type field '${decodeBytes(prop.name)}' is a duplicate; previously defined at line ${at}` });
+          else if (previous.access === AstTableAccess.ReadWrite) out.push({ code: "TableLiteral", ...offsets.range(prop.location), message: `Table type field '${decodeBytes(prop.name)}' is already read-write; previously defined at line ${at}` });
           // Luau reports these two at the earlier property.
-          else out.push({ code: "TableLiteral", ...offsets.range(previous.location), message: `Table type field '${prop.name}' already has a ${previous.access === AstTableAccess.Read ? "read" : "write"} type defined at line ${at}` });
+          else out.push({ code: "TableLiteral", ...offsets.range(previous.location), message: `Table type field '${decodeBytes(prop.name)}' already has a ${previous.access === AstTableAccess.Read ? "read" : "write"} type defined at line ${at}` });
         }
       }
       return true;

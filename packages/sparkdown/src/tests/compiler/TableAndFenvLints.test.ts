@@ -65,6 +65,13 @@ describe("TableLiteral", () => {
     ]);
   });
 
+  test("a key outside ASCII is named as written", () => {
+    expect(inFunction(" local t = {['café'] = 1, ['café'] = 2}\n local _x: {['日本']: number, ['日本']: string}\n return t")).toEqual([
+      "Table field 'café' is a duplicate; previously defined at line 3",
+      "Table type field '日本' is a duplicate; previously defined at line 4",
+    ]);
+  });
+
   test("a table holding a syntax error is left alone", () => {
     expect(inFunction(" local t = {a = 1 a = 2}\n return t")).toEqual([]);
   });

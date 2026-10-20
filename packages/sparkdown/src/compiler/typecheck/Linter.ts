@@ -36,8 +36,8 @@ const HOT_COMMENTS = ["nolint", "nocheck", "nonstrict", "strict", "optimize", "n
 
 const utf8Decoder = new TextDecoder();
 
-/** Text held as one character per UTF-8 byte, as a hot comment's is, decoded for a message. */
-function decodeBytes(bytes: string): string {
+/** Text held as one character per UTF-8 byte, as a hot comment's or a string literal's is, decoded for a message. */
+export function decodeBytes(bytes: string): string {
   return utf8Decoder.decode(Uint8Array.from(bytes, (c) => c.charCodeAt(0)));
 }
 
