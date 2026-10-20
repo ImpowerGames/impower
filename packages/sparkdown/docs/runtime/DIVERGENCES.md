@@ -702,10 +702,12 @@ Literal-level diagnostics match Luau's wording exactly:
 | `"\xFO"`, `"\u{}"`, `"\359"` | String literal contains malformed escape sequence |
 | `` `\xQQ {1}` `` | Interpolated string literal contains malformed escape sequence |
 | `"abc` (no closing quote, or a newline before it) | Malformed string; did you forget to finish it? |
+| `` `a {b} c `` (a backtick string's last section unfinished on its line) | Malformed interpolated string; did you forget to add a '`'? |
+| `` `a {b`) `` (a string its line ends inside, after an interpolation's expression) | Malformed interpolated string; did you forget to add a '}'? |
 | `123x`, `0b123`, `0xg`, `1..2` | Malformed number |
 | `--[[unfinished` | Expected identifier when parsing expression, got unfinished comment |
 
-Luau's lexer fails these as `BrokenString` / `BrokenComment` / a number that does not convert; a TextMate grammar cannot fail a token, so the [`ValidationAnnotator`](src/compiler/classes/annotators/ValidationAnnotator.ts) recognizes the shapes instead: a string or block-comment node with no closing part, an escape node whose digits are missing or out of range, a number whose next character is a letter, digit, `_` or `.` (the grammar reads `123x` as the number `123` followed by `x`, and the string `"abc` with no closing quote as running to the next `"` or the end of the file, so the diagnostic is what tells the author). The number check applies wherever a Luau number appears, which includes `define` and `config` field values (`version = 1.0.0` is malformed there, as it is in Luau); `style` and `theme` values are unit values rather than Luau numbers, and the inline text command's control argument is excluded, so `8px`, `1rem` and `<1.5x:...>` are not flagged.
+Luau's lexer fails these as `BrokenString` / `BrokenComment` / a number that does not convert; a TextMate grammar cannot fail a token, so the [`ValidationAnnotator`](src/compiler/classes/annotators/ValidationAnnotator.ts) recognizes the shapes instead: a string node that ends at its line with no closing quote, a block-comment node with no closing part, an escape node whose digits are missing or out of range, a number whose next character is a letter, digit, `_` or `.` (the grammar reads `123x` as the number `123` followed by `x`, so the diagnostic is what tells the author). A string with no closing quote ends at its line, as Luau's lexer ends it, so the function around it keeps its `end` and the lines after it are read as written (I-1318). The number check applies wherever a Luau number appears, which includes `define` and `config` field values (`version = 1.0.0` is malformed there, as it is in Luau); `style` and `theme` values are unit values rather than Luau numbers, and the inline text command's control argument is excluded, so `8px`, `1rem` and `<1.5x:...>` are not flagged.
 
 These literal cases are deliberately different:
 
@@ -750,6 +752,18 @@ A write keeps its `@`:
 - Any other unspaced target (`@my target: text`) begins a Luau line, so write it spaced: `@ my target: text`.
 
 `@` elsewhere in a story line (`Mail me @ home`) stays story.
+
+### A long comment of level nine or more may end early where no value has begun
+
+A Luau comment is trivia wherever it stands (I-1321), including where no value or type has begun:
+- between `local`, `store` or `const` and `function`;
+- between `=` and the value;
+- after a type's `->`, `:` or `=`;
+- after a block's closing `end` on the same line.
+
+At three of these positions (before `function`, after `=` and after `end`), a long comment (`--[==[ ... ]==]`) closes at its own level only up to level eight. A comment of level nine or more there ends at the first close of nine or more `=` in its text. So a comment of level nine or more whose text holds the close of a different level of nine or more ends early, as in `local --[=========[a]==========]b]=========] function k()`. Its remaining text is then read as code or story: the function is not declared, the rest of the comment shows as a story line, or the value after `=` is read as a new statement. Luau reads the whole comment. After a type's `->`, `:` or `=`, every level closes at its own.
+
+The reason is the grammar engine. textmate-grammar-tree places each capture after the summed lengths of all the groups before it, so a nested backreference group cannot tie a comment's close to its opening level without moving the captures after it. A block's `end` pattern also reads a backreference as its begin's capture, in VS Code too. The repair, an engine change and a scoped rule for a block's trailing comments, is I-1362. To avoid the case, write such a comment with a level of eight or less, or put it on its own line.
 
 ### Regex literals: `@/pattern/flags`
 

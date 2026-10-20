@@ -7,12 +7,18 @@ import {
 } from "../morph/collectMorphDiagnostics";
 import {
   collectLuauLints,
+  duplicateGlobalMemberMessage,
   indexProgramNames,
   lintBuiltinGlobalWrites,
+  lintDuplicateGlobalMembers,
+  lintGlobalShadows,
+  lintGlobalsUsedAsLocals,
+  lintUnusedGlobalFunctions,
   type LuauLint,
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
+import { isLuauFile } from "../typecheck/LuauUnitNodes";
 import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
@@ -67,13 +73,13 @@ import { createProgramTable, reseedProgramTable, type ProgramTable } from "../..
 import { type SceneAssetCapture, type SceneAssets } from "../types/SceneAssets";
 import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, type MarkupContent, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, DiagnosticTag, type MarkupContent, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
 import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
-import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
+import { getBuiltinTypeNames, setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
@@ -257,6 +263,21 @@ function getCompiledPrelude(): {
   return _cachedPrelude;
 }
 
+/** A script's path as a message names it: relative to the main script's
+ *  folder, as an `include` line names it, or else its whole URI. */
+function displayScriptPath(scriptUri: string, mainUri: string): string {
+  try {
+    const script = new URL(scriptUri);
+    const root = new URL("./", mainUri);
+    if (script.protocol === root.protocol && script.host === root.host && script.pathname.startsWith(root.pathname)) {
+      return decodeURIComponent(script.pathname.slice(root.pathname.length));
+    }
+  } catch {
+    // An unparsable URI is named whole.
+  }
+  return scriptUri;
+}
+
 let _preludeGlobalNames: Set<string> | undefined;
 /** The bare global names the seeded prelude creates at runtime: the type
  *  roots (`config`, `game`, `color`, `world`, …). An unseeded compile declares
@@ -295,6 +316,12 @@ function getPreludeGlobalNames(): Set<string> {
   }
   _preludeGlobalNames = declaredGlobalNames(root);
   return _preludeGlobalNames;
+}
+
+/** The names the program-wide Luau lints treat as built-in besides the
+ *  standard library's: the builtins prelude's globals and type names. */
+export function lintBuiltinNames(): Set<string> {
+  return new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
 }
 
 /** The names of the globals `root`'s declaration chunks declare, without the
@@ -5574,22 +5601,22 @@ export class SparkdownCompiler {
   }
 
   /** Luau lints (unused locals, unreachable code, repeated conditions,
-   *  suspicious numeric `for` ranges, reads of the placeholder `_`); see
+   *  suspicious numeric `for` ranges, reads of the placeholder `_`, locals
+   *  hiding another variable, functions nothing uses, locals read without a
+   *  value, value lists that do not match their names, functions defined
+   *  twice, names declared twice in one list); see
    *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
-    const scripts: { uri: string; names: LuauScriptLints["names"] }[] = [];
+    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "mentionsUnplacedVariable" | "misreadStatements" | "topLevelMembers">)[] = [];
+    // Each script's lints, its own and the program-wide rules', reported in
+    // source order as Luau sorts its warnings.
+    const lints = new Map<string, LuauLint[]>();
     const report = (scriptUri: string, lint: LuauLint) => {
-      const doc = this.documents.get(scriptUri);
-      if (!doc) return;
-      ((program.diagnostics ??= {})[scriptUri] ??= []).push({
-        range: doc.range(lint.from, lint.to),
-        code: lint.code,
-        severity: DiagnosticSeverity.Warning,
-        message: { kind: "markdown", value: lint.message },
-        source: LANGUAGE_NAME,
-      });
+      let list = lints.get(scriptUri);
+      if (!list) lints.set(scriptUri, (list = []));
+      list.push(lint);
     };
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
@@ -5600,12 +5627,59 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
-      scripts.push({ uri: scriptUri, names: script.names });
+      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, mentionsUnplacedVariable: script.mentionsUnplacedVariable, misreadStatements: script.misreadStatements, topLevelMembers: script.topLevelMembers });
       for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);
-    // Program-wide rules rerun on every compile over the cached facts.
-    for (const { uri: scriptUri, lint } of lintBuiltinGlobalWrites(names)) report(scriptUri, lint);
+    // Program-wide rules rerun on every compile over the cached facts. The
+    // prelude's own compile, which seeds the prelude's globals, has none (its
+    // script's version is 0, so presence is tested, not the version).
+    if (!(BUILTINS_PRELUDE_URI in program.scripts)) {
+      const builtins = lintBuiltinNames();
+      for (const { uri: scriptUri, lint } of lintBuiltinGlobalWrites(names)) report(scriptUri, lint);
+      for (const { uri: scriptUri, lint } of lintUnusedGlobalFunctions(names, scripts, builtins)) report(scriptUri, lint);
+      const duplicates = lintDuplicateGlobalMembers(names, scripts, (name, original) =>
+        duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri)),
+      );
+      for (const { uri: scriptUri, lint } of duplicates) report(scriptUri, lint);
+      if (scripts.some((script) => script.globalShadows.length)) {
+        const shadows = lintGlobalShadows(names, scripts, builtins, (name, reference, own) => {
+          const line = (this.documents.get(reference.uri)?.positionAt(reference.from).line ?? 0) + 1;
+          return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri)}'`}`;
+        });
+        for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
+      }
+      // The pass reads a `.luau` file as a `.sd` script, whose lines outside
+      // a function are narrative, so any mention of a name there may use it.
+      const usesSeen = scripts.map((script) => {
+        if (!isLuauFile(script.uri)) return script;
+        const text = this.documents.get(script.uri)?.getText() ?? "";
+        return { ...script, mentionsUnplacedVariable: (name: string) => new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(text) };
+      });
+      const locals = lintGlobalsUsedAsLocals(names, usesSeen, builtins, (scriptUri, offset) => (this.documents.get(scriptUri)?.positionAt(offset).line ?? 0) + 1);
+      for (const { uri: scriptUri, lint } of locals) report(scriptUri, lint);
+    }
+    for (const [scriptUri, list] of lints) {
+      const doc = this.documents.get(scriptUri);
+      if (!doc) continue;
+      list.sort((a, b) => a.from - b.from || a.to - b.to);
+      for (const lint of list) {
+        // A deprecation is Information tagged Deprecated, as the compiler
+        // reports `table.getn` (`validateStdLibDeprecation`).
+        const deprecated = lint.code === "DeprecatedApi";
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range: doc.range(lint.from, lint.to),
+          code: lint.code,
+          severity: deprecated ? DiagnosticSeverity.Information : DiagnosticSeverity.Warning,
+          ...(deprecated ? { tags: [DiagnosticTag.Deprecated] } : {}),
+          // TableLiteral quotes the author's own text, a table's string key,
+          // which markdown would read as markup (`'<b>*x*</b>'`); the other
+          // rules quote only names.
+          message: { kind: lint.code === "TableLiteral" ? "plaintext" : "markdown", value: lint.message },
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
     profile("end", this._profilerId, "validateLints", uri);
     return names;
   }

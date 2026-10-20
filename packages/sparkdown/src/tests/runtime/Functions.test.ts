@@ -32,7 +32,8 @@ describe("Functions — clean-compile invariants", () => {
     // The function's `x` parameter has the same name as a labeled
     // gather inside an unrelated knot. Different scopes — no conflict.
     // Sparkdown rewrite uses `label x` for the gather and `function
-    // f(x) end` for the function. Compile should be clean.
+    // _f(x) end` for the function, which nothing calls (the `_` keeps
+    // FunctionUnused quiet). Compile should be clean.
     const ctx = makeRuntimeStoryFromFile(
       "functions",
       "argument-shouldnt-conflict-with-gather",

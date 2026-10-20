@@ -218,8 +218,9 @@ sparkdown [0..204]
  │       ├─ LuauSparkdownConditionalAlternatorBlock_end_c1 [194..196]
  │       │   └─ LuauSparkdownConditionalAlternatorBlock_end_c1 [194..196]
  │       │       └─ OptionalWhitespace [194..196]: "  "
- │       └─ LuauSparkdownConditionalAlternatorBlock_end_c2 [196..199]
- │           └─ LuauEndKeyword [196..199]: "end"
+ │       ├─ LuauSparkdownConditionalAlternatorBlock_end_c2 [196..199]
+ │       │   └─ LuauEndKeyword [196..199]: "end"
+ │       └─ LuauSparkdownConditionalAlternatorBlock_end_c3 199
  ├─ Newline [199..200]: "\n"
  ├─ LuauEndKeyword [200..203]: "end"
  └─ Newline [203..204]: "\n"

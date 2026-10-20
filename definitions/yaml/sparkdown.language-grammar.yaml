@@ -89,6 +89,40 @@ variables:
   LUAU_BRANCH_OR_UNTIL: (?:(?:else|elseif|until){{LUAU_NAME_END}})
   LUAU_UNTIL: (?:until{{LUAU_NAME_END}})
   LUAU_END_OR_BRANCH: (?:(?:end|else|elseif){{LUAU_NAME_END}})
+  # What may stand between a method's `:` and its name on the `:`'s line:
+  # spaces and block comments, as Luau reads trivia there.
+  LUAU_METHOD_TRIVIA: (?:{{WS}}*{{LUAU_BLOCK_COMMENT_ON_LINE}}*)
+  # A `:` that `do` or `then` follows on its line, with no name between
+  # (`while t: do`, `local b = a:  then`), where an access path ends. Either
+  # keyword may end a header, so the rule around the path decides, as no
+  # part of the path can: a loop's condition reads the `:` alone before its
+  # `do` (`LuauLoopHeaderMethodColon`), and an `if`'s before its `then`
+  # (`LuauIfHeaderMethodColon`), each ending at its keyword as it would with
+  # the name in place. An expression reads the keyword as the method's name
+  # (`LuauExpressionKeywordMethodAccessor`), as it does the other header's
+  # keyword in a condition (`if t:do() then`). The path's end is tried
+  # before its parts, so its own keyword accessor never meets these two.
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which is no method's `:`; the variable is read only inside the `end:` lookaheads of the path and of an operation (GRAMMAR.md §10.1, the end carrying the load).
+  LUAU_COLON_BEFORE_HEADER_END: (?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})
+  # A bracket also ends before a bracket closer it did not open, as Luau's
+  # expression parser stops at it and reports the bracket left open
+  # (`{ f(1 }` closes the call before the `}`, which the table takes):
+  # each of these is the four closers with the two bracket closers a
+  # bracket of that kind does not own. A type's bracket ends before a
+  # generic's `>` too (`Array<(number>`), which never stands alone in a
+  # type but as a generic's closer, and `>>`, which closes an explicit
+  # instantiation (`f<<(number>>()`), begins with one. A block never ends
+  # at a bracket closer: Luau's block parser reads one as a statement's
+  # error, so the block goes on to its own closer.
+  LUAU_NOT_PARENTHESIS_CLOSER: (?:{{LUAU_CLOSER}}|[\]}])
+  LUAU_NOT_SQUARE_BRACKET_CLOSER: (?:{{LUAU_CLOSER}}|[)}])
+  LUAU_NOT_BRACE_CLOSER: (?:{{LUAU_CLOSER}}|[)\]])
+  LUAU_NOT_TYPE_PARENTHESIS_CLOSER: (?:[\]}]|{{LUAU_TYPE_GENERIC_CLOSER}})
+  LUAU_NOT_TYPE_SQUARE_BRACKET_CLOSER: (?:[)}]|{{LUAU_TYPE_GENERIC_CLOSER}})
+  LUAU_NOT_TYPE_BRACE_CLOSER: (?:[)\]]|{{LUAU_TYPE_GENERIC_CLOSER}})
+  LUAU_NOT_TYPE_GENERIC_CLOSER: (?:[)\]}])
+  # lookaround: `LUAU_TYPE_BINARY_OPERATORS` reads a function type's `->` whole, so a `>` right after a `-` is the arrow's, never a generic's closer.
+  LUAU_TYPE_GENERIC_CLOSER: (?:(?<![-])[>])
   # A keyword that may be written right after an operand with no space
   # between them (`a == (1)then`, `n = (n + 1)until n > 2`,
   # `do local y = (1)end`), before which an operation, an assignment or a
@@ -567,8 +601,10 @@ variables:
   # An `=` that ends its line keeps its `LuauAssignmentOperation` open
   # across the line break (`LuauAssignmentLineBreak`, #1247), so the
   # reassignment sees no line end there; it ends at the line end only when
-  # the operation has closed.
-  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|{{LUAU_COLUMN_0_LINE_START}}"
+  # the operation has closed. It ends before a bracket closer, which a
+  # bracket in it that did not open the closer ends before (I-1318), as it
+  # ends before a `;`.
+  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[)\\]}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|{{LUAU_COLUMN_0_LINE_START}}"
   # Right after an assignment's operator, where the operator's capture of
   # the whitespace after it leaves the position: the only place inside a
   # `LuauAssignmentOperation` with an `=` behind it, since the operation
@@ -1057,9 +1093,54 @@ variables:
   # Neither `\r` nor `\n` is string content: a Windows line ending is the
   # line's end, so a string still open there does not close on its line.
   LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
-  LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"(?:\\.|[^"\\\r\n])*")
-  LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'(?:\\.|[^'\\\r\n])*')
-  LUAU_BACKTICK_STRING_ON_LINE: (?:`(?:\\.|[^`\\\r\n])*`)
+  LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}")
+  LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')
+  LUAU_BACKTICK_STRING_ON_LINE: (?:`{{LUAU_BACKTICK_STRING_TEXT}}`)
+  LUAU_DOUBLE_QUOTED_STRING_TEXT: (?:(?:\\.|[^"\\\r\n])*)
+  LUAU_SINGLE_QUOTED_STRING_TEXT: (?:(?:\\.|[^'\\\r\n])*)
+  LUAU_BACKTICK_STRING_TEXT: (?:(?:\\.|[^`\\\r\n])*)
+  # A quoted string of any kind that its line ends inside, which Luau's
+  # lexer reads as a string it could not finish (I-1318). A `\` or a `\z`
+  # with only whitespace after it that ends the line carries the string on
+  # (`LuauEscapeLine`, `LuauEscapeSkipWhitespace`), so its text is no text
+  # that ends on the line, and a backtick string whose interpolation is still
+  # open at the line's end is not one either: its expression may go on over
+  # the next lines, as in Luau, so its text is read only up to an
+  # interpolation that does not close on the line, and a closed one is part
+  # of it. These are not the `_STRING_TEXT` bodies above, which a header's
+  # lookbehind holds and so take no lookahead.
+  LUAU_UNFINISHED_LINE_STRING: (?:(?:"{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}|'{{LUAU_UNFINISHED_SINGLE_QUOTED_TEXT}}|`{{LUAU_UNFINISHED_BACKTICK_TEXT}})$)
+  LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^"\\\r\n])*)
+  LUAU_UNFINISHED_SINGLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^'\\\r\n])*)
+  LUAU_UNFINISHED_BACKTICK_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|{{LUAU_CLOSED_INTERPOLATION_ON_LINE}}|[^`{\\\r\n])*)
+  # An interpolation that closes on its line, with no long bracket or
+  # comment in it: the `}` of one (`{[[}`, `{--[[}`) is no closer, and its
+  # text may go on over the next lines. A string that closes on the line
+  # is read whole, so a `}` or a backtick inside it is its text
+  # (`` `a {"}"} b` ``, `` `a {`b {c}`} d` ``); a backtick string inside is
+  # read as `LUAU_BACKTICK_STRING_ON_LINE` reads one, up to its next
+  # backtick, and a quote that does not close on the line leaves the
+  # interpolation open.
+  LUAU_CLOSED_INTERPOLATION_ON_LINE: (?:[{]{{LUAU_INTERPOLATION_TEXT_ON_LINE}}*[}])
+  #
+  # lookaround: `LuauMultilineString` and `LuauComment` own a `[[`, `[=` or
+  # `--` in an interpolation, whose `}` is their text. The test lives in the
+  # end of the interpolation (`LuauBacktickStringInterpolation`) because that
+  # end decides, at a string its line ends inside, whether the interpolation
+  # is left open there; the child rules that read the string and the comment
+  # come after the end and cannot outrank it, so reordering them does not
+  # reach it, and no narrower rule can stand before an `end:`. Tightening
+  # the variable is what this is: it reads the strings whole and refuses
+  # only the openers of the two rules it cannot read on one line.
+  LUAU_INTERPOLATION_TEXT_ON_LINE: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}}|[^{}`"'\[\r\n-]|\[(?![\[=])|-(?!-))
+  # lookaround: `LuauEscapeSkipWhitespace` owns a `\z` the line ends after, which carries the string to the next line.
+  LUAU_ESCAPE_ON_LINE: (?:\\z(?![ \t\v\f]*$)|\\[^z\r\n])
+  # The character a string continued onto a new line takes into the escape
+  # that carried it there (`LuauEscapeLine`, `LuauEscapeSkipWhitespace`),
+  # and the ones it leaves to the string's own rules.
+  LUAU_STRING_CARRIED_CHARACTER: (?:[^"'`{\\\r\n])
+  LUAU_STRING_CARRIED_TEXT_START: (?:[^"'`{\\ \t\v\f\r\n])
+  LUAU_STRING_UNCARRIED_CHARACTER: (?:["'`{\\])
   # An attribute list's text on its line, for a header's attribute prefix,
   # which a lookbehind reads (`LUAU_HEADER_ATTRIBUTE`): a string, a long
   # bracket as `LUAU_PLAIN_BLOCK_COMMENT` reads it, since a lookbehind holds
@@ -1228,6 +1309,81 @@ variables:
   LUAU_BLOCK_COMMENT_LEVEL_2_REST: ==\[(?:[^\]\n]|\](?!==\]))*\]==\]
   # The rest of a level-3 block comment after `--[`: `===[`, its text, `]===]`.
   LUAU_BLOCK_COMMENT_LEVEL_3_REST: ===\[(?:[^\]\n]|\](?!===\]))*\]===\]
+  # The comments after a block's closing `end` that run to the end of its
+  # line: block comments on the line, a line comment, or both
+  # (`function m() return 1 end --[[ c ]]`, `do x = 1 end -- c`, #1314). A
+  # block's end takes them, so they belong to the block it closes: at story
+  # scope nothing is displayed for them. A comment with code after it on the
+  # line is left to the rule that reads that code. This matches only when
+  # there is a comment, so whitespace alone after `end` stays where it is.
+  LUAU_END_TRAILING_COMMENTS: (?:{{WS}}*(?:{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}+{{LUAU_LINE_COMMENT_TO_LINE_END}}?|{{LUAU_LINE_COMMENT_TO_LINE_END}})$)
+  # One or more block comments that close on their line, with the
+  # whitespace around them, where no value or type has begun: between a
+  # scope modifier and `function`, after an assignment operator, and after a
+  # block's closing `end` (#1321). `LuauBlockComment` reads each comment in
+  # the rule that takes them; this finds where they end. A variable cannot
+  # match a close to its opening's level with a backreference: a nested
+  # capture moves the captures after it, and an `end` reads `\N` as the
+  # begin's capture. So levels up to eight are spelled out, each closing
+  # only at its own level (`--[====[a]=====]b]====]` is one comment), and a
+  # longer level closes at the first close of nine or more `=`. The
+  # whitespace before the first comment is read once, and each comment
+  # takes only the whitespace after it, so a run of spaces between two
+  # comments has one reading: with whitespace on both sides of each, a
+  # failing match tried every split of every run, which grew exponentially
+  # with the number of comments on the line.
+  LUAU_BLOCK_COMMENTS_ON_LINE: (?:{{WS}}*{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}+)
+  # A block comment of any level that closes on its line, with the
+  # whitespace after it.
+  LUAU_ANY_LEVEL_BLOCK_COMMENT: (?:{{LUAU_COMMENT_START}}\[{{LUAU_ANY_LEVEL_BLOCK_COMMENT_REST}}{{WS}}*)
+  # The rest of a block comment of any level after `--[`.
+  LUAU_ANY_LEVEL_BLOCK_COMMENT_REST: (?:{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_BLOCK_COMMENT_LEVELS_4_TO_8_REST}}|{{LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST}})
+  # The rest of a block comment of level four to eight after `--[`.
+  LUAU_BLOCK_COMMENT_LEVELS_4_TO_8_REST: (?:{{LUAU_BLOCK_COMMENT_LEVEL_4_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_5_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_6_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_7_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_8_REST}})
+  # The rest of a level-four block comment after `--[`: `====[`, its text,
+  # `]====]`. Like the levels below it, its text takes any character but
+  # the `]` of its own close.
+  # lookaround: LuauBlockComment reads the comment, closing at its own level
+  # with a backreference no variable can hold; a negated class cannot stop
+  # the text before a close several characters long.
+  LUAU_BLOCK_COMMENT_LEVEL_4_REST: (?:====\[(?:[^\]\r\n]|\](?!====\]))*\]====\])
+  # The rest of a level-five block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_5_REST: (?:=====\[(?:[^\]\r\n]|\](?!=====\]))*\]=====\])
+  # The rest of a level-six block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_6_REST: (?:======\[(?:[^\]\r\n]|\](?!======\]))*\]======\])
+  # The rest of a level-seven block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_7_REST: (?:=======\[(?:[^\]\r\n]|\](?!=======\]))*\]=======\])
+  # The rest of a level-eight block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_8_REST: (?:========\[(?:[^\]\r\n]|\](?!========\]))*\]========\])
+  # The rest of a block comment of level nine or more after `--[`. Its text
+  # takes any character but a `]` that nine or more `=` and a `]` follow, so
+  # a close of a lower level stays text; a close of another level of nine or
+  # more ends it early.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST: (?:=========+\[(?:[^\]\r\n]|\](?!=========+\]))*\]=========+\])
+  # What `LuauTypeOperatorComments` and its story twin go on reading: another
+  # block comment, or the generics of a function type after the comments.
+  LUAU_BLOCK_COMMENT_OR_GENERICS_START: (?:{{LUAU_COMMENT_START}}\[=*\[|[<])
+  # A line comment and the rest of its line.
+  LUAU_LINE_COMMENT_TO_LINE_END: (?:{{LUAU_LINE_COMMENT_START}}[^\r\n]*)
+  # Block comments after an operator with code after them on the line, which
+  # the operator takes (`w = --[[ c ]] --[[ d ]] if c then`, #1298).
+  # lookaround: LuauAssignmentLineBreak and the operation's LuauComment read
+  # comments that end the line or come before a line comment, so the value
+  # is read from the next line (`w = --[[c]]` then `5`). The operator's
+  # end can see only its own line, so it tells the two apart by what
+  # follows the last comment; reordering cannot, since both begin at the
+  # same comment.
+  LUAU_OPERATOR_COMMENTS_BEFORE_CODE: (?:{{LUAU_BLOCK_COMMENTS_ON_LINE}}(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))
   # What follows a block comment that ends a type: anything but a type
   # operator, the `?` suffix, a qualifier or generics, or what ends the type
   # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
@@ -4412,6 +4568,10 @@ repository:
       # identifier, so `print(new)` falls through to the access path.
       - { include: "#LuauNewExpression" }
       - { include: "#LuauAccessPath" }
+      # A `:` the path ended before, with `do` or `then` as the method's name
+      # (`local b = a:do`, `(t):do()`); a header's condition reads the `:`
+      # before its own keyword first.
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauTable" }
       # `LuauChainedFunctionCall` must come BEFORE
       # `LuauTypeAnnotationOperation`: after a `LuauParenthetical`, a
@@ -4717,7 +4877,7 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -4726,6 +4886,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # ----------------------------------------------------------------------------
   # Method Definition (`name(args) ... end` shorthand inside `define`)
@@ -4909,7 +5072,7 @@ repository:
       - { include: "#LuauStructBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -4918,6 +5081,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # `animation NAME [as PARENT] with <struct body> end` — static presentation
   # config (keyframes/timing), style-family (NOT reactive). Same struct-body
@@ -4948,7 +5114,7 @@ repository:
       - { include: "#LuauStructBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -4957,6 +5123,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # `theme NAME [as PARENT] with <struct body> end` — static token config,
   # style-family. Same shape as `animation`.
@@ -4983,7 +5152,7 @@ repository:
       - { include: "#LuauStructBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -4992,6 +5161,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # `morph NAME [as PARENT] with <struct body> end` — how a layered image's
   # attribute states and layers move between poses (keyframes/timing/layers/
@@ -5019,7 +5191,7 @@ repository:
       - { include: "#LuauStructBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -5028,6 +5200,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
 
 
@@ -7283,7 +7458,7 @@ repository:
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -7292,6 +7467,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # ----------------------------------------------------------------------------
   # Screen (navigation group for layouts)
@@ -7329,7 +7507,7 @@ repository:
       - { include: "#LuauStructBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -7338,6 +7516,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # `screen NAME`, ending at `with`. Reuses LuauDefineName so the lowerer reads
   # the name through the same node as define / style / layout.
@@ -7388,7 +7569,7 @@ repository:
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -7397,6 +7578,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # Screen header: `NAME [as PARENT] [in CONTAINER]`, ending at `with`. The
   # `in CONTAINER` clause groups screens for `[[navigate CONTAINER to NAME]]`
@@ -7648,7 +7832,10 @@ repository:
   LuauFunctionDefinition:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*))?(function)\b({{WS}}*)
+    # Block comments between the scope modifier and `function` are trivia
+    # (`local --[[c]] function k()`, #1305): the begin takes them, so the
+    # modifier is not read as a variable declaration without a name.
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}*))?(function)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -7659,6 +7846,7 @@ repository:
       3:
         emit: true
         patterns:
+          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
       4:
         patterns:
@@ -7689,7 +7877,9 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    # The comments after `end` that run to the line's end are the
+    # definition's (`LUAU_END_TRAILING_COMMENTS`).
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -7698,6 +7888,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauFunctionBody:
     tag: meta
@@ -7777,7 +7970,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{NAMED_BEAT}})|([)])|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{NAMED_BEAT}})|([)])|(?={{WS}}*{{LUAU_NOT_PARENTHESIS_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -7817,6 +8010,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
       - { include: "#ExtraWhitespace" }
@@ -8007,6 +8201,7 @@ repository:
       - { include: "#LuauUnitKeywords" }
       - { include: "#LuauNewExpression" }
       - { include: "#LuauAccessPath" }
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauTable" }
       - { include: "#LuauChainedFunctionCall" }
       - { include: "#LuauChainedPropertyAccess" }
@@ -8070,8 +8265,10 @@ repository:
     # `]` that a type's trailing block comment leaves before code
     # (`LuauTypeTrailingBlockCommentClose`), as the declaration does, and
     # before a comment that ends the `=`'s line, which the declaration's
-    # `LuauAssignmentLineBreak` reads.
-    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_AT_LATER_LINE_TOKEN}}
+    # `LuauAssignmentLineBreak` reads. It ends before a `)` or a `}` too,
+    # which a bracket in its type annotation that did not open it ends
+    # before (`local x: {a: number) = 1`, I-1318), and the body reads.
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_AT_LATER_LINE_TOKEN}}
 
   # One target of a narrative declaration (`LuauSparkdownVariableDefinition`),
   # with its annotation and `= value`: `LuauVariableAssignment` but for its
@@ -8100,7 +8297,7 @@ repository:
     # (#1207). A comment that spans lines is read here, since its opening
     # line cannot see what follows its close, so after its close the target
     # ends before a statement glued to it (`local a --[[b` then `]]print(1)`).
-    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|(?<=\]=*\])(?={{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|(?<=\]=*\])(?={{LUAU_STATEMENT_CODE_AHEAD}})
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -8390,13 +8587,14 @@ repository:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauInKeyword" }
+      - { include: "#LuauLoopHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#RequiredWhitespace" }
       - { include: "#Newline" }
     # End just before `do` (allowing a leading WS run, but NOT bare
     # whitespace alone) so multi-line for-in headers parse.
-    end: (?={{BEAT}}|{{END}}|[}])|(?={{WS}}*do\b)
+    end: (?={{BEAT}}|{{END}}|[)\]}])|(?={{WS}}*do\b)
 
   # ----------------------------------------------------------------------------
   # While Loop
@@ -8465,11 +8663,12 @@ repository:
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauLoopHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}}|{{END}})|(?={{WS}}*do\b)
+    end: (?={{BEAT}}|{{END}}|[)\]}])|(?={{WS}}*do\b)
 
   # ----------------------------------------------------------------------------
   # Repeat Loop
@@ -8560,8 +8759,10 @@ repository:
     # lookaheads (see there for why the call-statement alternative's name
     # is `LUAU_UNRESERVED_IDENTIFIER`). `until` is one of the keywords: in
     # `repeat repeat f() until a until b`, the inner loop's condition ends
-    # before the outer loop's `until`.
-    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})"
+    # before the outer loop's `until`. A `;` ends it too, as it ends every
+    # statement (`until x >= 3;`), and the body around the loop reads it as
+    # a `LuauSemicolonSeparator`.
+    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   # ----------------------------------------------------------------------------
   # Do Block
@@ -8582,7 +8783,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -8591,6 +8792,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # Pure code inside a story's single-line `& do ... end` island. Nested
   # do-blocks share the same line boundary; written function bodies retain
@@ -8610,7 +8814,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|$
     endCaptures:
       1:
         emit: true
@@ -8619,6 +8823,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   # Used on a narrative `&` line, standing alone (`& if ... end`) or inside an
   # explicit do island. Its branches and nested blocks end at the same line;
@@ -8641,7 +8848,7 @@ repository:
       - { include: "#LuauSparkdownExplicitElseifBlock" }
       - { include: "#LuauSparkdownExplicitElseBlock" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|$
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|$
     endCaptures:
       1:
         emit: true
@@ -8650,6 +8857,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauSparkdownExplicitElseifBlock:
     begin: ({{WS}}*)(elseif)\b({{WS}}*)
@@ -8690,7 +8900,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
-    end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[}])|$
+    end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[)\]}])|$
     endCaptures:
       1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauThenKeyword" }] }
@@ -8730,7 +8940,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#RequiredWhitespace" }
-    end: (?={{BEAT}}|{{END}}|[}]|{{WS}}*do\b)|$
+    end: (?={{BEAT}}|{{END}}|[)\]}]|{{WS}}*do\b)|$
 
   LuauSparkdownExplicitRepeatLoop:
     begin: ({{WS}}*)(repeat)\b({{WS}}*)
@@ -9174,7 +9384,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    end: ([}])([}])?|$
+    end: ([}])([}])?|$|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -9638,6 +9848,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitTypeAnnotationMissingType" }
       - { include: "#LuauSparkdownExplicitTypeAnnotationOperator" }
+      - { include: "#LuauSparkdownExplicitTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # lookaround: LuauFunctionAccessor owns method colons; this annotation opens only at a type colon and yields before a following method call.
@@ -9912,11 +10123,33 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
+    # Comments after the operator are its own, as in
+    # `LuauTypeBinaryOperator`; the operator still ends at its line.
     patterns:
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitTypeOperatorComments" }
+      - { include: "#LuauComment" }
     # lookaround: LuauExpression owns the following operand; this operator scope must close at its first non-whitespace token. Reordering children cannot close an already-open scope.
     # See bounded-exit rationale above for the structural alternatives.
-    end: (?={{BEAT}})|(?!$|{{WS}})|(?=$)
+    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})|(?=$)
+
+  # `LuauTypeOperatorComments` in a story statement's type: the same
+  # reading, ending at its line (#1907), with the story generics
+  # (`local id: --[[c]] <T>(T) -> T = f`, #1321).
+  # lookaround: the begin opens at a block comment only, where the parent's
+  # LuauComment would read it; this rule is tried first so the comments and
+  # the generics after them are read in one scope, which a match on the
+  # comment alone cannot carry on to the generics.
+  LuauSparkdownExplicitTypeOperatorComments:
+    begin: (?={{WS}}*{{LUAU_COMMENT_START}}\[=*\[)
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitTypeGenerics" }
+    # lookaround: LuauSparkdownExplicitTypeLiteral reads a type after the
+    # comments, and the ends around the operator read a `<` after a
+    # comment's close as a comparison after a complete type; see
+    # `LuauTypeOperatorComments`.
+    end: (?={{BEAT}})|(?!{{WS}}*{{LUAU_BLOCK_COMMENT_OR_GENERICS_START}})|$
 
   LuauSparkdownExplicitTypeAnnotationOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)
@@ -10148,7 +10381,7 @@ repository:
     # (`LuauTypeTrailingBlockCommentClose`), as the declaration does.
     # lookaround: LuauFunctionAccessor owns method colons and LuauTypeofFunction owns typeof; this binding yields to annotations or assignment values.
     # See bounded-exit rationale above for the structural alternatives.
-    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
 
   LuauSparkdownExplicitAssignmentOperation:
     # lookaround: LuauAssignmentOperator owns assignment tokens; this value wrapper opens only at an assignment operator.
@@ -10294,6 +10527,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauSparkdownExplicitTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # lookaround: LuauTypeLiteral owns annotation content; this assignment yields only after that type and before unrelated content.
@@ -10339,7 +10573,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
     # See `LuauUntilCondition`.
-    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})"
+    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   SparkdownExplicitTag:
     tag: docComment
@@ -10515,7 +10749,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitIfCondition" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -10524,6 +10758,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauIfBlock:
     begin: ({{WS}}*)(if)\b({{WS}}*)
@@ -10604,11 +10841,12 @@ repository:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauIfHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
         emit: true
@@ -10658,11 +10896,15 @@ repository:
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauIfHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\\b"
+    # A `then` glued to a `:` that `LuauIfHeaderMethodColon` read (`if t:then`)
+    # ends it too, as the block condition's end takes it with no space.
+    # lookaround: the `(?<=[:])` beside `AFTER_LUAU_GLUEABLE_OPERAND` is that one case; the variable's other users read a glued keyword after an operand, which a `:` is not.
+    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|(?:{{AFTER_LUAU_GLUEABLE_OPERAND}}|(?<=[:]))(then)\\b"
     endCaptures:
       1:
         emit: true
@@ -10726,11 +10968,12 @@ repository:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauIfHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
         emit: true
@@ -10880,7 +11123,7 @@ repository:
     # `LuauSparkdownChooseBlock`) and consume their own `end` before
     # the outer block sees it. No chaining: sequential weaves write
     # `choose ... then ... end` twice — clean and unambiguous.
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -10889,6 +11132,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauSparkdownChooseThenClause:
     begin: ({{WS}}*)(then)\b({{WS}}*)([(][^()\r\n]*[)]{{WS}}*)?
@@ -11259,7 +11505,7 @@ repository:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -11268,6 +11514,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauConditionalAlternatorBlock:
     begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_CONDITIONAL_ALTERNATOR_SHAPE}}"
@@ -11348,7 +11597,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -11357,6 +11606,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauSparkdownSingleLineSequentialAlternatorBlock:
     begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)(?=[|])"
@@ -11382,7 +11634,7 @@ repository:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownAlternatorArm" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -11391,6 +11643,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauSparkdownSingleLineConditionalAlternatorBlock:
     begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()\r\n]*[)]{{WS}}*[|])
@@ -11410,7 +11665,7 @@ repository:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownAlternatorArm" }
       - { include: "#ExtraWhitespace" }
-    end: $|(?={{BEAT}})|({{WS}}*)(end)\b
+    end: $|(?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
     endCaptures:
       1:
         emit: true
@@ -11419,6 +11674,9 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+      3:
+        patterns:
+          - { include: "#LuauComment" }
 
   LuauSequentialAlternatorBlock:
     # See `LuauSparkdownSequentialAlternatorBlock` for the leading-
@@ -11774,8 +12032,10 @@ repository:
     # (VS Code's regex engine refuses a lookaround inside a lookbehind, so
     # the lookbehind does not stop at the header's `in`). A `:` after a name
     # followed by a method name and its arguments stays a method call, with
-    # block comments before the arguments too (`t:m --[[c]] ()`).
-    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
+    # block comments before the arguments too (`t:m --[[c]] ()`). A `:` that
+    # a header's `do` or `then` follows on its line ends the path, so the
+    # rule around it reads the `:` (`LUAU_COLON_BEFORE_HEADER_END`).
+    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
     endCaptures:
       1:
         emit: true
@@ -11791,6 +12051,7 @@ repository:
   LuauAccessPart:
     emit: true
     patterns:
+      - { include: "#LuauKeywordMethodAccessor" }
       - { include: "#LuauTypeAnnotationMissingType" }
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauDanglingAccessor" }
@@ -11799,6 +12060,137 @@ repository:
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionCall" }
       - { include: "#LuauVariable" }
+
+  # A method access whose name is a reserved word on the `:`'s line
+  # (`a:do`, `a:end`), which Luau reads as the method's name, in error
+  # (`Expected identifier when parsing method name, got 'do'`, which the
+  # validator reports at the word, Luau's first error). The word is the
+  # method's name (`LuauKeywordMethodName`), so it opens no block and closes
+  # none (`a:end` leaves the function its own `end`). It never meets `do`
+  # or `then`: the path ends before a `:` that one of them follows, which
+  # the rule around the path reads (`LUAU_COLON_BEFORE_HEADER_END`). It is
+  # tried before `LuauTypeAnnotationMissingType`, which would read the `:`
+  # as an annotation missing its type and leave the word to begin a
+  # statement. Spaces and block comments may stand between the `:` and the
+  # word (`a: --[[c]] end`), as in Luau; they are read inside the rule.
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which this access never takes; the begin's lookahead and the end's lookbehind are `LuauExpressionKeywordMethodAccessor`'s, for the reasons given there.
+  LuauKeywordMethodAccessor:
+    begin: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_KEYWORD}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauKeywordMethodName" }
+    end: (?<=[a-z])|$
+
+  # A method access whose name is `do` or `then` on the `:`'s line, in an
+  # expression (`local b = a:  do`, `a: --[[c]] then()`), which Luau reads as
+  # the method's name, in error, as `LuauKeywordMethodAccessor` reads the
+  # other keywords inside a path. The access path ends before the `:`
+  # (`LUAU_COLON_BEFORE_HEADER_END`) so a header can read the `:` alone
+  # first before its own keyword (`LuauLoopHeaderMethodColon`,
+  # `LuauIfHeaderMethodColon`); this reads the keyword everywhere else,
+  # including the other header's keyword in a condition (`if t:do() then`)
+  # and after a value in brackets (`(t):do()`). The word opens no block, so
+  # the function keeps its own `end`. The spaces and block comments between
+  # the `:` and the word, and the word, are read inside the rule, which ends
+  # right after the word. It takes only these two words: after a `for`
+  # loop's variable the `:` is its type's (`for k: in t`), which this rule
+  # cannot tell from a method's, and the other words never leave a path.
+  #
+  # lookaround: the begin's lookahead is what tells this `:` from the rivals
+  # that begin at the same character (`LuauTypeAnnotationOperation`,
+  # `LuauChainedFunctionCall`, `LuauTypeAnnotationMissingType`), and keeps the
+  # access to a keyword on the `:`'s line, as Luau reads it. The §10.1
+  # alternatives were each tried: ordering cannot do it, since this rule
+  # tried first would take every `:` of the expression, and tried after its
+  # rivals it never meets the colon. A narrower rule is what this is,
+  # included only where an expression stands, with the header's own colon
+  # rules tried before it in each condition. The parent's `end:` already
+  # does its part (the path ends before the `:`). A match that took the
+  # keyword with no lookahead would have to capture the block comments
+  # between, and no capture here reads a comment, since `LuauBlockComment`
+  # is a scoped rule. An `end:` that took the keyword would end on `end`
+  # in `a:end`, a closer, which a rule bounded by it must refuse when it
+  # did not open it. So the keyword is read by the rule's patterns, and
+  # the end is zero-width right after it: a lowercase letter stands before
+  # only the keyword's end, since the trivia ends in a space, a `]` or the
+  # `:`. The `$` is the end's bail-out, which the begin's lookahead never
+  # leaves it to need.
+  LuauExpressionKeywordMethodAccessor:
+    begin: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauKeywordMethodName" }
+    end: (?<=[a-z])|$
+
+  # The `:` of a method access whose name is missing before the keyword
+  # that ends a loop's header (`while t: do`, `for k in t: do`). Luau reads
+  # the keyword as the name, in error, but the header ends at it here, as
+  # it would with the name in place, so the loop keeps its block. The
+  # validator reports Luau's missing method name at the keyword. The `for`
+  # and `while` conditions try it before their expression; an `if`'s
+  # condition does not, since its `do` is no header's end, so there the
+  # expression reads the `do` as the name (`if t:do() then`).
+  #
+  # lookaround: the lookahead leaves the keyword to the condition's `end:`,
+  # which reads it (GRAMMAR.md §10.1, the end carrying the load), and tells
+  # this `:` from the method access that an expression would read there
+  # (`LuauExpressionKeywordMethodAccessor`). Ordering does the rest: each
+  # loop condition tries this rule before `LuauExpression`, so the header's
+  # `:` never reaches that access. A colon rule without the lookahead would
+  # take every other `:` the condition reads first (`while t:m() do`). Split
+  # from the `if`'s rule (`LuauIfHeaderMethodColon`), each condition holds
+  # only the colon its own end can follow. The access path cannot make this
+  # choice, since it cannot see whether a header holds it; it ends before
+  # the `:` (`LUAU_COLON_BEFORE_HEADER_END`), which is how the colon is left
+  # to the condition.
+  LuauLoopHeaderMethodColon:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}do{{LUAU_NAME_END}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+
+  # The same for the `then` that ends an `if`'s, an `elseif`'s or an if
+  # expression's condition (`if t: then`, `local x = if t: then 1 else 2`).
+  # lookaround: as `LuauLoopHeaderMethodColon`'s, for `then`.
+  LuauIfHeaderMethodColon:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}then{{LUAU_NAME_END}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+
+  # A reserved word in a method's name (`LuauKeywordMethodAccessor`).
+  LuauKeywordMethodName:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{LUAU_WORD}})
 
   LuauFunctionAccessor:
     match: ({{WS}}*)({{LUAU_ACCESSOR_OPERATOR}})({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
@@ -12107,7 +12499,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{NAMED_BEAT}})|([)])|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{NAMED_BEAT}})|([)])|(?={{WS}}*{{LUAU_NOT_PARENTHESIS_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -12195,7 +12587,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{NAMED_BEAT}})|(\])|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{NAMED_BEAT}})|(\])|(?={{WS}}*{{LUAU_NOT_SQUARE_BRACKET_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -12466,6 +12858,11 @@ repository:
       - { include: "#LuauMultilineString" }
       - { include: "#LuauInterpolatedString" }
 
+  # A quoted string ends at its line when its closing quote is not on it
+  # (`$`), as Luau's lexer ends it, and the converter reports Luau's
+  # malformed-string error at it, so the code after it on later lines (a
+  # function's `end`) stays outside it. A line ends inside it only after a
+  # `\` or a `\z` that carries it on (`LuauEscapeLine`).
   LuauDoubleQuotedString:
     tag: definition(string)
     name: string.quoted.double.luau
@@ -12480,7 +12877,7 @@ repository:
       - { include: "#LuauDoubleQuotedStringInterpolation" }
       - { include: "#Color" }
       - { include: "#PlainText" }
-    end: (["]){{_LUAU_SHARED_OPERATOR_AHEAD_}}
+    end: (["]){{_LUAU_SHARED_OPERATOR_AHEAD_}}|$
     endCaptures:
       1:
         patterns:
@@ -12502,7 +12899,7 @@ repository:
       - { include: "#LuauStringEscape" }
       - { include: "#Color" }
       - { include: "#PlainText" }
-    end: ([']){{_LUAU_SHARED_OPERATOR_AHEAD_}}
+    end: ([']){{_LUAU_SHARED_OPERATOR_AHEAD_}}|$
     endCaptures:
       1:
         patterns:
@@ -12560,7 +12957,14 @@ repository:
       - { include: "#LuauStringEscape" }
       - { include: "#Color" }
       - { include: "#PlainText" }
-    end: ([`]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    # Like a quoted string, its text ends at its line when its closing
+    # backtick is not on it (`$`). An interpolation may go on over lines, as
+    # in Luau, and ends before a closer it did not open, where Luau's lexer
+    # has stopped reading the string at a line it could not finish
+    # (`` f(`a {b`) `` and then `end`). The string ends there too, before a
+    # closer that begins the line, so the call and the function around it
+    # take their own closers.
+    end: ([`]){{_LUAU_BINARY_OPERATOR_AHEAD_}}|$|(?=^{{WS}}*{{LUAU_NOT_BRACE_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -12585,7 +12989,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?=$)|([}])
+    end: (?=$)|([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12605,7 +13009,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}])
+    end: ([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12625,7 +13029,9 @@ repository:
       - include: "#LuauExpression"
       - include: "#ExtraWhitespace"
       - include: "#Newline"
-    end: ([}])|(?=["])
+    # The `"` string around it ends at its line (`LuauDoubleQuotedString`),
+    # which Luau does not read past, so the interpolation ends there too.
+    end: ([}])|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       "1":
         patterns:
@@ -12645,12 +13051,26 @@ repository:
       - include: "#LuauExpression"
       - include: "#ExtraWhitespace"
       - include: "#Newline"
-    end: ([}])|(?=[`])
+      - include: "#LuauUnreadToken"
+    # It may go on over lines, as Luau's are, and ends before a closer it did
+    # not open, where Luau's lexer has stopped reading the string around it
+    # (see `LuauInterpolatedString`), or before a beat. A string its line
+    # ends inside (`` `a {b`) ``) ends it too, taken into its end: Luau reads
+    # nothing of the interpolation after it, so the interpolation does not
+    # go on to the next line, and the converter reports Luau's error at it
+    # (`Malformed interpolated string; did you forget to add a '}'?`). A
+    # string finished on its line is an expression (`` `a {`b`} c` ``).
+    end: ([}])|({{WS}}*)({{LUAU_UNFINISHED_LINE_STRING}})|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{BEAT}})
     endCaptures:
       "1":
         patterns:
           - include: "#PunctuationBraceClose"
-    applyEndPatternLast: true
+      "2":
+        patterns:
+          - include: "#ExtraWhitespace"
+      "3":
+        patterns:
+          - include: "#LuauString"
 
   # `{{fn}}` / `{{fn(args)}}` — function-call shorthand (issue #223). Doubled
   # braces mean "call the named function and output its return value", in EVERY
@@ -12680,7 +13100,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}])([}])?
+    end: ([}])([}])?|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12709,7 +13129,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}])([}])?|(?=["])
+    end: ([}])([}])?|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       1:
         patterns:
@@ -12718,8 +13138,8 @@ repository:
         patterns:
           - { include: "#PunctuationBraceClose" }
 
-  # `{{fn}}` inside a backtick string — bounded by the closing backtick, same
-  # `applyEndPatternLast` rationale as LuauBacktickStringInterpolation.
+  # `{{fn}}` inside a backtick string — bounded as
+  # LuauBacktickStringInterpolation is.
   LuauBacktickFunctionCallShorthand:
     tag: meta
     name: meta.template.expression.function-shorthand.luau
@@ -12737,7 +13157,9 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}])([}])?|(?=[`])
+      - { include: "#LuauUnreadToken" }
+    # Ends as `LuauBacktickStringInterpolation` does.
+    end: ([}])([}])?|({{WS}}*)({{LUAU_UNFINISHED_LINE_STRING}})|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{BEAT}})
     endCaptures:
       1:
         patterns:
@@ -12745,15 +13167,21 @@ repository:
       2:
         patterns:
           - { include: "#PunctuationBraceClose" }
-    applyEndPatternLast: true
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauString" }
 
   LuauStringEscape:
     patterns:
+      - { include: "#LuauEscapeLine" }
+      - { include: "#LuauEscapeSkipWhitespace" }
       - { include: "#LuauEscapeStandard" }
       - { include: "#LuauEscapeDecimal" }
       - { include: "#LuauEscapeHex" }
       - { include: "#LuauEscapeUnicode" }
-      - { include: "#LuauEscapeLine" }
       - { include: "#LuauEscapeAny" }
 
   LuauEscapeStandard:
@@ -12776,10 +13204,46 @@ repository:
     name: constant.character.escape.luau
     match: \\u\{[0-9a-fA-F]*\}
 
+  # A `\` that ends its line carries a string on to the next line, as Luau's
+  # lexer reads it. It takes the line break with it, so the string's end at
+  # its line (`$`) is never met there, and it takes the next line's first
+  # character as the string's text too, so the string never stands at the
+  # start of that line, where a backtick string ends before a closer that
+  # begins the line (`LuauInterpolatedString`): `` `a\ `` and then `end` is
+  # text. A quote, an interpolation's `{` or another escape is left to the
+  # string (`LUAU_STRING_UNCARRIED_CHARACTER`).
   LuauEscapeLine:
-    tag: escape
-    name: constant.character.escape.luau
-    match: \\$
+    begin: (\\)({{NL}}|$)
+    beginCaptures:
+      1:
+        tag: escape
+        name: constant.character.escape.luau
+      2:
+        patterns:
+          - { include: "#Newline" }
+    end: ({{LUAU_STRING_CARRIED_CHARACTER}})|(?={{LUAU_STRING_UNCARRIED_CHARACTER}})|$
+
+  # A `\z` skips the whitespace after it, line breaks and blank lines
+  # included, as Luau's lexer reads it, so the string goes on at the next
+  # character that is not whitespace, which it takes as the string's text as
+  # `LuauEscapeLine` does; while it is open the string's end at its line
+  # (`$`) is not tried. The whitespace is the ASCII set Luau's lexer skips,
+  # so a non-breaking space ends the run as it does in Luau. It is tried
+  # before `LuauEscapeStandard`, which would read the `\z` alone.
+  LuauEscapeSkipWhitespace:
+    begin: (\\z)
+    beginCaptures:
+      1:
+        tag: escape
+        name: constant.character.escape.luau
+    patterns:
+      - { include: "#Newline" }
+      - { include: "#LuauEscapeSkippedWhitespace" }
+    end: ({{LUAU_STRING_CARRIED_TEXT_START}})|(?={{LUAU_STRING_UNCARRIED_CHARACTER}})
+
+  # The whitespace a `\z` skips on a line.
+  LuauEscapeSkippedWhitespace:
+    match: "[ \\t\\v\\f]+"
 
   LuauEscapeAny:
     tag: escape
@@ -12832,7 +13296,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{NAMED_BEAT}})|([}]){{_LUAU_VALUE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{NAMED_BEAT}})|([}]){{_LUAU_VALUE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -12857,7 +13321,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{NAMED_BEAT}})|(\])|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{NAMED_BEAT}})|(\])|(?={{WS}}*{{LUAU_NOT_SQUARE_BRACKET_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -12882,7 +13346,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{NAMED_BEAT}})|([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{NAMED_BEAT}})|([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NOT_PARENTHESIS_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -12942,6 +13406,14 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+  # Block comments after the operator, when code follows them on the line,
+  # are the operator's own (`local w = --[[ c ]] --[[ d ]] if c then`,
+  # #1298): no value has begun while only comments separate the operator
+  # from the next word, and a rule that ends at a comment's close before a
+  # statement word (`LUAU_VALUE_COMMENT_BEFORE_STATEMENT`) would otherwise
+  # end the assignment between two of them. Comments that end the line are
+  # left to the operation, whose value then comes from a later line
+  # (`LUAU_OPERATOR_COMMENTS_BEFORE_CODE`).
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
     beginCaptures:
@@ -12981,7 +13453,8 @@ repository:
     # §11.5 corollary 2 ("`(?=$|{{WS}})` is a single-line bound").
     patterns:
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|(?!{{WS}})
+      - { include: "#LuauComment" }
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|(?!{{WS}}|{{LUAU_OPERATOR_COMMENTS_BEFORE_CODE}})
 
   # An operator, or the `if` that starts an expression, with no operand
   # before a token that cannot start one (`local foo = -;`, `local x = ;`,
@@ -13119,7 +13592,10 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    # It ends before a glued keyword, and before a `:` that a header's `do`
+    # or `then` follows (`while not t: do`), which the expression or
+    # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
 
   LuauArithmeticOperator:
     begin: ({{WS}}*)({{LUAU_ARITHMETIC_OPERATORS}})({{WS}}*)
@@ -13158,7 +13634,10 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    # It ends before a glued keyword, and before a `:` that a header's `do`
+    # or `then` follows (`while not t: do`), which the expression or
+    # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
 
   LuauCompareOperator:
     begin: ({{WS}}*)({{LUAU_COMPARE_OPERATORS}})({{WS}}*)
@@ -13197,7 +13676,10 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    # It ends before a glued keyword, and before a `:` that a header's `do`
+    # or `then` follows (`while not t: do`), which the expression or
+    # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
 
   LuauConcatOperator:
     begin: ({{WS}}*)({{LUAU_CONCAT_OPERATOR}})({{WS}}*)
@@ -13236,7 +13718,10 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    # It ends before a glued keyword, and before a `:` that a header's `do`
+    # or `then` follows (`while not t: do`), which the expression or
+    # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
 
   LuauLengthOperator:
     begin: ({{WS}}*)({{LUAU_LENGTH_OPERATOR}})({{WS}}*)
@@ -13278,7 +13763,10 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    # It ends before a glued keyword, and before a `:` that a header's `do`
+    # or `then` follows (`while not t: do`), which the expression or
+    # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
 
   LuauLogicalOperator:
     begin: ({{WS}}*)({{LUAU_LOGICAL_KEYWORDS}})({{WS}}*)
@@ -13470,7 +13958,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # A type never holds a keyword that cannot begin one, so an unclosed
     # generic list ends before it, as `LuauTypeGenerics` does.
-    end: ([>])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: ([>])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})|(?={{WS}}*{{LUAU_NOT_TYPE_GENERIC_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -13487,7 +13975,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # A type never holds a keyword that cannot begin one, so an unclosed
     # instantiation ends before it, as `LuauTypeGenerics` does.
-    end: ([>][>])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: ([>][>])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})|(?={{WS}}*{{LUAU_NOT_TYPE_GENERIC_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -13608,6 +14096,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
@@ -14001,10 +14490,42 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
+    #
+    # Comments after the operator are its own, since no type has begun
+    # there (`LuauTypeOperatorComments`).
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+      - { include: "#LuauTypeOperatorComments" }
+      - { include: "#LuauComment" }
+    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
+
+  # Block comments on the line after a type operator, and the generics of a
+  # function type after them (`() -> --[[c]] <T>(T) -> T`, #1299). No type
+  # has begun after the comments, so a `<` there opens generics; in the
+  # rules around the operator, a `<` after a comment's close ends a complete
+  # type as a comparison (`x :: {} --[[c]] < y`), so this rule reads the
+  # generics before it ends and the type after them is the operator's
+  # operand. The rules that hold a type after a `:` or `=` include it too
+  # (`function(): --[[c]] <T>(T) -> T`, `type F = --[[c]] <T>(T) -> T`).
+  # `LuauComment` reads each comment, so it closes at its own level
+  # (`--[====[a]=====]b]====]` is one comment).
+  # lookaround: the begin opens at a block comment only, where the parent's
+  # LuauComment would read it; this rule is tried first so the comments and
+  # the generics after them are read in one scope, which a match on the
+  # comment alone cannot carry on to the generics.
+  LuauTypeOperatorComments:
+    begin: (?={{WS}}*{{LUAU_COMMENT_START}}\[=*\[)
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeGenerics" }
+    # lookaround: LuauTypeLiteral reads a type after the comments, and its
+    # end, like LuauTypeBinaryOperation's, reads a `<` after a comment's
+    # close as a comparison after a complete type. A lookbehind cannot see
+    # past the comment to the operator, so this rule, which only the
+    # operator reaches, takes the generics instead, and ends at anything
+    # but another block comment or a `<`.
+    end: (?={{BEAT}})|(?!{{WS}}*{{LUAU_BLOCK_COMMENT_OR_GENERICS_START}})
 
   LuauTypeAnnotationOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_OPERATOR}})
@@ -14015,6 +14536,7 @@ repository:
     patterns:
       - { include: "#LuauTypeAnnotationMissingType" }
       - { include: "#LuauTypeAnnotationOperator" }
+      - { include: "#LuauTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
@@ -14089,7 +14611,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{NAMED_BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{NAMED_BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NOT_PARENTHESIS_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -14150,7 +14672,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape unfinished arguments before
     # indentation is consumed; splitting the argument contents cannot do so.
-    end: (?={{BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})|(?={{WS}}*{{LUAU_NOT_TYPE_GENERIC_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -14267,7 +14789,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape an unfinished generic type.
     # Splitting the type patterns cannot return indentation to its statement.
-    end: (?={{NAMED_BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{NAMED_BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})|(?={{WS}}*{{LUAU_NOT_TYPE_GENERIC_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -14301,7 +14823,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape an unfinished table type.
     # Splitting the type patterns cannot return indentation to its statement.
-    end: (?={{NAMED_BEAT}})|([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{NAMED_BEAT}})|([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})|(?={{WS}}*{{LUAU_NOT_TYPE_BRACE_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -14329,7 +14851,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # A type never holds a keyword that cannot begin one, so an unclosed
     # indexer ends before it, as `LuauTypeTableStruct` around it does.
-    end: (?={{NAMED_BEAT}})|(\])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{NAMED_BEAT}})|(\])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})|(?={{WS}}*{{LUAU_NOT_TYPE_SQUARE_BRACKET_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -14390,7 +14912,7 @@ repository:
     # lookaround: LuauReturnStatement and other statements must start outside
     # an unclosed type parameter list. Reordering its type patterns cannot
     # return already-consumed indentation; yield before that whitespace.
-    end: (?={{NAMED_BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{NAMED_BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})|(?={{WS}}*{{LUAU_NOT_TYPE_PARENTHESIS_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -14495,7 +15017,8 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(\]){{_LUAU_ATTRIBUTE_FOLLOWER_SPACE_}}
+    # Like every bracket, it ends before a closer it did not open (I-1318).
+    end: (?={{BEAT}})|(\]){{_LUAU_ATTRIBUTE_FOLLOWER_SPACE_}}|(?={{WS}}*{{LUAU_NOT_SQUARE_BRACKET_CLOSER}})
     endCaptures:
       1:
         patterns:

@@ -672,7 +672,7 @@ end
 
   test("`morph.blink` stays a reference in an expression", () => {
     const text = `${BLINK}
-function chosen()
+function _chosen()
   return morph.blink
 end
 `;

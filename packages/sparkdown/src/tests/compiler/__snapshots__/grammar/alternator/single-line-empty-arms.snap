@@ -56,6 +56,7 @@ sparkdown [0..20]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [15..16]
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [15..16]
  │       │       └─ OptionalWhitespace [15..16]: " "
- │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [16..19]
- │           └─ LuauEndKeyword [16..19]: "end"
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [16..19]
+ │       │   └─ LuauEndKeyword [16..19]: "end"
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c3 19
  └─ Newline [19..20]: "\n"

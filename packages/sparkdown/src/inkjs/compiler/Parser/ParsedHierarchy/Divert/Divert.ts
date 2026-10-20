@@ -550,6 +550,24 @@ export class Divert extends ParsedObject {
     );
   }
 
+  // `ResolveVariableWithName` finds a `local` anywhere in the divert's flow,
+  // whatever block declared it. One whose block has closed before the
+  // divert, or that is declared after it, does not bind the name there, as
+  // Luau scopes a local (`IsLocalInScope`), and gives way to a flow of the
+  // name: a function declared with `...` in the enclosing function, called
+  // after a block that declared a local of its name, is called.
+  private endedLocalGivesWay(
+    name: string,
+    scope: FlowBase,
+    isTemporary: boolean,
+  ): boolean {
+    return (
+      isTemporary &&
+      !scope.IsLocalInScope(name, this) &&
+      this.target?.ResolveFromContext(this) != null
+    );
+  }
+
   // Whether this is a call of a function written at the top level whose name
   // a plain assignment anywhere in the story writes to the global scope
   // (`Story.assignsGlobally`, which reads only the name). A function nested
@@ -594,7 +612,12 @@ export class Divert extends ParsedObject {
 
           if (
             resolveResult.found &&
-            !this.autoGlobalGivesWay(variableTargetName, resolveResult.isGlobal)
+            !this.autoGlobalGivesWay(variableTargetName, resolveResult.isGlobal) &&
+            !this.endedLocalGivesWay(
+              variableTargetName,
+              flowBaseScope,
+              resolveResult.isTemporary,
+            )
           ) {
             // A parameter needs no divert-target marking to be diverted to:
             // parameters are untyped, and `name: ->` is only an annotation.

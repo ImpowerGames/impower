@@ -56,8 +56,10 @@ sparkdown [0..57]
  │   │       │       │       │   │   └─ LuauBacktickFunctionCallShorthand_end [21..23]
  │   │       │       │       │   │       ├─ LuauBacktickFunctionCallShorthand_end_c1 [21..22]
  │   │       │       │       │   │       │   └─ PunctuationBraceClose [21..22]: "}"
- │   │       │       │       │   │       └─ LuauBacktickFunctionCallShorthand_end_c2 [22..23]
- │   │       │       │       │   │           └─ PunctuationBraceClose [22..23]: "}"
+ │   │       │       │       │   │       ├─ LuauBacktickFunctionCallShorthand_end_c2 [22..23]
+ │   │       │       │       │   │       │   └─ PunctuationBraceClose [22..23]: "}"
+ │   │       │       │       │   │       ├─ LuauBacktickFunctionCallShorthand_end_c3 23
+ │   │       │       │       │   │       └─ LuauBacktickFunctionCallShorthand_end_c4 23
  │   │       │       │       │   └─ Punctuation [23..24]: "!"
  │   │       │       │       └─ LuauInterpolatedString_end [24..25]
  │   │       │       │           ├─ LuauInterpolatedString_end_c1 [24..25]

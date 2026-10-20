@@ -125,8 +125,11 @@ export interface FunctionShape {
    *  writes it. */
   from: number;
   to: number;
-  /** The `local NAME = nil` declarations the lowering put at the top of the
-   *  body for the functions it declares without `local`. */
+  /** What the function's entry runs after binding its parameters: for a
+   *  function or a define's method written at the top level, a
+   *  `RootBinding` for each name its body reads that no scope of its own
+   *  binds, then the `local NAME = nil` declarations the lowering put at the
+   *  top of the body for the functions it declares without `local`. */
   hoisted: ParsedObject[];
   /** Set for a function the lowering hoisted to the story's top level under
    *  a name of its own, which no statement writes: a UI binding's evaluator

@@ -11,9 +11,11 @@ import { describe, expect, test } from "vitest";
 import { indexProgramNames, lintBuiltinGlobalWrites } from "../../compiler/lint/collectLuauLints";
 import { testCompiler } from "../engineUnderTest";
 import {
+  diagnoseWithLints,
   diagnoseWithLintsInFunction,
   diagnoseDetailed,
   diagnoseFilesDetailed,
+  lintMessages,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
@@ -125,7 +127,7 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
   test("an uncertain occurrence of the name anywhere silences it, but creates no warning", () => {
     const write = { name: "math", kind: "assignment" as const, from: 0, to: 4, node: {} as never };
     const uncertain = { name: "math", from: 9, to: 13, reason: "grammar-keyword" as const };
-    const facts = (globals: typeof write[], uncertainNames: typeof uncertain[]) => ({ declarations: [], references: [], functions: [], globals, uncertainNames });
+    const facts = (globals: typeof write[], uncertainNames: typeof uncertain[]) => ({ declarations: [], references: [], functions: [], globals, uncertainNames, functionStarts: new Map() });
     expect(lintBuiltinGlobalWrites(indexProgramNames([
       { uri: "a", names: facts([write], []) },
       { uri: "b", names: facts([], [uncertain]) },
@@ -181,21 +183,32 @@ function table.custom() end
 constructor = 1
 toString = 1
 return math, assert, f
-`)).toEqual([]);
+`).filter((message) => message.startsWith("Built-in global"))).toEqual([]);
   });
 });
 
-// Luau: GlobalAsLocal
-describe.skip("a global used only in one function (not implemented: GlobalAsLocal)", () => {
+// The GlobalAsLocal cases below are adapted. An upstream snippet is a Luau
+// chunk, and its globals are the chunk's; in the wrapper `run` they would be
+// held by one function, which the harness does not report (it leaves out
+// every GlobalUsedAsLocal warning naming `run`), so the snippet is placed at
+// the script's top level instead, where a `function f()` is a story function
+// and a Luau statement such as `fnA = createFunction(true)` is outside every
+// function, as in the chunk. The chunk's last line, `return bar()`, which
+// Sparkdown's top level reads as narrative, becomes the interpolation
+// `{bar()}`, a use of the same functions outside every function. Line
+// numbers are unchanged.
+
+// Luau: GlobalAsLocal (adapted)
+describe("a global used only in one function", () => {
   test("foo written and read only in bar", () => {
     expect(
-      lintMessagesInFunction(`
+      lintMessages(`
 function bar()
     foo = 6
     return foo
 end
 
-return bar()
+{bar()}
 `),
     ).toEqual([
       "Global 'foo' is only used in the enclosing function 'bar'; consider changing it to local",
@@ -203,11 +216,11 @@ return bar()
   });
 });
 
-// Luau: GlobalAsLocalMultiFx
-describe.skip("a global always written before read (not implemented: GlobalAsLocal)", () => {
+// Luau: GlobalAsLocalMultiFx (adapted)
+describe("a global always written before read", () => {
   test("foo written then read in two functions", () => {
     expect(
-      lintMessagesInFunction(`
+      lintMessages(`
 function bar()
     foo = 6
     return foo
@@ -218,7 +231,7 @@ function baz()
     return foo
 end
 
-return bar() + baz()
+{bar() + baz()}
 `),
     ).toEqual([
       "Global 'foo' is never read before being written. Consider changing it to local",
@@ -226,10 +239,11 @@ return bar() + baz()
   });
 });
 
-// Luau: GlobalAsLocalMultiFxWithRead
-// Luau: GlobalAsLocalWithConditional
-// Luau: GlobalAsLocal3WithConditionalRead
-// Luau: GlobalAsLocalInnerRead
+// Luau: GlobalAsLocalMultiFxWithRead (adapted)
+// Luau: GlobalAsLocalWithConditional (adapted)
+// Luau: GlobalAsLocal3WithConditionalRead (adapted)
+// Luau: GlobalAsLocalInnerRead (adapted)
+// Each also runs as written in the wrapper, which stays silent too.
 describe("globals that are genuinely shared are not reported", () => {
   test.each([
     [
@@ -304,14 +318,17 @@ return foo() + baz()
     ],
   ])("%s", (_name, body) => {
     expect(diagnoseWithLintsInFunction(body)).toEqual([]);
+    const chunk = body.replace(/^return (.*)$/m, "{$1}");
+    expect(chunk).not.toBe(body);
+    expect(diagnoseWithLints(chunk)).toEqual([]);
   });
 });
 
-// Luau: GlobalAsLocalMulti
-describe.skip("a function statement meant as a local (not implemented: GlobalAsLocal)", () => {
+// Luau: GlobalAsLocalMulti (adapted)
+describe("a function statement meant as a local", () => {
   test("moreInternalLogic declared inside createFunction", () => {
     expect(
-      lintMessagesInFunction(`
+      lintMessages(`
 local createFunction = function(configValue)
     -- Create an internal convenience function
     local function internalLogic()
@@ -341,7 +358,7 @@ fnB() -- prints "false", "nil"
 });
 
 // Luau: LocalShadowLocal
-describe.skip("a local redeclared in the same scope (not implemented: LocalShadow)", () => {
+describe("a local redeclared in the same scope", () => {
   test("local arg twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -357,7 +374,7 @@ print(arg)
 
 // Luau: LocalShadowGlobal
 // Shadowing itself is covered as behavior in LocalShadowsGlobal.test.ts.
-describe.skip("a local named like a global in use (not implemented: LocalShadow)", () => {
+describe("a local named like a global in use", () => {
   test("local global inside bar", () => {
     expect(
       lintMessagesInFunction(`
@@ -376,7 +393,7 @@ return bar()
 });
 
 // Luau: LocalShadowArgument
-describe.skip("a local named like a parameter (not implemented: LocalShadow)", () => {
+describe("a local named like a parameter", () => {
   test("local a inside bar(a, b)", () => {
     expect(
       lintMessagesInFunction(`
@@ -392,7 +409,7 @@ return bar()
 });
 
 // Luau: FunctionUnused
-describe.skip("functions that are never called (not implemented: FunctionUnused)", () => {
+describe("functions that are never called", () => {
   test("bar and qux", () => {
     expect(
       lintMessagesInFunction(`
@@ -423,7 +440,7 @@ return foo()
 // Luau: ImportOnlyUsedInReturnType (adapted)
 // Sparkdown has no `require`; a plain local stands in for the import, which
 // is read only in the return type.
-describe.skip("a function used only in a type (not implemented: FunctionUnused)", () => {
+describe("a function used only in a type", () => {
   test("foo(): Foo.Y", () => {
     expect(
       lintMessagesInFunction(`
@@ -436,12 +453,14 @@ describe.skip("a function used only in a type (not implemented: FunctionUnused)"
   });
 });
 
-// Luau: DeadLocalsUsed
-describe.skip("locals read but never assigned (not implemented: UninitializedLocal, UnbalancedAssignment)", () => {
+// Luau: DeadLocalsUsed (adapted)
+// Sparkdown has no `--!nolint` (#598), so the directive is dropped, which
+// moves every line up by one, and the loop variable's LocalShadow warning is
+// expected too, first in the source order the warnings are reported in.
+describe("locals read but never assigned", () => {
   test("x hidden by a loop variable, c without a value", () => {
     expect(
       lintMessagesInFunction(`
---!nolint LocalShadow
 do
     local x
     for x in pairs({}) do
@@ -461,15 +480,16 @@ do
 end
     `),
     ).toEqual([
-      "Variable 'x' defined at line 4 is never initialized or assigned; initialize with 'nil' to silence",
+      "Variable 'x' shadows previous declaration at line 3",
+      "Variable 'x' defined at line 3 is never initialized or assigned; initialize with 'nil' to silence",
       "Assigning 2 values to 3 variables initializes extra variables with nil; add 'nil' to value list to silence",
-      "Variable 'c' defined at line 12 is never initialized or assigned; initialize with 'nil' to silence",
+      "Variable 'c' defined at line 11 is never initialized or assigned; initialize with 'nil' to silence",
     ]);
   });
 });
 
 // Luau: DuplicateGlobalFunction
-describe.skip("a global function defined twice (not implemented: DuplicateFunction)", () => {
+describe("a global function defined twice", () => {
   test("function x twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -485,7 +505,7 @@ describe.skip("a global function defined twice (not implemented: DuplicateFuncti
 
 // Luau: DuplicateLocalFunction
 // Upstream checks only that the warning's code is DuplicateFunction.
-describe.skip("a local function defined twice (not implemented: DuplicateFunction)", () => {
+describe("a local function defined twice", () => {
   test("local function x twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -502,7 +522,7 @@ describe.skip("a local function defined twice (not implemented: DuplicateFunctio
 });
 
 // Luau: DuplicateMethod
-describe.skip("a method defined twice (not implemented: DuplicateFunction)", () => {
+describe("a method defined twice", () => {
   test("function T:x twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -535,10 +555,7 @@ describe("the same function in two arms is not a duplicate", () => {
 });
 
 // Luau: DuplicateLocal
-// The second message is LocalUnused, which sparkdown has; it does not report
-// it here because two declarations of `a1` in one statement share a scope,
-// and the rule counts the later reads for both.
-describe.skip("a name declared twice in one list (not implemented: DuplicateLocal)", () => {
+describe("a name declared twice in one list", () => {
   test("parameters, locals and an explicit self", () => {
     expect(
       lintMessagesInFunction(`

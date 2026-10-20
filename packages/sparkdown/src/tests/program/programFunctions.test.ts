@@ -468,8 +468,8 @@ describe("a function value", () => {
 
 describe("the write barrier", () => {
   // Each statement between the two beats changes a table in place, or what a
-  // table is beside its entries (a `#` leaves a length hint, also on the
-  // table a call returns first), or steps an iterator, whose table keeps its
+  // table is beside its entries (a `#` or `rawlen` leaves a length hint, a
+  // `#` also on the table a call returns first), or steps an iterator, whose table keeps its
   // cursor, or writes a closed upvalue cell: a counter closure whose variable
   // outlived the frame that declared it.
   const text = [
@@ -487,6 +487,7 @@ describe("the write barrier", () => {
     "store cleared = { 1, 2, 3 }",
     "store hinted = { 1, 2, 3 }",
     "store hintedThroughCall = { 1, 2, 3 }",
+    "store rawLengthed = { 1, 2, 3 }",
     "store it = string.gmatch(\"a b\", \"%a+\")",
     "store holder = { step = string.gmatch(\"x y\", \"%a+\") }",
     "store n = 0",
@@ -507,6 +508,7 @@ describe("the write barrier", () => {
     "& table.clear(cleared)",
     "n = #hinted",
     "m = #pairOf(hintedThroughCall)",
+    "& rawlen(rawLengthed)",
     "& it()",
     "& holder.step()",
     "& counter()",
@@ -539,6 +541,7 @@ describe("the write barrier", () => {
     "cleared",
     "hinted",
     "hintedThroughCall",
+    "rawLengthed",
     "it",
   ];
 
@@ -572,6 +575,8 @@ describe("the write barrier", () => {
       hint: (table("hinted").value as { __luauBoundary?: number }).__luauBoundary,
       hintThroughCall: (table("hintedThroughCall").value as { __luauBoundary?: number })
         .__luauBoundary,
+      rawHint: (table("rawLengthed").value as { __luauBoundary?: number })
+        .__luauBoundary,
       cell: (cell().closedValue as { valueObject?: unknown } | null)
         ?.valueObject,
       count: globals.$("count"),
@@ -595,6 +600,7 @@ describe("the write barrier", () => {
       cleared: 3,
       hint: undefined,
       hintThroughCall: undefined,
+      rawHint: undefined,
       cell: 0,
       count: 0,
     });
@@ -619,6 +625,7 @@ describe("the write barrier", () => {
       cleared: 0,
       hint: 3,
       hintThroughCall: 3,
+      rawHint: 3,
       cell: 1,
       count: 1,
     });
@@ -1063,9 +1070,11 @@ describe("a function's symbol", () => {
       "  return g()\nend\n",
       "  return g()\nend\n\nfunction helper()\n  return 7\nend\n",
     );
-    // The new function's definition and body, and the closure's statement
-    // and the statement of its body that calls the function.
-    expect(s.store.emittedLastBuild).toBe(4);
+    // The new function's definition and body, the closure's statement and
+    // the statement of its body that calls the function, and the definition
+    // of `bottom`, whose entry no longer binds `helper` to a top-level local
+    // (`RootBinding`).
+    expect(s.store.emittedLastBuild).toBe(5);
     const withHelper = closureOf(added);
     expect(withHelper).not.toBe(before);
     expect(describeRoot(added)).toEqual(describeRoot(cold(s.text)));
@@ -1074,7 +1083,9 @@ describe("a function's symbol", () => {
     ]);
 
     const removed = s.edit("\nfunction helper()\n  return 7\nend\n", "");
-    expect(s.store.emittedLastBuild).toBe(2);
+    // The closure's statement, the statement of its body that calls the
+    // name, and the definition of `bottom`, whose entry binds `helper` again.
+    expect(s.store.emittedLastBuild).toBe(3);
     expect(closureOf(removed)).not.toBe(withHelper);
     expect(describeRoot(removed)).toEqual(describeRoot(cold(s.text)));
     const coldRun = storyBeats(new ProgramStory(cold(s.text)));

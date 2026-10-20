@@ -361,8 +361,9 @@ sparkdown [0..297]
  │   │           ├─ LuauSparkdownExplicitDoBlock_end_c1 [106..107]
  │   │           │   └─ LuauSparkdownExplicitDoBlock_end_c1 [106..107]
  │   │           │       └─ OptionalWhitespace [106..107]: " "
- │   │           └─ LuauSparkdownExplicitDoBlock_end_c2 [107..110]
- │   │               └─ LuauEndKeyword [107..110]: "end"
+ │   │           ├─ LuauSparkdownExplicitDoBlock_end_c2 [107..110]
+ │   │           │   └─ LuauEndKeyword [107..110]: "end"
+ │   │           └─ LuauSparkdownExplicitDoBlock_end_c3 110
  │   └─ LuauSparkdownExplicitStatement_end 110
  ├─ Newline [110..111]: "\n"
  ├─ LuauSparkdownExplicitStatement [111..136]
@@ -527,8 +528,9 @@ sparkdown [0..297]
  │   │       │   │   │       │       │           ├─ LuauFunctionDefinition_end_c1 186
  │   │       │   │   │       │       │           │   └─ LuauFunctionDefinition_end_c1 186
  │   │       │   │   │       │       │           │       └─ OptionalWhitespace 186
- │   │       │   │   │       │       │           └─ LuauFunctionDefinition_end_c2 [186..189]
- │   │       │   │   │       │       │               └─ LuauEndKeyword [186..189]: "end"
+ │   │       │   │   │       │       │           ├─ LuauFunctionDefinition_end_c2 [186..189]
+ │   │       │   │   │       │       │           │   └─ LuauEndKeyword [186..189]: "end"
+ │   │       │   │   │       │       │           └─ LuauFunctionDefinition_end_c3 189
  │   │       │   │   │       │       └─ LuauSparkdownExplicitAssignmentOperation_end 189
  │   │       │   │   │       └─ LuauSparkdownExplicitVariableAssignment_end 189
  │   │       │   │   └─ LuauSparkdownExplicitVariableDefinition_end 189
@@ -597,8 +599,9 @@ sparkdown [0..297]
  │   │           ├─ LuauSparkdownExplicitDoBlock_end_c1 [210..211]
  │   │           │   └─ LuauSparkdownExplicitDoBlock_end_c1 [210..211]
  │   │           │       └─ OptionalWhitespace [210..211]: " "
- │   │           └─ LuauSparkdownExplicitDoBlock_end_c2 [211..214]
- │   │               └─ LuauEndKeyword [211..214]: "end"
+ │   │           ├─ LuauSparkdownExplicitDoBlock_end_c2 [211..214]
+ │   │           │   └─ LuauEndKeyword [211..214]: "end"
+ │   │           └─ LuauSparkdownExplicitDoBlock_end_c3 214
  │   └─ LuauSparkdownExplicitStatement_end 214
  ├─ Newline [214..215]: "\n"
  ├─ LuauSparkdownExplicitStatement [215..251]

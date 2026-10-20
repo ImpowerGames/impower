@@ -19,7 +19,10 @@ import {
   METHOD_PREFIX,
   callBuiltinMethod,
   isPureNumberStdLibOp,
+  lookupAnyStdLib,
   luauNumberToString,
+  stdLibRequiredArgs,
+  luauTableBorder,
   luauTypeOf,
   parseLuauNumber,
 } from "./StdLib";
@@ -208,11 +211,15 @@ export class NativeFunctionCall extends InkObject {
     // individual parameters. Earlier MultiValues still truncate to
     // their first value (the per-arg loops below). Must run before
     // the pure-number coercion, which would otherwise truncate the
-    // pack to one value.
+    // pack to one value. A last call that returned nothing (`Void`)
+    // gives no arguments (`math.max(2, g0())` is 2); a `Void` before
+    // it stays and reads as a missing argument below.
     if (this._numberOfParameters === VARIADIC_ARITY && parameters.length > 0) {
       const last = parameters[parameters.length - 1];
       if (last instanceof MultiValue) {
         parameters.splice(parameters.length - 1, 1, ...last.values);
+      } else if (last instanceof Void) {
+        parameters.pop();
       }
     }
 
@@ -234,6 +241,14 @@ export class NativeFunctionCall extends InkObject {
         : this.name;
       if (parameters.length === 0 && this.numberOfParameters >= 1) {
         throw new StoryException(`missing argument #1 to '${shortName}'`);
+      }
+      if (this._numberOfParameters === VARIADIC_ARITY) {
+        const entry = lookupAnyStdLib(this.name);
+        if (entry && parameters.length < stdLibRequiredArgs(entry)) {
+          throw new StoryException(
+            `missing argument #${parameters.length + 1} to '${shortName}'`,
+          );
+        }
       }
       for (let i = 0; i < parameters.length; i++) {
         let p = parameters[i];
@@ -714,23 +729,7 @@ export class NativeFunctionCall extends InkObject {
       // t[10] of a filled create(10) gives 9 (walk down), reverse-
       // filling 5..2 gives 0 until t[1] lands (walk up from 0), and
       // create(5,42) keeps #t == 5 after t[1] is cleared (cache).
-      this.AddObjectUnaryOp(this.Length, (x: Map<string, any>) => {
-        // Capacity fast path: when the last array-part slot is
-        // occupied, Luau's getn returns sizearray (and beyond, via
-        // unbound search) regardless of interior holes —
-        // `t = table.create(5); t[5] = 5; #t == 5`.
-        const cap: number = (x as any).__luauCapacity ?? 0;
-        if (cap > 0 && x.has(String(cap))) {
-          let n = cap;
-          while (x.has(String(n + 1))) n++;
-          return n;
-        }
-        let b: number = (x as any).__luauBoundary ?? 0;
-        while (b > 0 && !x.has(String(b))) b--;
-        while (x.has(String(b + 1))) b++;
-        (x as any).__luauBoundary = b;
-        return b;
-      });
+      this.AddObjectUnaryOp(this.Length, luauTableBorder);
 
       let divertTargetsEqual = (d1: SymbolRef, d2: SymbolRef) => d1.Equals(d2);
       let divertTargetsNotEqual = (d1: SymbolRef, d2: SymbolRef) =>

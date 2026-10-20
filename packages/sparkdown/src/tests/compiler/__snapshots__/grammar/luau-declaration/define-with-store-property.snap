@@ -77,5 +77,6 @@ sparkdown [0..56]
          ├─ LuauDefine_end_c1 53
          │   └─ LuauDefine_end_c1 53
          │       └─ OptionalWhitespace 53
-         └─ LuauDefine_end_c2 [53..56]
-             └─ LuauEndKeyword [53..56]: "end"
+         ├─ LuauDefine_end_c2 [53..56]
+         │   └─ LuauEndKeyword [53..56]: "end"
+         └─ LuauDefine_end_c3 56

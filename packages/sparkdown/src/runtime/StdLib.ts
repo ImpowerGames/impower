@@ -125,6 +125,13 @@ export interface StdLibEntry {
    */
   validatesArgs?: boolean;
   /**
+   * Fewest arguments a VARIADIC pure entry accepts. A direct call with
+   * fewer raises `missing argument #N to 'name'` for the first absent
+   * one (`math.max()` is `missing argument #1 to 'max'`, as in Luau).
+   * Omitted means any count, including none (`bit32.band()`).
+   */
+  minArgs?: number;
+  /**
    * Implementation. Receives popped args in source order (arg 0 first,
    * arg 1 second, …) — the runtime handler reverses the pop order so
    * implementations don't have to think about stack direction. For
@@ -334,6 +341,33 @@ function requireTableArg(
     );
   }
   return raw as ObjectValue;
+}
+
+/**
+ * A table's length without its `__len`, as `#t` and `rawlen(t)` read it:
+ * Luau's border, walked from the boundary the last length left (down
+ * while that slot is empty, then up while the next is filled). This
+ * reproduces the fixture-observable behaviors: deleting t[10] of a
+ * filled create(10) gives 9 (walk down), reverse-filling 5..2 gives 0
+ * until t[1] lands (walk up from 0), and create(5,42) keeps #t == 5
+ * after t[1] is cleared (cache).
+ */
+export function luauTableBorder(x: Map<string, any>): number {
+  // Capacity fast path: when the last array-part slot is occupied,
+  // Luau's getn returns sizearray (and beyond, via unbound search)
+  // regardless of interior holes — `t = table.create(5); t[5] = 5;
+  // #t == 5`.
+  const cap: number = (x as any).__luauCapacity ?? 0;
+  if (cap > 0 && x.has(String(cap))) {
+    let n = cap;
+    while (x.has(String(n + 1))) n++;
+    return n;
+  }
+  let b: number = (x as any).__luauBoundary ?? 0;
+  while (b > 0 && !x.has(String(b))) b--;
+  while (x.has(String(b + 1))) b++;
+  (x as any).__luauBoundary = b;
+  return b;
 }
 
 /**
@@ -2754,6 +2788,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // through `Math.atan2` when both args are present.
   "math.atan": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) =>
       args.length >= 2 ? Math.atan2(args[0]!, args[1]!) : Math.atan(args[0]!),
@@ -2824,6 +2859,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `log(x) / log(base)`.
   "math.log": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) =>
       args.length >= 2 ? Math.log(args[0]!) / Math.log(args[1]!) : Math.log(args[0]!),
@@ -2839,6 +2875,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // 1) — math.luau lines 302-305.
   "math.max": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) => {
       let m = args.length > 0 ? args[0]! : -Infinity;
@@ -2850,6 +2887,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   "math.min": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) => {
       let m = args.length > 0 ? args[0]! : Infinity;
@@ -3088,6 +3126,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // value distribution) do.
   "math.noise": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) =>
       perlinNoise(args[0] ?? 0, args[1] ?? 0, args[2] ?? 0),
@@ -3151,9 +3190,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // `__tostring` metamethod — fires first for ObjectValue with a
       // metatable carrying the field. The metamethod is invoked via
       // `story.CallLuauFunction` (same path used by `__add` /
-      // `__index` function-form callbacks). The return value is
-      // expected to be a string; non-string returns fall through to
-      // the default representation.
+      // `__index` function-form callbacks). A string return is the
+      // result and a number return its text, as Luau's
+      // `luaL_tolstring` takes both; anything else is Luau's error.
       if (v instanceof ObjectValue && v.metatable instanceof ObjectValue) {
         const handler = (v.metatable.value as Map<string, AbstractValue>)?.get(
           "__tostring",
@@ -3165,11 +3204,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
           if (first != null && "value" in (first as any)) {
             const raw = (first as any).value;
             if (typeof raw === "string") return raw;
+            if (typeof raw === "number") {
+              return STDLIB["tostring"]!.fn(story, [first]);
+            }
           }
-          // Non-string return from __tostring — fall through to the
-          // default. Luau errors here; sparkdown is more lenient
-          // since narrative-fiction code often relies on string
-          // coercion working broadly.
+          story.Error("'__tostring' must return a string");
+          return;
         }
       }
       const ctorName = v?.constructor?.name;
@@ -3281,10 +3321,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // conformance test suite). Production hosts (LSP) leave the
       // formatter unset — source/line is surfaced through the
       // diagnostic UI separately, so a prefix in the message body
-      // would be redundant.
-      const message = story.errorMessageFormatter
-        ? story.errorMessageFormatter(story, raw)
-        : raw;
+      // would be redundant. Luau places the message at the function
+      // that called `error`, so `pcall(error, msg)`, called by a
+      // builtin, gets no prefix (`errorCalledByBuiltin`).
+      const message =
+        story.errorMessageFormatter && !story.errorCalledByBuiltin
+          ? story.errorMessageFormatter(story, raw)
+          : raw;
       // `story.Error` THROWS (raises a `StoryException`), so it's
       // trappable by `pcall`. `story.AddError` would call
       // `ForceEnd`, wiping the call stack and defeating pcall's
@@ -3308,6 +3351,32 @@ export const STDLIB: Record<string, StdLibEntry> = {
           ? (b as any).value
           : b;
       return av === bv;
+    },
+  },
+
+  // `rawlen(v)` — a table's or a string's length without `__len`.
+  rawlen: {
+    arity: 1,
+    validatesArgs: true,
+    fn: (story, [v]) => {
+      // A table, not a function or `newproxy` value that is an
+      // `ObjectValue` too. The border it finds is left on the table as a
+      // hint, which is part of what the table is: written as `#t` writes
+      // it (`callNativeFunction`), so a restored state does not keep it.
+      if (isPlainTable(v)) {
+        const map = v.value as Map<string, any>;
+        const hint = (map as any).__luauBoundary;
+        story.state.variablesState.PrepareTableWrite?.(v);
+        const border = luauTableBorder(map);
+        if ((map as any).__luauBoundary !== hint) {
+          story.state.variablesState.WriteBarrier(v);
+        }
+        return border;
+      }
+      if (v instanceof StringValue) return (v.value ?? "").length;
+      return story.Error(
+        "invalid argument #1 to 'rawlen' (table or string expected)",
+      );
     },
   },
 
@@ -3518,10 +3587,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // field if the metatable carries one (Luau metatable protection
   // pattern — lets a class hide its real metatable behind a sentinel
   // so user code can't tamper with it via `setmetatable`).
-  // Non-table args return nil (matches Lua's tolerant behavior).
+  // Non-table args return nil (matches Lua's tolerant behavior); no
+  // argument at all is Luau's error, as `pcall(getmetatable)` raises it.
   getmetatable: {
     arity: 1,
-    fn: (_, [t]) => {
+    fn: (story, args) => {
+      if (args.length === 0) {
+        story.Error("missing argument #1 to 'getmetatable'");
+        return;
+      }
+      const t = args[0];
       if (!(t instanceof ObjectValue)) return new NullValue();
       const mt = t.metatable;
       if (!(mt instanceof ObjectValue)) return new NullValue();
@@ -4550,6 +4625,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // starting at `field` (LSB = 0). Default width is 1.
   "bit32.extract": {
     arity: -1,
+    minArgs: 2,
     pure: true,
     fn: (_, args: number[]) => {
       const n = (args[0] ?? 0) >>> 0;
@@ -4564,6 +4640,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // at `field` with the low bits of `v`.
   "bit32.replace": {
     arity: -1,
+    minArgs: 3,
     pure: true,
     fn: (_, args: number[]) => {
       let n = (args[0] ?? 0) >>> 0;
@@ -6454,6 +6531,13 @@ export function isStdLibNamespaceName(name: string): boolean {
 // missing / wrong-typed arguments raise Lua-formatted, pcall-trappable
 // errors ("missing argument #1 to 'abs'" / "invalid argument #1 to
 // 'abs'").
+// Fewest arguments a call of `entry` must pass: its arity when fixed,
+// otherwise its `minArgs` (none when omitted). Every call form (direct,
+// first-class, `pcall`) raises the same missing argument below it.
+export function stdLibRequiredArgs(entry: StdLibEntry): number {
+  return entry.arity >= 0 ? entry.arity : (entry.minArgs ?? 0);
+}
+
 export function isPureNumberStdLibOp(name: string): boolean {
   const entry = lookupAnyStdLib(name);
   if (!entry) return false;

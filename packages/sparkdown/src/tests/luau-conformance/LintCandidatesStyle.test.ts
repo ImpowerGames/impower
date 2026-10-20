@@ -76,7 +76,7 @@ print(math.max(1,
 });
 
 // Luau: UnbalancedAssignment
-describe.skip("value lists shorter or longer than the names (not implemented: UnbalancedAssignment)", () => {
+describe("value lists shorter or longer than the names", () => {
   test("pcall() with 1 to 4 values for 3 names", () => {
     expect(
       lintInFunction(`
@@ -111,7 +111,7 @@ end
 });
 
 // Luau: ImplicitReturn
-describe.skip("functions that can fall off the end after returning a value (not implemented: ImplicitReturn)", () => {
+describe("functions that can fall off the end after returning a value", () => {
   test("f1, f4 and the anonymous f6", () => {
     expect(
       lintInFunction(`
@@ -191,7 +191,7 @@ return f1,f2,f3,f4,f5,f6,f7
 });
 
 // Luau: ImplicitReturnInfiniteLoop
-describe.skip("infinite loops with and without a break (not implemented: ImplicitReturn)", () => {
+describe("infinite loops with and without a break", () => {
   test("f3 and f4 can leave their loops", () => {
     expect(
       lintInFunction(`

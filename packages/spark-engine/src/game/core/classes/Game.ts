@@ -3841,6 +3841,13 @@ export class Game<T extends M = {}> {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
     for (const name of variableState["_globalVariables"].keys()) {
+      // A name with a `$` after its first character is the compiler's own
+      // (the cell a method of a define written in a function reads a local
+      // of that function through, `__cell$…`), which no author wrote; a
+      // scoped define's key starts with its `$` and is shown.
+      if (name.indexOf("$") > 0) {
+        continue;
+      }
       // The global itself: a temporary of the same name shadows it for the
       // story, and the Temps scope shows that temporary (#1727).
       const globalObj = variableState.GetGlobalVariableValue(name);

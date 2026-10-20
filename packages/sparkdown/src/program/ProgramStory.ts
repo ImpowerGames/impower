@@ -13,8 +13,8 @@ import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
 import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
 import type { ProgramAddress } from "../compiler/types/ProgramAddress";
-import { lookupStateAwareStdLib } from "../runtime/StdLib";
-import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
+import { lookupStateAwareStdLib, luauTypeOf } from "../runtime/StdLib";
+import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
@@ -81,6 +81,7 @@ import {
   JUMP_LUAU,
   KEEP_OR,
   LEAVE_CONTINUE,
+  NATIVE_CALL_ARGS,
   NUM_FLOAT,
   Op,
   SET_DECLARE,
@@ -465,6 +466,11 @@ export class ProgramStory implements StoryEngine {
   /** Formats the message the `error` builtin raises, as the object engine's
    *  `Story.errorMessageFormatter` did; it reads `currentDebugMetadata`. */
   errorMessageFormatter?: (story: any, message: string) => string;
+
+  /** Whether the `error` builtin running was called by a builtin, `pcall`
+   *  or `xpcall`, rather than by a line of the script: its message then has
+   *  no line to name, and the formatter is not applied. */
+  errorCalledByBuiltin = false;
 
   /** Forces the verdict of a decision (a `JumpIfFalse` with the decision
    *  flag), keyed by the decision's address (`addressOf`). */
@@ -1681,17 +1687,15 @@ export class ProgramStory implements StoryEngine {
           if (callHandler != null && !(callHandler instanceof NullValue)) {
             return this.CallLuauFunction(callHandler, [fnValue, ...args]);
           }
-          throw new StoryException(
-            "CallLuauFunction: ObjectValue is not a closure (missing `__closure_fn`)",
-          );
+          throw new StoryException(`attempt to call a ${luauTypeOf(fnValue)} value`);
         }
       } else if (isFunctionReference(fnValue)) {
         for (const a of callArgs) state.PushEvaluationStack(a);
         target = this.FunctionTargetOf(fnValue);
       } else {
-        throw new StoryException(
-          `CallLuauFunction: expected a function value, got ${fnValue}`,
-        );
+        // Luau's message for a value that is no function, as a metamethod
+        // that is a number (`__len = 42`) raises it.
+        throw new StoryException(`attempt to call a ${luauTypeOf(fnValue)} value`);
       }
       if (target == null) {
         throw new StoryException(
@@ -1765,6 +1769,14 @@ export class ProgramStory implements StoryEngine {
       (fnValue.value as Map<string, AbstractValue>)?.get("__stdlib_fn") != null
     ) {
       const errCountBefore = state.currentErrors?.length ?? 0;
+      // `error` places its message at the function that called it, which
+      // here is `pcall` itself, a builtin with no line: Luau's
+      // `pcall(error, "x")` returns "x" (tmerror.luau).
+      const builtin = (fnValue.value as Map<string, AbstractValue>).get(
+        "__stdlib_fn",
+      );
+      this.errorCalledByBuiltin =
+        builtin instanceof StringValue && builtin.value === "error";
       try {
         const values = tryInvokeStdLibMarkerValue(this, fnValue, args);
         if (values != null) {
@@ -1785,6 +1797,8 @@ export class ProgramStory implements StoryEngine {
           return { ok: false, values: [], errorMessage: e.message };
         }
         throw e;
+      } finally {
+        this.errorCalledByBuiltin = false;
       }
     }
 
@@ -2691,6 +2705,16 @@ export class ProgramStory implements StoryEngine {
           openVariablePointer(state.callStack, this.root.table.strings[arg]!),
         );
         break;
+      case Op.BindRoot: {
+        const cell = rootVariablePointer(
+          state.callStack,
+          this.root.table.strings[arg]!,
+        );
+        if (cell) {
+          state.variablesState.Assign(this.assignment(arg, SET_DECLARE), cell);
+        }
+        break;
+      }
       case Op.MakeTable: {
         const stack = state.evaluationStack;
         const between = stack.splice(stack.length - arg * 2, arg * 2);
@@ -2758,9 +2782,12 @@ export class ProgramStory implements StoryEngine {
         if (!OPERATOR_NATIVES.has(func.name) && !TEXT_BUILTINS.has(func.name)) {
           this.callsMade += 1;
         }
-        const params = state.PopEvaluationStack(func.numberOfParameters);
+        const callArgs = (flags & NATIVE_CALL_ARGS) !== 0;
+        const params = state.PopEvaluationStack(
+          callArgs ? auxOf(w0) : func.numberOfParameters,
+        );
         state.PushEvaluationStack(
-          callNativeFunction(this, func, params) as InkObject,
+          callNativeFunction(this, func, params, callArgs) as InkObject,
         );
         break;
       }

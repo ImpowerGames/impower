@@ -198,8 +198,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
 > {
   // Cache the globally-addressable callable names per parse tree.
   // Computed lazily by walking the top-level statements once: every
-  // `LuauExternalDeclaration` and every top-level `LuauFunctionDefinition`
-  // / variable definition lands in the set. Used by
+  // `LuauExternalDeclaration`, every top-level `LuauFunctionDefinition`
+  // and every top-level `store` / `const` lands in the set; a plain
+  // `local` does not, so a closure captures it (I-822). Used by
   // `scanFreeVariables` in `lowerExpression.ts` to skip these when
   // collecting closure upvals — they're already reachable from any
   // nested-function call site via the regular divert resolver, so
@@ -412,7 +413,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
       // Top-level `store NAME = …` / `const NAME = …` — collect the
       // declared identifier(s). Each `LuauVariableAssignment` carries
-      // one name in `LuauVariableName` under `_begin_c1`.
+      // one name in `LuauVariableName` under `_begin_c1`. A plain
+      // `local NAME = …` is a local a closure captures, not a global
+      // (I-822).
+      if (/^local\b/.test(this.read(node.from, node.to).trimStart())) return;
       let cur = node.firstChild;
       while (cur) {
         if (VARIABLE_DEFINITION_CONTENT_NAMES.has(cur.name)) {

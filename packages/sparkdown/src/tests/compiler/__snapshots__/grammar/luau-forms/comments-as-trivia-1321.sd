@@ -1,0 +1,12 @@
+local --[[c]] function k(x: number)
+  return x
+end
+function m() return 1 end --[[ c ]]
+function f(c)
+  local w = --[[ c ]] --[[ d ]] if c then 1 else 2
+  type F = () -> --[[c]] <T>(T) -> T
+  type G = --[[c]] <T>(T) -> T
+  return w
+end -- trailing
+local done = true
+Values {m()} {k(1)}.

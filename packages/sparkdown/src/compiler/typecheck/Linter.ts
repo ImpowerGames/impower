@@ -34,10 +34,11 @@ function fuzzyMatch(str: string, array: readonly string[]): string | undefined {
 
 const HOT_COMMENTS = ["nolint", "nocheck", "nonstrict", "strict", "optimize", "native"];
 
-const utf8Decoder = new TextDecoder();
+// A leading U+FEFF is part of the text, not a byte order mark to drop.
+const utf8Decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
-/** Text held as one character per UTF-8 byte, as a hot comment's is, decoded for a message. */
-function decodeBytes(bytes: string): string {
+/** Text held as one character per UTF-8 byte, as a hot comment's or a string literal's is, decoded for a message. */
+export function decodeBytes(bytes: string): string {
   return utf8Decoder.decode(Uint8Array.from(bytes, (c) => c.charCodeAt(0)));
 }
 

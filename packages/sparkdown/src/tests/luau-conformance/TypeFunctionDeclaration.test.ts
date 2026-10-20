@@ -132,7 +132,9 @@ end
 `,
       },
     ]);
-    expect(warnings).toEqual(["Cannot find variable named `t`"]);
+    // The parameter `t` is named like the global read after the type
+    // function, which Luau's LocalShadow reports as well.
+    expect(warnings).toEqual(["Cannot find variable named `t`", "Variable 't' shadows a global variable used at line 9"]);
   });
 
   test("the editor does not bind its parameters after its end", () => {

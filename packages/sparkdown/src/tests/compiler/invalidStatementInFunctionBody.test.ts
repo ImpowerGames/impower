@@ -635,10 +635,10 @@ function greet(name)
   return greeting
 end
 
-function noop()
+function _noop()
 end
 
-function describe(t)
+function _describe(t)
   local a = t.a
   t.b = a
   t:method()

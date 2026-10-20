@@ -2,11 +2,19 @@
 // missing member, as the uncalled form does, never the library (#915).
 import { describe, expect, test } from "vitest";
 import {
-  diagnoseDetailed,
-  diagnoseFilesDetailed,
-  diagnoseWithLints,
+  diagnoseFilesDetailed as diagnoseAllFiles,
 } from "./diagnosticTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
+
+// The functions these sources define only hold the call under test, and
+// nothing calls them, so their FunctionUnused warnings are left out, as are
+// the GlobalUsedAsLocal warnings of a global function one of them defines.
+const diagnoseFilesDetailed = (sources: Record<string, string>) =>
+  diagnoseAllFiles(sources).filter((d) => d.code !== "FunctionUnused" && d.code !== "GlobalUsedAsLocal");
+const diagnoseDetailed = (source: string) =>
+  diagnoseFilesDetailed({ "main.sd": source });
+const diagnoseWithLints = (source: string) =>
+  diagnoseDetailed(source).map((d) => d.message);
 
 const spans = (source: string) =>
   diagnoseDetailed(source).map((d) => [

@@ -416,7 +416,11 @@ function lowerNamePath(
   // `lim`).
   if (
     identifiers.length === 1 &&
-    resolveCallableBinding(identifiers[0]!.name, ctx) === "sibling"
+    resolveCallableBinding(
+      identifiers[0]!.name,
+      ctx,
+      offsetAt(location.begin, ctx),
+    ) === "sibling"
   ) {
     const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
     const knotName = info?.knotName ?? identifiers[0]!.name;
@@ -540,7 +544,10 @@ function lowerCall(
   // dispatches through it, which handles closures, `__call` metamethods
   // and `__stdlib_fn` markers. A static `FunctionCall` would divert to a
   // knot of the name, which does not exist.
-  if (resolveCallableBinding(name, ctx) === "local") {
+  if (
+    resolveCallableBinding(name, ctx, offsetAt(call.location.begin, ctx)) ===
+    "local"
+  ) {
     return new CallValueExpression(
       new VariableReference([new Identifier(name)]),
       args,
@@ -705,7 +712,7 @@ function coerceFunctionCallShorthand(
     const path = expr.pathIdentifiers;
     if (path.length === 1 && path[0]?.name) {
       const nameStr = path[0].name;
-      if (resolveCallableBinding(nameStr, ctx) === "local") {
+      if (resolveCallableBinding(nameStr, ctx, range.from) === "local") {
         return new CallValueExpression(
           new VariableReference([new Identifier(nameStr)]),
           [],
