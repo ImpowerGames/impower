@@ -17,6 +17,7 @@ import {
 } from "../../typecheck/Ast";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
+import { isLocalAt } from "../expression/bindings";
 import {
   lowerCallArguments,
   lowerExpression,
@@ -153,9 +154,13 @@ function lowerSingleAssignment(
   //     reads the global, it doesn't capture a pointer.
   // Already-local names skip all of this: their dispatch is value-
   // call via declaredLocals anyway, and registering them here would
-  // wrongly suppress their upval capture.
-  const isKnownLocal =
-    ctx.declaredLocalsStack?.some((f) => f.has(variableName)) ?? false;
+  // wrongly suppress their upval capture. A local whose block has ended
+  // is no local here (`isLocalAt`).
+  const isKnownLocal = isLocalAt(
+    variableName,
+    ctx,
+    offsetAt(target.location.begin, ctx),
+  );
   if (!isKnownLocal && ctx.siblingSubFlowNamesStack) {
     for (const frame of ctx.siblingSubFlowNamesStack) {
       frame.delete(variableName);

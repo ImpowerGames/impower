@@ -11,12 +11,15 @@
 // the few cases that need the top level.
 //
 // Luau's parser and compiler tests never run its linter, and their snippets
-// declare locals only to hold the literal or annotation under test, so
-// `diagnose` and `diagnoseInFunction` leave out unused-local and statement
-// layout lints: valid parser controls can intentionally use unread locals
-// or adjacent statements. Other lints remain to catch false warnings in
-// malformed snippets. The linter ports use
-// `diagnoseWithLints`, `diagnoseWithLintsInFunction` or `lintInFunction`.
+// declare locals and functions only to hold the literal or annotation under
+// test, so `diagnose` and `diagnoseInFunction` leave out unused-local,
+// unused-function and statement layout lints: valid parser controls can
+// intentionally use unread locals, uncalled functions or adjacent statements.
+// Other lints remain to catch false warnings in malformed snippets. The
+// linter ports use `diagnoseWithLints`, `diagnoseWithLintsInFunction` or
+// `lintInFunction`. The wrapper `run` is the harness's, not the snippet's, and
+// nothing calls it, so every helper leaves out the FunctionUnused warning on
+// its name, in a snippet that writes the wrapper itself too.
 //
 // None of those upstream tests runs Luau's type checker either, so no helper
 // here reports its warnings; the ports of Luau's type-checker tests in
@@ -46,7 +49,16 @@ export interface DetailedDiagnostic {
   };
 }
 
-/** Every diagnostic of the compile but the type checker's warnings, lint warnings included. */
+/** The FunctionUnused warning on the name of the wrapper the snippets are
+ *  placed in, `function run()` on a script's first line, which nothing
+ *  calls. */
+function isWrapperWarning(d: SparkDiagnostic) {
+  return d.code === "FunctionUnused" && d.range?.start.line === 0 && d.range.start.character === "function ".length && diagnosticMessage(d).startsWith("Function 'run' ");
+}
+
+/** Every diagnostic of the compile but the type checker's warnings and the
+ *  wrapper's FunctionUnused warning (`isWrapperWarning`), lint warnings
+ *  included. */
 export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   return diagnoseFilesDetailed({ "main.sd": source });
 }
@@ -73,6 +85,7 @@ export function diagnoseFilesDetailed(
   for (const [uri, ds] of Object.entries(result.program.diagnostics ?? {})) {
     for (const d of ds) {
       if (d.code !== "SyntaxError" && TYPE_ERROR_KINDS.has(String(d.code))) continue;
+      if (isWrapperWarning(d)) continue;
       out.push({
         file: uri.replace("inmemory:///", ""),
         message: diagnosticMessage(d),
@@ -93,7 +106,7 @@ function isLint(d: DetailedDiagnostic) {
 
 // Exact rules unrelated to the parser/compiler assertions.
 const PARSER_EXCLUDED_LINTS = new Set<LuauLintCode>([
-  "LocalUnused", "SameLineStatement", "MultiLineStatement",
+  "LocalUnused", "FunctionUnused", "SameLineStatement", "MultiLineStatement",
 ]);
 
 /** Diagnostic messages except unused-local and statement-layout lints. */

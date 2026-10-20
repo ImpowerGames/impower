@@ -239,7 +239,7 @@ return bar()
 });
 
 // Luau: FunctionUnused
-describe.skip("functions that are never called (not implemented: FunctionUnused)", () => {
+describe("functions that are never called", () => {
   test("bar and qux", () => {
     expect(
       lintMessagesInFunction(`
@@ -270,7 +270,7 @@ return foo()
 // Luau: ImportOnlyUsedInReturnType (adapted)
 // Sparkdown has no `require`; a plain local stands in for the import, which
 // is read only in the return type.
-describe.skip("a function used only in a type (not implemented: FunctionUnused)", () => {
+describe("a function used only in a type", () => {
   test("foo(): Foo.Y", () => {
     expect(
       lintMessagesInFunction(`

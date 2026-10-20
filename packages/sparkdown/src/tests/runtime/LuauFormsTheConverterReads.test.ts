@@ -52,6 +52,7 @@ describe("an if expression before the `end` of its block on the same line (#924)
     );
     expect(r.errors).toEqual([]);
     expect(r.warnings).toEqual([
+      "Function 'foo' is never used; prefix with '_' to silence",
       "Variable 'x' is never used; prefix with '_' to silence",
     ]);
     expect(r.output).toBe("Value 1.\n");

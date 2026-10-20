@@ -49,6 +49,7 @@ import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
+import type { Location } from "../../typecheck/Location";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -68,7 +69,11 @@ import {
   closeFunctionBody,
   openFunctionBody,
 } from "../utils/statementShape";
-import { recordCaptureRead } from "./bindings";
+import {
+  localInScope,
+  recordCaptureRead,
+  scopeDeclaredLocals,
+} from "./bindings";
 
 // The nodes of a function definition's content that are its header, not
 // statements of its body.
@@ -225,6 +230,23 @@ function functionStatementNames(body: AstStatBlock): Set<string> {
   return names;
 }
 
+// The names a function's body declares for the whole body rather than from
+// a point in a block: its function statements' (`functionStatementNames`)
+// and its `store`s'.
+function bodyWideDeclarations(body: AstStatBlock): Set<string> {
+  const names = functionStatementNames(body);
+  walk(body, (node) => {
+    if (node instanceof AstExprFunction) return false;
+    const stat =
+      node instanceof AstStatSparkdownExplicit ? node.statement : node;
+    if (stat instanceof AstStatSparkdownStore) {
+      for (const v of stat.vars) names.add(v.name);
+    }
+    return true;
+  });
+  return names;
+}
+
 // The names a declaration statement declares: a `local` or `const`, or a
 // `store`, bare or after `&`.
 function declarationNames(node: AstNode): string[] {
@@ -363,15 +385,31 @@ export function freeVariables(
     ctx.globalCallableNames?.has(name) ?? false;
   // Rebound entries (`f = <expr>` over a global/former subflow) are
   // dispatch metadata only — they must NOT suppress upval capture
-  // decisions; the name resolves like any other reference here.
-  const isSiblingSubFlow = (name: string) => {
+  // decisions; the name resolves like any other reference here. A local
+  // of a function between the sibling's and the read, in scope where the
+  // name is read, hides the sibling (`resolveCallableBinding`).
+  const isSiblingSubFlow = (name: string, at: number) => {
     const stack = ctx.siblingSubFlowNamesStack;
     if (!stack) return false;
-    for (let i = stack.length - 1; i >= 0; i--) {
-      const entry = stack[i]!.get(name);
-      if (entry !== undefined && !entry.rebound) return true;
+    let sibling = stack.length - 1;
+    while (sibling >= 0) {
+      const entry = stack[sibling]!.get(name);
+      if (entry !== undefined && !entry.rebound) break;
+      sibling -= 1;
     }
-    return false;
+    if (sibling < 0) return false;
+    const locals = ctx.declaredLocalsStack ?? [];
+    for (let i = stack.length - 1; i > sibling; i--) {
+      const frame = locals[i];
+      if (
+        stack[i]!.get(name) === undefined &&
+        frame?.has(name) &&
+        localInScope(frame, name, at)
+      ) {
+        return false;
+      }
+    }
+    return true;
   };
   const isShadowedLocal = (name: string) => {
     const stack = ctx.declaredLocalsStack;
@@ -383,12 +421,12 @@ export function freeVariables(
   };
   const free: string[] = [];
   const seen = new Set<string>();
-  const read = (name: string) => {
+  const read = (name: string, location: Location) => {
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
     // A variadic sibling is the innermost binding and wins over a
     // same-named local of an outer scope (`resolveCallableBinding`).
-    if (isSiblingSubFlow(name)) return;
+    if (isSiblingSubFlow(name, offsetAt(location.begin, ctx))) return;
     if (!isShadowedLocal(name)) {
       if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name) || isGlobalCallable(name)) {
         return;
@@ -398,9 +436,9 @@ export function freeVariables(
     free.push(name);
   };
   const readNames = (node: AstNode): boolean => {
-    if (node instanceof AstExprGlobal) read(node.name);
+    if (node instanceof AstExprGlobal) read(node.name, node.location);
     else if (node instanceof AstExprLocal) {
-      if (!locals.has(node.local)) read(node.local.name);
+      if (!locals.has(node.local)) read(node.local.name, node.location);
     } else if (node instanceof AstExprFunction) {
       // A nested function's function statements bind its own reads.
       functionScopes.push(functionStatementNames(node.body));
@@ -538,12 +576,17 @@ export function lowerFunctionBody(
   const content = getFunctionBodyContent(node);
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
-  ctx.functionBindingsStack?.push(
-    functionBindings([...(func.self ? [func.self] : []), ...func.args], func.body, ctx),
+  const bindings = functionBindings(
+    [...(func.self ? [func.self] : []), ...func.args],
+    func.body,
+    ctx,
   );
-  ctx.declaredLocalsStack?.push(
-    immediateBodyDeclarations(parameterNames(func), func.body),
-  );
+  ctx.functionBindingsStack?.push(bindings);
+  const declared = immediateBodyDeclarations(parameterNames(func), func.body);
+  if (func.body) {
+    scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(func.body));
+  }
+  ctx.declaredLocalsStack?.push(declared);
   const hoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoisted);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
