@@ -56,6 +56,15 @@ describe("TableLiteral", () => {
     ]);
   });
 
+  test("a key's own text reaches the author as written, not as markdown", () => {
+    const compiler = testCompiler();
+    compiler.configure({ files: [{ uri: "inmemory:///main.sd", type: "script", name: "main", ext: "sd", text: "& run()\nfunction run()\n local t = {['<b>*x*</b>'] = 1, ['<b>*x*</b>'] = 2}\n return t\nend\n", version: 1, languageId: "sparkdown" }] });
+    const result = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
+    expect((result.program.diagnostics?.["inmemory:///main.sd"] ?? []).filter((d) => d.code === "TableLiteral").map((d) => d.message)).toEqual([
+      { kind: "plaintext", value: "Table field '<b>*x*</b>' is a duplicate; previously defined at line 3" },
+    ]);
+  });
+
   test("a table holding a syntax error is left alone", () => {
     expect(inFunction(" local t = {a = 1 a = 2}\n return t")).toEqual([]);
   });

@@ -5670,7 +5670,10 @@ export class SparkdownCompiler {
           code: lint.code,
           severity: deprecated ? DiagnosticSeverity.Information : DiagnosticSeverity.Warning,
           ...(deprecated ? { tags: [DiagnosticTag.Deprecated] } : {}),
-          message: { kind: "markdown", value: lint.message },
+          // Luau's wording is plain text, and a message can quote the
+          // author's own text (a table's string key), which markdown would
+          // read as markup.
+          message: { kind: "plaintext", value: lint.message },
           source: LANGUAGE_NAME,
         });
       }
