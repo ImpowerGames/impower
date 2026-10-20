@@ -15,6 +15,7 @@ import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSo
 import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
+import { getDiagnosticActions } from "../utils/providers/getCodeActions";
 import { diffDirtyRange } from "../utils/providers/getFormatDirtyRange";
 import {
   type Connection,
@@ -429,6 +430,23 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
+  /** `diagnostics` of `uri`, each that has quick fixes carrying them in its
+   *  `data`, for a client that asks for no code actions: the web editor's
+   *  client shows a diagnostic's `data` as its actions. A client that asks
+   *  for code actions gets the same fixes from `getCodeActions`. */
+  protected withDiagnosticActions<
+    T extends ReturnType<SparkdownWorkspace["getDiagnostics"]>[number],
+  >(diagnostics: T[], uri: string): T[] {
+    const document = this.document(uri);
+    if (!document || this.clientCapabilities?.textDocument?.codeAction) {
+      return diagnostics;
+    }
+    return diagnostics.map((diagnostic) => {
+      const actions = getDiagnosticActions(document, diagnostic);
+      return actions.length > 0 ? { ...diagnostic, data: actions } : diagnostic;
+    });
+  }
+
   /** The compile's diagnostics for `uri`, then the player's current run's,
    *  while that run ran the program its entry script last compiled here,
    *  whichever program is publishing the document now: compiling another
@@ -437,7 +455,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
    *  runtime problem once per severity, message and place itself, as #816
    *  requires, rather than rely on the report having done so. */
   override getDiagnostics(program: SparkProgram, uri: string) {
-    const diagnostics = super.getDiagnostics(program, uri);
+    const diagnostics = this.withDiagnosticActions(
+      super.getDiagnostics(program, uri),
+      uri,
+    );
     const report = this._runtimeDiagnostics;
     const reported = report?.params.diagnostics?.[uri];
     const entry = report?.params.program.uri;

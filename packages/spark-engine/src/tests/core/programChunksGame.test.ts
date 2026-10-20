@@ -440,7 +440,7 @@ describe("an error that stops a route search on the program engine", () => {
       "",
     ].join("\n");
     const texts = {
-      [MAIN]: ["include chapter.sd", "", "-> C", ""].join("\n"),
+      [MAIN]: ["-> C", ""].join("\n"),
       [CHAPTER]: chapter,
     };
     const lines = chapter.split("\n");

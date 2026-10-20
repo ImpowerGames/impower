@@ -24,7 +24,7 @@
 // per-chunk reuse breaks — not the uniform perf fixture.
 //
 // The screenplay ends with the constructs of `constructs()`, and a second copy
-// sits in an included script. The seeded edits check by chunk identity that
+// sits in another script of the project. The seeded edits check by chunk identity that
 // each construct's chunk was carried rather than lowered again, so that a
 // comparison cannot pass over a construct the compile lowered again.
 import { describe, it, expect } from "vitest";
@@ -681,21 +681,21 @@ describe("compiler incremental equivalence", () => {
     });
   });
 
-  // A project of three scripts: `main` includes `chapter` and `side`, and
-  // `side` includes `chapter` again (#872). `chapter` holds a second copy of
-  // the constructs below six short scenes, so an edit at its top, or any edit
-  // in `main`, leaves their chunks carried (#404).
-  describe("across included scripts", () => {
+  // A project of three scripts: `main`, `chapter` and `side` (#872).
+  // `chapter` holds a second copy of the constructs below six short scenes, so
+  // an edit at its top, or any edit in `main`, leaves their chunks carried
+  // (#404). A script other than main runs no line outside a scene, so the
+  // copy leaves out the tag line, which only `main` holds.
+  describe("across the project's scripts", () => {
     const CHAPTER_URI = "inmemory:///chapter.sd";
     const SIDE_URI = "inmemory:///side.sd";
     const project = () => ({
-      [URI]: coupledScreenplay().replace(
-        "define hero as character with",
-        "include chapter.sd\ninclude side.sd\n\ndefine hero as character with",
-      ),
-      [CHAPTER_URI]: includedChapter(),
-      [SIDE_URI]: "include chapter.sd\n\nscene side_one\n  Side line.\nend\n",
+      [URI]: coupledScreenplay(),
+      [CHAPTER_URI]: includedChapter().replace(`${constructMarkers("ch_")["tag line"]}\n\n`, ""),
+      [SIDE_URI]: "scene side_one\n  Side line.\nend\n",
     });
+    // The constructs of `chapter`'s copy but `left`.
+    const chapterExcept = (...left: Construct[]) => except("tag line", ...left);
     const coldProject = (texts: Record<string, string>) => {
       const c = new SparkdownCompiler();
       c.configure({ files: filesOf(texts) });
@@ -712,53 +712,57 @@ describe("compiler incremental equivalence", () => {
       otherCarries: Construct[];
     })[] = [
       {
-        name: "edit a line of dialogue in the including script",
+        name: "edit a line of dialogue in the main script",
         bugs: "#404",
         uri: URI,
         find: "Line one of dialogue in scene 0.",
         replace: "Line one of dialogue in scene 0, changed.",
         carries: ALL_CONSTRUCTS,
-        otherCarries: ALL_CONSTRUCTS,
+        otherCarries: chapterExcept(),
       },
       {
-        name: "edit a line at the top of the included script",
+        name: "edit a line at the top of the chapter script",
         bugs: "#404, #872",
         uri: CHAPTER_URI,
         find: "Chapter line 0.",
         replace: "Chapter line 0, changed.",
-        carries: ALL_CONSTRUCTS,
+        carries: chapterExcept(),
         otherCarries: ALL_CONSTRUCTS,
       },
       {
-        name: "declare the included closure's callee at the top of the included script",
+        name: "declare the chapter closure's callee at the top of the chapter script",
         bugs: "#935",
         uri: CHAPTER_URI,
         find: "scene chapter_0",
         replace: "function ch_later()\n  return 7\nend\n\nscene chapter_0",
-        carries: except("function with assignments, loops and a closure"),
+        carries: chapterExcept("function with assignments, loops and a closure"),
         otherCarries: ALL_CONSTRUCTS,
       },
       {
-        name: "declare the included closure's callee in the including script",
+        name: "declare the chapter closure's callee in the main script",
         bugs: "#935",
         uri: URI,
         find: "define hero as character with",
         replace: "function ch_later()\n  return 7\nend\n\ndefine hero as character with",
         carries: ALL_CONSTRUCTS,
-        otherCarries: except("function with assignments, loops and a closure"),
+        otherCarries: chapterExcept("function with assignments, loops and a closure"),
       },
       {
-        name: "insert a define the included store is named after, in the including script",
+        name: "insert a define the chapter store is named after, in the main script",
         bugs: "#936",
         uri: URI,
         find: "define hero as character with",
         replace: "define ch_thing with\n  x = 1\nend\n\ndefine ch_sidekick as ch_thing with\n  x = 2\nend\n\ndefine hero as character with",
         carries: ALL_CONSTRUCTS,
-        otherCarries: except("store named after an edit's define"),
+        otherCarries: chapterExcept("store named after an edit's define"),
       },
     ];
 
-    const markersOf = (uri: string) => constructMarkers(uri === URI ? "" : "ch_");
+    const markersOf = (uri: string) => {
+      if (uri === URI) return constructMarkers();
+      const { "tag line": _, ...markers } = constructMarkers("ch_");
+      return markers;
+    };
 
     for (const edit of projectEdits) {
       it(`incremental == cold for edit: ${edit.name} (${edit.bugs})`, () => {

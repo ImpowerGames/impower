@@ -6,8 +6,8 @@ import { describeRoot } from "../program/describeRoot";
 
 // An incremental compile decides which scenes an edit touched by comparing
 // line ranges. Line numbers only mean something inside one script, so both
-// sides of that comparison have to be scoped to a script: a project with an
-// `include` has several scripts whose line numbers overlap freely.
+// sides of that comparison have to be scoped to a script: a project has
+// several scripts whose line numbers overlap freely.
 //
 // The fixture below is the shape that breaks a script-blind comparison. One
 // script holds a single scene that runs for dozens of lines; the other holds a
@@ -153,19 +153,20 @@ function edit(
 
 /**
  * `longIn` names the script that holds the long scene; the other holds the
- * twelve short ones. `main.sd` always carries the `include`.
+ * twelve short ones. `main.sd` opens with an empty line, where a test can
+ * write a line above its first flow.
  */
 function fixture(longIn: "main" | "chapter", portrait: string, target: string) {
   const longLines = longScene("alpha", portrait, target);
   const shortLines = shortScenes("c");
   if (longIn === "main") {
     return {
-      main: ["include chapter.sd", "", ...longLines].join("\n"),
+      main: ["", ...longLines].join("\n"),
       chapter: shortLines.join("\n"),
     };
   }
   return {
-    main: ["include chapter.sd", "", ...shortLines].join("\n"),
+    main: ["", ...shortLines].join("\n"),
     chapter: longLines.join("\n"),
   };
 }
@@ -173,7 +174,7 @@ function fixture(longIn: "main" | "chapter", portrait: string, target: string) {
 describe("incremental compiles across more than one script", () => {
   for (const longIn of ["main", "chapter"] as const) {
     const longUri = longIn === "main" ? MAIN_URI : CHAPTER_URI;
-    const where = `the ${longIn === "main" ? "including" : "included"} script`;
+    const where = longIn === "main" ? "the main script" : "another script";
 
     it(`a deep asset edit in ${where} is not masked by the other script's flow starts`, () => {
       quiet(() => {
@@ -239,7 +240,7 @@ describe("incremental compiles across more than one script", () => {
     });
   }
 
-  it("a short scene deep in the included script is still recompiled", () => {
+  it("a short scene deep in another script is still recompiled", () => {
     // The short-scene side of the same fixture: `c9` starts at line 45 of
     // `chapter.sd`, which is past every one of `main.sd`'s flow starts.
     quiet(() => {
@@ -269,17 +270,14 @@ describe("incremental compiles across more than one script", () => {
   // Content above a script's first flow lives outside every flow: a
   // constant's value, and a declared NAME entering the program, which can
   // change how call sites in flows whose own source never changed compile.
-  // The included script opens with a scene on line 0, so a comparison that
+  // The other script opens with a scene on line 0, so a comparison that
   // ignores which script a line belongs to never registers these edits as
   // preceding a flow.
   it("retyping a constant above every flow of its own script compiles as a cold compile does", () => {
     quiet(() => {
       const base = fixture("main", "face_old", "c0");
       const before = {
-        main: base.main.replace(
-          "include chapter.sd",
-          "const LIMIT = 5\ninclude chapter.sd",
-        ),
+        main: `const LIMIT = 5${base.main}`,
         chapter: base.chapter,
       };
       const compiler = newCompiler(before.main, before.chapter);
@@ -304,10 +302,7 @@ describe("incremental compiles across more than one script", () => {
     quiet(() => {
       const base = fixture("main", "face_old", "c0");
       const before = {
-        main: base.main.replace(
-          "include chapter.sd",
-          "const LIMIT = 5\ninclude chapter.sd",
-        ),
+        main: `const LIMIT = 5${base.main}`,
         chapter: base.chapter,
       };
       const compiler = newCompiler(before.main, before.chapter);

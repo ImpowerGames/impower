@@ -24,14 +24,6 @@ contact:
   Sacramento, CA 95811
 ---
 
-include characters
-include music
-include temp_sound_effects
-include voices
-include portraits
-include ui
-include backgrounds
-
 -> TEASER
 
 scene TEASER

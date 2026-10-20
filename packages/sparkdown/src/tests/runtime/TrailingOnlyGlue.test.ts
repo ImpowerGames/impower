@@ -65,7 +65,8 @@ function flags(story: RuntimeStory, flag: string): boolean[] {
 const BASE = "inmemory:///";
 const URI = `${BASE}main.sd`;
 
-// Compiles `main.sd` with the other scripts beside it that it includes.
+// Compiles `main.sd` with the other scripts beside it, which its project folder
+// makes part of its story.
 function compile(text: string, others: Record<string, string> = {}) {
   const compiler = testCompiler();
   compiler.configure({
@@ -503,9 +504,9 @@ end
     expect(rings).toBe(1);
   });
 
-  test("runs through an external an included script declares", () => {
+  test("runs through an external another script of the project declares", () => {
     const program = compile(
-      `include api.sd\n\nchoose\n  Pick.\n  & ring()\n  * One\nend\n`,
+      `choose\n  Pick.\n  & ring()\n  * One\nend\n`,
       { "api.sd": `external ring()\n` },
     );
     expect(errorsIn(program)).toEqual([]);
@@ -519,9 +520,9 @@ end
     expect(rings).toBe(1);
   });
 
-  test("closes its line before a function an included script defines", () => {
+  test("closes its line before a function another script of the project defines", () => {
     const program = compile(
-      `include api.sd\n\nchoose\n  Pick.\n  & aside()\n  * One\nend\n`,
+      `choose\n  Pick.\n  & aside()\n  * One\nend\n`,
       { "api.sd": `function aside()\n  print("Aside.")\nend\n` },
     );
     expect(errorsIn(program)).toEqual([]);

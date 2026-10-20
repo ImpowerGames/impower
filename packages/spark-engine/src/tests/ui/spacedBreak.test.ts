@@ -241,7 +241,7 @@ describe("spaced `>` break", () => {
     // continuation and then jumping straight into the second must not carry
     // the first file's cue across.
     const INCLUDE = "inmemory:///evil.sd";
-    const main = `${DEFS}\ninclude evil.sd\n\n-> start\n\nscene start\n  HERO: A. ..\n  .. joined > After.\nend\n`;
+    const main = `${DEFS}\n-> start\n\nscene start\n  HERO: A. ..\n  .. joined > After.\nend\n`;
     const head = `scene evil\n  EVIL: `;
     const evil = `${head}${"B".repeat(
       main.indexOf("  .. joined") - head.length - 5,

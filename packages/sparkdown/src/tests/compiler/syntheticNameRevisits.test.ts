@@ -1,6 +1,6 @@
 // A synthetic name minted from a source offset must come out of an
 // incremental compile as a cold compile of the same text names it, including
-// in a script included from two places and in a Sparkle layout, whose binding
+// in one of several scripts of a project and in a Sparkle layout, whose binding
 // evaluators are named by offset.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -119,31 +119,29 @@ function firstBindingValue(program: any, layout: string): unknown {
 }
 
 describe("synthetic names after an edit", () => {
-  it("a method-call temp in a script included twice keeps the cold name", () => {
-    // `shared.sd` is included by `main.sd` and again by `chapter.sd`.
+  it("a method-call temp in one of several scripts keeps the cold name", () => {
+    // `shared.sd`'s scene is reached from `main.sd` and from `chapter.sd`.
     const project: Project = {
       main: [
         "store a = { add = function(self, n) return self end }",
         "store r = 0",
-        "include pre.sd",
-        "include shared.sd",
-        "include chapter.sd",
         "",
         "scene main_one",
         "  Opening line.",
         "& r = a:add(3):add(4)",
+        "-> shared_one",
         "end",
         "",
       ].join("\n"),
-      chapter: ["include shared.sd", "", "scene chapter_one", "  Chapter line.", "end", ""].join("\n"),
-      pre: ["  Before the shared script.", ""].join("\n"),
-      shared: ["& r = a:add(1):add(2)", ""].join("\n"),
+      chapter: ["scene chapter_one", "  Chapter line.", "-> shared_one", "end", ""].join("\n"),
+      pre: ["scene pre_one", "  Before the shared script.", "end", ""].join("\n"),
+      shared: ["scene shared_one", "& r = a:add(1):add(2)", "end", ""].join("\n"),
     };
-    // A temp in the script included first comes ahead of the shared temps. It
-    // goes after the line already there, so its offsets differ from the
-    // shared temps' offsets.
+    // A temp in `pre.sd`, which comes before `shared.sd` in the project, comes
+    // ahead of the shared temps. It goes after the line already in its scene,
+    // so its offsets differ from the shared temps' offsets.
     const pre = project["pre"]!;
-    const [, incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
+    const [, incremental, cold] = incrementalAndCold(project, "pre", pre.lastIndexOf("end"), "& r = a:add(5):add(6)\n");
     expect(incremental.text).toBe(cold.text);
   });
 
@@ -300,14 +298,16 @@ describe("binding evaluator names", () => {
     expect(firstBindingValue(adapted, "la")).toBe(2);
   });
 
-  it("a layout declared in two files compiles, and the later one is kept", () => {
+  it("layouts declared in two files whose paths hash alike get an evaluator each", () => {
     // The two paths hash alike under 32-bit FNV-1a, so a name taken from a
-    // hash of the path would give both files' bindings one evaluator.
-    const program = compileOnce(["store a = 1", "store b = 2", "include f19349.sd", "include f1238112.sd", ""].join("\n"), {
-      f19349: ["layout shared with", '  text "{a}"', "end", ""].join("\n"),
-      f1238112: ["", "", "layout shared with", '  text "{b}"', "end", ""].join("\n"),
+    // hash of the path would give both files' bindings one evaluator. A layout
+    // of one name in two files is an error, so each file names its own.
+    const program = compileOnce(["store a = 1", "store b = 2", ""].join("\n"), {
+      f19349: ["layout shared_a with", '  text "{a}"', "end", ""].join("\n"),
+      f1238112: ["", "", "layout shared_b with", '  text "{b}"', "end", ""].join("\n"),
     });
     expect(diagnostics(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
-    expect(firstBindingValue(program, "shared")).toBe(2);
+    expect(firstBindingValue(program, "shared_a")).toBe(1);
+    expect(firstBindingValue(program, "shared_b")).toBe(2);
   });
 });

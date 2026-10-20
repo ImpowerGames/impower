@@ -72,9 +72,9 @@ describe("colon call receiver temp", () => {
     expect(diagnostics(program)).toEqual([]);
   });
 
-  it("a colon call in an included script raises no diagnostic", () => {
-    const program = compileOnce(["include shared.sd", ""].join("\n"), {
-      shared: [counter, "store r = 0", "& r = a:add(10):add(20)", ""].join("\n"),
+  it("a colon call in another script of the project raises no diagnostic", () => {
+    const program = compileOnce("", {
+      shared: [counter, "store r = 0", "", "scene shared_start", "  & r = a:add(10):add(20)", "end", ""].join("\n"),
     });
     expect(diagnostics(program)).toEqual([]);
   });

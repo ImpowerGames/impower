@@ -371,7 +371,7 @@ describe("two scripts with a statement on the same line", () => {
   const MAIN = "file://proj/main.sd";
   const CHAPTER = "file://proj/chapter.sd";
   const texts = {
-    [MAIN]: ["include chapter.sd", "", "scene A", "  Raffles waits.", "  -> B", "end", ""].join("\n"),
+    [MAIN]: ["", "", "scene A", "  Raffles waits.", "  -> B", "end", ""].join("\n"),
     [CHAPTER]: ["", "", "scene B", "  Bunny arrives.", "end", "", "scene C", "  Later.", "end", ""].join("\n"),
   };
   const { program } = quiet(() =>

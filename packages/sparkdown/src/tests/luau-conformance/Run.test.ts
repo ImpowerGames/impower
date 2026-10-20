@@ -124,17 +124,6 @@ done
       ],
     },
     {
-      shape: "one run line in each of two scripts",
-      helper: "inmemory:///helper.luau",
-      files: [
-        {
-          uri: "inmemory:///main.sd",
-          text: `external harness_record(v)\ninclude chapter.sd\nrun "helper"\ndone\n`,
-        },
-        { uri: "inmemory:///chapter.sd", text: `run "helper"\n` },
-      ],
-    },
-    {
       shape: "two paths to it in one script",
       helper: "inmemory:///helper.luau",
       files: [
@@ -144,20 +133,16 @@ done
         },
       ],
     },
-    ...[
-      `include lib/chapter.sd\nrun "lib/helper"\n`,
-      `run "lib/helper"\ninclude lib/chapter.sd\n`,
-    ].map((lines, i) => ({
-      shape: `two directories, ${i === 0 ? "the included script" : "the entry script"} first`,
+    {
+      shape: "a directory, by two paths",
       helper: "inmemory:///lib/helper.luau",
       files: [
         {
           uri: "inmemory:///main.sd",
-          text: `external harness_record(v)\n${lines}done\n`,
+          text: `external harness_record(v)\nrun "lib/helper"\nrun "./lib/helper"\ndone\n`,
         },
-        { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
       ],
-    })),
+    },
   ])("runs one file from $shape, once per run line", ({ helper, files }) => {
     const { result, errs } = compileWithFiles([
       ...files,
@@ -167,23 +152,22 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([42, 42]);
   });
 
-  // Two files whose paths, as written, give one wrapper name each get a
-  // wrapper of their own.
-  test.each([
-    { order: "the included script first", lines: `include lib/chapter.sd\nrun "helper"\n`, recorded: [2, 1] },
-    { order: "the entry script first", lines: `run "helper"\ninclude lib/chapter.sd\n`, recorded: [1, 2] },
-  ])("runs two files run by one path from two directories, $order", ({ lines, recorded }) => {
+  // A script other than main holds declarations only (#1387): a run line
+  // there is reported and dropped, and main's run line runs the file once.
+  test("reports a run line in a script other than main, and runs main's alone", () => {
     const { result, errs } = compileWithFiles([
       {
         uri: "inmemory:///main.sd",
-        text: `external harness_record(v)\n${lines}run "helper"\ndone\n`,
+        text: `external harness_record(v)\nrun "helper"\ndone\n`,
       },
       { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
       { uri: "inmemory:///helper.luau", text: `harness_record(1)\n` },
       { uri: "inmemory:///lib/helper.luau", text: `harness_record(2)\n` },
     ]);
-    expect(errs).toEqual([]);
-    expect(recordedRun(result.program.chunks)).toEqual([...recorded, 1]);
+    expect(errs).toEqual([
+      "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.",
+    ]);
+    expect(recordedRun(result.program.chunks)).toEqual([1]);
   });
 
   // Two files whose URIs a 32-bit hash would give one value (round 3 of PR
@@ -211,21 +195,15 @@ done
   // directories, by several paths each, compiles incrementally to what a
   // cold compile of the same text gives (round 2 of PR #1928's review).
   test("runs files from several directories alike, cold and after each reordering", () => {
+    // Only main runs a file (#1387), so every path is written from main's
+    // folder.
     const sections = [
       `run "helper"\nrun "./helper"\n`,
-      `include a/chapter.sd\n`,
-      `include b/chapter.sd\n`,
+      `run "a/helper"\nrun "./a/helper"\n`,
+      `run "b/helper"\nrun "./b/helper"\nrun "a/helper"\n`,
       `run "a/helper"\n`,
     ];
     const files = [
-      {
-        uri: "inmemory:///a/chapter.sd",
-        text: `run "helper"\nrun "../helper"\nrun "./helper"\n`,
-      },
-      {
-        uri: "inmemory:///b/chapter.sd",
-        text: `run "helper"\nrun "../a/helper"\nrun "../helper"\nrun "./helper"\n`,
-      },
       ...["helper", "a/helper", "b/helper"].map((name, i) => ({
         uri: `inmemory:///${name}.luau`,
         text: `harness_record(${i})\n`,

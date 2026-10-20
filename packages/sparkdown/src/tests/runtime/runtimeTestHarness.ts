@@ -39,20 +39,18 @@ export function makeRuntimeStoryFromFile(
   return makeRuntimeStoryFromSource(source, `inmemory://${feature}/${name}.sd`);
 }
 
-// Load a multi-file fixture from a directory. The directory layout maps
-// directly onto sparkdown's include resolution (`include path/to/other.sd`
-// resolves relative to the importing file's URI). Every `.sd` file under
-// `fixtures/<feature>/<name>/` is registered with the compiler under a
-// stable in-memory URI tree rooted at `inmemory://<feature>/<name>/`. The
-// `main.sd` entry point is compiled.
+// Load a multi-file fixture from a directory. The directory is a project
+// folder: every `.sd` file under `fixtures/<feature>/<name>/` is registered
+// with the compiler under a stable in-memory URI tree rooted at
+// `inmemory://<feature>/<name>/`, and the `main.sd` entry point is compiled,
+// which makes every script under its folder part of the story with no
+// include line. A script other than `main.sd` holds declarations only
+// (scenes, functions, defines, stores and the like).
 //
 // Layout convention:
 //   fixtures/<feature>/<name>/main.sd
 //   fixtures/<feature>/<name>/includes/other.sd
 //   fixtures/<feature>/<name>/includes/nested.sd
-//
-// In the main file, write `include includes/other.sd` (relative path). The
-// compiler walks the include graph and pulls in every reachable file.
 export function makeRuntimeStoryFromDirectory(
   feature: string,
   name: string,

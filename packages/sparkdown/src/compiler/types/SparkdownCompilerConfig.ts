@@ -34,6 +34,13 @@ export interface SparkdownCompilerConfig {
    */
   stripImageData?: boolean;
   workspace?: string;
+  /**
+   * The file name of a project's main script (`main.sd` when omitted). A
+   * folder below a compile's project root that holds a script of this name
+   * is the root of another project, whose scripts the compile leaves out
+   * (`projectScripts`).
+   */
+  mainScriptFilename?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<
     string,

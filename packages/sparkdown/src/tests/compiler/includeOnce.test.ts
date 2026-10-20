@@ -1,6 +1,6 @@
-// A script is included once per compile. The first `include` that reaches it
-// places its content; a later `include` of the same script, from any file,
-// adds nothing, so the flows it declares are declared once.
+// Every script of the project folder is read once per compile, so the flows
+// it declares are declared once, whatever other scripts the project holds. An
+// `include` line includes nothing: it is an error at its line.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -85,24 +85,23 @@ function play(program: any, scene?: string): string {
 
 const count = (text: string, part: string) => text.split(part).length - 1;
 
-// `shared.sd` is included by `main.sd` and again by `chapter.sd`, which
-// `main.sd` includes after it.
-const twice = (shared: string, mainBody: string[] = ["  Main."]): Project => ({
-  main: ["include shared.sd", "include chapter.sd", "", "scene main_one", ...mainBody, "end", ""].join("\n"),
-  chapter: ["include shared.sd", "", "scene chapter_one", "  Chapter.", "end", ""].join("\n"),
+// `shared.sd` beside `main.sd` and `chapter.sd` in the project folder.
+const threeScripts = (shared: string, mainBody: string[] = ["  Main."]): Project => ({
+  main: ["scene main_one", ...mainBody, "end", ""].join("\n"),
+  chapter: ["scene chapter_one", "  Chapter.", "end", ""].join("\n"),
   shared,
 });
 
-describe("a script included from two places", () => {
+describe("a script of a project of three scripts", () => {
   it("declares its scene once", () => {
-    const program = compileOnce(twice(["scene shared_scene", "  Shared.", "end", ""].join("\n")));
+    const program = compileOnce(threeScripts(["scene shared_scene", "  Shared.", "end", ""].join("\n")));
     expect(errors(program)).toEqual([]);
     expect(program.chunks).toBeDefined();
   });
 
   it("declares its function once", () => {
     const program = compileOnce(
-      twice(["function shared_helper()", "  return 7", "end", ""].join("\n"), ["  Value {shared_helper()}."]),
+      threeScripts(["function shared_helper()", "  return 7", "end", ""].join("\n"), ["  Value {shared_helper()}."]),
     );
     expect(errors(program)).toEqual([]);
     expect(play(program, "main_one")).toContain("Value 7.");
@@ -110,22 +109,30 @@ describe("a script included from two places", () => {
 
   it("declares its anonymous function once", () => {
     const program = compileOnce(
-      twice(["store shared_fn = function() return 8 end", ""].join("\n"), ["  Value {shared_fn()}."]),
+      threeScripts(["store shared_fn = function() return 8 end", ""].join("\n"), ["  Value {shared_fn()}."]),
     );
     expect(errors(program)).toEqual([]);
     expect(play(program, "main_one")).toContain("Value 8.");
   });
 
   it("declares its layout's binding evaluators once", () => {
-    const program = compileOnce(twice(["store a = 1", "", "layout la with", '  text "{a}"', "end", ""].join("\n")));
+    const program = compileOnce(
+      threeScripts(["store a = 1", "", "layout la with", '  text "{a}"', "end", ""].join("\n")),
+    );
     expect(errors(program)).toEqual([]);
     const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding\$\w+/)?.[0];
     expect(id).toBeDefined();
     expect(testStory(program.chunks).EvaluateFunction(id!)).toBe(1);
   });
 
-  it("shows its display content once, where it is first included", () => {
-    const program = compileOnce(twice(["Shared line.", ""].join("\n")));
+  // Left for I-1390, which retargets it to run: only run now places a script's top-level lines in the story.
+  it.skip("shows its display content once, where it is first included", () => {
+    // `shared.sd` was included by `main.sd` and again by `chapter.sd`.
+    const program = compileOnce({
+      main: ["include shared.sd", "include chapter.sd", "", "scene main_one", "  Main.", "end", ""].join("\n"),
+      chapter: ["include shared.sd", "", "scene chapter_one", "  Chapter.", "end", ""].join("\n"),
+      shared: ["Shared line.", ""].join("\n"),
+    });
     expect(errors(program)).toEqual([]);
     const shown = play(program);
     expect(count(shown, "Shared line.")).toBe(1);
@@ -136,11 +143,10 @@ describe("a script included from two places", () => {
   // rebuilds them all.
   it.each([
     ["the entry script", "main", "  Value {shared_helper()}.", "  Value {shared_helper()}, again."],
-    ["the script that includes it second", "chapter", "  Chapter.", "  Chapter, now a good deal longer."],
-    // The include in `chapter.sd` then becomes the first to reach it.
-    ["the entry script's include of it", "main", "include shared.sd\n", ""],
+    ["another script", "chapter", "  Chapter.", "  Chapter, now a good deal longer."],
+    ["the script itself", "shared", "  Shared.", "  Shared, now a good deal longer."],
   ])("compiles incrementally as it does cold after an edit to %s", (_, name, find, replace) => {
-    const project = twice(
+    const project = threeScripts(
       ["scene shared_scene", "  Shared.", "end", "", "function shared_helper()", "  return 7", "end", ""].join("\n"),
       ["  Value {shared_helper()}."],
     );
@@ -174,7 +180,8 @@ describe("a script included from two places", () => {
 });
 
 describe("a script included twice by one script", () => {
-  it("declares its scene once and shows its display content once", () => {
+  // Left for I-1390, which retargets it to run: only run now places a script's top-level lines in the story.
+  it.skip("declares its scene once and shows its display content once", () => {
     const program = compileOnce({
       main: ["include shared.sd", "include shared.sd", "", "scene main_one", "  Main.", "end", ""].join("\n"),
       shared: ["Shared line.", "", "scene shared_scene", "  Shared.", "end", ""].join("\n"),
@@ -184,32 +191,40 @@ describe("a script included twice by one script", () => {
   });
 });
 
-describe("a script that includes the script including it", () => {
-  it("compiles, with each script included once", () => {
+const INCLUDE_LINE = "Scripts in the project folder are part of the story. Delete this line.";
+
+// Every error of a program, with the script and line it is reported at.
+const errorLines = (program: any): [string, number, string][] =>
+  Object.entries(program.diagnostics ?? {}).flatMap(([uri, list]: [string, any]) =>
+    list
+      .filter((d: any) => d.severity === 1)
+      .map((d: any) => [uri, d.range.start.line, typeof d.message === "string" ? d.message : d.message?.value]),
+  );
+
+describe("a script with an include line of the script that would include it", () => {
+  it("reports the include line, and each script's scene is declared once", () => {
     const program = compileOnce({
       main: ["include chapter.sd", "", "scene main_one", "  Main.", "end", ""].join("\n"),
       chapter: ["include main.sd", "", "scene chapter_one", "  Chapter.", "end", ""].join("\n"),
     });
-    expect(errors(program)).toEqual([]);
+    expect(errorLines(program)).toEqual([
+      [MAIN_URI, 0, INCLUDE_LINE],
+      [uriOf("chapter"), 0, INCLUDE_LINE],
+    ]);
     expect(play(program, "main_one")).toContain("Main.");
     expect(play(program, "chapter_one")).toContain("Chapter.");
   });
 });
 
-// #316: an include of a script the project does not have is an error at the
-// include, in a cold compile and in one after an edit elsewhere.
-describe("an include of a script that does not exist", () => {
-  const errorLines = (program: any): [number, string][] =>
-    Object.values(program.diagnostics ?? {}).flatMap((list: any) =>
-      list
-        .filter((d: any) => d.severity === 1)
-        .map((d: any) => [d.range.start.line, typeof d.message === "string" ? d.message : d.message?.value]),
-    );
+// #316: an include line was an error when the project had no such script. An
+// include line is now an error whatever it names, in a cold compile and in one
+// after an edit elsewhere.
+describe("an include line", () => {
   const main = ["Opening.", "include nope.sd", "", "scene main_one", "  Main.", "end", ""].join("\n");
-  const missing: [number, string] = [1, "Could not find 'nope.sd' for 'include' statement."];
+  const atInclude: [string, number, string] = [MAIN_URI, 1, INCLUDE_LINE];
 
   it("is an error at the include", () => {
-    expect(errorLines(compileOnce({ main }))).toEqual([missing]);
+    expect(errorLines(compileOnce({ main }))).toEqual([atInclude]);
   });
 
   it("is an error at the include after an edit elsewhere", () => {
@@ -224,12 +239,12 @@ describe("an include of a script that does not exist", () => {
       });
       return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
     });
-    expect(errorLines(program)).toEqual([missing]);
+    expect(errorLines(program)).toEqual([atInclude]);
   });
 
   // An `include` with no path is the neighbouring mistake (#1956 review).
   it.each(["include", "include  # tag"])("is an error at `%s`, which names no script", (line) => {
     const text = main.replace("include nope.sd", line);
-    expect(errorLines(compileOnce({ main: text }))).toEqual([[1, "Expected a file path after 'include'."]]);
+    expect(errorLines(compileOnce({ main: text }))).toEqual([atInclude]);
   });
 });

@@ -56,7 +56,6 @@ import {
   FOLDER_SENTINEL,
   computeFolderMoves,
   computeLayoutMigration,
-  rewriteMainIncludesForMigration,
 } from "../utils/fileTree";
 
 const cmp = (a: any, b: any) => {
@@ -142,19 +141,6 @@ export default class WorkspaceFileSystem {
           newUri: this.getFileUri(projectId, m.to),
         })),
       });
-      // `main.sd` stayed at the root while the scripts it `include`s moved under
-      // scripts/ — rewrite its include paths so they still resolve. No-op if it
-      // has no includes (or they're already rooted).
-      const mainUri = this.getFileUri(projectId, "main.sd");
-      const mainText = files.find((f) => f.uri === mainUri)?.text;
-      if (mainText != null) {
-        const rewritten = rewriteMainIncludesForMigration(mainText);
-        if (rewritten !== mainText) {
-          await this.writeTextDocument({
-            textDocument: { uri: mainUri, version: 0, text: rewritten },
-          });
-        }
-      }
       files = await this.readDirectoryFiles({
         directory: { uri: directoryUri },
       });

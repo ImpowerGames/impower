@@ -221,17 +221,23 @@ describe("a function declaration after the last story line (#835)", () => {
   });
 });
 
-describe("a function declared in an included script (#835)", () => {
+describe("a function declared in another script of the project (#835)", () => {
   const OTHER_URI = "inmemory:///other.sd";
-  const MAIN = [`include other.sd`, ``, `A`, ``].join("\n");
+  const MAIN = [`A`, ``].join("\n");
+  // A script other than main holds declarations only at its top level, so
+  // the story lines around the function stand in scenes.
   const OTHER = [
-    `B`,
+    `scene before`,
+    `  B`,
+    `end`,
     ``,
     `function less(a, b)`,
     `  return a < b`,
     `end`,
     ``,
-    `C`,
+    `scene after`,
+    `  C`,
+    `end`,
     ``,
   ].join("\n");
 
@@ -241,18 +247,18 @@ describe("a function declared in an included script (#835)", () => {
     // The function's flow row (`functionSpans`).
     expect(functionSpans(program as any)).toContainEqual({
       path: "less",
-      lines: [scripts.indexOf(OTHER_URI), 2, 4],
+      lines: [scripts.indexOf(OTHER_URI), 4, 6],
     });
   });
 
   test("PLAY from its header starts at the story line after it, in that script", async () => {
-    const run = await playFrom(MAIN, 2, {
+    const run = await playFrom(MAIN, 4, {
       file: OTHER_URI,
       scripts: { [OTHER_URI]: OTHER },
     });
     expect(run.errors).toEqual([]);
     expect(run.startFile).toBe(OTHER_URI);
-    expect(run.startLine).toBe(6);
+    expect(run.startLine).toBe(9);
     expect(run.running).toBe(true);
   });
 });

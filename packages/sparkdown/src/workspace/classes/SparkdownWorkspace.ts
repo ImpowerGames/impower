@@ -117,6 +117,9 @@ export interface ClientCapabilities {
       relatedDocumentSupport?: boolean;
       markupMessageSupport?: boolean;
     };
+    /** Present when the client asks for code actions; a client that does not
+     *  gets a diagnostic's quick fixes in its `data`. */
+    codeAction?: object;
   };
 }
 
@@ -608,6 +611,9 @@ export abstract class SparkdownWorkspace {
   }
 
   async loadCompiler(config: SparkdownCompilerConfig) {
+    // The compiler leaves a folder that holds a main script of its own out
+    // of the project above it, by the name this workspace gives main scripts.
+    config = { mainScriptFilename: this.mainScriptFilename, ...config };
     this._compilerConfig = config;
     if (!this._initializedCompiler) {
       await this._initializingCompiler;

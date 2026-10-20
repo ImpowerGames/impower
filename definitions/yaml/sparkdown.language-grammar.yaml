@@ -1821,6 +1821,10 @@ repository:
 
   ########## Include ##########
 
+  # An `include` line includes nothing: every script under the project's
+  # folder is already part of the story (#1387). The rule stays so the
+  # compiler's error for the line, whose quick fix deletes it, has a range,
+  # and its operand reads as invalid rather than as a path.
   Include:
     tag: meta
     name: meta.import.include.sd
@@ -1845,8 +1849,8 @@ repository:
     name: keyword.control.definition.include.sd
 
   IncludeContent:
-    tag: string
-    name: string.include.sd
+    tag: invalid
+    name: invalid.deprecated.include.sd
     match: (.+?)(?={{EOL}})
 
   ########## Run ##########

@@ -167,9 +167,9 @@ describe("Sparkle @event handler resolution", () => {
     expect(has(ds, "Cannot find function")).toBe(false);
   });
 
-  test("a cross-file handler (function in an included file) does not warn", () => {
+  test("a cross-file handler (function in another script of the project) does not warn", () => {
     const ds = diagnose(
-      `include logic.sd\nlayout main with\n  button "x" @click=shared\nend\n`,
+      `layout main with\n  button "x" @click=shared\nend\n`,
       { logic: `function shared()\nend\n` },
     );
     expect(has(ds, "Cannot find function")).toBe(false);

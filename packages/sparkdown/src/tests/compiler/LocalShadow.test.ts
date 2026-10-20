@@ -15,6 +15,9 @@ const programShadows = (sources: Record<string, string>) =>
   diagnoseFilesDetailed(sources)
     .filter((d) => d.code === "LocalShadow")
     .map((d) => `${d.file}: ${d.message}`);
+// Only main runs lines outside a scene, so another script's lines run in one,
+// a line below where the script would otherwise write them.
+const inScene = (body: string) => `scene uses\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
 
 describe("LocalShadow within a function", () => {
   test("warns on a used block local with the declaration's range", () => {
@@ -93,30 +96,30 @@ describe("LocalShadow of a global", () => {
   });
 
   test.each([
-    ["a logic read", "& print(state)\n", 1],
-    ["a logic write", "& state = 1\n", 1],
-    ["a narrative interpolation", "State: {state}.\n", 1],
+    ["a logic read", inScene("& print(state)\n"), 2],
+    ["a logic write", inScene("& state = 1\n"), 2],
+    ["a narrative interpolation", inScene("State: {state}.\n"), 2],
     ["a function's read", "function g()\n return state\nend\n", 2],
   ])("sees %s in another script", (_label, use, line) => {
-    expect(programShadows({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": subject, "use.sd": use })).toEqual([
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": use })).toEqual([
       `subject.sd: Variable 'state' shadows a global variable used at line ${line} in 'use.sd'`,
     ]);
   });
 
   test("prefers the script's own first use", () => {
-    expect(programShadows({ "main.sd": "include subject.sd\ninclude a.sd\nReady.\n", "subject.sd": `${subject}& print(state)\n& state = 1\n`, "a.sd": "& print(state)\n" })).toEqual([
-      "subject.sd: Variable 'state' shadows a global variable used at line 5",
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": `${subject}${inScene("& print(state)\n& state = 1\n")}`, "a.sd": inScene("& print(state)\n") })).toEqual([
+      "subject.sd: Variable 'state' shadows a global variable used at line 6",
     ]);
   });
 
-  test("selects another script's use by URI and then offset, not include order", () => {
-    expect(programShadows({ "main.sd": "include subject.sd\ninclude z.sd\ninclude a.sd\nReady.\n", "subject.sd": subject, "z.sd": "& state = 1\n", "a.sd": "One.\n& print(state)\n& state = 3\n" })).toEqual([
-      "subject.sd: Variable 'state' shadows a global variable used at line 2 in 'a.sd'",
+  test("selects another script's use by URI and then offset", () => {
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "z.sd": inScene("& state = 1\n"), "a.sd": inScene("One.\n& print(state)\n& state = 3\n") })).toEqual([
+      "subject.sd: Variable 'state' shadows a global variable used at line 3 in 'a.sd'",
     ]);
   });
 
   test("a constant with no use is not a use", () => {
-    expect(programShadows({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": subject, "use.sd": "const state = 1\n" })).toEqual([]);
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": "const state = 1\n" })).toEqual([]);
   });
 
   test("a local hiding another local is reported against that local only", () => {
@@ -126,7 +129,7 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a local declared outside every function anywhere in the program silences the name", () => {
-    expect(programShadows({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": subject, "use.sd": "& local state = 1\nState: {state}.\n" })).toEqual([]);
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": inScene("& local state = 1\nState: {state}.\n") })).toEqual([]);
   });
 
   test.each([
@@ -143,15 +146,14 @@ describe("LocalShadow of a global", () => {
   });
 
   test.each([
-    ["a scene parameter after the use", "& state = 1\nscene inspect(state)\n State: {state}.\nend\n", {}],
-    ["a Sparkle handler's local", "& state = 1\nlayout main with\n button @click={ local state = 3; print(state) }\nend\n", {}],
-    ["another script's scene parameter", "& state = 1\n", { "flow.sd": "scene inspect(state)\n & print(state)\nend\n" }],
+    ["a scene parameter after the use", `${inScene("& state = 1\n")}scene inspect(state)\n State: {state}.\nend\n`, {}],
+    ["a Sparkle handler's local", `${inScene("& state = 1\n")}layout main with\n button @click={ local state = 3; print(state) }\nend\n`, {}],
+    ["another script's scene parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect(state)\n & print(state)\nend\n" }],
     // The reading declares a nested branch's parameters as a local of its scene.
-    ["another script's nested branch parameter", "& state = 1\n", { "flow.sd": "scene inspect()\n branch inner(state)\n  State: {state}.\n end\nend\n" }],
+    ["another script's nested branch parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect()\n branch inner(state)\n  State: {state}.\n end\nend\n" }],
   ])("%s does not hide a global use elsewhere", (_label, use, more) => {
-    const includes = Object.keys(more).map((path) => `include ${path}\n`).join("");
-    expect(programShadows({ "main.sd": `include subject.sd\ninclude use.sd\n${includes}Ready.\n`, "subject.sd": subject, "use.sd": use, ...more })).toEqual([
-      "subject.sd: Variable 'state' shadows a global variable used at line 1 in 'use.sd'",
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": use, ...more })).toEqual([
+      "subject.sd: Variable 'state' shadows a global variable used at line 2 in 'use.sd'",
     ]);
   });
 
@@ -178,31 +180,31 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a name on a line with a syntax error is not a use", () => {
-    const sources = (name: string, use: string) => ({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": `function f()\n local ${name} = 2\n return ${name}\nend\n`, "use.sd": use });
-    expect(programShadows(sources("i", "& i = 1\n"))).toEqual(["subject.sd: Variable 'i' shadows a global variable used at line 1 in 'use.sd'"]);
+    const sources = (name: string, use: string) => ({ "main.sd": "Ready.\n", "subject.sd": `function f()\n local ${name} = 2\n return ${name}\nend\n`, "use.sd": inScene(use) });
+    expect(programShadows(sources("i", "& i = 1\n"))).toEqual(["subject.sd: Variable 'i' shadows a global variable used at line 2 in 'use.sd'"]);
     // Luau's integer literal suffix, which the reading takes for a name.
     expect(programShadows(sources("i", "& v = 0x10i\n"))).toEqual([]);
     // Every name on that line, the write before the error included.
     expect(programShadows(sources("v", "& v = 0x10i\n"))).toEqual([]);
-    expect(programShadows(sources("v", "& v = 0x10i\n& v = 1\n"))).toEqual(["subject.sd: Variable 'v' shadows a global variable used at line 2 in 'use.sd'"]);
+    expect(programShadows(sources("v", "& v = 0x10i\n& v = 1\n"))).toEqual(["subject.sd: Variable 'v' shadows a global variable used at line 3 in 'use.sd'"]);
   });
 
   test("a Sparkle handler is a use", () => {
-    expect(programShadows({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": subject, "use.sd": "layout main with\n button @click={ print(state) }\nend\n" })).toEqual([
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": "layout main with\n button @click={ print(state) }\nend\n" })).toEqual([
       "subject.sd: Variable 'state' shadows a global variable used at line 2 in 'use.sd'",
     ]);
   });
 
   test("a keyword the grammar reads in place of a global's name silences it", () => {
-    const sources = (use: string) => ({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function f()\n local match = print\n return match\nend\n", "use.sd": use });
-    expect(programShadows(sources("& match = 1\n"))).toEqual(["subject.sd: Variable 'match' shadows a global variable used at line 1 in 'use.sd'"]);
+    const sources = (use: string) => ({ "main.sd": "Ready.\n", "subject.sd": "function f()\n local match = print\n return match\nend\n", "use.sd": inScene(use) });
+    expect(programShadows(sources("& match = 1\n"))).toEqual(["subject.sd: Variable 'match' shadows a global variable used at line 2 in 'use.sd'"]);
     expect(programShadows(sources("& match = 1\n& match(1)\n"))).toEqual([]);
   });
 
   test("an unchanged script gains and loses its warning as another script changes or leaves", () => {
     const compiler = testCompiler();
     const file = (path: string, text: string) => ({ uri: `inmemory:///${path}`, type: "script" as const, name: path.replace(/\.sd$/, ""), ext: "sd", text, version: 1, languageId: "sparkdown" });
-    compiler.configure({ files: [file("main.sd", "include subject.sd\ninclude use.sd\nReady.\n"), file("subject.sd", subject), file("use.sd", "Nothing.\n")] });
+    compiler.configure({ files: [file("main.sd", "Ready.\n"), file("subject.sd", subject), file("use.sd", inScene("Nothing.\n"))] });
     const found = () => {
       const program: SparkProgram = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
       return (program.diagnostics?.["inmemory:///subject.sd"] ?? []).filter((d) => d.code === "LocalShadow").map((d) => (typeof d.message === "string" ? d.message : d.message.value));
@@ -210,13 +212,13 @@ describe("LocalShadow of a global", () => {
     const update = (path: string, text: string, version: number) => compiler.updateDocument({ textDocument: { uri: `inmemory:///${path}`, version }, contentChanges: [{ text }] });
     expect(found()).toEqual([]);
     const tree = compiler.documents.tree("inmemory:///subject.sd");
-    update("use.sd", "& state = 1\n", 2);
-    expect(found()).toEqual(["Variable 'state' shadows a global variable used at line 1 in 'use.sd'"]);
-    update("use.sd", "Nothing.\n", 3);
+    update("use.sd", inScene("& state = 1\n"), 2);
+    expect(found()).toEqual(["Variable 'state' shadows a global variable used at line 2 in 'use.sd'"]);
+    update("use.sd", inScene("Nothing.\n"), 3);
     expect(found()).toEqual([]);
-    update("use.sd", "& state = 1\n", 4);
+    update("use.sd", inScene("& state = 1\n"), 4);
     expect(found()).toHaveLength(1);
-    update("main.sd", "include subject.sd\nReady.\n", 2);
+    compiler.removeFile({ file: { uri: "inmemory:///use.sd" } } as never);
     expect(found()).toEqual([]);
     expect(compiler.documents.tree("inmemory:///subject.sd")).toBe(tree);
   });

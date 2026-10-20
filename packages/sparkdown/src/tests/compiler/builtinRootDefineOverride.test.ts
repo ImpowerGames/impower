@@ -234,12 +234,10 @@ end
     expect(play(program)).toEqual({ output: "5\n", errors: [] });
   });
 
-  test("an override in an included script applies too", () => {
+  test("an override in another script of the project applies too", () => {
     const program = compileWith(
       {
-        [MAIN]: `include theme.sd
-
--> start
+        [MAIN]: `-> start
 scene start
   {game.probe_field} {game.loading.percent}
   fin

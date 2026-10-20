@@ -39,7 +39,10 @@ assert(5)
 });
 
 // Sparkdown-specific: the rule over sparkdown's flows, callbacks, handlers and
-// included scripts, which upstream has no counterpart for.
+// the other scripts of a project, which upstream has no counterpart for. Only
+// main holds a top-level local, so another script's local is in a scene's
+// outermost block (`HELPER_LOCAL`).
+const HELPER_LOCAL = "scene helper_setup\n  & local math = {}\nend\n";
 describe("overwriting a builtin global across sparkdown's units and scripts (BuiltinGlobalWrite)", () => {
   test("a future flow local does not hide a preceding write to an explicit global", () => {
     const diagnostics = diagnoseDetailed("store math = {}\nfunction run()\n math = {}\n local math = {}\n math = {}\nend\nReady.\n");
@@ -62,48 +65,44 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
       range: { start: { line, character }, end: { line, character: character + 4 } },
     }]);
   });
-  test("incremental include removal and restoration match cold binding diagnostics", () => {
-    const included = "include helper.sd\n& math = {}\nReady.\n";
-    const detached = "& math = {}\nReady.\n";
+  test("incremental removal and restoration of a script match cold binding diagnostics", () => {
     const uri = "inmemory:///main.sd";
-    const configured = (text: string) => {
+    const main = { uri, type: "script", name: "main", ext: "sd", text: "& math = {}\nReady.\n", version: 1, languageId: "sparkdown" };
+    const helper = { uri: "inmemory:///helper.sd", type: "script", name: "helper", ext: "sd", text: HELPER_LOCAL, version: 1, languageId: "sparkdown" };
+    const configured = (withHelper: boolean) => {
       const compiler = testCompiler();
-      compiler.configure({ files: [
-        { uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
-        { uri: "inmemory:///helper.sd", type: "script", name: "helper", ext: "sd", text: "local math = {}\n", version: 1, languageId: "sparkdown" },
-      ] });
+      compiler.configure({ files: withHelper ? [main, helper] : [main] });
       return compiler;
     };
     const diagnostics = (compiler: ReturnType<typeof testCompiler>) => compiler.compile({ textDocument: { uri } }).program.diagnostics ?? {};
-    const warm = configured(included);
-    let previous = included;
-    for (const [index, source] of [included, detached, included].entries()) {
-      if (index) warm.updateDocument({ textDocument: { uri, version: index + 1 }, contentChanges: [{
-        range: { start: { line: 0, character: 0 }, end: { line: previous.split("\n").length - 1, character: 0 } }, text: source,
-      }] });
+    const warm = configured(true);
+    for (const [index, withHelper] of [true, false, true].entries()) {
+      if (index) {
+        if (withHelper) warm.addFile({ file: helper } as never);
+        else warm.removeFile({ file: helper } as never);
+      }
       const actual = diagnostics(warm);
-      expect(actual).toEqual(diagnostics(configured(source)));
+      expect(actual).toEqual(diagnostics(configured(withHelper)));
       expect((actual[uri] ?? []).filter((d) => d.code === "BuiltinGlobalWrite")).toHaveLength(index === 1 ? 1 : 0);
-      previous = source;
     }
   });
-  test("an included local shadows the builtin in the including script and its later function", () => {
+  test("another script's local shadows the builtin in main and in that script's later function", () => {
     const ds = diagnoseFilesDetailed({
-      "main.sd": "include helper.sd\nfunction run() math = {} end\nReady.\n",
-      "helper.sd": "local math = {}\nfunction helper() math = {} end\nfunction assert(x) return x end\n",
+      "main.sd": "function run() math = {} end\nReady.\n",
+      "helper.sd": `${HELPER_LOCAL}function helper() math = {} end\nfunction assert(x) return x end\n`,
     }).filter((d) => d.code === "BuiltinGlobalWrite");
     expect(ds.sort((a, b) => a.file.localeCompare(b.file)).map((d) => [d.file, d.range?.start.line, d.message])).toEqual([
-      ["helper.sd", 2, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
+      ["helper.sd", 4, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
     ]);
   });
   test("a top-level local in any script silences that name program-wide", () => {
     // Conservative: the AST cannot show which writes a top-level local reaches.
     const ds = diagnoseFilesDetailed({
-      "main.sd": "include helper.sd\nlocal math = {}\nReady.\n",
-      "helper.sd": "& math = {}\nfunction f() assert = 1 end\n",
+      "main.sd": "local math = {}\nReady.\n",
+      "helper.sd": "scene helper_setup\n  & math = {}\nend\nfunction f() assert = 1 end\n",
     }).filter((d) => d.code === "BuiltinGlobalWrite");
     expect(ds.map((d) => [d.file, d.range?.start.line, d.message])).toEqual([
-      ["helper.sd", 1, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
+      ["helper.sd", 3, "Built-in global 'assert' is overwritten here; consider using a local or changing the name"],
     ]);
   });
   test.each([
@@ -135,25 +134,25 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
     expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "b", names: facts([], [uncertain]) }]))).toEqual([]);
     expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "a", names: facts([write], []) }])).map((f) => f.uri)).toEqual(["a"]);
   });
-  test("a genuinely global write in the including script still warns", () => {
+  test("a genuinely global write in main still warns beside another script's local", () => {
     const ds = diagnoseFilesDetailed({
-      "main.sd": "include helper.sd\n& math = {}\nReady.\n",
-      "helper.sd": "local ordinary = {}\n",
+      "main.sd": "& math = {}\nReady.\n",
+      "helper.sd": "scene helper_setup\n  & local ordinary = {}\nend\n",
     }).filter((d) => d.code === "BuiltinGlobalWrite");
-    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["main.sd", 1]]);
+    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["main.sd", 0]]);
   });
-  test.each(["& math = {}", "function late()\n math = {}\nend"])("included local binding silences %s", (write) => {
+  test.each(["& math = {}", "function late()\n math = {}\nend"])("another script's local binding silences %s", (write) => {
     expect(diagnoseFilesDetailed({
-      "main.sd": `include helper.sd\n${write}\nReady.\n`,
-      "helper.sd": "local math = {}\n",
+      "main.sd": `${write}\nReady.\n`,
+      "helper.sd": HELPER_LOCAL,
     }).filter((d) => d.code === "BuiltinGlobalWrite")).toEqual([]);
   });
-  test.each(["store", "const"])("explicit %s remains global despite an included local", (keyword) => {
+  test.each(["store", "const"])("explicit %s remains global despite another script's local", (keyword) => {
     const ds = diagnoseFilesDetailed({
-      "main.sd": `include helper.sd\n& ${keyword} math = {}\nReady.\n`,
-      "helper.sd": "local math = {}\n",
+      "main.sd": `& ${keyword} math = {}\nReady.\n`,
+      "helper.sd": HELPER_LOCAL,
     }).filter((d) => d.code === "BuiltinGlobalWrite");
-    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["main.sd", 1]]);
+    expect(ds.map((d) => [d.file, d.range?.start.line])).toEqual([["main.sd", 0]]);
   });
   test.each([
     "store math = {}\nReady.\n",

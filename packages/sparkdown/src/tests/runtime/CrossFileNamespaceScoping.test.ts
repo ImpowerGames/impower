@@ -1,7 +1,8 @@
 // Cross-file namespace scoping (P1, whole-program post-pass). Leaf-vs-type
 // classification is a whole-PROGRAM property: a `define X` in one file whose
-// name is used as a TYPE (`new X()` / `as X`) only in a DIFFERENT included file
-// must stay on its bare global. Per-document lowering can't see across files;
+// name is used as a TYPE (`new X()` / `as X`) only in a DIFFERENT script of the
+// project folder must stay on its bare global. Per-document lowering can't see
+// across files;
 // the `scopeDefineInstances` post-pass in SparkdownCompiler runs after the whole
 // program is assembled, over the union of type names from every file, so it can.
 //
@@ -49,8 +50,8 @@ function compileMultiFile(
 }
 
 describe("cross-file namespace scoping", () => {
-  test("`new X()` in main resolves an X defined (as a leaf) in an include", () => {
-    // `Hero` is `as Base` in the include with no local type use → looks like a
+  test("`new X()` in main resolves an X defined (as a leaf) in another script", () => {
+    // `Hero` is `as Base` in the other script with no local type use → looks like a
     // leaf there. `new Hero()` in main makes it a TYPE program-wide, so it must
     // keep its bare global.
     const { errors, recorded } = compileMultiFile([
@@ -67,7 +68,6 @@ end
       {
         rel: "main.sd",
         text: `external host_record(v)
-include includes/defs.sd
 & run()
 done
 function run()
@@ -84,31 +84,32 @@ end
     expect(recorded).toEqual([10, "Knight"]);
   });
 
-  test("`as X` in main resolves an X defined (as a leaf) in an include", () => {
-    // `Actor` is `as character` in the include with no local type use → looks
-    // like a leaf. Main uses it as a parent (`as Actor`) AND as a member root
-    // (`Actor.Hero`), both of which need the bare `Actor` global.
+  test("`as X` in another script resolves an X defined (as a leaf) in main", () => {
+    // `Actor` is `as character` in main with no local type use → looks like a
+    // leaf. The other script uses it as a parent (`as Actor`) AND as a member
+    // root (`Actor.Hero`), both of which need the bare `Actor` global. Main's
+    // declarations register before the other script's (#1387), so the
+    // parent is the one main declares.
     const { errors, recorded } = compileMultiFile([
       {
         rel: "includes/defs.sd",
-        text: `define Actor as character with
-  store hp = 7
+        text: `define Hero as Actor with
+  name = "Knight"
+end
+function run()
+  host_record(Actor.Hero.name)
+  host_record(Actor.Hero.hp)
 end
 `,
       },
       {
         rel: "main.sd",
         text: `external host_record(v)
-include includes/defs.sd
-define Hero as Actor with
-  name = "Knight"
+define Actor as character with
+  store hp = 7
 end
 & run()
 done
-function run()
-  host_record(Actor.Hero.name)
-  host_record(Actor.Hero.hp)
-end
 `,
       },
     ]);
@@ -135,7 +136,6 @@ end
       {
         rel: "main.sd",
         text: `external host_record(v)
-include includes/defs.sd
 store Orion = 42
 & run()
 done

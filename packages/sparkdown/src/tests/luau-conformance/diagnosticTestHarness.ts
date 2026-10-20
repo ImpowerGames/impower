@@ -71,8 +71,8 @@ export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
 }
 
 /** As `diagnoseDetailed`, for a project of several scripts keyed by path
- *  (`scripts/chapter.sd`). The first script is compiled; the others are what
- *  its `include` lines reach. Each diagnostic names its script's path. */
+ *  (`scripts/chapter.sd`). The first script is compiled; the others under its
+ *  folder are part of its project. Each diagnostic names its script's path. */
 export function diagnoseFilesDetailed(
   sources: Record<string, string>,
 ): (DetailedDiagnostic & { file: string })[] {
