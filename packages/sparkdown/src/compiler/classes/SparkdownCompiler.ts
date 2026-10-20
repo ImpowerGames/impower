@@ -7,7 +7,9 @@ import {
 } from "../morph/collectMorphDiagnostics";
 import {
   collectLuauLints,
+  duplicateGlobalMemberMessage,
   indexProgramNames,
+  lintDuplicateGlobalMembers,
   lintGlobalShadows,
   lintUnusedGlobalFunctions,
   type LuauLint,
@@ -5592,12 +5594,13 @@ export class SparkdownCompiler {
   /** Luau lints (unused locals, unreachable code, repeated conditions,
    *  suspicious numeric `for` ranges, reads of the placeholder `_`, locals
    *  hiding another variable, functions nothing uses, locals read without a
-   *  value, value lists that do not match their names); see
+   *  value, value lists that do not match their names, functions defined
+   *  twice); see
    *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
-    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "misreadStatements">)[] = [];
+    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "misreadStatements" | "topLevelMembers">)[] = [];
     // Each script's lints, its own and the program-wide rules', reported in
     // source order as Luau sorts its warnings.
     const lints = new Map<string, LuauLint[]>();
@@ -5615,7 +5618,7 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
-      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, misreadStatements: script.misreadStatements });
+      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, misreadStatements: script.misreadStatements, topLevelMembers: script.topLevelMembers });
       for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);
@@ -5625,6 +5628,10 @@ export class SparkdownCompiler {
     if (!(BUILTINS_PRELUDE_URI in program.scripts)) {
       const builtins = new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
       for (const { uri: scriptUri, lint } of lintUnusedGlobalFunctions(names, scripts, builtins)) report(scriptUri, lint);
+      const duplicates = lintDuplicateGlobalMembers(names, scripts, (name, original) =>
+        duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri)),
+      );
+      for (const { uri: scriptUri, lint } of duplicates) report(scriptUri, lint);
       if (scripts.some((script) => script.globalShadows.length)) {
         const shadows = lintGlobalShadows(names, scripts, builtins, (name, reference, own) => {
           const line = (this.documents.get(reference.uri)?.positionAt(reference.from).line ?? 0) + 1;

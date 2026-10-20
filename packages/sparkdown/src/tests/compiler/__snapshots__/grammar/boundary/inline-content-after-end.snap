@@ -35,8 +35,9 @@ sparkdown [0..63]
  │   │           ├─ LuauSparkdownDoBlock_end_c1 11
  │   │           │   └─ LuauSparkdownDoBlock_end_c1 11
  │   │           │       └─ OptionalWhitespace 11
- │   │           └─ LuauSparkdownDoBlock_end_c2 [11..14]
- │   │               └─ LuauEndKeyword [11..14]: "end"
+ │   │           ├─ LuauSparkdownDoBlock_end_c2 [11..14]
+ │   │           │   └─ LuauEndKeyword [11..14]: "end"
+ │   │           └─ LuauSparkdownDoBlock_end_c3 14
  │   └─ LuauSparkdownWhileLoop_end 14
  ├─ ImplicitAction [14..24]
  │   ├─ ImplicitAction_begin [14..15]

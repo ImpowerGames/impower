@@ -162,6 +162,7 @@ sparkdown [0..67]
  │       ├─ LuauFunctionDefinition_end_c1 63
  │       │   └─ LuauFunctionDefinition_end_c1 63
  │       │       └─ OptionalWhitespace 63
- │       └─ LuauFunctionDefinition_end_c2 [63..66]
- │           └─ LuauEndKeyword [63..66]: "end"
+ │       ├─ LuauFunctionDefinition_end_c2 [63..66]
+ │       │   └─ LuauEndKeyword [63..66]: "end"
+ │       └─ LuauFunctionDefinition_end_c3 66
  └─ Newline [66..67]: "\n"

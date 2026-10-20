@@ -318,8 +318,9 @@ sparkdown [0..242]
  │       ├─ LuauLayout_end_c1 152
  │       │   └─ LuauLayout_end_c1 152
  │       │       └─ OptionalWhitespace 152
- │       └─ LuauLayout_end_c2 [152..155]
- │           └─ LuauEndKeyword [152..155]: "end"
+ │       ├─ LuauLayout_end_c2 [152..155]
+ │       │   └─ LuauEndKeyword [152..155]: "end"
+ │       └─ LuauLayout_end_c3 155
  ├─ Newline [155..156]: "\n"
  ├─ LuauComponent [156..241]
  │   ├─ LuauComponent_begin [156..166]
@@ -477,6 +478,7 @@ sparkdown [0..242]
  │       ├─ LuauComponent_end_c1 238
  │       │   └─ LuauComponent_end_c1 238
  │       │       └─ OptionalWhitespace 238
- │       └─ LuauComponent_end_c2 [238..241]
- │           └─ LuauEndKeyword [238..241]: "end"
+ │       ├─ LuauComponent_end_c2 [238..241]
+ │       │   └─ LuauEndKeyword [238..241]: "end"
+ │       └─ LuauComponent_end_c3 241
  └─ Newline [241..242]: "\n"

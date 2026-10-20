@@ -528,8 +528,12 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
         break;
       }
       if (!["LuauSparkdownDoBlock", "LuauDoBlock", "LuauSparkdownExplicitDoBlock", "LuauIfBlock", "LuauSparkdownIfBlock", "LuauSparkdownExplicitIfBlock"].includes(parent.name)) continue;
+      // The block's end holds its written `end` and any comments after it
+      // on the line (I-1321); prose, string and comment occurrences are not
+      // there.
       const end = parent.getChild(`${parent.name}_end`);
-      if (end && end.from >= to && index.lineAt(end.from) === line && documentText.slice(end.from, end.to).trim() === "end") writtenCloser = true;
+      const keyword = end ? findDescendant(end, "LuauEndKeyword") : undefined;
+      if (keyword && keyword.from >= to && index.lineAt(keyword.from) === line) writtenCloser = true;
       break;
     }
     let islandFrom = from;

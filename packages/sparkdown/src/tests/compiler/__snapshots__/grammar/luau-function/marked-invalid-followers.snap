@@ -118,8 +118,9 @@ sparkdown [0..75]
  │   │           ├─ LuauSparkdownExplicitDoBlock_end_c1 [50..51]
  │   │           │   └─ LuauSparkdownExplicitDoBlock_end_c1 [50..51]
  │   │           │       └─ OptionalWhitespace [50..51]: " "
- │   │           └─ LuauSparkdownExplicitDoBlock_end_c2 [51..54]
- │   │               └─ LuauEndKeyword [51..54]: "end"
+ │   │           ├─ LuauSparkdownExplicitDoBlock_end_c2 [51..54]
+ │   │           │   └─ LuauEndKeyword [51..54]: "end"
+ │   │           └─ LuauSparkdownExplicitDoBlock_end_c3 54
  │   └─ LuauSparkdownExplicitStatement_end 54
  ├─ Newline [54..55]: "\n"
  ├─ ImplicitAction [55..74]

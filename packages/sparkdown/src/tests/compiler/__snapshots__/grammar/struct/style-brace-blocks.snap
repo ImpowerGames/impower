@@ -541,6 +541,7 @@ sparkdown [0..352]
  │       ├─ LuauStyle_end_c1 348
  │       │   └─ LuauStyle_end_c1 348
  │       │       └─ OptionalWhitespace 348
- │       └─ LuauStyle_end_c2 [348..351]
- │           └─ LuauEndKeyword [348..351]: "end"
+ │       ├─ LuauStyle_end_c2 [348..351]
+ │       │   └─ LuauEndKeyword [348..351]: "end"
+ │       └─ LuauStyle_end_c3 351
  └─ Newline [351..352]: "\n"

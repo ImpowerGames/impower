@@ -90,8 +90,9 @@ sparkdown [0..414]
  │       ├─ LuauDefine_end_c1 42
  │       │   └─ LuauDefine_end_c1 42
  │       │       └─ OptionalWhitespace 42
- │       └─ LuauDefine_end_c2 [42..45]
- │           └─ LuauEndKeyword [42..45]: "end"
+ │       ├─ LuauDefine_end_c2 [42..45]
+ │       │   └─ LuauEndKeyword [42..45]: "end"
+ │       └─ LuauDefine_end_c3 45
  ├─ Newline [45..46]: "\n"
  ├─ LuauAnimation [46..124]
  │   ├─ LuauAnimation_begin [46..56]
@@ -210,8 +211,9 @@ sparkdown [0..414]
  │       ├─ LuauAnimation_end_c1 121
  │       │   └─ LuauAnimation_end_c1 121
  │       │       └─ OptionalWhitespace 121
- │       └─ LuauAnimation_end_c2 [121..124]
- │           └─ LuauEndKeyword [121..124]: "end"
+ │       ├─ LuauAnimation_end_c2 [121..124]
+ │       │   └─ LuauEndKeyword [121..124]: "end"
+ │       └─ LuauAnimation_end_c3 124
  ├─ Newline [124..125]: "\n"
  ├─ LuauTheme [125..180]
  │   ├─ LuauTheme_begin [125..131]
@@ -315,8 +317,9 @@ sparkdown [0..414]
  │       ├─ LuauTheme_end_c1 177
  │       │   └─ LuauTheme_end_c1 177
  │       │       └─ OptionalWhitespace 177
- │       └─ LuauTheme_end_c2 [177..180]
- │           └─ LuauEndKeyword [177..180]: "end"
+ │       ├─ LuauTheme_end_c2 [177..180]
+ │       │   └─ LuauEndKeyword [177..180]: "end"
+ │       └─ LuauTheme_end_c3 180
  ├─ Newline [180..181]: "\n"
  ├─ LuauMorph [181..349]
  │   ├─ LuauMorph_begin [181..187]
@@ -633,8 +636,9 @@ sparkdown [0..414]
  │       ├─ LuauMorph_end_c1 346
  │       │   └─ LuauMorph_end_c1 346
  │       │       └─ OptionalWhitespace 346
- │       └─ LuauMorph_end_c2 [346..349]
- │           └─ LuauEndKeyword [346..349]: "end"
+ │       ├─ LuauMorph_end_c2 [346..349]
+ │       │   └─ LuauEndKeyword [346..349]: "end"
+ │       └─ LuauMorph_end_c3 349
  ├─ Newline [349..350]: "\n"
  ├─ LuauScreen [350..379]
  │   ├─ LuauScreen_begin [350..357]
@@ -682,8 +686,9 @@ sparkdown [0..414]
  │       ├─ LuauScreen_end_c1 376
  │       │   └─ LuauScreen_end_c1 376
  │       │       └─ OptionalWhitespace 376
- │       └─ LuauScreen_end_c2 [376..379]
- │           └─ LuauEndKeyword [376..379]: "end"
+ │       ├─ LuauScreen_end_c2 [376..379]
+ │       │   └─ LuauEndKeyword [376..379]: "end"
+ │       └─ LuauScreen_end_c3 379
  ├─ Newline [379..380]: "\n"
  ├─ LuauExternalDeclaration [380..409]
  │   ├─ LuauExternalDeclaration_begin [380..389]
