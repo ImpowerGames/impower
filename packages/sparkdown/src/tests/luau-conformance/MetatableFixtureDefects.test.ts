@@ -186,9 +186,14 @@ assert(not ok and err:match("table or string expected"))
     passes(`
 local n = 0
 local function closure() n = n + 1 end
-assert(not pcall(rawlen, print))
-assert(not pcall(function() return rawlen(closure) end))
-assert(not pcall(function() return rawlen(newproxy()) end))
+local function rejects(v)
+  local ok, err = pcall(function() return rawlen(v) end)
+  return not ok and string.find(err, "table or string expected", 1, true) ~= nil
+end
+assert(rawlen({1}) == 1)
+assert(rejects(print), "print")
+assert(rejects(closure), "closure")
+assert(rejects(newproxy()), "userdata")
 `);
   });
 
