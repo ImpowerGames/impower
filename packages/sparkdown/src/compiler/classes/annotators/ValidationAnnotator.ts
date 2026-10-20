@@ -23,7 +23,7 @@ import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isCheckedLuau, isLuauDocument, isLuauFile, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isCheckedLuau, isLuauDocument, isLuauFile, isReadLuau, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -1105,7 +1105,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (got) {
       const node = this.tree?.resolveInner(got.from, 1) ?? null;
-      if (LUAU_NON_TYPE_KEYWORDS.has(got.text) || (node && isCheckedLuau(node, read))) {
+      if (LUAU_NON_TYPE_KEYWORDS.has(got.text) || (node && isReadLuau(node, read))) {
         return { text: got.text, to: got.from + got.text.length };
       }
       return { text: null, to: this.text?.lineAt(got.from).from ?? got.from };
@@ -1222,11 +1222,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // A type that is missing or malformed in Luau the type checker reads is
     // reported by the checker, with Luau's parser's wording and range, since
     // Luau's parser has a point wherever a type can stand (see
-    // `SparkdownTypechecker`). The grammar's tokens for one are reported here
-    // only where the checker does not read the Luau: in a flow header's
-    // parameters and in Sparkdown's own constructs.
+    // `SparkdownTypechecker`), as the lowerer of a define's method or a
+    // Sparkle handler's closure reports them there (`isReadLuau`). The
+    // grammar's tokens for one are reported here only where neither reads
+    // the Luau: in a flow header's parameters and in Sparkdown's own
+    // constructs.
     const checkerReportsType =
-      TYPE_ERROR_TOKENS.has(nodeRef.name) && isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to));
+      TYPE_ERROR_TOKENS.has(nodeRef.name) && isReadLuau(nodeRef.node, (from, to) => this.read(from, to));
     // A `?` only ends the type before it; the grammar reads one with no type
     // before it as its own token. The wording and range are Luau's parser's,
     // from the end of the token before it.
@@ -1466,11 +1468,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // sees the text it has read so far, so it also cannot tell one whose
     // next line starts past the chunk of text it was given, where it reads
     // that line's keyword as the type. The whole text is here. In Luau the
-    // type checker reads, the checker reports it; elsewhere the range is
-    // the checker's, from the `:` to the token Luau would find.
+    // type checker reads, the checker reports it, and in a define's method
+    // or a Sparkle handler's closure its lowerer (`isReadLuau`); elsewhere
+    // the range is the checker's, from the `:` to the token Luau would find.
     if (
       EMPTY_AT_END_OPERATIONS.has(nodeRef.name) &&
-      !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))
+      !isReadLuau(nodeRef.node, (from, to) => this.read(from, to))
     ) {
       const colon = firstDescendant(nodeRef.node, TYPE_COLON_BEGINS);
       const token = colon ? this.tokenAfterTrivia(colon.to) : undefined;
