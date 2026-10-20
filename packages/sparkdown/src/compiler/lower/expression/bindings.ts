@@ -59,8 +59,8 @@ export function makeGlobalFunctionCall(
 // A frame's locals are every name its function's body declares, in any
 // block; `at`, the offset the name is written at, keeps a local whose
 // block has ended, or that is declared after `at`, from answering, so
-// the name resolves in the enclosing frames as Luau scopes it
-// (`scopeDeclaredLocals`).
+// the name reaches a sibling of an enclosing function as Luau scopes it
+// (`localInScope`).
 export function resolveCallableBinding(
   name: string,
   ctx: LowerContext,
@@ -69,6 +69,7 @@ export function resolveCallableBinding(
   const locals = ctx.declaredLocalsStack ?? [];
   const siblings = ctx.siblingSubFlowNamesStack ?? [];
   const depth = Math.max(locals.length, siblings.length);
+  const scopeAt = siblingRegistered(name, ctx) ? at : undefined;
   for (let i = depth - 1; i >= 0; i--) {
     const sibling = siblings[i]?.get(name);
     if (sibling !== undefined) {
@@ -79,9 +80,45 @@ export function resolveCallableBinding(
       return binding;
     }
     const frame = locals[i];
-    if (frame?.has(name) && localInScope(frame, name, at)) return "local";
+    if (frame?.has(name) && localInScope(frame, name, scopeAt)) return "local";
   }
   return null;
+}
+
+/**
+ * Whether a local of a function lowering around `at` binds `name` there, as
+ * an assignment to the name asks (`lowerReassignment`): a local whose block
+ * has ended, or that is declared after `at`, does not, when a sibling of the
+ * name is registered for it to hide (`localInScope`).
+ */
+export function isLocalAt(name: string, ctx: LowerContext, at: number): boolean {
+  const scopeAt = siblingRegistered(name, ctx) ? at : undefined;
+  const locals = ctx.declaredLocalsStack ?? [];
+  for (let i = 0; i < locals.length; i++) {
+    if (locals[i]!.has(name) && localInScope(locals[i]!, name, scopeAt)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether a variadic sibling subflow of `name`, not rebound, is registered
+ * in any function lowering around the name: only then does where a local's
+ * block ends decide what the name refers to. The scope is read only then,
+ * since its ranges are document offsets, and a statement's memo records
+ * every value its lowering reads from the context (`recordLowering`), so a
+ * statement that read them would be emitted again by an edit above it.
+ * The reads here and in `localInScope` index the context's arrays rather
+ * than pass a callback to their methods, which no memo can record.
+ */
+export function siblingRegistered(name: string, ctx: LowerContext): boolean {
+  const siblings = ctx.siblingSubFlowNamesStack ?? [];
+  for (let i = 0; i < siblings.length; i++) {
+    const entry = siblings[i]!.get(name);
+    if (entry !== undefined && !entry.rebound) return true;
+  }
+  return false;
 }
 
 // A function's `declaredLocalsStack` frame with where its names are in
@@ -110,6 +147,11 @@ export function scopeDeclaredLocals(
   (frame as ScopedDeclaredLocals).scope = { bindings, bodyWide };
 }
 
+/**
+ * Whether the local `name` of a `declaredLocalsStack` frame is in scope at
+ * the offset `at`: always with no offset, no record of the frame's scope
+ * (`scopeDeclaredLocals`), or a name declared for the whole body.
+ */
 export function localInScope(
   frame: ReadonlySet<string>,
   name: string,
@@ -118,11 +160,14 @@ export function localInScope(
   const scope = (frame as ScopedDeclaredLocals).scope;
   if (at === undefined || !scope || scope.bodyWide.has(name)) return true;
   // A name the bindings do not hold keeps the frame's answer.
-  const bindings = scope.bindings.filter((b) => b.name === name);
-  return (
-    bindings.length === 0 ||
-    bindings.some((b) => b.from <= at && at >= b.blockFrom && at <= b.blockTo)
-  );
+  let bound = false;
+  for (let i = 0; i < scope.bindings.length; i++) {
+    const b = scope.bindings[i]!;
+    if (b.name !== name) continue;
+    if (b.from <= at && at >= b.blockFrom && at <= b.blockTo) return true;
+    bound = true;
+  }
+  return !bound;
 }
 
 /**

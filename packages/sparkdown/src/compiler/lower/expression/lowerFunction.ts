@@ -391,16 +391,25 @@ export function freeVariables(
   const isSiblingSubFlow = (name: string, at: number) => {
     const stack = ctx.siblingSubFlowNamesStack;
     if (!stack) return false;
+    let sibling = stack.length - 1;
+    while (sibling >= 0) {
+      const entry = stack[sibling]!.get(name);
+      if (entry !== undefined && !entry.rebound) break;
+      sibling -= 1;
+    }
+    if (sibling < 0) return false;
     const locals = ctx.declaredLocalsStack ?? [];
-    for (let i = stack.length - 1; i >= 0; i--) {
-      const entry = stack[i]!.get(name);
-      if (entry !== undefined && !entry.rebound) return true;
+    for (let i = stack.length - 1; i > sibling; i--) {
       const frame = locals[i];
-      if (entry === undefined && frame?.has(name) && localInScope(frame, name, at)) {
+      if (
+        stack[i]!.get(name) === undefined &&
+        frame?.has(name) &&
+        localInScope(frame, name, at)
+      ) {
         return false;
       }
     }
-    return false;
+    return true;
   };
   const isShadowedLocal = (name: string) => {
     const stack = ctx.declaredLocalsStack;

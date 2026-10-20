@@ -121,4 +121,37 @@ describe("a call by name after the block of a local of the name", () => {
   ])("inside the block, after the local, %s, calls the local", (_, body) => {
     expect(run(story(body))).toEqual({ text: "Got 100.\n", errors: [] });
   });
+
+  test.each([
+    [
+      "after the block, in a function nested in it, calls what it assigns",
+      [
+        "local function g()",
+        "  do local foo = 1 end",
+        "  foo = function() return 100 end",
+        "  return foo()",
+        "end",
+        "return g()",
+      ],
+      "Got 100.\n",
+    ],
+    [
+      "after the block, in the declaring function, calls what it assigns",
+      ["do local foo = 1 end", "foo = function() return 100 end", "return foo()"],
+      "Got 100.\n",
+    ],
+    [
+      "to the local inside the block leaves the function to the call after it",
+      [
+        "local function g()",
+        "  do local foo = 1 foo = function() return 100 end end",
+        "  return foo(1, 2)",
+        "end",
+        "return g()",
+      ],
+      "Got 2.\n",
+    ],
+  ])("an assignment to the name %s", (_, body, text) => {
+    expect(run(story(body))).toEqual({ text, errors: [] });
+  });
 });
