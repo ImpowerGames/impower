@@ -317,6 +317,12 @@ function getPreludeGlobalNames(): Set<string> {
   return _preludeGlobalNames;
 }
 
+/** The names the program-wide Luau lints treat as built-in besides the
+ *  standard library's: the builtins prelude's globals and type names. */
+export function lintBuiltinNames(): Set<string> {
+  return new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
+}
+
 /** The names of the globals `root`'s declaration chunks declare, without the
  *  scoped `$` names. */
 export function declaredGlobalNames(root: ProgramRoot): Set<string> {
@@ -5628,7 +5634,7 @@ export class SparkdownCompiler {
     // prelude's own compile, which seeds the prelude's globals, has none (its
     // script's version is 0, so presence is tested, not the version).
     if (!(BUILTINS_PRELUDE_URI in program.scripts)) {
-      const builtins = new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
+      const builtins = lintBuiltinNames();
       for (const { uri: scriptUri, lint } of lintUnusedGlobalFunctions(names, scripts, builtins)) report(scriptUri, lint);
       const duplicates = lintDuplicateGlobalMembers(names, scripts, (name, original) =>
         duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri)),

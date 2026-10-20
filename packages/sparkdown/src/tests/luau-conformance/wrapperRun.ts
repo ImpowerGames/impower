@@ -1,7 +1,7 @@
-// The wrapper `function run()` the conformance harness and the lint corpus
-// place an upstream Luau chunk in. A GlobalUsedAsLocal warning naming `run`
-// is the wrapper's only when no function the chunk itself holds has that
-// name, as the reading names functions (Luau's `debugname`).
+// The wrapper `function run()` the conformance harness places an upstream
+// Luau chunk in. A GlobalUsedAsLocal warning naming `run` is the wrapper's
+// only when no function the chunk itself holds has that name, as the reading
+// names functions (Luau's `debugname`).
 
 import type { LuauNameFacts } from "../../compiler/lint/luauNames";
 

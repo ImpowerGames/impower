@@ -4,10 +4,9 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { SparkdownCompiler } from "../src/compiler/classes/SparkdownCompiler";
-import { collectLuauLints, LUAU_LINT_CODES } from "../src/compiler/lint/collectLuauLints";
+import { lintBuiltinNames, SparkdownCompiler } from "../src/compiler/classes/SparkdownCompiler";
+import { collectLuauLints, indexProgramNames, lintGlobalsUsedAsLocals, LUAU_LINT_CODES } from "../src/compiler/lint/collectLuauLints";
 import type { SparkDiagnostic } from "../src/compiler/types/SparkDiagnostic";
-import { namesRun, onlyRunIsWrapper } from "../src/tests/luau-conformance/wrapperRun";
 
 export interface Script {
   /** What the finding prints as its file. */
@@ -86,33 +85,50 @@ export function lint(scripts: Script[], entries: Script[]): Finding[] {
   for (const [uri, diagnostics] of reported) {
     const script = byUri.get(uri);
     if (!script) continue;
-    // The wrapper a conformance file is read in is the corpus's, and nothing
-    // calls it, nor holds the file's globals in Luau, unless the file names
-    // a function `run` of its own.
-    let wrapperOnly: boolean | undefined;
-    const wrappers = () => {
-      if (wrapperOnly === undefined) {
-        const doc = compiler.documents.get(uri);
-        const tree = compiler.documents.tree(uri);
-        wrapperOnly = !!doc && !!tree && onlyRunIsWrapper(collectLuauLints(tree, (from, to) => doc.read(from, to)).names);
-      }
-      return wrapperOnly;
-    };
     for (const d of diagnostics) {
       if (!LINT_CODES.has(String(d.code))) continue;
+      // The wrapper a conformance file is read in is the corpus's, and
+      // nothing calls it; its GlobalUsedAsLocal is read below instead.
       if (script.offset && d.code === "FunctionUnused" && d.range.start.line === 0) continue;
-      const message = typeof d.message === "string" ? d.message : d.message.value;
-      if (script.offset && d.code === "GlobalUsedAsLocal" && namesRun(message) && wrappers()) continue;
+      if (script.offset && d.code === "GlobalUsedAsLocal") continue;
       out.push({
         label: script.label,
         line: d.range.start.line + 1 - script.offset,
         column: d.range.start.character + 1,
         code: String(d.code),
-        message,
+        message: typeof d.message === "string" ? d.message : d.message.value,
       });
     }
+    if (script.offset) out.push(...moduleLevelGlobals(compiler, uri, script));
   }
   return out;
+}
+
+/**
+ * GlobalUsedAsLocal for a wrapped conformance file at Luau's module level:
+ * the program-wide rule run again over the script's cached facts with the
+ * corpus's wrapper dropped from every reference's enclosing functions, so
+ * the file's own top level is outside every function, as a Luau chunk's is
+ * and as a script's top level is. Both of the rule's messages can then
+ * report, and a function the file names `run` is still a function. Lines,
+ * a "defined at line N" included, are the file's own.
+ */
+function moduleLevelGlobals(compiler: SparkdownCompiler, uri: string, script: Script): Finding[] {
+  const doc = compiler.documents.get(uri);
+  const tree = compiler.documents.tree(uri);
+  if (!doc || !tree) return [];
+  const facts = collectLuauLints(tree, (from, to) => doc.read(from, to));
+  const wrapper = [...facts.names.functionStarts].find(([fn, from]) => from === 0 && fn.debugname === "run")?.[0];
+  const references = facts.names.references.map((reference) => {
+    const enclosingFunctions = reference.enclosingFunctions.filter((fn) => fn !== wrapper);
+    return { ...reference, enclosingFunctions, enclosingFunction: enclosingFunctions[enclosingFunctions.length - 1] };
+  });
+  const program = indexProgramNames([{ uri, names: { ...facts.names, references } }]);
+  const line = (_uri: string, offset: number) => doc.positionAt(offset).line + 1 - script.offset;
+  return lintGlobalsUsedAsLocals(program, [{ uri, ...facts }], lintBuiltinNames(), line).map(({ lint: found }) => {
+    const at = doc.positionAt(found.from);
+    return { label: script.label, line: at.line + 1 - script.offset, column: at.character + 1, code: found.code, message: found.message };
+  });
 }
 
 function walk(dir: string, out: string[] = []) {
@@ -157,8 +173,8 @@ export function main(repo: string, project?: string) {
   run("repository .sd files", repoFindings, tracked.length);
 
   // Luau is sparkdown only inside a function, so each conformance file is
-  // wrapped in one, as the conformance tests wrap their snippets. A global
-  // only that wrapper holds is the file's own, as in Luau, and not reported.
+  // wrapped in one, as the conformance tests wrap their snippets; its
+  // GlobalUsedAsLocal is read at module level (`moduleLevelGlobals`).
   const conformance = "packages/sparkdown/src/tests/luau-conformance/upstream/conformance";
   const luau = walk(join(repo, conformance))
     .filter((f) => f.endsWith(".luau"))

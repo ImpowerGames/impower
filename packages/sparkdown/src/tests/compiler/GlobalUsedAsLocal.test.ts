@@ -58,6 +58,8 @@ describe("GlobalUsedAsLocal in one function", () => {
     ["a method's name", "function f(t)\n  score = t:score()\n  return score\nend\n& f({})\n"],
     ["a table's record key", "function f()\n  score = 1\n  local t = {score = 7}\n  return score, t\nend\n& f()\n"],
     ["a table type's property", "function f(t: {score: number})\n  score = t\n  return score\nend\n& f({score = 1})\n"],
+    ["a member of a parameter named _G", "function f(_G)\n  score = _G.score\n  return score\nend\n& f({})\n"],
+    ["a member of a table in parentheses", "function f(t)\n  score = (t).score\n  return score\nend\n& f({})\n"],
   ])("%s of the same spelling is a field, not a use", (_label, source) => {
     expect(messages(source)).toEqual([only("score", "f")]);
   });
@@ -97,6 +99,10 @@ describe("GlobalUsedAsLocal is silent for a use outside the function", () => {
     ["a bare Sparkle handler", "layout main with\n button @click=score\nend\n"],
     ["a Luau string", "& print(\"score\")\n"],
     ["a member of the globals table", "& print(_G.score)\n"],
+    ["a member of the globals table in parentheses", "& print((_G).score)\n"],
+    ["a member of the globals table in nested parentheses", "& print(((_G)).score)\n"],
+    ["a member of the globals table under a type assertion", "& print((_G :: any).score)\n"],
+    ["an index of the globals table", "& print(_G[\"score\"])\n"],
     ["a type", "type T = typeof(score)\n"],
     ["another function", "function g()\n  return score\nend\n& g()\n"],
   ])("%s", (_label, use) => {

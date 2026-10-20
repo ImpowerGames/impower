@@ -326,14 +326,17 @@ function unplacedMention(tree: Tree, text: string, placed: ReadonlySet<number>, 
  * (`t.score`, `t:score()`), a table's record key (`{score = 1}`) and a table
  * type's property (`{score: number}`). The name facts place none of them, and
  * none can read or write the global of its spelling, except a member of the
- * globals table itself (`_G.score`), which is left out. */
+ * globals table itself (`_G.score`, `(_G).score`, `(_G :: any).score`), which
+ * is left out. */
 function fieldNames(roots: NameRoot[]): Set<number> {
   const found = new Set<number>();
   for (const { root, offsets } of roots) {
     visitAst(root, {
       visit(node) {
         if (node instanceof AstExprIndexName) {
-          if (!(node.expr instanceof AstExprGlobal && node.expr.name === "_G")) found.add(offsets.range(node.indexLocation).from);
+          let receiver = node.expr;
+          while (receiver instanceof AstExprGroup || receiver instanceof AstExprTypeAssertion) receiver = receiver.expr;
+          if (!(receiver instanceof AstExprGlobal && receiver.name === "_G")) found.add(offsets.range(node.indexLocation).from); // not a node name
         } else if (node instanceof AstExprTable) {
           for (const item of node.items) if (item.kind === TableItemKind.Record && item.key) found.add(offsets.range(item.key.location).from);
         } else if (node instanceof AstTypeTable) for (const prop of node.props) found.add(offsets.range(prop.location).from);

@@ -25,6 +25,18 @@ describe("GlobalUsedAsLocal in the corpus's conformance files", () => {
     ]);
   });
 
+  test("a global every function of the file writes before reading it is reported", () => {
+    expect(found("local function a()\n  score = 1\n  return score\nend\nlocal function b()\n  score = 2\n  return score\nend\nprint(a(), b())\n")).toEqual([
+      "conformance/sample.luau:2 Global 'score' is never read before being written. Consider changing it to local",
+    ]);
+  });
+
+  test("a function without a name is named by the file's own line", () => {
+    expect(found("print((function()\n  total = 1\n  return total\nend)())\n")).toEqual([
+      "conformance/sample.luau:2 Global 'total' is only used in the enclosing function defined at line 1; consider changing it to local",
+    ]);
+  });
+
   test.each([
     ["a local function", "local function run()"],
     ["a generic function", "local function run<T>(value: T)"],
