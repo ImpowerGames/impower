@@ -249,6 +249,16 @@ describe("an end at the script root that closes nothing is reported (I-774)", ()
     const text = `function f()\n  do\n    until true\n  end\nend\nfunction g()\n  local x = ${value}\nend\n${STORY}`;
     expect(sparkdownErrors(text)).toContain(error);
   });
+
+  // Each function that stops is read as Luau reads it alone: its errors are
+  // its own, those after its own stop left out, whatever stopped before it.
+  test("a second function that stops has the errors it has alone", () => {
+    const stops = (name: string) => `function ${name}()\n  do\n    until true\n  end\nend\n`;
+    const both = sparkdownErrors(`${stops("f")}${stops("g")}${STORY}`);
+    const alone = [...sparkdownErrors(`${stops("f")}${STORY}`), ...sparkdownErrors(`${"\n".repeat(5)}${stops("g")}${STORY}`)];
+    expect(both).toEqual(alone.sort());
+    expect(both.filter((e) => e.startsWith("7:") || e.startsWith("8:"))).toEqual(["7:4-7:9 Expected 'end' (to close 'do' at line 7), got 'until'"]);
+  });
 });
 
 describe("text after a scene or branch header is reported on the header line (I-674)", () => {

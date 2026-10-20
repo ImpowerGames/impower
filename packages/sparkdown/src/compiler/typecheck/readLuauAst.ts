@@ -153,8 +153,10 @@ export interface LuauSyntaxError {
   /**
    * Not part of Luau: the error is in what the reading goes on to read after
    * the end of the chunk, where Luau's parser stops at its `Expected <eof>`
-   * error, so Luau reports none of it: the location of the token it stopped
-   * at.
+   * error, so Luau reports none of it: the location of the token it last
+   * stopped at. Each statement the reading reads on into (a later function
+   * of a `.sd` document) is read as Luau would read it alone, so a stop in
+   * it is its own, and the errors after that stop carry that location.
    */
   pastChunkEnd?: Location;
   /**
@@ -2092,8 +2094,9 @@ class Parser {
     while (this.current().kind !== "eof") {
       this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`);
       // Not part of Luau, whose parser stops there: the rest is read on for
-      // Sparkdown's own use, and its errors are none of Luau's.
-      this.pastChunkEnd ??= this.current().location;
+      // Sparkdown's own use, and its errors are none of Luau's, up to the
+      // next place it stops, which the errors after it name.
+      this.pastChunkEnd = this.current().location;
       this.next();
       const rest = this.parseBlock();
       appendAll(result.body, rest.body);
