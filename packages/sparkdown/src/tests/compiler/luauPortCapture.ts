@@ -18,7 +18,8 @@
 //   (`// Luau: Name`) up to the next case, or to a statement whose leading
 //   comment opens `// Sparkdown`, which is Sparkdown's own.
 //   A helper whose name ends in `InFunction` takes a function body; the others
-//   (`diagnose`, `diagnoseDetailed`, `diagnoseWithLints`) take a document.
+//   (`diagnose`, `diagnoseDetailed`, `diagnoseWithLints`, `lintMessages`) take
+//   a document.
 // - autocomplete ports (`sparkdown-language-server/src/tests/providers/
 //   autocomplete*.test.ts`): the bodies of `upstreamCase` calls whose case is
 //   `ported` in `autocompleteUpstreamCases.ts`. `complete` and `labelsAt`
@@ -41,7 +42,7 @@ const AUTOCOMPLETE_ROOT = join(__dirname, "..", "..", "..", "..", "sparkdown-lan
 
 const LINT_HARNESS = "./diagnosticTestHarness";
 const AUTOCOMPLETE_HARNESS = "./completionHarness";
-const LINT_DOCUMENT_HELPERS = new Set(["diagnose", "diagnoseDetailed", "diagnoseWithLints"]);
+const LINT_DOCUMENT_HELPERS = new Set(["diagnose", "diagnoseDetailed", "diagnoseWithLints", "lintMessages"]);
 const AUTOCOMPLETE_HELPERS = new Set(["complete", "labelsAt"]);
 
 export interface CapturedSnippet {
