@@ -70,6 +70,8 @@ import {
   AstStatRepeat,
   AstStatReturn,
   AstStatWhile,
+  AstType,
+  AstTypePack,
   AstTypeReference,
   BinaryOp,
   UnaryOp,
@@ -98,6 +100,8 @@ export const LUAU_LINT_CODES = [
   "FunctionUnused",
   "SameLineStatement",
   "MultiLineStatement",
+  "UninitializedLocal",
+  "UnbalancedAssignment",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -183,17 +187,34 @@ function readToEnd(fn: AstNode): boolean {
  * (`local f = function() end`, an argument, a table field). A block missing
  * its `end` makes the reading take a later `end` as its own, so a function
  * holding one, and every function inside it, does not hold what the author
- * wrote in it. A function inside a complete one is read with it.
+ * wrote in it. A function inside a complete one is read with it. One inside
+ * a type (`typeof(function() ... end)`) is also recorded in `typeOnly`.
  */
 function completeFunctions(root: AstNode, functions: AstExprFunction[]): void {
-  visitAst(root, {
-    visit(node) {
+  let inType = false;
+  const visitor = {
+    visit(node: AstNode): boolean {
+      if ((node instanceof AstType || node instanceof AstTypePack) && !inType) {
+        inType = true;
+        visitAst(node, visitor);
+        inType = false;
+        return false;
+      }
       if (!(node instanceof AstExprFunction)) return true;
-      if (readToEnd(node)) functions.push(node);
+      if (readToEnd(node)) {
+        functions.push(node);
+        if (inType) typeOnly.add(node);
+      }
       return false;
     },
-  });
+  };
+  visitAst(root, visitor);
 }
+
+/** The functions `completeFunctions` found inside a type, which only describe
+ * one. Luau's linter reads them for LocalUnused alone; its other rules do not
+ * walk into types. */
+const typeOnly = new WeakSet<AstExprFunction>();
 
 /** The Luau functions a unit's statements define (`completeFunctions`). */
 function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
@@ -902,6 +923,107 @@ function lintPlaceholderReads(fn: AstExprFunction, offsets: Offsets, out: LuauLi
 }
 
 // ---------------------------------------------------------------------------
+// UninitializedLocal and UnbalancedAssignment
+
+/** Whether an expression can stand for any number of values: a call or `...`, the last of a list. */
+function returnsMany(expr: AstExpr | undefined): boolean {
+  return expr instanceof AstExprCall || expr instanceof AstExprVarargs;
+}
+
+// Luau's UninitializedLocal: a local its `local` statement gives no value,
+// which no assignment or `function` statement writes, reported at its first
+// read. A compound assignment (`x += 1`) reads it. As in Luau, a name in a
+// type (`typeof(x)`) is not a read, and a function inside a type is not
+// checked (`typeOnly`). A function holding a syntax error, whose reading can
+// lose a write, is left alone, and so is a name the grammar reads as a
+// Sparkdown keyword in the function (`keywordWords`), which may be a write
+// the reading lacks.
+function lintUninitializedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], broken: boolean): void {
+  if (broken) return;
+  const locals = new Map<AstLocal, { defined: boolean; initialized: boolean; assigned: boolean; firstUse?: AstExprLocal }>();
+  const local = (key: AstLocal) => {
+    let found = locals.get(key);
+    if (!found) locals.set(key, (found = { defined: false, initialized: false, assigned: false }));
+    return found;
+  };
+  const visitor = {
+    visit(node: AstNode): boolean {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (node instanceof AstStatLocal) {
+        const many = returnsMany(node.values[node.values.length - 1]);
+        node.vars.forEach((key, i) => {
+          const found = local(key);
+          found.defined = true;
+          found.initialized = many || i < node.values.length;
+        });
+        return true;
+      }
+      if (node instanceof AstStatAssign) {
+        for (const target of node.vars) assign(target);
+        for (const value of node.values) visitAst(value, visitor);
+        return false;
+      }
+      if (node instanceof AstStatFunction) {
+        assign(node.name);
+        visitAst(node.func, visitor);
+        return false;
+      }
+      if (node instanceof AstExprLocal) {
+        local(node.local).firstUse ??= node;
+        return false;
+      }
+      return true;
+    },
+  };
+  // A write to a name a `const` declares is read as an error wrapping it (`isLocalWrite`).
+  const assign = (target: AstExpr) => {
+    if (!isLocalWrite(target)) return visitAst(target, visitor);
+    const written = target instanceof AstExprError ? target.expressions[0] : target;
+    if (written instanceof AstExprLocal) local(written.local).assigned = true;
+  };
+  visitAst(fn, visitor);
+  const found = [...locals].filter(([key, l]) => l.defined && !l.initialized && !l.assigned && l.firstUse && isAuthoredLuauName(key.name));
+  if (!found.length) return;
+  const uncertain = new Set(keywordWords(tree, text, offsets.of(fn.location.begin), offsets.of(fn.location.end), new Set(found.map(([key]) => key.name))).map(({ name }) => name));
+  for (const [key, { firstUse }] of found) {
+    if (uncertain.has(key.name)) continue;
+    out.push({ code: "UninitializedLocal", ...offsets.range(firstUse!.location), message: `Variable '${key.name}' defined at line ${offsets.line(key.location.begin) + 1} is never initialized or assigned; initialize with 'nil' to silence` });
+  }
+}
+
+// Luau's UnbalancedAssignment: a `local` statement or an assignment whose
+// values are more than its names, or fewer when the last value is not a call,
+// `...` or `nil`. As in Luau, a statement inside a type
+// (`typeof(function() ... end)`) is not checked. Recovery can end a list
+// where the author did not (`local k = 1, m = 2`) or read a line as an
+// assignment the author did not write as one (a loop's range after its
+// header), so a statement on a line holding a syntax error, or inside an
+// outermost statement holding one (`LuauScriptLints.misreadStatements`), is
+// left alone (`unsure`). So is a `store`, which the units read as an
+// assignment (`readSparkdownStatements`) but is not Luau's.
+function lintUnbalancedAssignments(root: AstNode, text: string, offsets: Offsets, out: LuauLint[], unsure: (range: NameRange) => boolean): void {
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (!(node instanceof AstStatLocal || node instanceof AstStatAssign)) return true;
+      const vars = node.vars.length;
+      const values = node.values.length;
+      if (vars === values || values === 0) return true;
+      const range = offsets.range(node.location);
+      if (unsure(range) || /^store\b/.test(text.slice(range.from, range.from + 6))) return true;
+      const last = node.values[values - 1];
+      let message: string | undefined;
+      if (vars < values) message = `Assigning ${values} values to ${vars} variables leaves some values unused`;
+      else if (!returnsMany(last) && !(last instanceof AstExprConstantNil)) {
+        message = `Assigning ${values} values to ${vars} variables initializes extra variables with nil; add 'nil' to value list to silence`;
+      }
+      if (message) out.push({ code: "UnbalancedAssignment", ...range, message });
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // DuplicateCondition
 
 /** Luau's `similar`: whether two expressions are the same expression. */
@@ -1166,7 +1288,7 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 }
 
 // ---------------------------------------------------------------------------
-const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; mentionsUnplaced: (name: string) => boolean }>();
+const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; errorLines: NameRange[]; mentionsUnplaced: (name: string) => boolean }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
@@ -1222,10 +1344,11 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       }
       return found;
     };
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, misreadStatements, mentionsUnplaced };
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, misreadStatements, errorLines: errors, mentionsUnplaced };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
+  const unsure = (range: NameRange) => [...facts.errorLines, ...facts.misreadStatements].some((at) => range.from < at.to && at.from < range.to);
   const out: LuauLint[] = [];
   // Separate AST readings can share a document line (two interpolations).
   const sameLines = new Set<number>();
@@ -1239,6 +1362,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintUnusedLocals(fn, tree, text, offsets, out, broken);
       lintLocalShadows(fn, tree, text, offsets, out, globalShadows, published);
       lintPlaceholderReads(fn, offsets, out);
+      if (!typeOnly.has(fn)) lintUninitializedLocals(fn, tree, text, offsets, out, broken);
       lintUnreachable(fn, offsets, out);
     }
   };
@@ -1250,6 +1374,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
+      lintUnbalancedAssignments(source.statement, text, offsets, out, unsure);
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
@@ -1261,6 +1386,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintStatementLayout(expr, documentOffsets, out, errors, sameLines);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
+    lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
   return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, misreadStatements: facts.misreadStatements };
