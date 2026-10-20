@@ -35,6 +35,11 @@ const FORMS = [
   "local t = { a = 1 b = 2 }",
   "local function g(a: number b) end",
   "while nil:do end",
+  // A nested function's parameters, which the validator checks in a flow
+  // header's (round 1 of the review).
+  "local function g(a :: number) end",
+  "local function g(:: number) end",
+  "local function g(a, : number) end",
 ];
 
 describe("a define's method reports every error Luau reports for its body (I-1368)", () => {
@@ -49,12 +54,21 @@ describe("a define's method reports every error Luau reports for its body (I-136
       expect(sparkdownErrors(`define X with\n  function f()\n    ${line}\n  end\nend\n`)).toEqual(official);
     });
   }
+
+  // The validator reports an unfinished string itself, in the words of
+  // Luau's reading, which reports it too: the report is made once.
+  for (const line of ['local s = "abc', "local s = `a {"]) {
+    test(`${JSON.stringify(line)} is reported once`, () => {
+      const errors = sparkdownErrors(`define X with\n  f()\n    ${line}\n  end\nend\n`);
+      expect(errors.length, errors.join("\n")).toBe(1);
+    });
+  }
 });
 
 describe("a Sparkle handler's closure reports every error Luau reports for its body (I-1368)", () => {
   // The forms whose errors all stand in the body's line: the closure runs
   // as a function value, `function() … end` on its lines.
-  for (const line of ["local t = {1 2}", "x = {1, 2 3 4}", "local x: = 1", "local t = { a = 1 b = 2 }", "print(1 2)", "while nil:do end"]) {
+  for (const line of ["local t = {1 2}", "x = {1, 2 3 4}", "local x: = 1", "local t = { a = 1 b = 2 }", "print(1 2)", "while nil:do end", "local g = function(a :: number) end", "local g = function(:: number) end"]) {
     test(JSON.stringify(line), () => {
       const official = officialErrorList(`local _ = function()\n    ${line}\nend\n`)
         .map((e) => e.replace(/^1:(\d+)-1:(\d+)/, "2:$1-2:$2"))
@@ -63,6 +77,11 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
       expect(sparkdownErrors(`layout main with\n  button @click={\n    ${line}\n  }\nend\n`)).toEqual(official);
     });
   }
+
+  test('"local s = \\"abc" in a closure is reported once', () => {
+    const errors = sparkdownErrors('layout main with\n  button @click={ local s = "abc }\nend\n');
+    expect(errors.filter((e) => e.endsWith("Malformed string; did you forget to finish it?")), errors.join("\n")).toHaveLength(1);
+  });
 
   // Luau's reading of the closure meets its end at the `}`, where the value
   // it is missing is reported, once.

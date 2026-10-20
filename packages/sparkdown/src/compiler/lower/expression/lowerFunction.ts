@@ -145,7 +145,8 @@ export function reportBodySyntaxErrors(
 
 /**
  * Reports syntax errors of a reading no other reader reports, those from
- * `from` on, leaving out an error already reported at the same place.
+ * `from` on, each once, leaving out an error already reported at the same
+ * place.
  */
 export function reportSyntaxErrors(
   errors: readonly LuauSyntaxError[],
@@ -168,7 +169,9 @@ export function reportSyntaxErrors(
       startCharacterNumber: ctx.characterNumber(from) + 1,
       endCharacterNumber: ctx.characterNumber(to) + 1,
     };
-    if (reported.has(`${source.startLineNumber}:${source.startCharacterNumber} ${error.message}`)) continue;
+    const key = `${source.startLineNumber}:${source.startCharacterNumber} ${error.message}`;
+    if (reported.has(key)) continue;
+    reported.add(key);
     diagnostics.push({ message: error.message, severity: ErrorType.Error, source });
   }
 }

@@ -23,7 +23,7 @@ import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isCheckedLuau, isLuauDocument, isLuauFile, isReadLuau, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -578,11 +578,49 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   // its range, the statements in it whose errors Luau's reading reports
   // (`ownedByUnreadReading`), by theirs.
   private unreadReadings = new Map<string, ReadonlySet<string>>();
+  // For each body a lowerer reads in the type checker's stead
+  // (`loweredLuauBodyOf`), by its range, the errors its reading reports.
+  private loweredReadings = new Map<string, readonly { message: string; from: number; to: number }[]>();
 
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
     this.unreadReadings.clear();
+    this.loweredReadings.clear();
     super.update(tree, text, uri);
+  }
+
+  /**
+   * Whether the lowerer's reading of a define's method or a Sparkle
+   * handler's closure (`loweredLuauBodyOf`) reports an error in the same
+   * words at a range that meets `from`-`to`, which it reports in Luau's
+   * range (`reportBodySyntaxErrors`), so the validator's own report of it
+   * gives way, as Sparkdown's does to the type checker's reading in a
+   * function (`validateTypes` in `SparkdownCompiler.ts`).
+   */
+  private loweredReadingReports(message: string, from: number, to: number): boolean {
+    const body = loweredLuauBodyOf(this.tree?.resolveInner(from, 1) ?? null);
+    if (!body) return false;
+    const key = `${body.from}:${body.to}`;
+    let errors = this.loweredReadings.get(key);
+    if (!errors) {
+      const text = this.statementDocumentText();
+      const content = body.getChild("LuauSparkleHandlerClosure_content");
+      const reading =
+        body.name === "LuauMethodDefinition"
+          ? readLuauMethod(body, text)
+          : content
+            ? readLuauStatements([content], text)
+            : readLuauBlock([body], text);
+      errors = reading.errors
+        .filter((error) => !error.sparkdown && !error.pastChunkEnd)
+        .map((error) => ({
+          message: error.message,
+          from: luauPositionOffset(error.location.begin, text),
+          to: luauPositionOffset(error.location.end, text),
+        }));
+      this.loweredReadings.set(key, errors);
+    }
+    return errors.some((error) => error.message === message && error.from <= to && from <= error.to);
   }
 
   /**
@@ -703,6 +741,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     from: number,
     to: number,
   ) {
+    if (this.loweredReadingReports(message, from, to)) return;
     annotations.push(
       SparkdownAnnotation.mark<Diagnostic>({ message, severity: "error" }).range(
         from,
@@ -1374,12 +1413,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // Likewise in a flow header's parameters, which the checker does not
     // read: a `:` or `::` with no name before it (`scene s(: number)`,
     // `scene s(a, :: number)`), or a `::` after a name (`scene s(a :: number)`),
-    // worded as Luau's parser words one among a function's parameters.
+    // worded as Luau's parser words one among a function's parameters. In
+    // a function of a define's method or a Sparkle handler's closure, the
+    // lowerer's reading reports it (`isReadLuau`).
     if (
       (isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ||
         isExplicitRuleName(nodeRef.name, "LuauTypeAnnotationOperation")) &&
       nodeRef.node.parent?.name === "LuauFunctionParameters_content" &&
-      !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))
+      !isReadLuau(nodeRef.node, (from, to) => this.read(from, to))
     ) {
       const operator = isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ? "::" : ":";
       const from = nodeRef.from + this.read(nodeRef.from, nodeRef.to).indexOf(operator);
