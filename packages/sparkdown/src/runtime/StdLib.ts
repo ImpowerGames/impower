@@ -1637,7 +1637,13 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
       story.Error(`string.format: invalid option '%${type}' to 'format'`);
       return out;
     }
-    const arg = args[argIdx++];
+    // `%s` stringifies through `tostring` (luaL_tolstring), so a
+    // `__tostring` metamethod and its error apply; this runs outside the
+    // try below so that error is tostring's, not wrapped as format's.
+    const arg =
+      type === "s"
+        ? luauAnyToDisplayString(story, args[argIdx++])
+        : args[argIdx++];
     const width = widthStr ? parseInt(widthStr, 10) : 0;
     const precision =
       precisionStr == null
