@@ -2178,13 +2178,16 @@ export class SparkdownCompiler {
   /** The scripts of the project a compile that starts from `uri` reads besides
    *  `uri` itself, in the order their declarations register
    *  (`projectScripts`): every registered `.sd` script under the folder of
-   *  `uri` that is in its project. */
+   *  `uri` that is in its project. A script is known by its file name, since
+   *  a host can register another file, such as the `.luau` file a `run` reads,
+   *  as a script. */
   protected projectScriptsOf(uri: string): string[] {
     const scripts: string[] = [];
     for (const file of this.files.all()) {
+      const name = file.uri.slice(file.uri.lastIndexOf("/") + 1);
       if (
         file.type === "script" &&
-        FILE_TYPES.includes(file.ext) &&
+        FILE_TYPES.some((ext) => name.endsWith(`.${ext}`)) &&
         this.documents.has(file.uri)
       ) {
         scripts.push(file.uri);

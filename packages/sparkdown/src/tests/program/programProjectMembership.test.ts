@@ -91,6 +91,18 @@ describe("a project folder", () => {
     }
   });
 
+  it("reads only .sd files as its scripts, whatever else a host registers as one", () => {
+    // The Luau file a `run` reads, registered as a script, is run where the
+    // line stands and is not also read as a script of the project.
+    const program = compileProject({
+      [MAIN]: lines('run "helper"', "Main {x}."),
+      [`${ROOT}helper.luau`]: lines("x = 1"),
+    });
+    expect(errorsOf(program)).toEqual([]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Main 1.\n"]);
+  });
+
   it("makes a sub-project's main script the root of its own program", () => {
     const program = compileProject(project, `${ROOT}minigame/main.sd`);
     expect(Object.keys(program.scripts)).toEqual([
