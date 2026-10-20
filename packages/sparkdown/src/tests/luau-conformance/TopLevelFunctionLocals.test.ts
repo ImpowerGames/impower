@@ -6,8 +6,9 @@
 // a closure does when it is built: each binds, at its entry, every name it
 // reads that no scope of its own binds to the root frame's local of that
 // name, when one exists as it runs (`Op.BindRoot`), and reads the global
-// otherwise. A define written in a function stores, where it is written, the
-// closures of its methods that capture that function's locals.
+// otherwise. A define written in a function has its methods read that
+// function's locals through global cells its line points at them when it
+// runs (`DefineCellBinding`), which a save keeps.
 
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -228,6 +229,41 @@ describe("a define written in a function", () => {
     expect(run([...outer(["return a"]), "Got {tostring(thing.get())} {outer(7)}."])).toEqual(
       got("Got nil 7."),
     );
+  });
+
+  test("leaves the methods of another define of its name alone", () => {
+    expect(
+      run([
+        "define thing as kind with",
+        "  function get()",
+        "    return 3",
+        "  end",
+        "end",
+        "function outer(v)",
+        "  local a = v",
+        "  define thing with",
+        "    function get()",
+        "      return a",
+        "    end",
+        "  end",
+        "  return new thing():get()",
+        "end",
+        "Before {kind.thing.get()}.",
+        "Got {outer(7)} {kind.thing.get()}.",
+      ]),
+    ).toEqual(got("Before 3.", "Got 3 3."));
+  });
+
+  test("has methods that keep the function's local across a save and a load", () => {
+    const lines = [...outer(["return a"]), "First {outer(7)}.", "Second {tostring(thing.get())}."];
+    const story = new ProgramStory(rootOf(lines));
+    story.onError = () => {};
+    expect(story.Continue()?.trim()).toBe("First 7.");
+    const save = story.toSave();
+    const loaded = new ProgramStory(rootOf(lines));
+    loaded.loadSave(save);
+    const { beats, errors } = storyBeats(loaded);
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Second 7."));
   });
 });
 

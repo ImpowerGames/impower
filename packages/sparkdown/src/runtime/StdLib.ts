@@ -5585,47 +5585,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return table;
     },
   },
-  // Hidden method rebinding (emitted by lowerLuauDefine where a define is
-  // written in a function and a method of it reads that function's locals).
-  // The define's table is built when the story starts, before the function
-  // runs, so the methods `__def` gave it capture none of those locals;
-  // `__defmethods(methods, name, parent)` stores the closures `methods`
-  // holds, made where the define is written, in the table `__def` made for
-  // the define named `name` (the member `name` of its parent type, or the
-  // global of its name for a root define), so each call of the function
-  // gives the methods its own locals, as Luau's closures would. Returns nil.
-  "__defmethods": {
-    arity: 3,
-    fn: (story, [methodsArg, nameArg, parentArg]) => {
-      if (!(methodsArg instanceof ObjectValue) || !methodsArg.value) return null;
-      const name = coerceString(nameArg) ?? "";
-      const parentName = coerceString(parentArg) ?? "";
-      let found: AbstractValue | null | undefined;
-      if (parentName) {
-        const parent = story.state.variablesState.GetGlobalVariableValue(
-          parentName,
-        ) as AbstractValue | null;
-        if (parent instanceof ObjectValue) {
-          found = resolveParentType(story, parentName, parent).value?.get(name);
-        }
-      } else {
-        found = story.state.variablesState.GetGlobalVariableValue(
-          name,
-        ) as AbstractValue | null;
-      }
-      if (
-        !isDefineTable(found) ||
-        coerceString(metatableMap(found)?.get(DEFINE_MARKER) ?? null) !== name
-      ) {
-        return null;
-      }
-      writtenIn(story)(found);
-      for (const [key, value] of methodsArg.value) {
-        found.value!.set(key, value);
-      }
-      return null;
-    },
-  },
   // Hidden structural-block define (emitted by lowerLuauStructDefine; never
   // user-callable). `__defs(props, name, type, parent)` registers the block
   // as `type.name`, tagged with `type` as its parent marker so the engine

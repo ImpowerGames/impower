@@ -22,6 +22,10 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { StructDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import { StructPropertyDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructPropertyDefinition";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import {
+  DefineCellBinding,
+  defineCellName,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/DefineCellBinding";
 import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
@@ -456,15 +460,22 @@ export function lowerLuauDefine(
   // A computed key's name is unknown until init, so it takes no modifier
   // list, struct property or context entry.
   const named = properties.filter((p) => !p.key);
-  // The closures of the methods that capture locals of the function the
-  // define is written in, made again where it is written (`__defmethods`).
-  const rebound: ObjectExpressionEntry[] = [];
+  // Where a define is written in a function, the bindings of the cells its
+  // methods read that function's locals through (`DefineCellBinding`).
+  const cellBindings: DefineCellBinding[] = [];
   for (const method of methodNodes) {
-    const lowered = lowerDefineMethod(method.name, method.node, ctx);
+    const lowered = lowerDefineMethod(method.name, method.node, ctx, (local) =>
+      defineCellName(
+        parentIdentifier?.name ?? "",
+        nameIdentifier.name ?? "",
+        method.name,
+        local,
+      ),
+    );
     if (lowered) {
       entries.push(new ObjectExpressionEntry(method.name, lowered.closure));
-      if (lowered.rebound) {
-        rebound.push(new ObjectExpressionEntry(method.name, lowered.rebound));
+      for (const { cell, local } of lowered.cells) {
+        cellBindings.push(new DefineCellBinding(cell, local));
       }
     }
   }
@@ -555,14 +566,10 @@ export function lowerLuauDefine(
   });
 
   // A define written in a function has its table built when the story
-  // starts, like any other, and where it is written stores in that table the
-  // closures of its methods that capture the function's locals, made there,
-  // so they read the locals of the call that runs it.
-  const block = wrapInWeave(
-    rebound.length > 0
-      ? [declaration, reboundMethods(rebound, nameIdentifier, parentIdentifier)]
-      : [declaration],
-  );
+  // starts, like any other, and where it is written points the cells its
+  // methods read at the function's locals, so they read the locals of the
+  // call that ran it.
+  const block = wrapInWeave([declaration, ...cellBindings]);
 
   // ----- Compile-time struct registry (engine specs) for typed defines.
   //
@@ -646,33 +653,21 @@ export function lowerLuauDefine(
   return block;
 }
 
-// `__defmethods({ name = closure, ... }, "D", "T")`, its value discarded:
-// stores the closures in the table of the define `D` (as `T`).
-function reboundMethods(
-  rebound: ObjectExpressionEntry[],
-  nameIdentifier: Identifier,
-  parentIdentifier: Identifier | null,
-): FunctionCall {
-  const call = new FunctionCall(new Identifier("__defmethods"), [
-    new ObjectExpression(rebound),
-    new StringExpression([new Text(nameIdentifier.name ?? "")]),
-    new StringExpression([new Text(parentIdentifier?.name ?? "")]),
-  ]);
-  call.shouldPopReturnedValue = true;
-  return call;
-}
-
 // Lower one method member into a hoisted anonymous Function knot with
 // an implicit `self` first parameter, returning the closure-shaped
 // expression that the class table stores under the method's name.
 // Mirrors `lowerPropertyTargetFunctionDefinition`'s colon form
 // (`function Class:method(...)`) — same upval capture, same
-// `__closure_user_arity` contract (counts `self`).
+// `__closure_user_arity` contract (counts `self`). In a define written in a
+// function, the closure captures, for each local it reads, the global
+// `cellName` names for it (`DefineCellBinding`), and the cells are returned
+// with the locals they stand for.
 function lowerDefineMethod(
   _methodName: string,
   node: SyntaxNode,
   ctx: LowerContext,
-): { closure: Expression; rebound: Expression | null } | null {
+  cellName: (local: string) => string,
+): { closure: Expression; cells: { cell: string; local: string }[] } | null {
   const content = getFunctionBodyContent(node);
   if (!content) return null;
 
@@ -693,7 +688,8 @@ function lowerDefineMethod(
   // runs, so a method of a define written at the top level captures nothing:
   // its entry binds each name it reads to the top-level local of that name
   // as it runs (`RootBinding`), as a top-level function's does. A method of a
-  // define written in a function captures that function's locals.
+  // define written in a function reads that function's locals through cells
+  // the define's line points at them when it runs.
   const atTopLevel = !ctx.functionScopeStack?.length;
   const upvals = atTopLevel ? [] : free;
   recordCaptureRead(ctx, upvals);
@@ -760,12 +756,14 @@ function lowerDefineMethod(
   }
 
   const userArity = 1 + userArgs.filter((a) => !a.isVararg).length;
+  const cells = upvals.map((local) => ({ cell: cellName(local), local }));
   return {
-    closure: buildClosureExpression(synthName, upvals, userArity),
-    rebound:
-      upvals.length > 0
-        ? buildClosureExpression(synthName, upvals, userArity)
-        : null,
+    closure: buildClosureExpression(
+      synthName,
+      cells.map(({ cell }) => cell),
+      userArity,
+    ),
+    cells,
   };
 }
 

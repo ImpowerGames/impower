@@ -165,15 +165,13 @@ const OPERATOR_NATIVES = new Set([
 
 /** The builtins the compiler calls for what is not a call in the script:
  *  a line's text and its directives (`display`, `__unjoined`), a plural
- *  alternator's category, and a declaration's define and the methods it
- *  rebinds. `callsMade` does not count them; what their arguments call is
- *  counted as it runs. */
+ *  alternator's category, and a declaration's define. `callsMade` does not
+ *  count them; what their arguments call is counted as it runs. */
 const TEXT_BUILTINS = new Set([
   "display",
   "__unjoined",
   "plural.category",
   "__def",
-  "__defmethods",
   "__defs",
 ]);
 
