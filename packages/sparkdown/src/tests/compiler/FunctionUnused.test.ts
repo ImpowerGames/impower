@@ -106,6 +106,12 @@ describe("FunctionUnused for a global function", () => {
     expect(programUnused({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([`subject.sd: ${message("helper")}`]);
   });
 
+  // Luau's `errors.luau`: the `do` takes `run`'s `end`, and `run` runs on to
+  // the end of the script, past the calls an author wrote after it.
+  test("a complete definition inside a function missing an end is silent", () => {
+    expect(messages("& run()\nfunction run()\n do\n function helper() end\nend\n")).toEqual([]);
+  });
+
   test("a definition inside a function holding a syntax error is silent", () => {
     expect(messages("& run()\nfunction run()\n function helper() end\n public x\nend\n")).toEqual([]);
   });

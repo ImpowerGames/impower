@@ -5596,7 +5596,7 @@ export class SparkdownCompiler {
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
-    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "brokenFunctions">)[] = [];
+    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "misreadStatements">)[] = [];
     // Each script's lints, its own and the program-wide rules', reported in
     // source order as Luau sorts its warnings.
     const lints = new Map<string, LuauLint[]>();
@@ -5614,7 +5614,7 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
-      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, brokenFunctions: script.brokenFunctions });
+      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, misreadStatements: script.misreadStatements });
       for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);

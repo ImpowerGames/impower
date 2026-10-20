@@ -125,11 +125,13 @@ export interface LuauScriptLints {
   /** Whether the script spells a name where the reading placed no name
    * (`unplacedMention`). */
   mentionsUnplaced: (name: string) => boolean;
-  /** The outermost functions holding a syntax error. Recovery can end such
-   * a function early (at a construct the grammar lacks) and read what
-   * follows as narrative, so FunctionUnused does not report a function
+  /** The outermost statements (of a unit, or read outside every unit) that
+   * hold a syntax error or a block missing its `end`. Recovery can end or
+   * extend such a statement where the author did not (at a construct the
+   * grammar lacks, or at the end of the script) and read the code around it
+   * as narrative or as its own, so FunctionUnused does not report a function
    * defined in one. */
-  brokenFunctions: NameRange[];
+  misreadStatements: NameRange[];
 }
 
 /** The offset of each line of a document. */
@@ -163,8 +165,8 @@ class Offsets {
 // ---------------------------------------------------------------------------
 // The functions a script defines
 
-/** Whether every block in a function, its own body included, was read to its end. */
-function readToEnd(fn: AstExprFunction): boolean {
+/** Whether every block in a function or statement, its own body included, was read to its end. */
+function readToEnd(fn: AstNode): boolean {
   let complete = true;
   visitAst(fn, {
     visit(node) {
@@ -586,7 +588,7 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
     out.push({ code: "LocalUnused", ...offsets.range(local.location), message: `Variable '${local.name}' is never used; prefix with '_' to silence` });
   }
   // FunctionUnused concludes from the absence of a call, which a syntax
-  // error in the function can hide (`LuauScriptLints.brokenFunctions`).
+  // error in the function can hide (`LuauScriptLints.misreadStatements`).
   if (broken) return;
   for (const local of localFunctions) {
     if (!isAuthoredLuauName(local.name) || local.name.startsWith("_") || used.has(local)) continue;
@@ -833,32 +835,32 @@ export function lintGlobalShadows(
  * passes over, `LuauScriptLints.mentionsUnplaced`), a name the prelude
  * declares (`builtins`) or a name starting with `_` reports nothing.
  * Members and methods (`function T.f()`, `function T:m()`) are not globals,
- * and a definition with a block missing its `end`, or inside a function
- * holding a syntax error (`LuauScriptLints.brokenFunctions`), silences its
- * name. Luau reports a name once, at its last definition; each script
+ * and a definition inside a statement holding a syntax error or a block
+ * missing its `end` (`LuauScriptLints.misreadStatements`), its own included,
+ * silences its name. Luau reports a name once, at its last definition; each script
  * defining it reports its own last.
  */
-export function lintUnusedGlobalFunctions(program: LuauProgramNames, scripts: { uri: string; mentionsUnplaced: (name: string) => boolean; brokenFunctions: NameRange[] }[], builtins: ReadonlySet<string>): { uri: string; lint: LuauLint }[] {
-  const broken = new Map(scripts.map(({ uri, brokenFunctions }) => [uri, brokenFunctions]));
+export function lintUnusedGlobalFunctions(program: LuauProgramNames, scripts: { uri: string; mentionsUnplaced: (name: string) => boolean; misreadStatements: NameRange[] }[], builtins: ReadonlySet<string>): { uri: string; lint: LuauLint }[] {
+  const misreadIn = new Map(scripts.map(({ uri, misreadStatements }) => [uri, misreadStatements]));
   const definitions = new Map<string, (LuauProgramNames["functions"][number])[]>();
   const targets = new Set<AstNode>();
-  const silenced = new Set<string>();
   for (const definition of program.functions) {
     if (definition.local || definition.receiver || definition.method || !(definition.target instanceof AstExprGlobal || definition.target instanceof AstExprLocal)) continue;
     targets.add(definition.target);
-    // A function missing an `end` takes in what follows it, uses included.
-    if (!readToEnd(definition.function)) silenced.add(definition.name);
-    if (broken.get(definition.uri)?.some((range) => range.from <= definition.from && definition.from < range.to)) silenced.add(definition.name);
     let list = definitions.get(definition.name);
     if (!list) definitions.set(definition.name, (list = []));
     list.push(definition);
   }
+  // Every compile reruns this, so the checks that walk a function or search
+  // a script's text run only for a name nothing references.
+  const misread = (definition: LuauProgramNames["functions"][number]) =>
+    !!misreadIn.get(definition.uri)?.some((range) => range.from <= definition.from && definition.from < range.to);
   const found: { uri: string; lint: LuauLint }[] = [];
   for (const [name, list] of definitions) {
-    if (name.startsWith("_") || silenced.has(name) || builtins.has(name) || program.uncertainNames.has(name)) continue;
+    if (name.startsWith("_") || builtins.has(name) || program.uncertainNames.has(name)) continue;
     const global = program.globals.get(name);
     if (global && [...global.reads, ...global.writes].some((reference) => !targets.has(reference.node))) continue;
-    if (scripts.some((script) => script.mentionsUnplaced(name))) continue;
+    if (list.some(misread) || scripts.some((script) => script.mentionsUnplaced(name))) continue;
     const last = new Map<string, NameRange>();
     for (const { uri, from, to } of list) {
       const previous = last.get(uri);
@@ -1217,11 +1219,13 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   // A const outside every function goes to the facts' globals, not their declarations.
   const declaredLocals = new Set(facts.names.declarations.map((d) => d.local));
   const published = (local: AstLocal) => local.isConst && !declaredLocals.has(local);
-  const brokenFunctions: NameRange[] = [];
+  const misreadStatements: NameRange[] = [];
+  const misread = (root: AstNode, offsets: Offsets, errors: readonly { location: Location }[]) => {
+    if (!readToEnd(root) || errors.some((error) => root.location.overlaps(error.location))) misreadStatements.push(offsets.range(root.location));
+  };
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets, errors: readonly { location: Location }[]) => {
     for (const fn of functions) {
       const broken = errors.some((error) => fn.location.overlaps(error.location));
-      if (broken) brokenFunctions.push(offsets.range(fn.location));
       lintUnusedLocals(fn, tree, text, offsets, out, broken);
       lintLocalShadows(fn, tree, text, offsets, out, globalShadows, published);
       lintPlaceholderReads(fn, offsets, out);
@@ -1234,6 +1238,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintFunctions(definedFunctions(unit), offsets, unit.errors);
     lintStatementLayout(unit.root, offsets, out, unit.errors, sameLines);
     for (const source of unit.statements) {
+      misread(source.statement, offsets, unit.errors);
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
     }
@@ -1244,10 +1249,11 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     // The function written around statements is not the author's; those inside it are.
     completeFunctions(statements && expr instanceof AstExprFunction ? expr.body : expr, functions);
     lintFunctions(functions, documentOffsets, errors);
+    misread(expr, documentOffsets, errors);
     lintStatementLayout(expr, documentOffsets, out, errors, sameLines);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
-  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, brokenFunctions };
+  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, misreadStatements };
 }
