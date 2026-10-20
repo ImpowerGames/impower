@@ -116,6 +116,23 @@ describe("comments between `=` and a value are not a value", () => {
 
 // I-1299: a comment after a type operator, `:` or a type's `=`, before the
 // type, compiles as the type without it.
+// The same at story scope, where a statement's type ends at its line.
+describe("a comment after a type operator in a story statement keeps the type", () => {
+  test.each([
+    ["an annotation", "local id: --[[c]] <T>(T) -> T = function(x) return x end", "Value {id(5)}."],
+    ["a return type's arrow", "local id: () -> --[[c]] <T>(T) -> T = function() return function(x) return x end end", "Value {id()(5)}."],
+    ["a foreign close", "local id: --[====[a]=====]b]====] <T>(T) -> T = function(x) return x end", "Value {id(5)}."],
+    ["a union", "local w: number | --[[c]] string = 5", "Value {w}."],
+    ["a plain annotation", "local w: --[[c]] number = 5", "Value {w}."],
+    ["a type alias", "type F = --[[c]] <T>(T) -> T\nlocal id: F = function(x) return x end", "Value {id(5)}."],
+    ["a type alias's arrow", "type F = () -> --[[c]] <T>(T) -> T\nlocal id: F = function() return function(x) return x end end", "Value {id()(5)}."],
+  ])("%s", (_name, declaration, line) => {
+    const result = play(`${declaration}\n${line}\n`);
+    expect(result.errors).toEqual([]);
+    expect(result.lines[0]).toBe("Value 5.\n");
+  });
+});
+
 describe("a comment after a type operator keeps the type", () => {
   test.each([
     ["an alias", "  type F = () -> --[[c]] <T>(T) -> T\n  local id: F = function(v) return v end\n  local w = id(5)"],

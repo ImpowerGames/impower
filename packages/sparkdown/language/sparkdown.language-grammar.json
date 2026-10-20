@@ -649,6 +649,7 @@
     "LUAU_BLOCK_COMMENT_LEVEL_7_REST": "(?:=======\\[(?:[^\\]\\r\\n]|\\](?!=======\\]))*\\]=======\\])",
     "LUAU_BLOCK_COMMENT_LEVEL_8_REST": "(?:========\\[(?:[^\\]\\r\\n]|\\](?!========\\]))*\\]========\\])",
     "LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST": "(?:=========+\\[(?:[^\\]\\r\\n]|\\](?!=========+\\]))*\\]=========+\\])",
+    "LUAU_BLOCK_COMMENT_OR_GENERICS_START": "(?:{{LUAU_COMMENT_START}}\\[=*\\[|[<])",
     "LUAU_LINE_COMMENT_TO_LINE_END": "(?:{{LUAU_LINE_COMMENT_START}}[^\\r\\n]*)",
     "LUAU_OPERATOR_COMMENTS_BEFORE_CODE": "(?:{{LUAU_BLOCK_COMMENTS_ON_LINE}}(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))",
     "LUAU_TYPE_CODE_AHEAD": "(?![|&?.<>=,;)\\]}]|[-][>]|{{WS}}|$|{{LUAU_COMMENT_START}})",
@@ -13219,6 +13220,9 @@
           "include": "#LuauSparkdownExplicitTypeAnnotationOperator"
         },
         {
+          "include": "#LuauSparkdownExplicitTypeOperatorComments"
+        },
+        {
           "include": "#LuauComment"
         },
         {
@@ -13556,9 +13560,27 @@
       "patterns": [
         {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#LuauSparkdownExplicitTypeOperatorComments"
+        },
+        {
+          "include": "#LuauComment"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!$|(?:[^\\S\\n\\r]))|(?=$)"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!$|(?:[^\\S\\n\\r])|(?:[-][-]))|(?=$)"
+    },
+    "LuauSparkdownExplicitTypeOperatorComments": {
+      "begin": "(?=(?:[^\\S\\n\\r])*(?:[-][-])\\[=*\\[)",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauSparkdownExplicitTypeGenerics"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])\\[=*\\[|[<]))|$"
     },
     "LuauSparkdownExplicitTypeAnnotationOperator": {
       "begin": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)",
@@ -14051,6 +14073,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauSparkdownExplicitTypeOperatorComments"
+        },
         {
           "include": "#LuauComment"
         },

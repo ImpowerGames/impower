@@ -1370,6 +1370,9 @@ variables:
   # lookaround: LuauBlockComment reads the comment; see
   # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
   LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST: (?:=========+\[(?:[^\]\r\n]|\](?!=========+\]))*\]=========+\])
+  # What `LuauTypeOperatorComments` and its story twin go on reading: another
+  # block comment, or the generics of a function type after the comments.
+  LUAU_BLOCK_COMMENT_OR_GENERICS_START: (?:{{LUAU_COMMENT_START}}\[=*\[|[<])
   # A line comment and the rest of its line.
   LUAU_LINE_COMMENT_TO_LINE_END: (?:{{LUAU_LINE_COMMENT_START}}[^\r\n]*)
   # Block comments after an operator with code after them on the line, which
@@ -9845,6 +9848,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitTypeAnnotationMissingType" }
       - { include: "#LuauSparkdownExplicitTypeAnnotationOperator" }
+      - { include: "#LuauSparkdownExplicitTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # lookaround: LuauFunctionAccessor owns method colons; this annotation opens only at a type colon and yields before a following method call.
@@ -10119,11 +10123,33 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
+    # Comments after the operator are its own, as in
+    # `LuauTypeBinaryOperator`; the operator still ends at its line.
     patterns:
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkdownExplicitTypeOperatorComments" }
+      - { include: "#LuauComment" }
     # lookaround: LuauExpression owns the following operand; this operator scope must close at its first non-whitespace token. Reordering children cannot close an already-open scope.
     # See bounded-exit rationale above for the structural alternatives.
-    end: (?={{BEAT}})|(?!$|{{WS}})|(?=$)
+    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})|(?=$)
+
+  # `LuauTypeOperatorComments` in a story statement's type: the same
+  # reading, ending at its line (#1907), with the story generics
+  # (`local id: --[[c]] <T>(T) -> T = f`, #1321).
+  # lookaround: the begin opens at a block comment only, where the parent's
+  # LuauComment would read it; this rule is tried first so the comments and
+  # the generics after them are read in one scope, which a match on the
+  # comment alone cannot carry on to the generics.
+  LuauSparkdownExplicitTypeOperatorComments:
+    begin: (?={{WS}}*{{LUAU_COMMENT_START}}\[=*\[)
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauSparkdownExplicitTypeGenerics" }
+    # lookaround: LuauSparkdownExplicitTypeLiteral reads a type after the
+    # comments, and the ends around the operator read a `<` after a
+    # comment's close as a comparison after a complete type; see
+    # `LuauTypeOperatorComments`.
+    end: (?={{BEAT}})|(?!{{WS}}*{{LUAU_BLOCK_COMMENT_OR_GENERICS_START}})|$
 
   LuauSparkdownExplicitTypeAnnotationOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)
@@ -10501,6 +10527,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauSparkdownExplicitTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
     # lookaround: LuauTypeLiteral owns annotation content; this assignment yields only after that type and before unrelated content.
@@ -14498,7 +14525,7 @@ repository:
     # past the comment to the operator, so this rule, which only the
     # operator reaches, takes the generics instead, and ends at anything
     # but another block comment or a `<`.
-    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_COMMENT_START}}\[=*\[|[<]))
+    end: (?={{BEAT}})|(?!{{WS}}*{{LUAU_BLOCK_COMMENT_OR_GENERICS_START}})
 
   LuauTypeAnnotationOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_OPERATOR}})
