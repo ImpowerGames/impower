@@ -76,6 +76,7 @@ import {
   AstTypeReference,
   AstTypeTable,
   BinaryOp,
+  binaryOpToString,
   TableItemKind,
   UnaryOp,
   getFunctionNameAsString,
@@ -114,6 +115,8 @@ export const LUAU_LINT_CODES = [
   "TableOperations",
   "DeprecatedApi",
   "ImplicitReturn",
+  "MisleadingAndOr",
+  "ComparisonPrecedence",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -1574,6 +1577,58 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 }
 
 // ---------------------------------------------------------------------------
+// MisleadingAndOr and ComparisonPrecedence
+
+const isComparison = (op: BinaryOp) =>
+  op === BinaryOp.CompareEq || op === BinaryOp.CompareNe || op === BinaryOp.CompareLt || op === BinaryOp.CompareLe || op === BinaryOp.CompareGt || op === BinaryOp.CompareGe;
+const isEquality = (op: BinaryOp) => op === BinaryOp.CompareEq || op === BinaryOp.CompareNe;
+const isNot = (expr: AstExpr) => expr instanceof AstExprUnary && expr.op === UnaryOp.Not;
+
+// Luau's MisleadingAndOr, `a and false or b` and `a and nil or b`, and its
+// ComparisonPrecedence, `not a == b` and a chain of comparisons
+// (`a < b < c`), each at the whole expression. Parentheses are an
+// `AstExprGroup`, so `(a and false) or b`, `(not a) == b` and `(a < b) < c`
+// are silent, as in Luau; so is `not a == not b`, a boolean comparison. As in
+// Luau, neither walks into types. An expression holding a syntax error is
+// left alone, since recovery can read operands the author did not write.
+function lintExpressionPrecedence(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (!(node instanceof AstExprBinary) || errors.some((error) => node.location.overlaps(error.location))) return true;
+      if (node.op === BinaryOp.Or && node.left instanceof AstExprBinary && node.left.op === BinaryOp.And) {
+        const alternative = node.left.right;
+        const alt = alternative instanceof AstExprConstantNil ? "nil" : alternative instanceof AstExprConstantBool && !alternative.value ? "false" : undefined;
+        if (alt) {
+          out.push({ code: "MisleadingAndOr", ...offsets.range(node.location), message: `The and-or expression always evaluates to the second alternative because the first alternative is ${alt}; consider using if-then-else expression instead` });
+        }
+      }
+      if (!isComparison(node.op)) return true;
+      const op = binaryOpToString(node.op);
+      if (isNot(node.left) && !isNot(node.right)) {
+        out.push({
+          code: "ComparisonPrecedence",
+          ...offsets.range(node.location),
+          message: isEquality(node.op)
+            ? `not X ${op} Y is equivalent to (not X) ${op} Y; consider using X ${node.op === BinaryOp.CompareEq ? "~=" : "=="} Y, or add parentheses to silence`
+            : `not X ${op} Y is equivalent to (not X) ${op} Y; add parentheses to silence`,
+        });
+      } else if (node.left instanceof AstExprBinary && isComparison(node.left.op)) {
+        const left = binaryOpToString(node.left.op);
+        out.push({
+          code: "ComparisonPrecedence",
+          ...offsets.range(node.location),
+          message: isEquality(node.left.op) || isEquality(node.op)
+            ? `X ${left} Y ${op} Z is equivalent to (X ${left} Y) ${op} Z; add parentheses to silence`
+            : `X ${left} Y ${op} Z is equivalent to (X ${left} Y) ${op} Z; did you mean X ${left} Y and Y ${op} Z?`,
+        });
+      }
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // TableLiteral
 
 // Luau's TableLiteral: a table constructor's string field or integer index
@@ -1895,6 +1950,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
+      lintExpressionPrecedence(source.statement, offsets, out, unit.errors);
       lintUnbalancedAssignments(source.statement, text, offsets, out, unsure);
       lintTableLiterals(source.statement, offsets, out, unit.errors);
       lintStdlibCalls(source.statement, offsets, out, unit.errors);
@@ -1911,6 +1967,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateLocals(expr, documentOffsets, out, errors, published, flowParameter);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
+    lintExpressionPrecedence(expr, documentOffsets, out, errors);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
     lintTableLiterals(expr, documentOffsets, out, errors);
     lintStdlibCalls(expr, documentOffsets, out, errors);
