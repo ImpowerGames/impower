@@ -43,8 +43,9 @@ export const Op = {
   BeginString: 16,
   /** Closes the capture and pushes the text it caught. */
   EndString: 17,
-  /** Pops `aux` arguments and pushes the result of the native function or
-   *  operator `arg` names. */
+  /** Pops the native function's or operator's arguments and pushes the
+   *  result of the one `arg` names: its parameters, or with the call
+   *  arguments flag the call's `aux` arguments. */
   Native: 18,
   /** `and` or `or`: keeps the top and jumps by `arg` when it decides the
    *  result, and pops it otherwise. The flag says which. */
@@ -169,6 +170,12 @@ export const CALL_DISCARD = 1;
  *  `open`, `glue` or `caption`), so the statement after it continues its
  *  beat and carries no `LineStart` of its own. */
 export const CALL_OPEN = 2;
+
+/** `Native`'s flag: the stack holds the call's own `aux` arguments, neither
+ *  padded nor cut to the native's parameters, so that a replacement of its
+ *  namespace (`math = { abs = ... }`) takes every one (I-826). A call of a
+ *  namespace member with a fixed number of parameters sets it. */
+export const NATIVE_CALL_ARGS = 1;
 
 /** `JumpIfKeep`'s flag: set for `or`, clear for `and`. */
 export const KEEP_OR = 1;
