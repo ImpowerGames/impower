@@ -25,6 +25,7 @@ import { asOrNull } from "../../../../runtime/TypeAssertion";
 import { ClosestFlowBase } from "./Flow/ClosestFlowBase";
 import { FunctionCall } from "./FunctionCall";
 import { Path } from "./Path";
+import { StorePropertyAssignment } from "./Variable/StorePropertyAssignment";
 import { VariableAssignment } from "./Variable/VariableAssignment";
 import { DebugMetadata } from "../../../../runtime/DebugMetadata";
 import { Stitch } from "./Stitch";
@@ -270,6 +271,16 @@ export class Story extends FlowBase {
     return !bound;
   }
 
+  /** The global `obj` writes: a plain assignment's name where it writes the
+   *  global (`writesGlobal`), or the name a store through the globals table
+   *  writes (`StorePropertyAssignment.globalName`); null for anything else. */
+  public globalWriteName(obj: ParsedObject): string | null {
+    if (obj instanceof VariableAssignment) {
+      return this.writesGlobal(obj) ? obj.variableName : null;
+    }
+    return obj instanceof StorePropertyAssignment ? obj.globalName : null;
+  }
+
   /** The names `writesGlobal` finds written, of `known` assignments or,
    *  with none known, of every assignment the story holds. */
   private globalWriteNames(known: Iterable<ParsedObject> | undefined): ReadonlySet<string> {
@@ -278,8 +289,9 @@ export class Story extends FlowBase {
     }
     const names = new Set<string>();
     const add = (child: ParsedObject): void => {
-      if (child instanceof VariableAssignment && this.writesGlobal(child)) {
-        names.add(child.variableName);
+      const name = this.globalWriteName(child);
+      if (name !== null) {
+        names.add(name);
       }
     };
     const visit = (obj: ParsedObject): void => {
