@@ -679,19 +679,22 @@ function lowerDefineMethod(
     .filter((a) => !a.isVararg)
     .map((a) => a.identifier?.name ?? "");
   const reading = readBodyAst(content, METHOD_BODY_SKIP, ctx);
-  const free = freeVariables(
+  const upvals = freeVariables(
     params,
     reading?.unit.root ?? null,
     ctx,
   ).filter((n) => n !== "self");
   // The define's table is built when the story starts, before the top level
-  // runs, so a method of a define written at the top level captures nothing:
-  // its entry binds each name it reads to the top-level local of that name
-  // as it runs (`RootBinding`), as a top-level function's does. A method of a
-  // define written in a function reads that function's locals through cells
-  // the define's line points at them when it runs.
+  // runs, so what a method captures there is not yet the top-level local it
+  // reads: a method of a define written at the top level binds each name it
+  // reads to the top-level local of that name at its entry, after its
+  // parameters, as it runs (`RootBinding`), as a top-level function's does,
+  // and otherwise reads what it captured, which reads the global of the
+  // name. It keeps those captures, so a closure of it that a save holds (a
+  // method kept in a variable) passes the parameters the method binds. A
+  // method of a define written in a function reads that function's locals
+  // through cells the define's line points at them when it runs.
   const atTopLevel = !ctx.functionScopeStack?.length;
-  const upvals = atTopLevel ? [] : free;
   recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
@@ -731,7 +734,7 @@ function lowerDefineMethod(
   ctx.functionScopeStack?.pop();
 
   if (atTopLevel) {
-    hoistedDecls.unshift(...free.map((name) => new RootBinding(name)));
+    hoistedDecls.unshift(...upvals.map((name) => new RootBinding(name)));
   }
   const fn = new Function(
     new Identifier(synthName),
@@ -756,11 +759,13 @@ function lowerDefineMethod(
   }
 
   const userArity = 1 + userArgs.filter((a) => !a.isVararg).length;
-  const cells = upvals.map((local) => ({ cell: cellName(local), local }));
+  const cells = atTopLevel
+    ? []
+    : upvals.map((local) => ({ cell: cellName(local), local }));
   return {
     closure: buildClosureExpression(
       synthName,
-      cells.map(({ cell }) => cell),
+      atTopLevel ? upvals : cells.map(({ cell }) => cell),
       userArity,
     ),
     cells,

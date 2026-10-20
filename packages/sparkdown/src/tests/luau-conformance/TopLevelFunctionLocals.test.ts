@@ -10,11 +10,16 @@
 // function's locals through global cells its line points at them when it
 // runs (`DefineCellBinding`), which a save keeps.
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
-import { compileScript, programSession, storyBeats } from "../program/programHarness";
+import { compileScript, errorsOf, programSession, storyBeats } from "../program/programHarness";
 import { flowListings, programListing } from "../programListing";
+
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 const quiet = <T>(run: () => T): T => {
   const { warn, error } = console;
@@ -32,8 +37,14 @@ const shown = (root: ProgramRoot) => {
   return { texts: beats.map((b) => b.text.trim()), errors };
 };
 
+// The root of a script that compiles with no error, so a case never runs
+// what a compile reported.
 const rootOf = (lines: string[]) =>
-  quiet(() => compileScript([...lines, ""].join("\n")).program.chunks!);
+  quiet(() => {
+    const { program } = compileScript([...lines, ""].join("\n"));
+    expect(errorsOf(program)).toEqual([]);
+    return program.chunks!;
+  });
 
 const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
@@ -185,7 +196,7 @@ describe("a define's method written at the top level and a top-level local", () 
         "local a = 1",
         "define thing with",
         "  n = 2",
-        "  function get(self)",
+        "  function get()",
         "    return a + self.n",
         "  end",
         "end",
@@ -286,10 +297,29 @@ describe("the entry of a function written at the top level", () => {
     expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual(["BindRoot a"]);
   });
 
-  test("of a define's method binds them too, and the define's table captures nothing", () => {
+  // The define's table still captures what the method reads, as it did
+  // before the method bound top-level locals, so a closure of the method a
+  // save holds passes the parameters the method binds before `BindRoot`.
+  test("of a define's method binds them too, after the parameter its table's capture passes", () => {
     const listing = programListing(rootOf(methodReads("local a = 1")));
     expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual(["BindRoot a"]);
-    expect(listing.filter((line) => line.startsWith("VarPtr"))).toEqual([]);
+    expect(listing.filter((line) => line.startsWith("VarPtr"))).toEqual(["VarPtr a"]);
+    const entry = listing.indexOf("BindRoot a");
+    expect(listing.slice(entry - 2, entry)).toEqual(["SetVar self flags 1", "SetVar a flags 1"]);
+  });
+});
+
+describe("a save written before top-level methods bound top-level locals", () => {
+  // `top-level-method-value-save-6053522b8.json` is the save the engine at
+  // 6053522b8 wrote of `top-level-method-value.sd` after `First.`: `held`
+  // holds the closure of `thing.get` with the capture it was built with.
+  test("loads, and a method kept in a variable reads the top-level local", () => {
+    const text = readFileSync(join(FIXTURES, "top-level-method-value.sd"), "utf-8");
+    const save = readFileSync(join(FIXTURES, "top-level-method-value-save-6053522b8.json"), "utf-8");
+    const loaded = new ProgramStory(rootOf([text.trimEnd()]));
+    loaded.loadSave(save);
+    const { beats, errors } = storyBeats(loaded);
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 3."));
   });
 });
 
