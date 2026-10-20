@@ -92,6 +92,7 @@ import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY 
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
+import { numberLiteralValue } from "../utils/numberLiteralValue";
 import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type LuauProgramNames, type NameRange, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
@@ -117,6 +118,7 @@ export const LUAU_LINT_CODES = [
   "DeprecatedApi",
   "ImplicitReturn",
   "MisleadingAndOr",
+  "IntegerParsing",
   "ComparisonPrecedence",
 ] as const;
 
@@ -1630,6 +1632,37 @@ function lintExpressionPrecedence(root: AstNode, offsets: Offsets, out: LuauLint
 }
 
 // ---------------------------------------------------------------------------
+// IntegerParsing
+
+// Luau's IntegerParsing, adapted to sparkdown's runtime: an integer literal
+// whose exact value differs from the double `numberLiteralValue` (the
+// compiler's own conversion) makes of it. Luau
+// clamps binary and hexadecimal literals past 2^64 and warns that it did;
+// `lowerNumber` converts them as JavaScript does, so `0x10000000000000000`
+// stays exactly 2^64 and only a value a double cannot hold warns, with Luau's
+// precision message for every base. As in Luau, fractions and exponents are
+// not checked. A literal the reading took from a longer word or one a syntax
+// error touches (`0x1i`, `1oops`) is not the author's number.
+function lintIntegerParsing(root: AstNode, text: string, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (!(node instanceof AstExprConstantNumber) || errors.some((error) => node.location.overlaps(error.location))) return true;
+      const range = offsets.range(node.location);
+      if (/[A-Za-z0-9_.]/.test(text[range.to] ?? "")) return true;
+      const literal = text.slice(range.from, range.to).replaceAll("_", "");
+      if (!/^(0[bB][01]+|0[xX][0-9a-fA-F]+|[0-9]+)$/.test(literal)) return true;
+      const value = numberLiteralValue(literal);
+      if (Number.isSafeInteger(value)) return true;
+      if (!Number.isFinite(value) || BigInt(value) !== BigInt(literal)) {
+        out.push({ code: "IntegerParsing", ...range, message: "Number literal exceeded available precision and was truncated to closest representable number" });
+      }
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // TableLiteral
 
 // Luau's TableLiteral: a table constructor's string field or integer index
@@ -1981,6 +2014,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
       lintExpressionPrecedence(source.statement, offsets, out, unit.errors);
+      lintIntegerParsing(source.statement, text, offsets, out, unit.errors);
       lintUnbalancedAssignments(source.statement, text, offsets, out, unsure);
       lintTableLiterals(source.statement, offsets, out, unit.errors);
       lintStdlibCalls(source.statement, offsets, out, unit.errors);
@@ -1998,6 +2032,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
     lintExpressionPrecedence(expr, documentOffsets, out, errors);
+    lintIntegerParsing(expr, text, documentOffsets, out, errors);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
     lintTableLiterals(expr, documentOffsets, out, errors);
     lintStdlibCalls(expr, documentOffsets, out, errors);
