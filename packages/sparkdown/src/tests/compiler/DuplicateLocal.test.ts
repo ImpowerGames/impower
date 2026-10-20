@@ -59,6 +59,13 @@ describe("DuplicateLocal", () => {
     expect(inFunction(body)).toEqual([]);
   });
 
+  test.each([
+    ["a scene's parameters, which are not Luau's", "scene inspect(a, a)\n & print(a)\nend\n"],
+    ["a story constant, which is a global", "const a, a = 1, 2\nValue {a}.\n"],
+  ])("leaves alone %s", (_label, source) => {
+    expect(messages(source)).toEqual([]);
+  });
+
   test("an error in a value or the body does not change the names", () => {
     expect(inFunction(" local a, a = ...\n return a")).toEqual(["Variable 'a' already defined on column 8"]);
     expect(inFunction(" local function g(a, a)\n  public y\n  return a\n end\n return g")).toEqual(["Function parameter 'a' already defined on column 19"]);
