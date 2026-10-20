@@ -377,6 +377,49 @@ describe("accepting a language-server completion", () => {
     expect(preview).toBe(accepted);
   });
 
+  it("closes the list when backspacing deletes across an item's start", async () => {
+    // `foobar|`: one item replaces the whole word, the other only `bar`.
+    const doc = "foobar\n";
+    const cursor = "foobar".length;
+    const { view } = mount(doc, cursor, [
+      {
+        label: "foobarb",
+        textEdit: { newText: "foobarb", range: range(0, 0, 6) },
+      },
+      {
+        label: "foobarz",
+        textEdit: { newText: "barz", range: range(0, 3, 6) },
+      },
+    ]);
+    await open(view);
+    const backspace = () => {
+      const at = view.state.selection.main.head;
+      view.dispatch({
+        changes: { from: at - 1, to: at },
+        selection: { anchor: at - 1 },
+        userEvent: "delete.backward",
+      });
+    };
+    // Back to `foo|`, the narrower item's start: the list holds and the item
+    // still replaces from its own start.
+    for (let i = 0; i < 3; i++) backspace();
+    expect(completionStatus(view.state)).toBe("active");
+    const narrow = currentCompletions(view.state).find(
+      (c) => c.label === "foobarz",
+    );
+    expect(narrow).toBeDefined();
+    expect(
+      completionChanges(view.state, narrow!)?.apply(view.state.doc).toString(),
+    ).toBe("foobarz\n");
+    // One more deletes the item's start, which would leave its range ending
+    // before it starts: the list closes instead.
+    backspace();
+    expect(view.state.doc.toString()).toBe("fo\n");
+    expect(completionStatus(view.state)).toBeNull();
+    expect(acceptCompletion(view)).toBe(false);
+    expect(view.state.doc.toString()).toBe("fo\n");
+  });
+
   it("applies each item's own range when items name different ranges", async () => {
     // One item replaces `far-` after the colon; the other replaces only the
     // text after the hyphen, as the server may send for a different kind of

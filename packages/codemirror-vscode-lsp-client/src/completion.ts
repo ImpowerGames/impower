@@ -333,15 +333,20 @@ export const serverCompletionSource: CompletionSource = (context) => {
           item: ranges[index] ?? range,
         }),
       );
-      // `end` is the end of the list's word, the cursor, as each change
-      // moves it.
+      // No start moves while the list lives (see `keepsRanges`), so the
+      // latest of them is fixed; `end` is the end of the list's word, the
+      // cursor, as each change moves it.
+      const floor = Math.max(
+        range.from,
+        ...ranges.map((r) => r?.from ?? range.from),
+      );
       const listResult = (end: number): CompletionResult => ({
         from: range.from,
         validFor: keepsWord(state.sliceDoc(range.from, pos), triggerCharacters),
         options,
         commitCharacters: itemDefaults?.commitCharacters,
         map: (current, changes) =>
-          keepsRanges(current.from, end, changes)
+          keepsRanges(floor, end, changes)
             ? {
                 ...listResult(changes.mapPos(end, 1)),
                 from: changes.mapPos(current.from),
@@ -376,19 +381,21 @@ interface CompletionRequestRange {
 }
 
 /**
- * Whether a list whose word runs from `from` to `end` still holds after
- * `changes`. The items' ranges are kept as distances from the word's start
- * and from the cursor at its end, which hold only while every change typed
- * or deleted at the end of the word: an edit anywhere else (another cursor,
- * the suffix an item replaces, text before the word) would move a range
- * without moving those anchors. Such an edit drops the list, and CodeMirror
+ * Whether a list whose word ends at `end` still holds after `changes`. The
+ * items' ranges are kept as distances from the word's start and from the
+ * cursor at its end, which hold only while every change types at the end of
+ * the word or deletes back from it no further than `floor`, the latest start
+ * of the word or of any item's range: an edit anywhere else (another cursor,
+ * the suffix an item replaces, text before the word, a deletion across an
+ * item's start) would move a range without moving those anchors, or leave a
+ * range ending before it starts. Such an edit drops the list, and CodeMirror
  * asks for it again when the author next types, with the server's ranges for
  * the document as it then stands.
  */
-function keepsRanges(from: number, end: number, changes: ChangeDesc) {
+function keepsRanges(floor: number, end: number, changes: ChangeDesc) {
   let kept = true;
   changes.iterChangedRanges((fromA, toA) => {
-    if (toA !== end || fromA < from) {
+    if (toA !== end || fromA < floor) {
       kept = false;
     }
   });
