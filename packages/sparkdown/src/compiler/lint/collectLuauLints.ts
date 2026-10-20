@@ -105,6 +105,7 @@ export const LUAU_LINT_CODES = [
   "UnbalancedAssignment",
   "DuplicateFunction",
   "DuplicateLocal",
+  "GlobalUsedAsLocal",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -897,6 +898,86 @@ export function lintUnusedGlobalFunctions(program: LuauProgramNames, scripts: { 
       if (!previous || previous.from < from) last.set(uri, { from, to });
     }
     for (const [uri, range] of last) found.push({ uri, lint: { code: "FunctionUnused", ...range, message: functionUnusedMessage(name) } });
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
+// GlobalUsedAsLocal
+
+/**
+ * Luau's GlobalUsedAsLocal (`LintGlobalLocal`) over the whole program. A
+ * global some plain write or `function g()` statement assigns, all of whose
+ * references are inside one function, warns that it is only used in the
+ * innermost such function; otherwise, one that no read can see before a
+ * write (every read inside a function follows an unconditional write of the
+ * same function, `LuauNameReference.dominated`) and that nothing writes
+ * outside every function warns that it is never read before being written.
+ * Both are reported once, at the global's first reference. Sparkdown's
+ * functions are the ones an author writes: a scene's or branch's Luau, a
+ * narrative line, an interpolation and a Sparkle handler are outside every
+ * function, and a read there may read the story's saved state, so it is
+ * read before any write, where Luau does not count a read outside every
+ * function. A global a `store` or a top-level `const` declares, a built-in
+ * (the standard library's names, or `builtins`, the prelude's globals and
+ * type names) and `_` report nothing. Because the warning concludes that no
+ * other use exists, it is also silent for a name the grammar reads as a
+ * keyword somewhere in the program, one a script spells where the reading
+ * placed no name (`LuauScriptLints.mentionsUnplaced`), one declared as a
+ * local in a unit's outermost block in any script (such a local can reach
+ * code the reading binds as global), and one with a reference that may not
+ * be a global use (`uncertainGlobalUses`), inside a statement holding a
+ * syntax error or a block missing its `end` (`misreadStatements`), or in a
+ * type, which Luau's linter does not walk. A function without a name is
+ * named by the line it begins on in its script (`line`, counted from 1).
+ */
+export function lintGlobalsUsedAsLocals(
+  program: LuauProgramNames,
+  scripts: { uri: string; uncertainGlobalUses: ReadonlySet<number>; outermostLocals: ReadonlySet<string>; mentionsUnplaced: (name: string) => boolean; misreadStatements: NameRange[] }[],
+  builtins: ReadonlySet<string>,
+  line: (uri: string, offset: number) => number,
+): { uri: string; lint: LuauLint }[] {
+  const uncertain = new Map(scripts.map(({ uri, uncertainGlobalUses }) => [uri, uncertainGlobalUses]));
+  const misreadIn = new Map(scripts.map(({ uri, misreadStatements }) => [uri, misreadStatements]));
+  const found: { uri: string; lint: LuauLint }[] = [];
+  for (const [name, global] of program.globals) {
+    if (name === "_" || BUILTIN_GLOBALS.has(name) || builtins.has(name)) continue;
+    if (!global.writes.some((reference) => reference.access === "write")) continue;
+    if (global.definitions.some((definition) => definition.kind === "store" || definition.kind === "const")) continue;
+    // A compound write is in both lists.
+    const references = [...new Set([...global.reads, ...global.writes])];
+    let shared: readonly AstExprFunction[] | undefined;
+    for (const { enclosingFunctions } of references) {
+      if (!shared) shared = enclosingFunctions;
+      else {
+        let prefix = 0;
+        while (prefix < shared.length && prefix < enclosingFunctions.length && shared[prefix] === enclosingFunctions[prefix]) prefix++;
+        if (prefix < shared.length) shared = shared.slice(0, prefix);
+      }
+      if (!shared.length) break;
+    }
+    const top = shared?.[shared.length - 1];
+    if (!top) {
+      const readFirst = global.reads.some((reference) => !reference.enclosingFunctions.length || !reference.dominated);
+      const writtenOutside = global.writes.some((reference) => !reference.enclosingFunctions.length);
+      if (readFirst || writtenOutside) continue;
+    }
+    if (program.uncertainNames.has(name) || scripts.some((script) => script.outermostLocals.has(name))) continue;
+    if (references.some((reference) => reference.inType || uncertain.get(reference.uri)?.has(reference.from) || misreadIn.get(reference.uri)?.some((range) => range.from <= reference.from && reference.from < range.to))) continue;
+    if (scripts.some((script) => script.mentionsUnplaced(name))) continue;
+    let first = references[0]!;
+    for (const reference of references) {
+      const a = normalizedUri(reference.uri);
+      const b = normalizedUri(first.uri);
+      if (a < b || (a === b && reference.from < first.from)) first = reference;
+    }
+    let text = `Global '${name}' is never read before being written. Consider changing it to local`;
+    if (top?.debugname) text = `Global '${name}' is only used in the enclosing function '${top.debugname}'; consider changing it to local`;
+    else if (top) {
+      const at = line(first.uri, program.scripts.get(first.uri)?.functionStarts.get(top) ?? first.from);
+      text = `Global '${name}' is only used in the enclosing function defined at line ${at}; consider changing it to local`;
+    }
+    found.push({ uri: first.uri, lint: { code: "GlobalUsedAsLocal", from: first.from, to: first.to, message: text } });
   }
   return found;
 }

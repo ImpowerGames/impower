@@ -9,7 +9,9 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  diagnoseWithLints,
   diagnoseWithLintsInFunction,
+  lintMessages,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
@@ -32,17 +34,28 @@ assert(5)
   });
 });
 
-// Luau: GlobalAsLocal
-describe.skip("a global used only in one function (not implemented: GlobalAsLocal)", () => {
+// The GlobalAsLocal cases below are adapted. An upstream snippet is a Luau
+// chunk, and its globals are the chunk's; in the wrapper `run` they would be
+// held by one function, which the harness does not report (it leaves out
+// every GlobalUsedAsLocal warning naming `run`), so the snippet is placed at
+// the script's top level instead, where a `function f()` is a story function
+// and a Luau statement such as `fnA = createFunction(true)` is outside every
+// function, as in the chunk. The chunk's last line, `return bar()`, which
+// Sparkdown's top level reads as narrative, becomes the interpolation
+// `{bar()}`, a use of the same functions outside every function. Line
+// numbers are unchanged.
+
+// Luau: GlobalAsLocal (adapted)
+describe("a global used only in one function", () => {
   test("foo written and read only in bar", () => {
     expect(
-      lintMessagesInFunction(`
+      lintMessages(`
 function bar()
     foo = 6
     return foo
 end
 
-return bar()
+{bar()}
 `),
     ).toEqual([
       "Global 'foo' is only used in the enclosing function 'bar'; consider changing it to local",
@@ -50,11 +63,11 @@ return bar()
   });
 });
 
-// Luau: GlobalAsLocalMultiFx
-describe.skip("a global always written before read (not implemented: GlobalAsLocal)", () => {
+// Luau: GlobalAsLocalMultiFx (adapted)
+describe("a global always written before read", () => {
   test("foo written then read in two functions", () => {
     expect(
-      lintMessagesInFunction(`
+      lintMessages(`
 function bar()
     foo = 6
     return foo
@@ -65,7 +78,7 @@ function baz()
     return foo
 end
 
-return bar() + baz()
+{bar() + baz()}
 `),
     ).toEqual([
       "Global 'foo' is never read before being written. Consider changing it to local",
@@ -73,10 +86,11 @@ return bar() + baz()
   });
 });
 
-// Luau: GlobalAsLocalMultiFxWithRead
-// Luau: GlobalAsLocalWithConditional
-// Luau: GlobalAsLocal3WithConditionalRead
-// Luau: GlobalAsLocalInnerRead
+// Luau: GlobalAsLocalMultiFxWithRead (adapted)
+// Luau: GlobalAsLocalWithConditional (adapted)
+// Luau: GlobalAsLocal3WithConditionalRead (adapted)
+// Luau: GlobalAsLocalInnerRead (adapted)
+// Each also runs as written in the wrapper, which stays silent too.
 describe("globals that are genuinely shared are not reported", () => {
   test.each([
     [
@@ -151,14 +165,17 @@ return foo() + baz()
     ],
   ])("%s", (_name, body) => {
     expect(diagnoseWithLintsInFunction(body)).toEqual([]);
+    const chunk = body.replace(/^return (.*)$/m, "{$1}");
+    expect(chunk).not.toBe(body);
+    expect(diagnoseWithLints(chunk)).toEqual([]);
   });
 });
 
-// Luau: GlobalAsLocalMulti
-describe.skip("a function statement meant as a local (not implemented: GlobalAsLocal)", () => {
+// Luau: GlobalAsLocalMulti (adapted)
+describe("a function statement meant as a local", () => {
   test("moreInternalLogic declared inside createFunction", () => {
     expect(
-      lintMessagesInFunction(`
+      lintMessages(`
 local createFunction = function(configValue)
     -- Create an internal convenience function
     local function internalLogic()

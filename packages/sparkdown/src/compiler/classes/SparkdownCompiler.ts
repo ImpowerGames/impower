@@ -11,11 +11,13 @@ import {
   indexProgramNames,
   lintDuplicateGlobalMembers,
   lintGlobalShadows,
+  lintGlobalsUsedAsLocals,
   lintUnusedGlobalFunctions,
   type LuauLint,
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
+import { isLuauFile } from "../typecheck/LuauUnitNodes";
 import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
@@ -5639,6 +5641,15 @@ export class SparkdownCompiler {
         });
         for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
       }
+      // The pass reads a `.luau` file as a `.sd` script, whose lines outside
+      // a function are narrative, so any mention of a name there may use it.
+      const usesSeen = scripts.map((script) => {
+        if (!isLuauFile(script.uri)) return script;
+        const text = this.documents.get(script.uri)?.getText() ?? "";
+        return { ...script, mentionsUnplaced: (name: string) => new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(text) };
+      });
+      const locals = lintGlobalsUsedAsLocals(names, usesSeen, builtins, (scriptUri, offset) => (this.documents.get(scriptUri)?.positionAt(offset).line ?? 0) + 1);
+      for (const { uri: scriptUri, lint } of locals) report(scriptUri, lint);
     }
     for (const [scriptUri, list] of lints) {
       const doc = this.documents.get(scriptUri);

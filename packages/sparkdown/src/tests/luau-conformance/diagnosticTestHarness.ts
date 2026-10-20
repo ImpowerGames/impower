@@ -13,13 +13,16 @@
 // Luau's parser and compiler tests never run its linter, and their snippets
 // declare locals and functions only to hold the literal or annotation under
 // test, so `diagnose` and `diagnoseInFunction` leave out unused-local,
-// unused-function and statement layout lints: valid parser controls can
-// intentionally use unread locals, uncalled functions or adjacent statements.
-// Other lints remain to catch false warnings in malformed snippets. The
-// linter ports use `diagnoseWithLints`, `diagnoseWithLintsInFunction` or
-// `lintInFunction`. The wrapper `run` is the harness's, not the snippet's, and
-// nothing calls it, so every helper leaves out the FunctionUnused warning on
-// its name, in a snippet that writes the wrapper itself too.
+// unused-function, global-as-local and statement layout lints: valid parser
+// controls can intentionally use unread locals, uncalled functions, globals
+// one function holds or adjacent statements. Other lints remain to catch
+// false warnings in malformed snippets. The linter ports use
+// `diagnoseWithLints`, `diagnoseWithLintsInFunction` or `lintInFunction`. The
+// wrapper `run` is the harness's, not the snippet's, and nothing calls it, so
+// every helper leaves out the FunctionUnused warning on its name, in a
+// snippet that writes the wrapper itself too, and the GlobalUsedAsLocal
+// warning for a global only the wrapper holds: in the chunk the snippet is
+// upstream, no function holds it.
 //
 // None of those upstream tests runs Luau's type checker either, so no helper
 // here reports its warnings; the ports of Luau's type-checker tests in
@@ -51,8 +54,11 @@ export interface DetailedDiagnostic {
 
 /** The FunctionUnused warning on the name of the wrapper the snippets are
  *  placed in, `function run()` on a script's first line, which nothing
- *  calls. */
+ *  calls, and a GlobalUsedAsLocal warning naming the wrapper: an upstream
+ *  snippet is a Luau chunk, whose globals are not used inside one function
+ *  when only the wrapper holds them. */
 function isWrapperWarning(d: SparkDiagnostic) {
+  if (d.code === "GlobalUsedAsLocal") return diagnosticMessage(d).endsWith(" is only used in the enclosing function 'run'; consider changing it to local");
   return d.code === "FunctionUnused" && d.range?.start.line === 0 && d.range.start.character === "function ".length && diagnosticMessage(d).startsWith("Function 'run' ");
 }
 
@@ -106,10 +112,10 @@ function isLint(d: DetailedDiagnostic) {
 
 // Exact rules unrelated to the parser/compiler assertions.
 const PARSER_EXCLUDED_LINTS = new Set<LuauLintCode>([
-  "LocalUnused", "FunctionUnused", "SameLineStatement", "MultiLineStatement",
+  "LocalUnused", "FunctionUnused", "GlobalUsedAsLocal", "SameLineStatement", "MultiLineStatement",
 ]);
 
-/** Diagnostic messages except unused-local and statement-layout lints. */
+/** Diagnostic messages except unused-local, global-as-local and statement-layout lints. */
 export function diagnose(source: string): string[] {
   return diagnoseDetailed(source)
     .filter((d) => !PARSER_EXCLUDED_LINTS.has(d.code as LuauLintCode))
@@ -146,4 +152,12 @@ export function lintInFunction(body: string, code?: LuauLintCode): Lint[] {
 
 export function lintMessagesInFunction(body: string, code?: LuauLintCode): string[] {
   return lintInFunction(body, code).map((l) => l.message);
+}
+
+/** The messages of the lint warnings for `source` as a whole script, in
+ *  source order, for a snippet whose globals the wrapper would hold. */
+export function lintMessages(source: string, code?: LuauLintCode): string[] {
+  return diagnoseDetailed(source)
+    .filter((d) => isLint(d) && (code === undefined || d.code === code))
+    .map((d) => d.message);
 }

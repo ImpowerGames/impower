@@ -79,14 +79,16 @@ function lint(scripts: Script[], entries: Script[]): Finding[] {
     for (const d of diagnostics) {
       if (!LINT_CODES.has(String(d.code))) continue;
       // The wrapper a conformance file is read in is the corpus's, and
-      // nothing calls it.
+      // nothing calls it, nor holds the file's globals in Luau.
       if (script.offset && d.code === "FunctionUnused" && d.range.start.line === 0) continue;
+      const message = typeof d.message === "string" ? d.message : d.message.value;
+      if (script.offset && d.code === "GlobalUsedAsLocal" && message.endsWith(" is only used in the enclosing function 'run'; consider changing it to local")) continue;
       out.push({
         label: script.label,
         line: d.range.start.line + 1 - script.offset,
         column: d.range.start.character + 1,
         code: String(d.code),
-        message: typeof d.message === "string" ? d.message : d.message.value,
+        message,
       });
     }
   }
@@ -135,7 +137,8 @@ export function main(repo: string, project?: string) {
   run("repository .sd files", repoFindings, tracked.length);
 
   // Luau is sparkdown only inside a function, so each conformance file is
-  // wrapped in one, as the conformance tests wrap their snippets.
+  // wrapped in one, as the conformance tests wrap their snippets. A global
+  // only that wrapper holds is the file's own, as in Luau, and not reported.
   const conformance = "packages/sparkdown/src/tests/luau-conformance/upstream/conformance";
   const luau = walk(join(repo, conformance))
     .filter((f) => f.endsWith(".luau"))
