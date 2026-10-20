@@ -125,6 +125,13 @@ export interface StdLibEntry {
    */
   validatesArgs?: boolean;
   /**
+   * Fewest arguments a VARIADIC pure entry accepts. A direct call with
+   * fewer raises `missing argument #N to 'name'` for the first absent
+   * one (`math.max()` is `missing argument #1 to 'max'`, as in Luau).
+   * Omitted means any count, including none (`bit32.band()`).
+   */
+  minArgs?: number;
+  /**
    * Implementation. Receives popped args in source order (arg 0 first,
    * arg 1 second, …) — the runtime handler reverses the pop order so
    * implementations don't have to think about stack direction. For
@@ -2781,6 +2788,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // through `Math.atan2` when both args are present.
   "math.atan": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) =>
       args.length >= 2 ? Math.atan2(args[0]!, args[1]!) : Math.atan(args[0]!),
@@ -2851,6 +2859,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `log(x) / log(base)`.
   "math.log": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) =>
       args.length >= 2 ? Math.log(args[0]!) / Math.log(args[1]!) : Math.log(args[0]!),
@@ -2866,6 +2875,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // 1) — math.luau lines 302-305.
   "math.max": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) => {
       let m = args.length > 0 ? args[0]! : -Infinity;
@@ -2877,6 +2887,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   "math.min": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) => {
       let m = args.length > 0 ? args[0]! : Infinity;
@@ -3115,6 +3126,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // value distribution) do.
   "math.noise": {
     arity: -1,
+    minArgs: 1,
     pure: true,
     fn: (_, args: number[]) =>
       perlinNoise(args[0] ?? 0, args[1] ?? 0, args[2] ?? 0),
