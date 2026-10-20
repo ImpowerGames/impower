@@ -385,10 +385,7 @@ describe("the same function in two arms is not a duplicate", () => {
 });
 
 // Luau: DuplicateLocal
-// The second message is LocalUnused, which sparkdown has; it does not report
-// it here because two declarations of `a1` in one statement share a scope,
-// and the rule counts the later reads for both.
-describe.skip("a name declared twice in one list (not implemented: DuplicateLocal)", () => {
+describe("a name declared twice in one list", () => {
   test("parameters, locals and an explicit self", () => {
     expect(
       lintMessagesInFunction(`

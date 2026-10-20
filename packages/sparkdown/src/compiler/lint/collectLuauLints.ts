@@ -81,7 +81,7 @@ import {
   type AstNode,
 } from "../typecheck/Ast";
 import { doesCallError } from "../typecheck/DataFlowGraph";
-import type { Location, Position } from "../typecheck/Location";
+import { Location, type Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
@@ -104,6 +104,7 @@ export const LUAU_LINT_CODES = [
   "UninitializedLocal",
   "UnbalancedAssignment",
   "DuplicateFunction",
+  "DuplicateLocal",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -1164,6 +1165,48 @@ function lintUnbalancedAssignments(root: AstNode, text: string, offsets: Offsets
 }
 
 // ---------------------------------------------------------------------------
+// DuplicateLocal
+
+// Luau's DuplicateLocal: a name that one `local` statement or one function's
+// parameter list declares again, at the later declaration, against the
+// earlier one's column on its line or its line otherwise. An explicit `self`
+// parameter of a method repeats its implicit one. `_` is exempt, as in Luau.
+// As in Luau, a function written in a type is not read. A flow's checking
+// wrapper (`skip`), whose parameters are a scene's or branch's and not Luau's,
+// is not checked, nor is a published `const`, which is a global. The rule
+// concludes from two names the reading holds, so a name it lacks (a Sparkdown
+// keyword's reading) can hide a warning but never make one. A syntax error
+// between the start of the statement or function and the repeated name
+// leaves it alone, since recovery there can read a list the author did not
+// write; one elsewhere, in a value (`...` outside a vararg function) or a
+// body, does not change the names.
+function lintDuplicateLocals(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], published: (local: AstLocal) => boolean, skip?: AstExprFunction): void {
+  const check = (owner: AstNode, declared: readonly AstLocal[], checked: readonly AstLocal[], kind: string, self?: AstLocal) => {
+    const own = new Set(declared);
+    for (const local of checked) {
+      const shadow = local.shadow;
+      if (!shadow || !own.has(shadow) || local.name === "_" || !isAuthoredLuauName(local.name) || published(local)) continue;
+      const list = new Location(owner.location.begin, local.location.end);
+      if (errors.some((error) => list.overlaps(error.location))) continue;
+      const line = offsets.line(shadow.location.begin);
+      const message =
+        shadow === self ? "Function parameter 'self' already defined implicitly"
+        : line === offsets.line(local.location.begin) ? `${kind} '${local.name}' already defined on column ${shadow.location.begin.column + 1}`
+        : `${kind} '${local.name}' already defined on line ${line + 1}`;
+      out.push({ code: "DuplicateLocal", ...offsets.range(local.location), message });
+    }
+  };
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (node instanceof AstStatLocal) check(node, node.vars, node.vars, "Variable");
+      else if (node instanceof AstExprFunction && node !== skip) check(node, [...(node.self ? [node.self] : []), ...node.args], node.args, "Function parameter", node.self);
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // DuplicateCondition
 
 /** Luau's `similar`: whether two expressions are the same expression. */
@@ -1512,6 +1555,8 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintFunctions(definedFunctions(unit), offsets, unit.errors);
     lintStatementLayout(unit.root, offsets, out, unit.errors, sameLines);
     lintDuplicateFunctions(unit.root, offsets, out, unit.errors, facts.names.uncertainNames, unit === units.prelude ? unit.root : undefined);
+    const wrapper = unit.kind === "flow" && unit.root.body[0] instanceof AstStatLocalFunction ? unit.root.body[0].func : undefined;
+    lintDuplicateLocals(unit.root, offsets, out, unit.errors, published, wrapper);
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
@@ -1526,6 +1571,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintFunctions(functions, documentOffsets, errors);
     lintStatementLayout(expr, documentOffsets, out, errors, sameLines);
     lintDuplicateFunctions(expr, documentOffsets, out, errors, facts.names.uncertainNames);
+    lintDuplicateLocals(expr, documentOffsets, out, errors, published);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
