@@ -11,9 +11,19 @@ describe("formatting a structural word that names a value", () => {
     "function f()\n  local s = queue({ a = 1 })\n  return s\nend\n",
     "function f()\n  local s = cycle(\"a\") .. \"b\"\n  return s\nend\n",
     "function f()\n  if c then match(2) end\nend\n",
+    "function f()\n  queue(\n    1\n  )\nend\n",
+    "function f()\n  match(1)\n  -- note\n  return 2\nend\n",
   ]) {
     test(`leaves ${JSON.stringify(source)} as written`, () => {
       expect(formatSource(source)).toBe(source);
+    });
+  }
+
+  // Each word formats as any other name in its place does.
+  for (const word of ["queue", "cycle", "chain", "shuffle", "match", "plural"]) {
+    test(`formats a call of ${word} as a call of another name`, () => {
+      const source = (name: string) => `function f()\n  local s = ${name}(function ()\n  return 1\n end, {\n a = 1 })\n  ${name}(\n 2\n  )\n  return s\nend\n`;
+      expect(formatSource(source(word))).toBe(formatSource(source("hp")).replaceAll("hp(", `${word}(`));
     });
   }
 

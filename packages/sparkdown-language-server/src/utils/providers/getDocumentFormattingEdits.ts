@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
+import { ALTERNATOR_CANDIDATES, opensAlternator } from "@impower/sparkdown/src/compiler/utils/alternatorDecision";
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
@@ -518,6 +519,10 @@ function computeBlockIndent(
     // `elseif`; this rule keeps indent correct so both passes
     // agree.
     if (isElseBlockMergeableIntoIf(node, stack[i - 1])) continue;
+
+    // A structural word that holds no arms is a name (I-1310): its rule is
+    // the call it reads as, which indents nothing.
+    if (ALTERNATOR_CANDIDATES.has(node.name) && !opensAlternator(node)) continue;
 
     // An alternator's arms take its `end` (I-1310), which aligns with the
     // word that opened it as a block's own `end` does.

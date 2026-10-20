@@ -6,7 +6,10 @@ export type Binding = { kind: BindingKind; fromStdlib: boolean };
 
 type Site = { from: number; to: number; name: string };
 type Declaration = Site & { scope: number; kind: BindingKind };
-type Reference = Site & { scopes: number[]; declaration: boolean };
+/** `nameFallback`: a site that takes the name's token even with no binding, a
+ * structural word that names a value (`namesValue`), whose grammar scope is
+ * the alternator keyword's. */
+type Reference = Site & { scopes: number[]; declaration: boolean; nameFallback?: true };
 
 /** Scope identities are the starts of enclosing function definitions and type
  * function declarations. Global scope is -1. These are the same scopes
@@ -91,13 +94,14 @@ export class SemanticDependencies {
     });
   }
 
-  reference(node: SyntaxNode, name: string, declaration: boolean) {
+  reference(node: SyntaxNode, name: string, declaration: boolean, nameFallback = false) {
     this.observedReferences.push({
       from: node.from,
       to: node.to,
       name,
       declaration,
       scopes: scopesAt(node),
+      ...(nameFallback ? { nameFallback: true as const } : {}),
     });
   }
 
