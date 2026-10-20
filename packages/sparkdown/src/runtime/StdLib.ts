@@ -1934,6 +1934,7 @@ function utf8PosRelat(pos: number, len: number): number {
 // Re-export the method-dispatch surface so external callers
 // (compiler, runtime engine) see one entry point. The actual table
 // and helpers live in `MethodDispatch.ts` to keep this file small.
+import { checkNumberArg } from "./MethodDispatch";
 export {
   callBuiltinMethod,
   isBuiltinMethod,
@@ -4088,8 +4089,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     fn: (_, args) => {
       const str = coerceString(args[0]) ?? "";
-      let i = coerceNumber(args[1]) ?? 1;
-      let j = args.length > 2 ? (coerceNumber(args[2]) ?? -1) : -1;
+      let i = checkNumberArg(args[1], 2, "sub");
+      let j = checkNumberArg(args[2], 3, "sub", true) ?? -1;
       if (i < 0) i = Math.max(str.length + i + 1, 1);
       else if (i === 0) i = 1;
       if (j < 0) j = str.length + j + 1;
