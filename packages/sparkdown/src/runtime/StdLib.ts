@@ -4625,6 +4625,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // starting at `field` (LSB = 0). Default width is 1.
   "bit32.extract": {
     arity: -1,
+    minArgs: 2,
     pure: true,
     fn: (_, args: number[]) => {
       const n = (args[0] ?? 0) >>> 0;
@@ -4639,6 +4640,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // at `field` with the low bits of `v`.
   "bit32.replace": {
     arity: -1,
+    minArgs: 3,
     pure: true,
     fn: (_, args: number[]) => {
       let n = (args[0] ?? 0) >>> 0;
@@ -6529,6 +6531,13 @@ export function isStdLibNamespaceName(name: string): boolean {
 // missing / wrong-typed arguments raise Lua-formatted, pcall-trappable
 // errors ("missing argument #1 to 'abs'" / "invalid argument #1 to
 // 'abs'").
+// Fewest arguments a call of `entry` must pass: its arity when fixed,
+// otherwise its `minArgs` (none when omitted). Every call form (direct,
+// first-class, `pcall`) raises the same missing argument below it.
+export function stdLibRequiredArgs(entry: StdLibEntry): number {
+  return entry.arity >= 0 ? entry.arity : (entry.minArgs ?? 0);
+}
+
 export function isPureNumberStdLibOp(name: string): boolean {
   const entry = lookupAnyStdLib(name);
   if (!entry) return false;

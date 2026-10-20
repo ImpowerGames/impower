@@ -48,9 +48,33 @@ describe("variadic pure builtin with a no-value last argument", () => {
     ["math.max(g0())", "missing argument #1 to 'max'"],
     ["math.max(g0(), 2)", "missing argument #1 to 'max'"],
     ["math.abs(g0())", "missing argument #1 to 'abs'"],
+    ["bit32.extract(8, g0())", "missing argument #2 to 'extract'"],
+    ["bit32.replace(8, 0, g0())", "missing argument #3 to 'replace'"],
   ])("%s raises", (expr, message) => {
     const { errors } = run(expr);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(message);
+  });
+
+  // A first-class call (a local alias, `pcall`) keeps the direct call's
+  // minimum.
+  test.each([
+    ["(function() local f = math.max; return f() end)()", "missing argument #1"],
+    ["(function() local f = math.max; return f(2, g0()) end)()", null],
+  ])("%s", (expr, message) => {
+    const { text, errors } = run(expr);
+    if (message === null) {
+      expect(errors).toEqual([]);
+      expect(text).toBe("Got 2.\n");
+    } else {
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain(message);
+    }
+  });
+
+  test("pcall(math.max) fails", () => {
+    const { text, errors } = run("(pcall(math.max))");
+    expect(errors).toEqual([]);
+    expect(text).toBe("Got false.\n");
   });
 });

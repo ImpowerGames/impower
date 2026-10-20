@@ -21,6 +21,7 @@ import {
   isPureNumberStdLibOp,
   lookupAnyStdLib,
   luauNumberToString,
+  stdLibRequiredArgs,
   luauTableBorder,
   luauTypeOf,
   parseLuauNumber,
@@ -242,8 +243,8 @@ export class NativeFunctionCall extends InkObject {
         throw new StoryException(`missing argument #1 to '${shortName}'`);
       }
       if (this._numberOfParameters === VARIADIC_ARITY) {
-        const minArgs = lookupAnyStdLib(this.name)?.minArgs ?? 0;
-        if (parameters.length < minArgs) {
+        const entry = lookupAnyStdLib(this.name);
+        if (entry && parameters.length < stdLibRequiredArgs(entry)) {
           throw new StoryException(
             `missing argument #${parameters.length + 1} to '${shortName}'`,
           );

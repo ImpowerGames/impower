@@ -30,6 +30,7 @@ import {
   isStdLibNamespaceName,
   luauTypeOf,
   lookupAnyStdLib,
+  stdLibRequiredArgs,
   stepBuiltinIterator,
   unwrapArgsForPureStdLibFn,
   type StdLibEntry,
@@ -403,8 +404,7 @@ export function tryInvokeStdLibMarkerValue(
   const entry = lookupAnyStdLib(tag.value!);
   if (!entry) return null;
   if (
-    entry.arity >= 0 &&
-    args.length < entry.arity &&
+    args.length < stdLibRequiredArgs(entry) &&
     !(entry as { validatesArgs?: boolean }).validatesArgs
   ) {
     story.Error(`missing argument #${args.length + 1} to '${tag.value}'`);
@@ -910,7 +910,7 @@ function runBuiltinCall(
   // direct call raises (`NativeFunctionCall.Call`), once the arguments it was
   // given are numbers; every other builtin checks its own arguments, as its
   // direct call leaves it to.
-  if (values.length < entry.arity && isPureNumberStdLibOp(name)) {
+  if (values.length < stdLibRequiredArgs(entry) && isPureNumberStdLibOp(name)) {
     const short = name.slice(name.lastIndexOf(".") + 1);
     story.Error(`missing argument #${values.length + 1} to '${short}'`);
   }
