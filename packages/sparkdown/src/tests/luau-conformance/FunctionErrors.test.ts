@@ -33,10 +33,10 @@ describe("method call with no argument list", () => {
 // Luau: parse_error_varargs
 // "Cannot use '...' outside of a vararg function"
 //
-// `...` lowers to a read of the function's hidden varargs variable. In a
-// function with no `...` parameter that variable does not exist, and what
-// surfaces is a warning naming the internal `__varargs$` rather than an
-// error naming the rule.
+// The type checker reports Luau's error for a function's body (I-1322). The
+// lowering still reads `...` as the function's hidden varargs variable, which
+// a function with no `...` parameter lacks, so a warning naming the internal
+// `__varargs$` comes with it (LintSparkdownWarnings.test.ts, I-1254).
 describe("varargs outside a vararg function", () => {
   test("function add(x, y) return ... end", () => {
     expect(
