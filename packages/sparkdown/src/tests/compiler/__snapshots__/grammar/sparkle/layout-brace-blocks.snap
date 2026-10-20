@@ -3563,17 +3563,20 @@ sparkdown [0..2780]
  │   │   │   │       │                                       │           │               ├─ LuauSingleQuotedString_begin [1954..1955]
  │   │   │   │       │                                       │           │               │   └─ LuauSingleQuotedString_begin_c1 [1954..1955]
  │   │   │   │       │                                       │           │               │       └─ PunctuationStringSingleQuoteOpen [1954..1955]: "'"
- │   │   │   │       │                                       │           │               └─ LuauSingleQuotedString_content [1955..1966]
- │   │   │   │       │                                       │           │                   ├─ Word [1955..1956]: "a"
- │   │   │   │       │                                       │           │                   ├─ Punctuation [1956..1957]: "}"
- │   │   │   │       │                                       │           │                   ├─ Word [1957..1958]: "b"
- │   │   │   │       │                                       │           │                   ├─ Punctuation [1958..1959]: ")"
- │   │   │   │       │                                       │           │                   ├─ Space [1959..1960]: " "
- │   │   │   │       │                                       │           │                   ├─ Punctuation [1960..1961]: "}"
- │   │   │   │       │                                       │           │                   ├─ Space [1961..1962]: " "
- │   │   │   │       │                                       │           │                   ├─ Punctuation [1962..1963]: "\""
- │   │   │   │       │                                       │           │                   ├─ Word [1963..1965]: "Go"
- │   │   │   │       │                                       │           │                   └─ Punctuation [1965..1966]: "\""
+ │   │   │   │       │                                       │           │               ├─ LuauSingleQuotedString_content [1955..1966]
+ │   │   │   │       │                                       │           │               │   ├─ Word [1955..1956]: "a"
+ │   │   │   │       │                                       │           │               │   ├─ Punctuation [1956..1957]: "}"
+ │   │   │   │       │                                       │           │               │   ├─ Word [1957..1958]: "b"
+ │   │   │   │       │                                       │           │               │   ├─ Punctuation [1958..1959]: ")"
+ │   │   │   │       │                                       │           │               │   ├─ Space [1959..1960]: " "
+ │   │   │   │       │                                       │           │               │   ├─ Punctuation [1960..1961]: "}"
+ │   │   │   │       │                                       │           │               │   ├─ Space [1961..1962]: " "
+ │   │   │   │       │                                       │           │               │   ├─ Punctuation [1962..1963]: "\""
+ │   │   │   │       │                                       │           │               │   ├─ Word [1963..1965]: "Go"
+ │   │   │   │       │                                       │           │               │   └─ Punctuation [1965..1966]: "\""
+ │   │   │   │       │                                       │           │               └─ LuauSingleQuotedString_end 1966
+ │   │   │   │       │                                       │           │                   ├─ LuauSingleQuotedString_end_c1 1966
+ │   │   │   │       │                                       │           │                   └─ LuauSingleQuotedString_end_c2 1966
  │   │   │   │       │                                       │           └─ LuauFunctionCall_end 1966
  │   │   │   │       │                                       └─ LuauAccessPath_end 1966
  │   │   │   │       │                                           └─ LuauAccessPath_end_c1 1966
@@ -3599,23 +3602,26 @@ sparkdown [0..2780]
  │   │   │   │       │                   ├─ LuauSingleQuotedString_begin [1974..1975]
  │   │   │   │       │                   │   └─ LuauSingleQuotedString_begin_c1 [1974..1975]
  │   │   │   │       │                   │       └─ PunctuationStringSingleQuoteOpen [1974..1975]: "'"
- │   │   │   │       │                   └─ LuauSingleQuotedString_content [1975..1997]
- │   │   │   │       │                       ├─ Word [1975..1976]: "a"
- │   │   │   │       │                       ├─ Punctuation [1976..1977]: ")"
- │   │   │   │       │                       ├─ Word [1977..1978]: "b"
- │   │   │   │       │                       ├─ Punctuation [1978..1979]: "{"
- │   │   │   │       │                       ├─ Word [1979..1980]: "c"
- │   │   │   │       │                       ├─ Punctuation [1980..1981]: ")"
- │   │   │   │       │                       ├─ Space [1981..1982]: " "
- │   │   │   │       │                       ├─ Punctuation [1982..1983]: "{"
- │   │   │   │       │                       ├─ Space [1983..1984]: " "
- │   │   │   │       │                       ├─ Word [1984..1988]: "text"
- │   │   │   │       │                       ├─ Space [1988..1989]: " "
- │   │   │   │       │                       ├─ Punctuation [1989..1990]: "\""
- │   │   │   │       │                       ├─ Word [1990..1994]: "body"
- │   │   │   │       │                       ├─ Punctuation [1994..1995]: "\""
- │   │   │   │       │                       ├─ Space [1995..1996]: " "
- │   │   │   │       │                       └─ Punctuation [1996..1997]: "}"
+ │   │   │   │       │                   ├─ LuauSingleQuotedString_content [1975..1997]
+ │   │   │   │       │                   │   ├─ Word [1975..1976]: "a"
+ │   │   │   │       │                   │   ├─ Punctuation [1976..1977]: ")"
+ │   │   │   │       │                   │   ├─ Word [1977..1978]: "b"
+ │   │   │   │       │                   │   ├─ Punctuation [1978..1979]: "{"
+ │   │   │   │       │                   │   ├─ Word [1979..1980]: "c"
+ │   │   │   │       │                   │   ├─ Punctuation [1980..1981]: ")"
+ │   │   │   │       │                   │   ├─ Space [1981..1982]: " "
+ │   │   │   │       │                   │   ├─ Punctuation [1982..1983]: "{"
+ │   │   │   │       │                   │   ├─ Space [1983..1984]: " "
+ │   │   │   │       │                   │   ├─ Word [1984..1988]: "text"
+ │   │   │   │       │                   │   ├─ Space [1988..1989]: " "
+ │   │   │   │       │                   │   ├─ Punctuation [1989..1990]: "\""
+ │   │   │   │       │                   │   ├─ Word [1990..1994]: "body"
+ │   │   │   │       │                   │   ├─ Punctuation [1994..1995]: "\""
+ │   │   │   │       │                   │   ├─ Space [1995..1996]: " "
+ │   │   │   │       │                   │   └─ Punctuation [1996..1997]: "}"
+ │   │   │   │       │                   └─ LuauSingleQuotedString_end 1997
+ │   │   │   │       │                       ├─ LuauSingleQuotedString_end_c1 1997
+ │   │   │   │       │                       └─ LuauSingleQuotedString_end_c2 1997
  │   │   │   │       └─ LuauSparkleElement_end 1997
  │   │   │   └─ LuauSparkleBlockLine_end 1997
  │   │   ├─ Newline [1997..1998]: "\n"
@@ -4303,8 +4309,10 @@ sparkdown [0..2780]
  │   │   │   │       │                               │   │   │           │       │       │   │   │       └─ LuauAccessPath_end 2432
  │   │   │   │       │                               │   │   │           │       │       │   │   │           └─ LuauAccessPath_end_c1 2432
  │   │   │   │       │                               │   │   │           │       │       │   │   └─ LuauBacktickStringInterpolation_end [2432..2433]
- │   │   │   │       │                               │   │   │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [2432..2433]
- │   │   │   │       │                               │   │   │           │       │       │   │           └─ PunctuationBraceClose [2432..2433]: "}"
+ │   │   │   │       │                               │   │   │           │       │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [2432..2433]
+ │   │   │   │       │                               │   │   │           │       │       │   │       │   └─ PunctuationBraceClose [2432..2433]: "}"
+ │   │   │   │       │                               │   │   │           │       │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 2433
+ │   │   │   │       │                               │   │   │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c3 2433
  │   │   │   │       │                               │   │   │           │       │       │   ├─ Space [2433..2434]: " "
  │   │   │   │       │                               │   │   │           │       │       │   └─ Word [2434..2435]: "b"
  │   │   │   │       │                               │   │   │           │       │       └─ LuauInterpolatedString_end [2435..2436]
@@ -4404,8 +4412,10 @@ sparkdown [0..2780]
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │           │   └─ PunctuationStringDoubleQuoteClose [2474..2475]: "\""
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │           └─ LuauDoubleQuotedString_end_c2 2475
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       └─ LuauBacktickStringInterpolation_end [2475..2476]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c1 [2475..2476]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │               └─ PunctuationBraceClose [2475..2476]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c1 [2475..2476]
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           │   └─ PunctuationBraceClose [2475..2476]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c2 2476
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c3 2476
  │   │   │   │       │       │   │   │                               │   │   │           │       │       └─ LuauInterpolatedString_end [2476..2477]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           ├─ LuauInterpolatedString_end_c1 [2476..2477]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           │   └─ PunctuationStringBacktickQuoteClose [2476..2477]: "`"
@@ -4549,8 +4559,10 @@ sparkdown [0..2780]
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │   │   └─ LuauNumericDecimal_c2 2541
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │   └─ ExtraWhitespace [2541..2542]: " "
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       └─ LuauBacktickStringInterpolation_end [2542..2543]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c1 [2542..2543]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │               └─ PunctuationBraceClose [2542..2543]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c1 [2542..2543]
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           │   └─ PunctuationBraceClose [2542..2543]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c2 2543
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c3 2543
  │   │   │   │       │       │   │   │                               │   │   │           │       │       └─ LuauInterpolatedString_end [2543..2544]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           ├─ LuauInterpolatedString_end_c1 [2543..2544]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           │   └─ PunctuationStringBacktickQuoteClose [2543..2544]: "`"
@@ -4735,8 +4747,10 @@ sparkdown [0..2780]
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │       └─ LuauAccessPath_end 2609
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │           └─ LuauAccessPath_end_c1 2609
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       └─ LuauBacktickStringInterpolation_end [2609..2610]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c1 [2609..2610]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │               └─ PunctuationBraceClose [2609..2610]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c1 [2609..2610]
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           │   └─ PunctuationBraceClose [2609..2610]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c2 2610
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c3 2610
  │   │   │   │       │       │   │   │                               │   │   │           │       │       └─ LuauInterpolatedString_end [2610..2611]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           ├─ LuauInterpolatedString_end_c1 [2610..2611]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           │   └─ PunctuationStringBacktickQuoteClose [2610..2611]: "`"
@@ -4937,8 +4951,10 @@ sparkdown [0..2780]
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │       └─ LuauAccessPath_end 2684
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       │           └─ LuauAccessPath_end_c1 2684
  │   │   │   │       │       │   │   │                               │   │   │           │       │       │       └─ LuauBacktickStringInterpolation_end [2684..2685]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c1 [2684..2685]
- │   │   │   │       │       │   │   │                               │   │   │           │       │       │               └─ PunctuationBraceClose [2684..2685]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c1 [2684..2685]
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           │   └─ PunctuationBraceClose [2684..2685]: "}"
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           ├─ LuauBacktickStringInterpolation_end_c2 2685
+ │   │   │   │       │       │   │   │                               │   │   │           │       │       │           └─ LuauBacktickStringInterpolation_end_c3 2685
  │   │   │   │       │       │   │   │                               │   │   │           │       │       └─ LuauInterpolatedString_end [2685..2686]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           ├─ LuauInterpolatedString_end_c1 [2685..2686]
  │   │   │   │       │       │   │   │                               │   │   │           │       │           │   └─ PunctuationStringBacktickQuoteClose [2685..2686]: "`"

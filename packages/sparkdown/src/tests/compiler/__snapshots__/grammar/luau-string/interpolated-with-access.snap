@@ -47,8 +47,10 @@ sparkdown [0..41]
      │       │           │       │       │   │   │       └─ LuauAccessPath_end 27
      │       │           │       │       │   │   │           └─ LuauAccessPath_end_c1 27
      │       │           │       │       │   │   └─ LuauBacktickStringInterpolation_end [27..28]
-     │       │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [27..28]
-     │       │           │       │       │   │           └─ PunctuationBraceClose [27..28]: "}"
+     │       │           │       │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [27..28]
+     │       │           │       │       │   │       │   └─ PunctuationBraceClose [27..28]: "}"
+     │       │           │       │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 28
+     │       │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c3 28
      │       │           │       │       │   ├─ Space [28..29]: " "
      │       │           │       │       │   ├─ Punctuation [29..30]: "("
      │       │           │       │       │   ├─ LuauBacktickStringInterpolation [30..38]
@@ -74,8 +76,10 @@ sparkdown [0..41]
      │       │           │       │       │   │   │       └─ LuauAccessPath_end 37
      │       │           │       │       │   │   │           └─ LuauAccessPath_end_c1 37
      │       │           │       │       │   │   └─ LuauBacktickStringInterpolation_end [37..38]
-     │       │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [37..38]
-     │       │           │       │       │   │           └─ PunctuationBraceClose [37..38]: "}"
+     │       │           │       │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [37..38]
+     │       │           │       │       │   │       │   └─ PunctuationBraceClose [37..38]: "}"
+     │       │           │       │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 38
+     │       │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c3 38
      │       │           │       │       │   └─ Punctuation [38..39]: ")"
      │       │           │       │       └─ LuauInterpolatedString_end [39..40]
      │       │           │       │           ├─ LuauInterpolatedString_end_c1 [39..40]

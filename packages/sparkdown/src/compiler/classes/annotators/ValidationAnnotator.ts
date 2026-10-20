@@ -20,7 +20,7 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
-import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
+import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
@@ -131,6 +131,16 @@ const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
 const LUAU_WHITESPACE_RUN = /^[ \t\r\n\v\f]+$/;
 
 const MALFORMED_STRING = "Malformed string; did you forget to finish it?";
+// A backtick string's interpolations and `{{f}}` shorthands, and their ends,
+// which take a string their line ends inside (I-1318).
+const BACKTICK_INTERPOLATIONS = nodeNameSet([
+  "LuauBacktickStringInterpolation",
+  "LuauBacktickFunctionCallShorthand",
+]);
+const BACKTICK_INTERPOLATION_ENDS = nodeNameSet([
+  "LuauBacktickStringInterpolation_end",
+  "LuauBacktickFunctionCallShorthand_end",
+]);
 const MALFORMED_NUMBER = "Malformed number";
 const UNSUPPORTED_INTEGER =
   "Luau 64-bit integer literals are not supported in Sparkdown";
@@ -160,12 +170,25 @@ const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleElementInvalid",
 ]);
 const MISSING_TYPE = "Expected type";
+// The `:` a loop's `do` or an `if`'s `then` follows with no method name
+// between, which ends the header there (I-1318).
+const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
+const HEADER_METHOD_COLONS = nodeNameSet(HEADER_METHOD_COLON_NAMES);
+// The values Luau can call a method on, as its primary expression is: a name
+// or access path, a value in brackets, and a call or access chained onto one.
+const METHOD_RECEIVERS = nodeNameSet([
+  "LuauAccessPath",
+  "LuauParenthetical",
+  "LuauChainedFunctionCall",
+  "LuauChainedPropertyAccess",
+]);
 // The grammar's tokens for a type that is missing or malformed, and for a
-// declaration target's `::`.
+// declaration target's `::`, and a header's method colon.
 const TYPE_ERROR_TOKENS = nodeNameSet([
   "LuauTypeStrayOptionalOperator",
   "LuauTypeStrayColon",
   "LuauTypeAnnotationMissingType",
+  ...HEADER_METHOD_COLON_NAMES,
   "LuauTypeBinaryOperatorMissingType",
   "LuauFunctionReturnMissingType",
   "LuauTargetTypeCastOperator",
@@ -181,6 +204,7 @@ const DECLARATION_COMMA = nodeNameSet([
 const DECLARATION_ASSIGNMENT = nodeNameSet(["LuauAssignmentOperation"]);
 const MISSING_TYPE_NODES = nodeNameSet([
   "LuauTypeAnnotationMissingType",
+  ...HEADER_METHOD_COLON_NAMES,
   "LuauTypeBinaryOperatorMissingType",
   "LuauFunctionReturnMissingType",
 ]);
@@ -732,6 +756,21 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /** Whether a backtick string holds an interpolation or a `{{f}}` shorthand. */
+  protected hasBacktickInterpolation(stringNode: any): boolean {
+    const content = childNamed(stringNode, `${stringNode.name}_content`);
+    for (let c = content?.firstChild; c; c = c.nextSibling) {
+      if (BACKTICK_INTERPOLATIONS.has(c.name)) return true;
+    }
+    return false;
+  }
+
+  /** Whether an interpolation ends with its closing braces. */
+  protected isClosedInterpolation(node: any): boolean {
+    const end = childNamed(node, `${node.name}_end`);
+    return !!end && this.read(end.from, end.to).startsWith("}");
+  }
+
   /**
    * Malformed Luau literals: an unfinished string or block comment, a bad
    * escape sequence, or a number that runs into letters. The grammar
@@ -761,34 +800,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           ? "Interpolated string literal contains malformed escape sequence"
           : "String literal contains malformed escape sequence";
       const content = childNamed(node, `${name}_content`);
-      // `\z` skips every ASCII whitespace character after it (Luau's lexer
-      // set: space, tab, CR, LF, VT, FF), line breaks included, so a newline
-      // inside that run is not the end of the string. A non-breaking space or
-      // any other Unicode space ends the run, as it does in Luau.
-      let skippingWhitespace = false;
-      let prev: any = null;
-      for (let c = content?.firstChild; c; prev = c, c = c.nextSibling) {
-        if (
-          skippingWhitespace &&
-          LUAU_WHITESPACE_RUN.test(this.read(c.from, c.to))
-        ) {
-          continue;
-        }
-        skippingWhitespace = false;
-        // A quoted string ends at its line unless the newline is escaped
-        // with `\` + newline.
-        if (c.name === "Newline") {
-          if (!prev || prev.name !== "LuauEscapeLine") {
-            this.error(annotations, MALFORMED_STRING, nodeRef.from, c.from);
-            return true;
-          }
-          continue;
-        }
+      // A quoted string's line break is either the line it is not finished
+      // on, where the grammar ends it (see below), or one a `\` or a `\z`
+      // carries it over, which `LuauEscapeLine` takes with the escape.
+      for (let c = content?.firstChild; c; c = c.nextSibling) {
         const esc = this.read(c.from, c.to);
         let malformed = false;
-        if (c.name === "LuauEscapeStandard" && esc === "\\z") {
-          skippingWhitespace = true;
-        } else if (c.name === "LuauEscapeAny") {
+        if (c.name === "LuauEscapeAny") {
           // `\x` and `\u` only reach here when their digits are missing.
           malformed = esc === "\\x" || esc === "\\u";
         } else if (c.name === "LuauEscapeDecimal") {
@@ -805,10 +823,32 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return true;
         }
       }
-      // No newline and no closing quote: the string runs to the end of the
-      // file (a quoted string is always the last thing on its line, so the
-      // newline check above reports every other unfinished one).
-      if (!childNamed(node, `${name}_end`)) {
+      // No closing quote: the string ends at its line, or at the end of the
+      // file, with nothing in its `_end`, as Luau's lexer ends it there.
+      const end = childNamed(node, `${name}_end`);
+      if (!end || end.from === end.to) {
+        // A string a backtick string's interpolation ended with
+        // (`` `a {b`) ``) is the interpolation's error, reported at it.
+        if (ancestorMatching(nodeRef.node, BACKTICK_INTERPOLATION_ENDS)) {
+          return true;
+        }
+        // A backtick string with an interpolation is Luau's to word and
+        // place, by which of its sections is unfinished and what ends an
+        // interpolation left open (I-1318): the converter's reading of it
+        // gives that error, so the editor and the type checker agree.
+        if (name === "LuauInterpolatedString" && this.hasBacktickInterpolation(node)) {
+          const text = this.statementDocumentText();
+          const [error] = readLuauStringErrors(node, text);
+          if (error) {
+            this.error(
+              annotations,
+              error.message,
+              luauPositionOffset(error.location.begin, text),
+              luauPositionOffset(error.location.end, text),
+            );
+            return true;
+          }
+        }
         this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
         return true;
       }
@@ -933,11 +973,72 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
+   * Whether a node directly follows a `for` loop variable, an access path of
+   * one name in the loop's header with no `in` or `=` before it
+   * (`for k: then`), where a `:` is the variable's type annotation. Comments
+   * may stand between them (`for k --[[c]] : then`).
+   */
+  protected followsForBinding(node: SyntaxNode): boolean {
+    let path = node.prevSibling;
+    while (path && isTrivia(path)) {
+      path = path.prevSibling;
+    }
+    if (!path || !isExplicitRuleName(path.name, "LuauAccessPath") || path.parent?.name !== "LuauForCondition_content") {
+      return false;
+    }
+    const content = childNamed(path, `${path.name}_content`);
+    const part = content?.firstChild;
+    let after = part?.nextSibling;
+    while (after && isTrivia(after)) {
+      after = after.nextSibling;
+    }
+    if (!part || !isExplicitRuleName(part.name, "LuauAccessPart") || after) {
+      return false;
+    }
+    for (let before = path.prevSibling; before; before = before.prevSibling) {
+      if (before.name === "LuauInKeyword" || isExplicitRuleName(before.name, "LuauAssignmentOperation")) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Whether the value right before a node is one Luau can call a method on:
+   * a name or access path, a value in brackets, or a call or access chained
+   * onto one, as Luau's primary expression is. The value is the last one the
+   * previous sibling holds (`for k = i : then` reads `i` inside the `=`'s
+   * operation). A literal is none (`for k = 1 : then`), and there Luau's first
+   * error is the `:` itself, which the type checker reports.
+   */
+  protected followsMethodReceiver(node: SyntaxNode): boolean {
+    let value: SyntaxNode | null = node.prevSibling;
+    while (value && isTrivia(value)) {
+      value = value.prevSibling;
+    }
+    while (value) {
+      if (METHOD_RECEIVERS.has(value.name)) {
+        return true;
+      }
+      let last = value.lastChild;
+      while (last && isTrivia(last)) {
+        last = last.prevSibling;
+      }
+      value = last;
+    }
+    return false;
+  }
+
+  /**
    * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
    * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
    * directly after `for` or after a comma before the loop's `in` or `=`.
+   * A header's `:` before its `do` or `then` is always a method's (I-1318).
    */
   protected isMethodColon(node: SyntaxNode): boolean {
+    if (HEADER_METHOD_COLONS.has(node.name)) {
+      return true;
+    }
     const part = node.parent;
     if (!part || !isExplicitRuleName(part.name, "LuauAccessPart")) {
       return false;
@@ -1162,7 +1263,36 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // `->`, with no type before the token after it that cannot start one;
     // Luau names the token it found instead. After a name in a value, the `:`
     // starts a method call, which is missing its name.
+    // A reserved word as a method's name (`a:do`): Luau's first error is the
+    // missing name, at the word (I-1318).
+    if (nodeRef.name === "LuauKeywordMethodName") {
+      // After a `for` loop variable the `:` is its type's, and the word is
+      // the type Luau found missing (`for k: then`), which the type checker
+      // reports.
+      // After a value no method is called on (`for k = 1 : then`), Luau's
+      // first error is the `:`, which the type checker reports too.
+      const accessor = nodeRef.node.parent?.parent;
+      if (
+        accessor &&
+        isExplicitRuleName(accessor.name, "LuauExpressionKeywordMethodAccessor") &&
+        (this.followsForBinding(accessor) || !this.followsMethodReceiver(accessor))
+      ) {
+        return annotations;
+      }
+      this.error(
+        annotations,
+        `${MISSING_METHOD_NAME}, got '${this.read(nodeRef.from, nodeRef.to)}'`,
+        nodeRef.from,
+        nodeRef.to,
+      );
+      return annotations;
+    }
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
+      // A header's `:` after a value no method is called on (`while 1: do`):
+      // Luau's first error is the `:` itself, which the type checker reports.
+      if (HEADER_METHOD_COLONS.has(nodeRef.name) && !this.followsMethodReceiver(nodeRef.node)) {
+        return annotations;
+      }
       const isMethodColon = this.isMethodColon(nodeRef.node);
       // An unfinished narrative method call owns its island's EOF. A genuine
       // function still permits the method name on its next Luau line.
@@ -1629,7 +1759,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      const closed = raw.trimEnd().endsWith("}");
+      // A backtick string's interpolation may go on over lines, and one left
+      // open leaves its string unfinished, which reports Luau's error for
+      // both (I-1318). Whether it closed is its `_end`'s: the text can end in
+      // a `}` that a string its end took holds (`` `a {"y}``).
+      const backtick = BACKTICK_INTERPOLATIONS.has(nodeRef.name);
+      const closed = backtick
+        ? this.isClosedInterpolation(nodeRef.node)
+        : raw.trimEnd().endsWith("}");
+      if (!closed && backtick) return annotations;
       if (!closed) {
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({

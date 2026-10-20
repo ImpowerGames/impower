@@ -84,15 +84,6 @@ export interface KnownCorpusFailure {
  * `KNOWN_DISAGREEMENTS`.
  */
 export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
-  ...failing(1988, "incomplete", "a `;` right after a `repeat`'s `until` condition", ["conformance/constructs.luau"]),
-  ...failing(1989, "extent", "a keyword as a method name after `:` opens a block that takes the function's `end`", [
-    "autocomplete/autocompleteMembers.test.ts/keyword_methods",
-  ]),
-  ...failing(1998, "extent", "a string or interpolation left open on its line runs to the end of the input", [
-    "typecheck/TypeInfer.test.cpp/fuzzer_missing_follow_in_function_call",
-    "autocomplete/autocompleteComments.test.ts/autocomplete_interpolated_string_expression_with_comments",
-    "autocomplete/autocompleteComments.test.ts/autocomplete_interpolated_string_expression_with_comments (2)",
-  ]),
   ...failing(1987, "syntax", "Luau rejects a function with no valid name; Sparkdown reports nothing", [
     "typecheck/TypeInfer.test.cpp/tc_after_error_recovery_no_assert",
     "typecheck/TypeInfer.test.cpp/tc_after_error_recovery_no_replacement_name_in_error check 4",

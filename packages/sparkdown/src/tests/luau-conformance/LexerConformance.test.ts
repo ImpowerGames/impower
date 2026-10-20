@@ -77,6 +77,7 @@ function blockDepth(text: string): number {
 }
 
 const UNFINISHED_STRING = "Malformed string; did you forget to finish it?";
+const UNFINISHED_INTERPOLATED_STRING = "Malformed interpolated string; did you forget to add a '`'?";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 
@@ -304,32 +305,20 @@ describe("interpolation", () => {
 
   // Luau: string_interpolation_unmatched_brace
   // Upstream: `{`, InterpStringBegin, QuotedString, then BrokenString for the
-  // unclosed backtick, and the table's `}` is still read as `}`.
+  // unclosed backtick, and the table's `}` is still read as `}`: the
+  // backtick string ends at its line (I-1318), unfinished in its last
+  // section, which Luau's parser reports.
   test("string_interpolation_unmatched_brace", () => {
     const body =
       "local x = " +
       "{\n" +
       '        `hello {"world"}\n' +
       "    } -- this might be incorrectly parsed as a string";
-    expect(diagnoseInFunction(body)).toContain(UNFINISHED_STRING);
+    expect(diagnoseInFunction(body)).toEqual([UNFINISHED_INTERPOLATED_STRING]);
     expect(onlyNode(body, "LuauBacktickStringInterpolation").text).toBe(
       '{"world"}',
     );
-  });
-
-  // Upstream then reads the table's `}` as `}`: the backtick string ends at
-  // its line. Sparkdown's backtick string runs to the end of the body instead
-  // and swallows the `}`, so only the diagnostic above matches.
-  describe.skip("string_interpolation_unmatched_brace, token after the broken string (diverges: an unfinished backtick string runs past its line)", () => {
-    test("the table's `}` is not inside the string", () => {
-      const body =
-        "local x = " +
-        "{\n" +
-        '        `hello {"world"}\n' +
-        "    } -- this might be incorrectly parsed as a string";
-      const string = onlyNode(body, "LuauInterpolatedString");
-      expect(string.text).not.toContain("}\n");
-    });
+    expect(onlyNode(body, "LuauInterpolatedString").text).toBe('`hello {"world"}');
   });
 
   // Luau: string_interpolation_with_unicode_escape
