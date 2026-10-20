@@ -129,15 +129,14 @@ function outer()
     end
     return "", ""
   end
-  local plain = function()
-    return debug.info(1, "n")
-  end
   local a, b = f()
   return a, b
 end
 `);
     expect(r.errorMessages).toEqual([]);
+    expect(r.output).toMatch(/^T <anonymous>\|stack traceback:/);
+    expect(r.output).toContain("[FUNCTION] <SOMEWHERE IN outer>\n");
+    expect(r.output).toContain("[FUNCTION] <SOMEWHERE IN outer.<anonymous>>");
     expect(r.output).not.toContain("$b");
-    expect(r.output).toContain("[FUNCTION] <SOMEWHERE IN outer>");
   });
 });
