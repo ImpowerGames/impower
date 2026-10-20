@@ -73,7 +73,9 @@ import {
   AstType,
   AstTypePack,
   AstTypeReference,
+  AstTypeTable,
   BinaryOp,
+  TableItemKind,
   UnaryOp,
   getFunctionNameAsString,
   visitAst,
@@ -133,6 +135,10 @@ export interface LuauScriptLints {
   /** Whether the script spells a name where the reading placed no name
    * (`unplacedMention`). */
   mentionsUnplaced: (name: string) => boolean;
+  /** As `mentionsUnplaced`, but a member's name, a table's record key or a
+   * table type's property (`fieldNames`), which never names a variable, is
+   * not a mention. */
+  mentionsUnplacedVariable: (name: string) => boolean;
   /** The outermost statements (of a unit, or read outside every unit) that
    * hold a syntax error or a block missing its `end`. Recovery can end or
    * extend such a statement where the author did not (at a construct the
@@ -314,6 +320,26 @@ function unplacedMention(tree: Tree, text: string, placed: ReadonlySet<number>, 
     if (node.name === "Word" && node.parent?.name.startsWith("Luau") && node.parent.name.includes("String")) return true;
   }
   return false;
+}
+
+/** Where the roots spell a field rather than a variable: a member's name
+ * (`t.score`, `t:score()`), a table's record key (`{score = 1}`) and a table
+ * type's property (`{score: number}`). The name facts place none of them, and
+ * none can read or write the global of its spelling. */
+function fieldNames(roots: NameRoot[]): Set<number> {
+  const found = new Set<number>();
+  for (const { root, offsets } of roots) {
+    visitAst(root, {
+      visit(node) {
+        if (node instanceof AstExprIndexName) found.add(offsets.range(node.indexLocation).from);
+        else if (node instanceof AstExprTable) {
+          for (const item of node.items) if (item.kind === TableItemKind.Record && item.key) found.add(offsets.range(item.key.location).from);
+        } else if (node instanceof AstTypeTable) for (const prop of node.props) found.add(offsets.range(prop.location).from);
+        return true;
+      },
+    });
+  }
+  return found;
 }
 
 // The wrappers around a binary operation's operator and operand, which the
@@ -923,7 +949,7 @@ export function lintUnusedGlobalFunctions(program: LuauProgramNames, scripts: { 
  * type names) and `_` report nothing. Because the warning concludes that no
  * other use exists, it is also silent for a name the grammar reads as a
  * keyword somewhere in the program, one a script spells where the reading
- * placed no name (`LuauScriptLints.mentionsUnplaced`), one declared as a
+ * placed no name, other than a field (`LuauScriptLints.mentionsUnplacedVariable`), one declared as a
  * local in a unit's outermost block in any script (such a local can reach
  * code the reading binds as global), and one with a reference that may not
  * be a global use (`uncertainGlobalUses`), inside a statement holding a
@@ -933,7 +959,7 @@ export function lintUnusedGlobalFunctions(program: LuauProgramNames, scripts: { 
  */
 export function lintGlobalsUsedAsLocals(
   program: LuauProgramNames,
-  scripts: { uri: string; uncertainGlobalUses: ReadonlySet<number>; outermostLocals: ReadonlySet<string>; mentionsUnplaced: (name: string) => boolean; misreadStatements: NameRange[] }[],
+  scripts: { uri: string; uncertainGlobalUses: ReadonlySet<number>; outermostLocals: ReadonlySet<string>; mentionsUnplacedVariable: (name: string) => boolean; misreadStatements: NameRange[] }[],
   builtins: ReadonlySet<string>,
   line: (uri: string, offset: number) => number,
 ): { uri: string; lint: LuauLint }[] {
@@ -964,7 +990,7 @@ export function lintGlobalsUsedAsLocals(
     }
     if (program.uncertainNames.has(name) || scripts.some((script) => script.outermostLocals.has(name))) continue;
     if (references.some((reference) => reference.inType || uncertain.get(reference.uri)?.has(reference.from) || misreadIn.get(reference.uri)?.some((range) => range.from <= reference.from && reference.from < range.to))) continue;
-    if (scripts.some((script) => script.mentionsUnplaced(name))) continue;
+    if (scripts.some((script) => script.mentionsUnplacedVariable(name))) continue;
     let first = references[0]!;
     for (const reference of references) {
       const a = normalizedUri(reference.uri);
@@ -1561,7 +1587,7 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 }
 
 // ---------------------------------------------------------------------------
-const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; errorLines: NameRange[]; mentionsUnplaced: (name: string) => boolean; topLevelMembers: TopLevelMemberDefinition[]; parameterStarts: Set<number> }>();
+const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; errorLines: NameRange[]; mentionsUnplaced: (name: string) => boolean; mentionsUnplacedVariable: (name: string) => boolean; topLevelMembers: TopLevelMemberDefinition[]; parameterStarts: Set<number> }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
@@ -1603,11 +1629,13 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       for (const source of unit.statements) misread(source.statement, offsets, unit.errors);
     }
     for (const { expr, errors: found } of outside) misread(expr, documentOffsets, found);
-    // Asked only for a few names (FunctionUnused's candidates), so each is
-    // searched for when first asked about.
+    // Asked only for a few names (FunctionUnused's and GlobalUsedAsLocal's
+    // candidates), so each is searched for when first asked about.
     let placed: Set<number> | undefined;
     let definitions: Set<number> | undefined;
+    let fields: Set<number> | undefined;
     const mentions = new Map<string, boolean>();
+    const variableMentions = new Map<string, boolean>();
     const mentionsUnplaced = (name: string) => {
       let found = mentions.get(name);
       if (found === undefined) {
@@ -1617,7 +1645,17 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       }
       return found;
     };
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, misreadStatements, errorLines: errors, mentionsUnplaced, topLevelMembers: topLevelMembers(names, units.prelude.root, misreadStatements), parameterStarts };
+    const mentionsUnplacedVariable = (name: string) => {
+      let found = variableMentions.get(name);
+      if (found === undefined) {
+        placed ??= new Set([...names.declarations, ...names.references, ...names.globals, ...names.functions, ...names.uncertainNames].map((range) => range.from));
+        definitions ??= new Set(names.functions.map((range) => range.from));
+        fields ??= new Set([...placed, ...fieldNames(roots)]);
+        variableMentions.set(name, (found = unplacedMention(tree, text, fields, definitions, misreadStatements.length > 0, name)));
+      }
+      return found;
+    };
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, misreadStatements, errorLines: errors, mentionsUnplaced, mentionsUnplacedVariable, topLevelMembers: topLevelMembers(names, units.prelude.root, misreadStatements), parameterStarts };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
@@ -1668,5 +1706,5 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
-  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, misreadStatements: facts.misreadStatements, topLevelMembers: facts.topLevelMembers };
+  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, mentionsUnplacedVariable: facts.mentionsUnplacedVariable, misreadStatements: facts.misreadStatements, topLevelMembers: facts.topLevelMembers };
 }

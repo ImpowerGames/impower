@@ -7,6 +7,7 @@ import { join, relative } from "node:path";
 import { SparkdownCompiler } from "../src/compiler/classes/SparkdownCompiler";
 import { LUAU_LINT_CODES } from "../src/compiler/lint/collectLuauLints";
 import type { SparkDiagnostic } from "../src/compiler/types/SparkDiagnostic";
+import { onlyRunIsWrapper } from "../src/tests/luau-conformance/wrapperRun";
 
 interface Script {
   /** What the finding prints as its file. */
@@ -79,10 +80,11 @@ function lint(scripts: Script[], entries: Script[]): Finding[] {
     for (const d of diagnostics) {
       if (!LINT_CODES.has(String(d.code))) continue;
       // The wrapper a conformance file is read in is the corpus's, and
-      // nothing calls it, nor holds the file's globals in Luau.
+      // nothing calls it, nor holds the file's globals in Luau, unless the file
+      // names a function `run` of its own.
       if (script.offset && d.code === "FunctionUnused" && d.range.start.line === 0) continue;
       const message = typeof d.message === "string" ? d.message : d.message.value;
-      if (script.offset && d.code === "GlobalUsedAsLocal" && message.endsWith(" is only used in the enclosing function 'run'; consider changing it to local")) continue;
+      if (script.offset && d.code === "GlobalUsedAsLocal" && onlyRunIsWrapper(script.text) && message.endsWith(" is only used in the enclosing function 'run'; consider changing it to local")) continue;
       out.push({
         label: script.label,
         line: d.range.start.line + 1 - script.offset,

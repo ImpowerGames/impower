@@ -5602,7 +5602,7 @@ export class SparkdownCompiler {
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
-    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "misreadStatements" | "topLevelMembers">)[] = [];
+    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "mentionsUnplacedVariable" | "misreadStatements" | "topLevelMembers">)[] = [];
     // Each script's lints, its own and the program-wide rules', reported in
     // source order as Luau sorts its warnings.
     const lints = new Map<string, LuauLint[]>();
@@ -5620,7 +5620,7 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
-      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, misreadStatements: script.misreadStatements, topLevelMembers: script.topLevelMembers });
+      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, mentionsUnplacedVariable: script.mentionsUnplacedVariable, misreadStatements: script.misreadStatements, topLevelMembers: script.topLevelMembers });
       for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);
@@ -5646,7 +5646,7 @@ export class SparkdownCompiler {
       const usesSeen = scripts.map((script) => {
         if (!isLuauFile(script.uri)) return script;
         const text = this.documents.get(script.uri)?.getText() ?? "";
-        return { ...script, mentionsUnplaced: (name: string) => new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(text) };
+        return { ...script, mentionsUnplacedVariable: (name: string) => new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(text) };
       });
       const locals = lintGlobalsUsedAsLocals(names, usesSeen, builtins, (scriptUri, offset) => (this.documents.get(scriptUri)?.positionAt(offset).line ?? 0) + 1);
       for (const { uri: scriptUri, lint } of locals) report(scriptUri, lint);

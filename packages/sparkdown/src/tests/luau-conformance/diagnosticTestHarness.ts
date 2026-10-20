@@ -36,6 +36,7 @@ import {
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
 import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
 import { testCompiler } from "../engineUnderTest";
+import { onlyRunIsWrapper } from "./wrapperRun";
 
 /** A diagnostic's message as text, whether the compiler gave it as text or as markup. */
 export function diagnosticMessage(d: SparkDiagnostic): string {
@@ -54,11 +55,12 @@ export interface DetailedDiagnostic {
 
 /** The FunctionUnused warning on the name of the wrapper the snippets are
  *  placed in, `function run()` on a script's first line, which nothing
- *  calls, and a GlobalUsedAsLocal warning naming the wrapper: an upstream
- *  snippet is a Luau chunk, whose globals are not used inside one function
- *  when only the wrapper holds them. */
-function isWrapperWarning(d: SparkDiagnostic) {
-  if (d.code === "GlobalUsedAsLocal") return diagnosticMessage(d).endsWith(" is only used in the enclosing function 'run'; consider changing it to local");
+ *  calls, and, in a script where the wrapper is the only function named
+ *  `run` (`onlyRunIsWrapper`), a GlobalUsedAsLocal warning naming it: an
+ *  upstream snippet is a Luau chunk, whose globals are not used inside one
+ *  function when only the wrapper holds them. */
+function isWrapperWarning(d: SparkDiagnostic, text: string) {
+  if (d.code === "GlobalUsedAsLocal") return onlyRunIsWrapper(text) && diagnosticMessage(d).endsWith(" is only used in the enclosing function 'run'; consider changing it to local");
   return d.code === "FunctionUnused" && d.range?.start.line === 0 && d.range.start.character === "function ".length && diagnosticMessage(d).startsWith("Function 'run' ");
 }
 
@@ -89,9 +91,10 @@ export function diagnoseFilesDetailed(
   const result = compiler.compile({ textDocument: { uri: files[0]!.uri } });
   const out: (DetailedDiagnostic & { file: string })[] = [];
   for (const [uri, ds] of Object.entries(result.program.diagnostics ?? {})) {
+    const text = files.find((file) => file.uri === uri)?.text ?? "";
     for (const d of ds) {
       if (d.code !== "SyntaxError" && TYPE_ERROR_KINDS.has(String(d.code))) continue;
-      if (isWrapperWarning(d)) continue;
+      if (isWrapperWarning(d, text)) continue;
       out.push({
         file: uri.replace("inmemory:///", ""),
         message: diagnosticMessage(d),

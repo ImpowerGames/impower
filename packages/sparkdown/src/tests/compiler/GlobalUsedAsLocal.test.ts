@@ -53,6 +53,22 @@ describe("GlobalUsedAsLocal in one function", () => {
     expect(messages("function f()\n  score = (score or 0) + 1\nend\n& f()\n")).toEqual([only("score", "f")]);
   });
 
+  test.each([
+    ["a member's name", "function f(t)\n  score = t.score\n  return score\nend\n& f({})\n"],
+    ["a method's name", "function f(t)\n  score = t:score()\n  return score\nend\n& f({})\n"],
+    ["a table's record key", "function f()\n  score = 1\n  local t = {score = 7}\n  return score, t\nend\n& f()\n"],
+    ["a table type's property", "function f(t: {score: number})\n  score = t\n  return score\nend\n& f({score = 1})\n"],
+  ])("%s of the same spelling is a field, not a use", (_label, source) => {
+    expect(messages(source)).toEqual([only("score", "f")]);
+  });
+
+  test("a function the author names run is reported, unlike the harness's wrapper", () => {
+    const outer = "function outer()\n  local function run()\n    score = 1\n    return score\n  end\n  return run()\nend\n";
+    expect(messages(`${outer}& outer()\n`)).toEqual([only("score", "run")]);
+    // With a run of its own in the script, the wrapper's warning is kept too.
+    expect(messages(`function run()\n${outer}return outer()\nend\n& run()\n`)).toEqual([only("outer", "run"), only("score", "run")]);
+  });
+
   test("a compound write alone assigns nothing", () => {
     expect(messages("function f()\n  score += 1\n  return score\nend\n& f()\n")).toEqual([]);
   });
