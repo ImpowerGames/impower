@@ -317,8 +317,9 @@ sparkdown [0..247]
  │       ├─ LuauSparkdownIfBlock_end_c1 126
  │       │   └─ LuauSparkdownIfBlock_end_c1 126
  │       │       └─ OptionalWhitespace 126
- │       └─ LuauSparkdownIfBlock_end_c2 [126..129]
- │           └─ LuauEndKeyword [126..129]: "end"
+ │       ├─ LuauSparkdownIfBlock_end_c2 [126..129]
+ │       │   └─ LuauEndKeyword [126..129]: "end"
+ │       └─ LuauSparkdownIfBlock_end_c3 129
  ├─ Newline [129..130]: "\n"
  ├─ LuauSparkdownWhileLoop [130..143]
  │   ├─ LuauSparkdownWhileLoop_begin [130..136]

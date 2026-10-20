@@ -49,7 +49,7 @@ sparkdown [0..223]
  │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 24
  │   │       │   │   │       │       │       └─ OptionalWhitespace 24
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [24..60]
- │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [24..26]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [24..36]
  │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [24..26]
  │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 24
  │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 24
@@ -57,36 +57,29 @@ sparkdown [0..223]
  │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [25..26]
  │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [25..26]
  │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [25..26]: " "
- │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 26
- │   │       │   │   │       │       │   ├─ LuauAssignmentLineBreak [26..36]
- │   │       │   │   │       │       │   │   ├─ LuauAssignmentLineBreak_begin 26
- │   │       │   │   │       │       │   │   ├─ LuauAssignmentLineBreak_content [26..36]
- │   │       │   │   │       │       │   │   │   └─ LuauCommaLineBreakGap [26..36]
- │   │       │   │   │       │       │   │   │       ├─ LuauCommaLineBreakGap_begin 26
- │   │       │   │   │       │       │   │   │       ├─ LuauCommaLineBreakGap_content [26..36]
- │   │       │   │   │       │       │   │   │       │   └─ LuauBlockComment [26..36]
- │   │       │   │   │       │       │   │   │       │       ├─ LuauBlockComment_begin [26..30]
- │   │       │   │   │       │       │   │   │       │       │   ├─ LuauBlockComment_begin_c1 26
- │   │       │   │   │       │       │   │   │       │       │   ├─ LuauBlockComment_begin_c2 [26..29]
- │   │       │   │   │       │       │   │   │       │       │   │   └─ LuauCommentMark [26..29]: "--["
- │   │       │   │   │       │       │   │   │       │       │   ├─ LuauBlockComment_begin_c3 29
- │   │       │   │   │       │       │   │   │       │       │   └─ LuauBlockComment_begin_c4 [29..30]
- │   │       │   │   │       │       │   │   │       │       │       └─ LuauCommentMark [29..30]: "["
- │   │       │   │   │       │       │   │   │       │       ├─ LuauBlockComment_content [30..33]
- │   │       │   │   │       │       │   │   │       │       │   ├─ LuauBlockCommentContent [30..31]: " "
- │   │       │   │   │       │       │   │   │       │       │   ├─ LuauBlockCommentContent [31..32]: "c"
- │   │       │   │   │       │       │   │   │       │       │   └─ LuauBlockCommentContent [32..33]: " "
- │   │       │   │   │       │       │   │   │       │       └─ LuauBlockComment_end [33..36]
- │   │       │   │   │       │       │   │   │       │           ├─ LuauBlockComment_end_c1 [33..34]
- │   │       │   │   │       │       │   │   │       │           │   └─ LuauCommentMark [33..34]: "]"
- │   │       │   │   │       │       │   │   │       │           ├─ LuauBlockComment_end_c2 34
- │   │       │   │   │       │       │   │   │       │           ├─ LuauBlockComment_end_c3 [34..35]
- │   │       │   │   │       │       │   │   │       │           │   └─ LuauCommentMark [34..35]: "]"
- │   │       │   │   │       │       │   │   │       │           └─ LuauBlockComment_end_c4 [35..36]
- │   │       │   │   │       │       │   │   │       │               └─ LuauBlockComment_end_c4 [35..36]
- │   │       │   │   │       │       │   │   │       │                   └─ OptionalWhitespace [35..36]: " "
- │   │       │   │   │       │       │   │   │       └─ LuauCommaLineBreakGap_end 36
- │   │       │   │   │       │       │   │   └─ LuauAssignmentLineBreak_end 36
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_content [26..36]
+ │   │       │   │   │       │       │   │   │   └─ LuauBlockComment [26..36]
+ │   │       │   │   │       │       │   │   │       ├─ LuauBlockComment_begin [26..30]
+ │   │       │   │   │       │       │   │   │       │   ├─ LuauBlockComment_begin_c1 26
+ │   │       │   │   │       │       │   │   │       │   ├─ LuauBlockComment_begin_c2 [26..29]
+ │   │       │   │   │       │       │   │   │       │   │   └─ LuauCommentMark [26..29]: "--["
+ │   │       │   │   │       │       │   │   │       │   ├─ LuauBlockComment_begin_c3 29
+ │   │       │   │   │       │       │   │   │       │   └─ LuauBlockComment_begin_c4 [29..30]
+ │   │       │   │   │       │       │   │   │       │       └─ LuauCommentMark [29..30]: "["
+ │   │       │   │   │       │       │   │   │       ├─ LuauBlockComment_content [30..33]
+ │   │       │   │   │       │       │   │   │       │   ├─ LuauBlockCommentContent [30..31]: " "
+ │   │       │   │   │       │       │   │   │       │   ├─ LuauBlockCommentContent [31..32]: "c"
+ │   │       │   │   │       │       │   │   │       │   └─ LuauBlockCommentContent [32..33]: " "
+ │   │       │   │   │       │       │   │   │       └─ LuauBlockComment_end [33..36]
+ │   │       │   │   │       │       │   │   │           ├─ LuauBlockComment_end_c1 [33..34]
+ │   │       │   │   │       │       │   │   │           │   └─ LuauCommentMark [33..34]: "]"
+ │   │       │   │   │       │       │   │   │           ├─ LuauBlockComment_end_c2 34
+ │   │       │   │   │       │       │   │   │           ├─ LuauBlockComment_end_c3 [34..35]
+ │   │       │   │   │       │       │   │   │           │   └─ LuauCommentMark [34..35]: "]"
+ │   │       │   │   │       │       │   │   │           └─ LuauBlockComment_end_c4 [35..36]
+ │   │       │   │   │       │       │   │   │               └─ LuauBlockComment_end_c4 [35..36]
+ │   │       │   │   │       │       │   │   │                   └─ OptionalWhitespace [35..36]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 36
  │   │       │   │   │       │       │   └─ LuauTernaryExpression [36..60]
  │   │       │   │   │       │       │       ├─ LuauTernaryExpression_begin [36..39]
  │   │       │   │   │       │       │       │   ├─ LuauTernaryExpression_begin_c1 36
@@ -599,6 +592,7 @@ sparkdown [0..223]
  │       ├─ LuauFunctionDefinition_end_c1 219
  │       │   └─ LuauFunctionDefinition_end_c1 219
  │       │       └─ OptionalWhitespace 219
- │       └─ LuauFunctionDefinition_end_c2 [219..222]
- │           └─ LuauEndKeyword [219..222]: "end"
+ │       ├─ LuauFunctionDefinition_end_c2 [219..222]
+ │       │   └─ LuauEndKeyword [219..222]: "end"
+ │       └─ LuauFunctionDefinition_end_c3 222
  └─ Newline [222..223]: "\n"

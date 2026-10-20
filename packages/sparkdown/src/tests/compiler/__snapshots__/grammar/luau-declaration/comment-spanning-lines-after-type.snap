@@ -856,8 +856,9 @@ sparkdown [0..415]
  │       ├─ LuauFunctionDefinition_end_c1 322
  │       │   └─ LuauFunctionDefinition_end_c1 322
  │       │       └─ OptionalWhitespace 322
- │       └─ LuauFunctionDefinition_end_c2 [322..325]
- │           └─ LuauEndKeyword [322..325]: "end"
+ │       ├─ LuauFunctionDefinition_end_c2 [322..325]
+ │       │   └─ LuauEndKeyword [322..325]: "end"
+ │       └─ LuauFunctionDefinition_end_c3 325
  ├─ Newline [325..326]: "\n"
  ├─ LuauFunctionDefinition [326..414]
  │   ├─ LuauFunctionDefinition_begin [326..335]
@@ -1075,6 +1076,7 @@ sparkdown [0..415]
  │       ├─ LuauFunctionDefinition_end_c1 411
  │       │   └─ LuauFunctionDefinition_end_c1 411
  │       │       └─ OptionalWhitespace 411
- │       └─ LuauFunctionDefinition_end_c2 [411..414]
- │           └─ LuauEndKeyword [411..414]: "end"
+ │       ├─ LuauFunctionDefinition_end_c2 [411..414]
+ │       │   └─ LuauEndKeyword [411..414]: "end"
+ │       └─ LuauFunctionDefinition_end_c3 414
  └─ Newline [414..415]: "\n"

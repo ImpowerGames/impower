@@ -57,8 +57,9 @@ sparkdown [0..93]
  │   │           ├─ LuauSparkdownDoBlock_end_c1 19
  │   │           │   └─ LuauSparkdownDoBlock_end_c1 19
  │   │           │       └─ OptionalWhitespace 19
- │   │           └─ LuauSparkdownDoBlock_end_c2 [19..22]
- │   │               └─ LuauEndKeyword [19..22]: "end"
+ │   │           ├─ LuauSparkdownDoBlock_end_c2 [19..22]
+ │   │           │   └─ LuauEndKeyword [19..22]: "end"
+ │   │           └─ LuauSparkdownDoBlock_end_c3 22
  │   └─ LuauSparkdownWhileLoop_end 22
  ├─ TrailingWhitespace [22..24]: "  "
  ├─ Newline [24..25]: "\n"

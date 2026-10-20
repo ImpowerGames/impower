@@ -720,8 +720,9 @@ sparkdown [0..494]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [214..215]
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [214..215]
  │       │       └─ OptionalWhitespace [214..215]: " "
- │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [215..218]
- │           └─ LuauEndKeyword [215..218]: "end"
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [215..218]
+ │       │   └─ LuauEndKeyword [215..218]: "end"
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c3 218
  ├─ Newline [218..219]: "\n"
  ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [219..248]
  │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [219..225]
@@ -814,8 +815,9 @@ sparkdown [0..494]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [244..245]
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [244..245]
  │       │       └─ OptionalWhitespace [244..245]: " "
- │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [245..248]
- │           └─ LuauEndKeyword [245..248]: "end"
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [245..248]
+ │       │   └─ LuauEndKeyword [245..248]: "end"
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c3 248
  ├─ Newline [248..249]: "\n"
  ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [249..274]
  │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [249..255]
@@ -906,8 +908,9 @@ sparkdown [0..494]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [270..271]
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [270..271]
  │       │       └─ OptionalWhitespace [270..271]: " "
- │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [271..274]
- │           └─ LuauEndKeyword [271..274]: "end"
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [271..274]
+ │       │   └─ LuauEndKeyword [271..274]: "end"
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c3 274
  ├─ Newline [274..275]: "\n"
  ├─ ImplicitAction [275..303]
  │   ├─ ImplicitAction_begin 275
@@ -1075,8 +1078,9 @@ sparkdown [0..494]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [330..331]
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [330..331]
  │       │       └─ OptionalWhitespace [330..331]: " "
- │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [331..334]
- │           └─ LuauEndKeyword [331..334]: "end"
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [331..334]
+ │       │   └─ LuauEndKeyword [331..334]: "end"
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c3 334
  ├─ Newline [334..335]: "\n"
  ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [335..355]
  │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [335..341]
@@ -1131,8 +1135,9 @@ sparkdown [0..494]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [351..352]
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [351..352]
  │       │       └─ OptionalWhitespace [351..352]: " "
- │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [352..355]
- │           └─ LuauEndKeyword [352..355]: "end"
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [352..355]
+ │       │   └─ LuauEndKeyword [352..355]: "end"
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c3 355
  ├─ Newline [355..356]: "\n"
  ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [356..373]
  │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [356..362]
@@ -1187,8 +1192,9 @@ sparkdown [0..494]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 370
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 370
  │       │       └─ OptionalWhitespace 370
- │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [370..373]
- │           └─ LuauEndKeyword [370..373]: "end"
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [370..373]
+ │       │   └─ LuauEndKeyword [370..373]: "end"
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c3 373
  ├─ Newline [373..374]: "\n"
  ├─ ImplicitAction [374..403]
  │   ├─ ImplicitAction_begin 374
@@ -1570,6 +1576,7 @@ sparkdown [0..494]
  │       ├─ LuauSparkdownSequentialAlternatorBlock_end_c1 490
  │       │   └─ LuauSparkdownSequentialAlternatorBlock_end_c1 490
  │       │       └─ OptionalWhitespace 490
- │       └─ LuauSparkdownSequentialAlternatorBlock_end_c2 [490..493]
- │           └─ LuauEndKeyword [490..493]: "end"
+ │       ├─ LuauSparkdownSequentialAlternatorBlock_end_c2 [490..493]
+ │       │   └─ LuauEndKeyword [490..493]: "end"
+ │       └─ LuauSparkdownSequentialAlternatorBlock_end_c3 493
  └─ Newline [493..494]: "\n"

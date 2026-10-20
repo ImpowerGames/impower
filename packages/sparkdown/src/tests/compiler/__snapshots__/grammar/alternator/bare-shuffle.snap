@@ -188,8 +188,9 @@ sparkdown [0..187]
  │       ├─ LuauSparkdownSequentialAlternatorBlock_end_c1 [177..179]
  │       │   └─ LuauSparkdownSequentialAlternatorBlock_end_c1 [177..179]
  │       │       └─ OptionalWhitespace [177..179]: "  "
- │       └─ LuauSparkdownSequentialAlternatorBlock_end_c2 [179..182]
- │           └─ LuauEndKeyword [179..182]: "end"
+ │       ├─ LuauSparkdownSequentialAlternatorBlock_end_c2 [179..182]
+ │       │   └─ LuauEndKeyword [179..182]: "end"
+ │       └─ LuauSparkdownSequentialAlternatorBlock_end_c3 182
  ├─ Newline [182..183]: "\n"
  ├─ LuauEndKeyword [183..186]: "end"
  └─ Newline [186..187]: "\n"
