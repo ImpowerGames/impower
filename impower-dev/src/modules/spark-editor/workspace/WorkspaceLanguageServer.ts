@@ -279,22 +279,17 @@ export default class WorkspaceLanguageServer {
         },
         uri,
         workspace: projectPath,
-        // The editor main thread only reads diagnostics + scripts/pathLocations
+        // The editor main thread only reads diagnostics + scripts
         // from `compiler/didCompile` (see SparkdownWorkspace.compile), so have
         // the language server relay a slim program instead of the whole ~9MB
-        // per keystroke. The player and vscode keep the full relay.
+        // per keystroke. The VS Code extension asks for the slim relay too; the
+        // player compiles in its own worker and keeps the full one.
         slimProgramNotifications: true,
         // Filtered images resolve through the service worker's on-demand
         // `?filters=` route in this host (#299), so the program doesn't need
         // the inlined SVG source that dominated its payload. LS previews
         // re-source it lazily from watched files.
         stripImageData: true,
-        // Nothing on this path reads the bytecode: the relay above is slim
-        // (uri/scripts/files/version) and the player runs its own compiler.
-        // Serializing it cost ~25-30ms per keystroke on a large project purely
-        // to be discarded (#345). ExportRuntime still runs, so diagnostics and
-        // pathLocations are unaffected.
-        emitCompiledProgram: false,
       },
       workspaceFolders: [
         {
@@ -388,7 +383,7 @@ export default class WorkspaceLanguageServer {
   /**
    * The source position `offset` beats away from (`uri`, `line`) — used by
    * PageUp/PageDown navigation in the game preview. Resolved on demand by the
-   * language server so the program's `pathLocations` (~12k entries) never has
+   * language server so the program's locations never have
    * to be shipped to the main thread with every compile.
    */
   async getOffsetSourceLocation(

@@ -51,31 +51,31 @@ sparkdown [0..18]
      │       │   │   │           └─ LuauFunctionAccessor_c5 14
      │       │   │   └─ LuauSparkdownExplicitAccessPath_end 14
      │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 14
-     │       │   └─ LuauSparkdownExplicitParenthetical [14..18]
-     │       │       ├─ LuauSparkdownExplicitParenthetical_begin [14..15]
-     │       │       │   └─ LuauSparkdownExplicitParenthetical_begin_c1 [14..15]
+     │       │   └─ LuauParenthetical [14..18]
+     │       │       ├─ LuauParenthetical_begin [14..15]
+     │       │       │   └─ LuauParenthetical_begin_c1 [14..15]
      │       │       │       └─ PunctuationParenOpen [14..15]: "("
-     │       │       ├─ LuauSparkdownExplicitParenthetical_content [15..17]
-     │       │       │   └─ LuauSparkdownExplicitArithmeticOperation [15..17]
-     │       │       │       ├─ LuauSparkdownExplicitArithmeticOperation_begin 15
-     │       │       │       │   └─ LuauSparkdownExplicitArithmeticOperation_begin_c1 15
-     │       │       │       ├─ LuauSparkdownExplicitArithmeticOperation_content [15..17]
-     │       │       │       │   ├─ LuauSparkdownExplicitArithmeticOperator [15..16]
-     │       │       │       │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin [15..16]
-     │       │       │       │   │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin_c1 15
+     │       │       ├─ LuauParenthetical_content [15..17]
+     │       │       │   └─ LuauArithmeticOperation [15..17]
+     │       │       │       ├─ LuauArithmeticOperation_begin 15
+     │       │       │       │   └─ LuauArithmeticOperation_begin_c1 15
+     │       │       │       ├─ LuauArithmeticOperation_content [15..17]
+     │       │       │       │   ├─ LuauArithmeticOperator [15..16]
+     │       │       │       │   │   ├─ LuauArithmeticOperator_begin [15..16]
+     │       │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 15
      │       │       │       │   │   │   │   └─ OptionalWhitespace 15
-     │       │       │       │   │   │   ├─ LuauSparkdownExplicitArithmeticOperator_begin_c2 [15..16]: "-"
-     │       │       │       │   │   │   └─ LuauSparkdownExplicitArithmeticOperator_begin_c3 16
-     │       │       │       │   │   │       └─ LuauSparkdownExplicitArithmeticOperator_begin_c3 16
+     │       │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [15..16]: "-"
+     │       │       │       │   │   │   └─ LuauArithmeticOperator_begin_c3 16
+     │       │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 16
      │       │       │       │   │   │           └─ OptionalWhitespace 16
-     │       │       │       │   │   └─ LuauSparkdownExplicitArithmeticOperator_end 16
+     │       │       │       │   │   └─ LuauArithmeticOperator_end 16
      │       │       │       │   └─ LuauNumericDecimal [16..17]
      │       │       │       │       ├─ LuauNumericDecimal_c1 [16..17]: "1"
      │       │       │       │       └─ LuauNumericDecimal_c2 17
-     │       │       │       └─ LuauSparkdownExplicitArithmeticOperation_end 17
-     │       │       └─ LuauSparkdownExplicitParenthetical_end [17..18]
-     │       │           ├─ LuauSparkdownExplicitParenthetical_end_c1 [17..18]
+     │       │       │       └─ LuauArithmeticOperation_end 17
+     │       │       └─ LuauParenthetical_end [17..18]
+     │       │           ├─ LuauParenthetical_end_c1 [17..18]
      │       │           │   └─ PunctuationParenClose [17..18]: ")"
-     │       │           └─ LuauSparkdownExplicitParenthetical_end_c2 18
+     │       │           └─ LuauParenthetical_end_c2 18
      │       └─ LuauSparkdownExplicitAssignmentOperation_end 18
      └─ LuauSparkdownExplicitStatement_end 18

@@ -1,9 +1,11 @@
+// agent-tooling-timeout-ms: 600000
+// Ran 190 s on a Windows runner with four checks in flight (#1937).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-check-discovery-"));
@@ -16,7 +18,10 @@ for (const file of ["scripts/check-agent-tooling.mjs", "scripts/link-agent-skill
 const put = (name, content) => { fs.mkdirSync(path.dirname(path.join(scratch, name)), { recursive: true }); fs.writeFileSync(path.join(scratch, name), content); };
 put(".gitignore", ".claude/skills\n.codex/skills\n.github/skills\n");
 const summaryPath = path.join(scratch, "summary.md");
-const run = (extraEnv = {}, args = []) => spawnSync(process.execPath, ["scripts/check-agent-tooling.mjs", ...args], { cwd: scratch, encoding: "utf8", windowsHide: true, timeout: 45000, env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath, ...extraEnv } });
+// Serial by default: the abort cases below assert which checks were never
+// launched, which only the inventory order makes deterministic. The
+// concurrency cases pass their own setting.
+const run = (extraEnv = {}, args = []) => spawnSync(process.execPath, ["scripts/check-agent-tooling.mjs", ...args], { cwd: scratch, encoding: "utf8", windowsHide: true, timeout: 45000, env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath, AGENT_TOOLING_CONCURRENCY: "1", ...extraEnv } });
 const unlinked = run();
 assert.notEqual(unlinked.status, 0, "missing discovery links must refuse");
 assert.match(unlinked.stderr, /Skill discovery links missing or foreign: \.claude\/skills, \.codex\/skills, \.github\/skills; run node scripts\/link-agent-skills\.mjs/);
@@ -60,6 +65,63 @@ assert.match(onlyPolicy.stdout, /1 run, 0 failed, 0 not run/);
 const noMatch = run({}, ["--tier", "skills", "--only", "no-such-check"]);
 assert.notEqual(noMatch.status, 0, "an empty selection refuses rather than passing vacuously");
 assert.match(noMatch.stderr, /No check selected by --tier skills --only no-such-check/);
+// Concurrency: checks overlap up to the bound, a serial-only check runs with
+// nothing else active, each check's lines stay grouped, and a failure still
+// fails the aggregate. The four fixtures record when they start and finish;
+// git lists them in order, so coverage-10 and -11 launch first, coverage-12
+// (serial-only) waits for both, and coverage-13 waits for it.
+const stamp = (name, extra = "") => `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(path.join(scratch, name + ".started"))}, String(Date.now())); ${extra} setTimeout(() => { fs.writeFileSync(${JSON.stringify(path.join(scratch, name + ".finished"))}, String(Date.now())); }, 1200);`;
+put(".agents/skills/coverage-10.test.mjs", stamp("a", 'console.log("par-a output");'));
+put(".agents/skills/coverage-11.test.mjs", stamp("b"));
+put(".agents/skills/coverage-12.test.mjs", `// agent-tooling-serial: holds a machine-wide fixture lock\n${stamp("s")}`);
+put(".agents/skills/coverage-13.test.mjs", stamp("z"));
+const stamps = () => Object.fromEntries(["a", "b", "s", "z"].flatMap((name) => ["started", "finished"].map((phase) => [`${name}.${phase}`, Number(fs.readFileSync(path.join(scratch, `${name}.${phase}`), "utf8"))])));
+const concurrent = run({ AGENT_TOOLING_CONCURRENCY: "" }, ["--concurrency", "3"]);
+assert.equal(concurrent.status, 0, concurrent.stderr);
+assert.match(concurrent.stdout, /per-check timeout: \d+ ms; concurrency: 3$/m);
+assert.match(concurrent.stdout, /CHECK: .agents\/skills\/coverage-12.test.mjs; serial-only: holds a machine-wide fixture lock/);
+assert.equal((concurrent.stdout.match(/^DONE:/gm) || []).length, expected, "every check has a completion result under concurrency");
+assert.match(concurrent.stdout, /0 not run;.*concurrency 3/);
+let times = stamps();
+assert.ok(times["a.started"] < times["b.finished"] && times["b.started"] < times["a.finished"], `concurrent checks overlap: ${JSON.stringify(times)}`);
+assert.ok(times["s.started"] >= times["a.finished"] && times["s.started"] >= times["b.finished"], `a serial-only check waits for running checks: ${JSON.stringify(times)}`);
+assert.ok(times["z.started"] >= times["s.finished"], `nothing launches beside a serial-only check: ${JSON.stringify(times)}`);
+assert.ok(concurrent.stdout.includes("CHECK: .agents/skills/coverage-10.test.mjs\npar-a output\nDONE: .agents/skills/coverage-10.test.mjs: passed"), `a check's output is grouped between its CHECK and DONE lines:\n${concurrent.stdout}`);
+const serialRun = run({}, ["--concurrency=1"]);
+assert.equal(serialRun.status, 0, serialRun.stderr);
+times = stamps();
+assert.ok(times["a.finished"] <= times["b.started"], `--concurrency 1 runs one check at a time: ${JSON.stringify(times)}`);
+const defaultConcurrency = run({ AGENT_TOOLING_CONCURRENCY: "" });
+assert.match(defaultConcurrency.stdout, new RegExp(`concurrency: ${Math.min(4, os.availableParallelism())}$`, "m"), "the default is the core count capped at four");
+for (const bad of [["--concurrency", "0"], ["--concurrency", "65"], ["--concurrency", "two"]]) {
+  const refused = run({}, bad);
+  assert.notEqual(refused.status, 0, `${bad.join(" ")} refuses`);
+  assert.match(refused.stderr, /--concurrency \(or AGENT_TOOLING_CONCURRENCY\) must be an integer from 1 to 64/);
+}
+assert.match(run({ AGENT_TOOLING_CONCURRENCY: "x" }).stderr, /must be an integer from 1 to 64, not x/);
+put(".agents/skills/coverage-11.test.mjs", 'console.log("par-b failing"); process.exitCode = 1;');
+const concurrentFailure = run({}, ["--concurrency", "4"]);
+assert.notEqual(concurrentFailure.status, 0, "a failing check fails a concurrent run");
+assert.match(concurrentFailure.stdout, /DONE: .agents\/skills\/coverage-11.test.mjs: failed; exit=1/);
+assert.match(concurrentFailure.stdout, /1 failed, 0 not run/);
+for (const i of [10, 11, 12, 13]) put(`.agents/skills/coverage-${i}.test.mjs`, 'console.log("fixture passed");');
+// A timeout stops launches the moment it fires, not when the child's close
+// is confirmed. The preload makes the runner's kill fail, so the timed-out
+// check (coverage-10, which exits by itself at 5 s) closes late; the check
+// beside it (coverage-11) finishes at 3.5 s, and nothing queued behind them
+// may start in between.
+put("kill-refused.mjs", 'import cp from "node:child_process"; import { syncBuiltinESMExports } from "node:module"; const original = cp.execFileSync; cp.execFileSync = (file, ...rest) => { if (file === "taskkill") throw new Error("fixture: taskkill refused"); return original(file, ...rest); }; const kill = process.kill; process.kill = (pid, ...rest) => { if (pid < 0) throw new Error("fixture: group kill refused"); return kill(pid, ...rest); }; syncBuiltinESMExports();');
+put(".agents/skills/coverage-10.test.mjs", "setTimeout(() => {}, 5000);");
+put(".agents/skills/coverage-11.test.mjs", "// agent-tooling-timeout-ms: 10000\nsetTimeout(() => {}, 3500);");
+const lateClose = run({ AGENT_TOOLING_TIMEOUT_MS: "1500", NODE_OPTIONS: `--max-old-space-size=1024 --import=${pathToFileURL(path.join(scratch, "kill-refused.mjs")).href}` }, ["--concurrency", "2"]);
+assert.equal(lateClose.status, 1, lateClose.stderr);
+assert.match(lateClose.stdout, /DONE: .agents\/skills\/coverage-10.test.mjs: timed out/);
+assert.match(lateClose.stdout, /DONE: .agents\/skills\/coverage-11.test.mjs: passed/);
+assert.match(lateClose.stderr, /ABORT: cleanup was not confirmed: fixture: (?:taskkill|group kill) refused/);
+assert.doesNotMatch(lateClose.stdout, /DONE: .agents\/skills\/coverage-12.test.mjs/, `a check queued behind a timed-out check launched while its cleanup was unconfirmed:\n${lateClose.stdout}`);
+assert.match(lateClose.stdout, /NOT RUN: .agents\/skills\/coverage-12.test.mjs/);
+for (const i of [10, 11]) put(`.agents/skills/coverage-${i}.test.mjs`, 'console.log("fixture passed");');
+fs.unlinkSync(path.join(scratch, "kill-refused.mjs"));
 const badTier = run({}, ["--tier", "fast"]);
 assert.notEqual(badTier.status, 0, "an unknown tier refuses");
 assert.match(badTier.stderr, /--tier must be skills, drivers or all, not fast/);

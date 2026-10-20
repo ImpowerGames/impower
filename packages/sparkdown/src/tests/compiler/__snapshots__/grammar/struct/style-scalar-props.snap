@@ -94,6 +94,7 @@ sparkdown [0..64]
  │       ├─ LuauStyle_end_c1 60
  │       │   └─ LuauStyle_end_c1 60
  │       │       └─ OptionalWhitespace 60
- │       └─ LuauStyle_end_c2 [60..63]
- │           └─ LuauEndKeyword [60..63]: "end"
+ │       ├─ LuauStyle_end_c2 [60..63]
+ │       │   └─ LuauEndKeyword [60..63]: "end"
+ │       └─ LuauStyle_end_c3 63
  └─ Newline [63..64]: "\n"

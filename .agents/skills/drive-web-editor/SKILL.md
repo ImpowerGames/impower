@@ -15,7 +15,7 @@ Run `preflight`, then `up` to launch both servers on pinned ports. Use `status` 
 Select only the references needed for this run:
 
 - Before driving game preview, read [preview verification](references/preview.md). Typical command: `verify --sd repro.sd --line 8 --shot before.png`.
-- Before driving editor panels, screens, hover or completion, read [editor UI](references/ui.md). `verify` alone cannot verify those surfaces; use `ui`.
+- Before driving editor panels, screens, hover, completion, an in-page insert, a scrub without reload or PLAY, read [editor UI](references/ui.md). `verify` alone cannot verify those surfaces; use `ui`.
 - Before `--project` or `seed`, read [project seeding](references/projects.md). Asset changes need the whole project. These operations replace OPFS files; inspect the source, retain needed data, and do not blindly clear a failed seed.
 - Before checking service-worker code or its shared imports, read [installed-worker verification](references/service-worker.md). Use `--fresh-sw` on both phases and compare installed built-worker hashes. A fresh worker retains caches.
 - For performance, memory, count or timing changes, read [measurement](references/performance.md) before choosing a fixture or timing a run.

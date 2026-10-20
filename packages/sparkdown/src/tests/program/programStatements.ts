@@ -4,7 +4,6 @@
 // A statement the store emitted a chunk for in an earlier root, which the
 // current program no longer runs (a function a broken `define` above it
 // swallows), has none.
-import "../../inkjs/engine/Container";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
 import type { StatementShape } from "../../compiler/lower/utils/statementShape";

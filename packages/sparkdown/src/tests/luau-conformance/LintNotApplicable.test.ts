@@ -35,8 +35,6 @@ const NOT_APPLICABLE: [name: string, reason: string][] = [
   ["TableOperationsIndexer", "needs the type checker (#589) to know a table has no array part"],
   // Luau: FormatStringTyped
   ["FormatStringTyped", "needs the type checker (#589) to know `s:match` is a string method; the untyped form is FormatStringMatch"],
-  // Luau: read_write_table_props
-  ["read_write_table_props", "`read`/`write` table type properties need the type checker (#589)"],
   // Luau: DisableUnknownGlobalWithTypeChecking
   ["DisableUnknownGlobalWithTypeChecking", "Luau's linter drops its UnknownGlobal lint when the type checker runs; sparkdown's lints have no such rule, since its resolver and the type checker report unknown names"],
   // Luau: use_all_parent_scopes_for_globals

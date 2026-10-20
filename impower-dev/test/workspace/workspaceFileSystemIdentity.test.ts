@@ -1,11 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-// Stub the Workspace singleton (Worker-spawning, circular import). We invoke
-// pure identity helpers via prototype.method.call — no instance constructed.
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { fs: {}, ls: {}, configuration: { settings: {} } },
-}));
-
+// No Workspace mock: importing WorkspaceFileSystem must not evaluate the
+// Workspace singleton, so this file's result cannot depend on what an earlier
+// file in the same process loaded (#1794). We invoke pure identity helpers via
+// prototype.method.call — no instance constructed.
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const proto = WorkspaceFileSystem.prototype;

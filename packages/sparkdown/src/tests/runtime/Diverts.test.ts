@@ -7,10 +7,13 @@
 // mid-line diverts inside display text, divert-target-as-value, divert
 // arguments, and ink threads are all deferred — see docs/runtime/DEFERRED.md.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import {
   collectDiagnostics,
   makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
   runToEnd,
 } from "./runtimeTestHarness";
 
@@ -220,6 +223,36 @@ describe("Diverts (ported from inkjs)", () => {
     expect(ctx.story.ContinueMaximally()).toBe("5\n");
   });
 
+  test("a dotted target takes its arguments as a relative one does (#1642)", () => {
+    // `-> outer.second(a + 3, "b")` once dropped its arguments: the grammar
+    // read no call after a dotted path, so the branch's parameters were
+    // nil. A divert, a tunnel, a thread and an onward return each pass
+    // their arguments to a dotted target, and the story plays as it does
+    // with every target written relative.
+    const shown =
+      "Inner 1.\nVisit 2 t.\nAside 3.\nSecond 4 b.\nLeave 4.\nLast 5.\n";
+    const dotted = makeRuntimeStoryFromFile(
+      "diverts",
+      "dotted-divert-targets-with-arguments",
+    );
+    const relative = makeRuntimeStoryFromSource(
+      readFileSync(
+        join(__dirname, "fixtures", "diverts", "dotted-divert-targets-with-arguments.sd"),
+        "utf8",
+        // The story's first divert enters from the top, where only the
+        // dotted path names `inner`; every other target is a sibling.
+      ).replace(/(->->|->|<-) outer\.(?!inner\b)/g, "$1 "),
+    );
+    const play = (ctx: typeof dotted) => ({
+      shown: ctx.story.ContinueMaximally(),
+      errors: ctx.errorMessages,
+      warnings: ctx.warningMessages,
+    });
+    const expected = { shown, errors: [], warnings: [] };
+    expect(play(relative)).toEqual(expected);
+    expect(play(dotted)).toEqual(expected);
+  });
+
 });
 
 describe("Diverts — multi-target tunnels", () => {
@@ -312,7 +345,7 @@ describe("Diverts — ported from ink fixture rewrites", () => {
     //     deep-searches via `FlowBase.ContentWithNameAtLevel`)
     //   - alternator-arm diverts now route through a statement-form
     //     `Divert` (see `lowerArms` in `alternatorArms.ts`) instead of
-    //     being emitted as `DivertTargetValue` expressions
+    //     being emitted as function-value expressions
     const ctx = makeRuntimeStoryFromFile(
       "diverts",
       "divert-to-weave-points",

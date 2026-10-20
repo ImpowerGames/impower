@@ -14,11 +14,11 @@
 // Run: npx vitest run .../StoreOnlySerialization.test.ts
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 
-function compileStory(source: string): Record<string, any> {
-  const compiler = new SparkdownCompiler();
+function compileStory(source: string): ProgramRoot {
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -35,8 +35,8 @@ function compileStory(source: string): Record<string, any> {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) throw new Error("compile failed");
-  return result.program.compiled as Record<string, any>;
+  if (!result.program.chunks) throw new Error("compile failed");
+  return result.program.chunks;
 }
 
 function storySource(setupBody: string, checkBody: string, prelude = ""): string {
@@ -64,13 +64,13 @@ end
 function roundTrip(setupBody: string, checkBody: string, prelude = "") {
   const compiled = compileStory(storySource(setupBody, checkBody, prelude));
   const errors: string[] = [];
-  const storyA = new RuntimeStory(compiled);
+  const storyA = testStory(compiled);
   storyA.BindExternalFunction("host_record", (v: unknown) => v);
   storyA.onError = (m: string) => errors.push(`[setup] ${m}`);
   storyA.ContinueMaximally();
   const savedJson = storyA.state.ToJson() as string;
 
-  const storyB = new RuntimeStory(compiled);
+  const storyB = testStory(compiled);
   const recorded: unknown[] = [];
   storyB.BindExternalFunction(
     "host_record",

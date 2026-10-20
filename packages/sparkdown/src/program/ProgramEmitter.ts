@@ -1,7 +1,7 @@
 /**
  * What a parsed object's emit path writes through. Each class of the parsed
- * hierarchy that the binary program covers implements `EmitProgram` beside
- * `GenerateRuntimeObject`; the others inherit `ParsedObject.EmitProgram`,
+ * hierarchy that the binary program covers implements `EmitProgram`; the
+ * others inherit `ParsedObject.EmitProgram`,
  * which reports the construct the writer does not emit.
  *
  * The parsed hierarchy imports this module's types, and values from three
@@ -27,11 +27,31 @@ export interface ProgramEmitter {
   emitBranchBody(branch: object): void;
   /** Emits a function (a `FlowBase`) that runs where it is written: one
    *  written at the top level inside a block that the story leaves it in,
-   *  whose container the current engine runs as content of the block. Its
+   *  whose container the object engine ran as content of the block. Its
    *  parameters are bound from the evaluation stack, the locals the lowering
    *  hoisted to the top of its body are declared, and its body runs as a
    *  block of the statement. */
   emitFunctionInPlace(fn: object): void;
+  /** Binds parameters from the evaluation stack, last first as the
+   *  arguments were pushed: a `SetVar` with the declare flag each, the
+   *  `...` with the varargs flag, as a function's entry and a scene's or a
+   *  branch's (`FlowEntry`) bind them. */
+  bindParameters(params: readonly { name: string; vararg: boolean }[]): void;
+  /** Emits a `choose` block (a `Weave` that is one) as one chunk: the code
+   *  that raises its choices, the `Done` that ends their presentation, each
+   *  choice's entry code with its body entered as a block, and its `then`
+   *  clause (docs/engine/binary-program.md, section 4). */
+  emitChoose(weave: object): void;
+  /** Emits a `choose` block written in another block's preamble (a `Weave`
+   *  that holds choices and is no block of its own) as part of that block's
+   *  presentation, its choices continuing at its `then` clause when it has
+   *  one. */
+  emitPreambleChoose(weave: object): void;
+  /** Emits a `break` or `continue` (`divert`, which `exit` names): a jump to
+   *  the loop's exit or its next pass when the loop's body is the chunk's
+   *  own code, and otherwise `Leave`, which leaves the blocks up to the
+   *  loop's body. */
+  emitLoopExit(divert: object, exit: "break" | "continue"): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump to a label the caller already holds, bound or not: a
@@ -60,19 +80,46 @@ export interface ProgramEmitter {
    *  another statement can change. A chunk is reused only while its
    *  statement's names resolve as they did. */
   recordResolution(value: string): void;
-  /** Records that the chunk's code depends on the facts about `symbol` (its
-   *  kind, and whether the program defines it). The chunk's reference table
-   *  keeps a hash of them, and the chunk is reused only while the program
-   *  it is reused in gives the same facts. */
+  /** Reads a fact about `symbol` from the symbol table of the program being
+   *  built (`FACT_KIND`, what the program defines it as; `FACT_PARAMS`, the
+   *  kind of each of a function's parameters), as the code about to be
+   *  emitted depends on it. The read is recorded: the chunk's reference
+   *  table keeps a hash of every fact its code read about each symbol, with
+   *  the value read, and the chunk is reused only while the program it is
+   *  reused in gives the same answers. A new dependency is a new read, and
+   *  needs nothing added anywhere else (docs/engine/binary-program.md,
+   *  section 1, Identity). */
+  fact(symbol: number, name: string): string;
+  /** Records that the chunk's code depends on what the program defines
+   *  `symbol` as, or that it does not define it: a read of its
+   *  `FACT_KIND`. */
   reference(symbol: number): void;
+  /** Records that the chunk's code refers to `symbol` and depends on no fact
+   *  about it: a jump, a count or a symbol value of a scene, a branch or a
+   *  label, whose code is the same whatever the program defines the symbol
+   *  as, or whether it defines it. */
+  referenceTarget(symbol: number): void;
   /** The symbol of a function of the program (a `FlowBase`): its qualified
    *  name's for a function declared at the top level, and the anonymous one
    *  of the statement that writes it otherwise. A function the program does
    *  not define stops the statement's emission. */
   functionSymbol(fn: object): number;
-  /** Stops the statement's emission: the program falls back to the current
-   *  engine as a whole and names `construct` (the parsed class's `typeName`,
-   *  or the builtin's name). */
+  /** The symbol a divert, a count or a divert target names: the symbol of
+   *  the scene, branch or label `target` is (`programSymbolName`), or for a
+   *  target the compile found nothing for, the symbol of the name as
+   *  `written`. A target that has no symbol stops the emission. */
+  targetSymbol(target: object | null, written: string): number;
+  /** The symbol of a `label` (a named `Gather`). */
+  labelSymbol(gather: object): number;
+  /** The anonymous symbol of an alternator (a `Sequence`) of the statement,
+   *  which counts it and seeds its shuffle. */
+  alternatorSymbol(sequence: object): number;
+  /** Exports `symbol` at the next instruction: the chunk defines it
+   *  there. */
+  exportHere(symbol: number): void;
+  /** Stops the statement's emission: the compile reports `construct` (the
+   *  parsed class's `typeName`, or the builtin's name) as an error at the
+   *  statement's line and makes no program. */
   unsupported(construct: string): never;
 }
 
@@ -92,5 +139,22 @@ export interface ProgramLabel {
 export class UnsupportedConstruct extends Error {
   constructor(public readonly construct: string) {
     super(`The binary program does not emit ${construct}`);
+  }
+}
+
+/** Any other throw out of a statement's emit, or an error a declaration
+ *  raised when the build ran the declarations, rethrown with the statement it
+ *  came from, so the compile that catches it reports an error at that
+ *  statement's line. */
+export class StatementFailure extends Error {
+  constructor(
+    public readonly uri: string,
+    /** The line of the statement, counting from 0. */
+    public readonly line: number,
+    public readonly error: unknown,
+    /** The statement's last line, counting from 0. */
+    public readonly endLine = line,
+  ) {
+    super(error instanceof Error ? error.message : String(error));
   }
 }

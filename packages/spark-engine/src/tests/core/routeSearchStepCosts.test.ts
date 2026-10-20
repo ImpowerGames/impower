@@ -25,6 +25,11 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
 
@@ -45,14 +50,8 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 const newGame = (program: unknown) =>
@@ -77,10 +76,10 @@ function longScene(beats: number): string {
 }
 
 /** Resolve a source line to the runtime path the preview would target. */
-function targetPathForLine(program: unknown, line: number): string {
+function targetPathForLine(program: unknown, line: number): ProgramAddress {
   const game = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return (game as any).startPath as string;
+  return game.startAddress!;
 }
 
 const BEATS = 50;
@@ -90,7 +89,7 @@ describe("a route search pays neither per-step cost", () => {
   test("the execution hook is suppressed with null, and restored afterwards", () => {
     const program = compileSrc(SCENE);
     const toPath = targetPathForLine(program, BEATS + 2);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     const game = newGame(program);
     const story = game.story as any;
@@ -137,7 +136,7 @@ describe("a route search pays neither per-step cost", () => {
   const clockReadsForScene = (beats: number) => {
     const program = compileSrc(longScene(beats));
     const toPath = targetPathForLine(program, beats + 2);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
     const game = newGame(program);
 
     const originalGetTime = Date.prototype.getTime;

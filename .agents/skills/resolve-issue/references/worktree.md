@@ -10,17 +10,17 @@ Run this first, every time. Each check here fails late and expensively if you sk
 node .agents/skills/drive-web-editor/driver.mjs preflight
 ```
 
-Expected, all five PASS (`launches (fallback build: ...)` on the Playwright line is still a pass, and so is `not installed` on the last one before the install below):
+Expected, all five PASS (the Playwright line names the executable it launched and why; any build it names is a pass, and so is `not installed` on the last one before the install below):
 
 ```
 PASS  disk headroom  — 61.5 GB free (need ~6 GB for a fresh worktree install)
-PASS  playwright chromium  — launches
+PASS  playwright chromium  — launches C:\...\ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-headless-shell.exe (pinned by the installed playwright)
 PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 PASS  node_modules  — esbuild and vitest both run
 ```
 
-Whatever the disk line says, the resolve-issue preflight then removes the worktrees whose work is already on `main` through the clean-worktrees skill (`node .agents/skills/clean-worktrees/clean-worktrees.mjs`, from the main checkout, dry run first, then `--apply --root <absolute-main-checkout>`), before this task's worktree exists. If disk headroom still fails after that cleanup, free space some other way before creating the worktree; the script keeps every worktree with uncommitted, unpushed or unmerged work and never removes them for you.
+Resolve-issue preflight inspects candidates through the clean-worktrees skill (`node .agents/skills/clean-worktrees/clean-worktrees.mjs`, from the main checkout, dry run only), before this task's worktree exists. Routine preflight does not require or authorize broad apply. Failed disk headroom blocks a new-worktree start; seek explicit authorization for the skill's bounded recovery procedure, then rerun the disk gate. Preserve active agents and their review/testing gates; do not perform automatic cache or machine-wide cleanup.
 
 ---
 

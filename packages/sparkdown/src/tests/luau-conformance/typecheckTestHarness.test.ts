@@ -47,13 +47,18 @@ describe("syntax diagnostics", () => {
     expect(first?.message).toMatch(/^Sparkdown read "->" as DivertMark, not Luau$/);
   });
 
-  test("a construct the parser cannot finish is reported, once per place", () => {
+  test("a construct the grammar once could not finish is read whole", () => {
+    // Luau reads a `;` right after a `repeat`'s `until` condition, and the
+    // condition now ends before it (I-1289), so no part of the snippet is
+    // left unfinished: the harness reports an unfinished construct (an error
+    // node) where the grammar leaves one, and none is known to be left now.
+    expect(checkLuau("\n\n    repeat local x = 1 until x;\n").syntaxDiagnostics).toEqual([]);
+  });
+
+  test("Luau the grammar leaves unread is Luau's to report, and the function keeps its end", () => {
     const found = checkLuau("\n\n    local x = 1 )\n").syntaxDiagnostics;
     expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
-      // Luau's own error there, which the checker reports.
       [2, 16, "Expected identifier when parsing expression, got ')'"],
-      [2, 16, `Sparkdown ended the snippet's function before ")"`],
-      [2, 16, `Sparkdown could not finish reading the Luau before ")"`],
     ]);
   });
 

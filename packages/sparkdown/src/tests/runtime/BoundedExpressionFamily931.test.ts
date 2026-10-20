@@ -10,8 +10,8 @@ import { parseOfficialTree } from "../compiler/officialAstTestUtils";
 // to decide which rules the source grammar must bound.
 const repository = GRAMMAR.repository as Record<string, Record<string, unknown>>;
 const pairs = Object.keys(repository).flatMap(name => {
-  const original = name === "LuauSparkdownExplicitStoryVariableDefinition" ? "LuauSparkdownVariableDefinition"
-    : name.startsWith("LuauSparkdownExplicit") ? "Luau" + name.slice("LuauSparkdownExplicit".length)
+  const original =
+    name.startsWith("LuauSparkdownExplicit") ? "Luau" + name.slice("LuauSparkdownExplicit".length)
     : name.startsWith("SparkdownExplicit") ? name.slice("SparkdownExplicit".length) : undefined;
   const controls = ["LuauDoBlock", "LuauIfBlock", "LuauElseifBlock", "LuauElseBlock", "LuauRepeatLoop", "LuauBlockBody"];
   return original && repository[original] && !controls.includes(original) ? [[original, name] as const] : [];
@@ -32,7 +32,11 @@ function captureScopes(value: unknown): unknown {
 
 describe("closed narrative expression family", () => {
   test("all recursive counterparts keep scopes and never escape to an ordinary expression child", () => {
-    expect(pairs).toHaveLength(80);
+    // A story statement's brackets are the Luau ones, which carry it on to
+    // their closer or the next header (#1907), so they have no counterpart.
+    // The type function parameters' named-parameter twin went with them.
+    // The comments after a type operator have a twin (I-1321).
+    expect(pairs).toHaveLength(72);
     const originals = new Set(pairs.map(([original]) => original));
     for (const [original, twin] of pairs) {
       for (const field of ["name", "contentName", "captures", "beginCaptures", "endCaptures"]) expect(captureScopes(repository[twin]![field])).toEqual(captureScopes(repository[original]![field]));
@@ -48,8 +52,11 @@ describe("closed narrative expression family", () => {
       "LuauUncallableValueTrailingBlockComment", "LuauCallableValueTrailingBlockComment",
       "LuauString", "LuauDoubleQuotedString", "LuauSingleQuotedString",
       "LuauMultilineString", "LuauInterpolatedString", "LuauRegexLiteral",
-      "LuauFunctionBody", "LuauFunctionDefinition", "LuauFunctionExpression", "LuauFunctionTypeDeclaration",
+      "LuauFunctionBody", "LuauFunctionDefinition", "LuauFunctionTypeDeclaration",
       "LuauStyle", "LuauLayout", "LuauScreen", "LuauComponent", "LuauAnimation", "LuauTheme", "LuauMorph", "LuauDefine",
+      // The brackets, the one place a story statement goes on past its line (#1907).
+      "LuauParenthetical", "LuauTable", "LuauPropertyIndexer", "LuauFunctionCallParameters",
+      "LuauTypeTableStruct", "LuauTypeFunctionParameters", "LuauTypeofFunctionParameters", "LuauAttributeList",
     ]);
     const visited = new Set<string>();
     const visit = (name: string) => {
@@ -60,16 +67,33 @@ describe("closed narrative expression family", () => {
       for (const child of includes(repository[name])) visit(child);
     };
     visit("LuauSparkdownExplicitExpression");
-    visit("LuauSparkdownExplicitStoryVariableDefinition");
+    visit("LuauSparkdownVariableDefinition");
     visit("LuauSparkdownExplicitReassignment");
     for (const [, twin] of pairs) visit(twin);
   });
+  // A bracket left open is the one thing that carries a story statement on
+  // past its line (#1907): the next lines are the bracket's, up to its
+  // closer or the next header, which stays a header, and the story after
+  // the header is story again.
   test.each([
     "& local value = math.abs(", "& local value = (5", "& local value = {5",
-    "& local value = math[1", "& local value = 5 +", "& local value: (",
-    "& do x = f(", "& do x = t[", "& do x = {", "& do x = if f(",
-    "& local x: (", "& local x: {", "& do local x: (", "& do x = 5 :: (",
-    "& do repeat x = 1 until f(", "& do x = (t[",
+    "& local value = math[1", "& do x = f(", "& do x = t[", "& do x = {", "& do x = if f(",
+    "& do local x: (", "& do x = 5 :: (", "& do repeat x = 1 until f(", "& do x = (t[",
+  ])("an unfinished bracket after %s carries the next line to the next header", async prefix => {
+    const source = `${prefix}\nreturn to the village\nscene Next\nAfter.\nend\n`;
+    const tree = parseSource(source);
+    expect(treeScopeStackAt(tree, source.indexOf("return to"))).not.toContain("string.display.text.chunk.sd");
+    expect(tree.topNode.getChildren("Scene").map((scene) => scene.from)).toEqual([source.indexOf("scene Next")]);
+    expect(treeScopeStackAt(tree, source.indexOf("After"))).toContain("string.display.text.chunk.sd");
+    const uri = "inmemory:///bounded.sd";
+    const compiler = new SparkdownCompiler();
+    compiler.configure({ files: [{ uri, type: "script", name: "bounded", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] } as never);
+    const diagnostics = compiler.compile({ textDocument: { uri } } as never).program.diagnostics?.[uri] ?? [];
+    expect(diagnostics.some(diagnostic => diagnostic.severity === 1)).toBe(true);
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
+  test.each([
+    "& local value = 5 +", "& local value: (", "& local x: (", "& local x: {",
     "& do x = if true then", "& do x = if true then 1 else",
     "& do x = 5 +", "& do x = true and", "& do x = 5 <", "& do x = 5 ..", "& do x = #", "& local x:", "& local x: number |", "& do x = 5 ::", "& do local x,",
     "& local x --[[ c ]] :: (",
@@ -88,8 +112,11 @@ describe("closed narrative expression family", () => {
     }
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test.each(["file", "scene", "branch"])("missing marked-call value is published at %s boundary", scope => {
-    for (const tail of ["", "return to the village\n", "& math.abs(5)\n"]) {
+  // The open `(` reads the next line (#1907), so Luau's reading stops at
+  // that line's first token, or at the island's end where a closer or the
+  // end of the file follows.
+  test.each(["file", "scene", "branch"])("missing marked-call value is published where the reading stops at %s boundary", scope => {
+    for (const [tail, got] of [["", "<eof>"], ["return to the village\n", "'return'"], ["& math.abs(5)\n", "'&'"]] as const) {
       const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
       const closer = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";
       const source = `${prefix}& local value = math.abs(\n${tail}${closer}`;
@@ -97,7 +124,9 @@ describe("closed narrative expression family", () => {
       const compiler = new SparkdownCompiler();
       compiler.configure({ files: [{ uri, type: "script", name: "bounded", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] } as never);
       const diagnostics = compiler.compile({ textDocument: { uri } } as never).program.diagnostics?.[uri] ?? [];
-      expect(diagnostics.some(diagnostic => diagnostic.code === "SyntaxError" && diagnostic.message === "Expected identifier when parsing expression, got <eof>" && diagnostic.range.start.line === prefix.split("\n").length - 1 && diagnostic.range.start.character === "& local value = math.abs(".length), `${scope}: ${JSON.stringify(tail)}`).toBe(true);
+      const line = prefix.split("\n").length - 1;
+      const at = got === "<eof>" ? { line, character: "& local value = math.abs(".length } : { line: line + 1, character: 0 };
+      expect(diagnostics.some(diagnostic => diagnostic.code === "SyntaxError" && diagnostic.message === `Expected identifier when parsing expression, got ${got}` && diagnostic.range.start.line === at.line && diagnostic.range.start.character === at.character), `${scope}: ${JSON.stringify(tail)}`).toBe(true);
     }
   });
   test.each([

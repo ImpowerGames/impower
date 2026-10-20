@@ -9,19 +9,19 @@ sparkdown [0..93]
  │   │       └─ LuauSparkdownWhileLoop_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauSparkdownWhileLoop_content [6..22]
- │   │   ├─ LuauWhileCondition [6..7]
- │   │   │   ├─ LuauWhileCondition_begin 6
- │   │   │   ├─ LuauWhileCondition_content [6..7]
- │   │   │   │   └─ LuauAccessPath [6..7]
- │   │   │   │       ├─ LuauAccessPath_begin 6
- │   │   │   │       ├─ LuauAccessPath_content [6..7]
- │   │   │   │       │   └─ LuauAccessPart [6..7]
+ │   │   ├─ LuauSparkdownExplicitLoopCondition [6..7]
+ │   │   │   ├─ LuauSparkdownExplicitLoopCondition_begin 6
+ │   │   │   ├─ LuauSparkdownExplicitLoopCondition_content [6..7]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPath [6..7]
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 6
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [6..7]
+ │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [6..7]
  │   │   │   │       │       └─ LuauVariable [6..7]
  │   │   │   │       │           └─ LuauVariable_c1 [6..7]
  │   │   │   │       │               └─ LuauVariableName [6..7]: "x"
- │   │   │   │       └─ LuauAccessPath_end 7
- │   │   │   │           └─ LuauAccessPath_end_c1 7
- │   │   │   └─ LuauWhileCondition_end 7
+ │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 7
+ │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 7
+ │   │   │   └─ LuauSparkdownExplicitLoopCondition_end 7
  │   │   └─ LuauSparkdownDoBlock [7..22]
  │   │       ├─ LuauSparkdownDoBlock_begin [7..10]
  │   │       │   ├─ LuauSparkdownDoBlock_begin_c1 [7..8]
@@ -57,8 +57,9 @@ sparkdown [0..93]
  │   │           ├─ LuauSparkdownDoBlock_end_c1 19
  │   │           │   └─ LuauSparkdownDoBlock_end_c1 19
  │   │           │       └─ OptionalWhitespace 19
- │   │           └─ LuauSparkdownDoBlock_end_c2 [19..22]
- │   │               └─ LuauEndKeyword [19..22]: "end"
+ │   │           ├─ LuauSparkdownDoBlock_end_c2 [19..22]
+ │   │           │   └─ LuauEndKeyword [19..22]: "end"
+ │   │           └─ LuauSparkdownDoBlock_end_c3 22
  │   └─ LuauSparkdownWhileLoop_end 22
  ├─ TrailingWhitespace [22..24]: "  "
  ├─ Newline [24..25]: "\n"

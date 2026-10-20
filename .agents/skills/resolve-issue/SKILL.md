@@ -11,11 +11,13 @@ Run the steps below in order in a dedicated worktree. Commands are relative to t
 
 Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must pass. Tooling/docs-only work with an intentionally absent install uses `preflight --tooling-only`.
 
-Then always remove merged tickets' worktrees with [clean-worktrees](../clean-worktrees/SKILL.md) from the main checkout: dry run, inspect every proposed removal, then apply with the absolute main root. The script keeps every worktree with uncommitted, unpushed or unmerged work. A failed removal is a recovery task to record before step 2, never grounds for recursive deletion. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
+Then inspect [clean-worktrees](../clean-worktrees/SKILL.md) candidates from the main checkout: dry run only; routine preflight never authorizes broad apply. Blocked disk headroom requires separate, explicitly authorized bounded recovery; preserve active agents. Refusals and failures remain recovery blockers. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
+
+Before artifacts, run `writer-artifacts.mjs` via [private allocation](references/publishing.md#private-writer-allocation).
 
 ## 1. Read the ticket
 
-Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself.
+Read the full body, labels and type with `gh issue view N -R <tickets> --json number,title,body,labels` and REST ([tickets](../references/publishing.md#the-tickets-repository)). Verify cited code still supports the claim; investigate missing evidence yourself.
 
 ## 2. Create the worktree
 
@@ -27,7 +29,7 @@ Establish the reported failure before editing and retain before-evidence.
 
 - Compiler/parser/engine: invoke `/write-regression-test` (skill name `write-regression-test`) in reproduction-only mode to write the failing case.
 - Editor/preview/visual: invoke `/drive-web-editor` (skill name `drive-web-editor`) and inspect a screenshot of the broken state.
-- Extension: invoke `/drive-vscode-web` (skill name `drive-vscode-web`) and inspect the served workbench.
+- Extension: invoke `/drive-vscode-web` (skill name `drive-vscode-web`), select served or desktop verification for the reported surface, and inspect its screenshots.
 - Tooling/docs with nothing to boot: exercise the pre-change behavior with the relevant standalone check. A newly written check must fail against the base, not merely pass after editing. For prose with no executable check, compare the relevant rules before and after and disclose that manual verification.
 
 ## 4. Fix it
@@ -42,11 +44,11 @@ Invoke `/write-regression-test` now (skill name `write-regression-test`). Use fu
 
 Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for changes under `impower-dev/` or `packages/`. Use the actual project for assets and installed-worker verification for service-worker changes. Inspect before/after pixels; use measured evidence for changes with no visual signature and still inspect for visual regressions.
 
-For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared language-server changes use both drivers. Surfaces the served workbench cannot reach require a desktop development host or an explicit unverified disclosure in the PR. Tooling/docs-only work has nothing to boot: run its checks and say so.
+For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared language-server changes use both drivers. Select desktop mode for F5, commands, Game Preview or debugging; disclose an unavailable host as an unverified surface in the PR. Tooling/docs-only work has nothing to boot: run its checks and say so.
 
 ## 7. Commit, push, and open a draft PR
 
-Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft using the template. Include `Closes #N`, actual test evidence, limitations and any known performance cost. Read the PR back.
+Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft from its template. Include the closing reference, actual test evidence, limitations and any known performance cost. Read the PR back.
 
 Opening the PR starts the Test Suite workflow on every pull request. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and are otherwise skipped; its `test-suite` gate job is the required check and passes in both cases. Do not wait for it. Read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran or were skipped in Testing and verification, and fix any failure it reports as your own correction, including one that arrives after the PR is ready. Every later push starts a new run.
 
@@ -58,7 +60,7 @@ Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity 
 
 ## The completion gate
 
-Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR contains `Closes #N` and verification; and review has satisfied its gates and marked it ready.
+Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR carries its closing reference and verification; and review has satisfied its gates and marked it ready.
 
 Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), changes after that commit, and whether each CI check on the final head had passed, failed or was still pending. Where the runner wakes the session on check failures, fix a later failure as a correction under the later-round rules; otherwise the pending state in the handoff is the notice. If a gate remains unfinished, keep the PR draft and describe an incomplete draft handoff with the remaining work and next action. Disclosure of blockers does not make the implementation complete or the ticket resolved.
 

@@ -4,10 +4,10 @@
 // enclosing function and the story after it parse as if the name were there:
 // the function still ends at its own `end`, and the story below it stays in the
 // root flow.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
+import { functionSpans } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
@@ -91,7 +91,7 @@ describe("a dangling member access (#1079)", () => {
 
   it("leaves the function ending at its own `end`", () => {
     const program = compile(SCRIPT);
-    expect(program.pathLocations.functions).toEqual([
+    expect(functionSpans(program)).toEqual([
       { path: "f", lines: [0, 3, 7] },
     ]);
   });
@@ -200,7 +200,7 @@ describe("a dangling member access (#1079)", () => {
         ? { line: 2, character: source.split("\n")[2]!.lastIndexOf(".") }
         : luauErrorAt(source, message);
     expect(errors).toEqual([{ message, severity: 1, ...at }]);
-    expect(program.pathLocations.functions).toEqual([
+    expect(functionSpans(program)).toEqual([
       { path: "f", lines: [0, 0, endLine] },
     ]);
   });
@@ -230,7 +230,7 @@ describe("a dangling member access (#1079)", () => {
     ["spaced", 'return t.a .. "y"'],
     ["unspaced", 'return t.a.."y"'],
   ])("leaves %s concatenation alone", (_name, line) => {
-    const source = `function f()\n  local t = { a = "x" }\n  ${line}\nend\n`;
+    const source = `function _f()\n  local t = { a = "x" }\n  ${line}\nend\n`;
     expect(diagnostics(compile(source))).toEqual([]);
   });
 
@@ -253,7 +253,7 @@ describe("a dangling member access (#1079)", () => {
     expect(diagnostics(program).filter((d) => d.severity === 1)).toEqual([
       { message: "Expected identifier, got 'repeat'", severity: 1, ...luauErrorAt(source, "Expected identifier, got 'repeat'") },
     ]);
-    expect(program.pathLocations.functions).toEqual([{ path: "f", lines: [0, 0, 3] }]);
+    expect(functionSpans(program)).toEqual([{ path: "f", lines: [0, 0, 3] }]);
   });
 
   // A function body is Luau (#1158), so a line of words there is a statement
@@ -279,7 +279,7 @@ describe("a dangling member access (#1079)", () => {
       line: first.location.begin.line,
       character: first.location.begin.column,
     });
-    expect(program.pathLocations.functions).toEqual([{ path: "greet", lines: [0, 0, endLine] }]);
+    expect(functionSpans(program)).toEqual([{ path: "greet", lines: [0, 0, endLine] }]);
   });
 
   // A story line in story scope never reaches the access-path rules.
@@ -300,11 +300,13 @@ describe("a dangling member access (#1079)", () => {
   });
 
   it("leaves the story after the function in the root flow", () => {
-    const { paths, values } = compile(SCRIPT).pathLocations;
-    const valueLine: string[] = paths.filter(
-      (_: string, i: number) => values[i * 5 + 1] === 10,
-    );
-    expect(valueLine.length).toBeGreaterThan(0);
-    expect(valueLine.filter((path) => path.startsWith("f."))).toEqual([]);
+    // The line at line 10 has an address, and it stands in the top-level
+    // flow, not in `f` (the current engine's paths at that line, none under
+    // `f.`).
+    const root = compile(SCRIPT).chunks!;
+    const address = root.addressAt(URI, 10);
+    expect(address).toBeDefined();
+    expect(root.locationOf(address!)?.startLine).toBe(10);
+    expect(root.sceneAt(address!)).toBe("0");
   });
 });

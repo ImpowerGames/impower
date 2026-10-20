@@ -5,7 +5,9 @@ import { parseSource } from "../compiler/grammarSnapshot";
 
 // As in Luau, a type union may go on to the next line: a line that starts
 // with `|` continues the type that ended the line before it, whether or not
-// that type ends in `?`. Any other line ends the type.
+// that type ends in `?`. Any other line ends the type. A story declaration
+// ends at its line (#1907), so the locals here are in a function body;
+// storyBodyLineRule pins the story reading.
 
 const TYPES = [
   ["an optional type", "number?"],
@@ -29,10 +31,10 @@ function isOneType(source: string, type: string): boolean {
 describe("a union that goes on to the next line parses as one type", () => {
   test.each(
     TYPES.flatMap(([name, type]) => [
-      [name, "a local", type, `local v: ${type}\n    | string = 1\nlocal s = 1\n`],
-      [name, "a local, after a blank line", type, `local v: ${type}\n\n    | string = 1\nlocal s = 1\n`],
-      [name, "a local, over three lines", type, `local v: ${type}\n    | string\n    | boolean = 1\nlocal s = 1\n`],
-      [name, "a local, unindented", type, `local v: ${type}\n| string = 1\nlocal s = 1\n`],
+      [name, "a local", type, `function f()\n  local v: ${type}\n    | string = 1\n  local s = 1\nend\n`],
+      [name, "a local, after a blank line", type, `function f()\n  local v: ${type}\n\n    | string = 1\n  local s = 1\nend\n`],
+      [name, "a local, over three lines", type, `function f()\n  local v: ${type}\n    | string\n    | boolean = 1\n  local s = 1\nend\n`],
+      [name, "a local, unindented", type, `function f()\n  local v: ${type}\n| string = 1\n  local s = 1\nend\n`],
       [name, "a type alias", type, `type T = ${type}\n    | string\nlocal s = 1\n`],
       [name, "an exported type alias", type, `export type T = ${type}\n    | string\nlocal s = 1\n`],
       [name, "a return type", type, `local function f(): ${type}\n    | string\n  return 1\nend\n`],

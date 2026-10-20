@@ -3,7 +3,7 @@
 // that the validator can ask the same question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
-import { explicitRuleNames } from "../utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
@@ -11,8 +11,9 @@ import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 // The statements of a `.sd` file that are Luau, wherever they sit.
 export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
+  // A top-level function's attributes, read with the function after them.
+  "LuauFunctionAttributes",
   "LuauFunctionDefinition",
-  "LuauExplicitStatement",
   "LuauSparkdownExplicitStatement",
   "LuauSparkdownExplicitBlockStatement",
   ...REASSIGNMENT_NAMES,
@@ -25,6 +26,8 @@ export const LUAU_STATEMENTS = new Set([
   "LuauWhileLoop",
   "LuauForLoop",
   "LuauRepeatLoop",
+  "LuauUntilCondition",
+  "LuauStrayUntilStatement",
   "LuauDoBlock",
   "LuauSparkdownIfBlock",
   "LuauSparkdownWhileLoop",
@@ -79,6 +82,10 @@ export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauRegexLiteral",
 ].flatMap(explicitRuleNames));
 
+// A comment, or a part of one the tree reads apart from it (the `]]` that
+// closes a block comment after a value or type); a cast after a comment is not one.
+export const COMMENT = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)\w*Comment(Close|Content|Mark|Tags)?$/;
+
 // Nodes that may sit anywhere in Luau: trivia and punctuation.
 export const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
 
@@ -123,6 +130,25 @@ export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (fr
   let root = anyNode;
   while (root.parent) root = root.parent;
   return isCheckedLuau(root.resolveInner(position, 1), read);
+}
+
+/**
+ * Whether the type checker reports a syntax error of Luau's reading at a
+ * document position: the position is Luau it reads (`isCheckedLuau`), and
+ * not in a double-quoted string's interpolation, which is Sparkdown's own
+ * syntax, whose errors the reading leaves unflagged and the checker drops
+ * (`sparkdownDepth` in `readLuauAst.ts`). Elsewhere a lowerer that reads the
+ * Luau reports what must be reported.
+ */
+export function checkerReportsSyntaxAt(anyNode: SyntaxNode, position: number, read: (from: number, to: number) => string): boolean {
+  let root = anyNode;
+  while (root.parent) root = root.parent;
+  const node = root.resolveInner(position, 1);
+  if (!isCheckedLuau(node, read)) return false;
+  for (let n: SyntaxNode | null = node; n; n = n.parent) {
+    if (n.name === "LuauDoubleQuotedStringInterpolation") return false;
+  }
+  return true;
 }
 
 // Luau's reserved words, which are never a name.
@@ -191,6 +217,32 @@ export function breaksStatement(text: string): boolean {
 }
 
 /**
+ * Whether the reading ends a statement before one the tree begins that
+ * `breaksStatement` lets end it, given the text between the last token
+ * before that statement and its first word: only across a line end. On the
+ * line of the statement before, the reading carries that statement on
+ * (`local a, const = 1, 2` is one declaration), as Luau does.
+ */
+export function breaksAcrossLine(between: string): boolean {
+  return between.includes("\n");
+}
+
+/**
+ * Whether the type checker's reading ends the statement before a node the
+ * tree begins (`STATEMENT_BREAKS`), given the last Luau token before it,
+ * comments aside. The reading carries a statement on into an assignment
+ * (`local a, b =` before a line `f(1),`, which the tree reads as an
+ * assignment's targets), except after an empty if-expression arm, whose
+ * last token is the arm's `then` or `else`: that arm's missing value must
+ * not take the next assignment's target. Whether the node's first word
+ * breaks the statement in Luau is `breaksStatement`'s to decide.
+ */
+export function endsStatementBefore(name: string, previousToken: string | undefined): boolean {
+  if (!STATEMENT_BREAKS.has(name)) return false;
+  return !isExplicitRuleName(name, "LuauReassignment") || previousToken === "then" || previousToken === "else";
+}
+
+/**
  * Whether the type checker reads a construct and the token after it as one
  * statement, and so reports what the construct is missing at that token,
  * with Luau's wording and range (#1175): the construct is Luau it reads
@@ -206,14 +258,52 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   if (tokenFrom === undefined) return true;
   let root = node;
   while (root.parent) root = root.parent;
+  if (!isCheckedLuau(root.resolveInner(tokenFrom, 1), read)) return false;
+  return readingCarriesOnTo(node, tokenFrom, read);
+}
+
+/**
+ * Whether Luau's reading of a construct, the type checker's or a lowerer's
+ * own, carries its statement on to the token at `tokenFrom`: no statement
+ * the tree begins at the token is one the reading ends the construct's
+ * statement before (`STATEMENT_BREAKS`, `breaksStatement`, across a line
+ * end). Whether the type checker reads the construct at all is
+ * `checkerReadsOnTo`'s question, not this one's.
+ */
+export function readingCarriesOnTo(node: SyntaxNode, tokenFrom: number, read: (from: number, to: number) => string): boolean {
+  let root = node;
+  while (root.parent) root = root.parent;
   const token = root.resolveInner(tokenFrom, 1);
-  if (!isCheckedLuau(token, read)) return false;
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
+    // The construct's last word, comments aside, is the token the reading
+    // holds before this one.
+    const own = textWithoutComments(node, read).trimEnd();
+    const lastWord = /(?:^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)$/.exec(own)?.[1];
+    if (!endsStatementBefore(n.name, lastWord)) return true;
     const text = read(n.from, n.to);
-    return !(n.from + text.length - text.trimStart().length === tokenFrom && breaksStatement(text));
+    if (n.from + text.length - text.trimStart().length !== tokenFrom || !breaksStatement(text)) return true;
+    return !breaksAcrossLine(read(node.from + own.length, tokenFrom));
   }
   return true;
+}
+
+/** A node's text with each comment the tree holds in it (`COMMENT`, as the checker's reading skips them) replaced by spaces. */
+function textWithoutComments(node: SyntaxNode, read: (from: number, to: number) => string): string {
+  let text = "";
+  let at = node.from;
+  const walk = (parent: SyntaxNode): void => {
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (!COMMENT.test(child.name)) {
+        walk(child);
+        continue;
+      }
+      text += read(at, child.from) + " ".repeat(child.to - child.from);
+      at = child.to;
+    }
+  };
+  walk(node);
+  return text + read(at, node.to);
 }
 
 /** The first node of a name among a node and its later siblings, and under them, depth first. */

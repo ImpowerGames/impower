@@ -1,0 +1,31 @@
+sparkdown [0..11]
+ ├─ InlineWrite [0..10]
+ │   ├─ InlineWrite_begin [0..6]
+ │   │   ├─ InlineWrite_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ InlineWrite_begin_c2 [0..1]
+ │   │   │   └─ WriteMark [0..1]: "@"
+ │   │   ├─ InlineWrite_begin_c3 1
+ │   │   │   └─ InlineWrite_begin_c3 1
+ │   │   │       └─ OptionalWhitespace 1
+ │   │   ├─ InlineWrite_begin_c4 [1..4]
+ │   │   │   └─ WriteTarget [1..4]: "hud"
+ │   │   ├─ InlineWrite_begin_c5 [4..5]
+ │   │   │   └─ ColonSeparator [4..5]: ":"
+ │   │   ├─ InlineWrite_begin_c6 [5..6]
+ │   │   │   └─ RequiredWhitespace [5..6]: " "
+ │   │   └─ InlineWrite_begin_c7 6
+ │   ├─ InlineWrite_content [6..10]
+ │   │   └─ LineEnd [6..10]
+ │   │       ├─ LineEnd_begin 6
+ │   │       │   └─ LineEnd_begin_c1 6
+ │   │       │       └─ OptionalWhitespace 6
+ │   │       ├─ LineEnd_content [6..10]
+ │   │       │   └─ TextChunk [6..10]
+ │   │       │       ├─ TextChunk_begin 6
+ │   │       │       ├─ TextChunk_content [6..10]
+ │   │       │       │   └─ Word [6..10]: "text"
+ │   │       │       └─ TextChunk_end 10
+ │   │       └─ LineEnd_end 10
+ │   └─ InlineWrite_end 10
+ └─ Newline [10..11]: "\n"

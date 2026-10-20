@@ -7,7 +7,7 @@ return to the village
 & do if true then return 5 else return 2 end end
 & do for i = 1, 1 do return i end end
 function f()
-  & do
+  do
     return 5
   end
 end

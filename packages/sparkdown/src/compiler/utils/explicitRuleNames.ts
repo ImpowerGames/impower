@@ -19,23 +19,14 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauElseOperator": "LuauSparkdownExplicitElseOperator",
   "LuauTernaryExpressionCondition": "LuauSparkdownExplicitTernaryExpressionCondition",
   "LuauLineContinuation": "LuauSparkdownExplicitLineContinuation",
-  "LuauPropertyIndexer": "LuauSparkdownExplicitPropertyIndexer",
   "LuauIndexerLineContinuation": "LuauSparkdownExplicitIndexerLineContinuation",
-  "LuauParenthetical": "LuauSparkdownExplicitParenthetical",
-  "LuauTable": "LuauSparkdownExplicitTable",
-  "LuauTableIndexDeclaration": "LuauSparkdownExplicitTableIndexDeclaration",
   "LuauTypeLiteral": "LuauSparkdownExplicitTypeLiteral",
-  "LuauTypeTableStruct": "LuauSparkdownExplicitTypeTableStruct",
-  "LuauTypeTableIndexer": "LuauSparkdownExplicitTypeTableIndexer",
-  "LuauTypeofFunctionParameters": "LuauSparkdownExplicitTypeofFunctionParameters",
   "LuauQualifiedTypeReference": "LuauSparkdownExplicitQualifiedTypeReference",
   "LuauNamedTypeArguments": "LuauSparkdownExplicitNamedTypeArguments",
   "LuauTypeNameExtraQualifierContinuation": "LuauSparkdownExplicitTypeNameExtraQualifierContinuation",
   "LuauNamedTypeReference": "LuauSparkdownExplicitNamedTypeReference",
   "LuauNamedTypeQualification": "LuauSparkdownExplicitNamedTypeQualification",
-  "LuauTypeFunctionParameters": "LuauSparkdownExplicitTypeFunctionParameters",
   "LuauTypeGenerics": "LuauSparkdownExplicitTypeGenerics",
-  "LuauFunctionCallParameters": "LuauSparkdownExplicitFunctionCallParameters",
   "LuauThenExpression": "LuauSparkdownExplicitThenExpression",
   "LuauConditionalAlternatorBlock": "LuauSparkdownExplicitConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock": "LuauSparkdownExplicitSequentialAlternatorBlock",
@@ -58,7 +49,6 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauTypeAnnotationOperation": "LuauSparkdownExplicitTypeAnnotationOperation",
   "LuauTypeofFunction": "LuauSparkdownExplicitTypeofFunction",
   "LuauTypeArgumentContents": "LuauSparkdownExplicitTypeArgumentContents",
-  "LuauTypeNamedFunctionParameter": "LuauSparkdownExplicitTypeNamedFunctionParameter",
   "LuauFunctionCall": "LuauSparkdownExplicitFunctionCall",
   "LuauElseExpression": "LuauSparkdownExplicitElseExpression",
   "LuauAlternatorBlocks": "LuauSparkdownExplicitAlternatorBlocks",
@@ -75,10 +65,10 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauAccessPath": "LuauSparkdownExplicitAccessPath",
   "LuauDataTypeDeclaration": "LuauSparkdownExplicitDataTypeDeclaration",
   "LuauTypeAssignment": "LuauSparkdownExplicitTypeAssignment",
-  "LuauUntilStatement": "LuauSparkdownExplicitUntilStatement",
-  "LuauSparkdownVariableDefinition": "LuauSparkdownExplicitStoryVariableDefinition",
+  "LuauUntilCondition": "LuauSparkdownExplicitUntilCondition",
   "Tag": "SparkdownExplicitTag",
   "LuauDeclarations": "LuauSparkdownExplicitDeclarations",
+  "LuauExpressionDeclarations": "LuauSparkdownExplicitExpressionDeclarations",
   "Tags": "SparkdownExplicitTags",
   "Annotation": "SparkdownExplicitAnnotation",
   "DivertPath": "SparkdownExplicitDivertPath",
@@ -93,13 +83,28 @@ export function explicitRuleName(name: string): string | undefined {
   return twin ? twin + (separator < 0 ? "" : name.slice(separator)) : undefined;
 }
 
-/** Both grammar identities of the same expression/declaration construct. */
-export function explicitRuleNames(name: string): string[] {
-  const twin = explicitRuleName(name);
-  return twin ? [name, twin] : [name];
+// The narrative declaration's and reassignment's own assignment rules: the
+// Luau ones without the line break after an `=`, so a narrative statement
+// ends at its line (#1906). Consumers read them as the Luau ones.
+const NARRATIVE_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>> = {
+  "LuauVariableAssignment": "LuauSparkdownVariableAssignment",
+  "LuauAssignmentOperation": "LuauSparkdownAssignmentOperation",
+};
+
+/** The narrative counterpart of a rule or its generated capture/content node. */
+export function narrativeRuleName(name: string): string | undefined {
+  const separator = name.indexOf("_");
+  const root = separator < 0 ? name : name.slice(0, separator);
+  const twin = NARRATIVE_RULE_NAMES[root as SparkdownNodeName];
+  return twin ? twin + (separator < 0 ? "" : name.slice(separator)) : undefined;
 }
 
-/** A comparison which retains both the normal and bounded grammar identity. */
+/** Every grammar identity of the same expression/declaration construct. */
+export function explicitRuleNames(name: string): string[] {
+  return [name, explicitRuleName(name), narrativeRuleName(name)].filter((n): n is string => n !== undefined);
+}
+
+/** A comparison which retains the normal, bounded and narrative grammar identities. */
 export function isExplicitRuleName(actual: string | undefined | null, original: string): boolean {
-  return actual != null && (actual === original || actual === explicitRuleName(original));
+  return actual != null && (actual === original || actual === explicitRuleName(original) || actual === narrativeRuleName(original));
 }

@@ -51,6 +51,15 @@
               "type": "ObjectExpression",
               "entries": [
                 {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "action"
+                    ]
+                  }
+                },
+                {
                   "key": "text",
                   "value": {
                     "type": "StringExpression",
@@ -78,5 +87,3 @@
     }
   ]
 }
-
-{}

@@ -1,4 +1,4 @@
-import { describe, expect } from "vitest";
+import { describe, expect, test } from "vitest";
 import { BUG } from "./autocompleteBugs";
 import { labelsAt, upstreamCase } from "./completionHarness";
 
@@ -445,5 +445,34 @@ describe("autocomplete · keywords and statement starts", () => {
   upstreamCase.bug(BUG.emptySlot, "autocomplete_after_semicolon_should_complete_a_new_statement", "a semicolon starts a new statement", () => {
     const labels = labelsAt(openMain("local data = { x = 1 }\nlocal var = data;@1"));
     expect(labels).toEqual(expect.arrayContaining(["local", "function", "if"]));
+  });
+});
+
+// A story `for` header reads its condition with the bounded rule it shares
+// with a story `while` (#1907); its names still offer `in`, as a function's do.
+describe("autocomplete · story loop headers", () => {
+  test.each([
+    ["at the top level", "store t = {}\nfor k, v @1"],
+    ["in a scene", "store t = {}\nscene s\n  for k, v @1"],
+  ])("a story `for` offers `in` after its names %s", (_place, source) => {
+    expect(labelsAt(source)).toContain("in");
+  });
+
+  test.each([
+    ["on its own", "store x = true\nwhile x @1"],
+    // The `for` around it does not own its condition (#2062 round 3).
+    ["inside a story `for`", "store t = {1}\nfor k, v in pairs(t) do\n  while true @1\n  The hero waits.\nend\n"],
+    ["marked, inside a story `for`", "for k, v in pairs({1}) do\n  & while true @1\nend\n"],
+    ["in a marked block, inside a story `for`", "for k, v in pairs({1}) do\n  & do while true @1\nend\n"],
+  ])("a story `while` does not offer `in` %s", (_place, source) => {
+    expect(labelsAt(source)).not.toContain("in");
+  });
+
+  test("a marked `for` offers `in` after its names", () => {
+    expect(labelsAt("store x = true\nwhile x do\n  & for k, v @1\nend\n")).toContain("in");
+  });
+
+  test("a story `for` inside a story `while` offers `in` after its names", () => {
+    expect(labelsAt("store x = true\nwhile x do\n  for k, v @1\nend\n")).toContain("in");
   });
 });

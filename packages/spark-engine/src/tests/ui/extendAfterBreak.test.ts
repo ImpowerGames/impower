@@ -82,7 +82,7 @@ const on = (beat: Instructions | undefined, target: string): string =>
 async function beatsOf(body: string, count: number) {
   const harness = createHarness(story(body));
   await harness.ready;
-  harness.jumpTo("start");
+  harness.jumpToFlow("start");
   const beats: (Instructions | undefined)[] = [];
   for (let i = 0; i < count; i++) beats.push(harness.nextBeat());
   return { harness, beats };

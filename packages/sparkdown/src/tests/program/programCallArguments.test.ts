@@ -20,18 +20,10 @@
 // value, while `xpcall` returns every value its function returns. Each case
 // notes the line
 // Luau shows, but a builtin through a value that raises is compared with the
-// direct call of its builtin. A story compiled before calls recorded their
-// argument count still shows what it showed then.
-import "../../inkjs/engine/Container";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+// direct call of its builtin.
 import { describe, expect, it } from "vitest";
-import { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Functions the cases call: of one parameter, of two, a `__call` handler,
 // variadic (`vf` counts the values of the first value its `...` holds), with
@@ -100,31 +92,19 @@ const inRun = (body: string[], result = T3): string =>
 const topLevel = (body: string[], result = T3): string =>
   [...FUNCTIONS, ...body, `Got {${result}}.`, ""].join("\n");
 
-/** What a script shows, its lines joined, and the errors it reports: on the
- *  current engine, on the program engine, and on the current engine running
- *  the story's JSON, which records each call's argument count. */
+/** What a script shows, its lines joined, and the errors it reports. */
 function shown(text: string) {
   const lines = ({ beats, errors }: ReturnType<typeof storyBeats>) => [
     beats.map((beat) => beat.text.trim()).join(" "),
     ...errors,
   ];
-  const current = compileScript(text);
-  current.story.ResetState();
-  const json = new Story(current.program.compiled as Record<string, unknown>);
-  const { program } = compileScript(text, { programChunks: true });
-  expect(program.fallback).toBeUndefined();
-  return {
-    current: lines(storyBeats(current.story)),
-    program: lines(storyBeats(new ProgramStory(program.chunks!))),
-    json: lines(storyBeats(json)),
-  };
+  const { program } = compileScript(text);
+  expect(program.chunks).toBeDefined();
+  return lines(storyBeats(new ProgramStory(program.chunks!)));
 }
 
 const expectShows = (text: string, line: string) => {
-  const { current, program, json } = shown(text);
-  expect(current).toEqual([line]);
-  expect(program).toEqual([line]);
-  expect(json).toEqual([line]);
+  expect(shown(text)).toEqual([line]);
 };
 
 describe("a call to a function the compile found (#1215)", () => {
@@ -338,16 +318,8 @@ describe("a builtin called through a value", () => {
   });
 
   // Each call through a value runs in a script of as many lines as the one
-  // that calls its builtin directly, so both raise from the same line. The
-  // story's JSON has no lines: its errors name the place in the compiled
-  // code, which differs between the two scripts and is left out.
-  const raisedBy = (text: string) => {
-    const { current, program, json } = shown(text);
-    const unplaced = json.map((line) =>
-      line.replace(/\(Ink Pointer -> [^)]*\)/, "(Ink Pointer)"),
-    );
-    return { current, program, json: unplaced };
-  };
+  // that calls its builtin directly, so both raise from the same line.
+  const raisedBy = (text: string) => shown(text);
   it.each([
     [
       "of numbers raises a missing argument",
@@ -370,9 +342,7 @@ describe("a builtin called through a value", () => {
   ])("%s, as its direct call does", (_name, through, direct, error) => {
     const raised = raisedBy(inRun(through));
     expect(raised).toEqual(raisedBy(inRun(direct)));
-    for (const lines of Object.values(raised)) {
-      expect(lines.slice(1)).toEqual([expect.stringContaining(error)]);
-    }
+    expect(raised.slice(1)).toEqual([expect.stringContaining(error)]);
   });
 });
 
@@ -410,11 +380,12 @@ describe("a call, an index or a method chained on a call", () => {
     // store through `o.get`) and 1.
     ["compounds a store through what a call returns, evaluating its base and key once", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "o.get().a.x += 2", "o:me().a.x *= 10", "o.get().a[key()] -= 1", "o:me().s ..= \"b\"", "local function mk() return function() return t end end", "mk()().y //= 2"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/2/2/1."],
     ["compounds a store through a parenthesized table and an index of a method call", inRun(["local t = { x = 1, 10 }", "local keys = 0", "local function key() keys = keys + 1 return \"x\" end", "local o = {}", "function o:get() return t end", "(t).x += 1", "(t)[key()] += 1", "o:get()[1] += 5"], "t.x .. \"/\" .. t[1] .. \"/\" .. keys"), "Got 3/15/1."],
-    // An explicit statement (`&`), which a scene's top level needs for a
-    // call, stores and calls through the links after a call as an implicit
-    // one does: the call counts are 3 and 2.
-    ["stores and compounds through what a call returns in an explicit statement", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5, 10 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "& o.get().a.x += 2", "& o:me().a.x *= 10", "& o.get().a[key()] -= 1", "& o:me().s ..= \"b\"", "& o.get().y = 7", "& (t)[key()] = 4", "& o:me()[1] += 5"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. t.x .. \"/\" .. t[1] .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/7/4/15/3/2."],
-    ["calls through the links after a call in an explicit statement", inRun(["local n = 0", "local o = {}", "function o:bump() n = n + 1 return self end", "function o:me() return self end", "local box = { o = o }", "& o:me():bump()", "& o:bump():bump():bump()", "& (o):bump()", "& box.o:me():bump()"], "n"), "Got 6."],
+    // A statement stores and calls through the links after a call: the call
+    // counts are 3 and 2. A line that begins with `(` continues the call
+    // before it, as in Luau, so `;` separates it. An explicit statement
+    // (`&`), which a scene's top level needs for a call, does the same.
+    ["stores and compounds through what a call returns in a function body", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5, 10 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "o.get().a.x += 2", "o:me().a.x *= 10", "o.get().a[key()] -= 1", "o:me().s ..= \"b\"", "o.get().y = 7", "(t)[key()] = 4", "o:me()[1] += 5"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. t.x .. \"/\" .. t[1] .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/7/4/15/3/2."],
+    ["calls through the links after a call in a function body", inRun(["local n = 0", "local o = {}", "function o:bump() n = n + 1 return self end", "function o:me() return self end", "local box = { o = o }", "o:me():bump()", "o:bump():bump():bump()", ";(o):bump()", "box.o:me():bump()"], "n"), "Got 6."],
     ["stores and calls through what a call returns in an explicit statement at the top level", topLevel(["store t = { a = { x = 1 }, n = 0, y = 5, k = 10, s = \"a\" }", "function mko()", "  local o = {}", "  function o.get() return t end", "  function o:me() return t end", "  function o:bump() t.n = t.n + 1 return self end", "  return o", "end", "local o = mko()", "& o.get().a.x += 2", "& o:me().a.x *= 10", "& o:bump():bump()", "& (t).y //= 2", "& o:me()[\"k\"] += 5", "& o.get().s = \"b\""], "t.a.x .. \"/\" .. t.n .. \"/\" .. t.y .. \"/\" .. t.k .. \"/\" .. t.s"), "Got 30/2/2/15/b."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
@@ -481,7 +452,7 @@ describe("what a metamethod or a builtin's callback returns", () => {
     ["is nil for an `__index` function that returns none", inRun(["local t = setmetatable({}, { __index = function() end })"], "tostring(t.x) .. \"/\" .. select(\"#\", t.x)"), "Got nil/1."],
     ["is one value as an `__index` function's reached through an `__index` table", inRun(["local inner = setmetatable({}, { __index = function() return 7, 8 end })", "local t = setmetatable({}, { __index = inner })"], "select(\"#\", t.z) .. \"/\" .. t.z"), "Got 1/7."],
     ["is one value as an arithmetic or concatenation metamethod's", inRun(["local t = setmetatable({}, { __add = function() return 1, 2 end, __unm = function() return 1, 2 end, __concat = function() return \"a\", \"b\" end })"], "select(\"#\", t + 1) .. select(\"#\", -t) .. select(\"#\", t .. \"x\")"), "Got 111."],
-    ["is one value as a length metamethod's, or nil", inRun(["local a = setmetatable({}, { __len = function() return 7, 8 end })", "local b = setmetatable({}, { __len = function() end })"], "tostring(#a) .. \"/\" .. tostring(#b)"), "Got 7/nil."],
+    ["is one value as a length metamethod's, or Luau's error when it returns none", inRun(["local a = setmetatable({}, { __len = function() return 7, 8 end })", "local b = setmetatable({}, { __len = function() end })", "local ok, err = pcall(function() return #b end)"], "tostring(#a) .. \"/\" .. tostring(ok) .. \"/\" .. err"), "Got 7/false/'__len' must return a number."],
     ["reaches `__eq` from an operand's first value", inRun(["local mt = { __eq = function() return true end }", "local a, b = setmetatable({}, mt), setmetatable({}, mt)", "local c = {}", "local function mk() return a, 9 end", "local function mc() return c, 9 end"], "tostring(mk() == b) .. \"/\" .. tostring(mc() == c)"), "Got true/true."],
     ["is a `__tostring` handler's first value", inRun(["local t = setmetatable({}, { __tostring = function() return \"T\", \"U\" end })"], "tostring(t)"), "Got T."],
     ["is a sort comparator's first value, and an `__lt` handler's", inRun(["local t = { 3, 1, 2 }", "table.sort(t, function(a, b) return a < b, false end)", "local mt = { __lt = function(a, b) return a.v < b.v, false end }", "local u = { setmetatable({ v = 3 }, mt), setmetatable({ v = 1 }, mt) }", "table.sort(u)"], "table.concat(t, \",\") .. \"/\" .. u[1].v"), "Got 1,2,3/1."],
@@ -531,40 +502,8 @@ describe("a function a host evaluates (`EvaluateFunction`)", () => {
     ["returns nothing from a function with no parameters that returns nothing", "noop", [9], null],
     ["leaves a scene the argument it binds no parameter for", "quiet", [4], 4],
   ])("%s", (_name, name, args, result) => {
-    const current = compileScript(HOST);
-    current.story.ResetState();
-    const json = new Story(current.program.compiled as Record<string, unknown>);
-    const { program } = compileScript(HOST, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
-    const stories = {
-      current: current.story,
-      program: new ProgramStory(program.chunks!),
-      json,
-    };
-    for (const [engine, story] of Object.entries(stories)) {
-      expect([engine, story.EvaluateFunction(name, args)]).toEqual([
-        engine,
-        result,
-      ]);
-    }
-  });
-});
-
-describe("a story compiled before calls recorded their argument count", () => {
-  it("shows what it showed then", () => {
-    // Compiled at `writtenBy` from `source`, and run by the engine there to
-    // show `shows`. Its calls record no argument count: a call to a variadic
-    // function packs the values past its parameters where it calls it, and a
-    // call whose last argument returns several values spreads them.
-    const fixture = JSON.parse(
-      readFileSync(join(__dirname, "fixtures", "story-before-argc.json"), "utf8"),
-    );
-    const json = JSON.stringify(fixture.story);
-    expect(json).not.toContain("\"argc\"");
-    expect(json).toContain("1,2,3,\"pack:2\",{\"f()\":\"v1\"}");
-    expect(json).toContain("{\"f()\":\"g2\"},{\"f()\":\"f2\"}");
-    const { beats, errors } = storyBeats(new Story(fixture.story));
-    expect(beats.map((beat) => beat.text.trim())).toEqual(fixture.shows);
-    expect(errors).toEqual([]);
+    const { program } = compileScript(HOST);
+    expect(program.chunks).toBeDefined();
+    expect(new ProgramStory(program.chunks!).EvaluateFunction(name, args)).toEqual(result);
   });
 });

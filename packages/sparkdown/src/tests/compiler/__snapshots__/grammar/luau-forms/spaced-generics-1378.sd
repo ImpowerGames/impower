@@ -1,0 +1,3 @@
+function g()
+  local function f <A>(op: (A) -> A) end
+end

@@ -1,8 +1,10 @@
-// `FunctionCall.GenerateIntoContainer` must leave `this.content` holding
-// exactly what the rest of the compiler expects, on the first generation pass
+// `FunctionCall.PrepareIntoContainer` must leave `this.content` holding
+// exactly what the rest of the compiler expects, on the first preparation pass
 // and on every subsequent one — the incremental pipeline carries parsed chunks
-// forward by identity, so a carried-forward `FunctionCall` generates more than
-// once (measured: deleting a divert target regenerates its caller's node).
+// forward by identity, so a carried-forward `FunctionCall` is prepared more
+// than once (measured: deleting a divert target prepares its caller's node
+// again). The call's code generation (deleted in #705) had the same two
+// halves, which is where they were first found.
 //
 // Two halves of that method write to `content`, and they used to be coupled by
 // accident (issue #323):
@@ -31,9 +33,7 @@
 // which exhausts the worker heap and reports as "Worker exited unexpectedly"
 // instead of as the assertion that failed. Every node comparison here is
 // reduced to a boolean BEFORE it reaches `expect`.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { Container as RuntimeContainer } from "../../inkjs/engine/Container";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -160,9 +160,19 @@ function configured(text: string): SparkdownCompiler {
   return c;
 }
 
+/** Compiles, and requires the compile to have finished building its chunks:
+ *  a compile that threw answers with none, having prepared nothing past the
+ *  throw. */
+function compileBuilt(compiler: SparkdownCompiler): void {
+  const { program } = quiet(() =>
+    compiler.compile({ textDocument: { uri: URI } } as never),
+  );
+  expect(!!program.chunks, "the compile built its statement chunks").toBe(true);
+}
+
 function compiledOnce(text: string): SparkdownCompiler {
   const compiler = configured(text);
-  quiet(() => compiler.compile({ textDocument: { uri: URI } } as never));
+  compileBuilt(compiler);
   return compiler;
 }
 
@@ -221,9 +231,9 @@ const COUNTED_FORMS = [
   },
 ];
 
-describe("FunctionCall generation leaves `content` intact", () => {
+describe("FunctionCall preparation leaves `content` intact", () => {
   for (const form of COUNTED_FORMS) {
-    it(`repeated generation keeps exactly the counted argument: ${form.label}`, () => {
+    it(`repeated preparation keeps exactly the counted argument: ${form.label}`, () => {
       const callerLine = form.line ?? `  Caller action {${form.label}}.`;
       const compiler = compiledOnce(doc(callerLine, form.preamble));
 
@@ -234,24 +244,12 @@ describe("FunctionCall generation leaves `content` intact", () => {
       // function call) and the counted argument has taken its place.
       expectContentIsCountedArgOnly(call, "after first compile");
 
-      const emitted: number[] = [];
       for (let i = 0; i < 5; i++) {
-        const container = new RuntimeContainer();
-        quiet(() => call.GenerateIntoContainer(container));
-        emitted.push(container.content.length);
-
+        quiet(() => call.PrepareIntoContainer());
         // Guarding only the splice grows this by one entry per pass; guarding
         // only the `AddContent` empties it.
-        expectContentIsCountedArgOnly(call, `after extra pass ${i + 1}`);
+        expectContentIsCountedArgOnly(call, `after extra preparation ${i + 1}`);
       }
-
-      // Weak sanity check only, and deliberately so: it catches a guard that
-      // stopped generation emitting altogether, not a change in WHAT is
-      // emitted. The emitted-object-level oracle is the incremental-vs-cold
-      // comparison in `incrementalStaleTargetPaths.test.ts`, which covers this
-      // same fixture.
-      expect(new Set(emitted).size).toBe(1);
-      expect(emitted[0]).toBeGreaterThan(0);
     });
   }
 
@@ -272,30 +270,31 @@ describe("FunctionCall generation leaves `content` intact", () => {
     const sentinel = new Text("sentinel");
     call.content.push(sentinel);
 
-    const container = new RuntimeContainer();
-    quiet(() => call.GenerateIntoContainer(container));
-
     // The sentinel is not the proxy divert, so the splice must not touch it.
+    quiet(() => call.PrepareIntoContainer());
     expect({
+      prepared: true,
       length: call.content.length,
       survived: call.content[0] === sentinel,
-    }).toEqual({ length: 1, survived: true });
+    }).toEqual({ prepared: true, length: 1, survived: true });
   });
 
   it("survives the real multi-pass path: deleting the divert target", () => {
     const base = doc(CALLER_LINE);
     const compiler = compiledOnce(base);
 
-    // Generation pass 1 has happened. Instrument the carried-forward node so
-    // the assertions below cannot pass vacuously by never regenerating.
-    // `GenerateIntoContainer` is an instance field and every caller reaches it
-    // by property access on the instance, so this wrapper sees every pass.
+    // Pass 1 has happened. Instrument the carried-forward node so the
+    // assertions below cannot pass vacuously by never preparing it again.
+    // The compiles build statement chunks, whose resolver prepares the call
+    // rather than generating it (`PrepareIntoContainer`, #705); every caller
+    // reaches the method by property access on the instance, so this wrapper
+    // on the instance sees every pass.
     const call = soleCall(compiler, "TURNS_SINCE");
     let passes = 0;
-    const generate = call.GenerateIntoContainer;
-    (call as any).GenerateIntoContainer = (container: RuntimeContainer) => {
+    const prepare = call.PrepareIntoContainer.bind(call);
+    (call as any).PrepareIntoContainer = () => {
       passes += 1;
-      return generate(container);
+      return prepare();
     };
 
     let text = base;
@@ -330,8 +329,8 @@ describe("FunctionCall generation leaves `content` intact", () => {
             },
           ],
         } as never);
-        compiler.compile({ textDocument: { uri: URI } } as never);
       });
+      compileBuilt(compiler);
       text =
         text.slice(0, offset) +
         step.replace +

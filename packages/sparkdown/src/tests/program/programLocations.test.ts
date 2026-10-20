@@ -1,0 +1,299 @@
+// A program of statement chunks builds no path-location table (#700). Its root
+// locates every address from the chunks' own line tables
+// (docs/engine/binary-program.md, section 8), so a compile walks no runtime
+// tree for locations and sorts none: the two phases that built the current
+// engine's table, `populateLocations` and `sortPathLocations`, are absent from
+// its profile, as is the table. The scene
+// assets it carries are read from its chunks, and each beat is known by the
+// address of its `LineStart`.
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { programLocator } from "../../compiler/utils/programLocator";
+import { MAIN_URI, programCompiler } from "./programHarness";
+
+const TEXT = [
+  "store trust = 0",
+  "",
+  "scene MAIN",
+  "  [[raffles_concerned]] Raffles waits by the door.",
+  "  & trust = trust + 1",
+  "  if trust > 0 then",
+  "    ((door_creak)) Bunny arrives.",
+  "  end",
+  "  The door closes.",
+  "  -> ELSEWHERE",
+  "end",
+  "",
+  "scene ELSEWHERE",
+  "  [[street]] A street at night.",
+  "end",
+  "",
+].join("\n");
+
+const quiet = <T>(run: () => T): T => {
+  const { warn, error, log } = console;
+  console.warn = console.error = console.log = () => {};
+  try {
+    return run();
+  } finally {
+    console.warn = warn;
+    console.error = error;
+    console.log = log;
+  }
+};
+
+/** A compile, an edit inside one beat and a compile again, with the phases
+ *  each compile measured. */
+function editInsideOneBeat() {
+  const c = programCompiler({ [MAIN_URI]: TEXT }, {
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: true,
+  } as never);
+  c.compiler.profilerId = "700";
+  const measure = vi.spyOn(performance, "measure");
+  const first = quiet(() => c.compile()).program;
+  const before = measure.mock.calls.length;
+  const find = "Raffles waits by the door.";
+  const offset = TEXT.indexOf(find);
+  const line = TEXT.slice(0, offset).split("\n").length - 1;
+  const character = offset - TEXT.lastIndexOf("\n", offset) - 1 + find.length - 1;
+  quiet(() =>
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN_URI, version: 2 },
+      contentChanges: [
+        {
+          range: {
+            start: { line, character },
+            end: { line, character },
+          },
+          text: " quietly",
+        },
+      ],
+    } as never),
+  );
+  const edited = quiet(() => c.compile()).program;
+  const phases = measure.mock.calls
+    .slice(before)
+    .map(([name]) => String(name));
+  measure.mockRestore();
+  return { first, edited, phases };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("a compile with statement chunks", () => {
+  it("runs neither populateLocations nor sortPathLocations for an edit inside one beat", () => {
+    const { first, edited, phases } = editInsideOneBeat();
+    expect(first.chunks).toBeDefined();
+    expect(edited.chunks).toBeDefined();
+    // The compile was measured, and built its chunks.
+    expect(phases.some((name) => name.includes("program/chunks"))).toBe(true);
+    expect(phases.filter((name) => /populateLocations|sortPathLocations/.test(name))).toEqual([]);
+    // The edit is in the program: its beat is at its line.
+    const locator = programLocator(edited);
+    const address = locator.addressAt(MAIN_URI, 3)!;
+    expect(locator.locationOf(address)).toMatchObject({ uri: MAIN_URI, startLine: 3 });
+  });
+
+  it("reads its scene assets from its chunks, each beat at its LineStart's address", () => {
+    const c = programCompiler({ [MAIN_URI]: TEXT }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    const assets = program.sceneAssets!;
+    const locator = programLocator(program);
+    expect(assets["MAIN"]).toMatchObject({
+      kind: "scene",
+      image: ["raffles_concerned"],
+      audio: ["door_creak"],
+      successors: ["ELSEWHERE"],
+    });
+    expect(assets["ELSEWHERE"]).toMatchObject({ image: ["street"] });
+    const beats = assets["MAIN"]!.beats;
+    expect(beats.map((beat) => locator.locationOf(beat.address)?.startLine)).toEqual([3, 6]);
+    expect(beats[0]!.address).toBe(locator.addressAt(MAIN_URI, 3));
+    expect(beats[1]!.address).toBe(locator.addressAt(MAIN_URI, 6));
+  });
+
+  // Round 2 of the review of #1618 (report 6028078542): a choose block's
+  // entries are its own code and its choices' bodies blocks of it, so its
+  // entries' assets were read before every body's.
+  it("reads a choice's entry and its body before the next choice's, in document order", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[intro]] Intro.",
+      "  choose",
+      "    + [A] [[option_a]] A.",
+      "      [[body_a]] Body A.",
+      "    + [B] [[option_b]] B.",
+      "      [[body_b]] Body B.",
+      "  end",
+      "  [[outro]] Outro.",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    expect(program.chunks).toBeDefined();
+    const images = program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
+    expect(images).toEqual(["intro", "option_a", "body_a", "option_b", "body_b", "outro"]);
+  });
+
+  // Round 3 of the review of #1618 (report 6028384794): a choose block in
+  // another's preamble has its `then` clause emitted after every entry of the
+  // block around it, so its clause's assets fell behind the later choices'.
+  it("reads a nested choose block's then clause before the next choice of the block around it", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  choose",
+      "    choose",
+      "      + [A]",
+      "        [[body_a]] A.",
+      "    then",
+      "      [[join_a]] Joined A.",
+      "    end",
+      "    + [B]",
+      "      [[body_b]] B.",
+      "  then",
+      "    [[finished]] Finished.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    expect(program.chunks).toBeDefined();
+    const locator = programLocator(program);
+    const beats = program.sceneAssets!["MAIN"]!.beats;
+    expect(beats.flatMap((beat) => beat.image ?? [])).toEqual([
+      "body_a",
+      "join_a",
+      "body_b",
+      "finished",
+    ]);
+    // Each record stands at its own beat's line.
+    expect(beats.map((beat) => locator.locationOf(beat.address)?.startLine)).toEqual([
+      6, 8, 11, 13,
+    ]);
+  });
+
+  // #1645: the beats of a choose block's choices, its then clause and the
+  // content after it read in document order, not with the choices' content
+  // after the rest of the scene.
+  it("reads a choose block's bodies, its then clause and the content after it in document order", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[intro]] Intro.",
+      "  choose",
+      "    + [A] [[option_a]] A.",
+      "      [[body_a]] Body A.",
+      "    + [B] [[option_b]] B.",
+      "      [[body_b]] Body B.",
+      "  then",
+      "    [[joined]] Joined.",
+      "  end",
+      "  [[outro]] Outro.",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    const images = program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
+    expect(images).toEqual([
+      "intro",
+      "option_a",
+      "body_a",
+      "option_b",
+      "body_b",
+      "joined",
+      "outro",
+    ]);
+  });
+
+  // #1645: a choose block nested in a choice's body reads its beats where it
+  // stands, before the next choice of the block around it.
+  it("reads a choose block nested in a choice's body before the next choice", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[intro]] Intro.",
+      "  choose",
+      "    + [A] [[option_a]] A.",
+      "      choose",
+      "        + [A1] [[option_a1]] A1.",
+      "          [[body_a1]] Body A1.",
+      "        + [A2] [[option_a2]] A2.",
+      "      end",
+      "      [[after_a]] After A.",
+      "    + [B] [[option_b]] B.",
+      "  end",
+      "  [[outro]] Outro.",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    const images = program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
+    expect(images).toEqual([
+      "intro",
+      "option_a",
+      "option_a1",
+      "body_a1",
+      "option_a2",
+      "after_a",
+      "option_b",
+      "outro",
+    ]);
+  });
+
+  // Round 1 of the review of #1618 (report 6026971997): an interpolation
+  // splits a beat's text into several literals, each of which named the
+  // beat's address in a record of its own.
+  it("names one record for a beat whose text an interpolation splits", () => {
+    const text = [
+      "store score = 0",
+      "",
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[room]] Hello {score} [[portrait]] and [[room]] again.",
+      "  [[street]] Later.",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    expect(program.chunks).toBeDefined();
+    const locator = programLocator(program);
+    const beats = program.sceneAssets!["MAIN"]!.beats;
+    expect(beats.map((beat) => beat.image)).toEqual([["room", "portrait"], ["street"]]);
+    expect(beats.map((beat) => beat.address)).toEqual([
+      locator.addressAt(MAIN_URI, 5),
+      locator.addressAt(MAIN_URI, 6),
+    ]);
+  });
+});

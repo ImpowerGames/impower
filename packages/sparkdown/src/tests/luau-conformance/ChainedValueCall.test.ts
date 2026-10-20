@@ -79,8 +79,8 @@ assert(t == 10, "got " .. tostring(t))`);
     // siblings (the inner content, then empty call-args). Without
     // a fold, the pratt parser saw two adjacent operands and emitted
     // broken bytecode — the result was the closure value itself
-    // (DivertTargetValue), printed verbatim in interpolation
-    // (`"Welcome to DivertTargetValue(run.__anon_fn_794)!"`).
+    // (a function value), printed verbatim in interpolation in place
+    // of the call's result.
     const r = runConformanceSource(`local x = (function() return "Luau" end)()
 assert(x == "Luau", "got " .. tostring(x))`);
     expect(r.errorMessages).toEqual([]);

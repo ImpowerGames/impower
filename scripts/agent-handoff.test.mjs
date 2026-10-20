@@ -1,3 +1,5 @@
+// agent-tooling-timeout-ms: 600000
+// Ran 244 s on a Windows runner with four checks in flight (#1937).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,13 +8,20 @@ import { execFileSync, spawn } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound } from "./agent-handoff.mjs";
+import { runHandoff as actualHandoff, checkReviewRound, verifyReviewComment, reserveWithinBound, validateReviewRecovery } from "./agent-handoff.mjs";
+import { readRepos, reviewThread } from "../.agents/repos.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
 import { installReviewerHooks } from "./reviewer-security.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
 console.log(`Scratch repository: ${scratch}`);
+// Each cutover position is read from its own copy of the repos file; every
+// launch here runs with the switch off unless a case names the on copy.
+const committed = readRepos();
+const pinRepos = (cutover) => { const file = path.join(scratch, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committed, cutover })); return readRepos(file); };
+const OFF = pinRepos(false), ON = pinRepos(true);
+const handoff = (file, options = {}) => actualHandoff(file, { repos: OFF, ...options });
 const runHandoff = (file) => handoff(file, {jobRoot:scratch,slotRoot:path.join(scratch,"serial-slots")});
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
@@ -29,14 +38,33 @@ const config = { worktree, pr: 531, completedReviewRound: 0, writer: "writer-tes
 }};
 const file = path.join(scratch, "plan.json");
 const write = () => fs.writeFileSync(file, JSON.stringify(config));
+// A matching head never substitutes for correction state at the final cap,
+// including the second serial reviewer under an extended authorization.
+for (const limit of [3, 6]) {
+  const recovery = { ...config, completedReviewRound: limit, reviewedHead: git("rev-parse", "HEAD").trim(), completedRoundReviews: 1, reviewRoundLimit: limit, ...(limit > 3 ? { extendedReviewAuthorization: "User authorized six rounds" } : {}) };
+  assert.throws(() => validateReviewRecovery(recovery), /finalCorrections.*pending serial reviewer/);
+  for (const finalCorrections of [false, true]) assert.doesNotThrow(() => validateReviewRecovery({ ...recovery, finalCorrections }), "the explicit persisted boolean is accepted without inventing its value");
+}
 let commentReads = 0, waits = 0;
-await verifyReviewComment(1, 554, "a".repeat(40), worktree, {
-  readComment: () => ++commentReads === 1 ? { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "pending" } : { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "a".repeat(40) },
+const prThread = reviewThread({ pr: 554 }, OFF);
+await verifyReviewComment(1, prThread, "a".repeat(40), worktree, {
+  readComment: () => ++commentReads === 1 ? { issue_url: `https://api.github.com/repos/${OFF.code}/issues/554`, body: "pending" } : { issue_url: `https://api.github.com/repos/${OFF.code}/issues/554`, body: "a".repeat(40) },
   wait: async (ms) => { assert.equal(ms, 1000); waits++; },
 });
 assert.equal(commentReads, 2, "a transient comment mismatch must be read again");
 assert.equal(waits, 1, "a transient comment mismatch waits before retrying");
-await assert.rejects(verifyReviewComment(1, 554, "a".repeat(40), worktree, { readComment: () => ({ issue_url: "wrong", body: "wrong" }), wait: async () => {}, attempts: 2 }), /Comment does not verify/);
+await assert.rejects(verifyReviewComment(1, prThread, "a".repeat(40), worktree, { readComment: () => ({ issue_url: "wrong", body: "wrong" }), wait: async () => {}, attempts: 2 }), /Comment does not verify/);
+// With the switch on, a report is a comment on the internal ticket, read by id
+// from the internal repository; the same report on the public pull request is refused.
+{
+  const ticketThread = reviewThread({ pr: 554, ticket: 12 }, ON);
+  const reads = [];
+  const comment = (issue_url) => (thread, id) => { reads.push(`${thread.repo} ${id}`); return { issue_url, body: "a".repeat(40) }; };
+  await verifyReviewComment(7, ticketThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.internal}/issues/12`), attempts: 1 });
+  assert.deepEqual(reads, [`${ON.internal} 7`], "the report is read by id from the internal repository");
+  await assert.rejects(verifyReviewComment(7, ticketThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.code}/issues/554`), attempts: 1 }), new RegExp(`does not verify review thread ${ON.internal}#12`), "a report on the public pull request is refused with the switch on");
+  await assert.rejects(verifyReviewComment(7, prThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.internal}/issues/12`), attempts: 1 }), /does not verify/, "a ticket comment does not stand in for a pull request comment with the switch off");
+}
 // A malformed plan is refused before the lock, journal or any child exists.
 const launchMarker = path.join(scratch, "malformed-plan-launched");
 const markingChild = path.join(scratch, "marking-child.mjs");
@@ -50,15 +78,19 @@ const malformed = [
   ["unknown first", (plan) => { plan.first = "frist"; }, /Unknown step: frist/],
   ["execution grant on writer", (plan) => { plan.steps.first.execution = [{ id: "tests", kind: "vitest", package: "packages/sparkdown", files: ["a.test.ts"] }]; }, /execution is only supported on review steps/],
   ["step-level completedReviewRound", (plan) => { delete plan.completedReviewRound; plan.steps.first.completedReviewRound = 0; }, /Move completedReviewRound from step first to the top level/],
+  ["ticket before the cutover", (plan) => { plan.ticket = 12; }, /ticket applies once the cutover switch .* is on/],
+  ["step-level ticket", (plan) => { plan.steps.first.ticket = 12; }, /Move ticket from step first to the top level/],
+  ["switch on without a ticket", () => {}, /Supply ticket, the ImpowerGames\/impower-internal ticket number/, ON],
+  ["switch on with a string ticket", (plan) => { plan.ticket = "12"; }, /Supply ticket/, ON],
 ];
-for (const [label, change, message] of malformed) {
+for (const [label, change, message, repos = OFF] of malformed) {
   const plan = structuredClone(config);
   plan.journal = path.join(scratch, `malformed-${label.replaceAll(" ", "-")}.jsonl`);
   for (const step of Object.values(plan.steps)) step.args = [markingChild, "--model", "writer-test"];
   change(plan);
   const planFile = path.join(scratch, `malformed-${label.replaceAll(" ", "-")}.json`);
   fs.writeFileSync(planFile, JSON.stringify(plan));
-  await assert.rejects(runHandoff(planFile), message, label);
+  await assert.rejects(handoff(planFile, { jobRoot: scratch, slotRoot: path.join(scratch, "serial-slots"), repos }), message, label);
   assert.equal(fs.existsSync(launchMarker), false, `${label} must launch no child`);
   assert.equal(fs.existsSync(plan.journal), false, `${label} must leave no journal to block the corrected plan`);
   assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} must not take the lock`);
@@ -127,6 +159,46 @@ fs.writeFileSync(path.join(codexHome, "auth.json"), "{}");
 const fullAccessArgs = ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', "-c", 'approval_policy="never"', "--sandbox", "danger-full-access", "-c", 'model_provider="openai"', "--cd", codexDir, "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "--strict-config", "--json", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--dangerously-bypass-hook-trust", "--output-last-message", codexReport, "-"];
 const fullAccessPermissions = { sandbox: "danger-full-access", approvalPolicy: "never", networkAccess: true, artifactWrites: "handoff-directory", cwd: codexDir, codexHome };
 assert.doesNotThrow(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: fullAccessPermissions }, codexPlan), "the documented full-access grammar is accepted");
+// Exercise the documented round layout through the real launcher preflight.
+// Prompt/plan/journal state stays beside, rather than inside, the empty reviewer.
+{
+  const round = path.join(scratch, "pr-531", "round-1");
+  const state = path.join(round, "launch-a");
+  const reviewer = path.join(round, "reviewer-a-1");
+  fs.mkdirSync(state, { recursive: true });
+  fs.mkdirSync(reviewer);
+  const argsFor = (dir) => fullAccessArgs.map((arg) => arg === codexDir ? dir : arg === codexReport ? path.join(dir, "report.md") : arg);
+  const stepFor = (dir) => ({ role: "review", model: "gpt-test", executable: process.execPath, args: argsFor(dir), prompt, next: [null], round: 1, reviewers: 2, nativeResult: "codex-jsonl", effort: "high", permissions: { ...fullAccessPermissions, cwd: dir } });
+  assert.doesNotThrow(() => validateCodexReviewer(stepFor(reviewer), { reviewer: "gpt-test", worktree, jobDir: state }), "supported sibling state/reviewer layout passes");
+  const physicalState = path.join(round, "physical-state");
+  const linkedState = path.join(round, "linked-reviewer");
+  fs.mkdirSync(physicalState);
+  fs.symlinkSync(physicalState, linkedState, "junction");
+  assert.throws(() => validateCodexReviewer(stepFor(linkedState), { reviewer: "gpt-test", worktree, jobDir: physicalState }), /supervisor state.*physical-state.*sibling/i, "physical aliases cannot evade state/reviewer isolation");
+  assert.throws(() => validateCodexReviewer(stepFor(physicalState), { reviewer: "gpt-test", worktree, jobDir: linkedState }), /supervisor state.*physical-state.*sibling/i, "an aliased supervisor directory is resolved too");
+  const occupied = path.join(round, "occupied");
+  fs.mkdirSync(occupied);
+  fs.writeFileSync(path.join(occupied, "prior-report.md"), "preserve");
+  assert.doesNotThrow(() => validateCodexReviewer(stepFor(occupied), { reviewer: "gpt-test", worktree, jobDir: state }), "existing supervisor-authored artifacts remain supported");
+  fs.writeFileSync(path.join(occupied, "report.md"), "existing final report");
+  const refused = [
+    ["nested-state", reviewer, path.join(round, "journal.jsonl"), /supervisor state.*reviewer-a-1.*round-1.*sibling/i],
+    ["missing-dir", path.join(round, "missing"), path.join(state, "missing.jsonl"), /Reviewer directory.*missing.*create.*empty/i],
+    ["existing-report", occupied, path.join(state, "occupied.jsonl"), /fresh final report/i],
+  ];
+  const failures = [];
+  for (const [name, dir, journal, expected] of refused) {
+    const plan = { ...config, reviewer: "gpt-test", journal, maxSteps: 1, steps: { first: stepFor(dir) } };
+    const planFile = path.join(state, `${name}.json`);
+    fs.writeFileSync(planFile, JSON.stringify(plan));
+    try { await assert.rejects(runHandoff(planFile), expected, name); }
+    catch (error) { failures.push(`${name}: ${error.message}`); }
+    assert.equal(fs.existsSync(journal), false, `${name}: no journal before input admission`);
+    assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${name}: no lock before input admission`);
+  }
+  assert.equal(fs.readFileSync(path.join(occupied, "prior-report.md"), "utf8"), "preserve");
+  assert.deepEqual(failures, [], "review layout must fail actionably before any native process probe or launch");
+}
 assert.throws(() => validateCodexReviewer({ args: [...fullAccessArgs.filter((arg) => arg !== "--dangerously-bypass-hook-trust").slice(0, -1), "-c", 'windows.sandbox="elevated"', "-"], effort: "high", permissions: { ...fullAccessPermissions, codexHome: undefined, sandboxStateHome: codexHome } }, codexPlan), (error) => {
   for (const problem of ["--dangerously-bypass-hook-trust", "no -c windows.sandbox", "no step permissions.sandboxStateHome", "step permissions.codexHome"]) assert.ok(error.message.includes(problem), `partial full-access refusal must name ${problem}: ${error.message}`);
   return true;
@@ -427,6 +499,71 @@ try {
   fs.writeFileSync(file,JSON.stringify(unplanned)); await assert.rejects(runHandoff(file),/same round requires the recorded reviewed head/);
   assert.equal(fs.readFileSync(unplanned.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="launching").length,2,"a correction after the last planned reviewer cannot launch another in its round");
 
+  // A retried attempt of a planned reviewer replaces that reviewer's place, so
+  // the round's other planned reviewer still launches on the corrected head.
+  const retryChild = path.join(scratch, "retry-lifecycle.mjs");
+  fs.writeFileSync(retryChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"],{windowsHide:true}); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8",windowsHide:true}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:process.argv[2]==="null"?null:process.argv[2],commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
+  const planned = ["ax-1", "undirected-1"];
+  const retryStep = (reviewerId, attempt, next, role="review") => role === "review"
+    ? { ...lifecycle.steps.review, round:1, reviewers:planned, reviewerId, ...(attempt ? { attempt } : {}), args:[retryChild,next,"--model","reviewer-test"], next:[next==="null"?null:next] }
+    : { ...lifecycle.steps.implement, args:[retryChild,next,"--model","writer-test"], next:[next] };
+  const retried = { ...lifecycle, first:"ax", maxSteps:4, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,"retried-planned-reviewer.jsonl"), steps:{
+    ax:retryStep("ax-1",undefined,"ax-retry"),
+    "ax-retry":retryStep("ax-1",2,"fix"),
+    fix:retryStep(null,null,"undirected","implement"),
+    undirected:retryStep("undirected-1",undefined,"null"),
+  }};
+  fs.writeFileSync(file,JSON.stringify(retried)); await runHandoff(file);
+  const retriedRows=fs.readFileSync(retried.journal,"utf8").trim().split("\n").map(JSON.parse);
+  const retriedCompleted=retriedRows.filter(row=>row.event==="completed");
+  assert.deepEqual(retriedCompleted.map(row=>row.completedRoundReviews),[1,1,1,2],"a retry keeps its reviewer's place, leaving the other planned reviewer's place free");
+  assert.deepEqual(retriedCompleted[1].completedRoundReviewers,{"ax-1":2},"the retry records its attempt against the same planned reviewer");
+  assert.deepEqual(retriedCompleted[1].pendingReviewers,["undirected-1"],"the journal names the planned reviewer that has not run");
+  assert.deepEqual(retriedCompleted[3].completedRoundReviewers,{"ax-1":2,"undirected-1":1});
+  assert.deepEqual(retriedCompleted[3].pendingReviewers,[]);
+  assert.ok(retriedCompleted.filter((row,index)=>index!==2).every(row=>row.plannedRoundReviewers.join()===planned.join()),"each review completion records the round's planned reviewers");
+  assert.ok(retriedCompleted.every(row=>row.completedRound===1),"the retry and the correction stay in round 1");
+  assert.deepEqual(retriedRows.filter(row=>row.event==="launching"&&row.role==="review").map(row=>[row.reviewerId,row.attempt]),[["ax-1",1],["ax-1",2],["undirected-1",1]]);
+
+  // Recovery carries the record: a resumed plan continues the same round.
+  const resumeAt = retriedCompleted[1];
+  git("commit","--allow-empty","-m","correction after the retry");
+  const resumed = (overrides, journal) => ({ ...lifecycle, first:"undirected", maxSteps:1, completedReviewRound:1, reviewedHead:resumeAt.reviewedHead, completedRoundReviews:resumeAt.completedRoundReviews, completedRoundReviewers:resumeAt.completedRoundReviewers, plannedRoundReviewers:resumeAt.plannedRoundReviewers, finalCorrections:false, journal:path.join(scratch,journal), steps:{ undirected:retryStep("undirected-1",undefined,"null") }, ...overrides });
+  const resumedPlan = resumed({}, "resumed-round.jsonl");
+  fs.writeFileSync(file,JSON.stringify(resumedPlan)); await runHandoff(file);
+  assert.deepEqual(fs.readFileSync(resumedPlan.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviewers,{"ax-1":2,"undirected-1":1},"a resumed plan completes the round's remaining planned reviewer");
+  const refusedResume = async (overrides, steps, pattern, journal) => {
+    const plan = resumed({ ...overrides, ...(steps ? { steps } : {}) }, journal);
+    fs.writeFileSync(file,JSON.stringify(plan)); await assert.rejects(runHandoff(file),pattern);
+    assert.ok(!fs.existsSync(plan.journal) || !fs.readFileSync(plan.journal,"utf8").includes('"event":"launching"'), `${journal} must refuse before launch`);
+  };
+  await refusedResume({ completedRoundReviewers:undefined }, null, /Supply completedRoundReviewers from the journal as an object/, "resume-without-record.jsonl");
+  await refusedResume({ plannedRoundReviewers:undefined }, null, /Supply plannedRoundReviewers/, "resume-without-planned.jsonl");
+  // Without any of the round's record a named retry cannot be placed, so it
+  // is refused rather than journalled with null accounting.
+  await refusedResume({ completedRoundReviews:undefined, completedRoundReviewers:undefined, plannedRoundReviewers:undefined }, { undirected:retryStep("ax-1",3,"null") }, /needs the round's record/, "resume-without-any-record.jsonl");
+  await refusedResume({ completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, null, /equal to its number of reviewers/, "resume-mismatched-count.jsonl");
+  await refusedResume({}, { undirected:retryStep("ax-1",2,"null") }, /needs a higher attempt/, "resume-stale-attempt.jsonl");
+  await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["blast-1","undirected-1"] } }, /cannot change once it has started/, "resume-replanned-round.jsonl");
+  // A pending planned reviewer cannot be swapped for another, and a completed
+  // round cannot grow a place for a further reviewer on the corrected head.
+  await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["ax-1","blast-1"] } }, /cannot change once it has started/, "resume-replaced-pending.jsonl");
+  await refusedResume({ completedRoundReviews:2, completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, { undirected:{ ...retryStep("third-1",undefined,"null"), reviewers:[...planned,"third-1"] } }, /cannot change once it has started/, "resume-expanded-round.jsonl");
+  await refusedResume({}, { undirected:{ ...retryStep("third-1",undefined,"null") } }, /must be one of its planned reviewers/, "resume-added-reviewer.jsonl");
+  await refusedResume({}, { undirected:{ ...lifecycle.steps.review, round:1, reviewers:2 } }, /later reviewers need reviewerId/, "resume-unnamed-reviewer.jsonl");
+  await refusedResume({}, { undirected:{ ...retryStep("undirected-1",undefined,"null"), reviewerId:undefined } }, /needs reviewerId/, "resume-missing-id.jsonl");
+
+  // A count-form round journals null identity records; a recovery plan that
+  // carries them exactly as emitted resumes its pending reviewer.
+  const countFirst = { ...lifecycle, first:"review", maxSteps:1, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,"count-form-first.jsonl"), steps:{ review:{ ...lifecycle.steps.review, round:1, reviewers:2 } } };
+  fs.writeFileSync(file,JSON.stringify(countFirst)); await runHandoff(file);
+  const countRow = fs.readFileSync(countFirst.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed");
+  assert.equal(countRow.completedRoundReviewers,null); assert.equal(countRow.plannedRoundReviewers,null);
+  const { completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections } = countRow;
+  const countResume = { ...countFirst, completedReviewRound:completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, journal:path.join(scratch,"count-form-resumed.jsonl") };
+  fs.writeFileSync(file,JSON.stringify(countResume)); await runHandoff(file);
+  assert.equal(fs.readFileSync(countResume.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviews,2,"the count-form round's second reviewer completes from the emitted journal state");
+
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
 delete config.finalCorrections;
@@ -471,7 +608,7 @@ const release = path.join(scratch, "release-reviewers");
 const reviewer = path.join(scratch, "holding-reviewer.mjs");
 fs.writeFileSync(reviewer, `import fs from 'node:fs'; let p=''; for await (const c of process.stdin) p+=c; if(p.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);} fs.writeFileSync(process.argv[2], 'review posted'); setTimeout(()=>process.exit(2),60000).unref(); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
 const coordinator = path.join(scratch, "coordinator.mjs");
-fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
+fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {repos:${JSON.stringify(OFF)},jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
 const launched = [];
 const launch = (i, extra = {}) => {
   const repo = path.join(scratch, `concurrent-repo-${i}`);
@@ -617,8 +754,9 @@ assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
   const token=()=>fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="launching").reportToken;
   const heading="### Adversarial review — undirected (reviewer-test)";
   const genuine=()=>`${heading}\n\nRound 1; reviewed head ${reviewedHead}.\n\n${token()}`;
-  const report=(id,body,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
-  const run=async(name,comments)=>{config.journal=path.join(scratch,`${name}.jsonl`);write();return handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,`${name}-slots`),listComments:()=>comments()});};
+  const report=(id,body,created_at=new Date(Date.now()+60000).toISOString(),issue_url=`https://api.github.com/repos/${OFF.code}/issues/${config.pr}`)=>({id,body,created_at,issue_url});
+  const listed=[];
+  const run=async(name,comments,repos=OFF)=>{config.journal=path.join(scratch,`${name}.jsonl`);write();return handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,`${name}-slots`),repos,listComments:(thread)=>{listed.push(`${thread.repo}#${thread.number}`);return comments();}});};
   const realExec=childProcess.execFileSync;
   try {
     childProcess.execFileSync=(exe,args,options)=>exe==="gh"?JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]),`${reviewedHead}`)):realExec(exe,args,options);
@@ -636,6 +774,25 @@ assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
     config.steps.first.next=[null,"second"];
     await assert.rejects(run("branching-artifact",()=>[report(43,genuine())]),/declares 2 transitions/);
     config.steps.first.next=[null];
+    assert.ok(listed.every((thread)=>thread===`${OFF.code}#${config.pr}`),"with the switch off the launcher lists the pull request's comments");
+    // With the switch on, the plan names the internal ticket: the launcher
+    // lists that ticket's comments and reads the adopted report by id from the
+    // internal repository; a report on the public pull request is not adopted.
+    const ticketUrl=`https://api.github.com/repos/${ON.internal}/issues/12`, reads=[];
+    let byId=ticketUrl;
+    childProcess.execFileSync=(exe,args,options)=>{if(exe!=="gh")return realExec(exe,args,options);reads.push(args[1]);return JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]),`${reviewedHead}`,undefined,byId));};
+    syncBuiltinESMExports();
+    config.ticket=12;listed.length=0;
+    await run("ticket-report",()=>[report(48,genuine(),undefined,ticketUrl)],ON);
+    const ticketRows=fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse);
+    assert.deepEqual(ticketRows.find(row=>row.event==="coordinator").thread,{repo:ON.internal,number:12,issueUrl:ticketUrl},"the journal records the review thread");
+    assert.deepEqual(ticketRows.find(row=>row.event==="completed").commentIds,[48]);
+    assert.deepEqual(listed,[`${ON.internal}#12`]);
+    assert.deepEqual(reads,[`repos/${ON.internal}/issues/comments/48`],"the report is read back by id from the internal repository");
+    await assert.rejects(run("public-report",()=>[report(49,genuine())],ON),/ENOENT.*no report naming head/,"a report on the public pull request is not adopted with the switch on");
+    byId=`https://api.github.com/repos/${ON.code}/issues/${config.pr}`;
+    await assert.rejects(run("public-by-id",()=>[report(50,genuine(),undefined,ticketUrl)],ON),new RegExp(`does not verify review thread ${ON.internal}#12`),"a comment whose read-back is on the public pull request is refused");
+    delete config.ticket;
   } finally {childProcess.execFileSync=realExec;syncBuiltinESMExports();}
 }
 console.log("PASS: a cleanly exited review without its completion artifact completes from its one posted report");
@@ -653,7 +810,7 @@ assert.equal(fs.existsSync(lock),false,"confirmed child close releases the workt
 console.log("PASS: confirmed-absent children, marker diagnostics, and actual post-spawn journal failure cleanup");
 
 const failureWorker=path.join(scratch,"failure-worker.mjs");
-fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>/* windows-hide: caller */spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
+fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>/* windows-hide: caller */spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{repos:${JSON.stringify(OFF)},jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
 for(const mode of ["combined","retained"]){
   const repo=path.join(scratch,`failure-repo-${mode}`);execFileSync("git",["clone","--quiet",worktree,repo],{windowsHide:true});
   const taskRelease=path.join(scratch,`failure-${mode}.release`);
@@ -755,10 +912,36 @@ console.log("PASS: real already-exited children have no false termination warnin
   assert.equal(routeFailure("TypeError: cannot read properties of undefined"), undefined, "an ordinary crash is not a route failure");
   for (const benign of ["GitHub authentication configured", "processed 401 files", "listening on port 429", "authentication succeeded"]) assert.equal(routeFailure(`crash\n${benign}`), undefined, `a benign line is not a route failure: ${benign}`);
   for (const failing of ["HTTP 429 from the API", "error: status 401", "Failed to authenticate: OAuth session expired and could not be refreshed", "authentication failed for this account"]) assert.equal(routeFailure(`working\n${failing}\n`), failing, `a route failure is named: ${failing}`);
+  // Native Claude JSON output puts long metadata before the result, so the
+  // semantic message is classified and named whole, not the line's first 400
+  // characters.
+  {
+    const metadata = { type: "result", subtype: "success", is_error: true, terminal_reason: "api_error", session_id: "e7c82e28", modelUsage: { filler: "x".repeat(900) } };
+    const limit = "You've hit your weekly limit · resets Oct 5, 1am (America/New_York)";
+    const version = "API Error: 400 claude-opus-5-5 requires Claude Code 2.1.280 or later";
+    assert.equal(routeFailure(JSON.stringify({ ...metadata, result: limit })), limit, "a long JSON metadata prefix does not hide the weekly-limit result");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: version }) + "\n" + JSON.stringify({ ...metadata, result: limit })), /weekly limit/, "the last failing result is named");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: version })), /2\.1\.280/, "a minimum-version result is named");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, error: { message: limit } })), /weekly limit/, "a nested error message is named");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: limit }).slice(300)), /weekly limit/, "a line cut mid-metadata still names the limit");
+    assert.equal(routeFailure(JSON.stringify({ ...metadata, is_error: false, result: "OK" })), undefined, "an answered probe is not a route failure");
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: "x".repeat(600) + " rate limit reached" })), /rate limit/, "a match beyond the display length stays in the excerpt");
+    const retried = "Authentication failed; " + "retry context ".repeat(40) + "You've hit your weekly limit";
+    assert.match(routeFailure(JSON.stringify({ ...metadata, result: retried })), /weekly limit/, "a usage limit after an earlier failure in one long message stays in the excerpt");
+    assert.match(routeFailure(retried), /weekly limit/, "the same holds for a text line");
+    for (const spanning of ["You have exceeded " + "allocation details; ".repeat(30) + "quota", "You've hit your " + "plan detail ".repeat(40) + "limit"]) {
+      for (const input of [spanning, JSON.stringify({ ...metadata, result: spanning })]) {
+        const excerpt = routeFailure(input);
+        assert.ok(excerpt.length <= 400, "the excerpt stays capped");
+        assert.match(excerpt, /exceeded .*quota|hit your .*limit/, "a usage-limit match longer than the cap keeps its classification");
+      }
+    }
+  }
   const routeChild = path.join(scratch, "route-child.mjs");
-  const launchedMarker = path.join(scratch, "route-child-launched");
+  const launchedMarker =path.join(scratch, "route-child-launched");
   fs.writeFileSync(routeChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; const mode=process.argv[2]; const probe=p.startsWith("Reviewer route probe");
 if(probe&&mode==="limited"){console.error("You've hit your weekly limit - resets Sep 28");process.exit(1);}
+if(probe&&mode==="jsonlimited"){console.log(JSON.stringify({type:"result",is_error:true,terminal_reason:"api_error",modelUsage:{filler:"x".repeat(900)},result:"Authentication failed; "+"retry context ".repeat(40)+"You've hit your weekly limit - resets Oct 5"}));process.exit(1);}
 if(probe&&mode==="silent"){setInterval(()=>{},1000);}
 else if(probe&&mode==="mute"){process.exit(0);}
 else if(probe){console.log("OK");process.exit(0);}
@@ -773,6 +956,9 @@ else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log(
   assert.equal(rows.some((row) => row.event === "reserved"), false, "a failed probe reserves no slot");
   assert.equal(fs.existsSync(launchedMarker), false, "a failed probe launches no reviewer");
   assert.match(rows.at(-1).reason, /weekly limit/, "the blocked row names the route's own error");
+
+  await assert.rejects(run("jsonlimited"), /unavailable before slot reservation: .*weekly limit - resets Oct 5.*wait for the limit to reset/s, "a native JSON limit behind long metadata is named and classified as a usage limit");
+  assert.match(journalRows("jsonlimited").at(-1).reason, /weekly limit - resets Oct 5.*wait for the limit to reset/s, "the blocked row keeps the limit classification");
 
   await assert.rejects(run("silent"), /unavailable before slot reservation: no answer within 2 seconds/);
   assert.equal(journalRows("silent").some((row) => row.event === "reserved"), false, "a probe timeout reserves no slot");
@@ -800,3 +986,58 @@ else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log(
   assert.equal(fs.readdirSync(routeSlots).length, 0, "the failed reviewer's slot is released");
 }
 console.log("PASS: an unanswering reviewer route is refused before slot reservation with its own error, and a reviewer's route failure is named in the blocked row");
+
+// An author-experience lens step gains the editor delegation, and the driver's
+// preflight refuses the plan before any reviewer process or reservation.
+{
+  const lensRepo = path.join(scratch, "lens-repo");
+  fs.mkdirSync(path.join(lensRepo, ".agents", "skills", "drive-web-editor"), { recursive: true });
+  fs.writeFileSync(path.join(lensRepo, ".agents", "skills", "drive-web-editor", "driver.mjs"), "");
+  const lensGit = (...args) => execFileSync("git", args, { cwd: lensRepo, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
+  lensGit("init"); lensGit("add", "."); lensGit("commit", "-m", "lens fixture");
+  const lensChild = path.join(scratch, "lens-child.mjs");
+  fs.writeFileSync(lensChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} fs.writeFileSync(process.argv[2], p); process.exit(1);`);
+  const lensSlots = path.join(scratch, "lens-slots");
+  let calls = 0;
+  const passing = async () => { calls++; return { passed: true, failing: [] }; };
+  const failing = async () => { calls++; return { passed: false, failing: ["FAIL  playwright chromium  — cannot launch"] }; };
+  const run = async (name, step, editorPreflight) => {
+    const seen = path.join(scratch, `lens-${name}.prompt`);
+    const lensPrompt = path.join(scratch, `lens-${name}-prompt.txt`);
+    fs.writeFileSync(lensPrompt, step.heading ? `Report format. Start with the heading \`### Adversarial review — ${step.heading} (<MODEL>)\`.` : "test fixture");
+    delete step.heading;
+    const plan = { worktree: lensRepo, pr: 531, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", completedReviewRound: 0, maxSteps: 1, first: "review", journal: path.join(scratch, `lens-${name}.jsonl`), steps: { review: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [lensChild, seen, "--model", "reviewer-test"], prompt: lensPrompt, next: [null], ...step } } };
+    const planFile = path.join(scratch, `lens-${name}.json`);
+    fs.writeFileSync(planFile, JSON.stringify(plan));
+    let error;
+    try { await handoff(planFile, { jobRoot: scratch, slotRoot: lensSlots, editorPreflight }); } catch (caught) { error = caught; }
+    return { error, prompt: fs.existsSync(seen) ? fs.readFileSync(seen, "utf8") : null, journal: path.join(scratch, `lens-${name}.jsonl`) };
+  };
+
+  let result = await run("refused", { lens: "author-experience" }, failing);
+  assert.match(result.error?.message ?? "", /Editor driver preflight failed.*playwright chromium/s, "a failing preflight names its check");
+  assert.equal(result.prompt, null, "a failing preflight launches no reviewer");
+  assert.equal(fs.existsSync(result.journal), false, "a failing preflight refuses before the journal");
+  assert.equal(fs.existsSync(lensSlots) ? fs.readdirSync(lensSlots).length : 0, 0, "a failing preflight reserves no slot");
+
+  calls = 0;
+  result = await run("granted", { lens: "author-experience (short)", heading: "author-experience (short)" }, passing);
+  assert.equal(calls, 1, "a lens step runs the driver preflight once");
+  assert.match(result.prompt ?? "", /authorized these operations: author\b/, "a lens step gains the author editor operation");
+  assert.match(result.prompt, /Editor delegation:/, "the reviewer prompt names the editor delegation");
+
+  calls = 0;
+  result = await run("declared", { lens: "author-experience", execution: [{ id: "ui", kind: "editor", maxRequests: 2, timeoutSeconds: 60 }] }, passing);
+  assert.match(result.prompt ?? "", /authorized these operations: ui\./, "a declared editor operation is kept as written, without a second grant");
+  assert.equal(calls, 1, "a declared editor operation is also preflighted");
+
+  calls = 0;
+  result = await run("plain", {}, passing);
+  assert.equal(calls, 0, "a step without the lens runs no driver preflight");
+  assert.doesNotMatch(result.prompt ?? "", /Editor delegation|Launcher execution service/, "a step without the lens is unchanged");
+
+  result = await run("mismatch", { lens: "author-experience", heading: "undirected" }, passing);
+  assert.match(result.error?.message ?? "", /lens author-experience disagrees with its prompt heading undirected/, "a lens that disagrees with the prompt heading is refused");
+  assert.equal(result.prompt, null);
+}
+console.log("PASS: an author-experience lens step gains the editor delegation after a passing driver preflight, a failing preflight refuses before launch, and other steps are unchanged");

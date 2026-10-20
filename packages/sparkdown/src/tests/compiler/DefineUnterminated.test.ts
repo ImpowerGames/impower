@@ -5,7 +5,6 @@
 // becomes a property of the define, so `{trust}` reads nil); a `:` header
 // leaves the indented properties outside the header, where the lowerer drops
 // them. See issue #836.
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -37,7 +36,7 @@ function compile(source: string): { diags: Diag[]; compiled: boolean } {
   const result = compiler.compile({ textDocument: { uri } });
   return {
     diags: readDiags(result.program),
-    compiled: !!result.program.compiled,
+    compiled: !!result.program.chunks,
   };
 }
 
@@ -235,7 +234,9 @@ describe("define header the grammar cannot read", () => {
 
   test("text the header cannot read after `with` is not blamed on the name", () => {
     const errs = errors("define X with )\nHi.\n");
-    expect(errs).toHaveLength(1);
+    // The body goes on past the `)` it leaves unread (#1905), so `Hi.` is a
+    // line of the body, whose `.` no name follows.
+    expect(errs.map((e) => [e.startLine, e.startCharacter])).toEqual([[0, 0], [1, 2]]);
     expect(errs[0]!.message).toContain("cannot be read past `define X with`");
     expect(errs[0]!.message).not.toContain("name");
     expect(errs[0]!.startLine).toBe(0);

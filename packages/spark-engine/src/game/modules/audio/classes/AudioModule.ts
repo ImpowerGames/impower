@@ -1,4 +1,5 @@
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import { Module } from "../../../core/classes/Module";
 import type { AudioInstruction } from "../../../core/types/Instruction";
 import {
@@ -268,8 +269,7 @@ export class AudioModule extends Module<
     }
     d.key = d.type + "." + d.name + suffix;
     if (d.name) {
-      const resolvedAsset =
-        this.context?.[d.type as "audio" | "synth"]?.[d.name];
+      const resolvedAsset = getContextEntry(this.context, d.type!, d.name);
       if (resolvedAsset) {
         if ("src" in resolvedAsset && typeof resolvedAsset.src === "string") {
           d.src = resolvedAsset.src;
@@ -333,10 +333,10 @@ export class AudioModule extends Module<
       return [];
     }
     const compiled = type
-      ? this.context?.[type as "audio" | "synth"]?.[name]
-      : this.context?.audio?.[name] ||
-        this.context?.layered_audio?.[name] ||
-        this.context?.synth?.[name];
+      ? getContextEntry(this.context, type, name)
+      : getContextEntry(this.context, "audio", name) ||
+        getContextEntry(this.context, "layered_audio", name) ||
+        getContextEntry(this.context, "synth", name);
     if (!compiled) {
       return [];
     }

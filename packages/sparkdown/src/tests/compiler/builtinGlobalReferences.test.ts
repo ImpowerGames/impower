@@ -78,7 +78,7 @@ describe("references to builtin defines", () => {
     ["unseeded", false],
   ])("compile clean when the builtins are %s", (_label, seed) => {
     const { program, messages } = compile(LAYOUT, seed);
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messages.filter((m) => m.includes("Cannot find"))).toEqual([]);
   });
 
@@ -107,7 +107,7 @@ describe("references to builtin defines", () => {
       `define assets as config with\n  predict_distance = 4\nend\n\nlayout loading with\n  text "{config.assets.predict_distance}"\nend\n\nscene A\n  Hi.\nend\n`,
       false,
     );
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messages.filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
     expect(messages.filter((m) => m.includes("Cannot find"))).toEqual([]);
   });

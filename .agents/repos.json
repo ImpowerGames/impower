@@ -1,0 +1,7 @@
+{
+  "code": "ImpowerGames/impower",
+  "internal": "ImpowerGames/impower-internal",
+  "autolinkPrefix": "I-",
+  "cutover": true,
+  "feedbackInbox": 355
+}

@@ -1,4 +1,4 @@
-import { StructDefinition as RuntimeStructDefinition } from "../../../../engine/StructDefinition";
+import { StructDefinition as RuntimeStructDefinition } from "../../../../../runtime/StructDefinition";
 import { StructPropertyDefinition } from "./StructPropertyDefinition";
 import { ParsedObject } from "../Object";
 import { Story } from "../Story";
@@ -56,12 +56,12 @@ export class StructDefinition extends ParsedObject {
     this.AddContent(propertyDefinitions as any);
   }
 
-  public readonly GenerateRuntimeObject = () => {
+  protected override Prepare(): boolean {
     throw new Error("Not implemented.");
-  };
+  }
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Struct);
   }
 

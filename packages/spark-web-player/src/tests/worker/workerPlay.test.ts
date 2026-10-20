@@ -176,9 +176,11 @@ describe("a selection while PLAY runs in the worker", () => {
       await h.compile();
       await h.select(FIRST);
       const game = h.workerState.gameState.game!;
-      const replay = game.patchAndSimulateRoute.bind(game);
+      // The worker replays a route through the form that answers its
+      // checkpoint as a value (#1758).
+      const replay = game.replayPatchedRoute.bind(game);
       let replays = 0;
-      game.patchAndSimulateRoute = (...args: Parameters<Game["patchAndSimulateRoute"]>) => {
+      game.replayPatchedRoute = (...args: Parameters<Game["replayPatchedRoute"]>) => {
         replays += 1;
         return replay(...args);
       };

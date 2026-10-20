@@ -4,7 +4,7 @@ import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Cond
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
-import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
+import { NativeFunctionCall } from "../../../runtime/NativeFunctionCall";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { AstStatIf } from "../../typecheck/Ast";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
@@ -21,7 +21,7 @@ import {
 } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // An `if` statement: `LuauSparkdownIfBlock` in a scene or at the top level,
 // whose arms also hold display lines, and `LuauIfBlock` in Luau code. The
@@ -37,7 +37,7 @@ export function lowerLuauIfBlock(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, IF_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "if", ctx);
   const prefix = node.name;
   const elseifNodeName = prefix.replace("IfBlock", "ElseifBlock");
   const elseNodeName = prefix.replace("IfBlock", "ElseBlock");
@@ -89,6 +89,7 @@ export function lowerLuauIfBlock(
   // for this frame before diverting out of the enclosing loop.
   const mainShape = openBody(
     ctx,
+    condNode?.from ?? content?.from ?? node.from,
     condNode?.to ?? content?.from ?? node.from,
     partStarts[0]!,
   );
@@ -120,6 +121,7 @@ export function lowerLuauIfBlock(
     }
     const shape = openBody(
       ctx,
+      ec?.from ?? elseifContent?.from ?? elseifNode.from,
       ec?.to ?? elseifContent?.from ?? elseifNode.from,
       partStarts[i + 1]!,
     );
@@ -134,7 +136,12 @@ export function lowerLuauIfBlock(
   // ----- Optional `else` branch -----
   if (elseNode) {
     const elseContent = findChildByName(elseNode, `${elseNodeName}_content`);
-    const shape = openBody(ctx, elseContent?.from ?? elseNode.to, endStart);
+    const shape = openBody(
+      ctx,
+      elseNode.from,
+      elseContent?.from ?? elseNode.to,
+      endStart,
+    );
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(lowerStatements(elseContent, ctx, undefined, shape));
     ctx.scopeDepth--;

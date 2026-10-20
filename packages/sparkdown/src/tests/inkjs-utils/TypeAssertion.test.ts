@@ -17,7 +17,7 @@ import {
   asOrThrows,
   isEquatable,
   nullIfUndefined,
-} from "../../inkjs/engine/TypeAssertion";
+} from "../../runtime/TypeAssertion";
 
 describe("TypeAssertion", () => {
   class MainClass {

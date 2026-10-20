@@ -1,6 +1,7 @@
 // Walking the cursor down a scene, as a held arrow key does, leaves the
 // preview showing the beat the cursor ended on, and the worker works out only
 // the display the page asked for last.
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { describe, expect, it } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { programIdentity } from "../../utils/programIdentity";
@@ -72,9 +73,9 @@ describe("displays waiting their turn", () => {
       const game = h.workerState.gameState.game!;
       const markPreviewing = game.markPreviewing.bind(game);
       let workedOut = 0;
-      game.markPreviewing = (path?: string) => {
+      game.markPreviewing = (address?: ProgramAddress) => {
         workedOut += 1;
-        return markPreviewing(path);
+        return markPreviewing(address);
       };
 
       // A held arrow key: every selection's display is sent before the first

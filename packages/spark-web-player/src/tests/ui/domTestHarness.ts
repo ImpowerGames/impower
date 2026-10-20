@@ -26,6 +26,7 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { writeBeatText } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
@@ -47,21 +48,30 @@ export interface DOMHarness {
   /** Preview at a line. A beat with pictures displays once the page
    *  answers the preview's gate, so await the result before reading what
    *  such a beat wrote. */
-  preview(line?: number): Promise<string | null>;
+  preview(line?: number): Promise<ProgramAddress | null>;
   /** Re-render a (possibly edited) source into the same overlay via the same
-   *  reconciling UIManager — models a live-preview edit. */
-  rerender(newSource: string, line?: number): Promise<void>;
-  jumpTo(path: string): void;
+   *  reconciling UIManager — models a live-preview edit. `afterConnect` sees
+   *  the page once the connect and its restore have settled, before the
+   *  preview writes the beat: what the page can paint while the display waits
+   *  for its beat. `connectOnly` stops there, as a display another display
+   *  takes over does, with no preview and no sweep. */
+  rerender(
+    newSource: string,
+    line?: number,
+    opts?: { afterConnect?: () => void; connectOnly?: boolean },
+  ): Promise<void>;
+  /** Reset the story to the top of a flow named by its qualified name. */
+  jumpTo(flow: string): void;
   nextBeat(): Instructions | undefined;
   display(instructions: Instructions, instant: boolean): Promise<void>;
   /** Serialize the overlay DOM into a stable, id-normalized tree snapshot. */
   snapshotDOM(): unknown;
 }
 
-/** A fixture's program. With `programChunks`, the program is compiled to
- *  statement chunks for the binary program's engine (#692), and a fixture
- *  that falls back to the current engine is refused. */
-export function compile(source: string, programChunks = false) {
+/** A fixture's program, compiled to statement chunks for the binary
+ *  program's engine (#692); a fixture the compile makes no chunks for is
+ *  refused, with the errors it reported. */
+export function compile(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     // Builtins come from the implicitly-imported builtins prelude (the compiler
@@ -70,7 +80,6 @@ export function compile(source: string, programChunks = false) {
     // The engine sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
-    programChunks,
     files: [
       {
         uri: MAIN_URI,
@@ -84,14 +93,12 @@ export function compile(source: string, programChunks = false) {
     ],
   });
   const result = compiler.compile({ textDocument: { uri: MAIN_URI } });
-  if (programChunks) {
-    if (!result.program.chunks) {
-      throw new Error(
-        `DOM fixture falls back to the current engine for ${result.program.fallback?.construct}`,
-      );
-    }
-  } else if (!result.program.compiled) {
-    throw new Error("DOM fixture failed to compile");
+  if (!result.program.chunks) {
+    const errors = Object.values(result.program.diagnostics ?? {})
+      .flat()
+      .filter((d) => d.severity === 1)
+      .map((d) => `${d.range.start.line}: ${typeof d.message === "string" ? d.message : d.message.value}`);
+    throw new Error(`DOM fixture made no program: ${errors.join("; ")}`);
   }
   return result.program;
 }
@@ -291,16 +298,20 @@ export function createDOMHarness(
   startLine = 0,
   opts?: {
     reactive?: boolean;
+    /** Compose each display and each played beat into one `ui/beat`, as the
+     *  worker that shows the preview and PLAY does (#1820). */
+    compose?: boolean;
     autoOpenAll?: boolean;
     /** Load a saved checkpoint before the connect, as the page does when it
      *  displays a preview from the worker's route. */
     loadCheckpoint?: string;
-    /** Run the game on the binary program's engine (`compile`). */
-    programChunks?: boolean;
+    /** Called once the page has handled each message the game sends. The
+     *  page handles each message as a task of its own, and a frame can
+     *  render between any two, so this sees every state a frame can show. */
+    afterEachMessage?: (message: any) => void;
   },
 ): DOMHarness {
-  const programChunks = opts?.programChunks ?? false;
-  const program = compile(source, programChunks);
+  const program = compile(source);
   const { overlay } = installJSDOM();
 
   // Timers armed with a real delay (an asset gate's timeout, the loading
@@ -311,8 +322,8 @@ export function createDOMHarness(
   const makeGame = (prog: any) => {
     const g = new Game({
       program: prog,
-      programChunks,
       previewFrom: { file: MAIN_URI, line: startLine },
+      composeBeats: opts?.compose,
       now: () => 0,
       setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
         if (ms != null && ms > 0) {
@@ -349,6 +360,9 @@ export function createDOMHarness(
   const stubApp = createStubApp(overlay, (message) => {
     game.connection.receive(cloneMessage(message));
   });
+  // A request a manager meets inside another message is answered through the
+  // router, as `Application.answer` does.
+  stubApp.answer = (message: any, work: Promise<any>) => router.answer(message, work);
 
   // Swapped on rerender (buildApp makes a NEW manager per edit; the overlay DOM
   // persists across the swap).
@@ -369,6 +383,7 @@ export function createDOMHarness(
   let router = makeRouter();
   const sendToConsumer = (msg: any) => {
     router.receive(cloneMessage(msg));
+    opts?.afterEachMessage?.(msg);
   };
 
   if (opts?.loadCheckpoint) {
@@ -399,8 +414,8 @@ export function createDOMHarness(
      * `ui/reconcile-sweep`) runs, so the overlay is patched in place rather than
      * rebuilt. Returns once settled.
      */
-    async rerender(newSource: string, line = startLine) {
-      const newProgram = compile(newSource, programChunks);
+    async rerender(newSource: string, line = startLine, opts) {
+      const newProgram = compile(newSource);
       game = makeGame(newProgram);
       router = makeRouter();
       // Faithfully model GamePlayerController.buildApp on an edit: the OLD
@@ -415,13 +430,17 @@ export function createDOMHarness(
       await ui.onInit();
       await game.connect(sendToConsumer);
       await flushMicrotasks(10);
+      opts?.afterConnect?.();
+      if (opts?.connectOnly) {
+        return;
+      }
       await game.preview(MAIN_URI, line);
       await flushMicrotasks(10);
       game.module.ui.sweepReconcile();
       await flushMicrotasks(10);
     },
-    jumpTo(path: string) {
-      (game as any).jumpToPath(path);
+    jumpTo(flow: string) {
+      game.jumpToFlow(flow);
     },
     nextBeat() {
       const interpreter: any = game.module.interpreter;
@@ -472,6 +491,16 @@ export function createDOMHarness(
       return serializeDOM(overlay);
     },
   };
+}
+
+/** Wait until the page has committed a played beat waiting for the instant
+ *  its text starts revealing (#1820): a real timer, a few milliseconds here. */
+export async function untilShown(overlay: HTMLElement): Promise<void> {
+  await flushMicrotasks(10);
+  for (let i = 0; i < 200 && (overlay as any).__sdBeat != null; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  await flushMicrotasks(10);
 }
 
 export async function flushMicrotasks(rounds = 5): Promise<void> {

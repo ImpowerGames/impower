@@ -1,9 +1,7 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import { Text } from "../Text";
-import { asOrNull } from "../../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
@@ -31,17 +29,11 @@ export class StringExpression extends Expression {
     return "String";
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    container.AddContent(RuntimeControlCommand.BeginString());
-
+  public override PrepareIntoContainer(): void {
     for (const c of this.content) {
-      container.AddContent(c.runtimeObject);
+      c.prepare();
     }
-
-    container.AddContent(RuntimeControlCommand.EndString());
-  };
+  }
 
   // A string of text alone is the text its pieces join to, so it is one
   // pushed string: the capture the runtime objects build it in writes its

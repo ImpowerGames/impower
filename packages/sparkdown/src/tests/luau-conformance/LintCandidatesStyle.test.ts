@@ -77,7 +77,7 @@ print(math.max(1,
 });
 
 // Luau: UnbalancedAssignment
-describe.skip("value lists shorter or longer than the names (not implemented: UnbalancedAssignment)", () => {
+describe("value lists shorter or longer than the names", () => {
   test("pcall() with 1 to 4 values for 3 names", () => {
     expect(
       lintInFunction(`

@@ -1,7 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
@@ -52,12 +52,10 @@ import { isTrivia, lineTextSpan, makeSource } from "./validateDefineStructure";
 // A `while` or `for` loop ends after its `do` block, whose `end` closes both,
 // so an unclosed `do` block that belongs to a loop is reported as the loop.
 //
-// A `repeat` loop closes at `until`, never at `end`, so it is checked only
-// against its own node and the `until` that follows it. It is reported only
-// when neither an `until` follows it nor more `until`s lie inside it than
-// nested `repeat`s to take them: a `repeat` whose `until` the grammar reads
-// inside one of its statements is a parse defect (#1092), and telling the
-// author an `until` they wrote is missing would mislead them.
+// A `repeat` loop closes at `until`, never at `end`, and takes its `until`
+// into its `_end` node as a block takes its `end`, so it is checked against
+// its own node alone. A `repeat` nested in another takes the first `until`,
+// so the loop left open is the outer one, as Luau reports it.
 
 const END_BLOCKS: Readonly<Record<string, string>> = {
   LuauFunctionDefinition: "function",
@@ -148,52 +146,17 @@ function skippable(node: SyntaxNode): boolean {
   );
 }
 
-function countDescendants(node: SyntaxNode, names: Set<string>): number {
-  let count = 0;
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (names.has(child.name)) count++;
-    count += countDescendants(child, names);
-  }
-  return count;
+// The `until` keyword inside a `repeat` loop's `_end` node, if it has one.
+export function untilKeywordOf(repeat: SyntaxNode): SyntaxNode | null {
+  const endNode = findChildByName(repeat, `${repeat.name}_end`);
+  if (!endNode || endNode.from === endNode.to) return null;
+  const keyword = getDescendent("LuauUntilKeyword", endNode);
+  return keyword && keyword.to <= endNode.to ? keyword : null;
 }
 
-const UNTIL = nodeNameSet(["LuauUntilStatement"]);
-
-// How many more `until`s lie inside `repeat` than `repeat` loops nested in it
-// to take them.
-function untilsLeftInside(repeat: SyntaxNode): number {
-  return countDescendants(repeat, UNTIL) - countDescendants(repeat, REPEAT_LOOPS);
-}
-
-// Whether the grammar read the loop's own `until` into one of its statements
-// (#1092), as in `repeat & local z = 1 until true`, which
-// `lowerLuauRepeatLoop` reports. An `until` inside a nested `repeat`, or
-// inside a block left without its `end` (which took the `until` and reports
-// itself), is not one; an `until` read into a statement inside a closed block
-// is.
-export function untilReadIntoStatement(repeat: SyntaxNode): boolean {
-  if (untilsLeftInside(repeat) <= 0) return false;
-  const inStatement = (node: SyntaxNode): boolean => {
-    for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (UNTIL.has(child.name)) return true;
-      if (REPEAT_LOOPS.has(child.name)) continue;
-      if (END_BLOCKS[child.name] && !endKeywordOf(child)) continue;
-      if (inStatement(child)) return true;
-    }
-    return false;
-  };
-  return inStatement(repeat);
-}
-
-// Whether the `until`s that follow `repeat` or lie inside it are enough for
-// it and the `repeat` loops nested in it. The grammar can end nested loops at
-// the same `until` and hang it after the outermost, where Luau gives it to the
-// innermost, so the count decides rather than where each `until` sits.
+// Whether a `repeat` loop took its `until`, as a block takes its `end`.
 function hasUntil(repeat: SyntaxNode): boolean {
-  let next = repeat.nextSibling;
-  while (next && skippable(next)) next = next.nextSibling;
-  const following = next && UNTIL.has(next.name) ? 1 : 0;
-  return following + untilsLeftInside(repeat) > 0;
+  return untilKeywordOf(repeat) !== null;
 }
 
 // The `end` keyword inside a block's `_end` node, if it has one.
@@ -204,16 +167,75 @@ function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
   return keyword && keyword.to <= endNode.to ? keyword : null;
 }
 
+// A function body's stray `else`, `elseif` or `until` is a closer no block
+// owns.
+const CLOSER_KEYWORDS = nodeNameSet(["LuauEndKeyword", "LuauElseKeyword", "LuauElseifKeyword", "LuauUntilKeyword", "LuauStrayCloser"]);
+
+// The story blocks of `END_BLOCKS` and `REPEAT_LOOPS`.
+const STORY_BLOCKS = nodeNameSet([
+  "LuauSparkdownIfBlock",
+  "LuauSparkdownDoBlock",
+  "LuauSparkdownRepeatLoop",
+]);
+
+// The node after `node` in the document, past trivia, from the first of its
+// following siblings or of its ancestors' that has one; null where only
+// the chunk's end follows.
+function nextAfter(node: SyntaxNode): SyntaxNode | null {
+  for (let at: SyntaxNode | null = node; at; at = at.parent) {
+    let next = at.nextSibling;
+    while (next && skippable(next)) next = next.nextSibling;
+    if (next) return next;
+  }
+  return null;
+}
+
+// The first token of a node that is not trivia, or null for none.
+function firstToken(node: SyntaxNode): SyntaxNode | null {
+  if (skippable(node)) return null;
+  if (!node.firstChild) return node;
+  for (let child: SyntaxNode | null = node.firstChild; child; child = child.nextSibling) {
+    const token = firstToken(child);
+    if (token) return token;
+  }
+  return null;
+}
+
+// Whether the grammar closed a block, with nothing in its `_end`, before a
+// closer that is not its own (`own`) and that a Luau block around it holds,
+// as an `if` with no `end` before its `repeat`'s `until` (#1209). Luau's
+// reading of the chunk reports the block left open at that closer
+// (`readLuauAst.ts`), as Luau does, so it is not reported here. A closer
+// the chunk does not hold is left to this validator, and so is a story
+// block that closed before its `repeat`'s `until`, which keeps the
+// validator's own report.
+function closedBeforeOuterCloser(node: SyntaxNode, own: ReadonlySet<string>, chunk: SyntaxNode): boolean {
+  if (STORY_BLOCKS.has(node.name)) return false;
+  const endNode = findChildByName(node, `${node.name}_end`);
+  if (!endNode || endNode.from !== endNode.to) return false;
+  const next = nextAfter(endNode);
+  if (!next || next.to > chunk.to) return false;
+  const closer = firstToken(next);
+  return !!closer && CLOSER_KEYWORDS.has(closer.name) && !own.has(closer.name);
+}
+
+const OWNS_END = nodeNameSet(["LuauEndKeyword"]);
+const OWNS_UNTIL = nodeNameSet(["LuauUntilKeyword"]);
+
 // Checks the blocks of one chunk that the chunk's own nodes show to be open:
 // those cut off before a `scene` or `branch`, and `repeat` loops with no
 // `until`. A `repeat` left open is reported as the outermost of the loops
-// that share the `until`s it holds, as Luau reports it, and the loops inside
-// it are not reported again. A `repeat` cut off at a line the grammar cannot
-// read as Luau, whose `until` follows as a root-level chunk of its own, is
-// `validateOpenBlocks`'s to check.
+// left open, as Luau reports it, and the loops inside it are not reported
+// again. A `repeat` cut off where its body cannot go on, which a root-level
+// `end` after the chunk reaches, is `validateOpenBlocks`'s to check.
+//
+// A node `skip` names holds no block this checks (`holdsCheckedBlock`), and
+// is not walked: a statement served from its memo (#656), which the chunk's
+// last lowering found to hold none, as its syntax still does.
 export function validateBlockEnds(
   chunk: SyntaxNode,
   ctx: LowerContext,
+  skip?: (node: GrammarSyntaxNode<SparkdownNodeName>) => boolean,
 ): InkDiagnostic[] {
   const diagnostics: InkDiagnostic[] = [];
   const cutOff = new Set(
@@ -222,10 +244,15 @@ export function validateBlockEnds(
       .map((block) => block.header.from),
   );
   const visit = (node: SyntaxNode, insideOpenRepeat: boolean) => {
+    if (skip?.(node as GrammarSyntaxNode<SparkdownNodeName>)) return;
     const block = asBlock(node);
     let openRepeat = insideOpenRepeat;
     if (block) {
-      if (!endKeywordOf(node) && (block.bounded || findChildByName(node, `${node.name}_end`))) {
+      if (
+        !endKeywordOf(node) &&
+        (block.bounded || findChildByName(node, `${node.name}_end`)) &&
+        !closedBeforeOuterCloser(node, OWNS_END, chunk)
+      ) {
         report(diagnostics, block.header, block.bounded
           ? boundedMissingMessage(block.label, "end") : missingEndMessage(block.label), ctx);
       }
@@ -233,7 +260,11 @@ export function validateBlockEnds(
       REPEAT_LOOPS.has(node.name) &&
       !insideOpenRepeat &&
       !cutOff.has(node.from) &&
-      !hasUntil(node)
+      !hasUntil(node) &&
+      // As for a block above: a loop the grammar closed before a closer of
+      // a block around it (`repeat … end`) is Luau's reading's to report.
+      (BOUNDED_BLOCKS.has(node.name) || findChildByName(node, `${node.name}_end`)) &&
+      !closedBeforeOuterCloser(node, OWNS_UNTIL, chunk)
     ) {
       openRepeat = true;
       report(diagnostics, node, BOUNDED_BLOCKS.has(node.name)
@@ -247,24 +278,34 @@ export function validateBlockEnds(
   return diagnostics;
 }
 
-// The blocks a root-level chunk leaves open for later root-level `end`s (or,
-// for a `repeat`, `until`s) to close, outermost first. Only a block with no
-// `_end` node is open this way, and every such block holds the point where the
-// grammar stopped reading it, so they all lie on the path through each node's
-// last child that has text. A `repeat` on that path with no `until` of its own is cut off the same way.
+// Whether `node` is, or holds, a block `validateBlockEnds` checks: one that
+// ends at `end`, or a `repeat` loop. A node that holds none gives it nothing
+// to report, whatever stands around it.
+export function holdsCheckedBlock(node: GrammarSyntaxNode<SparkdownNodeName>): boolean {
+  if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name)) return true;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (holdsCheckedBlock(child as GrammarSyntaxNode<SparkdownNodeName>)) return true;
+  }
+  return false;
+}
+
+// The blocks a root-level chunk leaves open for later root-level `end`s to
+// close, outermost first. Only a block with no `_end` node is open this way,
+// and every such block holds the point where the grammar stopped reading it,
+// so they all lie on the path through each node's last child that has text.
+// A `repeat` on that path with no `until` of its own is cut off the same way,
+// and an `end` that reaches it leaves it without its `until`.
 function openChain(root: SyntaxNode): Block[] {
   const chain: Block[] = [];
   let node: SyntaxNode | null = root;
   while (node) {
     if (BOUNDED_BLOCKS.has(node.name)) {
       // Its missing closer belongs to this explicit line, never a later
-      // root-level end/until. Still descend to any real function body.
+      // root-level end. Still descend to any real function body.
     } else if (END_BLOCKS[node.name]) {
       if (findChildByName(node, `${node.name}_end`)) break;
       chain.push(asBlock(node)!);
     } else if (REPEAT_LOOPS.has(node.name) && !hasUntil(node)) {
-      // A `repeat` whose `until` the grammar kept inside it is closed, even
-      // when a block inside it is not.
       chain.push({ header: node, label: "`repeat` loop", closer: "until" });
     }
     let child: SyntaxNode | null = node.lastChild;
@@ -313,8 +354,9 @@ type OpenEntry =
 // chunks leave open for a later root-level `end` to close, whether the chunk
 // is itself a block or holds one (a function value in a `store`), and warns
 // about text after a root-level block's `end`. Each root-level
-// `end` closes the innermost block, scene or branch still open, and each
-// root-level `until` the innermost `repeat` cut off at such a line. A `branch`
+// `end` closes the innermost block, scene or branch still open; no
+// root-level `until` closes a `repeat`, since only a loop's own end reads
+// `until` (`LuauRepeatLoop`). A `branch`
 // sets aside every block still open before it, and a `scene` or the end of
 // the document every block, scene and branch. Scenes and branches take part
 // so that their own `end`s are not counted as a block's: one left open after
@@ -359,25 +401,6 @@ export function validateOpenBlocks(
     } else if (node.name === "Branch") {
       closeAbove((entry) => entry.kind === "scene");
       open.push({ kind: "branch" });
-    } else if (UNTIL.has(node.name)) {
-      // An `until` closes the innermost `repeat` open since the last scene or
-      // branch; the blocks opened inside that `repeat` and still open are
-      // left without their `end`s.
-      let repeat = open.length - 1;
-      while (repeat >= 0) {
-        const entry = open[repeat]!;
-        if (entry.kind !== "block") {
-          repeat = -1;
-        } else if (entry.block.closer === "until") {
-          break;
-        } else {
-          repeat--;
-        }
-      }
-      if (repeat >= 0) {
-        while (open.length > repeat + 1) reportEntry(open.pop()!);
-        open.pop();
-      }
     } else if (node.name === "LuauEndKeyword") {
       // An `end` cannot close a `repeat`, so a `repeat` still open inside the
       // block it reaches is left without its `until`.

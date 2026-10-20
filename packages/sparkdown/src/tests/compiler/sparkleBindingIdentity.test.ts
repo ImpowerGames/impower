@@ -37,14 +37,14 @@ function compileFiles(files: Record<string, string>) {
 }
 
 const bindingIds = (program: unknown): string[] => [
-  ...new Set(JSON.stringify(program).match(/__binding_[A-Za-z0-9_]+/g) ?? []),
+  ...new Set(JSON.stringify(program).match(/__binding\$[A-Za-z0-9_]+/g) ?? []),
 ];
 
 describe("binding ids are unique across files", () => {
   // The id was the node's byte offset within its OWN file, but every hoisted
   // evaluator lands in one flow namespace. Two files whose bindings start at
   // the same offset — near-inevitable for a copy-and-adapt pair of layouts —
-  // both minted `__binding_35`.
+  // both minted `__binding_35` (now `__binding$35`).
   const FILES = {
     main: `include fa.sd\ninclude fb.sd\n-> END\n`,
     fa: `store a = 1\nlayout la with\n  text "{a}"\nend\n`,

@@ -7,6 +7,7 @@ import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
+import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -37,6 +38,9 @@ import {
 } from "../expression/lowerFunction";
 import { lowerStoreBase } from "../utils/lowerPropertyTargetAssignment";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { reportReassignedConst } from "../utils/publishesConst";
+import { resolveFunctionBinding } from "../utils/functionBindings";
+import { offsetAt } from "../utils/luauAst";
 import { syntheticId } from "../utils/documentTag";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
@@ -76,6 +80,8 @@ export function lowerLuauFunctionDefinition(
       : stat.name instanceof AstExprGlobal || stat.name instanceof AstExprLocal
         ? astIdentifier(pathNames(stat.name)![0]!, ctx)
         : null;
+  // `function X()` over a function's `const X` reassigns it: Luau's error.
+  if (stat instanceof AstStatFunction) reportReassignedConst(stat.name, site.node, ctx);
   if (!identifier) return {};
 
   // Detect whether this definition itself is lexically nested —
@@ -104,7 +110,31 @@ export function lowerLuauFunctionDefinition(
     // their `...` when it runs, as every call arranges its arguments
     // (`arrangeArgsFor`). A `local` of the name hides the subflow for
     // the rest of its block (`shadowSiblingSubFlow`).
-    if (!func.vararg) {
+    //
+    // A name that is already a variable here keeps one binding: the
+    // variadic definition assigns that variable a closure, as a
+    // non-variadic one does, so a closure that captured it, a call inside
+    // either body and a later `NAME = <expr>` all see the same value. A
+    // subflow of the name beside the variable would be a second binding
+    // that diverts reach instead. The variable is a local in scope where
+    // the definition is written (a parameter, a `local`, a local function,
+    // an enclosing function's local: `assignsLocal`), or the local a
+    // non-variadic `function NAME` in this body declares. A statement
+    // read on its own can see a parameter's name as a global, so the
+    // scope is asked by position as well (`resolveFunctionBinding`).
+    const assignsLocal =
+      stat instanceof AstStatFunction &&
+      (stat.name instanceof AstExprLocal ||
+        resolveFunctionBinding(
+          identifier.name ?? "",
+          offsetAt(stat.name.location.begin, ctx),
+          ctx,
+        ) !== undefined);
+    if (
+      !func.vararg ||
+      assignsLocal ||
+      namesVariable(identifier.name ?? "", ctx)
+    ) {
       return lowerNestedNamedFunction(
         func,
         node,
@@ -112,18 +142,25 @@ export function lowerLuauFunctionDefinition(
         ctx,
         enclosingScope,
         isLocal,
+        assignsLocal,
       );
     }
     return lowerNestedAsSubFlow(func, node, identifier, ctx, enclosingScope);
   }
 
   const args = functionArguments(func);
+  // The names the body reads that no scope of its own binds, which its
+  // entry binds to the top-level locals of those names (`RootBinding`): a
+  // function written at the top level reads and writes a top-level local as
+  // Luau's upvalue, though it is built before the local exists.
+  const rootNames = freeVariables(parameterNames(func), func.body, ctx);
   // The body opens a per-function buffer for any nested callables
   // (function values, nested named functions), so they live as subFlows of
   // this function rather than at the chunk's top level, and stacks this
   // function's own locals so a nested function's capture scan can detect
   // shadowing.
   const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx);
+  hoisted.unshift(...rootNames.map((name) => new RootBinding(name)));
   const knot = new Knot(identifier, [], args, true);
   close(knot);
   // A definition closes at its `end` or just before a following `scene` or
@@ -173,6 +210,7 @@ function lowerNestedNamedFunction(
   ctx: LowerContext,
   enclosingScope: ParsedObject[],
   isLocal: boolean,
+  assignsLocal = false,
 ): CompiledBlock {
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   const upvals = freeVariables(parameterNames(func), func.body, ctx);
@@ -209,6 +247,19 @@ function lowerNestedNamedFunction(
   // reassignment walks the enclosing function's scope chain
   // innermost-first and lands on the hoisted slot.
   const hoistBuf = ctx.hoistedNestedFnDeclsStack?.at(-1);
+  // A name the converter reads as a local in scope (a parameter, a
+  // `local`, an enclosing function's local) is that local: the definition
+  // assigns it, as Luau's does, and declares nothing that would hide it
+  // from the lines before.
+  if (!isLocal && assignsLocal) {
+    return wrapInWeave([
+      new VariableAssignment({
+        variableIdentifier: identifier,
+        assignedExpression: closureValue,
+        isTemporaryNewDeclaration: false,
+      }),
+    ]);
+  }
   if (!isLocal && hoistBuf) {
     // Dedupe: when the enclosing function defines `function NAME end`
     // more than once (Luau allows function redefinition — the last
@@ -240,6 +291,11 @@ function lowerNestedNamedFunction(
   // hides a variadic function of its name for the rest of its block.
   shadowSiblingSubFlow(selfName, ctx);
   if (isSelfReferential) {
+    // The body calls the function by its name, so the name is declared
+    // before the closure is built and the closure is assigned after. The
+    // assignment is the declaration's initializer, not a write to the
+    // variable: a data breakpoint on a variable of the same name declared
+    // before it does not hear it (#1720).
     const declareNil = new VariableAssignment({
       variableIdentifier: new Identifier(selfName),
       assignedExpression: new NullExpression(),
@@ -249,6 +305,7 @@ function lowerNestedNamedFunction(
       variableIdentifier: new Identifier(selfName),
       assignedExpression: closureValue,
       isTemporaryNewDeclaration: false,
+      isDeclarationInitializer: true,
     });
     return wrapInWeave([declareNil, assignClosure]);
   }
@@ -359,6 +416,14 @@ function isWrittenInFunctionBody(node: SyntaxNode): boolean {
     }
   }
   return false;
+}
+
+// Whether `name` is a variable where the function being lowered is: a
+// local of it or of a function around it, which includes the local a
+// non-variadic `function name` anywhere in its body declares
+// (`immediateBodyDeclarations`).
+function namesVariable(name: string, ctx: LowerContext): boolean {
+  return ctx.declaredLocalsStack?.some((frame) => frame.has(name)) ?? false;
 }
 
 // `function a.f(p) BODY end` and `function a:m(p) BODY end`. Lua

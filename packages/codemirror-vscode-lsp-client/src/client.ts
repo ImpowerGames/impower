@@ -15,6 +15,15 @@ import { Transport } from "./transport";
 import { versioning } from "./version";
 import { DefaultWorkspace, Workspace, WorkspaceFile } from "./workspace";
 
+/// The error a request rejects with when the server has not answered it
+/// within the client's timeout. A late answer to it is dropped.
+export class RequestTimeoutError extends Error {
+  constructor() {
+    super("Request timed out");
+    this.name = "RequestTimeoutError";
+  }
+}
+
 class Request<Result> {
   declare resolve: (result: Result) => void;
   declare reject: (error: any) => void;
@@ -671,7 +680,7 @@ export class LSPClient {
       id,
       params,
       self.setTimeout(() => {
-        req.reject(new Error("Request timed out"));
+        req.reject(new RequestTimeoutError());
         if (cancellationToken) {
           this.cancellationTokens.delete(cancellationToken);
         }

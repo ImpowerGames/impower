@@ -13,13 +13,14 @@ import {
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { programListing, stringCount } from "../programListing";
+import type { TestStory } from "../engineUnderTest";
 
 const NOT_JOINED =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
 // Each step's text, and every runtime error and warning the run raised.
-function run(story: RuntimeStory): { texts: string[]; warnings: string[] } {
+function run(story: TestStory): { texts: string[]; warnings: string[] } {
   const warnings: string[] = [];
   story.onError = (message) => {
     warnings.push(message.replace(/^RUNTIME WARNING: .*?: /, ""));
@@ -64,31 +65,16 @@ function diagnosticsOf(source: string) {
     .filter((message) => !message.startsWith("Cannot find character"));
 }
 
-// The compiled program's tokens, flattened, with every nested container
-// visited.
-function tokens(json: unknown): unknown[] {
-  const out: unknown[] = [];
-  const visit = (value: unknown): void => {
-    if (Array.isArray(value)) {
-      for (const item of value) visit(item);
-    } else if (value && typeof value === "object") {
-      out.push(value);
-      for (const item of Object.values(value)) visit(item);
-    } else {
-      out.push(value);
-    }
-  };
-  visit(json);
-  return out;
-}
-
+// What the compiled program holds: how many display tables carry
+// `continues`, read from the keys its chunks push (`programListing`). The
+// program's instruction set has no instruction for ink's glue, so no join
+// can emit one.
 function programShape(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
-  const all = tokens(ctx.compiledJson);
+  const all = programListing(ctx.root);
   return {
-    glue: all.filter((t) => t === "<>").length,
-    continues: all.filter((t) => t === "^continues").length,
+    continues: stringCount(all, "continues"),
   };
 }
 
@@ -233,7 +219,7 @@ describe("a line that ends with `..` before a line that does not begin with `..`
 // part of the story's state: a click falls between the two steps of `.. >`.
 describe("the offer to join", () => {
   const CLICK = `A .. >\n.. B\n\nscene elsewhere\n  .. C\nend\n\nfunction aside()\n  print("Aside.")\nend\n`;
-  const continuesOf = (story: RuntimeStory) =>
+  const continuesOf = (story: TestStory) =>
     story.currentDisplayInstructions.map(
       (table) =>
         (table.value?.get("continues") as { value?: unknown } | undefined)
@@ -303,18 +289,6 @@ test("after a break in a `load` statement, the text beat joins", () => {
 });
 
 describe("the compiled program", () => {
-  test("emits no Glue for a `..`", () => {
-    for (const source of [
-      EXAMPLE,
-      `A ..\n.. B\n`,
-      `ALICE:\n  A ..\n  .. B\n`,
-      `A -> s\n\nscene s\n  .. B\nend\n`,
-      `store x = 0\nA ..\n& x = 1\n.. B\n`,
-    ]) {
-      expect(programShape(source).glue).toBe(0);
-    }
-  });
-
   test("marks `continues` on each line that begins with `..`, except inside a block body", () => {
     for (const [source, continues] of [
       [EXAMPLE, 2],

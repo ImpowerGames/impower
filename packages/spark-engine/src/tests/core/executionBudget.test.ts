@@ -15,6 +15,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -35,14 +36,8 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 function longScene(beats: number): string {
@@ -63,8 +58,6 @@ function longScene(beats: number): string {
 const newGame = (program: unknown, executionStepLimit?: number) =>
   new Game({
     program: program as any,
-    incrementalCheckpoints: true,
-    verifyCheckpoints: false,
     now: () => performance.now(),
     ...(executionStepLimit ? { executionStepLimit } : {}),
     setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
@@ -84,11 +77,11 @@ const previewLastBeat = (program: unknown, beats: number, limit?: number) => {
   };
 
   game.setStartFrom({ file: URI, line: beats + 1 });
-  const toPath = anyGame.startPath as string;
+  const toPath = anyGame.startAddress!;
   const route = Game.planRoute(
     game.story,
     program as any,
-    Game.getSimulateFromPath(toPath),
+    anyGame.routeStartOf(toPath),
     toPath,
   );
   if (route) {
@@ -118,8 +111,9 @@ describe("a long scene replays to its end", () => {
     expect(result.simulation).toBe("success");
     expect(result.errors).toEqual([]);
     // However long it took, the replay was ordinary work: comfortably inside
-    // the ceiling, which is what makes the verdict machine-independent.
-    expect(result.advancesUsed).toBeGreaterThan(100_000);
+    // the ceiling, which is what makes the verdict machine-independent. The
+    // program engine spends about 8 advances on a display line.
+    expect(result.advancesUsed).toBeGreaterThan(50_000);
     expect(result.advancesUsed).toBeLessThan(500_000);
   }, 300_000);
 });
@@ -136,8 +130,6 @@ describe("no clock governs execution", () => {
     let calls = 0;
     const game = new Game({
       program: program as any,
-      incrementalCheckpoints: true,
-      verifyCheckpoints: false,
       // Real for a moment, then far past any plausible deadline.
       now: () => (calls++ < 2 ? 0 : 60 * 60 * 1000),
       setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
@@ -154,11 +146,11 @@ describe("no clock governs execution", () => {
     };
 
     game.setStartFrom({ file: URI, line: beats + 1 });
-    const toPath = anyGame.startPath as string;
+    const toPath = anyGame.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      anyGame.routeStartOf(toPath),
       toPath,
     );
     expect(route).toBeTruthy();
@@ -207,7 +199,9 @@ describe("a replay that runs away is still stopped", () => {
     expect(generous.simulation).toBe("success");
     expect(generous.errors).toEqual([]);
 
-    // The same scene, with a ceiling deliberately below its cost.
+    // The same scene, with a ceiling deliberately below its cost. The ceiling
+    // stops the replay part way through a line, and the replay still returns
+    // its last checkpoint (#1693).
     const starved = previewLastBeat(program, beats, 50);
     expect(starved.simulation).not.toBe("success");
     expect(starved.errors.join("\n")).toContain("possible infinite loop");

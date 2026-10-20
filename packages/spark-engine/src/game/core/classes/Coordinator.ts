@@ -203,6 +203,16 @@ export class Coordinator<G extends Game> {
     // `time` is when a played beat starts on the shared clock; an instant or
     // simulated display has none and shows as soon as the page handles it.
     const updateUI = (time?: number) => {
+      // The beat goes to the page as one composed `ui/beat` (#1820), which
+      // the page puts up at the instant its text starts revealing. A beat a
+      // preview displays is part of the preview's own, which its sweep sends.
+      const composed = game.module.ui.beginCompose();
+      writeUI(time);
+      if (composed) {
+        void game.module.ui.endCompose(time != null ? { time } : {});
+      }
+    };
+    const writeUI = (time?: number) => {
       // A beat that carries on in the box writes the whole box again; one
       // with no text of its own (pictures or sound only) leaves it as it is.
       if (!extended || instructions.text) {
@@ -265,7 +275,9 @@ export class Coordinator<G extends Game> {
         // without their transitions.
         const settle = !!instant || Boolean(game.context.system.simulating);
         Object.values(instructions.layout).forEach((events) =>
-          game.module.ui.applyLayoutInstructions(events, settle),
+          game.module.ui.composeWait(
+            game.module.ui.applyLayoutInstructions(events, settle),
+          ),
         );
       }
 
@@ -318,8 +330,9 @@ export class Coordinator<G extends Game> {
         // The beat is on the page: the preview's prediction window follows
         // the cursor from here (sent once per cursor position; the beat's
         // own pictures were waited for by the preview before it displayed
-        // the beat, since there is no clock to wait on here).
-        assets.onBeatDisplayed();
+        // the beat, since there is no clock to wait on here). A composed beat
+        // is on the page once it has been sent (#1820).
+        game.module.ui.afterCompose(() => assets.onBeatDisplayed());
       }
       return;
     }
@@ -357,8 +370,9 @@ export class Coordinator<G extends Game> {
           // count.
           elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
           // The page has the beat and shows it at its stamp: move the
-          // prediction window past it.
-          assets.onBeatDisplayed();
+          // prediction window past it. A composed beat is on the page once it
+          // has been sent, and its pictures stay pinned until then (#1820).
+          game.module.ui.afterCompose(() => assets.onBeatDisplayed());
         }
       } else if (!finished) {
         elapsedMS += deltaMS;

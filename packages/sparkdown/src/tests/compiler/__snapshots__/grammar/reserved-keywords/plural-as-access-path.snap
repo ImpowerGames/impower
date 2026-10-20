@@ -9,18 +9,18 @@ sparkdown [0..36]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauSparkdownVariableDefinition_content [6..35]
- │   │   └─ LuauVariableAssignment [6..35]
- │   │       ├─ LuauVariableAssignment_begin [6..15]
- │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..14]
+ │   │   └─ LuauSparkdownVariableAssignment [6..35]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [6..15]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [6..14]
  │   │       │   │   └─ LuauVariableName [6..14]: "category"
- │   │       │   └─ LuauVariableAssignment_begin_c2 [14..15]
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [14..15]
  │   │       │       └─ OptionalWhitespace [14..15]: " "
- │   │       ├─ LuauVariableAssignment_content [15..35]
- │   │       │   └─ LuauAssignmentOperation [15..35]
- │   │       │       ├─ LuauAssignmentOperation_begin 15
- │   │       │       │   └─ LuauAssignmentOperation_begin_c1 15
+ │   │       ├─ LuauSparkdownVariableAssignment_content [15..35]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [15..35]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 15
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 15
  │   │       │       │       └─ OptionalWhitespace 15
- │   │       │       ├─ LuauAssignmentOperation_content [15..35]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [15..35]
  │   │       │       │   ├─ LuauAssignmentOperator [15..17]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [15..17]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 15
@@ -30,14 +30,14 @@ sparkdown [0..36]
  │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [16..17]
  │   │       │       │   │   │           └─ OptionalWhitespace [16..17]: " "
  │   │       │       │   │   └─ LuauAssignmentOperator_end 17
- │   │       │       │   ├─ LuauAccessPath [17..32]
- │   │       │       │   │   ├─ LuauAccessPath_begin 17
- │   │       │       │   │   ├─ LuauAccessPath_content [17..32]
- │   │       │       │   │   │   ├─ LuauAccessPart [17..23]
+ │   │       │       │   ├─ LuauSparkdownExplicitAccessPath [17..32]
+ │   │       │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 17
+ │   │       │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [17..32]
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitAccessPart [17..23]
  │   │       │       │   │   │   │   └─ LuauVariable [17..23]
  │   │       │       │   │   │   │       └─ LuauVariable_c1 [17..23]
  │   │       │       │   │   │   │           └─ LuauStdLibConstants [17..23]: "plural"
- │   │       │       │   │   │   └─ LuauAccessPart [23..32]
+ │   │       │       │   │   │   └─ LuauSparkdownExplicitAccessPart [23..32]
  │   │       │       │   │   │       └─ LuauFunctionAccessor [23..32]
  │   │       │       │   │   │           ├─ LuauFunctionAccessor_c1 23
  │   │       │       │   │   │           ├─ LuauFunctionAccessor_c2 [23..24]
@@ -46,8 +46,8 @@ sparkdown [0..36]
  │   │       │       │   │   │           ├─ LuauFunctionAccessor_c4 [24..32]
  │   │       │       │   │   │           │   └─ LuauFunctionName [24..32]: "category"
  │   │       │       │   │   │           └─ LuauFunctionAccessor_c5 32
- │   │       │       │   │   └─ LuauAccessPath_end 32
- │   │       │       │   │       └─ LuauAccessPath_end_c1 32
+ │   │       │       │   │   └─ LuauSparkdownExplicitAccessPath_end 32
+ │   │       │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 32
  │   │       │       │   └─ LuauParenthetical [32..35]
  │   │       │       │       ├─ LuauParenthetical_begin [32..33]
  │   │       │       │       │   └─ LuauParenthetical_begin_c1 [32..33]
@@ -66,7 +66,7 @@ sparkdown [0..36]
  │   │       │       │           ├─ LuauParenthetical_end_c1 [34..35]
  │   │       │       │           │   └─ PunctuationParenClose [34..35]: ")"
  │   │       │       │           └─ LuauParenthetical_end_c2 35
- │   │       │       └─ LuauAssignmentOperation_end 35
- │   │       └─ LuauVariableAssignment_end 35
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 35
+ │   │       └─ LuauSparkdownVariableAssignment_end 35
  │   └─ LuauSparkdownVariableDefinition_end 35
  └─ Newline [35..36]: "\n"

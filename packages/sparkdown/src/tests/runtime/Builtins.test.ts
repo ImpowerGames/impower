@@ -15,7 +15,11 @@
 // are skipped with notes.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromFile, runToEnd } from "./runtimeTestHarness";
+import {
+  makeRuntimeStoryFromFile,
+  runToEnd,
+  visitCountOf,
+} from "./runtimeTestHarness";
 
 describe("Builtins (ported from inkjs)", () => {
   test("count.turns() returns the current turn count", () => {
@@ -138,17 +142,9 @@ describe("Builtins (ported from inkjs)", () => {
     // Sparkdown rewrite uses nested `choose ... then ... end` blocks
     // instead of `*` / `* *` shortcut nesting. The outer choice carries
     // label `(then)`. `count.turns(-> then)` is the luau alias for
-    // ink's `TURNS_SINCE(-> then)`. `countAllVisits: true` forces visit
-    // bookkeeping on the labeled choice container — without it the
-    // compiler only tracks containers that appear in a `READ_COUNT` /
-    // `{name}` lookup, and the `TURNS_SINCE` builtin reads visit
-    // counts at runtime, after compile-time tracking has already been
-    // decided.
-    const ctx = makeRuntimeStoryFromFile(
-      "builtins",
-      "turns-since-nested",
-      { countAllVisits: true },
-    );
+    // ink's `TURNS_SINCE(-> then)`. The program engine keeps the visits of every scene, branch and label,
+    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
+    const ctx = makeRuntimeStoryFromFile("builtins", "turns-since-nested");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("-1 = -1\n");
     expect(ctx.story.currentChoices.length).toBe(1);
@@ -215,49 +211,41 @@ describe("Builtins (ported from inkjs)", () => {
     // `VisitCountAtPathString(name)` before and after `ChoosePathString`,
     // a Continue, a ChooseChoiceIndex, and a second Continue — verifying
     // that visit counts increment only when control actually enters the
-    // named container. The `VisitCountAtPathString` runtime API is
-    // available on `state` (inherited from inkjs's `StoryState`).
+    // named container. The program engine counts every scene, which
+    // `visitCountOf` reads by its name, as the current engine's
+    // `VisitCountAtPathString` read a container's count by its path.
     //
     // Sparkdown rewrite uses `scene` for `=== knot ===` and a
     // single-choice `choose` block for the `* [Next] -> TestKnot2`
     // weave shape. Same observable visit-count semantics.
     //
-    // `countAllVisits: true` mirrors the upstream `compileStory(name, true)`
-    // — without it the compiler only marks containers that the source
-    // references via `READ_COUNT` / `{knot}` / `TURNS_SINCE`. Here the
-    // fixture never reads a visit count inline, so `VisitCountAtPathString`
-    // would return 0 forever. See the `RuntimeTestOptions.countAllVisits`
-    // jsdoc in `runtimeTestHarness.ts`.
-    const ctx = makeRuntimeStoryFromFile(
-      "builtins",
-      "visit-counts-when-choosing",
-      { countAllVisits: true },
-    );
+    // The fixture never reads a visit count inline. The program engine keeps the visits of every scene, branch and label,
+    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
+    const ctx = makeRuntimeStoryFromFile("builtins", "visit-counts-when-choosing");
     expect(ctx.errorMessages).toEqual([]);
-    const state = ctx.story.state;
 
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(0);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.ChoosePathString("TestKnot", true, []);
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.Continue();
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     // The next continue raises the choice, and enters nothing.
     ctx.story.Continue();
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.ChooseChoiceIndex(0);
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
     ctx.story.Continue();
-    expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
-    expect(state.VisitCountAtPathString("TestKnot2")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
+    expect(visitCountOf(ctx.story, "TestKnot2")).toBe(1);
   });
 
   test("visit count bug due to nested containers", () => {
@@ -272,14 +260,9 @@ describe("Builtins (ported from inkjs)", () => {
     // re-entry of `(gather)`).
     //
     // Sparkdown rewrite uses `label gather` (the labeled-flow form) +
-    // `choose` block. `countAllVisits: true` forces visit tracking on
-    // the labeled container so the interpolation can read it without
-    // a `READ_COUNT(...)` reference to force the bookkeeping.
-    const ctx = makeRuntimeStoryFromFile(
-      "builtins",
-      "visit-count-bug-nested-containers",
-      { countAllVisits: true },
-    );
+    // `choose` block. The program engine keeps the visits of every scene, branch and label,
+    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
+    const ctx = makeRuntimeStoryFromFile("builtins", "visit-count-bug-nested-containers");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("1\n");
     expect(ctx.story.Continue()).toBe("");

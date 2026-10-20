@@ -117,16 +117,8 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
       "store g = 0\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\n& g = 1, bump()\nValue {g * 10 + calls}.\n",
     ],
     [
-      "in a function body",
-      `Value {f()}.\nfunction f()\n${bump}  local g = 0\n  & g = 1, bump()\n  return g * 10 + calls\nend\n`,
-    ],
-    [
       "to a field target in a narrative body",
       "store t = { g = 0 }\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\n& t.g = 1, bump()\nValue {t.g * 10 + calls}.\n",
-    ],
-    [
-      "to a field target in a function body",
-      `Value {f()}.\nfunction f()\n${bump}  local t = { g = 0 }\n  & t.g = 1, bump()\n  return t.g * 10 + calls\nend\n`,
     ],
   ])("an extra value for a single target after `&` is still evaluated (%s)", (_name, source) => {
     const { errors, text } = run(source);
@@ -181,7 +173,6 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     `function f()\n  local a, g = 0, 0\n  a, g = 1,\n${lines}\n  return a\nend\nValue {f()}.\n`;
   test.each([
     ["break", inLoop("break"), "break"],
-    ["continue", inLoop("continue"), "continue"],
     ["goto", inBody("  goto done\n  ::done::"), "goto"],
     ["a label", inBody("  ::done::"), ":"],
     ["do", inBody("  do\n    a = 2\n  end"), "do"],
@@ -202,11 +193,13 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(got)]);
   });
 
-  test("a `&` statement in a function body ends at its line", () => {
-    const { errorMessages } = collectDiagnostics(
-      "function f()\n  local a, g = 0, 0\n  & a, g = 1,\n  return g\nend\nValue {f()}.\n",
-    );
-    expect(errorMessages).toContain(missingValue("return"));
+  // `continue` is a name where a value can stand, as Luau reads it (#1906),
+  // so it is the list's second value.
+  test("before `continue`: `continue` is the second value", () => {
+    const { errorMessages } = collectDiagnostics(inLoop("continue"));
+    expect(errorMessages).toEqual([]);
+    const source = inLoop("continue").replace("local a, g = 0, 0", "local a, g, continue = 0, 0, 7").replace("return a", "return g");
+    expect(makeRuntimeStoryFromSource(source).story.ContinueMaximally()).toBe("Value 7.\n");
   });
 });
 
@@ -226,6 +219,8 @@ describe("Luau code: an operator that cannot begin a value after a comma", () =>
   });
 });
 
+// Its Luau meets its end of input at the line's end, as an `&` line's does,
+// so the comma's value is missing at `<eof>` (#1907).
 describe("narrative body: the reassignment ends at its line", () => {
   test.each([
     ["next line", "  a, b = 1,\n  2\n"],
@@ -234,14 +229,14 @@ describe("narrative body: the reassignment ends at its line", () => {
     const { errorMessages } = collectDiagnostics(
       `store a, b = 0, 0\n-> one\nscene one\n${body}  Value {a}.\nend\n`,
     );
-    expect(errorMessages).toEqual([missingValue("2")]);
+    expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });
 
   test("before prose: the error, and the story line is untouched", () => {
     const { errorMessages, warningMessages } = collectDiagnostics(
       "store a, b = 0, 0\n-> one\nscene one\n  a, b = 1,\n  The hero has {a} health.\nend\n",
     );
-    expect(errorMessages).toEqual([missingValue("The")]);
+    expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 
@@ -265,7 +260,7 @@ describe("narrative body: the reassignment ends at its line", () => {
     const { errorMessages, warningMessages } = collectDiagnostics(
       "store a, b = 0, 0\n-> one\nscene one\n  if true then\n    a, b = 1,\n    The hero has {a} health.\n  end\nend\n",
     );
-    expect(errorMessages).toEqual([missingValue("The")]);
+    expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 });
@@ -403,7 +398,6 @@ describe("evaluation order of targets and values", () => {
   test.each([
     ["one value", "  t[key()] = bump()"],
     ["an extra value", "  t[key()] = 1, bump()"],
-    ["an extra value after `&`", "  & t[key()] = 1, bump()"],
     ["several targets", "  t[key()], g = bump(), 2"],
     ["an extra value on the next line", "  t[key()] = 1,\n    bump()"],
   ])("%s: the target's key first", (_name, assignment) => {

@@ -14,8 +14,8 @@ export class AuthorWarning extends ParsedObject {
   // statement runs nothing for it.
   public override EmitProgram(_emitter: ProgramEmitter): void {}
 
-  public readonly GenerateRuntimeObject = (): null => {
+  protected override Prepare(): boolean {
     this.Warning(this.warningMessage);
-    return null;
-  };
+    return false;
+  }
 }

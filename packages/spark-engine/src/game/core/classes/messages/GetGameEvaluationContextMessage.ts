@@ -5,7 +5,13 @@ import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/Response
 export type GetGameEvaluationContextMethod =
   typeof GetGameEvaluationContextMessage.method;
 
-export interface GetGameEvaluationContextParams {}
+export interface GetGameEvaluationContextParams {
+  /** The thread of the frame to evaluate in, by default the one that runs. */
+  threadId?: number;
+  /** The frame to evaluate in, numbered as `game/stackTrace` numbers the
+   *  frames of `threadId`; by default the frame that runs. */
+  frameId?: number;
+}
 
 export interface GetGameEvaluationContextResult {
   context: any;

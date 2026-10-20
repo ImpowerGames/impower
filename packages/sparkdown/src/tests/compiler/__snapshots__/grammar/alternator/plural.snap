@@ -188,5 +188,6 @@ sparkdown [0..166]
          ├─ LuauSparkdownConditionalAlternatorBlock_end_c1 163
          │   └─ LuauSparkdownConditionalAlternatorBlock_end_c1 163
          │       └─ OptionalWhitespace 163
-         └─ LuauSparkdownConditionalAlternatorBlock_end_c2 [163..166]
-             └─ LuauEndKeyword [163..166]: "end"
+         ├─ LuauSparkdownConditionalAlternatorBlock_end_c2 [163..166]
+         │   └─ LuauEndKeyword [163..166]: "end"
+         └─ LuauSparkdownConditionalAlternatorBlock_end_c3 166

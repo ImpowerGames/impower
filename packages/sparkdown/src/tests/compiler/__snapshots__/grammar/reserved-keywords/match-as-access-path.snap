@@ -9,18 +9,18 @@ sparkdown [0..24]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauSparkdownVariableDefinition_content [6..23]
- │   │   └─ LuauVariableAssignment [6..23]
- │   │       ├─ LuauVariableAssignment_begin [6..11]
- │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..10]
+ │   │   └─ LuauSparkdownVariableAssignment [6..23]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [6..11]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [6..10]
  │   │       │   │   └─ LuauVariableName [6..10]: "kind"
- │   │       │   └─ LuauVariableAssignment_begin_c2 [10..11]
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [10..11]
  │   │       │       └─ OptionalWhitespace [10..11]: " "
- │   │       ├─ LuauVariableAssignment_content [11..23]
- │   │       │   └─ LuauAssignmentOperation [11..23]
- │   │       │       ├─ LuauAssignmentOperation_begin 11
- │   │       │       │   └─ LuauAssignmentOperation_begin_c1 11
+ │   │       ├─ LuauSparkdownVariableAssignment_content [11..23]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [11..23]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 11
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 11
  │   │       │       │       └─ OptionalWhitespace 11
- │   │       │       ├─ LuauAssignmentOperation_content [11..23]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [11..23]
  │   │       │       │   ├─ LuauAssignmentOperator [11..13]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [11..13]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 11
@@ -30,14 +30,14 @@ sparkdown [0..24]
  │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [12..13]
  │   │       │       │   │   │           └─ OptionalWhitespace [12..13]: " "
  │   │       │       │   │   └─ LuauAssignmentOperator_end 13
- │   │       │       │   └─ LuauAccessPath [13..23]
- │   │       │       │       ├─ LuauAccessPath_begin 13
- │   │       │       │       ├─ LuauAccessPath_content [13..23]
- │   │       │       │       │   ├─ LuauAccessPart [13..18]
+ │   │       │       │   └─ LuauSparkdownExplicitAccessPath [13..23]
+ │   │       │       │       ├─ LuauSparkdownExplicitAccessPath_begin 13
+ │   │       │       │       ├─ LuauSparkdownExplicitAccessPath_content [13..23]
+ │   │       │       │       │   ├─ LuauSparkdownExplicitAccessPart [13..18]
  │   │       │       │       │   │   └─ LuauVariable [13..18]
  │   │       │       │       │   │       └─ LuauVariable_c1 [13..18]
  │   │       │       │       │   │           └─ LuauVariableName [13..18]: "match"
- │   │       │       │       │   └─ LuauAccessPart [18..23]
+ │   │       │       │       │   └─ LuauSparkdownExplicitAccessPart [18..23]
  │   │       │       │       │       └─ LuauPropertyAccessor [18..23]
  │   │       │       │       │           ├─ LuauPropertyAccessor_c1 18
  │   │       │       │       │           ├─ LuauPropertyAccessor_c2 [18..19]
@@ -45,9 +45,9 @@ sparkdown [0..24]
  │   │       │       │       │           ├─ LuauPropertyAccessor_c3 19
  │   │       │       │       │           └─ LuauPropertyAccessor_c4 [19..23]
  │   │       │       │       │               └─ LuauPropertyName [19..23]: "kind"
- │   │       │       │       └─ LuauAccessPath_end 23
- │   │       │       │           └─ LuauAccessPath_end_c1 23
- │   │       │       └─ LuauAssignmentOperation_end 23
- │   │       └─ LuauVariableAssignment_end 23
+ │   │       │       │       └─ LuauSparkdownExplicitAccessPath_end 23
+ │   │       │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 23
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 23
+ │   │       └─ LuauSparkdownVariableAssignment_end 23
  │   └─ LuauSparkdownVariableDefinition_end 23
  └─ Newline [23..24]: "\n"

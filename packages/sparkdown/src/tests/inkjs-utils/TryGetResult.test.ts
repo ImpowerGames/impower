@@ -3,7 +3,7 @@
 // `TryGetResult` is the small helper used throughout the runtime for
 // safe map lookups + numeric parsing. Returns `{ result, exists }` so
 // callers can distinguish "missing" from "present but falsy". Used by
-// `JsonSerialisation`, `CallStack`, `ListDefinition`, `Container`, ...
+// `CallStack`, `VariablesState` and `Value`
 // — pure unit tests against the helper itself, no Story / compile
 // pipeline involvement.
 
@@ -12,7 +12,7 @@ import {
   tryGetValueFromMap,
   tryParseFloat,
   tryParseInt,
-} from "../../inkjs/engine/TryGetResult";
+} from "../../runtime/TryGetResult";
 
 describe("TryGetResult", () => {
   describe("tryGetValueFromMap", () => {

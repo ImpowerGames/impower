@@ -1,18 +1,19 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
-// Side-effect import to stabilize the inkjs engine module load order.
-// `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
-// dependency cycle; if `Object.ts` is the first to load, `Value.ts`
-// resolves `InkObject` as undefined when extending it. Forcing
-// `Container.ts` to be the entry point evaluates `Value.ts` (and
-// therefore `Object.ts`) in an order that breaks the cycle cleanly.
-// The now-removed `Compiler` import used to do this implicitly; this
-// explicit import preserves the load order in its place.
-import "../../../inkjs/engine/Container";
-import { Range } from "@codemirror/state";
+import { documentString } from "../../utils/documentString";
+import { type ChangeDesc, Range, type Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
+import {
+  collectMemos,
+  noMemoStats,
+  StatementMemoSession,
+  type MemoStats,
+  type StatementMemoEntry,
+  type StatementMemoHost,
+} from "../../lower/statementMemo";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import type { SourceMetadata } from "../../../inkjs/engine/Error";
+import type { FunctionBinding } from "../../lower/utils/functionBindings";
+import type { SourceMetadata } from "../../../runtime/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
 import type {
   LowerContext,
@@ -34,7 +35,10 @@ import {
   valueListAssignmentName,
 } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
-import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import {
+  SparkdownAnnotator,
+  type SparkdownAnnotatorSnapshot,
+} from "../SparkdownAnnotator";
 
 export interface InkDiagnostic {
   message: string;
@@ -93,6 +97,9 @@ export interface CompiledBlock {
   // lowering read. Kept only with `recordLoweringReads`, for the binary
   // program's chunk store.
   statement?: StatementShape;
+  // The statements of its bodies its lowering served from their memos
+  // (`statementMemo.ts`), which hold none of their objects.
+  memoized?: ParsedObject[];
 }
 
 // A lowering read as its chunk keeps it: the node that read it by name and by
@@ -114,9 +121,13 @@ export interface CompilationConfig {
     };
   };
   // Whether a chunk's lowering keeps the reads it makes outside its own
-  // syntax (`CompiledBlock.reads`), which only the binary program's chunk
-  // store needs (`SparkdownCompilerConfig.programChunks`).
+  // syntax (`CompiledBlock.reads`), which the binary program's chunk store
+  // needs; the compiler always sets it.
   recordLoweringReads?: boolean;
+  // The statement memo's host, which the compiler gives when statement
+  // chunks are on: statements of blocks' bodies are remembered and served
+  // from their memos (`statementMemo.ts`).
+  statementMemo?: StatementMemoHost;
 }
 
 function sameNames(
@@ -167,14 +178,29 @@ function nodeStartingAt(
   return null;
 }
 
+interface CompilationAnnotatorSnapshot extends SparkdownAnnotatorSnapshot {
+  globalCallableNames?: Set<string>;
+  globalCallableNamesTree?: unknown;
+  checkedGlobalCallableNames?: Set<string>;
+  checkedDefineTypeNames?: Set<string>;
+  documentText: string;
+  documentTextOf?: unknown;
+  hasReads: boolean;
+  memoStats: MemoStats;
+  served: Set<StatementMemoEntry>;
+  rebuilt: { from: number; to: number } | null;
+  inverse?: ChangeDesc;
+}
+
 export class CompilationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<CompiledBlock>,
   CompilationConfig
 > {
   // Cache the globally-addressable callable names per parse tree.
   // Computed lazily by walking the top-level statements once: every
-  // `LuauExternalDeclaration` and every top-level `LuauFunctionDefinition`
-  // / variable definition lands in the set. Used by
+  // `LuauExternalDeclaration`, every top-level `LuauFunctionDefinition`
+  // and every top-level `store` / `const` lands in the set; a plain
+  // `local` does not, so a closure captures it (I-822). Used by
   // `scanFreeVariables` in `lowerExpression.ts` to skip these when
   // collecting closure upvals — they're already reachable from any
   // nested-function call site via the regular divert resolver, so
@@ -219,9 +245,55 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   private documentText(): string {
     if (this._documentTextOf !== this.text) {
       this._documentTextOf = this.text;
-      this._documentText = this.text?.toString() ?? "";
+      this._documentText = this.text ? documentString(this.text) : "";
     }
     return this._documentText;
+  }
+
+  /**
+   * The caches this annotator keeps beside the ranges the base class covers.
+   *
+   * Every one of them is replaced rather than edited by an update, so the
+   * snapshot holds references. The callable-name and text caches are keyed
+   * on the tree and text they were derived from, so restoring those alone
+   * would leave them correct but cold; carrying them keeps the annotator
+   * exactly where it was before the hypothetical edit. The define-type-name
+   * index is owned by `SparkdownCombinedAnnotator`, which saves and restores
+   * it alongside this. The statement memos live on the blocks the ranges
+   * hold, so restoring the ranges restores them.
+   */
+  override snapshot(): SparkdownAnnotatorSnapshot {
+    const snapshot: CompilationAnnotatorSnapshot = {
+      ...super.snapshot(),
+      globalCallableNames: this._globalCallableNames,
+      globalCallableNamesTree: this._globalCallableNamesTree,
+      checkedGlobalCallableNames: this._checkedGlobalCallableNames,
+      checkedDefineTypeNames: this._checkedDefineTypeNames,
+      documentText: this._documentText,
+      documentTextOf: this._documentTextOf,
+      hasReads: this._hasReads,
+      memoStats: this.memoStats,
+      served: this._served,
+      rebuilt: this._rebuilt,
+      inverse: this._inverse,
+    };
+    return snapshot;
+  }
+
+  override restore(snapshot: SparkdownAnnotatorSnapshot): void {
+    super.restore(snapshot);
+    const compilation = snapshot as CompilationAnnotatorSnapshot;
+    this._globalCallableNames = compilation.globalCallableNames;
+    this._globalCallableNamesTree = compilation.globalCallableNamesTree;
+    this._checkedGlobalCallableNames = compilation.checkedGlobalCallableNames;
+    this._checkedDefineTypeNames = compilation.checkedDefineTypeNames;
+    this._documentText = compilation.documentText;
+    this._documentTextOf = compilation.documentTextOf;
+    this._hasReads = compilation.hasReads;
+    this.memoStats = compilation.memoStats;
+    this._served = compilation.served;
+    this._rebuilt = compilation.rebuilt;
+    this._inverse = compilation.inverse;
   }
 
   private computeGlobalCallableNames(): Set<string> {
@@ -302,27 +374,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
    *  differently from the answer its lowering got, asking the node that read
    *  it. A node no longer found where the read says it starts disagrees. */
   private loweringReadsDisagree(reads: RecordedRead[], from: number): boolean {
-    const text = this.text;
-    const tree = this.tree;
-    if (!text || !tree) {
-      return true;
-    }
-    const ctx = {
-      read: (a: number, b: number) => this.read(a, b),
-      lineNumber: (pos: number) => text.lineAt(pos).number - 1,
-      characterNumber: (pos: number) => pos - text.lineAt(pos).from,
-    };
-    return reads.some((read) => {
-      const node = nodeStartingAt(tree, from + read.at, read.node);
-      if (!node) {
-        return true;
-      }
-      const answer =
-        read.kind === "unreachable"
-          ? unreachableRead(node, ctx)
-          : continuationRoutingRead(node, ctx);
-      return answer !== read.value;
-    });
+    return reads.some(
+      (read) => this.loweringReadAt(read.kind, read.node, from + read.at) !== read.value,
+    );
   }
 
   /**
@@ -359,7 +413,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
       // Top-level `store NAME = …` / `const NAME = …` — collect the
       // declared identifier(s). Each `LuauVariableAssignment` carries
-      // one name in `LuauVariableName` under `_begin_c1`.
+      // one name in `LuauVariableName` under `_begin_c1`. A plain
+      // `local NAME = …` is a local a closure captures, not a global
+      // (I-822).
+      if (/^local\b/.test(this.read(node.from, node.to).trimStart())) return;
       let cur = node.firstChild;
       while (cur) {
         if (VARIABLE_DEFINITION_CONTENT_NAMES.has(cur.name)) {
@@ -412,6 +469,112 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       nodeRef.name !== "RequiredWhitespace" &&
       nodeRef.name !== "FrontMatter"
     ) {
+      const host = this.config?.recordLoweringReads
+        ? this.config.statementMemo
+        : undefined;
+      let lowered = this.lowerTopLevel(nodeRef, host);
+      if (lowered === null) {
+        // A statement the memo served is code of its owner's own, which needs
+        // its objects: the node is lowered again without the memo.
+        lowered = this.lowerTopLevel(nodeRef, undefined);
+      }
+      if (lowered !== undefined && lowered !== null) {
+        annotations.push(
+          SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),
+        );
+      }
+      // Chunks the lowerer doesn't recognize are silently dropped.
+      // There is no parser fallback for unrecognized chunks (the
+      // grammar+lowerers are the only path); dropping them avoids
+      // re-interpreting Luau-tagged source as legacy ink (e.g. `{ a = 1 }`
+      // table literals look like ink `{interpolation}` blocks) and the
+      // misleading diagnostics that would follow. If a chunk shape needs
+      // handling, add a lowerer for it in `src/compiler/lower/lower.ts`.
+    }
+    return annotations;
+  }
+
+  /** How many statements of blocks' bodies the last update lowered, and how
+   *  many it served from their memos (`statementMemo.ts`). */
+  memoStats: MemoStats = noMemoStats();
+
+  // The memos served since the last update (`StatementMemoSession.used`).
+  protected _served = new Set<StatementMemoEntry>();
+
+  /** The range the incremental parse rebuilt in the update in progress,
+   *  whose statements are lowered whatever their memos say, set by the
+   *  combined annotator around the update's own window. */
+  get rebuilt(): { from: number; to: number } | null {
+    return this._rebuilt;
+  }
+  set rebuilt(window: { from: number; to: number } | null) {
+    this._rebuilt = window;
+    if (window) {
+      this.memoStats.rebuilt = window;
+    }
+  }
+  protected _rebuilt: { from: number; to: number } | null = null;
+
+  // The edit of the update in progress, inverted, which maps a range of the
+  // new document to the old one, where the annotations of the previous
+  // lowering still stand while the update's window is lowered.
+  protected _inverse?: ChangeDesc;
+
+  override update(tree: Tree, text: Text, uri?: string): void {
+    super.update(tree, text, uri);
+    this.memoStats = noMemoStats();
+    this._served = new Set();
+    this._inverse = undefined;
+    this.rebuilt = null;
+  }
+
+  override mapState(changes: ChangeDesc): void {
+    this._inverse = this.config?.statementMemo?.enabled
+      ? changes.invertedDesc
+      : undefined;
+  }
+
+  /** Marks the annotations as current: after the update's own window is
+   *  lowered they are mapped to the new document. `relower` starts a
+   *  lowering of blocks of the compiler's (`relowerCompilations`), whose
+   *  memos may be served again. */
+  settle(relower = false): void {
+    this._inverse = undefined;
+    this.rebuilt = null;
+    if (relower) {
+      this._served = new Set();
+    }
+  }
+
+  /** The memos of the statements the previous lowering of the node at
+   *  `[from, to)` held, by syntax. */
+  protected memoLookup(from: number, to: number): Map<string, StatementMemoEntry> {
+    const lookup = new Map<string, StatementMemoEntry>();
+    const inverse = this._inverse;
+    const oldFrom = inverse ? inverse.mapPos(from, -1) : from;
+    const oldTo = inverse ? inverse.mapPos(to, 1) : to;
+    this.current.between(oldFrom, oldTo, (f, _t, value) => {
+      collectMemos(value.type.statement, f, lookup);
+    });
+    return lookup;
+  }
+
+  /** Where a position of the document stood before the update the
+   *  annotator is making. */
+  protected before(pos: number): number {
+    return this._inverse ? this._inverse.mapPos(pos, 1) : pos;
+  }
+
+  /**
+   * Lowers a top-level node, through the statement memo when `host` is
+   * given. Returns null when a statement the memo served became code of its
+   * owner's own (`StatementMemoSession.finish`).
+   */
+  protected lowerTopLevel(
+    nodeRef: SparkdownSyntaxNodeRef,
+    host: StatementMemoHost | undefined,
+  ): CompiledBlock | undefined | null {
+    {
       // Snapshot the chunk's absolute start line so the lowerer can produce
       // chunk-relative debug metadata. `text.lineAt(pos).number` is 1-based,
       // so subtract 1 to get a 0-based absolute line. The 0-based chunk-
@@ -447,6 +610,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // so nested-scope scans of free variables can detect shadowing
       // of stdlib-named identifiers by enclosing-scope locals.
       const declaredLocalsStack: Set<string>[] = [];
+      // Per-chunk stack of the bindings each enclosing function's body
+      // holds, with their ranges (`functionBindings`), pushed with
+      // `declaredLocalsStack`.
+      const functionBindingsStack: FunctionBinding[][] = [];
       // Per-chunk stack of hoist buffers — one entry pushed per
       // enclosing function-definition lowering. Bare `function NAME end`
       // nested inside another function pre-declares a `local NAME = nil`
@@ -532,21 +699,50 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           },
         },
         declaredLocalsStack,
+        functionBindingsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
         blockEndStack,
+        // The depth of the scoped blocks open around the statement being
+        // lowered, which a block statement raises and puts back: starting it
+        // at 0, as every reader reads it unset, leaves the context as a block
+        // statement found it (`recordLowering`, #656).
+        scopeDepth: 0,
       };
+      const session =
+        statement && host?.enabled
+          ? new StatementMemoSession(
+              host,
+              this.memoLookup(nodeRef.from, nodeRef.to),
+              (pos) => this.before(pos),
+              this.rebuilt,
+              this.memoStats,
+              this._served,
+              (kind, node, from) => this.loweringReadAt(kind, node, from),
+            )
+          : undefined;
+      ctx.statementMemo = session;
       let lowered = lower(nodeRef, ctx);
+      if (session && statement && !session.finish(statement)) {
+        return null;
+      }
       // The Luau blocks this chunk's own nodes show to be left open. A chunk
       // with no lowerer (a root-level type function) carries them on an empty
       // block.
-      const unclosed = validateBlockEnds(nodeRef.node, ctx);
+      const unclosed = validateBlockEnds(
+        nodeRef.node,
+        ctx,
+        session ? (node) => session.servedWithoutBlocks(node) : undefined,
+      );
       if (unclosed.length > 0) {
         lowered ??= {};
         chunkDiagnostics.push(...unclosed);
       }
       if (lowered && statement) {
         lowered.statement = statement;
+      }
+      if (lowered && session && session.served.length > 0) {
+        lowered.memoized = session.served;
       }
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;
@@ -584,18 +780,34 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         if (isExplicitRuleName(nodeRef.name, "Tags")) {
           lowered.uuid = "tags";
         }
-        annotations.push(
-          SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),
-        );
       }
-      // Chunks the lowerer doesn't recognize are silently dropped.
-      // There is no parser fallback for unrecognized chunks (the
-      // grammar+lowerers are the only path); dropping them avoids
-      // re-interpreting Luau-tagged source as legacy ink (e.g. `{ a = 1 }`
-      // table literals look like ink `{interpolation}` blocks) and the
-      // misleading diagnostics that would follow. If a chunk shape needs
-      // handling, add a lowerer for it in `src/compiler/lower/lower.ts`.
+      return lowered;
     }
-    return annotations;
+  }
+
+  /** What the document now answers a `LoweringRead` of the node named
+   *  `name` that starts at `from`, or undefined when none starts there. */
+  protected loweringReadAt(
+    kind: LoweringRead["kind"],
+    name: string,
+    from: number,
+  ): string | undefined {
+    const text = this.text;
+    const tree = this.tree;
+    if (!text || !tree) {
+      return undefined;
+    }
+    const node = nodeStartingAt(tree, from, name);
+    if (!node) {
+      return undefined;
+    }
+    const ctx = {
+      read: (a: number, b: number) => this.read(a, b),
+      lineNumber: (pos: number) => text.lineAt(pos).number - 1,
+      characterNumber: (pos: number) => pos - text.lineAt(pos).from,
+    };
+    return kind === "unreachable"
+      ? unreachableRead(node, ctx)
+      : continuationRoutingRead(node, ctx);
   }
 }

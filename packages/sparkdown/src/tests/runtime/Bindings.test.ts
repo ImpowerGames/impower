@@ -14,9 +14,11 @@
 // the runtime `Divert.isExternal = true` flag — no separate call-site
 // machinery is needed.
 //
-// The runtime API (`BindExternalFunction`, `UnbindExternalFunction`,
-// `EvaluateFunction`, `ObserveVariable`) is inherited from inkjs and
-// unchanged.
+// The stories run on the program engine, which carries no external function
+// and presents no variable observer (docs/engine/binary-program.md, section
+// 9); the test harness writes each `external` as a function that calls the
+// host function the test binds (`withTestExternals`), so these tests keep
+// what a binding returns and how often it runs.
 
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
@@ -92,51 +94,6 @@ describe("Bindings (ported from inkjs)", () => {
     expect(finalResult.output).toBe("");
   });
 
-  test("variable observer fires on assignment", () => {
-    // Upstream ink fixture:
-    //   VAR testVar = 5
-    //   VAR testVar2 = 10
-    //   Hello world!
-    //   ~ testVar = 15
-    //   ~ testVar2 = 100
-    //   Hello world 2!
-    //   * choice
-    //       ~ testVar = 25
-    //       ~ testVar2 = 200
-    //       -> END
-    //
-    // Sparkdown rewrite uses `store` for globals and `&` for the
-    // discard-statement assignment marker. `ObserveVariable("testVar",
-    // ...)` registers a callback; the inkjs runtime fires it whenever
-    // the named global is written. testVar starts at 5, gets set to 15
-    // during the first Continue burst (firing once with newValue=15),
-    // then to 25 after the choice (firing again with newValue=25).
-    // testVar2 is observed implicitly via `Object.keys` below.
-    const ctx = makeRuntimeStoryFromFile("bindings", "variable-observer");
-    expect(ctx.errorMessages).toEqual([]);
-
-    let currentVarValue = 0;
-    let observerCallCount = 0;
-    ctx.story.ObserveVariable(
-      "testVar",
-      (_varName: string, newValue: number) => {
-        currentVarValue = newValue;
-        observerCallCount += 1;
-      },
-    );
-
-    ctx.story.ContinueMaximally();
-    expect(currentVarValue).toBe(15);
-    expect(observerCallCount).toBe(1);
-
-    // The picked choice echoes its text first, and that line returns before
-    // the assignments after it run.
-    ctx.story.ChooseChoiceIndex(0);
-    ctx.story.ContinueMaximally();
-    expect(currentVarValue).toBe(25);
-    expect(observerCallCount).toBe(2);
-  });
-
   test("Object.keys(variablesState) lists every declared global", () => {
     // `variablesState` is a Proxy-backed map of declared globals. The
     // upstream test asserts that JS iteration (`Object.keys`) sees
@@ -150,22 +107,6 @@ describe("Bindings (ported from inkjs)", () => {
       "testVar",
       "testVar2",
     ]);
-  });
-
-  test("ValidateExternalBindings errors on a call site with no bound host fn", () => {
-    // The runtime auto-validates external bindings on the first
-    // Continue (via `_hasValidatedExternals`). When a declared
-    // `external` is called but no host function has been bound, the
-    // runtime surfaces a "Missing function binding for external"
-    // error. This pins the linkage between the declaration, the
-    // call-site Divert.isExternal flag, and the validation pass.
-    const ctx = makeRuntimeStoryFromFile("bindings", "lookup-safe-or-not");
-    expect(ctx.errorMessages).toEqual([]);
-    // Deliberately don't call BindExternalFunction — Continue should
-    // throw with a missing-binding error message.
-    expect(() => ctx.story.ContinueMaximally()).toThrow(
-      /Missing function binding for external/,
-    );
   });
 
   test("an external call inside a glued line runs once", () => {

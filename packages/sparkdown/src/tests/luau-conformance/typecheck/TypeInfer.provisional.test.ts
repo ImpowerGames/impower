@@ -380,7 +380,6 @@ return wrapStrictTable
       },
       {
         module: "game/B",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local wrapStrictTable = require(game.A)
 
@@ -419,7 +418,6 @@ return wrapStrictTable
       },
       {
         module: "game/B",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local wrapStrictTable = require(game.A)
 
@@ -556,7 +554,6 @@ return wrapStrictTable(Constants, "Constants")
     name: "floating_generics_should_not_be_allowed",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         local assign : <T, U, V, W>(target: T, source0: U?, source1: V?, source2: W?, ...any) -> T & U & V & W = (nil :: any)
 
@@ -700,7 +697,6 @@ return tbl
       },
       {
         module: "game/B",
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local tbl = require(game.A)
 tbl:f3()
@@ -716,7 +712,6 @@ tbl:f3()
     name: "normalization_limit_in_unify_with_any",
     fixture: "BuiltinsFixture",
     limits: { LuauNormalizeCacheLimit: 1000 },
-    unparsed: { defect: 924 }, // an if expression followed by end on the same line
     source: Array.from({ length: 100 }, (_, i) => `type T${i} = { f${i}: number }\n`).join("") +
       "type Instance = { new: (('s0', extra: Instance?) -> T0)" +
       Array.from({ length: 99 }, (_, i) => ` & (('s${i + 1}', extra: Instance?) -> T${i + 1})`).join("") +

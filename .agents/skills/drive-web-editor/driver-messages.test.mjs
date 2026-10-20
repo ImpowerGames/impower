@@ -307,11 +307,11 @@ check("a driver run from outside the repo tree says why playwright cannot be fou
 
 check("partitionConsole keeps the lines worth reading and counts the known noise", () => {
   const lines = [
-    "[error] Unhandled method workspace/semanticTokens/refresh",
-    "[error] Unhandled method workspace/diagnostic/refresh",
-    "[error] Unhandled method workspace/foldingRange/refresh",
     "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)",
-    "[error] Unhandled method workspace/semanticTokens/refresh",
+    // The language server's refreshes refused before the editor's client
+    // registers were noise until #1785; one now is that bug back.
+    "[pageerror] Unhandled method workspace/semanticTokens/refresh",
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)",
     "[log] a log line is not an error",
     "[warning] neither is a warning",
     "[error] TypeError: cannot read properties of undefined",
@@ -325,16 +325,14 @@ check("partitionConsole keeps the lines worth reading and counts the known noise
   ];
   const { errors, noise } = partitionConsole(lines);
   assert.deepEqual(errors, [
+    "[pageerror] Unhandled method workspace/semanticTokens/refresh",
     "[error] TypeError: cannot read properties of undefined",
     "[pageerror] ReferenceError: game is not defined",
     "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/local/assets/missing.png)",
     "[error] Failed to load resource: the server responded with a status of 403 (Forbidden) (http://localhost:38276/api/auth/account)",
   ]);
   assert.deepEqual(noise, {
-    "semanticTokens/refresh": 2,
-    "diagnostic/refresh": 1,
-    "foldingRange/refresh": 1,
-    "/api/auth/account 404": 1,
+    "/api/auth/account 404": 2,
   });
 });
 
@@ -413,7 +411,7 @@ check("every known-noise entry reports a count even when it did not appear", () 
 
 check("partitionConsole caps what it returns without capping what it counts", () => {
   const many = Array.from({ length: 40 }, (_, i) => `[error] distinct failure ${i}`);
-  const { errors } = partitionConsole(many.concat(Array(5).fill("[error] Unhandled method workspace/diagnostic/refresh")));
+  const { errors } = partitionConsole(many.concat(Array(5).fill("[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)")));
   assert.equal(errors.length, 25);
   assert.equal(partitionConsole(many, KNOWN_CONSOLE_NOISE, 3).errors.length, 3);
 });

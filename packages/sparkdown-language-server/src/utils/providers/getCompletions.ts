@@ -32,6 +32,7 @@ import {
   type CompletionContext,
   type CompletionItem,
   type Position,
+  type Range,
 } from "vscode-languageserver";
 import {
   getDeclarationScopes,
@@ -166,19 +167,74 @@ const isWhitespaceNode = (name?: SparkdownNodeName) =>
   name === "ExtraWhitespace" ||
   name === "Whitespace";
 
-const attributeCompletionNames = (vocabulary: AttributeVocabulary): string[] => {
-  const names = new Set<string>();
+interface AttributeChoice {
+  label: string;
+  /** Where the edit starts within the attribute typed so far. */
+  offset: number;
+  /** The attribute the choice writes; a bare group name writes only `group.`. */
+  attribute?: string;
+}
+
+/**
+ * Follow the attribute syntax one step at a time, so no label holds a `.`
+ * (a trigger character, where the web client restarts its word): before a
+ * dot the groups not yet written, the switches and the bare options that
+ * select their own group and nothing already written; after `group.` that
+ * group's options not yet selected.
+ */
+const attributeCompletionChoices = (
+  vocabulary: AttributeVocabulary,
+  current: string,
+  written: readonly string[],
+): AttributeChoice[] => {
+  const { selection } = resolveAttributes(vocabulary, written);
+  const dot = current.indexOf(".");
+  if (dot >= 0) {
+    const group = current.slice(0, dot);
+    const info = Object.hasOwn(vocabulary.groups, group) ? vocabulary.groups[group] : undefined;
+    return (info?.options ?? [])
+      .filter((option) => selection[group] !== option)
+      .map((option) => ({ label: option, offset: dot + 1, attribute: `${group}.${option}` }));
+  }
+  const choices = new Map<string, AttributeChoice>();
   for (const [group, info] of Object.entries(vocabulary.groups)) {
-    if (info.switch) names.add(group);
+    if (group in selection) continue;
+    choices.set(group, info.switch ? { label: group, offset: 0, attribute: group } : { label: group, offset: 0 });
+    if (info.switch) continue;
     for (const option of info.options) {
-      names.add(`${group}.${option}`);
-      if (!info.switch && !resolveAttributes(vocabulary, [option]).diagnostics.some(
-        (diagnostic) => diagnostic.code === "ambiguous-attribute",
-      )) names.add(option);
+      // A bare option named like a group shares that group's label, and one
+      // named like a switch selects the switch; both stay reachable after
+      // `group.`. Offer a bare option only where it selects this group and
+      // changes no group already set (face/eyebrows shorthand selects both).
+      if (choices.has(option) || Object.hasOwn(vocabulary.groups, option)) continue;
+      const bare = resolveAttributes(vocabulary, [option]);
+      const targets = Object.keys(bare.selection);
+      if (!bare.diagnostics.length && targets.includes(group) && targets.every((target) => !(target in selection))) {
+        choices.set(option, { label: option, offset: 0, attribute: option });
+      }
     }
   }
-  return [...names];
+  return [...choices.values()];
 };
+
+/**
+ * The completion item for one attribute choice. A group inserts its dot and
+ * asks for its options; every other choice writes an attribute.
+ */
+const attributeCompletionItem = (
+  choice: AttributeChoice,
+  description: string,
+  range: Range,
+  data: (attribute: string) => CompletionItem["data"],
+): CompletionItem => ({
+  label: choice.label,
+  kind: choice.attribute ? CompletionItemKind.EnumMember : CompletionItemKind.Enum,
+  labelDetails: { description },
+  textEdit: { newText: choice.attribute ? choice.label : `${choice.label}.`, range },
+  ...(choice.attribute
+    ? { data: data(choice.attribute) }
+    : { command: Command.create("suggest", "editor.action.triggerSuggest") }),
+});
 
 const traverse = <T>(
   obj: T,
@@ -448,6 +504,7 @@ const readAssetCommandAttributes = (
   leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
   read: (from: number, to: number) => string,
   offset: number,
+  tokenStart: number,
 ): { asset: string; before: string[]; after: string[] } => {
   // The enclosing `AssetCommandName`, not `AssetCommandContent`: a `+`-joined
   // command holds one `AssetCommandName` per asset, and an attribute belongs to
@@ -470,9 +527,12 @@ const readAssetCommandAttributes = (
     if (!image && cur.name === "AssetCommandFileName") {
       image = read(cur.from, cur.to).trim();
     }
+    // The typed token may parse as several nodes: `face.` leaves the
+    // cursor past a `face` node, which is still the token, not an attribute.
     if (
       cur.name === "AssetCommandFilterName" &&
-      !(cursorNode && cur.from === cursorNode.from && cur.to === cursorNode.to)
+      !(cursorNode && cur.from === cursorNode.from && cur.to === cursorNode.to) &&
+      !(cur.from <= offset && cur.to >= tokenStart)
     ) {
       const attribute = read(cur.from, cur.to).trim();
       if (attribute) {
@@ -1313,23 +1373,20 @@ export const getCompletions = (
     if (match) {
       const name = match[1]!;
       const current = match[2]!.split(/[:~]/).at(-1) ?? "";
-      const { before, after } = readAssetCommandAttributes(leftStack, read, documentCursorOffset);
-      const excluded = new Set([...before, ...after]);
+      const start = documentCursorOffset - current.length;
+      const { before, after } = readAssetCommandAttributes(leftStack, read, documentCursorOffset, start);
       const attributeNode = leftStack.find((node) => node.name === "AssetCommandFilterName");
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
       const vocabulary = resolveImageAttributes(program.context, image, { visibility: false }).vocabulary;
       if (vocabulary) {
-        for (const attribute of attributeCompletionNames(vocabulary)) {
-          if (!excluded.has(attribute)) {
-            completions.set(attribute, {
-              label: attribute,
-              kind: CompletionItemKind.EnumMember,
-              labelDetails: { description: `${name} attribute` },
-              textEdit: { newText: attribute, range: document.range(attributeNode?.from ?? documentCursorOffset - current.length, attributeNode?.to ?? documentCursorOffset) },
-              data: { type: "filtered_image", name,
-                filtered: { image: name, attributes: [...before, attribute, ...after] } },
-            });
-          }
+        for (const choice of attributeCompletionChoices(vocabulary, current, [...before, ...after])) {
+          completions.set(choice.label, attributeCompletionItem(
+            choice,
+            `${name} attribute`,
+            document.range(start + choice.offset, attributeNode?.to ?? documentCursorOffset),
+            (attribute) => ({ type: "filtered_image", name,
+              filtered: { image: name, attributes: [...before, attribute, ...after] } }),
+          ));
         }
       }
       return buildCompletions();
@@ -1349,8 +1406,8 @@ export const getCompletions = (
       attributeDefine?.type === "filtered_image" &&
       leftStack.filter((node) => isExplicitRuleName(node.name, "LuauTable")).length === 1 &&
       getNodeText(getDescendent("LuauVariableName", attributeProperty)) === "attributes" &&
-      getDescendent(["LuauTable", "LuauSparkdownExplicitTable"], attributeProperty)?.from === attributeTable.from) {
-    const content = (attributeTable.getChild("LuauTable_content") ?? attributeTable.getChild("LuauSparkdownExplicitTable_content"));
+      getDescendent("LuauTable", attributeProperty)?.from === attributeTable.from) {
+    const content = attributeTable.getChild("LuauTable_content");
     const entries: SyntaxNode[] = [];
     let literalList = !!content;
     for (let node = content?.firstChild; node; node = node.nextSibling) {
@@ -1369,17 +1426,15 @@ export const getCompletions = (
         const value = getNodeText(entry).trim().slice(1, -1);
         (entry.to <= quotedAttribute.from ? before : after).push(value);
       }
-      const excluded = new Set([...before, ...after]);
-      for (const attribute of attributeCompletionNames(vocabulary)) {
-        if (excluded.has(attribute)) continue;
-        completions.set(attribute, {
-          label: attribute,
-          kind: CompletionItemKind.EnumMember,
-          labelDetails: { description: `${attributeDefine.name} attribute` },
-          textEdit: { newText: attribute, range: document.range(open.to, close.from) },
-          data: { type: "filtered_image", name: attributeDefine.name,
-            filtered: { image: image.image?.$name, attributes: [...before, attribute, ...after] } },
-        });
+      const current = read(open.to, documentCursorOffset);
+      for (const choice of attributeCompletionChoices(vocabulary, current, [...before, ...after])) {
+        completions.set(choice.label, attributeCompletionItem(
+          choice,
+          `${attributeDefine.name} attribute`,
+          document.range(open.to + choice.offset, close.from),
+          (attribute) => ({ type: "filtered_image", name: attributeDefine.name,
+            filtered: { image: image.image?.$name, attributes: [...before, attribute, ...after] } }),
+        ));
       }
       return buildCompletions();
     }
@@ -2182,7 +2237,40 @@ export const getCompletions = (
         );
       }
     }
-    if (leftStack.some((n) => n.name === "LuauForCondition")) {
+    // A story `for` reads its condition with the bounded rule it shares with
+    // a story `while` and a marked (`&`) loop (#1907), so the loop that owns
+    // the condition, the first such loop outside it, decides (a `while`
+    // nested in a `for` offers no `in`). A marked loop is a `for` when its
+    // header's keyword is.
+    const storyCondition = leftStack.findIndex(
+      (n) => n.name === "LuauSparkdownExplicitLoopCondition",
+    );
+    const storyConditionLoop =
+      storyCondition < 0
+        ? undefined
+        : leftStack
+            .slice(storyCondition + 1)
+            .find(
+              (n) =>
+                n.name === "LuauSparkdownForLoop" ||
+                n.name === "LuauSparkdownWhileLoop" ||
+                n.name === "LuauSparkdownExplicitLoop",
+            );
+    const markedLoopBegin =
+      storyConditionLoop?.name === "LuauSparkdownExplicitLoop"
+        ? storyConditionLoop.getChild("LuauSparkdownExplicitLoop_begin")
+        : null;
+    const storyConditionIsFor =
+      storyConditionLoop?.name === "LuauSparkdownForLoop" ||
+      (!!markedLoopBegin &&
+        !!getDescendent(
+          "LuauForKeyword",
+          markedLoopBegin as GrammarSyntaxNode<SparkdownNodeName>,
+        ));
+    if (
+      leftStack.some((n) => n.name === "LuauForCondition") ||
+      storyConditionIsFor
+    ) {
       const contentNode = leftStack[0];
       if (contentNode) {
         addTriggeredKeywordCompletions(

@@ -46,8 +46,9 @@ import {
   ProjectMetadataField,
 } from "@impower/spark-editor-protocol/src/types";
 import SingletonPromise from "./SingletonPromise";
-import { Workspace } from "./Workspace";
+import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
+import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
@@ -80,7 +81,19 @@ export default class WorkspaceFileSystem {
 
   protected _files?: Record<string, FileData>;
 
-  constructor() {
+  // The Workspace singleton's language server and configuration, passed in
+  // rather than imported: Workspace.ts constructs this class at module load,
+  // so importing it back made the two modules a cycle (#1794).
+  protected _ls: WorkspaceLanguageServer;
+
+  protected _configuration: WorkspaceConfiguration;
+
+  constructor(
+    ls: WorkspaceLanguageServer,
+    configuration: WorkspaceConfiguration,
+  ) {
+    this._ls = ls;
+    this._configuration = configuration;
     const projectId = this.getLoadedProjectId();
     this._loadedProjectId = projectId;
     this._worker = new Worker("/opfs-workspace.js");
@@ -89,7 +102,7 @@ export default class WorkspaceFileSystem {
     };
     this._worker.addEventListener("message", this.handleWorkerMessage);
     // Observe the rejection: this promise gates language-server startup (it
-    // ends in `Workspace.ls.start`), and an unobserved failure here used to be
+    // ends in `this._ls.start`), and an unobserved failure here used to be
     // indistinguishable from "still loading" — the editor just silently ran
     // without any program-dependent LSP features.
     void this._initialFilesRef.get(projectId).catch((e) => {
@@ -173,7 +186,7 @@ export default class WorkspaceFileSystem {
         ),
       };
     }
-    Workspace.ls.connection.onRequest(
+    this._ls.connection.onRequest(
       ExecuteCommandMessage.method,
       async (params: ExecuteCommandParams) => {
         return this.executeCommand(params);
@@ -183,7 +196,7 @@ export default class WorkspaceFileSystem {
     // server initializing, which includes a full compile), but the failure has
     // to be visible — a rejected `start()` previously vanished as an unhandled
     // rejection and left every program-dependent LSP request erroring.
-    void Workspace.ls
+    void this._ls
       .start(this.getDirectoryUri(projectId), Object.values(this._files))
       .catch((e) => {
         console.error("[workspace] language server failed to start:", e);
@@ -252,7 +265,7 @@ export default class WorkspaceFileSystem {
       const params = message.params;
       const result = params.items.map((item) => {
         if (item.section === "sparkdown") {
-          return Workspace.configuration.settings;
+          return this._configuration.settings;
         }
         return {};
       });
@@ -266,13 +279,13 @@ export default class WorkspaceFileSystem {
       });
       sendProtocolMessage(message);
     } else if (DidCreateFilesMessage.type.isNotification(message)) {
-      Workspace.ls.connection.sendNotification(message.method, message.params);
+      this._ls.connection.sendNotification(message.method, message.params);
       sendProtocolMessage(message);
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         delete this._files?.[file.uri];
       });
-      Workspace.ls.connection.sendNotification(message.method, message.params);
+      this._ls.connection.sendNotification(message.method, message.params);
       sendProtocolMessage(message);
     } else if (DidRenameFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
@@ -282,10 +295,10 @@ export default class WorkspaceFileSystem {
           delete this._files[file.oldUri];
         }
       });
-      Workspace.ls.connection.sendNotification(message.method, message.params);
+      this._ls.connection.sendNotification(message.method, message.params);
       sendProtocolMessage(message);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-      Workspace.ls.connection.sendNotification(message.method, message.params);
+      this._ls.connection.sendNotification(message.method, message.params);
       sendProtocolMessage(message);
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
@@ -600,7 +613,7 @@ export default class WorkspaceFileSystem {
   ): Promise<{ referencesUpdated: number; scriptsAffected: number }> {
     const oldUri = this.getFileUri(projectId, fromPath);
     const newName = this.getDisplayName(this.getFileUri(projectId, toPath));
-    const edit = await Workspace.ls.getFileRenameEdits(oldUri, newName);
+    const edit = await this._ls.getFileRenameEdits(oldUri, newName);
     const textEdits = (edit?.documentChanges ?? []).filter(
       (c): c is LSP.TextDocumentEdit => "edits" in c,
     );

@@ -1,4 +1,6 @@
 import {
+  DiagnosticRefreshRequest,
+  SemanticTokensRefreshRequest,
   type InitializeResult,
   type ServerCapabilities,
 } from "vscode-languageserver";
@@ -8,6 +10,10 @@ import {
   createConnection,
   TextDocumentSyncKind,
 } from "vscode-languageserver/browser";
+import type {
+  AddressQuery,
+  ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
@@ -143,16 +149,21 @@ try {
     // Ask the client to re-request anything it may have asked for while we were
     // still starting up. Initialization loads every project file into the
     // compiler and runs a full compile, and on a large project that takes long
-    // enough that the editor's first semantic-token / diagnostic requests are
-    // rejected outright ("Compiler has not been configured!"). Those requests
-    // are never retried on their own, so without this the features stay dead
-    // until something else happens to trigger a re-request. See #224.
-    try {
-      connection.languages.semanticTokens.refresh();
-      connection.languages.diagnostics.refresh();
-    } catch (e) {
-      console.error("failed to request client refresh after initialize", e);
-    }
+    // enough that the editor's first semantic-token / diagnostic requests
+    // fail: they used to be rejected outright ("Compiler has not been
+    // configured!", #224), and now wait for the compiler but can outlast the
+    // client's own request timeout (#1785). Without this the features can stay
+    // dead until something else happens to trigger a re-request.
+    //
+    // A refresh is a hint with no result, and a client with no editor open
+    // yet may answer it with an error (#1785): that refusal is not a failure.
+    // (Sent directly: `languages.*.refresh()` returns the request's promise
+    // but is typed `void`.)
+    const ignoreRefusal = () => {};
+    connection
+      .sendRequest(SemanticTokensRefreshRequest.type)
+      .catch(ignoreRefusal);
+    connection.sendRequest(DiagnosticRefreshRequest.type).catch(ignoreRefusal);
   });
 
   // Clients re-pull folding ranges and semantic tokens after every change AND
@@ -425,8 +436,8 @@ try {
   );
   // Custom: previous/next beat location for PageUp/PageDown navigation.
   // Answered here (rather than from a client-side copy of the program) so
-  // `pathLocations` — ~12k entries / ~600KB on a feature-length script —
-  // never has to ride along with every compile notification.
+  // the program's locations — large on a feature-length script — never
+  // have to ride along with every compile notification.
   connection.onRequest(
     "sparkdown/offsetSourceLocation",
     (params: { uri: string; line: number; offset: number }) => {
@@ -434,10 +445,39 @@ try {
       const program = workspace.program(mainUri ?? params.uri);
       return getOffsetSourceLocation(
         program,
+        program && workspace.locatorOf(program),
         params.uri,
         params.line,
         params.offset,
       );
+    },
+  );
+  // Custom: the program's accessor (`ProgramLocator`), for a client that
+  // holds no program of its own: the address of a line, and where an
+  // address stands. An address is opaque, and the client only compares it
+  // or hands it back. The compiler's worker answers (`locatorOf`): it holds
+  // the root a program compiled with statement chunks is located by (#704).
+  connection.onRequest(
+    "sparkdown/addressAt",
+    async (params: { uri: string; line: number; query?: AddressQuery }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return program
+        ? ((await workspace
+            .locatorOf(program)
+            .addressAt(params.uri, params.line, params.query)) ?? null)
+        : null;
+    },
+  );
+  connection.onRequest(
+    "sparkdown/locationOf",
+    async (params: { uri: string; address: ProgramAddress }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return program && params.address != null
+        ? ((await workspace.locatorOf(program).locationOf(params.address)) ??
+            null)
+        : null;
     },
   );
   connection.onRequest(

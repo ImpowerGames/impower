@@ -19,12 +19,18 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { workspaceAliases } from "./benchLauncher.mjs";
 import { totalLength, uncovered, within } from "./phaseGaps.mjs";
-import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
+import * as bench from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
-import { GAPS } from "./profile-groups.mjs";
-import { parseShareArgs, profileShares } from "./profile-shares.mjs";
+import { BYPASS, GAPS } from "./profile-groups.mjs";
+import { STRUCTURAL_TEXT as measureStructuralText } from "../../.agents/skills/drive-web-editor/measure.mjs";
+import { parseShareArgs, profileShares, repositoryPath } from "./profile-shares.mjs";
+
+// Read through the module, so a missing export fails its own check rather
+// than the whole file's import.
+const { imageOptions, parseBenchArgs, tokenAround } = bench;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -103,12 +109,77 @@ await check("the benchmark's arguments and default replacements", () => {
   });
   assert.throws(() => parseBenchArgs(["--project", "p"]), /--line and --word/);
   assert.throws(() => parseBenchArgs(["--project", "--fixture"]), /--project needs a value/);
-  assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit, both or coverage/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit, both, coverage or cold/);
   // The coverage report times nothing and edits no line.
   assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "coverage"]), { mode: "coverage", samples: 12, warmup: 4, project: "p" });
+  // A cold compile edits no line either (#1712).
+  assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "cold", "--heap-probe", "h"]), { mode: "cold", samples: 12, warmup: 4, project: "p", heapProbe: "h" });
+  assert.deepEqual(parseBenchArgs(["--fixture", "--mode", "edit", "--no-flow-reuse"]), { mode: "edit", samples: 12, warmup: 4, fixture: true, noFlowReuse: true });
+  assert.throws(() => parseBenchArgs(["--fixture", "--heap-probe"]), /--heap-probe needs a value/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--heap-probe", "h", "--cpu-prof", "p"]), /--heap-probe and --cpu-prof are exclusive/);
+  // Every compile builds statement chunks and the game runs the program
+  // engine (#705), so there is no switch between engines to pass.
+  assert.throws(() => parseBenchArgs(["--fixture", "--chunks"]), /unknown argument --chunks/);
   assert.deepEqual(tokenAround("      [[raffles_concerned:gloves]]", "concerned"), { token: "raffles_concerned", prefix: "raffles_" });
   assert.equal(tokenAround("[[bunny]]", "concerned"), null);
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
+});
+
+// A content change applied to a text, as the compiler's document applies it.
+const applyChange = (text, { range, text: inserted }) => {
+  const offsets = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === "\n") offsets.push(i + 1);
+  const at = (p) => offsets[p.line] + p.character;
+  return text.slice(0, at(range.start)) + inserted + text.slice(at(range.end));
+};
+
+await check("the structural-edit option parses, rejects missing text, and changes the fixture's line count and back (#1672)", () => {
+  assert.equal(typeof bench.structuralEdits, "function", "preview-bench.mjs exports no structuralEdits");
+  // An accepted edit, so the edit mode alone; --word is not needed.
+  assert.deepEqual(parseBenchArgs(["--fixture", "--structural"]), { mode: "edit", samples: 12, warmup: 4, fixture: true, structural: true });
+  assert.deepEqual(parseBenchArgs(["--project", "p", "--line", "3514", "--structural"]), { mode: "edit", samples: 12, warmup: 4, project: "p", line: 3514, structural: true });
+  assert.deepEqual(parseBenchArgs(["--fixture", "--structural", "--text", "Wait."]), { mode: "edit", samples: 12, warmup: 4, fixture: true, structural: true, text: "Wait." });
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--text"]), /--text needs a value/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--text", "   "]), /--text is one line of text/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--text", "one\ntwo"]), /--text is one line of text/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--text", "Wait."]), /--text needs --structural/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--mode", "preview"]), /--structural measures the edit mode alone/);
+  assert.throws(() => parseBenchArgs(["--project", "p", "--structural"]), /--project --structural needs --line/);
+  assert.equal(parseBenchArgs(["--fixture", "--structural", "--indent", "4"]).indent, 4);
+  assert.equal(parseBenchArgs(["--fixture", "--structural", "--indent", "0"]).indent, 0);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--indent", "-1"]), /--indent must be an integer of at least 0/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--indent", "4"]), /--indent needs --structural/);
+
+  const text = files.get("main.sd");
+  const edits = bench.structuralEdits(text, target.line, bench.STRUCTURAL_TEXT);
+  assert.equal(edits.lineText, target.lineText);
+  // A plain dialogue line at the measured line's indentation, on a line of
+  // its own after it.
+  assert.equal(edits.inserted, `      ${bench.STRUCTURAL_TEXT}`);
+  const inserted = applyChange(text, edits.insert);
+  const insertedLines = inserted.split("\n");
+  assert.equal(insertedLines.length, lines.length + 1);
+  assert.equal(insertedLines[target.line - 1], target.lineText);
+  assert.equal(insertedLines[target.line], edits.inserted);
+  assert.deepEqual(insertedLines.slice(target.line + 1), lines.slice(target.line));
+  // The removal puts the document back byte for byte.
+  assert.equal(applyChange(inserted, edits.remove), text);
+  // `--indent` replaces the measured line's indentation: a new option after
+  // the last body line of the fixture's `choose`, at the options' indentation.
+  const optionBody = lines.indexOf("      Everything clatters to the floor.") + 1;
+  const choice = bench.structuralEdits(text, optionBody, "+ [Try again]", 4);
+  assert.equal(choice.inserted, "    + [Try again]");
+  const withChoice = applyChange(text, choice.insert).split("\n");
+  assert.deepEqual(withChoice.slice(optionBody - 2, optionBody + 2), ["    + [Fail...]", "      Everything clatters to the floor.", "    + [Try again]", "  then"]);
+  assert.equal(applyChange(applyChange(text, choice.insert), choice.remove), text);
+  // A CRLF document keeps its line ending.
+  const crlf = "scene A\r\n  HERO:\r\n    Hi.\r\nend\r\n";
+  const crlfEdits = bench.structuralEdits(crlf, 3, "Wait.");
+  assert.equal(applyChange(crlf, crlfEdits.insert), "scene A\r\n  HERO:\r\n    Hi.\r\n    Wait.\r\nend\r\n");
+  assert.equal(applyChange(applyChange(crlf, crlfEdits.insert), crlfEdits.remove), crlf);
+  assert.throws(() => bench.structuralEdits(crlf, 9, "Wait."), /there is no line 9/);
+  // The browser measurement inserts the same line by default.
+  assert.equal(measureStructuralText, bench.STRUCTURAL_TEXT);
 });
 
 await check("unattributed time counts a nested phase once and ignores what lies outside the window", () => {
@@ -154,10 +225,36 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
   assert.deepEqual(none.functions, []);
   assert.equal(parseShareArgs(["a.cpuprofile", "--under", "(root)", "--gaps"]).gaps, true);
   const groupOf = (name) => GAPS.find(([, re]) => re.test(name))?.[0];
-  assert.equal(groupOf("pathLocationTable.ts:(anonymous)"), groupOf("findClosestPath.ts:findClosestPath"));
+  // The line lookup goes through the program's accessor (#700), which reads
+  // the root.
+  assert.equal(groupOf("ProgramRoot.ts:addressAt"), groupOf("programLocator.ts:addressAt"));
+  assert.equal(groupOf("ProgramRoot.ts:addressAt"), groupOf("Game.ts:setStartFrom"));
+  assert.notEqual(groupOf("Game.ts:setStartFrom"), undefined);
   assert.equal(groupOf("scopeDefineInstances.ts:scopeDefineInstances"), groupOf("SparkdownCompiler.ts:applyBuiltinOverrides"));
   assert.notEqual(groupOf("SparkdownCompiler.ts:populateSceneAssets"), groupOf("SparkdownCompiler.ts:compileStory"));
   assert.equal(groupOf("(vm):(garbage collector)"), "garbage collector");
+  // The bypass profile's groups match a source path from the repository
+  // root (#1712), and the statement memo's stand-ins count with the memo.
+  assert.equal(parseShareArgs(["a.cpuprofile", "--under", "f", "--by-path", "--windows"]).byPath, true);
+  assert.equal(parseShareArgs(["a.cpuprofile", "--under", "f", "--windows"]).windows, true);
+  assert.equal(repositoryPath("../../../../Documents/GitHub/impower.worktrees/docs/x/packages/sparkdown/src/program/ChunkStore.ts"), "packages/sparkdown/src/program/ChunkStore.ts");
+  assert.equal(repositoryPath("../../node_modules/@lezer/common/dist/index.js"), "node_modules/@lezer/common/dist/index.js");
+  const bypassOf = (name) => BYPASS.find(([, re]) => re.test(name))?.[0];
+  const parsed = "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy/";
+  // The stand-ins where they live (#1683, #1676); the tooling workflow's
+  // sparse checkout has no packages/, so their existence is checked only
+  // where the sources are.
+  const hierarchy = path.join(HERE, "..", "..", "packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy");
+  for (const file of ["MemoizedStatement.ts", "Divert/MemoizedDivert.ts", "Gather/MemoizedGather.ts", "Variable/MemoizedAssignment.ts"]) {
+    if (fs.existsSync(hierarchy)) assert.ok(fs.existsSync(path.join(hierarchy, file)), file);
+    assert.match(bypassOf(`${parsed}${file}:Prepare`), /statement memo/, file);
+  }
+  assert.match(bypassOf(`${parsed}Weave.ts:prepareRoot`), /the weave/);
+  assert.match(bypassOf(`${parsed}Divert/Divert.ts:ResolveWith`), /every other class/);
+  assert.match(bypassOf("packages/sparkdown/src/compiler/lower/lowerers/lowerChoice.ts:lowerChoice"), /lowering/);
+  assert.match(bypassOf("packages/sparkdown/src/program/ProgramResolver.ts:resolve"), /program resolver/);
+  assert.match(bypassOf("packages/sparkdown/src/program/BinaryProgramWriter.ts:emitObject"), /writing chunks/);
+  assert.equal(bypassOf("ChunkStore.ts:build"), undefined);
 });
 
 await check("profile-shares --gaps says no sample landed only when none did, before any summary", () => {
@@ -198,6 +295,96 @@ await check("profile-shares --gaps says no sample landed only when none did, bef
   }
 });
 
+await check("profile-shares --windows counts only the measured samples, per sample", () => {
+  // Samples every 10 ms from 5 ms, each charged the 10 ms that follows it
+  // (the last nothing). Two measured samples' windows, [10, 30) and
+  // [40, 50) ms, keep the samples at 15 and 45 (`inPhase`) and 25
+  // (`between`); those at 5, 35 and 55 are warm-up (#1712).
+  const profile = {
+    startTime: 0,
+    nodes: [
+      { id: 1, callFrame: { functionName: "(root)" }, children: [2, 3, 4] },
+      { id: 2, callFrame: { functionName: "inPhase" } },
+      { id: 3, callFrame: { functionName: "between" } },
+      { id: 4, callFrame: { functionName: "warmup" } },
+    ],
+    samples: [4, 2, 3, 4, 2, 4],
+    timeDeltas: [5000, 10000, 10000, 10000, 10000, 10000],
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-profile-windows-test-"));
+  try {
+    fs.writeFileSync(path.join(dir, "edit.cpuprofile"), JSON.stringify(profile));
+    fs.writeFileSync(path.join(dir, "edit.windows.json"), JSON.stringify({ samples: [[[10000, 30000]], [[40000, 50000]]] }));
+    const json = path.join(dir, "shares.json");
+    const run = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(dir, "edit.cpuprofile"), "--under", "(root)", "--windows", "--json", json], { encoding: "utf8", windowsHide: true });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.match(run.stdout, /only the measured samples: 15\.0 ms of profiled time under \(root\) per benchmark sample/);
+    const result = JSON.parse(fs.readFileSync(json, "utf8"));
+    assert.equal(result.keptSamples, 3);
+    assert.equal(result.underMs, 30);
+    assert.equal(result.underMsPerSample, 15);
+    assert.deepEqual(
+      result.functions.map((f) => [f.name, +f.share.toFixed(4)]),
+      [["(vm):inPhase", 0.6667], ["(vm):between", 0.3333]],
+    );
+    // Without --windows every sample counts, warm-up included.
+    const all = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(dir, "edit.cpuprofile"), "--under", "(root)", "--json", json], { encoding: "utf8", windowsHide: true });
+    assert.equal(all.status, 0, all.stdout + all.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(json, "utf8")).underMs, 50);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// heap-retained.mjs on a heap whose shape is known (#1712): a WeakMap value
+// whose key only a parsed object holds is held only through it, as long as
+// the map lives; a key held elsewhere keeps it.
+await check("heap-retained counts a WeakMap value whose key only a parsed object holds", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-heap-retained-test-"));
+  try {
+    const script = [
+      `import v8 from "node:v8";`,
+      `import { readSnapshot, retainedBy } from ${JSON.stringify(pathToFileURL(path.join(HERE, "heap-retained.mjs")).href)};`,
+      `class ProbeParsed { constructor(k) { this.key = k; } }`,
+      `class Payload { constructor() { this.values = new Array(300000).fill(1.5); } }`,
+      `const build = (keyElsewhere) => { const map = new WeakMap(); const k = {}; map.set(k, new Payload()); globalThis.holder = { map, parsed: new ProbeParsed(k), key: keyElsewhere ? k : null }; };`,
+      `const out = [];`,
+      `for (const keyElsewhere of [false, true]) {`,
+      `  build(keyElsewhere); globalThis.gc(); globalThis.gc();`,
+      `  out.push(retainedBy(readSnapshot(v8.writeHeapSnapshot(${JSON.stringify(path.join(dir, "h.heapsnapshot"))})), (n) => n === "ProbeParsed").retainedBytes);`,
+      `}`,
+      `console.log(JSON.stringify(out));`,
+    ].join("\n");
+    fs.writeFileSync(path.join(dir, "probe.mjs"), script);
+    const run = spawnSync(process.execPath, ["--expose-gc", path.join(dir, "probe.mjs")], { encoding: "utf8", windowsHide: true, timeout: 120_000 });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    const [onlyThrough, keptElsewhere] = JSON.parse(run.stdout.trim().split("\n").at(-1));
+    assert.ok(onlyThrough > 2_400_000, `held only through the parsed object: ${onlyThrough} bytes`);
+    assert.ok(keptElsewhere < 10_000, `with the key held elsewhere: ${keptElsewhere} bytes`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The bundle's `@impower/*` aliases (#1950): every workspace package the
+// sources import by name, each at a directory of this checkout. The map is
+// read from the package manifests, which the tooling workflow's sparse
+// checkout does not hold, so the check says it skipped there.
+const root = path.resolve(HERE, "..", "..");
+if (!fs.existsSync(path.join(root, "packages"))) {
+  console.log("SKIP: the workspace alias check needs the package manifests under packages/ (a sparse checkout has none)");
+} else
+await check("the bench bundle aliases every @impower workspace package to this checkout's own directory", () => {
+  const aliases = workspaceAliases();
+  const names = Object.keys(aliases);
+  for (const name of ["@impower/sparkdown", "@impower/spark-engine", "@impower/spark-web-player", "@impower/jsonrpc", "@impower/definitions"]) assert.ok(names.includes(name), `${name} among ${names.join(", ")}`);
+  for (const [name, dir] of Object.entries(aliases)) {
+    assert.ok(name.startsWith("@impower/"), name);
+    assert.ok(path.isAbsolute(dir) && !path.relative(root, dir).startsWith(".."), `${name} at ${dir}`);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).name, name);
+  }
+});
+
 // The benchmark end to end on the fixture: bundle, one process per mode, and
 // a report naming the route and the phases. It needs the workspace install
 // for esbuild and the compiler's dependencies, which the tooling workflow
@@ -213,11 +400,44 @@ const esbuildInstalled = (() => {
 if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
+  // A bare `@impower/sparkdown/...` import reaches this checkout's module even
+  // when a `node_modules` above the entry offers another package of that
+  // name, as a parent checkout's does to an install-less copy (#1950): the
+  // class imported by name is the class imported by path.
+  await check("the bench bundle resolves a package-name import to this checkout's module, not to a node_modules above the entry", () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-bench-alias-test-"));
+    try {
+      const module = "src/inkjs/compiler/Parser/ParsedHierarchy/Object";
+      const decoy = path.join(scratch, "node_modules", "@impower", "sparkdown");
+      fs.mkdirSync(path.join(decoy, path.dirname(module)), { recursive: true });
+      fs.writeFileSync(path.join(decoy, "package.json"), JSON.stringify({ name: "@impower/sparkdown", type: "module" }));
+      fs.writeFileSync(path.join(decoy, `${module}.ts`), `export class ParsedObject { static decoy = true; }\n`);
+      const own = path.join(HERE, "..", "..", "packages", "sparkdown", module);
+      const entry = path.join(scratch, "entry.ts");
+      fs.writeFileSync(entry, [`import { ParsedObject as byName } from "@impower/sparkdown/${module}";`, `import { ParsedObject as byPath } from ${JSON.stringify(own.split(path.sep).join("/"))};`, `console.log(JSON.stringify({ same: byName === byPath, decoy: "decoy" in byName }));`].join("\n"));
+      const bundle = path.join(scratch, "out");
+      fs.mkdirSync(bundle);
+      const script = path.join(scratch, "bundle.mjs");
+      fs.writeFileSync(script, [`import { bundleBench } from ${JSON.stringify(pathToFileURL(path.join(HERE, "benchLauncher.mjs")).href)};`, `console.log(await bundleBench(${JSON.stringify(entry)}, ${JSON.stringify(bundle)}, null));`].join("\n"));
+      const built = spawnSync(process.execPath, [script], { encoding: "utf8", timeout: 120_000, windowsHide: true });
+      assert.equal(built.status, 0, built.stdout + built.stderr);
+      const run = spawnSync(process.execPath, [built.stdout.trim()], { encoding: "utf8", timeout: 120_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      assert.deepEqual(JSON.parse(run.stdout.trim().split("\n").at(-1)), { same: true, decoy: false });
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
   await check("the benchmark runs both modes on the fixture and reports route, phases, unattributed time and the display", () => {
     const profiles = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-bench-test-"));
     try {
-      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      const json = path.join(profiles, "report");
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles, "--json", json], { encoding: "utf8", timeout: 600_000, windowsHide: true });
       assert.equal(run.status, 0, run.stdout + run.stderr);
+      // Every phase a mode's samples ran, read from its report: the printed
+      // table leaves out the phases that took under 0.3 ms.
+      const phasesOf = (mode) => Object.keys(JSON.parse(fs.readFileSync(`${json}.${mode}.json`, "utf8")).phases);
       const header = (mode) => `mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`;
       // Up to the next report, so one report's rows cannot answer for another's.
       const sectionOf = (mode) => {
@@ -228,17 +448,20 @@ if (!esbuildInstalled) {
       };
       for (const mode of ["preview", "edit"]) {
         const section = sectionOf(mode);
-        assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
+        assert.match(section, /1 samples after 0 warm-up; route \d{3,} steps/);
         // A warm route is replayed rather than searched, so the replay is the
         // route phase every sample has.
         assert.match(section, /game\/simulateRoute/);
-        assert.match(section, /ink\/compile/);
-        // The compiler emits no compiled story and still certifies the
-        // change as confined, from the walk it times as ink/flowShapes.
-        assert.match(section, /ink\/flowShapes/);
-        assert.doesNotMatch(section, /ink\/json/);
-        assert.match(section, /game\/setStartFrom/);
-        assert.match(section, /scopeDefineInstances/);
+        // The compile builds the statement chunks, and says what changed
+        // against the program before it, which a route resumes against.
+        const phases = phasesOf(mode);
+        for (const phase of ["program/resolve", "program/chunks", "program/changes", "game/setStartFrom", "game/routeResumption", "scopeDefineInstances"]) assert.ok(phases.includes(phase), `${mode}: no ${phase} phase among ${phases.join(", ")}`);
+        // Every mode resumes the route its cold compile planned, and searches
+        // on from the resume point: the edited line's statement is emitted
+        // again, and a route keeps its own steps only while every one still
+        // holds (`Game.routeResumption`, docs/engine/binary-program.md,
+        // section 8), so the steps from that statement on are searched for.
+        assert.ok(phases.includes("game/planRoute"), `${mode}: no onward search among ${phases.join(", ")}`);
         // The worker's time: the unattributed row between 0 and the worker's
         // time, whose gaps profile-shares reads back from beside that
         // report's profile.
@@ -257,16 +480,65 @@ if (!esbuildInstalled) {
         assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
         assert.match(section, /engine calls before each display: game\.endSimulation\(\); fields reset by hand: none/);
       }
-      // Every mode resumes the route its cold compile planned.
-      assert.match(run.stdout, /game\/routeResumption/);
-      assert.doesNotMatch(run.stdout, /game\/planRoute/);
-      assert.match(sectionOf("preview"), /messages it sent outside a display, over the run: \{\}/);
+      assert.match(sectionOf("preview"),/messages it sent outside a display, over the run: \{\}/);
     } finally {
       fs.rmSync(profiles, { recursive: true, force: true });
     }
   });
 
-  await check("the coverage report counts the fixture's statements and names what its program falls back for", () => {
+  // The worker's game runs the program engine, as the player's worker ships
+  // (#703): the route is searched and displayed there, the compile re-emits
+  // one chunk, and the heap is read after full collections.
+  await check("the benchmark builds the statement chunks and re-emits one chunk per edit", () => {
+    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "preview", "--samples", "1", "--warmup", "1"], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.match(run.stdout, /1 samples after 1 warm-up; route \d{3,} steps; heap \d+ MB/);
+    assert.match(run.stdout, /heap after full collections: \d+(\.\d)? MB after the first sample/);
+    assert.match(run.stdout, /program\/chunks/);
+    assert.doesNotMatch(run.stdout, /populateLocations/);
+    assert.match(run.stdout, /display messages \(cloned\)/);
+    assert.match(run.stdout, /program, checkpoint or path locations in what was cloned: none/);
+    assert.match(run.stdout, /"emitted":1,/);
+    assert.match(run.stdout, /"fallback":null/);
+  });
+
+  // A structural edit (#1672): the samples alternate an insert and its
+  // removal, the line count moves with them, each previews at the caret's
+  // line, and the compiler's document ends as it began.
+  await check("the benchmark's structural edit alternates an insert and its removal on the fixture and reports the edit mode's phases", () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-structural-"));
+    try {
+      const json = path.join(scratch, "report");
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--structural", "--samples", "3", "--warmup", "0", "--json", json], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      assert.ok(run.stdout.includes(`mode edit, structural: line ${target.line} ${JSON.stringify(target.lineText)}`), run.stdout);
+      assert.match(run.stdout, /restoredMatches: true/);
+      assert.match(run.stdout, /display paths over the samples: /);
+      const report = JSON.parse(fs.readFileSync(`${json}.edit.json`, "utf8"));
+      assert.equal(report.structural.inserted, `      ${bench.STRUCTURAL_TEXT}`);
+      assert.deepEqual(
+        report.perSample.map((s) => [s.direction, s.lines, s.previewLine]),
+        [
+          ["insert", lines.length + 1, target.line + 1],
+          ["remove", lines.length, target.line],
+          ["insert", lines.length + 1, target.line + 1],
+        ],
+      );
+      assert.equal(report.perSample[1].restored, true);
+      // Three samples end on an insert, which the run takes out again.
+      assert.equal(report.restoredMatches, true);
+      // Each sample's display path, `beat` or `full: <reason>`, as the in-beat
+      // modes report it.
+      for (const s of report.perSample) assert.match(s.path, /^(beat|full: \w+)$/);
+      // The phases the in-beat edit mode reports.
+      for (const phase of ["program/resolve", "program/chunks", "program/changes", "game/setStartFrom", "game/routeResumption"]) assert.ok(report.phases[phase], `no ${phase} among ${Object.keys(report.phases).join(", ")}`);
+      assert.ok(report.wall["worker compile, game and route"] && report.wall["total without the DOM"]);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  await check("the coverage report counts the fixture's statements, all of which the writer emits", () => {
     // The report is read from the JSON the bench writes, not from its printed
     // sentence, so rewording the summary cannot fail this check.
     const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-coverage-"));
@@ -275,16 +547,53 @@ if (!esbuildInstalled) {
       const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "coverage", "--json", json], { encoding: "utf8", timeout: 600_000, windowsHide: true });
       assert.equal(run.status, 0, run.stdout + run.stderr);
       const report = JSON.parse(fs.readFileSync(`${json}.coverage.json`, "utf8"));
-      assert.ok(report.statements > 100 && report.emitted < report.statements, `${report.emitted} of ${report.statements}`);
-      // The fixture's scene holds a choose, one statement over the last 1,000
-      // lines, which the writer has no emit path for yet, so the program falls
-      // back and the unsupported table counts it.
-      assert.ok(report.fallback, "the program falls back for the choose");
-      assert.equal(report.fallback.construct, "choose");
-      assert.equal(report.fallback.uri, "file:///local/main.sd");
-      assert.ok(Number.isInteger(report.fallback.line) && report.fallback.line >= 0, String(report.fallback.line));
-      assert.equal(report.unsupported.choose, 1);
-      assert.equal(report.unsupportedStatements, report.statements - report.emitted);
+      // The fixture's scene ends in a `choose` whose `then` clause holds its
+      // last 1,000 lines; the writer emits `choose` blocks (#697), and the
+      // statements of the block's bodies count as statements of their own,
+      // so every statement has a chunk and the program does not fall back.
+      assert.ok(report.statements > 1000 && report.emitted === report.statements, `${report.emitted} of ${report.statements}`);
+      assert.equal(report.fallback ?? null, null);
+      assert.deepEqual(report.unsupported, {});
+      assert.equal(report.unsupportedStatements, 0);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  // The bypass profile's tools (#1712): a cold compile on a compiler of its
+  // own, the parsed objects it leaves alive and the heap only they hold, and
+  // a profile of the measured samples alone, named by source path.
+  await check("a cold compile counts its parsed objects, the heap only they hold, and profiles by path", () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-cold-"));
+    try {
+      const json = path.join(scratch, "report");
+      const probe = path.join(scratch, "heap");
+      const profiles = path.join(scratch, "profiles");
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "cold", "--samples", "1", "--warmup", "0", "--json", json, "--heap-probe", probe], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      // A profiled bundle names the classes otherwise than its snapshot does.
+      const profiled = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "cold", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(profiled.status, 0, profiled.stdout + profiled.stderr);
+      assert.match(run.stdout, /mode cold: 1 samples after 0 warm-up, a compiler of its own each/);
+      const report = JSON.parse(fs.readFileSync(`${json}.cold.json`, "utf8"));
+      for (const phase of ["fullParse", "ink/parse", "program/resolve", "program/chunks"]) assert.ok(report.phases[phase]?.median > 0, `no ${phase} among ${Object.keys(report.phases).join(", ")}`);
+      // The probe counts the last compile's parsed objects by class.
+      assert.ok(report.parsedProbe.parsedObjects > 1000, `${report.parsedProbe.parsedObjects} parsed objects`);
+      assert.ok(report.parsedProbe.byClass.Knot >= 1 || Object.keys(report.parsedProbe.byClass).some((c) => /Knot/.test(c)), JSON.stringify(report.parsedProbe.byClass));
+      const retained = spawnSync(process.execPath, ["--max-old-space-size=4096", path.join(HERE, "heap-retained.mjs"), `${probe}.cold`], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(retained.status, 0, retained.stdout + retained.stderr);
+      // Every object the probe counted is found in the snapshot under the
+      // same name, and what only they hold is at least their own size.
+      const counted = retained.stdout.match(/parsed objects: (\d+) in the snapshot \((\d+) counted by the probe/);
+      assert.ok(counted && counted[1] === counted[2], retained.stdout);
+      const own = Number(retained.stdout.match(/, ([\d.]+) MB of their own/)[1]);
+      const held = Number(retained.stdout.match(/held only through parsed objects: ([\d.]+) MB/)[1]);
+      assert.ok(own > 0 && held >= own, retained.stdout);
+      const shares = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(profiles, "cold.cpuprofile"), "--under", "buildProgramChunks", "--windows", "--by-path", "--groups", `${path.join(HERE, "profile-groups.mjs")}:BYPASS`], { encoding: "utf8", windowsHide: true });
+      assert.equal(shares.status, 0, shares.stdout + shares.stderr);
+      assert.match(shares.stdout, /only the measured samples: \d+\.\d ms of profiled time under buildProgramChunks per benchmark sample/);
+      assert.match(shares.stdout, /writing chunks: the writer, emitter, chunk store and root/);
+      assert.match(shares.stdout, /packages\/sparkdown\/src\/program\/\w+\.ts:/);
     } finally {
       fs.rmSync(scratch, { recursive: true, force: true });
     }

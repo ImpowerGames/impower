@@ -1,0 +1,40 @@
+text.source.sparkdown [0..61]
+ ├─ keyword.operator.attribute.luau [0..1]: "@"
+ ├─ punctuation.definition.template-expression.begin.sd [1..2]: "["
+ ├─ storage.type.attribute.luau [2..8]: "native"
+ ├─ punctuation.definition.template-expression.end.sd [8..9]: "]"
+ ├─ Newline [9..10]: "\n"
+ ├─ comment.line.double-dash.luau [10..19]
+ │   ├─ comment.luau [10..12]: "--"
+ │   └─ punctuation.definition.comment.content.sd [12..19]: " a note"
+ ├─ Newline [19..20]: "\n"
+ ├─ punctuation.whitespace.extra.sd [20..22]: "  "
+ ├─ meta.function.luau [22..47]
+ │   ├─ keyword.control.luau [22..30]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [30..31]: " "
+ │   ├─ entity.name.function.luau [31..32]: "f"
+ │   ├─ meta.parameter.luau [32..34]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [32..33]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [33..34]: ")"
+ │   ├─ meta.function.body.luau [34..43]
+ │   │   └─ meta.function.luau [34..43]
+ │   │       ├─ punctuation.whitespace.optional.sd [34..35]: " "
+ │   │       ├─ keyword.control.luau [35..41]: "return"
+ │   │       ├─ punctuation.whitespace.optional.sd [41..42]: " "
+ │   │       └─ constant.numeric.decimal.luau [42..43]: "7"
+ │   ├─ punctuation.whitespace.optional.sd [43..44]: " "
+ │   └─ keyword.control.end.luau [44..47]: "end"
+ ├─ Newline [47..48]: "\n"
+ ├─ string.display.text.chunk.sd [48..60]
+ │   ├─ markup.raw.text.sd [48..53]: "Value"
+ │   ├─ markup.raw.space.sd [53..54]: " "
+ │   ├─ meta.template.expression.luau [54..59]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [54..55]: "{"
+ │   │   ├─ meta.embedded.line.luau [55..58]
+ │   │   │   ├─ entity.name.function.luau [55..56]: "f"
+ │   │   │   └─ meta.parameter.luau [56..58]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [56..57]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [57..58]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [58..59]: "}"
+ │   └─ markup.raw.punctuation.sd [59..60]: "."
+ └─ Newline [60..61]: "\n"

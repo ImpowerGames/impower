@@ -226,10 +226,27 @@ export class TextmateParseRegion {
   next(from: number) {
     let str = "";
     let pos = from;
-    while (pos < this.input.length && !str.match(ENDS_WITH_NEWLINE_REGEX)) {
-      str += this.input.chunk(pos);
-      pos += str.length;
+    while (pos < this.input.length && !this.endsLine(str, pos)) {
+      const chunk = this.input.chunk(pos);
+      str += chunk;
+      pos += chunk.length;
     }
     return str;
+  }
+
+  /**
+   * True if `str`, the text read up to `pos`, ends with a whole line break.
+   * A `\r` that a chunk ends with is one only when no `\n` follows it, so
+   * that a `\r\n` served in two chunks stays one break.
+   */
+  protected endsLine(str: string, pos: number) {
+    if (!str.match(ENDS_WITH_NEWLINE_REGEX)) {
+      return false;
+    }
+    return (
+      !str.endsWith("\r") ||
+      pos >= this.input.length ||
+      this.input.read(pos, pos + 1) !== "\n"
+    );
   }
 }

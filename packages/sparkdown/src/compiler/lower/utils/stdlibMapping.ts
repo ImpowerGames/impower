@@ -2,12 +2,12 @@
 // `math.floor(x)`, `story.turns()`) to the runtime builtin name
 // registered by the engine's stdlib bridge. The two underlying tables
 // (`STDLIB` for pure JS functions, `INK_BUILTIN_ALIASES` for aliases of
-// existing ink runtime builtins) live in `inkjs/engine/StdLib.ts`;
+// existing ink runtime builtins) live in `runtime/StdLib.ts`;
 // adding a new method there is the single source of truth — this
 // lowerer reads from the same registry, so the compiler and runtime
 // stay in sync.
 
-import { lookupStdLibBuiltin } from "../../../inkjs/engine/StdLib";
+import { lookupStdLibBuiltin } from "../../../runtime/StdLib";
 
 // Returns the runtime builtin name for a `receiver.method(args)` call if
 // one exists, or `null` if the receiver/method/arity combination isn't

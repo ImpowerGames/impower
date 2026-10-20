@@ -11,9 +11,9 @@ import {
   makeRuntimeStoryFromDirectory,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import type { TestStory } from "../engineUnderTest";
 
-const flagged = (story: RuntimeStory, flag: string): boolean =>
+const flagged = (story: TestStory, flag: string): boolean =>
   story.currentDisplayInstructions.some(
     (table) =>
       (table.value?.get(flag) as { value?: unknown } | undefined)?.value ===
@@ -23,7 +23,7 @@ const flagged = (story: RuntimeStory, flag: string): boolean =>
 // Each beat's visible text, the routing of its table as `target:character`,
 // and whether its table asks the player to click through it.
 function continueBeats(
-  story: RuntimeStory,
+  story: TestStory,
 ): { text: string; routing: string | null; pause: boolean }[] {
   const beats: { text: string; routing: string | null; pause: boolean }[] =
     [];

@@ -1,6 +1,3 @@
-import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Expression } from "./Expression/Expression";
 import { ParsedObject } from "./Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
@@ -9,14 +6,13 @@ import { Op } from "../../../../program/ProgramInstructions";
 // Lua/Luau multi-return: `return a, b, c`.
 //
 // Emits the bytecode for each sub-expression in order (each pushes
-// one value onto the eval stack), then a `PackTuple(N)` ControlCommand
-// that pops N and pushes one `MultiValue` wrapping them, then
-// `PopFunction` to exit the call frame leaving the MultiValue as the
-// return.
+// one value onto the eval stack), then a `Pack` instruction that pops N
+// and pushes one `MultiValue` wrapping them, then `Return` to exit the
+// call frame leaving the MultiValue as the return.
 //
 // Single-expression returns continue to use `ReturnType` — there's no
 // need to wrap a single value in a MultiValue. Multi-target callers
-// (`local a, b = f()`) use `UnpackTuple` to redistribute; single-target
+// (`local a, b = f()`) use `Unpack` to redistribute; single-target
 // callers (`local x = f()`) auto-unwrap MultiValue → first inner value
 // in the runtime's `VariableAssignment` handler.
 export class MultiReturnType extends ParsedObject {
@@ -42,15 +38,10 @@ export class MultiReturnType extends ParsedObject {
     emitter.emit(Op.Return);
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    const container = new RuntimeContainer();
+  protected override Prepare(): boolean {
     for (const expr of this.expressions) {
-      container.AddContent(expr.runtimeObject);
+      expr.prepare();
     }
-    container.AddContent(
-      RuntimeControlCommand.PackTuple(this.expressions.length),
-    );
-    container.AddContent(RuntimeControlCommand.PopFunction());
-    return container;
-  };
+    return true;
+  }
 }

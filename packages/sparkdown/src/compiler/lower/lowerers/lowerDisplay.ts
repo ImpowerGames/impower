@@ -32,6 +32,7 @@ import {
   separateTags,
 } from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
+import { forwardBlockDiagnostics } from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
@@ -123,6 +124,19 @@ function buildDisplayCalls(
     return joined;
   };
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
+  // A line that is only an inline conditional (`{if c then "a"}`) shows what
+  // the same conditional shows beside other text: its matching branch, or
+  // nothing (#1103). Each branch makes its own call, so a line with no
+  // matching branch makes none, rather than an empty line.
+  if (ranges.length === 1 && !ranges[0]!.pause && !ranges[0]!.leads && !leads) {
+    const only = soleExpressionSegment(parent, ranges[0]!, ctx);
+    const conditional =
+      only &&
+      tryLowerInlineConditional(only, ctx, (body) => [
+        buildDisplayCall(target, character, body, ranges[0]!, ctx),
+      ]);
+    if (conditional) return [conditional];
+  }
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
@@ -239,16 +253,37 @@ function buildDisplayCalls(
   return calls;
 }
 
+// The interpolation a body range holds when it holds nothing else but
+// whitespace.
+function soleExpressionSegment(
+  parent: SyntaxNode,
+  range: { from: number; to: number },
+  ctx: LowerContext,
+): SyntaxNode | null {
+  const segments = collectBodySegments(parent, range.from, range.to, ctx).filter(
+    (seg) => !(seg.kind === "text" && seg.raw.trim().length === 0),
+  );
+  const only = segments.length === 1 ? segments[0]! : null;
+  return only?.kind === "expr" ? only.node : null;
+}
+
 // A `..` that ends a line of a display body, held in the body until
 // `buildDisplayCalls` or `joinMidBodyGlue` resolves it. It generates nothing.
 class GlueMark extends ParsedObject {
-  public readonly GenerateRuntimeObject = (): null => null;
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
 }
 
 // A `..` that begins a line of a body, held in the body in the same way,
 // with the source range of the mark.
 class LeadMark extends ParsedObject {
-  public readonly GenerateRuntimeObject = (): null => null;
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
   constructor(public readonly range: { from: number; to: number }) {
     super();
   }
@@ -574,6 +609,9 @@ function processDisplayBody(
               makeAltNodeRef(seg.node),
               ctx,
             );
+      // The alternator keeps no block of its own: its diagnostics, such as a
+      // match with no arm, go to the context.
+      forwardBlockDiagnostics(lowered, ctx);
       if (lowered.content) {
         for (const obj of lowered.content) out.push(obj);
       }
@@ -1043,10 +1081,12 @@ function beginsItsText(node: SyntaxNode, ctx: LowerContext): boolean {
   return /^[ \t]*(?:\|[ \t]*)?$/.test(ctx.read(node.from - column, node.from));
 }
 
-// The marks that end a line a top-level interpolation began. The grammar reads
-// what follows the interpolation on its line as an action of its own, so in
-// `{x} ..`, `{x} >`, `{x} .. >` or `{x} .. # tag` the action holds only the
-// marks (a `..` there parses as one that begins an inline action). The
+// The marks that end a line a top-level interpolation node began, for an
+// action that follows such a node on its line. The grammar no longer produces
+// that shape: a line that starts with an interpolation is one ImplicitAction
+// (#1746), whose marks lower with the rest of its display line. When the shape
+// is met, in `{x} ..`, `{x} >`, `{x} .. >` or `{x} .. # tag` the action holds
+// only the marks (a `..` there parses as one that begins an inline action). The
 // interpolation's calls carry them, as the beats of a line written out would:
 // each `>` in `breaks` ends a beat that waits for a click, a `..` with no `>`
 // makes the line's beat `glue`, and one right before the last `>` makes the
@@ -1231,10 +1271,12 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
 ]);
 
 // What begins a branch of an `if` or an arm of an alternator block, before
-// the branch's first statement.
+// the branch's first statement. A story `if` or `elseif` reads its condition,
+// with its `then`, with the bounded rule (#1907).
 const BRANCH_OPENERS: ReadonlySet<string> = nodeNameSet([
   "LuauIfBlockCondition",
   "LuauElseifBlockCondition",
+  "LuauSparkdownExplicitIfCondition",
   "LuauAlternatorSeparator",
 ]);
 
@@ -1350,17 +1392,13 @@ export function lowerImplicitAction(
   );
 }
 
-// Top-level `{ ... }` interpolation. Sparkdown's grammar matches
-// `LuauInterpolatedStringExpression` BEFORE SparkdownStatement at top
-// level (grammar.yaml line 186), so a bare `{ expr }` line never gets
-// wrapped in `ImplicitAction` / `TextChunk` the way a line with
-// surrounding text does. Without a dedicated lowerer here, the
-// CompilationAnnotator's `lower()` returns `undefined` for these
-// nodes and they'd be dropped (there is no parser fallback — the
-// grammar+lowerers are the only path — and nothing else knows Luau
-// operators `^`, `//`, `..`). This handler lowers the inner expression
-// directly, marked `outputWhenComplete` so its value is captured, into a
-// `display({ text })` call on the default target.
+// A `{ ... }` interpolation node that reaches the statement dispatcher on
+// its own. A line that starts with an interpolation is an ImplicitAction
+// (#1746) and lowers through the display statement path, so the top-level
+// grammar no longer produces this node as a statement. When one is lowered
+// here, the inner expression lowers directly, marked `outputWhenComplete` so
+// its value is captured, into a `display({ text })` call on the default
+// target.
 //
 // Interpolations on one source line (`{x}{y}`, or `{x} {y}`) form one
 // display line, as ink's `{x}{y}` does: the first of the chain lowers the
@@ -1665,6 +1703,7 @@ function tryLowerInlineAlternator(
       makeAltNodeRef(seq),
       ctx,
     );
+    forwardBlockDiagnostics(lowered, ctx);
     return lowered.content ?? null;
   }
   const cond =
@@ -1675,6 +1714,7 @@ function tryLowerInlineAlternator(
       makeAltNodeRef(cond),
       ctx,
     );
+    forwardBlockDiagnostics(lowered, ctx);
     return lowered.content ?? null;
   }
   return null;
@@ -1694,9 +1734,12 @@ function makeAltNodeRef(node: SyntaxNode): SparkdownSyntaxNodeRef {
   } as unknown as SparkdownSyntaxNodeRef;
 }
 
+// `wrapBranch`, when given, turns a branch's output into the branch's content
+// (a whole-line conditional's display call).
 function tryLowerInlineConditional(
   interpNode: SyntaxNode,
   ctx: LowerContext,
+  wrapBranch?: (body: ParsedObject[]) => ParsedObject[],
 ): Conditional | null {
   // Call-only shorthand: `{{if … then … else …}}` must NOT become a
   // Conditional — see the matching guard in `tryLowerInlineAlternator`.
@@ -1826,7 +1869,9 @@ function tryLowerInlineConditional(
     const bodyExpr = lowerExpressionFromNodes(b.body, ctx);
     if (!bodyExpr) continue;
     bodyExpr.outputWhenComplete = true;
-    const branch = new ConditionalSingleBranch([bodyExpr]);
+    const branch = new ConditionalSingleBranch(
+      wrapBranch ? wrapBranch([bodyExpr]) : [bodyExpr],
+    );
     branch.isInline = true;
     if (i === 0) {
       branch.isTrueBranch = true;

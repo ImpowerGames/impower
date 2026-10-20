@@ -1,5 +1,3 @@
-// Primes the engine's class-load order (Container/Value/Object) to avoid TDZ.
-import "../../inkjs/engine/Container";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";

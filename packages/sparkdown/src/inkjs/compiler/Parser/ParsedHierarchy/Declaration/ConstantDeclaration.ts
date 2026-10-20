@@ -1,6 +1,5 @@
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";
@@ -37,19 +36,36 @@ export class ConstantDeclaration extends ParsedObject {
     return "const";
   }
 
+  private _references: VariableReference[] | null = null;
+
+  /** The names its initializer reads, in the order a walk of the
+   *  initializer finds them. A constant's syntax does not change once it is
+   *  lowered, so the initializer is walked once, however many compiles carry
+   *  it (the program path's resolver visits no object of a statement it
+   *  carries); a name is read from its reference each time, as the walk
+   *  read it. */
+  get referencedNames(): string[] {
+    this._references ??= this.expression.FindAll(VariableReference)();
+    const names: string[] = [];
+    for (const ref of this._references) {
+      if (ref.name) {
+        names.push(ref.name);
+      }
+    }
+    return names;
+  }
+
   // A constant runs nothing where it is written; it initializes with the
   // globals (see `VariableAssignment.EmitProgram`).
   public override EmitProgram(_emitter: ProgramEmitter): void {}
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
-    // Global declarations don't generate actual procedural
-    // runtime objects, but instead add a global variable to the story itself.
-    // The story then initialises them all in one go at the start of the game.
-    return null;
-  };
+  /** Nothing: the constant's initializer is written with the globals. */
+  protected override Prepare(): boolean {
+    return false;
+  }
 
-  public override ResolveReferences(context: Story) {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story) {
+    super.ResolveWith(context);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Var);
 
     // A constant is initialized before every mutable global, so it can only be
@@ -66,15 +82,10 @@ export class ConstantDeclaration extends ParsedObject {
     // transitively invalid) is the same failure one step removed. Reporting
     // it here means every member of a bad chain gets a diagnostic instead of
     // only the one where the problem was first detected.
-    const invalidRefs = this.expression
-      .FindAll(VariableReference)()
-      .map((ref) => ref.name)
-      .filter(
-        (name): name is string =>
-          Boolean(name) &&
-          name !== this.constantName &&
-          context.unregisterableConstants.has(name!),
-      );
+    const invalidRefs = this.referencedNames.filter(
+      (name) =>
+        name !== this.constantName && context.unregisterableConstants.has(name),
+    );
     for (const name of invalidRefs) {
       this.Error(
         `A const must be initialized to a constant expression; \`${name}\` is not a valid const.`,

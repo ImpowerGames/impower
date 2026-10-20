@@ -10,9 +10,9 @@
 // function's container (#834). They are story, not function code, so a run or
 // a preview from them, or from the function above them, still reaches them.
 
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { functionSpans } from "@impower/sparkdown/src/tests/programListing";
 import { describe, expect, test } from "vitest";
-import { Game } from "../../game/core/classes/Game";
-import { findClosestPathLocation } from "../../game/core/utils/findClosestPathLocation";
 import {
   compileUI,
   createHarness,
@@ -37,7 +37,10 @@ const writtenText = (harness: any): string =>
 const playFrom = async (
   source: string,
   line: number,
-  opts?: { file?: string; scripts?: Record<string, string> },
+  opts?: {
+    file?: string;
+    scripts?: Record<string, string>;
+  },
 ) => {
   const h = createHarness(source, line, { scripts: opts?.scripts });
   await h.ready;
@@ -86,7 +89,7 @@ describe("a store whose value is a function literal (#835)", () => {
   test("a preview of its line shows the story line after it", async () => {
     const shown = await previewOf(SOURCE, 0);
     expect(shown.errors).toEqual([]);
-    expect(shown.path).not.toContain("__synth_");
+    expect(shown.path).not.toContain("__synth$");
     expect(shown.text).toContain("A");
   });
 });
@@ -235,7 +238,8 @@ describe("a function declared in an included script (#835)", () => {
   test("records the lines of its declaration in that script", () => {
     const { program } = compileUI(MAIN, { scripts: { [OTHER_URI]: OTHER } });
     const scripts = Object.keys(program.scripts);
-    expect(program.pathLocations?.functions).toContainEqual({
+    // The function's flow row (`functionSpans`).
+    expect(functionSpans(program as any)).toContainEqual({
       path: "less",
       lines: [scripts.indexOf(OTHER_URI), 2, 4],
     });
@@ -254,7 +258,7 @@ describe("a function declared in an included script (#835)", () => {
 });
 
 describe("the lines of a function body still resolve for the debugger (#835)", () => {
-  test("a breakpoint on a body line stays in the function", () => {
+  test("a breakpoint on a body line stays in the function", async () => {
     const SOURCE = [
       `A {less(1, 2)}`,
       `B`,
@@ -265,18 +269,13 @@ describe("the lines of a function body still resolve for the debugger (#835)", (
       ``,
     ].join("\n");
     const { program } = compileUI(SOURCE);
-    const scripts = Object.keys(program.scripts);
-    const found = findClosestPathLocation(
-      { file: MAIN_URI, line: 4 },
-      program.pathLocations,
-      scripts,
-    );
-    expect(found?.[0].split(".")[0]).toBe("less");
-    const [placed] = Game.getActualBreakpoints(
-      program.pathLocations,
-      [{ file: MAIN_URI, line: 4 }],
-      scripts,
-    );
+    // The flow the line's address stands in, by the program's locator.
+    const locator = programLocator(program);
+    const found = locator.addressAt(MAIN_URI, 4, { functions: true });
+    expect(locator.sceneAt(found)).toBe("less");
+    const h = createHarness(SOURCE, 0);
+    await h.ready;
+    const [placed] = h.game.setBreakpoints([{ file: MAIN_URI, line: 4 }]);
     expect(placed).toMatchObject({ verified: true });
   });
 });

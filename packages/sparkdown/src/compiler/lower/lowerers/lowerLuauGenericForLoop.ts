@@ -24,8 +24,8 @@ import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
-import { loopOf, openBody } from "../utils/statementShape";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { openBody, recordLoop } from "../utils/statementShape";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // `for v1, v2, ... in iter_expr do BODY end` — Luau's generic-for.
 //
@@ -82,7 +82,7 @@ export function lowerLuauGenericForLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, FOR_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "for", ctx);
   const doBlock = findLoopDoBlock(node, ctx);
   // An EMPTY body (`for x in t do end`) has no `_content` child —
   // the loop must still lower (the iterand evaluates, and
@@ -160,6 +160,7 @@ export function lowerLuauGenericForLoop(
   });
   const body = openBody(
     ctx,
+    node.from,
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );
@@ -216,9 +217,8 @@ export function lowerLuauGenericForLoop(
     new NullExpression(),
     "==",
   );
-  const breakBranch = new ConditionalSingleBranch([
-    new Divert([new Identifier(breakLabel)]),
-  ]);
+  const toBreak = new Divert([new Identifier(breakLabel)]);
+  const breakBranch = new ConditionalSingleBranch([toBreak]);
   breakBranch.ownExpression = isNilCheck;
   breakBranch.isElse = false;
   const nilCheckConditional = new Conditional(null as never, [breakBranch]);
@@ -248,7 +248,7 @@ export function lowerLuauGenericForLoop(
 
   const scoped = wrapInScope([initTuple, adjustTuple, loopGather, breakGather]);
   if (body) {
-    loopOf.set(scoped[0]!, {
+    recordLoop(scoped[0]!, {
       kind: "forIn",
       body,
       objects: scoped,
@@ -256,7 +256,7 @@ export function lowerLuauGenericForLoop(
       init: [initTuple, adjustTuple],
       call: callAndUnpack,
       update: ctrlUpdate,
-    });
+    }, [loopGather, breakGather, toBreak, tailDivert]);
   }
   return wrapInWeave(scoped);
 }

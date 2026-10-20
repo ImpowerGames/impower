@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
+import { reviewJobRoot, assertInsideJobRoot, assertReviewerDirectory } from "./review-job-root.mjs";
+import { readRepos, reviewThread } from "../.agents/repos.mjs";
 
 const skill = fileURLToPath(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url));
 export function reviewTemplate(markdown) {
@@ -11,7 +12,7 @@ export function reviewTemplate(markdown) {
   if (block.split(/\r?\n/).some((line) => !line.startsWith(">"))) throw new Error("Review prompt must be one delimited blockquote");
   return block.split(/\r?\n/).map((line) => line.replace(/^> ?/, "")).join("\n");
 }
-export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "utf8")) {
+export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "utf8"), repos = readRepos()) {
   for (const key of ["writer", "reviewer"]) {
     if (typeof context[key] !== "string" || !/^[a-z][a-z0-9._:/-]*(?:\[[a-z0-9]+\])?$/.test(context[key]) || /^(?:(?:writer|reviewer|your|some)-model|writer|reviewer|model|model-id|unknown|tbd)$/.test(context[key])) throw new Error(`Missing or nonconcrete ${key} model route`);
   }
@@ -20,24 +21,38 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   if (typeof context.invocation !== "string" || !context.invocation.trim() || /^(?:(?:INVOCATION|METHOD)$|(?:TBD|UNKNOWN)\b|<.*>)/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
   if (/^(?:(?:method|invocation)\s*:\s*(?:TBD|UNKNOWN|<(?:method|invocation)>)|see\s+<(?:method|invocation)>)\s*[.!]?$/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
   for (const key of ["issue", "pr", "round"]) if (!(key === "issue" && context[key] === null) && (!Number.isSafeInteger(context[key]) || context[key] < 1)) throw new Error(`Invalid ${key}`);
+  // The reviewer posts on, and reads from, the pull request's review thread:
+  // the pull request until the cutover, the internal ticket in `ticket` after it.
+  const thread = reviewThread({ pr: context.pr, ticket: context.ticket }, repos);
   if (!/^[a-f0-9]{40}$/.test(context.head ?? "")) throw new Error("Supply the full reviewed head SHA");
   for (const key of ["worktree", "diff", "reviewDir"]) if (typeof context[key] !== "string" || !path.isAbsolute(context[key])) throw new Error(`Supply an absolute ${key}`);
   // The diff and the reviewer's directory reach a reviewer only through this
   // prompt, so this is where they are held to the review job root.
   assertInsideJobRoot([["diff", context.diff], ["reviewDir", context.reviewDir]], reviewJobRoot(context.worktree), `in pr-${context.pr}${path.sep}round-${context.round}`);
+  assertReviewerDirectory(context.reviewDir);
+  let diffBytes;
+  try { diffBytes = fs.readFileSync(context.diff); }
+  catch (error) { throw new Error(`Review diff ${context.diff} must be readable before building the prompt (${error.message})`); }
+  try {
+    if ((diffBytes[0] === 255 && diffBytes[1] === 254) || (diffBytes[0] === 254 && diffBytes[1] === 255)) throw new Error("UTF-16 BOM");
+    const diffText = new TextDecoder("utf-8", { fatal: true }).decode(diffBytes);
+    if (diffText.includes(String.fromCharCode(0))) throw new Error("raw NUL bytes (including BOM-less UTF-16) are not a textual patch");
+  } catch (error) {
+    throw new Error(`Review diff ${context.diff} must be UTF-8 (${error.message}); capture it with git diff <range> --output=<absolute-path> so the shell does not re-encode it`);
+  }
   if (!context.lens || !context.previous) throw new Error("Supply lens and previous-round context");
   if (typeof context.task !== "string" || !context.task.trim()) throw new Error("Supply the change's user-facing goal as task");
   let prompt = reviewTemplate(markdown);
-  const tokenPattern = /\\?<LENS\\?>|\b(?:WRITER|REVIEWER|ROUND|HEAD|WORKTREE|DIFF|REVDIR|PREVIOUS|TASK|P|N)\b/g;
+  const tokenPattern = /\\?<LENS\\?>|\b(?:WRITER|REVIEWER|ROUND|HEAD|WORKTREE|DIFF|REVDIR|PREVIOUS|TASK|THREAD|REPO|P|N|T)\b/g;
   const tokenName = (value) => value.includes("LENS") ? "LENS" : value;
   const tokens = [...prompt.matchAll(tokenPattern)].map(([value]) => tokenName(value));
-  const counts = { WRITER: 1, REVIEWER: 1, ROUND: 2, HEAD: 3, WORKTREE: 1, DIFF: 1, REVDIR: 2, PREVIOUS: 1, TASK: 1, P: 4, N: 1, LENS: 2 };
+  const counts = { WRITER: 1, REVIEWER: 1, ROUND: 2, HEAD: 3, WORKTREE: 1, DIFF: 1, REVDIR: 2, PREVIOUS: 1, TASK: 1, THREAD: 1, REPO: 3, P: 1, N: 1, T: 2, LENS: 2 };
   for (const [token, count] of Object.entries(counts)) if (tokens.filter((value) => value === token).length !== count) throw new Error(`Unsafe ${token} substitution template`);
   if (context.issue === null) {
-    if (!prompt.includes("a fix for issue #N")) throw new Error("Unsafe issue-free review template");
-    prompt = prompt.replace("a fix for issue #N", "a change with no linked issue");
+    if (!prompt.includes("a fix for issue REPO#N")) throw new Error("Unsafe issue-free review template");
+    prompt = prompt.replace("a fix for issue REPO#N", "a change with no linked issue");
   }
-  const values = { WRITER: context.writer, REVIEWER: context.reviewer, ROUND: String(context.round), HEAD: context.head, WORKTREE: context.worktree, DIFF: context.diff, REVDIR: context.reviewDir, PREVIOUS: context.previous, TASK: context.task, P: String(context.pr), N: String(context.issue), LENS: context.lens };
+  const values = { WRITER: context.writer, REVIEWER: context.reviewer, ROUND: String(context.round), HEAD: context.head, WORKTREE: context.worktree, DIFF: context.diff, REVDIR: context.reviewDir, PREVIOUS: context.previous, TASK: context.task, THREAD: `${thread.repo}#${thread.number}`, REPO: thread.repo, P: String(context.pr), N: String(context.issue), T: String(thread.number), LENS: context.lens };
   // Match only the original template: inserted paths, quoted tokens and dollar
   // sequences are literal data and must never be scanned for substitutions.
   prompt = prompt.replace(tokenPattern, (key) => values[tokenName(key)]);

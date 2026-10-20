@@ -1,5 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import { Text } from "../Text";
@@ -43,8 +41,7 @@ export class ObjectExpression extends Expression {
   }
 
   /** Append an entry after construction, parenting its expressions the same way
-   *  the constructor does. Used by the builtin-override pass, which back-fills a
-   *  `__def` table with the prelude values the author didn't restate. */
+   *  the constructor does. */
   public readonly addEntry = (entry: ObjectExpressionEntry): void => {
     this._entries.push(entry);
     if (entry.key instanceof Expression) {
@@ -57,39 +54,19 @@ export class ObjectExpression extends Expression {
     return "Object";
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    container.AddContent(RuntimeControlCommand.BeginObject());
+  public override PrepareIntoContainer(): void {
     for (const entry of this._entries) {
       if (entry.key instanceof Expression) {
-        // Computed key (`[expr] =`) — evaluate at runtime; EndObject
-        // stringifies whatever value lands on the stack.
-        entry.key.GenerateIntoContainer(container);
+        entry.key.PrepareIntoContainer();
       } else {
-        // Static key — emitted by lowering a single-segment
-        // StringExpression so the BeginString/EndString machinery
-        // yields a StringValue on the eval stack.
-        //
-        // Parented, but deliberately NOT added to `content`: generation must
-        // not mutate the parsed tree. These nodes are carried forward across
-        // incremental compiles by chunk identity, so an `AddContent` here
-        // appended a fresh key expression on EVERY compile and never released
-        // the previous one — each accumulated `Text` then pinned a whole
-        // runtime container generation through its cached `_runtimeObject`'s
-        // parent chain (~5.5MB/keystroke; see issue #312). The parent link is
-        // all generation needs (`debugMetadata` and `story` walk it), and the
-        // key expression carries nothing for `ResolveReferences` to resolve.
+        // A static key's string, parented and kept by nothing.
         const keyExpr = new StringExpression([new Text(entry.key)]);
         keyExpr.parent = this;
-        keyExpr.GenerateIntoContainer(container);
+        keyExpr.PrepareIntoContainer();
       }
-      // Value — already an Expression. Generate its runtime form inline so
-      // its result lands on the eval stack right after the key.
-      entry.value.GenerateIntoContainer(container);
+      entry.value.PrepareIntoContainer();
     }
-    container.AddContent(RuntimeControlCommand.EndObject());
-  };
+  }
 
   // Each key, then its value, then `MakeTable` with the pair count, which
   // builds the table as `EndObject` does: a computed key's value is the

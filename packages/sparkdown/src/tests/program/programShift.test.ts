@@ -6,11 +6,11 @@
 // name minted from a source offset, which every generated name the writer
 // emits is kept from being. A project that falls back names the same
 // construct, with its line moved the same way.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { blockCount } from "../../program/StatementChunk";
+import { blockCount } from "../../program/ProgramChunk";
+import { SymbolKind } from "../../program/ProgramSymbols";
 import {
   lines,
   SHIFT_CASES,
@@ -31,7 +31,7 @@ function coldCompile(project: Project): SparkProgram {
     const texts = Object.fromEntries(
       Object.entries(project).map(([name, text]) => [uriOf(name), text]),
     );
-    return programCompiler(texts, { programChunks: true }).compile(uriOf("main")).program;
+    return programCompiler(texts).compile(uriOf("main")).program;
   } finally {
     console.warn = warn;
     console.error = error;
@@ -51,7 +51,9 @@ const content = (root: ProgramRoot): string[] =>
 
 /** Where each statement of a root stands: its script and first line, every
  *  flow's statements with each block statement before its bodies, and the
- *  first line of each body and of each flow but the top level's. */
+ *  first line of each body and of each flow but a script's top level's,
+ *  which is the script's first line whatever is written there (the starting
+ *  script's, and an included script's, #1681). */
 const positions = (root: ProgramRoot): [string, number][] => {
   const out: [string, number][] = [];
   const visit = (sequence: SequenceRow) => {
@@ -59,7 +61,7 @@ const positions = (root: ProgramRoot): [string, number][] => {
       out.push([sequence.uri, root.lineOf(sequence, entry)]);
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = root.body(chunk, k)!;
-        out.push([body.uri, body.firstLine]);
+        out.push([body.uri, root.firstLineOf(body)]);
         visit(body);
       }
     });
@@ -68,8 +70,12 @@ const positions = (root: ProgramRoot): [string, number][] => {
     .flowSequences()
     .sort((a, b) => root.table.symbols[a.flow]!.localeCompare(root.table.symbols[b.flow]!));
   for (const flow of flows) {
-    if (root.table.symbols[flow.flow] !== "") {
-      out.push([flow.uri, flow.firstLine]);
+    if (flow.kind !== SymbolKind.Root) {
+      out.push([flow.uri, root.firstLineOf(flow)]);
+    } else {
+      // A top level starts at its script's first line, and moves with no
+      // shift; its statements move as any flow's do.
+      expect(root.firstLineOf(flow)).toBe(0);
     }
     visit(flow);
   }
@@ -87,12 +93,20 @@ function expectShiftInvariant(project: Project, name: string, shift: number) {
   const shifted = coldCompile({ ...project, [name]: "\n".repeat(shift) + project[name]! });
   const moved = (at: string, line: number) => (at === uri ? line + shift : line);
   if (!plain.chunks) {
+    // A program the compile cannot build reports its errors on the lines the
+    // shift moved them to.
     expect(shifted.chunks).toBeUndefined();
-    const fallback = plain.fallback!;
-    expect(shifted.fallback).toEqual({ ...fallback, line: moved(fallback.uri, fallback.line) });
+    const errors = (program: SparkProgram) =>
+      Object.entries(program.diagnostics ?? {}).flatMap(([at, list]) =>
+        list
+          .filter((d) => d.severity === 1)
+          .map((d) => [at, d.range.start.line, typeof d.message === "string" ? d.message : d.message.value] as const),
+      );
+    expect(errors(plain).length).toBeGreaterThan(0);
+    expect(errors(shifted)).toEqual(errors(plain).map(([at, line, message]) => [at, moved(at, line), message]));
     return;
   }
-  expect(shifted.fallback).toBeUndefined();
+  expect(shifted.chunks).toBeDefined();
   expect(content(shifted.chunks!)).toEqual(content(plain.chunks));
   expect(positions(shifted.chunks!)).toEqual(
     positions(plain.chunks).map(([at, line]) => [at, moved(at, line)]),

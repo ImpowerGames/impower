@@ -660,6 +660,7 @@ sparkdown [0..386]
  │       ├─ LuauTheme_end_c1 382
  │       │   └─ LuauTheme_end_c1 382
  │       │       └─ OptionalWhitespace 382
- │       └─ LuauTheme_end_c2 [382..385]
- │           └─ LuauEndKeyword [382..385]: "end"
+ │       ├─ LuauTheme_end_c2 [382..385]
+ │       │   └─ LuauEndKeyword [382..385]: "end"
+ │       └─ LuauTheme_end_c3 385
  └─ Newline [385..386]: "\n"

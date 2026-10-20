@@ -385,8 +385,8 @@ the virtual list) is all that's needed. Note it; don't build it in v1.
 
 **Coarse-pointer detection:** branch menu placement on `window.matchMedia('(pointer:
 coarse)')` — bottom sheet vs anchored dropdown. Radix's `DropdownContent` can be styled to
-dock bottom; or wrap a simple Preact-native bottom sheet (no Radix Dialog — see memory
-`feedback_radix_dialog_breaks_ssr`).
+dock bottom; or wrap a bottom sheet (Radix Dialog loads under the dev server render since
+#1585).
 
 ---
 
@@ -551,7 +551,7 @@ modifies nothing.
 |---|---|---|---|
 | `iconForPath` helper (`utils/fileIcon.ts`) | map extension → existing icon | trivial, pure fn | **yes** (Step 1) |
 | `SearchInput` primitive (impower-ui) | toolbar search; no `Input` exists in `components/index.ts` | small — a styled `<input>` + `Search`/`X` icons, cn() idiom | yes (Step 6) — can inline a local input first |
-| Bottom-sheet menu variant | mobile long-press menu / "Move to…" on coarse pointer | small — style `DropdownContent` to dock bottom, or a Preact-native sheet (avoid Radix Dialog per `feedback_radix_dialog_breaks_ssr`) | yes (Steps 4–5) |
+| Bottom-sheet menu variant | mobile long-press menu / "Move to…" on coarse pointer | small — style `DropdownContent` to dock bottom, or a sheet on Radix Dialog (it loads under the dev server render since #1585) | yes (Steps 4–5) |
 | **`Folder` / `FolderOpen` icons** | canonical closed/open folder shape (vs the `Binder` stand-in) | ~10 lines, 2 Tabler SVG paths in `icons.generated.tsx` | **optional** — `Binder` ships v1; add if it doesn't read well |
 | Collapse-all icon | a chevron-into-bar glyph; `ArrowBackUp` is a serviceable stand-in | optional new icon | no — reuse `ArrowBackUp` |
 | `ContextMenu` primitive (Radix `@radix-ui/react-context-menu`) | true right-click menu (vs reusing Dropdown) | medium — mirrors the existing Dropdown wrapper | no — reusing `Dropdown*` is fine for v1 |

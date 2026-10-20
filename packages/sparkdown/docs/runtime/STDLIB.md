@@ -5,7 +5,7 @@ authors can use the same functions they're familiar with from Luau /
 Roblox / Lua 5.1. This document tracks what's implemented today and what
 still needs to land.
 
-**Source of truth**: [`src/inkjs/engine/StdLib.ts`](src/inkjs/engine/StdLib.ts).
+**Source of truth**: [`src/runtime/StdLib.ts`](src/runtime/StdLib.ts).
 The unified `STDLIB` table holds every Luau stdlib function keyed by its
 dotted full name (`"math.abs"`, `"plural.category"`, `"assert"`, ...).
 Each entry is `{arity, pure?, fn(story, args)}`. Pure entries
@@ -408,6 +408,7 @@ in `STDLIB` (StdLib.ts) as state-aware entries.
 | `print(...)`                  | ✅  |  ✅  |   ✅   | Variadic; currently a no-op. Sparkdown's narrative runtime has no implicit stdout.                                                                                                                           |
 | `rawequal(a, b)`              | ✅  |  ✅  |   ✅   | Strict `===` on underlying values; bypasses `__eq`.                                                                                                                                                          |
 | `rawget(t, k)`                | ✅  |  ✅  |   ✅   | Bypasses `__index` — returns the field stored directly on `t`, or nil if absent.                                                                                                                             |
+| `rawlen(v)`                   | ✅  |  ✅  |   ✅   | A table's border or a string's length; bypasses `__len`. Anything else raises `table or string expected`. |
 | `rawset(t, k, v)`             | ✅  |  ✅  |   ✅   | Bypasses `__newindex` — writes directly to `t`. Returns `t`.                                                                                                                                                 |
 | `require(modname)`            | ✅  |  ✅  |   ⬜   | Sparkdown's `run "path"` covers .luau loading; `require` for module-return-values still TBD.                                                                                                                 |
 | `select(n, ...)`              | ✅  |  ✅  |   ✅   | `select("#", ...)` → count (single int). `select(n, ...)` → multi-return tail starting at 1-indexed `n` (negative counts from end).                                                                          |
@@ -429,11 +430,11 @@ in `STDLIB` (StdLib.ts) as state-aware entries.
 | `__add`, `__sub`, `__mul`, `__div`, `__mod`, `__pow`, `__unm` |  ✅  |  ✅  |   ✅   | Arithmetic metamethods. Fire when either operand is a table; LHS metatable consulted first, then RHS. Function-form handlers dispatched via `story.CallLuauFunction`.                                                                                                     |
 | `__idiv`                                                      | 5.3+ |  ✅  |   ⬜   | Floor-division metamethod (Lua 5.3+ / Luau). Sparkdown's grammar doesn't expose `//` yet.                                                                                                                                                                                 |
 | `__concat`                                                    |  ✅  |  ✅  |   ⚠️   | Sparkdown maps `..` and `+` to the same runtime native (`Add`), so `__concat` and `__add` collapse — concat-style `t .. s` triggers `__add`. Acceptable trade-off until the lowerer keeps the ops distinct.                                                               |
-| `__len`                                                       | 5.2+ |  ✅  |   ✅   | Unary `#t` consults the metatable before the built-in object-size path.                                                                                                                                                                                                   |
-| `__eq`, `__lt`, `__le`                                        |  ✅  |  ✅  |   ✅   | `__eq` fires only when both operands are tables (Luau-fidelity). `>` / `>=` swap args and call `__lt` / `__le` respectively. `!=` inverts `__eq`.                                                                                                                         |
-| `__index`, `__newindex`                                       |  ✅  |  ✅  |   ✅   | Table-form chains lookup (Lua-style class inheritance via `{__index = parent}`). Function-form calls `__index(t, key)` / `__newindex(t, key, val)`. Hooked at the `IndexValue` / `StoreIndex` bytecode ops and at the dotted-path variable-lookup fallback.               |
+| `__len`                                                       | 5.2+ |  ✅  |   ✅   | Unary `#t` consults the metatable before the built-in object-size path. A `__len` that is not a function raises `attempt to call a ... value`; one that returns no number raises `'__len' must return a number`.                                                                                                                                                                                                   |
+| `__eq`, `__lt`, `__le`                                        |  ✅  |  ✅  |   ✅   | Each fires only when both operands are tables with the same handler (Luau's `get_compTM` / `call_orderTM`); `__eq` fires even for a table compared with itself. `a <= b` with no shared `__le` is `not (b < a)` through `__lt`. `>` / `>=` swap args and call `__lt` / `__le` respectively. `!=` inverts `__eq`.                                                                                                                         |
+| `__index`, `__newindex`                                       |  ✅  |  ✅  |   ✅   | Table-form chains lookup (Lua-style class inheritance via `{__index = parent}`). Function-form calls `__index(t, key)` / `__newindex(t, key, val)` with the key as written; a nil or NaN key, and a key absent from a frozen table, reach a `__newindex` function before the raw write raises. Hooked at the `IndexValue` / `StoreIndex` bytecode ops and at the dotted-path variable-lookup fallback.               |
 | `__call`                                                      |  ✅  |  ✅  |   ⚠️   | Closure-form handlers infer arg count from `__closure_user_arity`. Bare DivertTarget handlers default to "1 arg = self" — user args pushed at the call site stay on the eval stack. Authors needing multi-arg `__call` with a bare-knot handler should wrap as a closure. |
-| `__tostring`                                                  |  ✅  |  ✅  |   ✅   | `tostring(t)` consults `__tostring` before the default representation. Non-string returns fall through to the default.                                                                                                                                                    |
+| `__tostring`                                                  |  ✅  |  ✅  |   ✅   | `tostring(t)` consults `__tostring` before the default representation. A number return is its text; any other non-string return raises `'__tostring' must return a string`, as in Luau.                                                                                                                                                    |
 | `__metatable`                                                 |  ✅  |  ✅  |   ✅   | When the metatable has `__metatable`, `getmetatable(t)` returns that field's value (instead of the real metatable) and `setmetatable(t, ...)` errors.                                                                                                                     |
 | `__mode`                                                      |  ✅  |  ✅  |   ⛔   | Weak-table mode (`"k"`/`"v"`/`"kv"`). Needs GC hooks — no JS equivalent.                                                                                                                                                                                                  |
 | `__iter`                                                      |  ❌  |  ✅  |   ⬜   | Luau-only. Would need generic-for to detect table-typed iter-expression and substitute with `__iter(t)`. Deferred.                                                                                                                                                        |
@@ -450,7 +451,7 @@ can land in `STDLIB`:
   function replacement forms) cover the full Lua-pattern surface
   including `%f[]` frontier, `()` position capture, and `%b{xy}`
   balanced match. Patterns translate via `luaPatternToJs` →
-  `executeLuaPattern` (`inkjs/engine/LuaPatterns.ts`). Function-form
+  `executeLuaPattern` (`runtime/LuaPatterns.ts`). Function-form
   `gsub` calls the user fn via `story.CallLuauFunction` per match.
 
 - **Protected call (LANDED)** — `pcall` / `xpcall` use
@@ -499,7 +500,7 @@ can land in `STDLIB`:
 ## How to add a new entry
 
 The single source of truth is the `STDLIB` table in
-[`src/inkjs/engine/StdLib.ts`](src/inkjs/engine/StdLib.ts). Every
+[`src/runtime/StdLib.ts`](src/runtime/StdLib.ts). Every
 entry has `{arity, pure?, fn(story, args)}`.
 
 ### Pure (auto-mounted on `NativeFunctionCall`)

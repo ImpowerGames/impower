@@ -1,13 +1,26 @@
 import type { Server } from "node:http";
 import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
+import { BRIDGE_SUBSCRIPTIONS_METHOD, SUBSCRIBE_METHOD } from "../modules/spark-editor/workspace/devProtocolMethods";
 
 /** One dev-server port names one editor session. No editor means no mutation. */
 export function attachDevProtocolSocket(server: Server) {
   // A supported 256 MiB asset occupies about 342 MiB after base64 framing.
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 384 * 1024 * 1024 });
   let editor: WebSocket | undefined;
-  const clients = new Set<WebSocket>();
+  // Each client's subscribed notification methods ("*" for all). The editor
+  // learns their union so it never serializes a notification nobody wants.
+  const clients = new Map<WebSocket, Set<string>>();
+  const wanted = (subscriptions: Set<string>, method: string) => subscriptions.has("*") || subscriptions.has(method);
+  // A new editor connection starts with nothing wanted, so it needs a message
+  // only when some client has subscribed; later changes always publish.
+  const publishSubscriptions = (onConnect = false) => {
+    if (!editor) return;
+    const methods = new Set<string>();
+    for (const subscriptions of clients.values()) for (const method of subscriptions) methods.add(method);
+    if (onConnect && !methods.size) return;
+    send(editor, { jsonrpc: "2.0", method: BRIDGE_SUBSCRIPTIONS_METHOD, params: { methods: methods.has("*") ? ["*"] : [...methods].sort() } });
+  };
   const pending = new Map<string, { client: WebSocket; id: string | number; timer: ReturnType<typeof setTimeout> }>();
   const send = (socket: WebSocket, value: unknown) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value));
@@ -40,8 +53,8 @@ export function attachDevProtocolSocket(server: Server) {
         ws.close(1013, "Another editor owns this session");
         return;
       }
-      if (role === "editor") editor = ws;
-      else clients.add(ws);
+      if (role === "editor") { editor = ws; publishSubscriptions(true); }
+      else clients.set(ws, new Set());
       ws.on("error", () => ws.close());
       ws.on("message", (data) => {
         let message: any;
@@ -49,7 +62,7 @@ export function attachDevProtocolSocket(server: Server) {
         if (!message || message.jsonrpc !== "2.0") { ws.close(1007, "Expected JSON-RPC 2.0"); return; }
         if (role === "editor") {
           if (typeof message.method === "string" && !("id" in message)) {
-            for (const client of clients) send(client, message);
+            for (const [client, subscriptions] of clients) if (wanted(subscriptions, message.method)) send(client, message);
           } else if ("result" in message || "error" in message) {
             const entry = pending.get(message.id);
             if (!entry) return;
@@ -62,6 +75,18 @@ export function attachDevProtocolSocket(server: Server) {
         if (typeof message.method !== "string" || ("id" in message && typeof message.id !== "string" && typeof message.id !== "number")) {
           ws.close(1007, "Expected request or notification"); return;
         }
+        if (message.method === SUBSCRIBE_METHOD && !("id" in message)) {
+          const methods = message.params?.methods;
+          if (methods !== undefined && (!Array.isArray(methods) || methods.some((method: unknown) => typeof method !== "string"))) {
+            ws.close(1007, "Expected params.methods to be a string array"); return;
+          }
+          clients.set(ws, new Set(methods ?? ["*"]));
+          publishSubscriptions();
+          return;
+        }
+        // Only the server speaks for the clients' union; a forged update
+        // would make the editor serialize notifications nobody receives.
+        if (message.method === BRIDGE_SUBSCRIPTIONS_METHOD) { ws.close(1007, "Reserved method"); return; }
         if (!editor || editor.readyState !== WebSocket.OPEN) {
           if ("id" in message) send(ws, { jsonrpc: "2.0", id: message.id, error: { code: -32000, message: "No editor connected" } });
           else ws.close(1013, "No editor connected");
@@ -76,7 +101,8 @@ export function attachDevProtocolSocket(server: Server) {
         send(editor, { ...message, id });
       });
       ws.on("close", () => {
-        clients.delete(ws);
+        if (clients.get(ws)?.size) { clients.delete(ws); publishSubscriptions(); }
+        else clients.delete(ws);
         if (editor === ws) {
           editor = undefined;
           for (const id of pending.keys()) fail(id, "Editor disconnected; request outcome may be unknown");

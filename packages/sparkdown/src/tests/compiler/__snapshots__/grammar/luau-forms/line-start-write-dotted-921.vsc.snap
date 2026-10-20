@@ -1,0 +1,9 @@
+text.source.sparkdown [0..17]
+ ├─ string.display.write.inline.sd [0..16]
+ │   ├─ keyword.action.mark.sd [0..1]: "@"
+ │   ├─ variable.other.property.write.target.sd [1..10]: "hud.panel"
+ │   ├─ meta.template.expression.operator.colon.sd [10..11]: ":"
+ │   ├─ punctuation.whitespace.required.sd [11..12]: " "
+ │   └─ string.display.text.chunk.sd [12..16]
+ │       └─ markup.raw.text.sd [12..16]: "text"
+ └─ Newline [16..17]: "\n"

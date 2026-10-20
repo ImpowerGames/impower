@@ -1,12 +1,11 @@
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
-import { Container as RuntimeContainer } from "../../../engine/Container";
-import { DebugMetadata } from "../../../engine/DebugMetadata";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
-import { Path as RuntimePath } from "../../../engine/Path";
-import { asOrNull } from "../../../engine/TypeAssertion";
+import { noteResolved } from "../../../../program/StatementWatch";
+import { DebugMetadata } from "../../../../runtime/DebugMetadata";
+import { asOrNull } from "../../../../runtime/TypeAssertion";
 import { currentCompileEpoch } from "./CompileEpoch";
 import type { FindQueryFunc } from "./FindQueryFunc";
 import { Identifier } from "./Identifier";
+import { resolutionTap } from "./ResolutionTap";
 import { Story } from "./Story";
 
 /**
@@ -25,9 +24,25 @@ const emptyCollectSubtrees = new WeakMap<
   { typesKey: string; length: number }
 >();
 
-export abstract class ParsedObject {
-  public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
+/** Resolves `obj` as part of its parent's resolution, and reports it to the
+ *  statement watch: a chunk kept for the object's statement recorded how
+ *  the object resolved, and the watch reads it again here. */
+export const resolveChild = (obj: ParsedObject, context: Story): void => {
+  const tap = resolutionTap();
+  if (tap) {
+    tap.visited(obj, false);
+    try {
+      obj.ResolveWith(context);
+    } finally {
+      tap.left(obj, false);
+    }
+  } else {
+    obj.ResolveWith(context);
+  }
+  noteResolved(obj);
+};
 
+export abstract class ParsedObject {
   /** Writes this object's code into the statement chunk being emitted
    *  (docs/engine/binary-program.md, section 3). A class the binary program
    *  does not cover yet keeps this one, which stops the emission and names
@@ -36,16 +51,23 @@ export abstract class ParsedObject {
     emitter.unsupported(this.typeName);
   }
 
+  /** The qualified name of the binary program's symbol for this object as a
+   *  divert target or a counted target (docs/engine/binary-program.md,
+   *  section 2): a scene, a branch and a label have one; anything else has
+   *  none. */
+  get programSymbolName(): string | null {
+    return null;
+  }
+
   public identifier: Identifier | null = null;
 
   // Diagnostic-dedup state: the compile epoch (see CompileEpoch.ts) at which
   // this node last emitted an error/warning. Comparing against the CURRENT
-  // epoch makes flags from a prior `ExportRuntime` stale automatically —
+  // epoch makes flags from a prior compile stale automatically —
   // reused parsed nodes need no per-compile clearing walk.
   private _errorEpoch: number = 0;
   private _warningEpoch: number = 0;
   private _debugMetadata: DebugMetadata | null = null;
-  private _runtimeObject: RuntimeObject | null = null;
 
   public content: ParsedObject[] = [];
   public parent: ParsedObject | null = null;
@@ -91,36 +113,54 @@ export abstract class ParsedObject {
     return ancestor as Story;
   }
 
-  get runtimeObject(): RuntimeObject {
-    if (!this._runtimeObject) {
-      this._runtimeObject = this.GenerateRuntimeObject();
-      if (this._runtimeObject) {
-        this._runtimeObject.debugMetadata = this.debugMetadata;
+  /**
+   * Prepares the object for the program path's resolution (#705): the
+   * object's `Prepare` makes its declarations, reports its diagnostics,
+   * resolves a divert's target early, sets the parsed fields a resolution
+   * or the writer reads afterwards, and prepares its children in order. The
+   * resolver taps hear it (`visited`, `left`), and an object is prepared
+   * once, until `ResetRuntime`; one whose `Prepare` returns false (a
+   * global's declaration) is prepared again each time it is asked.
+   */
+  public prepare(): void {
+    if (this._prepared) {
+      return;
+    }
+    const tap = resolutionTap();
+    let made: boolean;
+    if (tap) {
+      tap.visited(this, true);
+      try {
+        made = this.Prepare();
+      } finally {
+        tap.left(this, true);
       }
+    } else {
+      made = this.Prepare();
     }
-
-    return this._runtimeObject as RuntimeObject;
+    this._prepared = made;
   }
 
-  set runtimeObject(value: RuntimeObject | null) {
-    this._runtimeObject = value;
+  /** `Prepare` heard by no tap and kept by nothing, for an object its
+   *  parent prepares directly (a divert target's divert, a choice's
+   *  contents, an onward return's divert). */
+  public PrepareUncached(): boolean {
+    return this.Prepare();
   }
 
-  get runtimePath(): RuntimePath {
-    if (!this.runtimeObject.path) {
-      throw new Error();
-    }
-
-    return this.runtimeObject.path;
+  /** Whether the object has been prepared since its last `ResetRuntime`. */
+  get isPrepared(): boolean {
+    return this._prepared;
   }
 
-  // When counting visits and turns since, different object
-  // types may have different containers that needs to be counted.
-  // For most it'll just be the object's main runtime object,
-  // but for e.g. choices, it'll be the target container.
-  get containerForCounting(): RuntimeContainer | null {
-    return this.runtimeObject as RuntimeContainer;
+  /** What preparing the object does (`prepare`); whether the object stays
+   *  prepared. Each class that the program path prepares says what its
+   *  preparation does. */
+  protected Prepare(): boolean {
+    throw new Error(`${this.typeName} has no preparation for the program path`);
   }
+
+  private _prepared = false;
 
   get ancestry(): ParsedObject[] {
     let result = [];
@@ -302,10 +342,15 @@ export abstract class ParsedObject {
     return found;
   };
 
-  public ResolveReferences(context: Story) {
+  /** The program path's resolution (`ProgramResolver`,
+   *  docs/engine/binary-program.md, section 2), which a class overrides.
+   *  Called on the object's content by its own resolution through
+   *  `resolveChild`, which the program path's resolver calls on each object
+   *  a statement holds at its top. */
+  public ResolveWith(context: Story): void {
     if (this.content !== null) {
       for (const obj of this.content) {
-        obj.ResolveReferences(context);
+        resolveChild(obj, context);
       }
     }
   }
@@ -326,21 +371,27 @@ export abstract class ParsedObject {
     }
 
     // Only allow a single parsed object to have a single error *directly* associated with it
-    if (source instanceof ParsedObject) {
-      if (
-        (source._errorEpoch === currentCompileEpoch() && !isWarning) ||
-        (source._warningEpoch === currentCompileEpoch() && isWarning)
-      ) {
-        return;
+    const keptBack =
+      (source instanceof ParsedObject &&
+        ((source._errorEpoch === currentCompileEpoch() && !isWarning) ||
+          (source._warningEpoch === currentCompileEpoch() && isWarning))) ||
+      (source instanceof Identifier &&
+        ((source.alreadyHadError && !isWarning) ||
+          (source.alreadyHadWarning && isWarning)));
+    if (keptBack) {
+      // Heard where it was raised, which a call bubbling up from a child is
+      // not (`raiser`).
+      if (raiser === this) {
+        resolutionTap()?.diagnostic(
+          this,
+          message,
+          source,
+          isWarning,
+          (source as ParsedObject | Identifier).debugMetadata ?? null,
+          false,
+        );
       }
-    }
-    if (source instanceof Identifier) {
-      if (
-        (source.alreadyHadError && !isWarning) ||
-        (source.alreadyHadWarning && isWarning)
-      ) {
-        return;
-      }
+      return;
     }
 
     if (this.parent) {
@@ -373,7 +424,7 @@ export abstract class ParsedObject {
   };
 
   public ResetRuntime() {
-    this._runtimeObject = null;
+    this._prepared = false;
     this._errorEpoch = 0;
     this._warningEpoch = 0;
     this.OnResetRuntime();

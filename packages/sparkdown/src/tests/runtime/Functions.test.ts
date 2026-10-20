@@ -9,7 +9,11 @@
 // Runtime-level function behavior is covered by `CallStack.test.ts`.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
+import {
+  collectDiagnosticsFromFile,
+  makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
+} from "./runtimeTestHarness";
 
 describe("Functions — clean-compile invariants", () => {
   // These tests assert "no diagnostics emitted" for valid sparkdown
@@ -28,7 +32,8 @@ describe("Functions — clean-compile invariants", () => {
     // The function's `x` parameter has the same name as a labeled
     // gather inside an unrelated knot. Different scopes — no conflict.
     // Sparkdown rewrite uses `label x` for the gather and `function
-    // f(x) end` for the function. Compile should be clean.
+    // _f(x) end` for the function, which nothing calls (the `_` keeps
+    // FunctionUnused quiet). Compile should be clean.
     const ctx = makeRuntimeStoryFromFile(
       "functions",
       "argument-shouldnt-conflict-with-gather",
@@ -60,14 +65,16 @@ describe("Functions — clean-compile invariants", () => {
     //   -> myFunc    — diverting to a function (must be called)
     // The upstream test asserts the specific wording `"hasn't been
     // marked as a function"` and `"can only be called as a function"`.
-    // Sparkdown happens to emit the exact same substrings (inherited
-    // from inkjs's ExportRuntime divert validation), so we keep the
-    // substring asserts. If sparkdown's wording diverges in the
-    // future, relax to `.length > 0`.
+    // Sparkdown keeps the first; the divert to a function says how to
+    // call the function instead (#1708), so that assert reads its words.
     //
     // Sparkdown rewrite: `& aKnot()` for the bad-call form (sparkdown's
     // explicit-statement marker), `-> myFunc` for the bad-divert form.
-    const ctx = makeRuntimeStoryFromFile(
+    //
+    // The compile reports both errors and makes no program a story runs
+    // (its divert to a function is no construct the program engine
+    // carries), so only its diagnostics are read.
+    const ctx = collectDiagnosticsFromFile(
       "functions",
       "function-call-restrictions",
     );
@@ -75,30 +82,40 @@ describe("Functions — clean-compile invariants", () => {
       ctx.errorMessages.some((m) => /hasn't been marked as a function/.test(m)),
     ).toBe(true);
     expect(
-      ctx.errorMessages.some((m) => /can only be called as a function/.test(m)),
+      ctx.errorMessages.some((m) =>
+        /^A function can't be diverted to: call `myFunc` instead/.test(m),
+      ),
     ).toBe(true);
   });
 
-  test("function parameter / global-name collisions surface as compile errors", () => {
-    // Upstream ink test asserts the exact wording `"name has already
-    // been used for a function"` / `"name has already been used for a
-    // var"`. Sparkdown's diagnostic surface differs by wording — it
-    // emits `"Duplicate identifier \`X\`. A function named \`X\`
-    // already exists on null"` instead. We relax the check to "at
-    // least one diagnostic emitted" so the test pins the underlying
-    // detection (function param shadowing a top-level function name
-    // or a global store) without coupling to the exact wording.
-    //
-    // Sparkdown rewrite mirrors the upstream collisions:
-    //   - `function pass_divert(aTarget)` collides with
-    //     `function aTarget()` (file-scope name reuse)
-    //   - `function variable_param_test(global_var)` collides with
-    //     `store global_var = 5` (param shadowing a global)
+  test("function parameters shadow a global function or store of their name", () => {
+    // A port of upstream ink's argument-name-collision test, whose
+    // expectation is dropped for the Luau rule: a parameter shadows any
+    // outer name inside its function (#1177 for a const, #1742 for a
+    // store). Ink reported both of the fixture's parameters:
+    //   - `function pass_divert(aTarget)` beside `function aTarget()`,
+    //     already allowed before #1742 (parameters may shadow callables)
+    //   - `function variable_param_test(global_var)` beside
+    //     `store global_var = 5`, the fixture's only error until #1742
     const ctx = makeRuntimeStoryFromFile(
       "functions",
       "argument-name-collisions",
     );
-    expect(ctx.errorMessages.length).toBeGreaterThan(0);
+    expect(ctx.errorMessages).toEqual([]);
+  });
+
+  test.each([
+    ["a local at the top level beside a store", "store global_var = 5\nlocal global_var = 1\n"],
+    ["two stores of one name", "store global_var = 5\nstore global_var = 1\n"],
+    [
+      "a store declared in the function beside its parameter",
+      "function f(global_var)\n  store global_var = 5\n  return global_var\nend\n",
+    ],
+  ])("%s still collides", (_label, source) => {
+    const ctx = makeRuntimeStoryFromSource(`${source}done\n`);
+    expect(ctx.errorMessages.join("\n")).toContain(
+      "Duplicate identifier `global_var`",
+    );
   });
 });
 

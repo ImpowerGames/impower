@@ -4,26 +4,23 @@ import { Divert } from "../Divert/Divert";
 import { DivertTarget } from "../Divert/DivertTarget";
 import { FlowLevel } from "./FlowLevel";
 import { Gather } from "../Gather/Gather";
-import type { INamedContent } from "../../../../engine/INamedContent";
+import type { INamedContent } from "../../../../../runtime/INamedContent";
 // import { Knot } from '../Knot';
 import { ParsedObject } from "../Object";
 import { ReturnType } from "../ReturnType";
 import { MultiReturnType } from "../MultiReturnType";
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../../engine/VariableAssignment";
 //import { Story } from '../Story';
 import { SymbolType } from "../SymbolType";
 import { VariableAssignment } from "../Variable/VariableAssignment";
 import { Weave } from "../Weave";
 import { ClosestFlowBase } from "./ClosestFlowBase";
 import { Identifier } from "../Identifier";
-import { asOrNull } from "../../../../engine/TypeAssertion";
-import { DebugMetadata } from "../../../../engine/DebugMetadata";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { asOrNull } from "../../../../../runtime/TypeAssertion";
+import { DebugMetadata } from "../../../../../runtime/DebugMetadata";
+import { ControlCommand as RuntimeControlCommand } from "../../../../../runtime/ControlCommand";
 import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
+import { RecordingMap, recordRead, resolutionTap } from "../ResolutionTap";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 
 // Where the enclosing code creates the value of `flow`, a function the
@@ -37,6 +34,13 @@ function functionValueSite(
   flow: FlowBase,
 ): { parent: ParsedObject; end: number } | null {
   const flowName = flow.identifier?.name;
+  // The program path's resolver knows each statement's function values.
+  const known = flowName ? resolutionTap()?.functionValue(flowName) : undefined;
+  if (known !== undefined) {
+    return known?.parent
+      ? { parent: known.parent, end: known.parent.content.indexOf(known) }
+      : null;
+  }
   const find = (obj: ParsedObject): ParsedObject | null => {
     for (const child of obj.content) {
       if (
@@ -139,17 +143,30 @@ function definitionSite(
 
   const order: ParsedObject[] = [];
   let firstAfter = null as ParsedObject | null;
+  const note = (child: ParsedObject) => {
+    order.push(child);
+    const childStart = position(child);
+    if (childStart && firstAfter === null && startsAfter(childStart)) {
+      firstAfter = child;
+    }
+  };
   const visit = (obj: ParsedObject) => {
     for (const child of obj.content) {
       if (child instanceof FlowBase) {
         continue;
       }
-      order.push(child);
-      const childStart = position(child);
-      if (!childStart) {
-        visit(child);
-      } else if (firstAfter === null && startsAfter(childStart)) {
-        firstAfter = child;
+      note(child);
+      if (!position(child)) {
+        // The program path's resolver knows what this walk finds under an
+        // object a statement holds at its top (`ResolutionTap.unplaced`).
+        const known = resolutionTap()?.unplaced(child);
+        if (known) {
+          for (const under of known) {
+            note(under);
+          }
+        } else {
+          visit(child);
+        }
       }
     }
   };
@@ -174,6 +191,16 @@ function definitionSite(
   return { parent: root, end: root.content.length };
 }
 
+// Whether `obj` is `ancestor` or written inside it.
+export function isWithin(obj: ParsedObject, ancestor: ParsedObject): boolean {
+  for (let p: ParsedObject | null = obj; p; p = p.parent) {
+    if (p === ancestor) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Whether `content[0..end)` declares a `local` named `varName` that is still
 // in scope at `end`. The objects are scanned backwards, and everything
 // between an `EndScope` and its `BeginScope` is skipped: that block closed
@@ -182,19 +209,74 @@ function definitionSite(
 // declaration can sit inside an object that opens no block, such as a
 // multiple assignment or the label gather of a `repeat` body. A function is
 // a flow of its own and is never searched.
+//
+// The program path's resolver knows the locals an object a statement holds
+// at its top declares there (`ResolutionTap.declaredLocals`), read once when
+// the statement is lowered, so a search through the statements before a
+// reference visits none of them.
 function declaresLocal(
   content: ParsedObject[],
   end: number,
   varName: string,
 ): boolean {
+  for (const obj of openObjects(content, end)) {
+    if (
+      obj instanceof VariableAssignment &&
+      obj.isNewTemporaryDeclaration &&
+      obj.variableName === varName
+    ) {
+      return true;
+    }
+    const known = resolutionTap()?.declaredLocals(obj);
+    if (
+      known
+        ? known.has(varName)
+        : declaresLocal(obj.content, obj.content.length, varName)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The names of the locals `content[0..end)` declares that are still in
+ *  scope at `end`, as `declaresLocal` finds them, added to `into`. `of`
+ *  gives an object's own (`localsDeclaredIn` of its whole content) when the
+ *  caller already knows it. */
+export function localsDeclaredIn(
+  content: ParsedObject[],
+  end: number,
+  into = new Set<string>(),
+  of?: (obj: ParsedObject) => ReadonlySet<string>,
+): Set<string> {
+  for (const obj of openObjects(content, end)) {
+    if (obj instanceof VariableAssignment && obj.isNewTemporaryDeclaration) {
+      into.add(obj.variableName);
+    }
+    if (of) {
+      for (const name of of(obj)) {
+        into.add(name);
+      }
+    } else {
+      localsDeclaredIn(obj.content, obj.content.length, into);
+    }
+  }
+  return into;
+}
+
+// The objects of `content[0..end)` that `declaresLocal` searches, last
+// first: those outside every block that closes before `end`, every
+// conditional and every function.
+function* openObjects(
+  content: ParsedObject[],
+  end: number,
+): Generator<ParsedObject> {
   let closedScopes = 0;
   for (let i = end - 1; i >= 0; i--) {
     const obj = content[i]!;
     if (obj instanceof Wrap) {
-      const command = asOrNull(
-        obj.GenerateRuntimeObject(),
-        RuntimeControlCommand,
-      )?.commandType;
+      const command = asOrNull(obj.wrapped, RuntimeControlCommand)
+        ?.commandType;
       if (command === RuntimeControlCommand.CommandType.EndScope) {
         closedScopes++;
       } else if (
@@ -208,19 +290,9 @@ function declaresLocal(
       !(obj instanceof FlowBase) &&
       !(obj instanceof Conditional)
     ) {
-      if (
-        obj instanceof VariableAssignment &&
-        obj.isNewTemporaryDeclaration &&
-        obj.variableName === varName
-      ) {
-        return true;
-      }
-      if (declaresLocal(obj.content, obj.content.length, varName)) {
-        return true;
-      }
+      yield obj;
     }
   }
-  return false;
 }
 
 type VariableResolveResult = {
@@ -240,9 +312,13 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // `end` or by a following `scene` or `branch`, so the chunks after the
   // declaration are not part of it.
   public _bodyClosed = false;
-  public _subFlowsByName: Map<string, FlowBase> = new Map();
-  public _startingSubFlowDivert: RuntimeDivert | null = null;
-  public _startingSubFlowRuntime: RuntimeObject | null = null;
+  // The flow the lowering made of this flow's declaration, which the
+  // assembly builds this one from: a scene's or a branch's, or a function
+  // declared at the top level, whose flow the compile builds anew every
+  // time. It is carried with the declaration's statement, and the program
+  // path's resolver knows the flow by it (`ProgramResolver`).
+  public _loweredFrom: FlowBase | null = null;
+  public _subFlowsByName: Map<string, FlowBase> = this.subFlowTable();
   public _firstChildFlow: FlowBase | null = null;
   // The object this flow followed in its parent's content when the parent
   // split that content into its weave and its flows. A flow written inside a
@@ -254,7 +330,23 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // written directly in that function's body, outside every block of it.
   // See `definitionSite`.
   public _outsideBlocks = false;
-  public variableDeclarations: Map<string, VariableAssignment> = new Map();
+  public variableDeclarations: Map<string, VariableAssignment> =
+    FlowBase.declarationTable();
+
+  /** A table of the flow's sub-flows by name, whose lookups a resolution of
+   *  the program path records (`RecordingMap`). Going through it whole reads
+   *  every flow it holds, which a flow added under this one changes. */
+  public subFlowTable(): Map<string, FlowBase> {
+    return new RecordingMap(() => `flows:${this.identifier?.name ?? ""}`);
+  }
+
+  /** A table of the flow's declarations by name, whose lookups a resolution
+   *  of the program path records (`RecordingMap`). */
+  public static declarationTable(
+    entries?: Iterable<readonly [string, VariableAssignment]>,
+  ): Map<string, VariableAssignment> {
+    return new RecordingMap(() => "vars", entries);
+  }
 
   get hasParameters() {
     return this.args !== null && this.args.length > 0;
@@ -274,6 +366,29 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   get name(): string | null {
     return this.identifier?.name || null;
+  }
+
+  /** The name the binary program's symbol of this flow has
+   *  (docs/engine/binary-program.md, section 2): a scene's name, a branch's
+   *  scene and its own name joined by a dot, and the empty string for the
+   *  story's top-level content; nothing for a function, whose symbol the
+   *  chunk store gives it. */
+  public override get programSymbolName(): string | null {
+    if (this.isFunction) {
+      return null;
+    }
+    const names: string[] = [];
+    let at: ParsedObject | null = this;
+    while (at?.parent) {
+      if (at instanceof FlowBase) {
+        if (at.isFunction) {
+          return null;
+        }
+        names.unshift(at.identifier?.name ?? "");
+      }
+      at = at.parent;
+    }
+    return names.join(".");
   }
 
   /** A function a statement's objects hold is one the story left in the
@@ -325,7 +440,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const weaveObjs: ParsedObject[] = [];
     const subFlowObjs: ParsedObject[] = [];
 
-    this._subFlowsByName = new Map();
+    this._subFlowsByName = this.subFlowTable();
 
     for (const obj of contentObjs) {
       const subFlow = asOrNull(obj, FlowBase);
@@ -374,10 +489,69 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   public VariableResolveResult?: VariableResolveResult | null | undefined;
 
+  // Whether a `local` or a parameter certainly binds `varName` where
+  // `fromNode` is written: a `local` declared before it in its own flow,
+  // outside any block that has closed (`declaresLocal`), or a parameter of
+  // that flow. A name a nested function captures is an upvalue parameter,
+  // which the function's sites (`sitesOf`: where its value is made, or
+  // where it is called) fill with a pointer to whatever the name resolves to
+  // there, the global included; it is bound when every site outside the
+  // function itself binds the name. A function with no site found binds
+  // nothing certain. The decision reads only the order of the parsed
+  // content, never source positions, so an incremental compile decides it as
+  // a cold one does.
+  public IsBoundLocallyAt = (
+    varName: string,
+    fromNode: ParsedObject,
+    sitesOf: (flow: FlowBase) => readonly ParsedObject[] = () => [],
+    passing: Set<FlowBase> = new Set(),
+  ): boolean => {
+    let node: ParsedObject | null = fromNode.parent;
+    let end = node ? node.content.indexOf(fromNode) : -1;
+    while (node && !(node instanceof FlowBase)) {
+      if (declaresLocal(node.content, end, varName)) {
+        return true;
+      }
+      const child: ParsedObject = node;
+      node = node.parent;
+      end = node ? node.content.indexOf(child) : -1;
+    }
+    const flow = node as FlowBase | null;
+    if (!flow || flow === this.story) {
+      return false;
+    }
+    const arg = flow.args?.find((a) => a.identifier?.name === varName);
+    if (!arg) {
+      return false;
+    }
+    if (!arg.isUpvalue) {
+      return true;
+    }
+    // A site inside a function that is already being decided passes on the
+    // pointer that function received, which its other sites decide.
+    if (passing.has(flow)) {
+      return true;
+    }
+    const sites = sitesOf(flow).filter((site) => !isWithin(site, flow));
+    if (sites.length === 0) {
+      return false;
+    }
+    passing.add(flow);
+    try {
+      return sites.every((site) =>
+        this.IsBoundLocallyAt(varName, site, sitesOf, passing),
+      );
+    } finally {
+      passing.delete(flow);
+    }
+  };
+
   public ResolveVariableWithName = (
     varName: string,
     fromNode: ParsedObject,
   ): VariableResolveResult => {
+    // The flow's parameters answer too, and they are no table.
+    recordRead(varName);
     const result: VariableResolveResult = {} as any;
 
     // Search in the stitch / knot that owns the node first
@@ -432,6 +606,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     varName: string,
     fromNode: ParsedObject,
   ): boolean => {
+    recordRead(varName);
     const storyDecl = this.story.variableDeclarations.get(varName);
     if (storyDecl && !storyDecl.isNewTemporaryDeclaration) {
       return true;
@@ -481,6 +656,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       return false;
     }
     const parentFlow = asOrNull(flow.parent, FlowBase);
+    // Where the flow is written depends on statements other than the one
+    // resolving, which a resolution of the program path cannot name.
+    recordRead("*");
     const site = !parentFlow
       ? flow.parent && {
           parent: flow.parent,
@@ -545,9 +723,19 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         // doesn't throw and abort the pass. The `$type_name` key can't
         // collide with a script identifier (`$` is not legal in one).
         const qualifiedKey = `$${newType}_${varName}`;
-        if (!this.variableDeclarations.has(qualifiedKey)) {
+        const holder = this.variableDeclarations.get(qualifiedKey);
+        // The displaced root of a dual name (the prelude's `typewriter` root,
+        // displaced by its synth instance) is overridden like any other.
+        if (holder && this.AddRootOverride(qualifiedKey, holder, varDecl)) {
+          return;
+        }
+        if (!holder) {
           this.variableDeclarations.set(qualifiedKey, varDecl);
         }
+        return;
+      }
+
+      if (this.AddRootOverride(varName, varab, varDecl)) {
         return;
       }
 
@@ -570,12 +758,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // script identifier, and the `$type_name` convention is reserved for
       // dual-TYPE names) immediately BEFORE the authored declaration: the
       // prelude's `__def` runs first and the authored one re-registers over
-      // it in place — the documented override semantic. The override pass has
-      // also already back-filled the authored `__def` table with every prelude
-      // value the author didn't restate (see
-      // SparkdownCompiler.applyBuiltinOverrides), so a partial override keeps
-      // the builtin's other fields. Two colliding AUTHORED defines still
-      // error below. Narrow on purpose: only another DEFINE may take a
+      // it in place — the documented override semantic. The authored `__def`
+      // fills its table from the builtin it replaces with every value the
+      // author didn't restate (see SparkdownCompiler.applyBuiltinOverrides),
+      // so a partial override keeps the builtin's other fields. Two colliding
+      // AUTHORED defines still error below. Narrow on purpose: only another DEFINE may take a
       // builtin's slot. A property declaration that happens to collide is not
       // an override and must fall through to the checks below.
       if (
@@ -587,10 +774,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         // A declaration-only marker of an unseeded compile
         // (Story.DeclareBuiltinGlobals) has no parsed node and nothing to
         // generate, so it is simply dropped rather than re-registered.
-        const incumbentIsMarker =
-          !varab.expression &&
-          !varab.structDefinition &&
-          !varab.listDefinition;
+        const incumbentIsMarker = !varab.expression && !varab.structDefinition;
         if (!incumbentIsMarker) {
           const shadowKey = `$prelude_${varName}`;
           if (!this.variableDeclarations.has(shadowKey)) {
@@ -628,6 +812,44 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     this.variableDeclarations.set(varDecl.variableName, varDecl);
   };
 
+  /** Registers an authored ROOT define that overrides the prelude's root
+   *  define held under `key` (`define game with … end`, #454), and reports
+   *  whether it did; a second authored override of the same root is reported
+   *  as a duplicate. The prelude's root keeps its key and its place in the
+   *  init order, so the prelude's members register into its table as they
+   *  run; the authored root runs at its own place, after the globals its
+   *  initializer reads, under a synthetic `$override_` key, and its `__def`
+   *  merges it into the table that holds the type (`StdLib`'s
+   *  `mergeIntoRootTable`). */
+  protected AddRootOverride = (
+    key: string,
+    incumbent: VariableAssignment,
+    varDecl: VariableAssignment,
+  ): boolean => {
+    const isRoot = (va: VariableAssignment) =>
+      va.isDefineDeclaration && !va.structDefinition && !!va.expression;
+    if (
+      !incumbent.isPreludeDeclaration ||
+      varDecl.isPreludeDeclaration ||
+      !isRoot(incumbent) ||
+      !isRoot(varDecl)
+    ) {
+      return false;
+    }
+    const overrideKey = `$override_${key}`;
+    const earlier = this.variableDeclarations.get(overrideKey);
+    if (earlier) {
+      this.Error(
+        `Duplicate identifier \`${varDecl.variableName}\`. A ${earlier.typeName.toLowerCase()} named \`${varDecl.variableName}\` already exists on ${earlier.debugMetadata}`,
+        varDecl.identifier!.debugMetadata,
+      );
+      varDecl.RefuseAsDuplicate();
+      return true;
+    }
+    this.variableDeclarations.set(overrideKey, varDecl);
+    return true;
+  };
+
   public ResolveWeavePointNaming = (): void => {
     // Find all weave points and organise them by name ready for
     // diverting. Also detect naming collisions.
@@ -642,8 +864,33 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
   };
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    let foundReturn: ReturnType | MultiReturnType | null = null;
+  /** The flow's checks of its own control flow (a function's diverts, choices
+   *  and stitches; a return where a scene, a branch or the file holds it),
+   *  then its content prepared in order, a flow written under it reported
+   *  when one before it has its name. */
+  protected override Prepare(): boolean {
+    this.CheckOwnControlFlow();
+    const children = new Map<string, FlowBase>();
+    for (const obj of this.content ?? []) {
+      if (obj instanceof FlowBase) {
+        obj.prepare();
+        const name = obj.identifier?.name as string;
+        const existing = children.get(name);
+        if (existing) {
+          this.ReportDuplicateChildFlow(obj, existing.debugMetadata);
+        }
+        children.set(name, obj);
+      } else if (obj) {
+        obj.prepare();
+      }
+    }
+    return true;
+  }
+
+  /** The checks of the flow's own control flow, which preparation makes
+   *  first: what a function may not contain, and a
+   *  return a scene, a branch or the file's top level holds. */
+  protected CheckOwnControlFlow(): void {
     // A scene also contains its branches, and a weave can hold function
     // definitions. Each flow validates its own returns, rather than taking
     // a return from a child flow and reporting it as the parent's mistake.
@@ -660,13 +907,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       this.flowLevel === FlowLevel.Stitch
     ) {
       // Scenes and branches cannot return function values.
-      foundReturn = this.Find(ReturnType)(belongsToThisFlow) ?? this.Find(MultiReturnType)(belongsToThisFlow);
-
+      const foundReturn =
+        this.Find(ReturnType)(belongsToThisFlow) ??
+        this.Find(MultiReturnType)(belongsToThisFlow);
       if (foundReturn !== null) {
-        this.Error(
-          `Return statements can only be used inside a function body — found one in ${this.flowLevel === FlowLevel.Knot ? "scene" : "branch"} '${this.identifier}'.`,
-          foundReturn,
-        );
+        this.ReportReturnOutsideFunction(foundReturn);
       }
     } else if (this.flowLevel === FlowLevel.Story) {
       // Explicit Luau return nodes are only valid inside a function body:
@@ -675,124 +920,48 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // node; misplaced marked returns are validated at runtime export.
       //
       // `_rootWeave` holds the Story's free-floating top-level content
-      // (everything outside a `scene` / `branch` / `function`). Inkjs's
-      // Search the weave, with the same ownership predicate as child
-      // flows, so returns belonging to functions remain valid.
+      // (everything outside a `scene` / `branch` / `function`). Search the
+      // weave with the same ownership predicate as child flows, so returns
+      // belonging to functions remain valid.
       if (this._rootWeave !== null) {
-        const rootReturn = this._rootWeave.Find(ReturnType)(belongsToThisFlow) ?? this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
+        const rootReturn =
+          this._rootWeave.Find(ReturnType)(belongsToThisFlow) ??
+          this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
         if (rootReturn !== null) {
-          this.Error(
-            `Return statements can only be used inside a function body — found one at file scope.`,
-            rootReturn,
-          );
+          this.ReportReturnOutsideFunction(rootReturn);
         }
       }
     }
+  }
 
-    const container = new RuntimeContainer();
-    container.name = this.identifier?.name as string;
-
-    if (this.story.countAllVisits) {
-      container.visitsShouldBeCounted = true;
-    }
-
-    this.GenerateArgumentVariableAssignments(container);
-
-    // Run through content defined for this knot/stitch:
-    //  - First of all, any initial content before a sub-stitch
-    //    or any weave content is added to the main content container
-    //  - The first inner knot/stitch is automatically entered, while
-    //    the others are only accessible by an explicit divert
-    //       - The exception to this rule is if the knot/stitch takes
-    //         parameters, in which case it can't be auto-entered.
-    //  - Any Choices and Gathers (i.e. IWeavePoint) found are
-    //    processsed by GenerateFlowContent.
-    let contentIdx: number = 0;
-    while (this.content !== null && contentIdx < this.content.length) {
-      const obj: ParsedObject = this.content[contentIdx]!;
-
-      // Inner knots and stitches
-      if (obj instanceof FlowBase) {
-        const childFlow: FlowBase = obj;
-        const childFlowRuntime = childFlow.runtimeObject;
-
-        // First inner stitch - automatically step into it
-        // 20/09/2016 - let's not auto step into knots
-        if (
-          contentIdx === 0 &&
-          !childFlow.hasParameters &&
-          this.flowLevel === FlowLevel.Knot
-        ) {
-          this._startingSubFlowDivert = new RuntimeDivert();
-          container.AddContent(this._startingSubFlowDivert);
-          this._startingSubFlowRuntime = childFlowRuntime;
-        }
-
-        // Check for duplicate knots/stitches with same name
-        const namedChild = childFlowRuntime as RuntimeObject & INamedContent;
-        const existingChild: INamedContent | null =
-          container.namedContent.get(namedChild.name!) || null;
-
-        if (existingChild) {
-          const errorMsg = `Duplicate identifier \`${
-            namedChild.name
-          }\`. ${this.GetType()} already contains flow named \`${
-            namedChild.name
-          }\` on ${(existingChild as any as RuntimeObject).debugMetadata}`;
-          this.Error(errorMsg, childFlow?.identifier || childFlow);
-        }
-
-        container.AddToNamedContentOnly(namedChild);
-      } else if (obj) {
-        // Other content (including entire Weaves that were grouped in the constructor)
-        // At the time of writing, all FlowBases have a maximum of one piece of "other content"
-        // and it's always the root Weave
-        container.AddContent(obj.runtimeObject);
-      }
-
-      contentIdx += 1;
-    }
-
-    // CHECK FOR FINAL LOOSE ENDS!
-    // Notes:
-    //  - Functions don't need to terminate - they just implicitly return
-    //  - If return statement was found, don't continue finding warnings for missing control flow,
-    // since it's likely that a return statement has been used instead of a ->-> or something,
-    // or the writer failed to mark the knot as a function.
-    //  - _rootWeave may be null if it's a knot that only has stitches
-    // if (
-    //   this.flowLevel !== FlowLevel.Story &&
-    //   !this.isFunction &&
-    //   this._rootWeave !== null &&
-    //   foundReturn === null
-    // ) {
-    //   this._rootWeave.ValidateTermination(this.WarningInTermination);
-    // }
-
-    return container;
-  };
-
-  public readonly GenerateArgumentVariableAssignments = (
-    container: RuntimeContainer,
-  ): void => {
-    if (this.args === null || this.args.length === 0) {
+  /** Reports a return written in a scene, a branch or at file scope, which
+   *  only a function body can hold. Preparation reports the first such
+   *  return of the flow (`CheckOwnControlFlow`), and the program path's
+   *  resolver the first one its statements recorded. */
+  public ReportReturnOutsideFunction(foundReturn: ParsedObject): void {
+    if (this.flowLevel === FlowLevel.Story) {
+      this.Error(
+        `Return statements can only be used inside a function body — found one at file scope.`,
+        foundReturn,
+      );
       return;
     }
+    this.Error(
+      `Return statements can only be used inside a function body — found one in ${this.flowLevel === FlowLevel.Knot ? "scene" : "branch"} '${this.identifier}'.`,
+      foundReturn,
+    );
+  }
 
-    // Assign parameters in reverse since they'll be popped off the evaluation stack
-    // No need to generate EvalStart and EvalEnd since there's nothing being pushed
-    // back onto the evaluation stack.
-    for (let ii = this.args.length - 1; ii >= 0; --ii) {
-      const arg = this.args[ii];
-      const paramName = arg!.identifier?.name || null;
-      const assign = new RuntimeVariableAssignment(
-        paramName,
-        true,
-        !!arg!.isVararg,
-      );
-      container.AddContent(assign);
-    }
-  };
+  /** Reports a flow written under this one with the name of one before it,
+   *  whose position `existing` is. */
+  public ReportDuplicateChildFlow(
+    childFlow: FlowBase,
+    existing: DebugMetadata | null,
+  ): void {
+    const name = childFlow.identifier?.name as string;
+    const errorMsg = `Duplicate identifier \`${name}\`. ${this.GetType()} already contains flow named \`${name}\` on ${existing}`;
+    this.Error(errorMsg, childFlow?.identifier || childFlow);
+  }
 
   public readonly ContentWithNameAtLevel = (
     name: string,
@@ -809,6 +978,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // when the caller asked for "anything below a Stitch" (which
     // resolves to `Function` via the `+1` rule in Path).
     const ambiguousLevel = level === null;
+    // The flow's own name answers too, and it is no table.
+    recordRead(name);
 
     // Referencing self? Self is a candidate iff it's at the asked
     // level (self is not "deeper" than itself, so exact match here).
@@ -874,18 +1045,17 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return null;
   };
 
-  public override ResolveReferences(context: any): void {
-    if (this._startingSubFlowDivert) {
-      if (!this._startingSubFlowRuntime) {
-        throw new Error();
-      }
+  public override ResolveWith(context: any): void {
+    super.ResolveWith(context);
 
-      this._startingSubFlowDivert.targetPath =
-        this._startingSubFlowRuntime.path;
-    }
+    this.CheckOwnNames(context);
+  }
 
-    super.ResolveReferences(context);
-
+  /** What a flow's resolution checks of its own names once its content is
+   *  resolved: its parameters' names, and its own name against the story's
+   *  other names. The program path's resolver makes these checks for a scene
+   *  or a branch whose statements it resolves one by one. */
+  public CheckOwnNames(context: any): void {
     // Check validity of parameter names
     if (this.args !== null) {
       for (const arg of this.args) {

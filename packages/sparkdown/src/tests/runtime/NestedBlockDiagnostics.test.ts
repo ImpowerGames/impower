@@ -67,8 +67,7 @@ describe("diagnostics from statements inside nested blocks", () => {
     ],
     ["inside an if block, written with +", "  if n == 0 then\n    + [Pick]\n      Picked.\n  end"],
   ])("a choice without choose %s reports the choice-mark error once", (_, body) => {
-    const ctx = makeRuntimeStoryFromSource(scene(body));
-    expect(count(ctx.errorMessages, CHOICE_MARK)).toBe(1);
+    expect(diagnosticLines(scene(body), CHOICE_MARK)).toHaveLength(1);
   });
 
   test("the nested choice-mark error sits on the choice's own line", () => {
@@ -197,8 +196,6 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
   test.each(["then", "end"])("a divert-target value may name a label called %s", (label) => {
     const ctx = makeRuntimeStoryFromSource(
       `-> s\nscene s\n  choose\n    + (${label}) Pick\n  then\n    {count.turns(-> ${label})} turns\n    fin\n  end\nend\n`,
-      undefined,
-      { countAllVisits: true },
     );
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.ContinueMaximally();

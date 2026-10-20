@@ -2,39 +2,22 @@ import { BinaryExpression } from "../Expression/BinaryExpression";
 import { Choice } from "../Choice";
 import { Conditional } from "../Conditional/Conditional";
 import { ConditionalSingleBranch } from "../Conditional/ConditionalSingleBranch";
-import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ParsedObject } from "../Object";
 import { Divert } from "./Divert";
-import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { DivertTargetValue } from "../../../../engine/Value";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
+import { Identifier } from "../Identifier";
 import { MultipleConditionExpression } from "../Expression/MultipleConditionExpression";
 import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
-import { asOrNull } from "../../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../../runtime/TypeAssertion";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
 export class DivertTarget extends Expression {
-  private _runtimeDivert: RuntimeDivert | null = null;
-  get runtimeDivert(): RuntimeDivert {
-    if (!this._runtimeDivert) {
-      throw new Error();
-    }
-
-    return this._runtimeDivert;
-  }
-
-  private _runtimeDivertTargetValue: DivertTargetValue | null = null;
-  get runtimeDivertTargetValue(): DivertTargetValue {
-    if (!this._runtimeDivertTargetValue) {
-      throw new Error();
-    }
-
-    return this._runtimeDivertTargetValue;
-  }
+  // Whether the target was prepared since its last `ResetRuntime`.
+  private _preparedTarget = false;
 
   public divert: Divert;
 
@@ -55,37 +38,57 @@ export class DivertTarget extends Expression {
     return "DivertTarget";
   }
 
-  // A function held as a value, or a flow's: `Sym` of its symbol. The
-  // symbol's facts (its kind, and a function's parameters) are recorded, so
-  // the chunk is emitted again when the target changes what it is.
+  // A function held as a value: `Sym` of its symbol, whose facts (its kind,
+  // and a function's parameters) are recorded, so the chunk is emitted again
+  // when the target changes what it is. A scene, a branch or a label held as
+  // a value, or a target the compile found nothing for: `Sym` of the symbol
+  // its divert would jump to, as a jump names it (`Divert.EmitJump`). A
+  // variable written after `->`, which the compile reports, is not emitted.
   public override EmitExpression(emitter: ProgramEmitter): void {
-    const target = asOrNull(this.divert.targetContent, FlowBase);
-    if (!target) {
+    const target = this.divert.targetContent;
+    const flow = asOrNull(target, FlowBase);
+    if (flow?.isFunction) {
+      const symbol = emitter.functionSymbol(flow);
+      emitter.reference(symbol);
+      emitter.emit(Op.Sym, symbol);
+      return;
+    }
+    if (this.divert.variableDivertName != null) {
       emitter.unsupported(this.typeName);
     }
-    const symbol = emitter.functionSymbol(target);
-    emitter.reference(symbol);
+    const key = this.divert.programJumpKey;
+    if (key !== null) {
+      emitter.recordResolution(key);
+    }
+    const symbol = emitter.targetSymbol(target, this.divert.writtenTargetName);
+    emitter.referenceTarget(symbol);
     emitter.emit(Op.Sym, symbol);
   }
 
-  public readonly GenerateIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    this.divert.GenerateRuntimeObject();
+  /** Its divert prepared, on every call. A divert to DONE or END is not a
+   *  value; resolution reports it on the target (`ResolveWith`, #1703). */
+  public override PrepareIntoContainer(): void {
+    this.divert.PrepareUncached();
+    this._preparedTarget = true;
+  }
 
-    this._runtimeDivert = this.divert.runtimeDivert as RuntimeDivert;
-    this._runtimeDivertTargetValue = new DivertTargetValue();
+  /** Where this target's diagnostics are reported: the target's name, as the
+   *  divert places `target not found` (#1703, #1715). The target holds no
+   *  position of its own, so reported on itself a diagnostic would land at
+   *  line 0 column 0 at the top level or, in a scene, be dropped with the
+   *  scene's position. */
+  private get targetName(): ParsedObject | Identifier {
+    const path = this.divert.pathIdentifiers;
+    return path && path.length > 0 ? new Identifier(...path) : this;
+  }
 
-    container.AddContent(this.runtimeDivertTargetValue);
-  };
-
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
 
     if (this.divert.isDone || this.divert.isEnd) {
       this.Error(
         `Can't use '-> DONE' or '-> END' as variable divert targets`,
-        this,
+        this.targetName,
       );
 
       return;
@@ -160,7 +163,7 @@ export class DivertTarget extends Expression {
         // `CallValueAsFunction` / closure dispatch and get no hint.
         this.Error(
           `Can't use a divert target like that. Did you intend to call \`${this.divert.target}\` as a function: \`likeThis()\`, or check the read count: \`likeThis\`, with no arrows?`,
-          this,
+          this.targetName,
           true,
         );
       }
@@ -180,51 +183,24 @@ export class DivertTarget extends Expression {
     // than a variable name. We can't really intelligently recover from this (e.g. if blah happens to
     // contain a divert target itself) since really we should be generating a variable reference
     // rather than a concrete DivertTarget, so we list it as an error.
-    if (this.runtimeDivert.hasVariableTarget) {
+    if (!this._preparedTarget) {
+      throw new Error();
+    }
+    if (this.divert.variableDivertName != null) {
       if (!this.divert.target) {
         throw new Error();
       }
 
       this.Error(
         `Since \`${this.divert.target.dotSeparatedComponents}\` is a variable, it shouldn't be preceded by '->' here.`,
+        this.targetName,
       );
     }
 
-    // Main resolve
-    if (this.runtimeDivert.targetPath) {
-      this.runtimeDivertTargetValue.targetPath = this.runtimeDivert.targetPath;
-    } else {
-      // Re-resolution found no target this compile. A REUSED runtime value
-      // survives generation across compiles, so it would otherwise keep the
-      // path it resolved when the target still existed — restore the
-      // fresh-generation state instead (mirrors the same repair in
-      // `Divert.ResolveReferences`). Assign the backing field: the
-      // `targetPath` setter takes a non-null Path, and its getter throws on
-      // null, which is exactly the "unresolved" state a cold compile has.
-      // Defense-in-depth today: deleting a top-level flow also changes the
-      // flow-name map, which disables reuse for that compile. This becomes
-      // load-bearing as soon as those guards are narrowed.
-      this.runtimeDivertTargetValue.value = null;
-    }
-
-    // Tell hard coded (yet variable) divert targets that they also need to be counted
-    // TODO: Only detect DivertTargets that are values rather than being used directly for
-    // read or turn counts. Should be able to detect this by looking for other uses of containerForCounting
+    // The program pushes the target's symbol (`EmitExpression`), and counts
+    // every counted symbol.
     let targetContent = this.divert.targetContent;
     if (targetContent !== null) {
-      let target = targetContent.containerForCounting;
-      if (target !== null) {
-        // Purpose is known: used directly in TURNS_SINCE(-> divTarg)
-        const parentFunc = asOrNull(this.parent, FunctionCall);
-        if (parentFunc && parentFunc.isTurnsSince) {
-          target.turnIndexShouldBeCounted = true;
-        } else {
-          // Unknown purpose, count everything
-          target.visitsShouldBeCounted = true;
-          target.turnIndexShouldBeCounted = true;
-        }
-      }
-
       // Unfortunately not possible:
       // https://github.com/inkle/ink/issues/538
       //
@@ -243,6 +219,7 @@ export class DivertTarget extends Expression {
           if (arg.isByReference) {
             this.Error(
               `Can't store a divert target to a knot or function that has by-reference arguments (\`${targetFlow.identifier}\` has \`ref ${arg.identifier}\`).`,
+              this.targetName,
             );
           }
         }
@@ -268,7 +245,6 @@ export class DivertTarget extends Expression {
   };
 
   override OnResetRuntime(): void {
-    this._runtimeDivert = null;
-    this._runtimeDivertTargetValue = null;
+    this._preparedTarget = false;
   }
 }

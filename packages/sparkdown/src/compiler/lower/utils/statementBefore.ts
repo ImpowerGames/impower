@@ -45,6 +45,7 @@ const VALUE_TAKING_STATEMENTS: ReadonlySet<string> = new Set([
   "LuauSparkdownVariableDefinition",
   "LuauReassignment",
   "LuauAssignmentOperation",
+  "LuauSparkdownAssignmentOperation",
   "LuauReturnStatement",
   "LuauPropertyDefinition",
 ]);
@@ -59,8 +60,7 @@ const VALUE_EXPECTED_TOKENS: ReadonlySet<string> = new Set([
 
 // Whether the statement before `start`, across blank and comment lines, ends
 // with a `.` that no name follows on its line: a dangling access
-// (`LuauDanglingAccessor`) or a line that is not a Luau statement ending in
-// one (`Hello.`).
+// (`LuauDanglingAccessor`).
 export function followsDanglingDot(
   start: SyntaxNode,
   read: (from: number, to: number) => string,
@@ -68,13 +68,6 @@ export function followsDanglingDot(
   let prev = start.prevSibling;
   while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
   if (!prev) return false;
-  if (prev.name === "LuauInvalidStatement") {
-    const last = lastSignificantLeaf(prev);
-    if (last?.name !== "LuauInvalidStatementAccessor") return false;
-    // Consecutive accessor tokens are a concat operator, not a dangling dot.
-    const before = last.prevSibling;
-    return before?.name !== "LuauInvalidStatementAccessor" || before.to !== last.from;
-  }
   const cursor = prev.cursor();
   do {
     if (

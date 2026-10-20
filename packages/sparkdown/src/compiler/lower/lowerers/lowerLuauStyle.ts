@@ -5,11 +5,13 @@ import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
 import { parseStructBody } from "./lowerStructBody";
 import { readStructBodyEntries } from "../utils/structBodyEntries";
+import { validateBlockStructure } from "../utils/validateBlockStructure";
 
 export function lowerLuauStyle(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
+  ctx.diagnostics?.push(...validateBlockStructure(nodeRef.node, ctx, "style"));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return { content: [] };
   const name = ctx.read(nameNode.from, nameNode.to).trim();

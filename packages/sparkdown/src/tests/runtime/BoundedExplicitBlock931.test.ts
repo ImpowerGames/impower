@@ -78,10 +78,14 @@ describe("nested markers remain inside their bounded conditional", () => {
 });
 
 describe("unfinished bounded headers yield scene and branch ownership", () => {
-  test.each(["& return (", "& return f(", "& do x = (", "& do if f(", "& do while f(", "& do repeat x = 1 until ("])("all reachable expression children preserve prose after %s", async (prefix) => {
-    const source = `${prefix}\nreturn to the village\nAfter.\n`;
+  // A bracket left open carries a story statement on (#1907): the next line
+  // is the bracket's, and the next header ends it, so the story after the
+  // header is story again.
+  test.each(["& return (", "& return f(", "& do x = (", "& do if f(", "& do while f(", "& do repeat x = 1 until ("])("an unfinished bracket after %s carries the next line to the next header", async (prefix) => {
+    const source = `${prefix}\nreturn to the village\nscene Next\nAfter.\nend\n`;
     const tree = parseSource(source);
-    expect(treeScopeStackAt(tree, source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
+    expect(treeScopeStackAt(tree, source.indexOf("return to"))).not.toContain("string.display.text.chunk.sd");
+    expect(tree.topNode.getChildren("Scene").map((scene) => scene.from)).toEqual([source.indexOf("scene Next")]);
     expect(treeScopeStackAt(tree, source.indexOf("After"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
@@ -90,6 +94,20 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     // These names are reserved by Sparkdown's argument validator, but their
     // parenthesized Luau token ownership must not turn into a story header.
     expect(diagnostics(source).map(messageOf).filter((m) => m.includes("missing its closing") || m.includes("Branches are only"))).toEqual([]);
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
+  // A reserved word after the name is an operator or a clause keyword, never
+  // a header's name (#1907, round 1 of #2062's review).
+  test.each([
+    ["scene or true", "true"],
+    ["branch or true", "true"],
+    ["if\n    scene then 1 else 2", "2"],
+    ["if\n    branch then 1 else 2", "2"],
+  ])("a function parenthetical preserves the name before a reserved word in %s", async (expression, value) => {
+    const source = `Value {f()}.\nfunction f()\n  return (${expression.startsWith("if") ? "" : "\n    "}${expression}\n  )\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test.each([
@@ -105,8 +123,8 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test.each(["", "& "])("a real function's %sreturn preserves its multiline parenthetical", async (marker) => {
-    const source = `Value {f()}.\nfunction f()\n  ${marker}return (\n    5\n  )\nend\n`;
+  test("a real function's return preserves its multiline parenthetical", async () => {
+    const source = `Value {f()}.\nfunction f()\n  return (\n    5\n  )\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
@@ -122,9 +140,9 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     expect(treeScopeStackAt(tree, source.indexOf("After"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test.each(["if (", "while ("])("unfinished %s preserves the next ordinary prose line", async (header) => {
+  test.each(["if (", "while ("])("unfinished %s carries the next ordinary line into its bracket (#1907)", async (header) => {
     const source = `& do ${header}\nreturn to the village\n`;
-    expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).not.toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
 });

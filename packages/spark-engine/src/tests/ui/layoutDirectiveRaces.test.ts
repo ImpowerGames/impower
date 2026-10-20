@@ -41,7 +41,7 @@ end
   test("an unscoped navigate leaves `main` mounted", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
     expect(ui._mountedLayouts.has("main")).toBe(true);
 
@@ -88,7 +88,7 @@ end
   test("the layout ends the beat mounted", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
 
     h.reset();
@@ -131,7 +131,7 @@ end
   test("an open before a navigate settles first and is then replaced by it", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    h.jumpTo("start");
+    h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
 
     h.reset();

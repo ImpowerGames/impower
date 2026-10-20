@@ -1,0 +1,19 @@
+include scripts/end.sd
+store driver_score = 42
+
+-> START
+
+scene START
+  [[show backdrop toString]]
+  Desktop preview is ready.
+  [[show backdrop constructor]]
+  Constructor image is ready.
+  [[show backdrop hasOwnProperty]]
+  HasOwnProperty image is ready.
+  [[show backdrop __proto__]]
+  Prototype image is ready.
+  choose
+    * Continue the driver story
+      -> FINISH
+  end
+end

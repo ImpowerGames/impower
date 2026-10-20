@@ -2,6 +2,10 @@ import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explic
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
+import { reassignmentParts } from "@impower/sparkdown/src/compiler/utils/reassignmentNames";
+import { isStatementNodeName } from "@impower/sparkdown/src/compiler/lower/utils/lineContinuation";
+import { createSparkdownParser } from "@impower/sparkdown/src/compiler/utils/createSparkdownParser";
+import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -15,7 +19,6 @@ import {
   type TextEdit,
 } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
-import { collectRedundantDiscardEdits } from "./collectRedundantDiscardEdits";
 
 const WHITESPACE_REGEX = /[\t ]*/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -288,6 +291,7 @@ const CONTINUATION_OPERATOR_RULES = nodeNameSet([
 function isContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
   lineStart: number,
+  source: ListSource,
 ): boolean {
   for (const node of stack) {
     if (!node) continue;
@@ -297,7 +301,7 @@ function isContinuationLine(
     // earlier line, we're inside its scope but not leading with it.
     if (node.from >= lineStart) return true;
   }
-  return isCommaContinuationLine(stack);
+  return isCommaContinuationLine(stack, source);
 }
 
 // The statements whose value list continues after a comma that ends its line.
@@ -326,11 +330,13 @@ const COMMA_CONTINUED_CONTENT = new Set<string>([
 //     }
 function isCommaContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
+  source: ListSource,
 ): boolean {
   for (let i = 0; i < stack.length; i++) {
     const node = stack[i];
     if (!node) continue;
     if (isExplicitRuleName(node.name, "LuauCommaLineBreak")) return true;
+    if (continuesReassignmentList(node, source)) return true;
     if (!COMMA_CONTINUED_CONTENT.has(stack[i + 1]?.name ?? "")) continue;
     for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
       if (isExplicitRuleName(prev.name, "LuauCommaLineBreak") && spansLineBreak(prev)) {
@@ -341,6 +347,120 @@ function isCommaContinuationLine(
   }
   return false;
 }
+const LINE_TRIVIA = new Set(["Newline", "ExtraWhitespace", "Whitespace", "OptionalWhitespace"]);
+// What the continued-list test reads: the document's text, and, by each
+// reassignment's offset, where the statement that begins at it ends.
+interface ListSource {
+  text: string;
+  lists: Map<number, number>;
+}
+
+let listParser: TextmateGrammarParser | undefined;
+
+// Whether `node` begins a statement that ends a list rather than continuing
+// it: a reassignment continues a target list or is a second `=` the list
+// reads on to, and a function whose header names nothing (`function (`,
+// `function --[[c]] <T>(`) is a value.
+function beginsListEndingStatement(node: SyntaxNode): boolean {
+  if (node.name === "LuauFunctionDefinition") return functionHeaderName(node) !== null;
+  return node.name !== "LuauReassignment" && isStatementNodeName(node.name);
+}
+
+// The name in a function definition's header, before its parameters: a
+// plain name (`LuauFunctionDeclarationName`) or a dotted or method name,
+// which parses as a `LuauAccessPath`. Null for an anonymous function,
+// whatever comments its header holds.
+function functionHeaderName(node: SyntaxNode): SyntaxNode | null {
+  const content = node.getChild("LuauFunctionDefinition_content");
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (child.name === "LuauFunctionParameters") return null;
+    if (child.name === "LuauFunctionDeclarationName" || isExplicitRuleName(child.name, "LuauAccessPath")) return child;
+  }
+  return null;
+}
+
+// Where the reassignment at `reassignment` would end if the lines after its
+// first were indented, which is how it reads them once they are formatted:
+// an indented line after a comma that ends the line is read into the
+// reassignment, which then ends where its grammar says, after its last
+// value, at a statement, or on a line not carried on by a comma. The lines
+// up to the end of the block are parsed again, indented, in a function
+// body, and the reassignment's end is mapped back. Deciding with the same
+// grammar that reads the formatted text is what keeps a second format from
+// moving these lines again.
+function listEnd(reassignment: SyntaxNode, source: ListSource): number {
+  const cached = source.lists.get(reassignment.from);
+  if (cached !== undefined) return cached;
+  let blockEnd = reassignment.to;
+  for (let next = reassignment.nextSibling; next; next = next.nextSibling) blockEnd = next.to;
+  // The whole rest of the block: a list can run on through any number of
+  // lines (comment lines, values), so no shorter read can say where it ends.
+  const lines = source.text.slice(reassignment.from, blockEnd).split("\n");
+  // Each line's start in the source and in the indented text.
+  const prefix = "function __list()\n";
+  const sourceStarts: number[] = [];
+  const indentedStarts: number[] = [];
+  let sourceAt = reassignment.from;
+  let indented = prefix;
+  lines.forEach((line, i) => {
+    sourceStarts.push(sourceAt);
+    const added = i === 0 ? (/^\s/.test(line) ? "" : " ") : line.trim() ? "  " : "";
+    indentedStarts.push(indented.length + added.length);
+    indented += added + line + "\n";
+    sourceAt += line.length + 1;
+  });
+  indented += "end\n";
+  listParser ??= createSparkdownParser();
+  let end = reassignment.to;
+  const tree = listParser.parse(indented);
+  let found: SyntaxNode | null = null;
+  tree.iterate({
+    enter(node) {
+      if (found) return false;
+      if (node.name === "LuauReassignment" && node.from >= prefix.length) {
+        found = node.node;
+        return false;
+      }
+      return undefined;
+    },
+  });
+  const reassigned = found as SyntaxNode | null;
+  if (reassigned) {
+    // The source offset of the indented text's offset `at`.
+    let line = indentedStarts.length - 1;
+    while (line > 0 && indentedStarts[line]! > reassigned.to) line -= 1;
+    end = Math.max(end, sourceStarts[line]! + Math.max(0, reassigned.to - indentedStarts[line]!));
+  }
+  source.lists.set(reassignment.from, end);
+  return end;
+}
+
+// A node on an unindented line of a reassignment's target or value list
+// that a comma ending the line before carried on (`a,` then `g = 1, 2`, or
+// `a, b, c = 1,` then `2,` then `3`). The reassignment ends at the start of
+// the first such line, so the rest of its list is in siblings after it.
+// Which siblings is what the reassignment reads once those lines are
+// indented (`listEnd`), since that is what the next format sees: a value
+// split by a comment, a call after a finished value and the statement after
+// the list are told apart by the grammar rather than guessed from the
+// siblings' shapes. A sibling that begins before that end, including a
+// comment between two parts of the list, is on a continued line.
+function continuesReassignmentList(node: SyntaxNode, source: ListSource): boolean {
+  if (beginsListEndingStatement(node)) return false;
+  let prev = node.prevSibling;
+  // A sibling that begins a statement ends any list before it, which keeps
+  // the walk to the lines of one statement.
+  while (prev && prev.name !== "LuauReassignment") {
+    if (beginsListEndingStatement(prev)) return false;
+    prev = prev.prevSibling;
+  }
+  if (!prev) return false;
+  const parts = reassignmentParts(prev).filter((part) => !LINE_TRIVIA.has(part.name));
+  const last = parts[parts.length - 1];
+  if (!last || !isExplicitRuleName(last.name, "LuauCommaLineBreak") || !spansLineBreak(last)) return false;
+  return node.from < listEnd(prev, source);
+}
+
 // A comma followed by a block comment and the value on its own line
 // (`1, --[[c]] 2`) does not continue the list onto another line.
 function spansLineBreak(lineBreak: SyntaxNode) {
@@ -443,6 +563,7 @@ function braceDepth(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
   braceLineIndex: number,
   lineStart: number,
+  source: ListSource,
 ): number {
   const inner = stack.slice(0, braceLineIndex);
   let depth = 0;
@@ -453,7 +574,7 @@ function braceDepth(
     depth += 1;
   }
   depth += computeBlockIndent(inner);
-  if (isContinuationLine(inner, lineStart)) depth += 1;
+  if (isContinuationLine(inner, lineStart, source)) depth += 1;
   return depth;
 }
 
@@ -591,6 +712,8 @@ export const getFormatting = (
     });
   };
 
+  const listSource: ListSource = { text: document.getText(), lists: new Map() };
+
   const processIndent = (from: number, to: number) => {
     // Zero-width indent at end-of-doc — skip so we don't emit a
     // ghost trailing-whitespace line.
@@ -688,7 +811,7 @@ export const getFormatting = (
         const braceLine =
           braceLineIndex >= 0 ? stack[braceLineIndex] : undefined;
         if (braceLine && braceLineIndex >= 0) {
-          const depth = braceDepth(stack, braceLineIndex, lineStart);
+          const depth = braceDepth(stack, braceLineIndex, lineStart, listSource);
           if (braceLine.from < lineStart) {
             // A later line of the brace line: its depth below the first.
             const base = braceLineLevels.get(braceLine.from);
@@ -732,7 +855,7 @@ export const getFormatting = (
       // (`+`, `..`, `:`, `and`, etc.) belongs to an expression that
       // started on the previous line and should indent one level past
       // the opener (see `isContinuationLine`'s comment).
-      if (isContinuationLine(stack, lineStart)) {
+      if (isContinuationLine(stack, lineStart, listSource)) {
         newIndentLevel += 1;
       }
 
@@ -1517,7 +1640,9 @@ export const getFormatting = (
     // Pure Luau semantics: newlines are interchangeable with spaces
     // anywhere inside a header. The grammar doesn't quite model
     // this (loop rules terminate at `$`), so the formatter does the
-    // visual normalization itself.
+    // visual normalization itself. In Luau code only: a story
+    // header ends at its line (#1907), so the lines under it are
+    // story, never its condition.
     //
     // `then` is overloaded — it also opens the *result* clause of a
     // `choose ... then ... end` construct, where it MUST stay on
@@ -1576,10 +1701,17 @@ export const getFormatting = (
           // its begin's `.to` as the header-start.
           let walker = nodeRef.node.parent;
           while (walker) {
+            // A story header ends at its line (#1907): a `then` on a
+            // later line is not its header's, and joining it would
+            // read the lines between into the condition.
             if (
               walker.name === "LuauSparkdownIfBlock" ||
+              walker.name === "LuauSparkdownElseifBlock"
+            ) {
+              return;
+            }
+            if (
               walker.name === "LuauIfBlock" ||
-              walker.name === "LuauSparkdownElseifBlock" ||
               walker.name === "LuauElseifBlock"
             ) {
               // The begin of this block ends right after `if`/`elseif`.
@@ -1600,12 +1732,22 @@ export const getFormatting = (
           // LuauRepeatLoop (nested form) first.
           let walker = nodeRef.node.parent;
           while (walker) {
+            // A story `do` block's `do` opens a block of its own: a
+            // story loop's header ends at its line (#1907), so the
+            // lines above it are never its loop's condition.
+            // Its own `do` stays where a bracket that carried the
+            // header on left it.
             if (
+              walker.name === "LuauSparkdownDoBlock" ||
               walker.name === "LuauSparkdownForLoop" ||
-              walker.name === "LuauForLoop" ||
               walker.name === "LuauSparkdownWhileLoop" ||
+              walker.name === "LuauSparkdownRepeatLoop"
+            ) {
+              return;
+            }
+            if (
+              walker.name === "LuauForLoop" ||
               walker.name === "LuauWhileLoop" ||
-              walker.name === "LuauSparkdownRepeatLoop" ||
               walker.name === "LuauRepeatLoop"
             ) {
               let c = walker.firstChild;
@@ -2183,11 +2325,5 @@ export const getDocumentFormattingEdits = (
   );
 
   const result = resolveFormattingConflicts(edits, document, formattingOnType);
-
-  // Post-pass: strip redundant `& ` prefixes from explicit statements
-  // inside function bodies. Runs after the whitespace formatter so
-  // the discard-strip's delete edits don't interact with whitespace
-  // edits on the same line — the formatter is done by this point.
-  const discardEdits = collectRedundantDiscardEdits(document, tree);
-  return [...(result ?? []), ...discardEdits];
+  return result ?? [];
 };

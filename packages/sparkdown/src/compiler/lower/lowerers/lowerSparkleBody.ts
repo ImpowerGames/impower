@@ -2,7 +2,7 @@ import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -12,6 +12,10 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { reportBodySyntaxErrors } from "../expression/lowerFunction";
+import { closureBodyAst, closureSyntaxErrors } from "../utils/luauAst";
+import { functionBindings } from "../utils/functionBindings";
+import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
 import {
   type Binding,
@@ -97,12 +101,14 @@ const PLAIN_CONTENT_NODES = nodeNameSet([
   "LuauElementContentStringSingleQuoted",
 ]);
 
-/** Every binding evaluator's name starts with this. */
-export const BINDING_ID_PREFIX = "__binding_";
+/** Every binding evaluator's name starts with this. Its `$` is a character
+ *  no identifier can contain, so no function an author declares has an
+ *  evaluator's name (#1729). */
+export const BINDING_ID_PREFIX = "__binding$";
 
 /** The evaluator name for a binding whose source starts at `from`:
- *  `__binding_<document tag><kind>_<name>_<offset within the chunk>`, as in
- *  `__binding_file_3a_2f_2fproj_2fmain_2esd__layout_hud_23`.
+ *  `__binding$<document tag><kind>_<name>_<offset within the chunk>`, as in
+ *  `__binding$file_3a_2f_2fproj_2fmain_2esd__layout_hud_23`.
  *
  *  Every hoisted evaluator lands in one flow namespace, so the name carries
  *  the document: two files whose first binding starts at the same offset, as
@@ -234,7 +240,7 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
 
 /** Compile a `{expr}` interpolation node (a `LuauInterpolatedStringExpression`)
  *  into a {@link Binding}: a synthetic nullary function
- *  `__binding_<id>() return <expr> end` hoisted into `ctx.hoistedKnots`, plus
+ *  `__binding$<id>() return <expr> end` hoisted into `ctx.hoistedKnots`, plus
  *  the handle the AST carries. The reactive runtime (Phase 3) calls the hoisted
  *  function to evaluate the binding (and, later, track its reads for deps); the
  *  compiler only produces the handle + the function. Bindings read game-state
@@ -431,7 +437,7 @@ function eventAttributes(node: SyntaxNode): SyntaxNode[] {
 /** Build EventBindings (spec §4.5) from a line's `@event=handler` attributes.
  *  Three handler forms (L7):
  *   `@e=name`         → a `ref` (the runtime calls the named function);
- *   `@e=call(args)`   → a `call` whose binding (`__binding_N`) the runtime
+ *   `@e=call(args)`   → a `call` whose binding (`__binding$N`) the runtime
  *                       evaluates for its effects;
  *   `@e={ stmts }`    → a `closure` whose binding is a hoisted function body of
  *                       statements (write-back: `@input={ name = event.value }`).
@@ -496,7 +502,7 @@ export const UNCLOSED_HANDLER_CLOSURE =
   "This handler is missing its closing `}`. Without it, the handler runs to the next line that starts with `end`, `else`, `elseif` or `case`, the next `scene` or `branch`, or the end of the file.";
 
 /** Compile an inline-closure handler (`@e={ stmts }`) into a {@link Binding}: a
- *  hoisted function `__binding_<id>(event, <loopvars>) <stmts> end`. Unlike
+ *  hoisted function `__binding$<id>(event, <loopvars>) <stmts> end`. Unlike
  *  {@link lowerBinding} (a single `return <expr>`), the body is the closure's
  *  STATEMENTS — lowered via the shared `lowerStatements` so every form works
  *  (assignment, property-target `a.b = x`, bare call). The reactive runtime
@@ -539,7 +545,18 @@ function lowerHandlerClosure(
     // With statement shapes on, each statement of the closure is recorded on
     // the evaluator's body, for the binary program (`openEvaluatorBody`).
     const shape = openEvaluatorBody(ctx, closureNode.from, closureNode.to);
+    // The closure runs as a function: a `const` in it is Luau's local.
+    const localConsts = ctx.localConsts;
+    ctx.localConsts = true;
+    const closureBody = body ? closureBodyAst(body, ctx) : null;
+    ctx.functionBindingsStack?.push(
+      functionBindings(loopVars.map((name) => ({ name })), closureBody, ctx),
+    );
     const stmts = lowerStatements(body, ctx, undefined, shape);
+    if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
+    ctx.functionBindingsStack?.pop();
+    ctx.localConsts = localConsts;
+    if (body) reportBodySyntaxErrors(closureSyntaxErrors(body, ctx), ctx);
     const fn = new Function(
       new Identifier(exprId),
       stmts,

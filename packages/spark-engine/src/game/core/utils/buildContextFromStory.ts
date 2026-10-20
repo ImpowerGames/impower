@@ -1,4 +1,4 @@
-import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import type { ProgramStory as Story } from "@impower/sparkdown/src/program/ProgramStory";
 import { applyBuiltinDefaults } from "./applyBuiltinDefaults";
 
 // Convert Luau runtime `__def` tables (the source of truth for authored
@@ -113,26 +113,11 @@ function deepMerge(base: AnyVal, override: AnyVal): AnyVal {
   return result;
 }
 
-/** Mirror Game.getRuntimeValue's InkList handling so list values convert
- *  identically wherever they appear. */
-function convertInkList(valueObj: AnyVal, _story: Story): unknown {
-  const list = valueObj.value as InkList;
-  // GetVariableWithName has no name here; the def lookup keys off the list's
-  // own origin, so try the first item's origin name.
-  const listValue: Record<string, unknown> = { $type: "list.var" };
-  for (const [key, value] of list.entries()) {
-    const keyObj = JSON.parse(key) as { originName: string; itemName: string };
-    listValue[keyObj.originName + "." + keyObj.itemName] = value;
-  }
-  return listValue;
-}
-
 /** Convert any runtime AbstractValue to plain JS (undefined = omit). */
 function convertValue(v: AnyVal, story: Story): unknown {
   if (v == null) return undefined;
   if (!("value" in v)) return undefined; // NullValue and friends
   const inner = v.value;
-  if (inner instanceof InkList) return convertInkList(v, story);
   const map = asMap(inner);
   if (map) return convertTable(map, story);
   return inner; // scalar (number | string | boolean)

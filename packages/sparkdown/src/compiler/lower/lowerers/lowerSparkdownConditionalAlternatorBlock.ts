@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -7,11 +8,16 @@ import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import { ErrorType } from "../../../runtime/Error";
+import type {
+  CompiledBlock,
+  InkDiagnostic,
+} from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { findChildByName, lowerArms } from "../utils/alternatorArms";
+import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // match (expr)    →  Conditional(initialCondition=expr,
@@ -44,6 +50,24 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // are intentionally rejected — the mapping would be arbitrary across
 // languages, and we prefer a hard error directing authors to named
 // keys over silently picking a convention.
+
+// What a block holds before its first arm that is not a line of story: the
+// condition, line breaks, spacing and comments.
+const NOT_A_LINE = nodeNameSet([
+  "LuauConditionalAlternatorCondition",
+  "Newline",
+  "Whitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "ExtraWhitespace",
+  "TrailingWhitespace",
+  "SparkdownLineComment",
+  "SparkdownInlineComment",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+]);
 
 export function lowerSparkdownConditionalAlternatorBlock(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -81,6 +105,36 @@ export function lowerSparkdownConditionalAlternatorBlock(
   const content = findChildByName(nodeRef.node, `${prefix}_content`);
   let arms = lowerArms(content, ctx);
 
+  // An arm starts at its `|`. A line of the block before the first one, such
+  // as `case 1` (#1502), belongs to no arm and would be dropped: it is an
+  // error, and so is a block with no arm at all.
+  const diagnostics: InkDiagnostic[] = [];
+  const name = keyword || "match";
+  if (prefix === "LuauSparkdownConditionalAlternatorBlock") {
+    for (
+      let child = content?.firstChild ?? null;
+      child && child.name !== "LuauAlternatorSeparator";
+      child = child.nextSibling
+    ) {
+      if (NOT_A_LINE.has(child.name)) {
+        continue;
+      }
+      diagnostics.push({
+        message: `This line is in no arm of the \`${name}\`: an arm starts with \`|\`, as in \`| 1 = One.\``,
+        severity: ErrorType.Error,
+        source: statementSource(child, ctx),
+      });
+    }
+  }
+  if (arms.length === 0 && diagnostics.length === 0) {
+    const at = keywordNode ?? nodeRef.node;
+    diagnostics.push({
+      message: `A \`${name}\` needs at least one arm, written \`| value = ...\``,
+      severity: ErrorType.Error,
+      source: statementSource(at, ctx),
+    });
+  }
+
   // Positional plural sugar: when `keyword === "plural"` and every arm
   // is keyless, synthesize CLDR keys from the canonical singular-vs-
   // plural mapping. 1 arm → catch-all; 2 arms → `one` + catch-all. The
@@ -105,7 +159,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
 
   // Multi-line block form (`plural(n)\n  | one = ...\nend`) places each
   // arm on its own logical line — `ConditionalSingleBranch.
-  // GenerateRuntimeObject` inserts a leading `\n` into the branch body
+  // EmitProgram` emits a leading `\n` into the branch body
   // when `isInline` is false. For the inline forms (`{plural(n)|...|...}`
   // inside `{...}`, `..plural(n)|...|.. ..` inline-glued, and the
   // single-line block form `plural(n)|one=…|other=… end`), arms are
@@ -159,5 +213,9 @@ export function lowerSparkdownConditionalAlternatorBlock(
     (condExpr ?? null) as unknown as Expression,
     branches,
   );
-  return wrapInWeave([conditional]);
+  const block = wrapInWeave([conditional]);
+  if (diagnostics.length > 0) {
+    block.diagnostics = [...(block.diagnostics ?? []), ...diagnostics];
+  }
+  return block;
 }

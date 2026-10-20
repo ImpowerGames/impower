@@ -17,6 +17,7 @@
 
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import {
   AstStat,
@@ -57,6 +58,7 @@ import {
   forwardBlockDiagnostics,
   unwrapBlockContent,
 } from "../utils/unwrapBlock";
+import { makeSource } from "../utils/validateDefineStructure";
 import { validateStatementNode } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerExplicitStatement } from "./lowerExplicitStatement";
@@ -85,11 +87,13 @@ import { lowerVariableDefinition } from "./lowerVariableDefinition";
 export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauVariableDefinition",
   "LuauSparkdownVariableDefinition",
-  "LuauExplicitStatement",
   "LuauSparkdownExplicitStatement",
   "LuauSparkdownExplicitBlockStatement",
   "LuauReassignment",
   "LuauSparkdownReassignment",
+  // A top-level function statement with its attributes, which holds the
+  // function's own node.
+  "LuauFunctionAttributes",
   "LuauFunctionDefinition",
   "LuauIfBlock",
   "LuauSparkdownIfBlock",
@@ -153,6 +157,35 @@ export function statementNodeAt(
     if (node === site.node) break;
   }
   return found;
+}
+
+/**
+ * A statement that holds a body, read from text whose syntax tree has no
+ * node of its kind: its body cannot be found, so it lowers to nothing. That
+ * is reported on its keyword rather than dropped silently, since the
+ * statement would otherwise compile and never run (#1748). A syntax error
+ * inside the statement is the checker's to report, and explains it.
+ */
+export function unreadStatement(
+  stat: AstStat,
+  site: StatementSite,
+  keyword: string,
+  ctx: LowerContext,
+): CompiledBlock {
+  const from = offsetAt(stat.location.begin, ctx);
+  const to = offsetAt(stat.location.end, ctx);
+  const explained = site.source.errors.some((error) => {
+    const at = offsetAt(error.location.begin, ctx);
+    return at >= from && at <= to;
+  });
+  if (!explained) {
+    ctx.diagnostics?.push({
+      message: `This \`${keyword}\` statement cannot run here: its line is not read as a \`${keyword}\` statement.`,
+      severity: ErrorType.Error,
+      source: makeSource(from, from + keyword.length, ctx),
+    });
+  }
+  return {};
 }
 
 /** The document range of a statement: from its first token to its last, no further than the nodes it was read from. */
@@ -231,9 +264,6 @@ export function lowerLuauStatementsAt(
   ctx: LowerContext,
 ): CompiledBlock {
   validateStatements(node, statements, site, ctx);
-  // The validator reports this invalid line. Its recovery AST must not
-  // execute or add runtime name warnings for a statement the author did not write.
-  if (node.name === "LuauInvalidStatement") return {};
   if (statements.length === 1) {
     return lowerLuauStatement(statements[0]!.statement, site, ctx);
   }
@@ -255,7 +285,6 @@ const VALIDATED_NODES: ReadonlySet<string> = new Set([
   ...REASSIGNMENT_NAMES,
   ...VARIABLE_DEFINITION_NAMES,
   ...nodeNameSet([
-    "LuauExplicitStatement",
     "LuauSparkdownExplicitStatement",
     "LuauSparkdownExplicitBlockStatement",
     "LuauAccessPath",
@@ -393,5 +422,5 @@ export function takesLines(stat: AstStat): boolean {
 
 /** The `LuauSparkdownVariableDefinition` an explicit statement declares with, if it is a declaration. */
 export function explicitDeclaration(node: SyntaxNode): SyntaxNode | null {
-  return getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node) ?? null;
+  return getDescendent(["LuauSparkdownVariableDefinition"], node) ?? null;
 }

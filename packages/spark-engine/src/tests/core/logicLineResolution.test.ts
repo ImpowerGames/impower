@@ -2,8 +2,9 @@
 // it, a preview of it shows the beat it leads to, and an error it raises is
 // reported on it (#824).
 //
-// A host resolves a source line through `program.pathLocations`, which gives a
-// logic line the paths of the instructions it compiles to.
+// A host resolves a source line through the program's accessor
+// (`ProgramLocator.addressAt`), which gives a logic line an address of its
+// own.
 
 import { describe, expect, test } from "vitest";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";

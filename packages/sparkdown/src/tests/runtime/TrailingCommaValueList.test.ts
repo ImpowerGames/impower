@@ -270,11 +270,12 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(";")]);
   });
 
-  test("before `continue` in a loop: the error, and `continue` stays a statement", () => {
+  // `continue` is a name where a value can stand, as Luau reads it (#1906).
+  test("before `continue` in a loop: `continue` is the list's value", () => {
     const { errorMessages } = collectDiagnostics(
       "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
     );
-    expect(errorMessages).toEqual([missingValue("continue")]);
+    expect(errorMessages).toEqual([]);
   });
 
   test("before the `=`, an unindented if expression after the targets' comma is a missing binding name", () => {
@@ -294,23 +295,27 @@ describe("Luau code: a comma with nothing after it", () => {
   });
 });
 
+// Its Luau meets its end of input at the end of its line (#1907), so the
+// value missing after the comma is `<eof>`, never the next line's word.
+const missingAtLineEnd = "Expected identifier when parsing expression, got <eof>";
+
 describe("narrative body: the declaration ends at its line", () => {
   test.each([
     ["next line", "store a, b = 1,\n  2\n"],
     ["after a comment", "store a, b = 1, -- note\n  2\n"],
   ])("store: a value on the next line is story, and the comma is the error (%s)", (_name, declaration) => {
     const { errorMessages } = collectDiagnostics(`${declaration}Value {a}.\n`);
-    expect(errorMessages).toEqual([missingValue("2")]);
+    expect(errorMessages).toEqual([missingAtLineEnd]);
   });
 
   test.each([
-    ["prose", "store hp = 100,\n\nThe hero has {hp} health.\n", "The"],
-    ["an em-dash action line", "store hp = 100,\n\n-- The hero staggers to his feet.\n\nHe has {hp} health.\n", "He"],
-    ["dialogue", "store hp = 100,\n\nALICE:\n  The hero has {hp} health.\n", "ALICE"],
-    ["a scene", "store hp = 100,\nscene one\n  Hi.\nend\n", "scene"],
-  ])("before %s: the error, and the story line is untouched", (_name, source, got) => {
+    ["prose", "store hp = 100,\n\nThe hero has {hp} health.\n"],
+    ["an em-dash action line", "store hp = 100,\n\n-- The hero staggers to his feet.\n\nHe has {hp} health.\n"],
+    ["dialogue", "store hp = 100,\n\nALICE:\n  The hero has {hp} health.\n"],
+    ["a scene", "store hp = 100,\nscene one\n  Hi.\nend\n"],
+  ])("before %s: the error, and the story line is untouched", (_name, source) => {
     const { errorMessages, warningMessages } = collectDiagnostics(source);
-    expect(errorMessages).toEqual([missingValue(got)]);
+    expect(errorMessages).toEqual([missingAtLineEnd]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 
@@ -336,7 +341,7 @@ describe("narrative body: the declaration ends at its line", () => {
     ["local", "store first = 1 local a, b = 2,\n  3\nValue {first}.\n"],
   ])("a second %s declaration on the line ends at the line too", (_name, source) => {
     const { errorMessages } = collectDiagnostics(source);
-    expect(errorMessages).toEqual([missingValue("3")]);
+    expect(errorMessages).toEqual([missingAtLineEnd]);
   });
 
   test("a statement after the comma on the same line is the error", () => {
@@ -348,7 +353,7 @@ describe("narrative body: the declaration ends at its line", () => {
 
   test("a declaration in an `&` statement ends at its line too", () => {
     const { errorMessages } = collectDiagnostics("& store hp = 100,\nThe hero has {hp} health.\n");
-    expect(errorMessages).toEqual([missingValue("The")]);
+    expect(errorMessages).toEqual([missingAtLineEnd]);
   });
 });
 

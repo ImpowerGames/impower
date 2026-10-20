@@ -152,7 +152,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     // TypeInfer.test.cpp:253 TEST_CASE_FIXTURE(BuiltinsFixture, "warn_on_lowercase_parent_property")
     name: "warn_on_lowercase_parent_property",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 879 }, // a call to require
     source: `
         local M = require(script.parent.DoesNotMatter)
     `,
@@ -489,7 +488,7 @@ end
     // TypeInfer.test.cpp:700 TEST_CASE_FIXTURE(BuiltinsFixture, "invalide_deprecated_attribute_doesn't_chrash_checker")
     name: "invalide_deprecated_attribute_doesn't_chrash_checker",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 921 }, // an attribute written @[...]
+    malformed: "`@deprecated`'s `reason` is a name, not a literal string",
     source: `
 @[deprecated{ reason = reasonString }]
 function hello(x: number, y: number): number
@@ -1452,7 +1451,6 @@ end
     // TypeInfer.test.cpp:1845 TEST_CASE_FIXTURE(Fixture, "multiple_assignment")
     name: "multiple_assignment",
     fixture: "Fixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         local function requireString(arg: string) end
         local function requireNumber(arg: number) end
@@ -1796,7 +1794,6 @@ end
     // TypeInfer.test.cpp:2199 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_has_indexer_can_create_cyclic_union")
     name: "fuzzer_has_indexer_can_create_cyclic_union",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 879 }, // a call to require
     source: `
         local _ = nil
         repeat
@@ -1866,7 +1863,6 @@ end
     // TypeInfer.test.cpp:2258 TEST_CASE_FIXTURE(BuiltinsFixture, "regexp_hang" * doctest::timeout(LUAU_TIMEOUT))
     name: "regexp_hang",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 922 }, // a keyword written right after an operand with no space
     source: `
 local outln, group_id, verb_flags = {}, {}, {
     newline = 1,
@@ -1971,7 +1967,6 @@ end
       },
       {
         module: "game/Util",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local ConfigReader = require(script.Parent.ConfigReader)
@@ -2006,7 +2001,6 @@ end
       },
       {
         module: "game/Util",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local isInteger = require(script.Parent.isInteger)
@@ -2040,7 +2034,6 @@ end
         expect: [{ errors: "some" }],
       },
       {
-        unparsed: { defect: 879 }, // a call to require
         source: `
         local l249 = require(module0)
         _,_ = {[\`{_}\`]=_,[_._G._]=(_)(),[_["" + _]._G]={_=_,_=_,[_._G[_]._]=_G,},},_,(_)()
@@ -2188,7 +2181,7 @@ end then _._G else ...
     fixture: "BuiltinsFixture",
     checks: [
       {
-        unparsed: { defect: 879 }, // a call to require
+        malformed: "`_(if nil then _)` has an if expression with no else",
         source: `
 local _ = {[0]=_,}
 while _ do
@@ -2208,7 +2201,6 @@ do end
         expect: [{ errors: "some" }],
       },
       {
-        unparsed: { defect: 879 }, // a call to require
         source: `
 local _ = {_,}
 while _ do
@@ -2482,7 +2474,6 @@ export type t12 = {
     fixture: "BuiltinsFixture",
     checks: [
       {
-        unparsed: { defect: 879 }, // a call to require
         source: `
         if if _ then _ else nil then
             local l0 = require(module0)
@@ -2497,7 +2488,6 @@ export type t12 = {
         expect: [{ errors: "some" }],
       },
       {
-        unparsed: { defect: 879 }, // a call to require
         source: `
         local l0 = require(module0)
         local l10 = require(module0)

@@ -1,5 +1,6 @@
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
+import { compiledElsewhere } from "./utils/compiledElsewhere";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
 import type {
   WorkerDisplayWorkspace,
@@ -633,11 +634,11 @@ export class GamePlayerController {
     }
     this.refs.leftItems.hidden = false;
     // The page holds only a program's summary, which has no locations to
-    // look paths up in: the worker that holds the program sends them with
+    // place addresses with: the worker that holds the program sends them with
     // the report.
     if (
       (this._program || params.simulateLocation) &&
-      params.simulatePath &&
+      params.simulateFlow != null &&
       params.simulation === "fail"
     ) {
       const simulateFromLocation = params.simulateLocation;
@@ -661,7 +662,7 @@ export class GamePlayerController {
     }
     if (
       (this._program || params.startLocation) &&
-      params.startPath &&
+      params.startLocation != null &&
       params.simulation === "fail"
     ) {
       const startFromLocation = params.startLocation;
@@ -846,9 +847,14 @@ export class GamePlayerController {
       this._audioContext = new AudioContext();
     }
     if (this._audioContext.state !== "running") {
-      try {
-        await this._audioContext.resume();
-      } catch {}
+      const context = this._audioContext;
+      // A webview can keep resume() pending until its first pointer gesture.
+      // Rendering must finish so the player can receive that gesture.
+      void context.resume().then(() => {
+        if (!this._disposed && this._audioContext === context && context.state === "running") {
+          this._app?.setAudioContext(context);
+        }
+      }).catch(() => {});
     }
     if (this._audioContext.state === "running") {
       this._app?.setAudioContext(this._audioContext);
@@ -863,8 +869,7 @@ export class GamePlayerController {
     const stops = this._stops;
     const clicked = this._plays;
     await this.ensureAudioContext();
-    // STOP, another PLAY or the controller going while the audio context
-    // resumed ended this click before it asked for anything.
+    // STOP, another PLAY or disposal can supersede this click while it yields.
     if (stops !== this._stops || clicked !== this._plays || this._disposed) {
       return;
     }
@@ -1838,7 +1843,17 @@ export class GamePlayerController {
   /** Take `program`, the newest the page has been sent. A run still waiting
    *  for the display of the program before stops waiting, so a display the
    *  worker never answers cannot hold this one back. */
-  loadProgram = (program: SparkProgram) => {
+  loadProgram = async (program: SparkProgram) => {
+    // Before its first program the page has no point of its own, and
+    // previews from the one the program was compiled to start from.
+    if (
+      compiledElsewhere(program, this._options?.startFrom ?? program.startFrom)
+    ) {
+      // Previewing it would display nothing, and PLAY would run the wrong
+      // story. The selection that moves the preview to its script compiles
+      // that script again.
+      return;
+    }
     for (const arrived of [...this._programWaiters]) {
       arrived();
     }
@@ -2826,7 +2841,14 @@ export class GamePlayerController {
       this.restoreWorkerDebugger(link);
     }
     const shown = this._completionShown;
-    let result: { displayed: boolean; errors?: SimulationError[] } | undefined;
+    let result:
+      | {
+          displayed: boolean;
+          errors?: SimulationError[];
+          path?: string;
+          refused?: string;
+        }
+      | undefined;
     // A detach or a newer update ends the wait for the answer. After a detach
     // the application the display was for is gone, and the worker may never
     // answer a display whose application no longer tells it that fonts and
@@ -2854,6 +2876,13 @@ export class GamePlayerController {
       return false;
     } finally {
       this._displayWaiters.delete(ended);
+    }
+    if (result.displayed && result.path) {
+      // How the worker displayed it (#657), as a measure of its own that a
+      // timing of the preview reads per sample.
+      const name = `player displayPreview path ${result.path}${result.refused ? ` ${result.refused}` : ""}`;
+      profile("start", name);
+      profile("end", name);
     }
     if (result.displayed && detaches === this._workerDetaches) {
       // The frame reached the application this display was for. A detach

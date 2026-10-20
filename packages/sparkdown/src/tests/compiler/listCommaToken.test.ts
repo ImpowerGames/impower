@@ -1,10 +1,8 @@
 // The token a missing-value error after a declaration's comma names, and
 // where it is reported (#1275). In a narrative body the declaration ends at
-// its line, and Sparkdown reports the comma, naming the token Luau reads in
-// place of the value: past a line comment, past a long-bracket comment
-// (which the story reads as an image), the scene's `end`, or the next word.
-// In Luau code the type checker reports the token itself, `end` or the end
-// of the file.
+// its line, so the value is missing at the end of that line, `<eof>` to
+// Luau's reading of the statement (#1907). In Luau code the type checker
+// reports the token itself, `end` or the end of the file.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -38,23 +36,27 @@ function errors(source: string): string[] {
 
 const missing = (got: string) => `Expected identifier when parsing expression, got ${got}`;
 
-describe("narrative body: the comma is reported with the token after it", () => {
+// A story declaration ends at its line (#1907), so Luau's reading of it meets
+// its end of input at the end of that line, past any comment on it, and the
+// next line is never its value.
+describe("narrative body: the missing value is at the end of the comma's line", () => {
   test("a comment longer than the former scanner window does not hide the missing value", () => {
     const source = "scene s\n  local a, b = 1, --[[" + "x".repeat(5000) + "]]\n  The hero.\nend\n";
-    expect(errors(source)).toEqual([`1:16-1:17 ${missing("'The'")}`]);
+    expect(errors(source)).toEqual([`1:5024-2:0 ${missing("<eof>")}`]);
   });
 
   test.each([
-    ["the scene's `end`", "scene s\n  local a, b = 1,\nend\n", "'end'"],
-    ["a line comment, then a statement", "scene s\n  local a, b = 1,\n  -- note\n  x = 2\nend\n", "'x'"],
-    ["a long-bracket comment, then a name", "scene s\n  local a, b = 1,\n  --[[ block ]] y\nend\n", "'y'"],
+    ["the scene's `end`", "scene s\n  local a, b = 1,\nend\n", "1:17-2:0"],
+    ["a line comment, then a statement", "scene s\n  local a, b = 1,\n  -- note\n  x = 2\nend\n", "1:17-2:0"],
+    ["a long-bracket comment, then a name", "scene s\n  local a, b = 1,\n  --[[ block ]] y\nend\n", "1:17-2:0"],
     [
       "a comment after the comma that runs over lines, then prose",
       "scene s\n  local a, b = 1, --[[ block\n  still ]] -- line\n  The hero.\nend\n",
-      "'The'",
+      // The comment carries the declaration on to the line it closes on.
+      "2:18-3:0",
     ],
-  ])("%s", (_name, source, got) => {
-    expect(errors(source)).toEqual([`1:16-1:17 ${missing(got)}`]);
+  ])("%s", (_name, source, range) => {
+    expect(errors(source)).toEqual([`${range} ${missing("<eof>")}`]);
   });
 });
 

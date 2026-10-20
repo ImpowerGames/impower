@@ -8,6 +8,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
 import { processIdentity } from "./reviewer-slots.mjs";
 import { createEditorSession, editorImages, editorRequestBytes, validateEditorRequest, executionPassed } from "./reviewer-editor.mjs";
+import { createReceiptDescriptor, awaitReceiptDisposition } from "./test-suite-receipt.mjs";
 
 const git = (root, args) => execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true }).trim();
 const inside = (root, file) => { const relative = path.relative(root, file); return relative && !relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative); };
@@ -30,15 +31,16 @@ export function validateExecutionShape(step) {
   for (const op of step.execution) {
     if (!op || !/^[a-z][a-z0-9-]{0,63}$/.test(op.id ?? "") || ids.has(op.id)) throw new Error("execution IDs must be unique simple names");
     ids.add(op.id);
-    const keys = op.kind === "editor" ? ["id", "kind", "maxRequests", "timeoutSeconds"] : op.kind === "vitest" ? ["id", "kind", "package", "files", "timeoutSeconds"] : ["id", "kind", "mode", "samples", "warmup", "timeoutSeconds"];
+    const keys = op.kind === "editor" ? ["id", "kind", "maxRequests", "timeoutSeconds"] : op.kind === "vitest" ? ["id", "kind", "package", "files", "timeoutSeconds", "waitSeconds"] : ["id", "kind", "mode", "samples", "warmup", "timeoutSeconds"];
     if (Object.keys(op).some(key => !keys.includes(key))) throw new Error("Unknown execution operation field");
     if (op.timeoutSeconds !== undefined && !integer(op.timeoutSeconds, 1, 1800)) throw new Error("execution timeoutSeconds must be 1..1800");
+    if (op.waitSeconds !== undefined && !integer(op.waitSeconds, 1, 1800)) throw new Error("execution waitSeconds must be 1..1800");
     if (op.kind === "editor") {
       if (!integer(op.maxRequests, 1, 100)) throw new Error("editor maxRequests must be 1..100");
     } else if (op.kind === "vitest") {
-      if (typeof op.package !== "string" || !Array.isArray(op.files) || !op.files.length || op.files.length > 30 || !op.files.every(file => typeof file === "string")) throw new Error("vitest needs a package and 1..30 test files");
+      if (typeof op.package !== "string" || !Array.isArray(op.files) || !op.files.length || op.files.length > 8 || !op.files.every(file => typeof file === "string")) throw new Error("vitest needs a package and 1..8 test files");
     } else {
-      const modes = op.kind === "engine-bench" ? ["kinds", "step", "proto", "chunks", "symbols", "order", "emit", "ready", "all"] : op.kind === "preview-bench" ? ["preview", "edit", "both"] : [];
+      const modes = op.kind === "engine-bench" ? ["program", "symbols", "order", "images", "search", "all"] : op.kind === "preview-bench" ? ["preview", "edit", "both"] : [];
       if (!modes.includes(op.mode)) throw new Error("Unknown execution benchmark kind or mode");
       if (!integer(op.samples, 1, 100) || !integer(op.warmup, 0, 100)) throw new Error("benchmark needs samples 1..100 and warmup 0..100");
     }
@@ -55,7 +57,7 @@ export function executionCommands(operations, root) {
     return target;
   };
   return operations.map(op => {
-    let args;
+    let args, waitSeconds;
     if (op.kind === "editor") {
       args = [trackedFile(path.join(root, ".agents/skills/drive-web-editor/driver.mjs"))];
     } else if (op.kind === "vitest") {
@@ -69,11 +71,14 @@ export function executionCommands(operations, root) {
         if (!inside(packageRoot, target)) throw new Error("Execution test escapes package");
         return path.relative(packageRoot, target);
       });
-      args = [trackedFile(path.join(root, "scripts/test-suite.mjs")), "run", packageRoot, ...files, "--wait", "300"];
+      // The reservation wait is its own budget, so queueing behind another
+      // worktree's suite never consumes the run's timeoutSeconds.
+      waitSeconds = op.waitSeconds ?? op.timeoutSeconds ?? 600;
+      args = [trackedFile(path.join(root, "scripts/test-suite.mjs")), "run", packageRoot, ...files, "--wait", String(waitSeconds)];
     } else {
       args = [trackedFile(path.join(root, `scripts/bench/${op.kind}.mjs`)), "--fixture", "--mode", op.mode, "--samples", String(op.samples), "--warmup", String(op.warmup)];
     }
-    return { id: op.id, kind: op.kind, args, ...(op.kind === "editor" ? { maxRequests: op.maxRequests } : {}), timeoutSeconds: op.timeoutSeconds ?? 600 };
+    return { id: op.id, kind: op.kind, args, ...(op.kind === "editor" ? { maxRequests: op.maxRequests } : {}), ...(waitSeconds ? { waitSeconds } : {}), timeoutSeconds: op.timeoutSeconds ?? 600 };
   });
 }
 
@@ -84,32 +89,73 @@ export function executionEnvironment(source = process.env) {
   return { ...Object.fromEntries(Object.entries(source).filter(([key]) => allowed.test(key))), NODE_OPTIONS: "--max-old-space-size=1024" };
 }
 
+// test-suite.mjs exits 75 and prints this line when it could not take the
+// reservation, so no test ran. Either signal alone makes the run a not-run.
+export function vitestNotRun(result) {
+  if (result.exit === 75) return true;
+  if (!result.log) return false;
+  try { return /^test-suite: not run:/m.test(fs.readFileSync(result.log, "utf8")); } catch { return false; }
+}
+
+// The line test-suite.mjs prints once it holds the reservation.
+const reservationAcquired = /^\{"status":"acquired"\}$/m;
+const queueStartupGraceSeconds = 30;
+
 function execute(command, root, directory) {
   const log = path.join(directory, `${command.id}.log`);
   const started = path.join(directory, `${command.id}.started.json`);
   fs.writeFileSync(started, JSON.stringify({ command, root, phase: "launching", coordinator: processIdentity(process.pid) }), { flag: "wx" });
   const fd = fs.openSync(log, "wx");
   const child = spawn(fs.realpathSync.native(process.execPath), command.args, { cwd: root, env: { ...executionEnvironment(), ...command.environment }, windowsHide: true, detached: process.platform !== "win32", stdio: ["ignore", fd, fd] });
-  fs.closeSync(fd);
   return new Promise(resolve => {
-    let timedOut = false, launchError, stopError;
-    const timer = setTimeout(() => {
+    let timedOut = false, launchError, stopError, originalIdentity;
+    const stop = () => {
       timedOut = true;
       try {
         if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
-        if (process.platform === "win32") execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "pipe", timeout: 10000 });
+        if (command.kind === "vitest") child.kill();
+        else if (process.platform === "win32") execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "pipe", timeout: 10000 });
         else process.kill(-child.pid, "SIGKILL");
       } catch (error) { stopError = error.message; }
       // Keep awaiting actual close. Unconfirmed exit cannot release the review
       // freeze or start another operation, even if termination was requested.
-    }, command.timeoutSeconds * 1000);
+    };
+    // A command that queues for the machine-wide reservation has two budgets:
+    // the wait, which the runner enforces itself with exit 75 (the grace only
+    // covers its startup), and the run, which starts when the runner reports
+    // that it holds the reservation. Unused wait never extends the run.
+    let timer, poll;
+    if (command.waitSeconds === undefined) timer = setTimeout(stop, command.timeoutSeconds * 1000);
+    else {
+      timer = setTimeout(stop, (command.waitSeconds + queueStartupGraceSeconds) * 1000);
+      poll = setInterval(() => {
+        let text = "";
+        try { text = fs.readFileSync(log, "utf8"); } catch { return; }
+        if (!reservationAcquired.test(text)) return;
+        clearInterval(poll);
+        clearTimeout(timer);
+        timer = setTimeout(stop, command.timeoutSeconds * 1000);
+      }, 100);
+    }
     child.once("error", error => { launchError = error.message; });
-    child.once("close", (exit, signal) => {
+    child.once("close", async (exit, signal) => {
       clearTimeout(timer);
-      const result = { id: command.id, exit, signal, timedOut, launchError, stopError, log };
+      clearInterval(poll);
+      const result = { id: command.id, exit, signal, timedOut, launchError, stopError, log, coordinator: originalIdentity };
+      if (command.kind === "vitest") {
+        const disposition = command.receipt ? await awaitReceiptDisposition(command.receipt, { coordinator: originalIdentity })
+          : { confirmed: false, error: "Caller-authored receipt is absent" };
+        result.containmentConfirmed = disposition.confirmed;
+        result.receipt = command.receipt?.file;
+        if (!disposition.confirmed) result.containmentError = disposition.error;
+      }
       resolve(result);
     });
-    try { fs.writeFileSync(started, JSON.stringify({ command, root, phase: "running", pid: child.pid, identity: child.pid ? processIdentity(child.pid) : null })); }
+    try { fs.closeSync(fd); } catch (error) { stopError = "Owned execution log descriptor cleanup failed: " + error.message; }
+    try {
+      originalIdentity = child.pid ? processIdentity(child.pid) : null;
+      fs.writeFileSync(started, JSON.stringify({ command, root, phase: "running", pid: child.pid, identity: originalIdentity }));
+    }
     catch (error) { stopError = `Execution ownership record unavailable: ${error.message}`; }
   });
 }
@@ -165,12 +211,26 @@ export async function startExecutionService({ operations, root, directory, head 
       if (editorRequest) requests.set(key, JSON.stringify(request));
       results.set(key, { id: command.id, requestId: editorRequest || undefined, state: "running", head });
       pending = Promise.resolve().then(() => {
-        if (!editorRequest) return run(command, root, directory);
+        if (!editorRequest) {
+          if (command.kind === "vitest") {
+            const receiptDirectory = fs.mkdtempSync(path.join(directory, command.id + "-supervision-"));
+            const waitIndex = command.args.indexOf("--wait");
+            const receipt = createReceiptDescriptor({ directory: receiptDirectory, operation: command.id, head,
+              runnerRoot: root, packageRoot: command.args[2], files: command.args.slice(3, waitIndex),
+              waitMs: command.waitSeconds * 1000, outerTimeoutMs: command.timeoutSeconds * 1000 });
+            return run({ ...command, receipt, args: [...command.args, "--internal-receipt", receipt.file] }, root, directory);
+          }
+          return run(command, root, directory);
+        }
         if (!editors.has(command.id)) editors.set(command.id, createEditorSession(command, root, directory, run));
         return editors.get(command.id).run(request);
       }).then(result => {
         frozen();
-        const terminal = { ...result, id: command.id, head, state: "complete", passed: executionPassed(result) };
+        if (command.kind === "vitest" && result.containmentConfirmed !== true)
+          failure = result.containmentError || "Vitest owned cleanup remains unconfirmed; preserve execution evidence";
+        const notRun = command.kind === "vitest" && vitestNotRun(result);
+        const terminal = { ...result, id: command.id, head, state: "complete",
+          passed: !failure && !notRun && executionPassed(result), ...(notRun ? { notRun: true } : {}) };
         const resultFile = editorRequest ? path.join(path.dirname(result.log), "result.json") : path.join(directory, `${command.id}.json`);
         fs.writeFileSync(resultFile, JSON.stringify(terminal, null, 2));
         results.set(key, terminal);

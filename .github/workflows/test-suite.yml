@@ -5,9 +5,9 @@ name: Test Suite
 # machines. The full suite is serial and slow on a development machine because
 # the local runner starts a fresh process per test file and the machine allows
 # one vitest process at a time; a separate runner per package sidesteps that
-# constraint while keeping each job under the same heap cap and single-worker
-# settings the repository requires, so a test that passes here also fits the
-# local limits.
+# constraint while keeping each job under the same per-worker heap cap the
+# repository requires, so a test that passes here also fits the local limits.
+# Each job runs two test files at a time (#1932); see the Run vitest step.
 #
 # Writer agents run only their regression test locally and cite this
 # workflow's result for the pushed head. Readiness for human review requires a
@@ -16,9 +16,10 @@ name: Test Suite
 # The `test-suite` job at the end is the required status check. It always
 # runs, so it always reports; the workflow has no trigger path filter, because
 # a filtered-out workflow reports nothing and leaves the pull request blocked.
-# The `changes` job decides whether the package suites need to run, and the
-# gate passes when they all passed or were all skipped as irrelevant, and
-# fails when any failed or when detection itself failed. Requiring the gate
+# The `changes` job decides whether the package suites and the Luau corpus
+# gate need to run, and the gate passes when they all passed or were all
+# skipped as irrelevant, and fails when any failed or when detection itself
+# failed. Requiring the gate
 # rather than the package jobs also keeps the required names stable: a matrix
 # job skipped before expansion reports under its bare job id, not the
 # per-package names.
@@ -58,26 +59,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Every workspace with a vitest.config.ts. Add a package here when it
-        # gains one; .github/scripts/test-suite-matrix.test.mjs fails the
-        # tooling checks when this list and the tracked configs differ.
-        package:
-          - impower-dev
-          - packages/jsonrpc
-          - packages/opfs-workspace
-          - packages/spark-editor-protocol
-          - packages/spark-engine
-          - packages/spark-morph
-          - packages/spark-web-player
-          - packages/sparkdown
-          - packages/sparkdown-document-views
-          - packages/sparkdown-language-server
-          - vscode-sparkdown
-    name: ${{ matrix.package }}
+        # One job per package shard: every workspace with a vitest.config.ts.
+        # Add a package here when it gains one; the three slow packages are
+        # split with vitest's --shard=<shard>/<shards>, which assigns whole
+        # files to shards by a hash of each file's path, so a heavy test file
+        # is best split into several (#1932). test-suite-matrix.test.mjs fails
+        # the tooling checks when this list and the tracked configs differ,
+        # or when a package's shards are not exactly 1..shards.
+        include:
+          - { package: impower-dev, shard: 1, shards: 1 }
+          - { package: packages/jsonrpc, shard: 1, shards: 1 }
+          - { package: packages/opfs-workspace, shard: 1, shards: 1 }
+          - { package: packages/spark-editor-protocol, shard: 1, shards: 1 }
+          - { package: packages/spark-engine, shard: 1, shards: 2 }
+          - { package: packages/spark-engine, shard: 2, shards: 2 }
+          - { package: packages/spark-morph, shard: 1, shards: 1 }
+          - { package: packages/spark-web-player, shard: 1, shards: 2 }
+          - { package: packages/spark-web-player, shard: 2, shards: 2 }
+          - { package: packages/sparkdown, shard: 1, shards: 4 }
+          - { package: packages/sparkdown, shard: 2, shards: 4 }
+          - { package: packages/sparkdown, shard: 3, shards: 4 }
+          - { package: packages/sparkdown, shard: 4, shards: 4 }
+          - { package: packages/sparkdown-document-views, shard: 1, shards: 1 }
+          - { package: packages/sparkdown-language-server, shard: 1, shards: 1 }
+          - { package: vscode-sparkdown, shard: 1, shards: 1 }
+    name: ${{ matrix.package }}${{ matrix.shards > 1 && format(' ({0}/{1})', matrix.shard, matrix.shards) || '' }}
     runs-on: ubuntu-latest
-    # Sparkdown's growing conformance suite can exceed 30 minutes on a
-    # slower hosted runner with one worker. Keep other package bounds.
-    timeout-minutes: ${{ matrix.package == 'packages/sparkdown' && 45 || 30 }}
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,15 +105,24 @@ jobs:
 
       # Definitions use the oracle's pinned WASM at build time. Reparse the
       # source aggregates and require byte-for-byte generated JSON agreement.
+      # It checks the whole package, so only the first shard runs it.
       - name: Verify generated definition ASTs
-        if: matrix.package == 'packages/sparkdown'
+        if: matrix.package == 'packages/sparkdown' && matrix.shard == 1
         run: node packages/sparkdown/scripts/buildDefinitionAst.mjs --check
 
       # The package's own vitest.config.ts stays in force (pool, environment,
-      # setup files). The heap cap and single worker match the repository's
-      # resource gate; passWithNoTests stays off so an empty include is a
-      # failure rather than a silent pass. The output is kept for the summary
-      # check and the uploaded log.
+      # setup files, and a singleFork pool keeps running one file at a time).
+      # The heap cap is the repository's resource gate and applies to each
+      # worker process, as it does locally, so a test that fits here fits the
+      # local runner. Two workers rather than the local runner's one (#1932):
+      # the hosted runner has four cores, and with one worker the slowest
+      # sparkdown shard spent 23 minutes on one core while the others idled.
+      # Two keeps the pair of worker heaps well inside the runner's memory and
+      # leaves a core for the main process. minWorkers goes with it: vitest's
+      # default minimum is one below the core count, and a minimum above the
+      # maximum refuses to start the pool. passWithNoTests stays off so an
+      # empty include is a failure rather than a silent pass. The output is
+      # kept for the summary check and the uploaded log.
       - name: Run vitest
         working-directory: ${{ matrix.package }}
         env:
@@ -113,9 +130,10 @@ jobs:
           # Vitest colours its output on CI even through a pipe; the summary
           # check below matches plain text.
           NO_COLOR: 1
+          SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
         run: |
           set -o pipefail
-          npx vitest run --no-file-parallelism --reporter=default 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+          npx vitest run --minWorkers=1 --maxWorkers=2 --reporter=default --shard="$SHARD" 2>&1 | tee "$RUNNER_TEMP/vitest.log"
 
       # A worker killed by the OS can leave vitest exiting 0 with no summary,
       # which must read as a failure rather than a pass. The same rules as the
@@ -148,10 +166,71 @@ jobs:
           path: ${{ runner.temp }}/vitest.log
           if-no-files-found: warn
 
+  # The Luau corpus gate (#1908): every vendored upstream Luau snippet, placed
+  # in a function, must parse with no unfinished node, end the function at its
+  # own `end`, and agree with Luau's parser on whether it has a syntax error,
+  # outside the committed known lists. The conformance files' agreement is
+  # luauSyntaxAgreement.test.ts's, so the job runs both files. They also run in
+  # the sparkdown shards; this job reports the gate on its own.
+  luau-corpus-gate:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    name: Luau corpus gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Run vitest
+        working-directory: packages/sparkdown
+        env:
+          NODE_OPTIONS: --max-old-space-size=1024
+          NO_COLOR: 1
+        run: |
+          set -o pipefail
+          npx vitest run --minWorkers=1 --maxWorkers=2 --reporter=default src/tests/compiler/luauCorpusGate.test.ts src/tests/compiler/luauSyntaxAgreement.test.ts 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+
+      # The vitest job's step, unchanged; test-suite-guard.test.sh requires
+      # every copy to match the one it checks.
+      - name: Require summary lines
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/vitest.log"
+          test -f "$log" || { echo "No vitest log was written"; exit 1; }
+          plain=$(sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' "$log")
+          files=$(grep -E '^[[:space:]]*Test Files[[:space:]]+.*\([0-9]+\)' <<<"$plain" | tail -n 1)
+          tests=$(grep -E '^[[:space:]]*Tests[[:space:]]+.*\([0-9]+\)' <<<"$plain" | tail -n 1)
+          test -n "$files" || { echo "Missing 'Test Files' summary line"; exit 1; }
+          test -n "$tests" || { echo "Missing 'Tests' summary line"; exit 1; }
+          grep -Eq '[[:space:]][1-9][0-9]*[[:space:]]+passed' <<<"$files" || { echo "No test file passed: $files"; exit 1; }
+          grep -Eq '[[:space:]][1-9][0-9]*[[:space:]]+passed' <<<"$tests" || { echo "No test passed: $tests"; exit 1; }
+          if grep -Eq '[[:space:]][0-9]+[[:space:]]+failed' <<<"$files$tests"; then echo "Failures reported: $files / $tests"; exit 1; fi
+          if grep -Eiq 'Worker exited unexpectedly|heap out of memory|Unhandled (Error|Rejection)|Some tests are still running|unhandled error' <<<"$plain"; then echo "Worker crash, unhandled error or partial-result diagnostic in the log"; exit 1; fi
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-luau-corpus-gate-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vitest.log
+          if-no-files-found: warn
+
   # The required status check. `always()` keeps it reporting when the package
   # jobs were skipped or when detection failed; the step then decides.
   test-suite:
-    needs: [changes, vitest]
+    needs: [changes, vitest, luau-corpus-gate]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -160,6 +239,7 @@ jobs:
         env:
           CHANGES: ${{ needs.changes.result }}
           VITEST: ${{ needs.vitest.result }}
+          CORPUS: ${{ needs.luau-corpus-gate.result }}
         run: |
           test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
           case "$VITEST" in
@@ -167,3 +247,5 @@ jobs:
             skipped) echo "Package suites skipped: the change touches nothing they cover";;
             *) echo "Package suites did not pass: $VITEST"; exit 1;;
           esac
+          test "$CORPUS" = "$VITEST" || { echo "The Luau corpus gate ($CORPUS) and the package suites ($VITEST) must both pass or both be skipped"; exit 1; }
+          echo "Luau corpus gate: $CORPUS"

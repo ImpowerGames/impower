@@ -28,11 +28,15 @@ scene start
   & mood = mood + 1
   HERO:
     The third line.
+  HERO:
+    The fourth line.
 end
 `;
 
 const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(text));
+const DECLARE = lineOf("store mood = 0");
 const WRITE = lineOf("& mood = 1");
+const WRITE_AGAIN = lineOf("& mood = mood + 1");
 const FIRST = lineOf("The first line.");
 const SECOND = lineOf("The second line.");
 const THIRD = lineOf("The third line.");
@@ -113,7 +117,7 @@ const debugSession = async () => {
         ),
       );
       const variables: any = {};
-      for (const scope of ["vars", "temps", "lists", "defines"] as const) {
+      for (const scope of ["vars", "temps", "defines"] as const) {
         variables[scope] = answer(
           await c.handleGetGameVariables(GetGameVariablesMessage.type.request({ scope })),
         );
@@ -152,6 +156,7 @@ const debugSession = async () => {
       await c.handleStepGame(StepGameMessage.type.request({ traversal: "out" })),
     );
     await settle(10);
+    answers.afterStepOut = await ask();
     answers.continue = answer(
       await c.handleContinueGame(ContinueGameMessage.type.request({})),
     );
@@ -174,7 +179,13 @@ describe("the debugger during PLAY", () => {
     const on = await debugSession();
 
     // Every request was answered, none with an error.
-    const asked = ["stopped", "afterStepOver", "afterStepIn", "afterContinue"];
+    const asked = [
+      "stopped",
+      "afterStepOver",
+      "afterStepIn",
+      "afterStepOut",
+      "afterContinue",
+    ];
     const answers: [string, any][] = [];
     for (const [key, value] of Object.entries(on)) {
       if (asked.includes(key)) {
@@ -203,36 +214,48 @@ describe("the debugger during PLAY", () => {
     expect(on.setFunctionBreakpoints.result.functionBreakpoints[0].verified).toBe(false);
     expect(on.setDataBreakpoints.result.dataBreakpoints).toHaveLength(1);
     expect(on.setDataBreakpoints.result.dataBreakpoints[0].verified).toBe(true);
-    expect(on.setDataBreakpoints.result.dataBreakpoints[0].location.range.start.line).toBe(WRITE);
-    // Each step says whether it stopped somewhere; stepping out there does
-    // not.
+    // On the program engine a global's data breakpoint is placed where the
+    // global is declared (docs/engine/binary-program.md, What is built, #702).
+    expect(on.setDataBreakpoints.result.dataBreakpoints[0].location.range.start.line).toBe(DECLARE);
+    // Each step runs until it stops somewhere, and says so.
     expect(on.stepIn.result.done).toBe(true);
-    expect(on.stepOut.result.done).toBe(false);
+    expect(on.stepOut.result.done).toBe(true);
     // The Variables view lists the story's `mood` with its value.
     const mood = (key: string) =>
       on[key].variables.vars.result.variables.find((v: any) => v.name === "mood")?.value;
-    expect(mood("stopped")).toBe("0");
-    expect(mood("afterContinue")).toBe("2");
+    // The worker runs the program engine (#703), whose data breakpoint
+    // watches the variable and stops after a step that wrote another value
+    // to it, wherever that write is (docs/engine/binary-program.md, What is
+    // built, #702).
+    expect(mood("stopped")).toBe("1");
+    expect(mood("afterStepOut")).toBe("2");
 
     // The click runs the first line on to the line that writes `mood`,
-    // where the data breakpoint stops the game before the write; the Debug
+    // where the data breakpoint stops the game after the write; the Debug
     // Console reads the story's variable by name.
-    expect(standing(on.stopped)).toEqual({ line: WRITE, mood: 0 });
+    expect(standing(on.stopped)).toEqual({ line: WRITE, mood: 1 });
     expect(on.stopped.variables.vars.result.variables.length).toBeGreaterThan(0);
     // Stepping over runs to the breakpoint on the second line.
     expect(standing(on.afterStepOver)).toEqual({ line: SECOND, mood: 1 });
-    // Stepping in there stays on that line.
+    // Stepping in there runs the rest of that line, which calls nothing,
+    // to where it waits for the player.
     expect(standing(on.afterStepIn)).toEqual({ line: SECOND, mood: 1 });
+    // Stepping out runs on to the next write to `mood`, where the data
+    // breakpoint stops it.
+    expect(standing(on.afterStepOut)).toEqual({ line: WRITE_AGAIN, mood: 2 });
     // Continuing runs on to the third line, which waits for the player.
     expect(standing(on.afterContinue)).toEqual({ line: THIRD, mood: 2 });
     expect(on.stepOver.result.done).toBe(true);
     expect(on.continue.result.done).toBe(true);
-    // The editor heard where the game stopped and where it stepped to.
+    // The editor heard where the game stopped and where each step stopped:
+    // a step that ran into a breakpoint is reported as the breakpoint.
     expect(
       (on.reported as any[]).map((m) => [m.method, m.params.location?.range.start.line]),
     ).toEqual([
       ["game/hitBreakpoint", WRITE],
+      ["game/hitBreakpoint", SECOND],
       ["game/stepped", SECOND],
+      ["game/hitBreakpoint", WRITE_AGAIN],
     ]);
   }, 120_000);
 });

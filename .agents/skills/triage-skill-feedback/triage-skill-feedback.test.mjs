@@ -5,8 +5,27 @@ import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { parseLegacyTable, parseIntake, keyOf, fold, makePlan, readPlan, preview, applyPlan, lookupReports } from './triage-skill-feedback.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readRepos } from '../../repos.mjs';
+
+// The script reads .agents/repos.json when it loads, so each switch position is
+// a copy of it beside its own repos file. The tests use the off copy with the
+// public inbox number, whatever the committed file says.
+const committed = readRepos();
+const OFF = { ...committed, cutover: false, feedbackInbox: 510 };
+const modules = mkdtempSync(resolve(tmpdir(), 'triage-modules-'));
+process.on('exit', () => rmSync(modules, { recursive: true, force: true }));
+async function loadTriage(name, repos) {
+  const checkout = resolve(modules, name);
+  const dir = resolve(checkout, '.agents/skills/triage-skill-feedback');
+  mkdirSync(dir, { recursive: true });
+  for (const file of ['triage-skill-feedback.mjs', 'feedback-reports.mjs', 'feedback-archive.mjs']) copyFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), resolve(dir, file));
+  copyFileSync(fileURLToPath(new URL('../../repos.mjs', import.meta.url)), resolve(checkout, '.agents/repos.mjs'));
+  writeFileSync(resolve(checkout, '.agents/repos.json'), JSON.stringify(repos));
+  return import(pathToFileURL(resolve(dir, 'triage-skill-feedback.mjs')).href);
+}
+const triage = await loadTriage('off', OFF);
+const { parseLegacyTable, parseIntake, keyOf, fold, makePlan, readPlan, preview, applyPlan, lookupReports } = triage;
 
 const body = 'Intro\n\n## Intake\n\nPost one report per comment.\n\nFooter stays.\n';
 const reported = (id, session, problem = 'new', friction = 'Completion lost', skill = 'review-pr, section 3') => ({ id, body: `Problem: ${problem}\n\nSession: ${session}\n\nSkill and section: ${skill}\n\nWhat happened: ${friction}\n\nProposed edit: Preserve the result.`, html_url: `https://example.test/${id}` });
@@ -27,7 +46,7 @@ function fixture(comments = [reported(1, 'codex:alpha')], initialBody = body) {
       const issue = find(number);
       if (!issue) throw new Error(`Fixture has no issue #${number}`);
       const parent = state.parents.get(number);
-      return { id: databaseId(number), parent_issue_url: parent ? `https://api.github.com/repos/${parent.repo || 'ImpowerGames/impower'}/issues/${parent.number}` : null, ...structuredClone(issue) };
+      return { id: databaseId(number), parent_issue_url: parent ? `https://api.github.com/repos/${parent.repo || OFF.code}/issues/${parent.number}` : null, ...structuredClone(issue) };
     },
     subIssues: async () => [...state.parents].filter(([, parent]) => parent.number === 510 && !parent.repo).map(([number]) => ({ number, id: databaseId(number) })),
     addSubIssue: async id => {
@@ -517,6 +536,47 @@ await test('preview marks a reopen only where apply will reopen', async () => {
   assert.throws(() => preview(plan), /Task #740 is closed and does not record every problem in this group/);
 });
 
+await test('tickets and the inbox follow the repos file in both positions while pull requests stay in the code repository', async () => {
+  const scratch = mkdtempSync(resolve(tmpdir(), 'triage-repos-'));
+  try {
+    // The switch on, with a migrated inbox.
+    const on = await loadTriage('on', { ...committed, cutover: true, feedbackInbox: 777 });
+    for (const [label, module, tickets, inbox, pr] of [['off', triage, OFF.code, OFF.feedbackInbox, '#503'], ['on', on, committed.internal, 777, `${committed.code}#503`]]) {
+      // Ticket text names a pull request with its repository once tickets live apart from the code.
+      const recurring = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [problem('F-5', 'applied in PR #503')]));
+      const merged = module.preview(await module.readPlan(recurring.api))[0];
+      assert.ok(merged.body.includes(`Earlier feedback (applied in PR ${pr}; context only):`) && merged.body.includes(`Previous reference for F-5: applied in PR ${pr}.`), `switch ${label}: the Task names PR ${pr}: ${merged.body}`);
+      // History written before the cutover: an applied problem whose stored text already
+      // carries the prefix, as an earlier recurrence re-applied to the same PR leaves it.
+      const prefixed = { ...problem('F-5', 'applied in PR #503'), friction: 'Earlier feedback (applied in PR #503; context only):\nFriction F-5', edit: 'Earlier feedback (applied in PR #503; context only):\nEdit F-5' };
+      const legacy = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [prefixed]));
+      const legacyPlan = await module.readPlan(legacy.api);
+      const legacyTask = module.preview(legacyPlan)[0].body;
+      assert.equal(legacyTask.split('Earlier feedback').length - 1, 2, `switch ${label}: one prefix each on friction and edit: ${legacyTask}`);
+      assert.ok(legacyTask.includes(`Earlier feedback (applied in PR ${pr}; context only):\nFriction F-5`) && !(label === 'on' && /PR #503/.test(legacyTask)), `switch ${label}: the stored prefix renders as PR ${pr}: ${legacyTask}`);
+      await module.applyPlan(legacyPlan, legacy.api);
+      const stored = ledgerOf(legacy.state)['F-5'].friction;
+      assert.ok(stored.startsWith('Earlier feedback (applied in PR #503; context only):\nFriction F-5') && stored.split('Earlier feedback').length === 2, `switch ${label}: the stored friction keeps one canonical prefix: ${stored}`);
+      const appliedNow = fixture();
+      const appliedPlan = await module.readPlan(appliedNow.api);
+      appliedPlan.groups = [{ action: 'applied', number: 503, keys: ['F-1'] }];
+      const result = await module.applyPlan(appliedPlan, appliedNow.api);
+      assert.ok(result.summary.includes(`applied ${pr};`) && result.summary.includes(`F-1 → applied in PR ${pr}.`), `switch ${label}: the summary names PR ${pr}: ${result.summary}`);
+      assert.equal(ledgerOf(appliedNow.state)['F-1'].status, 'applied in PR #503', `switch ${label}: the ledger keeps its status grammar`);
+      const calls = [];
+      const api = module.github(resolve(scratch, `bodies-${label}`), args => { calls.push(args); return '{}'; });
+      api.inbox(); api.issue(5); api.pr(503); api.createTicket('t', 'b'); api.updateBody('b');
+      assert.deepEqual(calls.map(args => args.find(arg => /^repos\//.test(arg)) ?? args[args.indexOf('--repo') + 1]), [`repos/${tickets}/issues/${inbox}`, `repos/${tickets}/issues/5`, `repos/${committed.code}/pulls/503`, `repos/${tickets}/issues`, tickets], `switch ${label}`);
+      assert.equal(calls[4][2], String(inbox), `switch ${label}: the inbox body edit names the inbox`);
+      const [ticket] = module.preview(module.makePlan(body, [reported(1, 'codex:alpha')]));
+      const mentions = [...ticket.body.matchAll(/#(\d+)/g)].map(m => Number(m[1]));
+      assert.ok(mentions.length >= 2 && mentions.every(n => n === inbox), `switch ${label}: the Task body names only inbox #${inbox}: ${mentions}`);
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {
   const scratch = mkdtempSync(resolve(tmpdir(), 'triage-path-check-'));
   try {
@@ -526,6 +586,7 @@ await test('CLI rejects inside ..prefix paths and accepts outside siblings', () 
     copyFileSync(fileURLToPath(new URL('./triage-skill-feedback.mjs', import.meta.url)), script);
     copyFileSync(fileURLToPath(new URL('./feedback-reports.mjs', import.meta.url)), resolve(script, '../feedback-reports.mjs'));
     copyFileSync(fileURLToPath(new URL('./feedback-archive.mjs', import.meta.url)), resolve(script, '../feedback-archive.mjs'));
+    for (const name of ['repos.mjs', 'repos.json']) copyFileSync(fileURLToPath(new URL(`../../${name}`, import.meta.url)), resolve(checkout, '.agents', name));
     const otherRepo = resolve(scratch, 'other-repo');
     mkdirSync(resolve(otherRepo, '.git'), { recursive: true });
     const otherWorktree = resolve(scratch, 'other-worktree');

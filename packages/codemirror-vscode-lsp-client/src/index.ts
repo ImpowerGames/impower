@@ -1,5 +1,6 @@
 export {
   LSPClient,
+  RequestTimeoutError,
   WorkspaceMapping,
   type LSPClientConfig,
   type LSPClientExtension,

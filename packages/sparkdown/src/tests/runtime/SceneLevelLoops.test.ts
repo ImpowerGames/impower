@@ -142,10 +142,10 @@ for (const [place, wrap] of Object.entries(places)) {
 end
 n is {n}.`),
       );
+      // The header ends at its line (#1907), so Luau's reading meets its end
+      // of input where the `do` should be.
       expect(ctx.errorMessages).toEqual([
-        expect.stringContaining(
-          `Expected \`do\` after the \`${keyword}\` loop's condition`,
-        ),
+        `Expected 'do' when parsing ${keyword} loop, got <eof>`,
       ]);
     });
   });

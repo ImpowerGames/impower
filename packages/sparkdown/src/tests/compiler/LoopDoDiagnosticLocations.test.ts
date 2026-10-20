@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 // A `while` or `for` loop written in a scene or at the top level without `do`
-// has no body, and the compiler reports it on the loop's keyword. These tests
-// assert the file and the exact range, so the error stays on the keyword the
-// author has to fix rather than drifting to another line or column.
+// has no body. Its header ends at its line (#1907), so Luau's reading meets its
+// end of input where the `do` should be, and the error is Luau's, in Luau's
+// words, at the end of the header's line (#1001 pinned a hint on the keyword
+// before). These tests assert the file and the exact range, so the error stays
+// on the line the author has to fix rather than drifting to another.
 
 const message = (d: any): string =>
   typeof d?.message === "string" ? d.message : (d?.message?.value ?? "");
@@ -33,7 +35,7 @@ const compile = (text: string) => {
 const missingDoDiagnostics = (program: any) =>
   Object.entries(program.diagnostics ?? {}).flatMap(([uri, list]) =>
     (list as any[])
-      .filter((d) => /Expected `do` after the `\w+` loop's condition/.test(message(d)))
+      .filter((d) => /Expected 'do' when parsing (?:while|for) loop/.test(message(d)))
       .map((d) => ({
         uri,
         message: message(d),
@@ -79,19 +81,19 @@ describe("the missing-do error's location", () => {
       ["while", "while n < 2"],
       ["for", "for i = 1, 3"],
     ] as const) {
-      it(`is the keyword of a ${keyword} loop ${place}`, () => {
+      it(`is the end of a ${keyword} loop's header line ${place}`, () => {
         const { text, line, character } = wrap(header);
         const found = missingDoDiagnostics(compile(text));
 
         expect(found).toEqual([
           {
             uri: MAIN,
-            message: expect.stringContaining(`\`${keyword}\` loop's condition`),
+            message: `Expected 'do' when parsing ${keyword} loop, got <eof>`,
             // An error (LSP severity 1), not a warning.
             severity: 1,
             range: {
-              start: { line, character },
-              end: { line, character: character + keyword.length },
+              start: { line, character: character + header.length },
+              end: { line: line + 1, character: 0 },
             },
           },
         ]);

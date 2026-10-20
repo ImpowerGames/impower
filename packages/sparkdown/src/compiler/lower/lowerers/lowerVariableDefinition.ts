@@ -1,9 +1,11 @@
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import {
+  AstExprCall,
+  AstExprVarargs,
   AstStatLocal,
   AstStatSparkdownStore,
 } from "../../typecheck/Ast";
@@ -16,6 +18,7 @@ import {
   type PathName,
 } from "../expression/lowerExpression";
 import { rangeOf } from "../utils/luauAst";
+import { publishesConst, reportMissingConstInitializer } from "../utils/publishesConst";
 import { statementSource } from "../utils/statementSource";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -24,9 +27,11 @@ import type { StatementSite } from "./lowerLuauStatement";
 /**
  * A declaration: `local` names (a temporary of the enclosing flow or
  * function), `store` names (globals the story saves, registered at the story
- * level and evaluated at its start) and a `const` (a global that does not
- * change). The validators of the declaration's syntax node report what its
- * list leaves missing (`validateVariableDefinition`).
+ * level and evaluated at its start) and a `const` outside every function (a
+ * global that does not change). A `const` inside a function is Luau's, and
+ * is lowered as a `local`: its names, its values and its errors are Luau's
+ * (`publishesConst`). The validators of the declaration's syntax node report
+ * what its list leaves missing (`validateVariableDefinition`).
  */
 export function lowerVariableDefinition(
   stat: AstStatLocal | AstStatSparkdownStore,
@@ -36,9 +41,12 @@ export function lowerVariableDefinition(
   const scope =
     stat instanceof AstStatSparkdownStore
       ? "store"
-      : stat.isConst
+      : stat.isConst && publishesConst(ctx)
         ? "const"
         : "local";
+  // A function's `const` with more names than values, and no call or `...`
+  // last to give the rest, is Luau's error on the declaration.
+  if (stat instanceof AstStatLocal) reportMissingConstInitializer(stat, site.node, ctx);
   const targets: PathName[] =
     stat instanceof AstStatLocal
       ? stat.vars.map((v) => ({ name: v.name, location: v.location }))
@@ -55,17 +63,18 @@ export function lowerVariableDefinition(
     }
   }
 
-  // `local f = ...` over a name that statically referred to a sibling
-  // variadic subflow (`function f(...)` earlier in this function):
-  // the local SHADOWS the subflow from here on, lexically — drop the
-  // registry entries so later `f` references and calls resolve as the
-  // variable instead of emitting diverts to the knot (math.luau line
+  // A `local f = ...` over a name that statically referred to a sibling
+  // variadic subflow (`function f(...)` earlier in this function) hides
+  // the subflow for the rest of its block (`shadowSiblingSubFlow` below),
+  // and a local of a function nested in that one hides it there by
+  // resolution, the inner frame first (`resolveCallableBinding`): the
+  // subflow is reached again after the local's block (math.luau line
   // 503's `local v,f = math.modf(...)` after the chunk-level
-  // `function f(...)`; the stale value-ref produced an unresolvable
-  // DivertTarget that crashed JSON serialization). Mirrors
-  // lowerReassignment's rebind handling — registry consulted in
-  // lexical order, so earlier call sites keep the knot binding.
-  if (ctx.siblingSubFlowNamesStack) {
+  // `function f(...)`). A `store` or published `const` of the name drops
+  // the registry entries, as lowerReassignment's rebind does — registry
+  // consulted in lexical order, so earlier call sites keep the knot
+  // binding.
+  if (scope !== "local" && ctx.siblingSubFlowNamesStack) {
     for (const t of targets) {
       for (const frame of ctx.siblingSubFlowNamesStack) {
         frame.delete(t.name);
@@ -109,25 +118,42 @@ export function lowerVariableDefinition(
   //   handles both multi-RHS positional and single-RHS multi-return.
   //
   //   `store a, b = …`  → synthesize one `VariableAssignment` per
-  //   target with the positionally-corresponding expression (missing
-  //   slots get no expression, which defaults to 0 at story init).
+  //   target with the positionally-corresponding expression (a missing
+  //   slot gets a `NullExpression`, so it starts nil as in Lua; the
+  //   story's global initialization requires every store to have one).
   //   Globals don't emit procedural runtime objects — they register
   //   at the story level and the story evaluates each expression at
   //   init time, so the `MultiVariableAssignment` Pack/Unpack flow
-  //   doesn't apply. Single-RHS multi-return into multi-target globals
-  //   (`store a, b = f()`) takes only f()'s first value — to fully
-  //   unpack, authors should use a local intermediate.
+  //   doesn't apply. A store whose last value is a call with names left
+  //   after it (`store a, b = f()`) gives those names the call's further
+  //   values, as Luau does: the call's global spreads to them (`spreadTo`),
+  //   and the declaration's chunk evaluates the call once and declares
+  //   each of them from its values (#1920). A store's values run when the
+  //   story starts, outside any function, so a `...` there has no values
+  //   to give the names after it, and is an error on the statement (#1325).
   if (targets.length > 1) {
+    const last = stat.values[stat.values.length - 1];
+    if (
+      scope === "store" &&
+      stat.values.length < targets.length &&
+      last instanceof AstExprVarargs
+    ) {
+      ctx.diagnostics?.push({
+        message:
+          "A `store` is set when the story starts, outside any function, where `...` has no values: give each name its own value, or call a function that returns them",
+        severity: ErrorType.Error,
+        source: statementSource(rangeOf(stat.location, ctx), ctx),
+      });
+    }
     if (scope === "local") {
-      // Bare multi-declaration (`local a, b` with no `= …`): give
-      // UnpackTuple one NullExpression to unpack — it pads the
-      // remaining slots with nil. With zero expressions it would pop
-      // whatever junk happened to be on the eval stack.
+      // No value (`local a, b`, or `local a, b =` whose value the parser
+      // could not read, which the type checker reports): give UnpackTuple
+      // one NullExpression to unpack — it pads the remaining slots with
+      // nil. With zero expressions it would pop whatever happened to be on
+      // the eval stack. The names are still declared, so the statements
+      // after them read and assign these locals.
       const multiExprs =
-        expressions.length === 0 && !hasEquals
-          ? [new NullExpression()]
-          : expressions;
-      if (multiExprs.length === 0) return {};
+        expressions.length === 0 ? [new NullExpression()] : expressions;
       // Each local hides a variadic function of its name for the rest of
       // its block, the statements after it on its line included.
       for (const target of targetIdentifiers) {
@@ -137,31 +163,48 @@ export function lowerVariableDefinition(
         new MultiVariableAssignment(targetIdentifiers, multiExprs, true),
       ]);
     }
-    return wrapInWeave(
-      targetIdentifiers.map(
-        (identifier, i) =>
-          new VariableAssignment({
-            variableIdentifier: identifier,
-            assignedExpression: expressions[i] ?? undefined,
-            isGlobalDeclaration: true,
-          }),
-      ),
+    const assignments = targetIdentifiers.map(
+      (identifier, i) =>
+        new VariableAssignment({
+          variableIdentifier: identifier,
+          assignedExpression: expressions[i] ?? new NullExpression(),
+          isGlobalDeclaration: true,
+        }),
     );
+    if (
+      stat.values.length < targets.length &&
+      last instanceof AstExprCall &&
+      expressions.length === stat.values.length
+    ) {
+      assignments[stat.values.length - 1]!.spreadTo = assignments.slice(
+        stat.values.length,
+      );
+    }
+    return wrapInWeave(assignments);
   }
 
   // Single target. If there are multiple RHS expressions (`local x = a, b`),
-  // Lua truncates to the first value.
+  // Lua truncates to the first value, but still evaluates the rest
+  // (`local x = 1, bump()` calls `bump`), as the multiple assignment does
+  // (`lowerReassignment.ts`, `lowerMultipleAssignment`).
+  if (scope === "local" && expressions.length > 1) {
+    if (lastIdentifier.name) shadowSiblingSubFlow(lastIdentifier.name, ctx);
+    return wrapInWeave([
+      new MultiVariableAssignment([lastIdentifier], expressions, true),
+    ]);
+  }
   //
-  // Bare declaration (`local x` with no `= …`) is also handled here:
-  // we synthesize a `NullExpression` so the runtime gets a `NullValue`
-  // pushed before the `RuntimeVariableAssignment`. Without the
-  // synthetic init, the binding bytecode would pop whatever junk
-  // happened to be on the eval stack.
-  const expr = expressions[0] ?? (hasEquals ? null : new NullExpression());
+  // A declaration with no value (`local x`, `store x`, or either with an
+  // `=` whose value the parser could not read, which the type checker
+  // reports) gets a synthesized `NullExpression`. For a local, the runtime
+  // gets a `NullValue` pushed before the `RuntimeVariableAssignment`;
+  // without it the binding bytecode would pop whatever happened to be on
+  // the eval stack. For a store, the story's global initialization
+  // requires an expression and refuses to build the program without one.
   const isTemp = scope === "local";
   const va = new VariableAssignment({
     variableIdentifier: lastIdentifier,
-    assignedExpression: expr ?? undefined,
+    assignedExpression: expressions[0] ?? new NullExpression(),
     isGlobalDeclaration: scope === "store",
     isTemporaryNewDeclaration: isTemp,
   });

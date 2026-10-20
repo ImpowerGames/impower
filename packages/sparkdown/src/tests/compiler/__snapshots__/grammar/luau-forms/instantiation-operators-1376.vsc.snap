@@ -1,0 +1,106 @@
+text.source.sparkdown [0..161]
+ ├─ meta.function.luau [0..12]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..10]: "g"
+ │   └─ meta.parameter.luau [10..12]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
+ ├─ Newline [12..13]: "\n"
+ ├─ meta.function.luau [13..40]
+ │   └─ meta.function.body.luau [13..40]
+ │       └─ meta.function.luau [13..40]
+ │           ├─ punctuation.whitespace.optional.sd [13..15]: "  "
+ │           ├─ storage.modifier.scope.luau [15..20]: "local"
+ │           ├─ punctuation.whitespace.optional.sd [20..21]: " "
+ │           ├─ keyword.control.luau [21..29]: "function"
+ │           ├─ punctuation.whitespace.optional.sd [29..30]: " "
+ │           ├─ entity.name.function.luau [30..31]: "f"
+ │           ├─ punctuation.definition.template-expression.begin.sd [31..32]: "<"
+ │           ├─ entity.name.type.luau [32..33]: "T"
+ │           ├─ punctuation.definition.template-expression.end.sd [33..34]: ">"
+ │           ├─ meta.parameter.luau [34..36]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [34..35]: "("
+ │           │   └─ punctuation.definition.template-expression.end.sd [35..36]: ")"
+ │           ├─ punctuation.whitespace.optional.sd [36..37]: " "
+ │           └─ keyword.control.end.luau [37..40]: "end"
+ ├─ Newline [40..41]: "\n"
+ ├─ meta.function.luau [41..65]
+ │   └─ meta.function.body.luau [41..65]
+ │       ├─ punctuation.whitespace.extra.sd [41..43]: "  "
+ │       ├─ entity.name.function.luau [43..44]: "f"
+ │       ├─ punctuation.definition.template-expression.begin.sd [44..46]: "<<"
+ │       ├─ support.type.primitive.luau [46..52]: "number"
+ │       ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │       ├─ keyword.operator.type.luau [53..54]: "|"
+ │       ├─ punctuation.whitespace.optional.sd [54..55]: " "
+ │       ├─ support.type.primitive.luau [55..61]: "string"
+ │       ├─ punctuation.definition.template-expression.end.sd [61..63]: ">>"
+ │       └─ meta.parameter.luau [63..65]
+ │           ├─ punctuation.definition.template-expression.begin.sd [63..64]: "("
+ │           └─ punctuation.definition.template-expression.end.sd [64..65]: ")"
+ ├─ Newline [65..66]: "\n"
+ ├─ meta.function.luau [66..90]
+ │   └─ meta.function.body.luau [66..90]
+ │       ├─ punctuation.whitespace.extra.sd [66..68]: "  "
+ │       ├─ entity.name.function.luau [68..69]: "f"
+ │       ├─ punctuation.definition.template-expression.begin.sd [69..71]: "<<"
+ │       ├─ support.type.primitive.luau [71..77]: "number"
+ │       ├─ punctuation.whitespace.optional.sd [77..78]: " "
+ │       ├─ keyword.operator.type.luau [78..79]: "&"
+ │       ├─ punctuation.whitespace.optional.sd [79..80]: " "
+ │       ├─ support.type.primitive.luau [80..86]: "string"
+ │       ├─ punctuation.definition.template-expression.end.sd [86..88]: ">>"
+ │       └─ meta.parameter.luau [88..90]
+ │           ├─ punctuation.definition.template-expression.begin.sd [88..89]: "("
+ │           └─ punctuation.definition.template-expression.end.sd [89..90]: ")"
+ ├─ Newline [90..91]: "\n"
+ ├─ meta.function.luau [91..105]
+ │   └─ meta.function.body.luau [91..105]
+ │       ├─ punctuation.whitespace.optional.sd [91..93]: "  "
+ │       ├─ storage.modifier.scope.luau [93..98]: "local"
+ │       ├─ punctuation.whitespace.optional.sd [98..99]: " "
+ │       ├─ variable.other.readwrite.luau [99..100]: "t"
+ │       ├─ punctuation.whitespace.optional.sd [100..101]: " "
+ │       ├─ keyword.operator.assignment.luau [101..102]: "="
+ │       ├─ punctuation.whitespace.optional.sd [102..103]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [103..104]: "{"
+ │       └─ punctuation.definition.template-expression.end.sd [104..105]: "}"
+ ├─ Newline [105..106]: "\n"
+ ├─ meta.function.luau [106..129]
+ │   └─ meta.function.body.luau [106..129]
+ │       └─ meta.function.luau [106..129]
+ │           ├─ punctuation.whitespace.optional.sd [106..108]: "  "
+ │           ├─ keyword.control.luau [108..116]: "function"
+ │           ├─ punctuation.whitespace.optional.sd [116..117]: " "
+ │           ├─ variable.other.readwrite.luau [117..118]: "t"
+ │           ├─ meta.template.expression.accessor.sd [118..119]: ":"
+ │           ├─ variable.other.property.luau [119..120]: "m"
+ │           ├─ punctuation.definition.template-expression.begin.sd [120..121]: "<"
+ │           ├─ entity.name.type.luau [121..122]: "T"
+ │           ├─ punctuation.definition.template-expression.end.sd [122..123]: ">"
+ │           ├─ meta.parameter.luau [123..125]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [123..124]: "("
+ │           │   └─ punctuation.definition.template-expression.end.sd [124..125]: ")"
+ │           ├─ punctuation.whitespace.optional.sd [125..126]: " "
+ │           └─ keyword.control.end.luau [126..129]: "end"
+ ├─ Newline [129..130]: "\n"
+ ├─ meta.function.luau [130..156]
+ │   └─ meta.function.body.luau [130..156]
+ │       ├─ punctuation.whitespace.extra.sd [130..132]: "  "
+ │       ├─ variable.other.readwrite.luau [132..133]: "t"
+ │       ├─ meta.template.expression.accessor.sd [133..134]: ":"
+ │       ├─ entity.name.function.luau [134..135]: "m"
+ │       ├─ punctuation.definition.template-expression.begin.sd [135..137]: "<<"
+ │       ├─ support.type.primitive.luau [137..143]: "number"
+ │       ├─ punctuation.whitespace.optional.sd [143..144]: " "
+ │       ├─ keyword.operator.type.luau [144..145]: "|"
+ │       ├─ punctuation.whitespace.optional.sd [145..146]: " "
+ │       ├─ support.type.primitive.luau [146..152]: "string"
+ │       ├─ punctuation.definition.template-expression.end.sd [152..154]: ">>"
+ │       ├─ punctuation.definition.template-expression.begin.sd [154..155]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [155..156]: ")"
+ ├─ Newline [156..157]: "\n"
+ ├─ meta.function.luau [157..160]
+ │   └─ keyword.control.end.luau [157..160]: "end"
+ └─ Newline [160..161]: "\n"

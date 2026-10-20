@@ -7,7 +7,7 @@ import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { bodyOfBlock, openBody } from "../utils/statementShape";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // `do BODY end` — a standalone block-scoping construct (no loop
 // semantics). Body runs once. The `BeginScope` / `EndScope` wrap
@@ -38,10 +38,10 @@ export function lowerLuauDoBlock(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, DO_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "do", ctx);
   const bodyContent = findChildByName(node, `${node.name}_content`);
   if (!bodyContent) return {};
-  const shape = openBody(ctx, bodyContent.from, bodyContent.to);
+  const shape = openBody(ctx, node.from, bodyContent.from, bodyContent.to);
   // Bump `ctx.scopeDepth` around the body lowering so a `break` /
   // `continue` inside the block knows to emit an EndScope for this
   // frame before diverting out of the enclosing loop.

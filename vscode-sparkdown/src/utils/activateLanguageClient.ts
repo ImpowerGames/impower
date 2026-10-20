@@ -75,16 +75,11 @@ export const activateLanguageClient = async (
       },
       uri: editor?.document?.uri.toString(),
       omitImageData: true,
-      // Receive only {uri, scripts, files, version} + diagnosticsSummary per
+      // Receive only {uri, scripts, version} + diagnosticsSummary per
       // compile instead of the multi-MB full program (which was structured-
       // cloned across two threads on every keystroke). Consumers that need
       // the full program pull it on demand via SparkProgramManager.
       slimProgramNotifications: true,
-      // Nothing reads the bytecode per keystroke: the notification above is
-      // slim, and the one consumer (the compilation tree view) pulls the full
-      // program on demand via `SparkProgramManager.getOrCompile`, which asks
-      // for it explicitly. ~27ms/edit on a large project otherwise (#351).
-      emitCompiledProgram: false,
     },
     middleware: {
       provideCompletionItem: async (
@@ -154,9 +149,8 @@ const onCompile = async (
   _context: vscode.ExtensionContext,
   params: CompiledProgramParams,
 ) => {
-  // With slimProgramNotifications this is only the {uri, scripts, files,
-  // version} projection -- enough to know WHAT recompiled, not the program
-  // itself.
+  // With slimProgramNotifications this is only the {uri, scripts, version}
+  // projection -- enough to know WHAT recompiled, not the program itself.
   const program = params.program;
   const textDocument = params.textDocument;
   const document = await getOpenTextDocument(

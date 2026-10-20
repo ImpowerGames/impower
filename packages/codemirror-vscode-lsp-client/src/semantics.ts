@@ -8,6 +8,7 @@ import {
 } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { coalesceRequest } from "./requestCoalescer";
@@ -187,6 +188,7 @@ export async function updateDocumentSemanticHighlighting(
     if (!view) return;
     const plugin = LSPPlugin.get(view);
     if (!plugin) return;
+    const version = file.version;
     const result = await plugin.client.request<
       lsp.SemanticTokensParams,
       lsp.SemanticTokens | null,
@@ -194,6 +196,10 @@ export async function updateDocumentSemanticHighlighting(
     >("textDocument/semanticTokens/full", {
       textDocument: { uri },
     });
+    // A result for a version the editor has moved past is dropped: the change
+    // that moved it pulled again (#1785).
+    if (client.workspace.getFile(uri)?.version !== version) return;
+    if (LSPPlugin.get(view) !== plugin) return;
     view.dispatch(
       setDocumentSemanticHighlighting(
         view.state,
@@ -257,7 +263,9 @@ export function serverSemanticHighlighting(
     requestHandlers: {
       "workspace/semanticTokens/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          updateDocumentSemanticHighlighting(client, file.uri);
+          pullInBackground(client, file.uri, () =>
+            updateDocumentSemanticHighlighting(client, file.uri),
+          );
         }
         return null;
       },
@@ -267,19 +275,25 @@ export function serverSemanticHighlighting(
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentSemanticHighlighting(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentSemanticHighlighting(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentSemanticHighlighting(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentSemanticHighlighting(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentSemanticHighlighting(client, params.uri);
+        pullInBackground(client, params.uri, () =>
+          updateDocumentSemanticHighlighting(client, params.uri),
+        );
       },
     },
     editorExtension: [

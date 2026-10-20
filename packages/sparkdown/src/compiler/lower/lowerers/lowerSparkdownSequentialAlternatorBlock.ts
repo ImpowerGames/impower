@@ -2,10 +2,13 @@ import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/ge
 import { ContentList } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
 import { Sequence } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Sequence/Sequence";
 import { SequenceType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Sequence/SequenceType";
+import { ErrorType } from "../../../runtime/Error";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { findChildByName, lowerArms } from "../utils/alternatorArms";
+import { recordAlternatorSource } from "../utils/statementShape";
+import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // queue          → Sequence(Once)         — plays through and stops
@@ -34,11 +37,10 @@ export function lowerSparkdownSequentialAlternatorBlock(
   // same lowerer handle both.
   const prefix = nodeRef.node.name;
   const begin = findChildByName(nodeRef.node, `${prefix}_begin`);
-  const keywords = begin
-    ? getDescendents("LuauControlKeyword", begin).map((k) =>
-        ctx.read(k.from, k.to).trim(),
-      )
+  const keywordNodes = begin
+    ? getDescendents("LuauControlKeyword", begin)
     : [];
+  const keywords = keywordNodes.map((k) => ctx.read(k.from, k.to).trim());
 
   // Bare `shuffle` (no following alternator keyword) defaults to
   // `cycle`. The author's intent for bare `shuffle | a | b end` is
@@ -57,7 +59,27 @@ export function lowerSparkdownSequentialAlternatorBlock(
   const content = findChildByName(nodeRef.node, `${prefix}_content`);
   const arms = lowerArms(content, ctx);
 
+  // An alternator with no arm has nothing to alternate between, and a
+  // sequence of no elements makes the engine's shuffle draw from nothing
+  // (#1617): it is an error at its keywords, and lowers to nothing.
+  if (arms.length === 0) {
+    const first = keywordNodes[0];
+    const last = keywordNodes[keywordNodes.length - 1];
+    const at = first && last ? { from: first.from, to: last.to } : nodeRef.node;
+    const block = wrapInWeave([]);
+    block.diagnostics = [
+      ...(block.diagnostics ?? []),
+      {
+        message: `A \`${keywords.join(" ") || "queue"}\` needs at least one arm, written \`| ...\``,
+        severity: ErrorType.Error,
+        source: statementSource(at, ctx),
+      },
+    ];
+    return block;
+  }
+
   const contentLists = arms.map((arm) => new ContentList(arm.body));
   const sequence = new Sequence(contentLists, seqType);
+  recordAlternatorSource(ctx, sequence, nodeRef.node);
   return wrapInWeave([sequence]);
 }

@@ -25,9 +25,10 @@ sparkdown [0..344]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [21..23]
  │   │   │   │   │   └─ OptionalWhitespace [21..23]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 23
- │   │   │   │   └─ LuauPropertyDefinition_begin_c3 23
- │   │   │   │       └─ LuauPropertyDefinition_begin_c3 23
- │   │   │   │           └─ OptionalWhitespace 23
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 23
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 23
+ │   │   │   │   │       └─ OptionalWhitespace 23
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 23
  │   │   │   ├─ LuauPropertyDefinition_content [23..69]
  │   │   │   │   └─ LuauVariableAssignment [23..69]
  │   │   │   │       ├─ LuauVariableAssignment_begin [23..25]
@@ -216,9 +217,10 @@ sparkdown [0..344]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [70..72]
  │   │   │   │   │   └─ OptionalWhitespace [70..72]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 72
- │   │   │   │   └─ LuauPropertyDefinition_begin_c3 72
- │   │   │   │       └─ LuauPropertyDefinition_begin_c3 72
- │   │   │   │           └─ OptionalWhitespace 72
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 72
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 72
+ │   │   │   │   │       └─ OptionalWhitespace 72
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 72
  │   │   │   ├─ LuauPropertyDefinition_content [72..86]
  │   │   │   │   └─ LuauVariableAssignment [72..86]
  │   │   │   │       ├─ LuauVariableAssignment_begin [72..78]
@@ -260,9 +262,10 @@ sparkdown [0..344]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [87..89]
  │   │   │   │   │   └─ OptionalWhitespace [87..89]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 89
- │   │   │   │   └─ LuauPropertyDefinition_begin_c3 89
- │   │   │   │       └─ LuauPropertyDefinition_begin_c3 89
- │   │   │   │           └─ OptionalWhitespace 89
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 89
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 89
+ │   │   │   │   │       └─ OptionalWhitespace 89
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 89
  │   │   │   ├─ LuauPropertyDefinition_content [89..99]
  │   │   │   │   └─ LuauVariableAssignment [89..99]
  │   │   │   │       ├─ LuauVariableAssignment_begin [89..96]
@@ -297,9 +300,10 @@ sparkdown [0..344]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [100..102]
  │   │   │   │   │   └─ OptionalWhitespace [100..102]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 102
- │   │   │   │   └─ LuauPropertyDefinition_begin_c3 102
- │   │   │   │       └─ LuauPropertyDefinition_begin_c3 102
- │   │   │   │           └─ OptionalWhitespace 102
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 102
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 102
+ │   │   │   │   │       └─ OptionalWhitespace 102
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 102
  │   │   │   ├─ LuauPropertyDefinition_content [102..107]
  │   │   │   │   └─ LuauVariableAssignment [102..107]
  │   │   │   │       ├─ LuauVariableAssignment_begin [102..104]
@@ -333,8 +337,9 @@ sparkdown [0..344]
  │       ├─ LuauDefine_end_c1 108
  │       │   └─ LuauDefine_end_c1 108
  │       │       └─ OptionalWhitespace 108
- │       └─ LuauDefine_end_c2 [108..111]
- │           └─ LuauEndKeyword [108..111]: "end"
+ │       ├─ LuauDefine_end_c2 [108..111]
+ │       │   └─ LuauEndKeyword [108..111]: "end"
+ │       └─ LuauDefine_end_c3 111
  ├─ Newline [111..112]: "\n"
  ├─ LuauFunctionDefinition [112..217]
  │   ├─ LuauFunctionDefinition_begin [112..121]
@@ -416,25 +421,18 @@ sparkdown [0..344]
  │   │       │   │   └─ LuauVariableDefinition_end 163
  │   │       │   ├─ Newline [163..164]: "\n"
  │   │       │   ├─ LuauReassignment [164..179]
- │   │       │   │   ├─ LuauReassignment_begin [164..166]
- │   │       │   │   │   └─ LuauReassignment_begin_c1 [164..166]
- │   │       │   │   │       └─ OptionalWhitespace [164..166]: "  "
- │   │       │   │   ├─ LuauReassignment_content [166..179]
- │   │       │   │   │   ├─ LuauAccessPath [166..172]
- │   │       │   │   │   │   ├─ LuauAccessPath_begin 166
- │   │       │   │   │   │   ├─ LuauAccessPath_content [166..171]
- │   │       │   │   │   │   │   └─ LuauAccessPart [166..171]
- │   │       │   │   │   │   │       └─ LuauVariable [166..171]
- │   │       │   │   │   │   │           └─ LuauVariable_c1 [166..171]
- │   │       │   │   │   │   │               └─ LuauVariableName [166..171]: "scene"
- │   │       │   │   │   │   └─ LuauAccessPath_end [171..172]
- │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [171..172]
- │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [171..172]
- │   │       │   │   │   │               └─ OptionalWhitespace [171..172]: " "
- │   │       │   │   │   └─ LuauAssignmentOperation [172..179]
- │   │       │   │   │       ├─ LuauAssignmentOperation_begin 172
- │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 172
- │   │       │   │   │       │       └─ OptionalWhitespace 172
+ │   │       │   │   ├─ LuauReassignment_begin [164..171]
+ │   │       │   │   │   ├─ LuauReassignment_begin_c1 [164..166]
+ │   │       │   │   │   │   └─ OptionalWhitespace [164..166]: "  "
+ │   │       │   │   │   └─ LuauReassignment_begin_c2 [166..171]
+ │   │       │   │   │       └─ LuauVariable [166..171]
+ │   │       │   │   │           └─ LuauVariable_c1 [166..171]
+ │   │       │   │   │               └─ LuauVariableName [166..171]: "scene"
+ │   │       │   │   ├─ LuauReassignment_content [171..179]
+ │   │       │   │   │   └─ LuauAssignmentOperation [171..179]
+ │   │       │   │   │       ├─ LuauAssignmentOperation_begin [171..172]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 [171..172]
+ │   │       │   │   │       │       └─ OptionalWhitespace [171..172]: " "
  │   │       │   │   │       ├─ LuauAssignmentOperation_content [172..179]
  │   │       │   │   │       │   ├─ LuauAssignmentOperator [172..174]
  │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [172..174]
@@ -458,25 +456,18 @@ sparkdown [0..344]
  │   │       │   │   └─ LuauReassignment_end 179
  │   │       │   ├─ Newline [179..180]: "\n"
  │   │       │   ├─ LuauReassignment [180..193]
- │   │       │   │   ├─ LuauReassignment_begin [180..182]
- │   │       │   │   │   └─ LuauReassignment_begin_c1 [180..182]
- │   │       │   │   │       └─ OptionalWhitespace [180..182]: "  "
- │   │       │   │   ├─ LuauReassignment_content [182..193]
- │   │       │   │   │   ├─ LuauAccessPath [182..189]
- │   │       │   │   │   │   ├─ LuauAccessPath_begin 182
- │   │       │   │   │   │   ├─ LuauAccessPath_content [182..188]
- │   │       │   │   │   │   │   └─ LuauAccessPart [182..188]
- │   │       │   │   │   │   │       └─ LuauVariable [182..188]
- │   │       │   │   │   │   │           └─ LuauVariable_c1 [182..188]
- │   │       │   │   │   │   │               └─ LuauVariableName [182..188]: "branch"
- │   │       │   │   │   │   └─ LuauAccessPath_end [188..189]
- │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [188..189]
- │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [188..189]
- │   │       │   │   │   │               └─ OptionalWhitespace [188..189]: " "
- │   │       │   │   │   └─ LuauAssignmentOperation [189..193]
- │   │       │   │   │       ├─ LuauAssignmentOperation_begin 189
- │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 189
- │   │       │   │   │       │       └─ OptionalWhitespace 189
+ │   │       │   │   ├─ LuauReassignment_begin [180..188]
+ │   │       │   │   │   ├─ LuauReassignment_begin_c1 [180..182]
+ │   │       │   │   │   │   └─ OptionalWhitespace [180..182]: "  "
+ │   │       │   │   │   └─ LuauReassignment_begin_c2 [182..188]
+ │   │       │   │   │       └─ LuauVariable [182..188]
+ │   │       │   │   │           └─ LuauVariable_c1 [182..188]
+ │   │       │   │   │               └─ LuauVariableName [182..188]: "branch"
+ │   │       │   │   ├─ LuauReassignment_content [188..193]
+ │   │       │   │   │   └─ LuauAssignmentOperation [188..193]
+ │   │       │   │   │       ├─ LuauAssignmentOperation_begin [188..189]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 [188..189]
+ │   │       │   │   │       │       └─ OptionalWhitespace [188..189]: " "
  │   │       │   │   │       ├─ LuauAssignmentOperation_content [189..193]
  │   │       │   │   │       │   ├─ LuauAssignmentOperator [189..192]
  │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [189..192]
@@ -545,8 +536,9 @@ sparkdown [0..344]
  │       ├─ LuauFunctionDefinition_end_c1 214
  │       │   └─ LuauFunctionDefinition_end_c1 214
  │       │       └─ OptionalWhitespace 214
- │       └─ LuauFunctionDefinition_end_c2 [214..217]
- │           └─ LuauEndKeyword [214..217]: "end"
+ │       ├─ LuauFunctionDefinition_end_c2 [214..217]
+ │       │   └─ LuauEndKeyword [214..217]: "end"
+ │       └─ LuauFunctionDefinition_end_c3 217
  ├─ Newline [217..218]: "\n"
  ├─ LuauDefine [218..244]
  │   ├─ LuauDefine_begin [218..225]
@@ -574,9 +566,10 @@ sparkdown [0..344]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [236..238]
  │   │   │   │   │   └─ OptionalWhitespace [236..238]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 238
- │   │   │   │   └─ LuauPropertyDefinition_begin_c3 238
- │   │   │   │       └─ LuauPropertyDefinition_begin_c3 238
- │   │   │   │           └─ OptionalWhitespace 238
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 238
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 238
+ │   │   │   │   │       └─ OptionalWhitespace 238
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 238
  │   │   │   ├─ LuauPropertyDefinition_content [238..243]
  │   │   │   │   └─ LuauVariableAssignment [238..243]
  │   │   │   │       ├─ LuauVariableAssignment_begin [238..240]
@@ -608,7 +601,8 @@ sparkdown [0..344]
  │   │   └─ Newline [243..244]: "\n"
  │   └─ LuauDefine_end 244
  │       ├─ LuauDefine_end_c1 244
- │       └─ LuauDefine_end_c2 244
+ │       ├─ LuauDefine_end_c2 244
+ │       └─ LuauDefine_end_c3 244
  ├─ Scene [244..255]
  │   ├─ Scene_begin [244..250]
  │   │   ├─ Scene_begin_c1 244
@@ -671,9 +665,10 @@ sparkdown [0..344]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [292..296]
  │   │   │   │   │   └─ OptionalWhitespace [292..296]: "    "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 296
- │   │   │   │   └─ LuauPropertyDefinition_begin_c3 296
- │   │   │   │       └─ LuauPropertyDefinition_begin_c3 296
- │   │   │   │           └─ OptionalWhitespace 296
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 296
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 296
+ │   │   │   │   │       └─ OptionalWhitespace 296
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 296
  │   │   │   ├─ LuauPropertyDefinition_content [296..301]
  │   │   │   │   └─ LuauVariableAssignment [296..301]
  │   │   │   │       ├─ LuauVariableAssignment_begin [296..298]
@@ -705,7 +700,8 @@ sparkdown [0..344]
  │   │   └─ Newline [301..302]: "\n"
  │   └─ LuauDefine_end 302
  │       ├─ LuauDefine_end_c1 302
- │       └─ LuauDefine_end_c2 302
+ │       ├─ LuauDefine_end_c2 302
+ │       └─ LuauDefine_end_c3 302
  ├─ Branch [302..315]
  │   ├─ Branch_begin [302..311]
  │   │   ├─ Branch_begin_c1 [302..304]

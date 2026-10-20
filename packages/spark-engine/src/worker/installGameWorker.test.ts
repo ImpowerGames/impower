@@ -6,6 +6,8 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { CreateGameMessage } from "../game/core/classes/messages/CreateGameMessage";
 import { EnableGameDebugMessage } from "../game/core/classes/messages/EnableGameDebugMessage";
+import { GetGameEvaluationContextMessage } from "../game/core/classes/messages/GetGameEvaluationContextMessage";
+import { GetGameVariablesMessage } from "../game/core/classes/messages/GetGameVariablesMessage";
 import { PageFramedMessage } from "../game/core/classes/messages/PageFramedMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
 import { compileProgram } from "../tests/harness/compileProgram";
@@ -60,10 +62,132 @@ describe("a game the worker creates", () => {
     const game = state.game as any;
     expect(game).toBeDefined();
     expect(game.context.system.debugging).toBe(true);
-    const stops = Object.values(
-      game._breakpointMap as Record<number, Map<number, unknown>>,
-    ).flatMap((m) => [...m.keys()]);
+    // The lines the game stops on: the program engine holds a line's
+    // breakpoint as the address it stops at, placed by its locator.
+    const stops = [...(game._lineBreakAddresses as Set<number>)].map(
+      (address) => game.locator.locationOf(address)?.startLine,
+    );
     expect(stops).toContain(line);
+  });
+});
+
+// The Variables view shows the temporaries of the frame selected in the Call
+// Stack, which the request names by its thread and frame (#1727), and hover
+// and Watch evaluate in it (#1740).
+describe("a request for a game's temporaries", () => {
+  test("answers with the frame it names, and with the running frame when it names none", async () => {
+    vi.stubGlobal("self", {
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+    });
+    const source = [
+      "-> main",
+      "scene main",
+      "  local mainLoc = 111",
+      "  Main here.",
+      "  -> sub ->",
+      "  done",
+      "end",
+      "scene sub",
+      "  local subLoc = 222",
+      "  Sub here.",
+      "  More sub.",
+      "  ->->",
+      "end",
+      "",
+    ].join("\n");
+    const program = compileProgram(source);
+    const listeners: ((e: MessageEvent) => void)[] = [];
+    const answers: unknown[] = [];
+    const state = installGameWorker({
+      addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+      sendResponse: async (_message: unknown, result: unknown) => {
+        answers.push(typeof result === "function" ? await result() : result);
+      },
+      sendNotification() {},
+      postMessage() {},
+    } as any);
+    const ask = async (message: unknown) => {
+      for (const listener of listeners) {
+        listener({ data: message } as MessageEvent);
+      }
+      await Promise.resolve();
+      return answers.at(-1) as any;
+    };
+    await ask(CreateGameMessage.type.request({ program }));
+    const game = state.game!;
+    const line = source.split("\n").indexOf("  More sub.");
+    game.setBreakpoints([{ file: program.uri, line }]);
+    game.start();
+    for (let i = 0; i < 8 && game.getStackTrace(0).totalFrames < 2; i += 1) {
+      game.continue();
+    }
+    const frames = game.getStackTrace(0).stackFrames;
+    expect(frames.map((f) => [f.id, f.name])).toEqual([
+      [1, "sub"],
+      [0, "main"],
+    ]);
+    const temps = async (params: object) =>
+      (
+        await ask(
+          GetGameVariablesMessage.type.request({ scope: "temps", ...params }),
+        )
+      ).variables.map((v: { name: string; value: string }) => `${v.name}=${v.value}`);
+    // The caller's frame, selected in the Call Stack.
+    expect(await temps({ threadId: 0, frameId: 0 })).toEqual(["mainLoc=111"]);
+    expect(await temps({ threadId: 0, frameId: 1 })).toEqual(["subLoc=222"]);
+    // A request from a client that names no frame reads the running one.
+    expect(await temps({})).toEqual(["subLoc=222"]);
+    // Hover and Watch evaluate in the frame the request names too (#1740).
+    const context = async (params: object) =>
+      (await ask(GetGameEvaluationContextMessage.type.request(params))).context;
+    expect(await context({ threadId: 0, frameId: 0 })).toMatchObject({
+      mainLoc: 111,
+    });
+    expect(await context({ threadId: 0, frameId: 0 })).not.toHaveProperty(
+      "subLoc",
+    );
+    expect(await context({})).toMatchObject({ subLoc: 222 });
+    expect(await context({})).not.toHaveProperty("mainLoc");
+  });
+});
+
+// Sparkdown has no list type (#1752), so the protocol names no Lists scope
+// (#1805); an extension built before that still asks for one.
+describe("a request for the Lists scope", () => {
+  test("answers with no variables rather than an error", async () => {
+    vi.stubGlobal("self", {
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+    });
+    const program = compileProgram(SOURCE);
+    const listeners: ((e: MessageEvent) => void)[] = [];
+    const answers: unknown[] = [];
+    installGameWorker({
+      addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+      sendResponse: async (_message: unknown, result: unknown) => {
+        answers.push(typeof result === "function" ? await result() : result);
+      },
+      sendNotification() {},
+      postMessage() {},
+    } as any);
+    const ask = async (message: unknown) => {
+      for (const listener of listeners) {
+        listener({ data: message } as MessageEvent);
+      }
+      await Promise.resolve();
+      return answers.at(-1);
+    };
+    await ask(CreateGameMessage.type.request({ program }));
+    expect(
+      await ask(
+        GetGameVariablesMessage.type.request({ scope: "lists" } as never),
+      ),
+    ).toEqual({ variables: [] });
   });
 });
 

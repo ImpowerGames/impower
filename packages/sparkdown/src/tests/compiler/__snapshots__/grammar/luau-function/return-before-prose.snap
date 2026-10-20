@@ -118,12 +118,12 @@ sparkdown [0..165]
  │   │   │   │           │   │   └─ LuauFunctionName [61..62]: "f"
  │   │   │   │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 62
  │   │   │   │           ├─ LuauSparkdownExplicitFunctionCall_content [62..64]
- │   │   │   │           │   └─ LuauSparkdownExplicitFunctionCallParameters [62..64]
- │   │   │   │           │       ├─ LuauSparkdownExplicitFunctionCallParameters_begin [62..63]
- │   │   │   │           │       │   └─ LuauSparkdownExplicitFunctionCallParameters_begin_c1 [62..63]
+ │   │   │   │           │   └─ LuauFunctionCallParameters [62..64]
+ │   │   │   │           │       ├─ LuauFunctionCallParameters_begin [62..63]
+ │   │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [62..63]
  │   │   │   │           │       │       └─ PunctuationParenOpen [62..63]: "("
- │   │   │   │           │       └─ LuauSparkdownExplicitFunctionCallParameters_end [63..64]
- │   │   │   │           │           └─ LuauSparkdownExplicitFunctionCallParameters_end_c1 [63..64]
+ │   │   │   │           │       └─ LuauFunctionCallParameters_end [63..64]
+ │   │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [63..64]
  │   │   │   │           │               └─ PunctuationParenClose [63..64]: ")"
  │   │   │   │           └─ LuauSparkdownExplicitFunctionCall_end 64
  │   │   │   └─ LuauSparkdownExplicitAccessPath_end 64
@@ -168,28 +168,28 @@ sparkdown [0..165]
  │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [86..87]
  │   │       └─ RequiredWhitespace [86..87]: " "
  │   ├─ LuauSparkdownExplicitStatement_content [87..105]
- │   │   ├─ LuauSparkdownExplicitStoryVariableDefinition [87..98]
- │   │   │   ├─ LuauSparkdownExplicitStoryVariableDefinition_begin [87..93]
- │   │   │   │   ├─ LuauSparkdownExplicitStoryVariableDefinition_begin_c1 87
+ │   │   ├─ LuauSparkdownVariableDefinition [87..98]
+ │   │   │   ├─ LuauSparkdownVariableDefinition_begin [87..93]
+ │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 87
  │   │   │   │   │   └─ OptionalWhitespace 87
- │   │   │   │   ├─ LuauSparkdownExplicitStoryVariableDefinition_begin_c2 [87..92]
+ │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [87..92]
  │   │   │   │   │   └─ LuauScopeModifier [87..92]: "local"
- │   │   │   │   └─ LuauSparkdownExplicitStoryVariableDefinition_begin_c3 [92..93]
- │   │   │   │       └─ LuauSparkdownExplicitStoryVariableDefinition_begin_c3 [92..93]
+ │   │   │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [92..93]
+ │   │   │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [92..93]
  │   │   │   │           └─ OptionalWhitespace [92..93]: " "
- │   │   │   ├─ LuauSparkdownExplicitStoryVariableDefinition_content [93..98]
- │   │   │   │   └─ LuauSparkdownExplicitVariableAssignment [93..98]
- │   │   │   │       ├─ LuauSparkdownExplicitVariableAssignment_begin [93..95]
- │   │   │   │       │   ├─ LuauSparkdownExplicitVariableAssignment_begin_c1 [93..94]
+ │   │   │   ├─ LuauSparkdownVariableDefinition_content [93..98]
+ │   │   │   │   └─ LuauSparkdownVariableAssignment [93..98]
+ │   │   │   │       ├─ LuauSparkdownVariableAssignment_begin [93..95]
+ │   │   │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [93..94]
  │   │   │   │       │   │   └─ LuauVariableName [93..94]: "x"
- │   │   │   │       │   └─ LuauSparkdownExplicitVariableAssignment_begin_c2 [94..95]
+ │   │   │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [94..95]
  │   │   │   │       │       └─ OptionalWhitespace [94..95]: " "
- │   │   │   │       ├─ LuauSparkdownExplicitVariableAssignment_content [95..98]
- │   │   │   │       │   └─ LuauSparkdownExplicitAssignmentOperation [95..98]
- │   │   │   │       │       ├─ LuauSparkdownExplicitAssignmentOperation_begin 95
- │   │   │   │       │       │   └─ LuauSparkdownExplicitAssignmentOperation_begin_c1 95
+ │   │   │   │       ├─ LuauSparkdownVariableAssignment_content [95..98]
+ │   │   │   │       │   └─ LuauSparkdownAssignmentOperation [95..98]
+ │   │   │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 95
+ │   │   │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 95
  │   │   │   │       │       │       └─ OptionalWhitespace 95
- │   │   │   │       │       ├─ LuauSparkdownExplicitAssignmentOperation_content [95..98]
+ │   │   │   │       │       ├─ LuauSparkdownAssignmentOperation_content [95..98]
  │   │   │   │       │       │   ├─ LuauAssignmentOperator [95..97]
  │   │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [95..97]
  │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 95
@@ -202,9 +202,9 @@ sparkdown [0..165]
  │   │   │   │       │       │   └─ LuauNumericDecimal [97..98]
  │   │   │   │       │       │       ├─ LuauNumericDecimal_c1 [97..98]: "5"
  │   │   │   │       │       │       └─ LuauNumericDecimal_c2 98
- │   │   │   │       │       └─ LuauSparkdownExplicitAssignmentOperation_end 98
- │   │   │   │       └─ LuauSparkdownExplicitVariableAssignment_end 98
- │   │   │   └─ LuauSparkdownExplicitStoryVariableDefinition_end 98
+ │   │   │   │       │       └─ LuauSparkdownAssignmentOperation_end 98
+ │   │   │   │       └─ LuauSparkdownVariableAssignment_end 98
+ │   │   │   └─ LuauSparkdownVariableDefinition_end 98
  │   │   └─ LuauSparkdownExplicitReturnStatement [98..105]
  │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [98..105]
  │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [98..99]
@@ -248,23 +248,23 @@ sparkdown [0..165]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [121..122]
  │   │           └─ OptionalWhitespace [121..122]: " "
  │   ├─ LuauSparkdownIfBlock_content [122..159]
- │   │   ├─ LuauIfBlockCondition [122..128]
- │   │   │   ├─ LuauIfBlockCondition_begin 122
- │   │   │   ├─ LuauIfBlockCondition_content [122..123]
- │   │   │   │   └─ LuauAccessPath [122..123]
- │   │   │   │       ├─ LuauAccessPath_begin 122
- │   │   │   │       ├─ LuauAccessPath_content [122..123]
- │   │   │   │       │   └─ LuauAccessPart [122..123]
+ │   │   ├─ LuauSparkdownExplicitIfCondition [122..128]
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 122
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [122..123]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPath [122..123]
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 122
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [122..123]
+ │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [122..123]
  │   │   │   │       │       └─ LuauVariable [122..123]
  │   │   │   │       │           └─ LuauVariable_c1 [122..123]
  │   │   │   │       │               └─ LuauVariableName [122..123]: "x"
- │   │   │   │       └─ LuauAccessPath_end 123
- │   │   │   │           └─ LuauAccessPath_end_c1 123
- │   │   │   └─ LuauIfBlockCondition_end [123..128]
- │   │   │       ├─ LuauIfBlockCondition_end_c1 [123..124]
- │   │   │       │   └─ LuauIfBlockCondition_end_c1 [123..124]
+ │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 123
+ │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 123
+ │   │   │   └─ LuauSparkdownExplicitIfCondition_end [123..128]
+ │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [123..124]
+ │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [123..124]
  │   │   │       │       └─ OptionalWhitespace [123..124]: " "
- │   │   │       └─ LuauIfBlockCondition_end_c2 [124..128]
+ │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [124..128]
  │   │   │           └─ LuauThenKeyword [124..128]: "then"
  │   │   ├─ Newline [128..129]: "\n"
  │   │   ├─ LuauSparkdownExplicitStatement [129..141]
@@ -313,6 +313,7 @@ sparkdown [0..165]
  │       ├─ LuauSparkdownIfBlock_end_c1 [159..161]
  │       │   └─ LuauSparkdownIfBlock_end_c1 [159..161]
  │       │       └─ OptionalWhitespace [159..161]: "  "
- │       └─ LuauSparkdownIfBlock_end_c2 [161..164]
- │           └─ LuauEndKeyword [161..164]: "end"
+ │       ├─ LuauSparkdownIfBlock_end_c2 [161..164]
+ │       │   └─ LuauEndKeyword [161..164]: "end"
+ │       └─ LuauSparkdownIfBlock_end_c3 164
  └─ Newline [164..165]: "\n"

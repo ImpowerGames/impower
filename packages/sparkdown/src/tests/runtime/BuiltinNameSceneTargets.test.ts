@@ -20,6 +20,7 @@ import {
   collectDiagnostics,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
+import { programListing } from "../programListing";
 
 const storyOpeningWith = (name: string) => `-> ${name}
 scene ${name}
@@ -89,10 +90,12 @@ describe("targets named after prelude entries that are not runtime globals", () 
   );
 
   test("the divert is emitted as a direct path, not a variable divert", () => {
+    // A direct divert jumps to the scene's symbol (`JumpSym`); a variable
+    // divert would read the variable of that name (`JumpVar`).
     const ctx = makeRuntimeStoryFromSource(storyOpeningWith("main"));
-    const json = JSON.stringify(ctx.compiledJson);
-    expect(json).toContain('{"->":"main"}');
-    expect(json).not.toContain('{"->":"main","var":true}');
+    const listing = programListing(ctx.root);
+    expect(listing).toContain('JumpSym "main"');
+    expect(listing.filter((line) => line.startsWith("JumpVar"))).toEqual([]);
   });
 
   test("a scene may still be reached from a later divert, not only the opening one", () => {
@@ -150,7 +153,7 @@ scene A
 
 end
 `);
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messagesOf(program).filter((m) => m.includes("Cannot find"))).toEqual([]);
   });
 
@@ -182,9 +185,8 @@ end
 describe("an authored define may take a builtin's name in an unseeded compile", () => {
   test("a root override replaces the marker and compiles", () => {
     // The marker is dropped from the registry and the authored define takes
-    // the slot. (A seeded compile of the same source fails on a duplicate
-    // identifier between the prelude's `game` and the authored one; that is
-    // #454, and independent of the markers.)
+    // the slot. (A seeded compile of the same source overrides the prelude's
+    // `game` instead; see builtinRootDefineOverride.test.ts, #454.)
     const program = compileUnseeded(`define game with
   loading = { percent = 5 }
 end
@@ -196,7 +198,7 @@ scene A
 
 end
 `);
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messagesOf(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
     expect(messagesOf(program).filter((m) => m.includes("Cannot find"))).toEqual([]);
   });
@@ -215,9 +217,11 @@ scene A
 
 end
 `);
-    const json = JSON.stringify(program.compiled);
-    expect(json).toContain('{"VAR=":"$color_red"}');
-    expect(json).not.toContain("$color_$color_red");
+    // The declaration chunk assigns the define under its scoped key, as the
+    // current engine's global declaration did (`{"VAR=":"$color_red"}`).
+    const listing = programListing(program.chunks);
+    expect(listing.some((line) => /^SetVar \$color_red\b/.test(line))).toBe(true);
+    expect(listing.join("\n")).not.toContain("$color_$color_red");
     expect(messagesOf(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
   });
 
@@ -249,7 +253,7 @@ scene a
 
 end
 `);
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeTruthy();
     expect(messagesOf(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
   });
 });
@@ -921,5 +925,76 @@ end
     expect(
       collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program),
     ).toEqual([]);
+  });
+
+  // A nested function's write to a name it captures lands on what the name
+  // resolves to where the function is called (#1591). Here that is the
+  // enclosing function's `local game`, so the global is never written and
+  // the divert's report stays an error, while a top-level function rebound
+  // elsewhere in the story changes nothing about it.
+  test("a nested function's write to a captured local of the name leaves the report an error", () => {
+    const program = compileUnseeded(`function f() return 7 end
+& f = function() return 2 end
+function swap()
+  local game = 1
+  function h(...)
+    game = 2
+  end
+  h()
+end
+& swap()
+-> game
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) =>
+      /builtin global/.test(String(d.message?.value ?? d.message)),
+    );
+    expect(reports.map((d) => [d.severity, String(d.message?.value ?? d.message)])).toEqual([
+      [1, DIVERT_MESSAGE("game")],
+    ]);
+  });
+
+  test("a same-named function nested elsewhere leaves the captured-local report an error", () => {
+    const program = compileUnseeded(`function swap()
+  local game = 1
+  function h(...)
+    game = 2
+  end
+  h()
+  function g(...)
+    function h(...) return 0 end
+    h()
+  end
+  g()
+end
+& swap()
+-> game
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) =>
+      /builtin global/.test(String(d.message?.value ?? d.message)),
+    );
+    expect(reports.map((d) => [d.severity, String(d.message?.value ?? d.message)])).toEqual([
+      [1, DIVERT_MESSAGE("game")],
+    ]);
+  });
+
+  test("a nested function's write through a capture that reaches the global makes the report a warning", () => {
+    const program = compileUnseeded(`function swap()
+  function h(...)
+    game = 2
+  end
+  h()
+end
+& swap()
+-> game
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) =>
+      /builtin global/.test(String(d.message?.value ?? d.message)),
+    );
+    expect(reports.map((d) => [d.severity, String(d.message?.value ?? d.message)])).toEqual([
+      [2, DIVERT_WARNING("game")],
+    ]);
   });
 });

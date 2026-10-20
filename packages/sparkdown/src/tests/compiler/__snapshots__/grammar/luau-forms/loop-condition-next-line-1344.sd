@@ -1,0 +1,15 @@
+// #1907 reverses #1344 at story scope, on the maintainer's instruction: a
+// story loop's header ends at its line, so each condition below is story
+// and each loop is missing it. In a function (the sibling fixture
+// loop-condition-next-line-in-function-1344) the condition still begins
+// on the next line.
+for
+  i = 1, 3
+do
+  x = i
+end
+while
+  x
+do
+  x = nil
+end

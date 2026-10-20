@@ -106,6 +106,7 @@ class TestWorkspace extends SparkdownWorkspace {
     this._scriptFilePattern = /\.sd$/;
     this._compilerConfig = { files: [] } as any;
     this._compilerConfigured = true;
+    this._projectLoaded = true;
     this._watchedFiles.set(MAIN, {
       uri: MAIN,
       name: "main",

@@ -5,14 +5,15 @@ import {
   foldService,
 } from "@codemirror/language";
 import {
+  ChangeDesc,
   EditorState,
   StateEffect,
   StateField,
-  Text,
   TransactionSpec,
 } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { coalesceRequest } from "./requestCoalescer";
@@ -129,98 +130,136 @@ export function setDocumentFoldingRanges(
 }
 
 interface FoldingRangeSet {
+  /** Sorted by `from`; mapping through a change keeps that order, so the
+   * per-line foldService query is a binary search and an edit only maps the
+   * ranges instead of re-indexing them by line (#1815). */
   ranges: DocumentFoldingRange[];
-  /** First range starting on each 1-based line number, so the per-line
-   * foldService query is a lookup instead of a scan over every range. */
-  byStartLine: Map<number, DocumentFoldingRange>;
 }
 
-const indexFoldingRanges = (
+const sortFoldingRanges = (
   ranges: DocumentFoldingRange[],
-  doc: Text,
-): FoldingRangeSet => {
-  const byStartLine = new Map<number, DocumentFoldingRange>();
-  for (const range of ranges) {
-    if (range.from < 0 || range.from > doc.length) {
-      continue;
-    }
-    const lineNumber = doc.lineAt(range.from).number;
-    if (!byStartLine.has(lineNumber)) {
-      byStartLine.set(lineNumber, range);
+): DocumentFoldingRange[] => {
+  for (let i = 1; i < ranges.length; i++) {
+    if (ranges[i]!.from < ranges[i - 1]!.from) {
+      return [...ranges].sort((a, b) => a.from - b.from);
     }
   }
-  return { ranges, byStartLine };
+  return ranges;
+};
+
+/** Maps folds through an edit, dropping any the edit erased: a fold whose
+ * whole range was deleted maps to an empty range, which would otherwise be
+ * the first range on its line and shadow the fold that now starts there. */
+const mapFoldingRanges = (
+  ranges: readonly DocumentFoldingRange[],
+  changes: ChangeDesc,
+): DocumentFoldingRange[] => {
+  const mapped: DocumentFoldingRange[] = [];
+  for (const range of ranges) {
+    const from = changes.mapPos(range.from);
+    const to = changes.mapPos(range.to);
+    if (from < to) mapped.push({ ...range, from, to });
+  }
+  return mapped;
+};
+
+/** The first range (in order) whose `from` lies in `[lineFrom, lineTo]`. */
+const findFoldingRange = (
+  ranges: readonly DocumentFoldingRange[],
+  lineFrom: number,
+  lineTo: number,
+): DocumentFoldingRange | null => {
+  let lo = 0;
+  let hi = ranges.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (ranges[mid]!.from < lineFrom) lo = mid + 1;
+    else hi = mid;
+  }
+  const range = ranges[lo];
+  return range && range.from <= lineTo ? range : null;
 };
 
 const foldingRangeField = StateField.define<FoldingRangeSet>({
   create() {
-    return { ranges: [], byStartLine: new Map() };
+    return { ranges: [] };
   },
   update(value, tr) {
     for (let e of tr.effects) {
-      if (e.is(setFoldingRanges)) return indexFoldingRanges(e.value, tr.newDoc);
+      if (e.is(setFoldingRanges)) return { ranges: sortFoldingRanges(e.value) };
     }
 
-    if (tr.docChanged) {
-      const mapped = value.ranges.map((range) => ({
-        ...range,
-        from: tr.changes.mapPos(range.from),
-        to: tr.changes.mapPos(range.to),
-      }));
-      return indexFoldingRanges(mapped, tr.newDoc);
+    if (tr.docChanged && value.ranges.length > 0) {
+      return { ranges: mapFoldingRanges(value.ranges, tr.changes) };
     }
 
     return value;
   },
 });
 
-const foldingRangesService = foldService.of((state, from) => {
-  const { byStartLine } = state.field(foldingRangeField);
-  const range = byStartLine.get(state.doc.lineAt(from).number);
+const foldingRangesService = foldService.of((state, lineStart, lineEnd) => {
+  const { ranges } = state.field(foldingRangeField);
+  const range = findFoldingRange(ranges, lineStart, lineEnd);
   if (range) {
     return { from: range.from, to: range.to };
   }
   return null;
 });
 
+/** Whether `next` holds the same folds, in the same order, as `prev`. */
+const sameFoldingRanges = (
+  prev: readonly DocumentFoldingRange[],
+  next: readonly DocumentFoldingRange[],
+): boolean => {
+  if (prev.length !== next.length) return false;
+  for (let i = 0; i < prev.length; i++) {
+    const a = prev[i]!;
+    const b = next[i]!;
+    if (
+      a.from !== b.from ||
+      a.to !== b.to ||
+      a.kind !== b.kind ||
+      a.collapsedText !== b.collapsedText
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/** The folding ranges the editor currently holds. */
+const documentFoldingRanges = (
+  state: EditorState,
+): readonly DocumentFoldingRange[] =>
+  state.field(foldingRangeField, false)?.ranges ?? [];
+
 export function convertFromServerFoldingRanges(
   plugin: LSPPlugin,
   ranges: lsp.FoldingRange[],
 ): DocumentFoldingRange[] {
-  const result: DocumentFoldingRange[] = ranges.map(
-    (r): DocumentFoldingRange => {
-      // 1. Get the raw document positions from LSP line/char
-      const rawFrom = plugin.fromPosition(
-        { line: r.startLine, character: r.startCharacter ?? 0 },
-        plugin.syncedDoc,
-      );
-      const rawTo = plugin.fromPosition(
-        { line: r.endLine, character: r.endCharacter ?? 0 },
-        plugin.syncedDoc,
-      );
-
-      // 2. Adjust for CodeMirror's folding expectations:
-      // CodeMirror folding ranges should start at the END of the first line
-      // so that the first line remains visible while the rest is collapsed.
-      const startLine = plugin.syncedDoc.lineAt(rawFrom);
-      const endLine = plugin.syncedDoc.lineAt(rawTo);
-
-      // Use the end of the start line as the 'from' and end of the final line as 'to'
-      const adjustedFrom = startLine.to;
-      const adjustedTo = endLine.to;
-
-      return {
+  const doc = plugin.syncedDoc;
+  // An LSP line out of the document's bounds clamps to the nearest line, as
+  // `convertFromPosition` does.
+  const lineEnd = (line: number) =>
+    doc.line(Math.min(Math.max(line + 1, 1), doc.lines)).to;
+  const result: DocumentFoldingRange[] = [];
+  for (const r of ranges) {
+    // CodeMirror folding ranges start at the END of the first line, so the
+    // first line stays visible while the rest is collapsed, and end at the end
+    // of the final line. Only the lines matter, so the characters are not
+    // converted.
+    const from = lineEnd(r.startLine);
+    const to = lineEnd(r.endLine);
+    if (from < to) {
+      result.push({
         kind: r.kind,
-        from: adjustedFrom,
-        to: adjustedTo,
+        from,
+        to,
         collapsedText: r.collapsedText,
-      };
-    },
-  );
-
-  return result
-    .filter(({ from, to }) => from != null && to != null && from < to)
-    .sort((a, b) => a.from - b.from);
+      });
+    }
+  }
+  return sortFoldingRanges(result);
 }
 
 export async function updateDocumentFoldingRanges(
@@ -234,6 +273,7 @@ export async function updateDocumentFoldingRanges(
     if (!view) return;
     const plugin = LSPPlugin.get(view);
     if (!plugin) return;
+    const version = file.version;
     const result = await plugin.client.request<
       lsp.FoldingRangeParams,
       lsp.FoldingRange[] | null,
@@ -241,7 +281,22 @@ export async function updateDocumentFoldingRanges(
     >("textDocument/foldingRange", {
       textDocument: { uri },
     });
-    const foldables = convertFromServerFoldingRanges(plugin, result!);
+    // A result for a version the editor has already moved past is dropped:
+    // its lines would be read against the newer synced document. The change
+    // that moved the version past it asked for folding ranges again, and the
+    // coalescer runs that pull once this one settles.
+    if (client.workspace.getFile(uri)?.version !== version) return;
+    if (LSPPlugin.get(view) !== plugin) return;
+    let foldables = convertFromServerFoldingRanges(plugin, result ?? []);
+    const unsynced = plugin.unsyncedChanges;
+    if (!unsynced.empty) {
+      // Edits made since the last sync: carry the folds into the editor's
+      // document, as diagnostics are.
+      foldables = mapFoldingRanges(foldables, unsynced);
+    }
+    // Most pulls while typing return the folds the editor already holds,
+    // mapped through the edit; dispatching those again would only redraw.
+    if (sameFoldingRanges(documentFoldingRanges(view.state), foldables)) return;
     view.dispatch(setDocumentFoldingRanges(view.state, foldables));
   });
 }
@@ -260,7 +315,9 @@ export function serverFolding(): LSPClientExtension {
     requestHandlers: {
       "workspace/foldingRange/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          updateDocumentFoldingRanges(client, file.uri);
+          pullInBackground(client, file.uri, () =>
+            updateDocumentFoldingRanges(client, file.uri),
+          );
         }
         return null;
       },
@@ -270,19 +327,25 @@ export function serverFolding(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentFoldingRanges(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentFoldingRanges(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentFoldingRanges(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentFoldingRanges(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentFoldingRanges(client, params.uri);
+        pullInBackground(client, params.uri, () =>
+          updateDocumentFoldingRanges(client, params.uri),
+        );
       },
     },
     editorExtension: [

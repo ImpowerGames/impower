@@ -1,16 +1,13 @@
 
-// Tables of source positions, a per-compiler revision counter, and the forms
-// of the program derived from the same data as `compiled` (the binary buffer
-// and its chunks), which is compared itself.
+// Tables of source positions, a per-compiler revision counter, and the
+// program's code (the binary buffer and its chunks), which a test compares
+// through its listings (`flowListings`, programListing.ts).
 const IGNORED = new Set([
-  "pathLocations",
   "functionLocations",
   "sceneLocations",
   "branchLocations",
   "knotLocations",
-  "stitchLocations",
   "labelLocations",
-  "dataLocations",
   "colorAnnotations",
   "files",
   "compiledBuffer",
@@ -31,7 +28,7 @@ const isSpan = (value: unknown): boolean =>
  * The layout tree (`program.sparkle`) without its nodes' source positions,
  * and the generated names it holds. A binding, condition or loop is compiled
  * into a function named after its source offset
- * (`__binding_<uri>__layout_main_2310`), which the tree names in `exprId`
+ * (`__binding$<uri>__layout_main_2310`), which the tree names in `exprId`
  * and the compiled story and scene assets hold as a key.
  */
 function readLayoutTree(value: unknown, names: Map<string, string>): unknown {

@@ -4,8 +4,14 @@
 // and another in a scene. They differ only where #1147 made them differ: the
 // Luau rule continues its target and value lists past a comma that ends its
 // line (`LuauCommaLineBreak`), so it also begins at a target list that ends
-// its line with a comma, and ends where the next line starts a statement. The runtime cases in `TrailingCommaReassignment.test.ts` check
-// the values themselves.
+// its line with a comma, and ends where the next line starts a statement;
+// and where #1906 made them differ: the Luau rule reads an `=` that ends
+// its line with `LuauAssignmentOperation`, which continues to the value on
+// a later line, and the narrative rule with
+// `LuauSparkdownAssignmentOperation`, which ends at its line; and where
+// #1907 made them differ: the narrative rule's values are the bounded
+// family's, which end at the line but for a bracket. The runtime cases in
+// `TrailingCommaReassignment.test.ts` check the values themselves.
 
 import { describe, expect, test } from "vitest";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -21,18 +27,29 @@ describe("the two reassignment rules", () => {
   const narrative = repository["LuauSparkdownReassignment"]!;
 
   test("share their begin and captures, except the Luau rule's target list that ends its line", () => {
-    // `({{WS}}*)(?=START)` and `({{WS}}*)(?=START|TARGETS_CONTINUED)`.
-    const narrativeStart = narrative.begin!.slice(0, -1);
+    // `({{WS}}*)(TARGETS)(?={{WS}}*(?:OPERATOR))` and
+    // `({{WS}}*)(TARGETS)(?={{WS}}*(?:OPERATOR|,{{WS}}*(?:$|--)))`.
+    const narrativeStart = narrative.begin!.slice(0, -2);
+    expect(narrative.begin!.endsWith("))")).toBe(true);
     expect(luau.begin!.startsWith(`${narrativeStart}|`)).toBe(true);
-    expect(luau.begin!.endsWith(")")).toBe(true);
+    expect(luau.begin!.endsWith("))")).toBe(true);
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
   });
 
-  test("share their content, except the Luau rule's comma line break", () => {
+  // The narrative rule reads its values with the bounded family's
+  // counterparts, which end at the line (#1907).
+  test("share their content, except the Luau rule's comma line break and assignment operation and the bounded values", () => {
+    const bounded = (p: { include: string }) => {
+      const twin = `LuauSparkdownExplicit${p.include.slice("#Luau".length)}`;
+      return repository[twin] ? { include: `#${twin}` } : p;
+    };
     expect(
-      luau.patterns!.filter((p) => p.include !== "#LuauCommaLineBreak"),
+      luau.patterns!
+        .filter((p) => p.include !== "#LuauCommaLineBreak")
+        .map((p) => p.include === "#LuauAssignmentOperation" ? { include: "#LuauSparkdownAssignmentOperation" } : bounded(p)),
     ).toEqual(narrative.patterns);
     expect(luau.patterns!.map((p) => p.include)).toContain("#LuauCommaLineBreak");
+    expect(luau.patterns!.map((p) => p.include)).toContain("#LuauAssignmentOperation");
   });
 
   test("share their end, except the Luau rule's line-start statement end", () => {

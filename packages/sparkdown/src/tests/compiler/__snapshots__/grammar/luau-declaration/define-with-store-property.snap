@@ -40,9 +40,10 @@ sparkdown [0..56]
      │   │   │   │   └─ OptionalWhitespace [35..37]: "  "
      │   │   │   ├─ LuauPropertyDefinition_begin_c2 [37..42]
      │   │   │   │   └─ LuauScopeModifier [37..42]: "store"
-     │   │   │   └─ LuauPropertyDefinition_begin_c3 [42..43]
-     │   │   │       └─ LuauPropertyDefinition_begin_c3 [42..43]
-     │   │   │           └─ OptionalWhitespace [42..43]: " "
+     │   │   │   ├─ LuauPropertyDefinition_begin_c3 [42..43]
+     │   │   │   │   └─ LuauPropertyDefinition_begin_c3 [42..43]
+     │   │   │   │       └─ OptionalWhitespace [42..43]: " "
+     │   │   │   └─ LuauPropertyDefinition_begin_c4 43
      │   │   ├─ LuauPropertyDefinition_content [43..52]
      │   │   │   └─ LuauVariableAssignment [43..52]
      │   │   │       ├─ LuauVariableAssignment_begin [43..49]
@@ -76,5 +77,6 @@ sparkdown [0..56]
          ├─ LuauDefine_end_c1 53
          │   └─ LuauDefine_end_c1 53
          │       └─ OptionalWhitespace 53
-         └─ LuauDefine_end_c2 [53..56]
-             └─ LuauEndKeyword [53..56]: "end"
+         ├─ LuauDefine_end_c2 [53..56]
+         │   └─ LuauEndKeyword [53..56]: "end"
+         └─ LuauDefine_end_c3 56

@@ -9,8 +9,9 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/VariablePointerExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { lookupGlobalStdLibBuiltin } from "../../../inkjs/engine/StdLib";
+import { lookupGlobalStdLibBuiltin } from "../../../runtime/StdLib";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { FunctionBinding } from "../utils/functionBindings";
 import { currentStatement } from "../utils/statementShape";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
 
@@ -54,13 +55,21 @@ export function makeGlobalFunctionCall(
 // `local function foo` (basic.luau line 342). A flat
 // "sibling-check-first" rule gets one of those two wrong whichever
 // way it's ordered.
+//
+// A frame's locals are every name its function's body declares, in any
+// block; `at`, the offset the name is written at, keeps a local whose
+// block has ended, or that is declared after `at`, from answering, so
+// the name reaches a sibling of an enclosing function as Luau scopes it
+// (`localInScope`).
 export function resolveCallableBinding(
   name: string,
   ctx: LowerContext,
+  at?: number,
 ): "sibling" | "local" | null {
   const locals = ctx.declaredLocalsStack ?? [];
   const siblings = ctx.siblingSubFlowNamesStack ?? [];
   const depth = Math.max(locals.length, siblings.length);
+  const scopeAt = siblingRegistered(name, ctx) ? at : undefined;
   for (let i = depth - 1; i >= 0; i--) {
     const sibling = siblings[i]?.get(name);
     if (sibling !== undefined) {
@@ -70,9 +79,95 @@ export function resolveCallableBinding(
       recordSiblingRead(ctx, `call:${name}=${binding}`);
       return binding;
     }
-    if (locals[i]?.has(name)) return "local";
+    const frame = locals[i];
+    if (frame?.has(name) && localInScope(frame, name, scopeAt)) return "local";
   }
   return null;
+}
+
+/**
+ * Whether a local of a function lowering around `at` binds `name` there, as
+ * an assignment to the name asks (`lowerReassignment`): a local whose block
+ * has ended, or that is declared after `at`, does not, when a sibling of the
+ * name is registered for it to hide (`localInScope`).
+ */
+export function isLocalAt(name: string, ctx: LowerContext, at: number): boolean {
+  const scopeAt = siblingRegistered(name, ctx) ? at : undefined;
+  const locals = ctx.declaredLocalsStack ?? [];
+  for (let i = 0; i < locals.length; i++) {
+    if (locals[i]!.has(name) && localInScope(locals[i]!, name, scopeAt)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether a variadic sibling subflow of `name`, not rebound, is registered
+ * in any function lowering around the name: only then does where a local's
+ * block ends decide what the name refers to. The scope is read only then,
+ * since its ranges are document offsets, and a statement's memo records
+ * every value its lowering reads from the context (`recordLowering`), so a
+ * statement that read them would be emitted again by an edit above it.
+ * The reads here and in `localInScope` index the context's arrays rather
+ * than pass a callback to their methods, which no memo can record.
+ */
+export function siblingRegistered(name: string, ctx: LowerContext): boolean {
+  const siblings = ctx.siblingSubFlowNamesStack ?? [];
+  for (let i = 0; i < siblings.length; i++) {
+    const entry = siblings[i]!.get(name);
+    if (entry !== undefined && !entry.rebound) return true;
+  }
+  return false;
+}
+
+// A function's `declaredLocalsStack` frame with where its names are in
+// scope (`scopeDeclaredLocals`).
+interface ScopedDeclaredLocals extends ReadonlySet<string> {
+  scope?: {
+    bindings: readonly FunctionBinding[];
+    bodyWide: ReadonlySet<string>;
+  };
+}
+
+/**
+ * Records where the names of a function's `declaredLocalsStack` frame are
+ * in scope: `bindings` are the function's parameters, locals, local
+ * functions and loop variables with the ranges they bind over
+ * (`functionBindings`), and `bodyWide` the names it declares for the whole
+ * body (a `function NAME`, hoisted to the body, and a `store`). A frame
+ * without a record, and a name `bindings` does not hold, is in scope
+ * everywhere in the body.
+ */
+export function scopeDeclaredLocals(
+  frame: ReadonlySet<string>,
+  bindings: readonly FunctionBinding[],
+  bodyWide: ReadonlySet<string>,
+): void {
+  (frame as ScopedDeclaredLocals).scope = { bindings, bodyWide };
+}
+
+/**
+ * Whether the local `name` of a `declaredLocalsStack` frame is in scope at
+ * the offset `at`: always with no offset, no record of the frame's scope
+ * (`scopeDeclaredLocals`), or a name declared for the whole body.
+ */
+export function localInScope(
+  frame: ReadonlySet<string>,
+  name: string,
+  at: number | undefined,
+): boolean {
+  const scope = (frame as ScopedDeclaredLocals).scope;
+  if (at === undefined || !scope || scope.bodyWide.has(name)) return true;
+  // A name the bindings do not hold keeps the frame's answer.
+  let bound = false;
+  for (let i = 0; i < scope.bindings.length; i++) {
+    const b = scope.bindings[i]!;
+    if (b.name !== name) continue;
+    if (b.from <= at && at >= b.blockFrom && at <= b.blockTo) return true;
+    bound = true;
+  }
+  return !bound;
 }
 
 /**

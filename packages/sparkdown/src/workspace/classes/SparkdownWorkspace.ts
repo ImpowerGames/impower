@@ -16,6 +16,10 @@ import {
 import { CompilerInitializeMessage } from "../../compiler/classes/messages/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
 import {
+  LocateProgramMessage,
+  type LocateQuery,
+} from "../../compiler/classes/messages/LocateProgramMessage";
+import {
   PreviewCompileProgramMessage,
   type PreviewCompileProgramResult,
 } from "../../compiler/classes/messages/PreviewCompileProgramMessage";
@@ -29,7 +33,14 @@ import { UpdateCompilerDocumentMessage } from "../../compiler/classes/messages/U
 import { UpdateCompilerFileMessage } from "../../compiler/classes/messages/UpdateCompilerFileMessage";
 import type { SparkdownDocumentContentChangeEvent } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { type SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
+import type {
+  AsyncProgramLocator,
+  LineBeat,
+  ProgramAddress,
+  SourceLocation,
+} from "../../compiler/types/ProgramAddress";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
+import { isSameProgram } from "../../compiler/utils/programSummary";
 import { profile } from "../utils/logging/profile";
 import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
@@ -197,13 +208,13 @@ export abstract class SparkdownWorkspace {
 
   /**
    * When enabled, the `compiler/didCompile` notification relays a SLIM
-   * projection of the program (uri/scripts/files/pathLocations/diagnostics/
-   * version) instead of the whole thing. On a large project the full program
-   * is huge (~9MB for an ~8kloc script) and re-broadcast on EVERY compile —
-   * the receiving thread pays a structured-clone deserialization of all of it
-   * per keystroke. The impower web editor's main thread only ever reads
-   * diagnostics (WorkspaceWindow debug store) and scripts+pathLocations
-   * (PreviewGame PageUp/PageDown source navigation), so it opts in via
+   * projection of the program (uri/scripts/files/version) instead of the
+   * whole thing. On a large project the full program is huge (~9MB for an
+   * ~8kloc script) and re-broadcast on EVERY compile — the receiving thread
+   * pays a structured-clone deserialization of all of it per keystroke. The
+   * impower web editor's main thread only ever reads diagnostics
+   * (WorkspaceWindow debug store) and scripts, and asks the language server
+   * for the PreviewGame's PageUp/PageDown source navigation, so it opts in via
    * initializationOptions. Defaults to false: the vscode extension consumes
    * the full program from this notification (SparkProgramManager).
    */
@@ -233,22 +244,40 @@ export abstract class SparkdownWorkspace {
    * meant semantic tokens / code lenses erroring for as long as initialization
    * took, with no retry. Compiles now wait for this instead.
    *
-   * Deliberately `undefined` until `initialize()` is entered: if initialization
-   * is never going to happen there is nothing to wait for, and waiting forever
-   * would turn a loud error into a silent hang. The one exception is a
-   * restart (`restartCompiler`) before `initialize`, which leaves it pending
-   * until `initialize` configures the new worker; the player restarts only a
-   * worker that was running a story, which a worker never does before it is
-   * configured.
+   * Pending from construction, so a request that arrives before `initialize()`
+   * waits for the configuration `initialize` starts as well. Both hosts send
+   * `initialize` first thing, but the editor forwards file events to the
+   * language server as they happen, and on a large project some arrive before
+   * it (#1817).
    */
   protected _compilerConfigured = false;
   protected _resolveCompilerConfigured?: () => void;
-  protected _compilerConfiguring?: Promise<void>;
-  get whenCompilerConfigured(): Promise<void> | undefined {
+  protected _compilerConfiguring = new Promise<void>((resolve) => {
+    this._resolveCompilerConfigured = resolve;
+  });
+  get whenCompilerConfigured(): Promise<void> {
     if (this._compilerConfigured) {
       return Promise.resolve();
     }
     return this._compilerConfiguring;
+  }
+
+  /**
+   * Whether `initialize()` has registered the project's files. A file event
+   * that arrives before then moves the files revision at once but records
+   * its change only after them (`projectLoaded`), since the files
+   * `initialize` is given would otherwise overwrite it: a file deleted early
+   * would come back. Each event is applied once, in the order it arrived.
+   */
+  protected _projectLoaded = false;
+  protected _resolveProjectLoaded?: () => void;
+  protected _projectLoading = new Promise<void>((resolve) => {
+    this._resolveProjectLoaded = resolve;
+  });
+
+  protected markProjectLoaded() {
+    this._projectLoaded = true;
+    this._resolveProjectLoaded?.();
   }
 
   constructor(compilerInlineWorkerContent: string, profilerId?: string) {
@@ -416,9 +445,25 @@ export abstract class SparkdownWorkspace {
     }[];
   }> {
     this._clientCapabilities = params.capabilities;
-    this._compilerConfiguring ??= new Promise<void>((resolve) => {
-      this._resolveCompilerConfigured = resolve;
-    });
+    try {
+      return await this.loadProject(params);
+    } finally {
+      // Even when loading failed, so the file events waiting for it are not
+      // held forever.
+      this.markProjectLoaded();
+      if (!this._compilerConfig) {
+        // Nothing began configuring the compiler (no initialization options,
+        // or loading failed before it got that far), and nothing will: let
+        // what waits for its configuration reach it and hear its error,
+        // rather than wait forever.
+        this._resolveCompilerConfigured?.();
+      }
+    }
+  }
+
+  protected async loadProject(
+    params: Parameters<SparkdownWorkspace["initialize"]>[0],
+  ): ReturnType<SparkdownWorkspace["initialize"]> {
     if (params.initializationOptions) {
       // (slimProgramNotifications/compileDebounceDelay must be destructured
       // out so they don't fall through into compilerConfig.)
@@ -786,9 +831,14 @@ export abstract class SparkdownWorkspace {
    * be silently clobbered by its files snapshot.
    */
   protected async compilerReady() {
-    const configuring = this.whenCompilerConfigured;
-    if (configuring) {
-      await configuring;
+    await this.whenCompilerConfigured;
+  }
+
+  /** Wait (if necessary) for `initialize()` to register the project's files
+   *  before a file event records its change (`_projectLoaded`). */
+  protected async projectLoaded() {
+    if (!this._projectLoaded) {
+      await this._projectLoading;
     }
   }
 
@@ -796,7 +846,9 @@ export abstract class SparkdownWorkspace {
     textDocument: { uri: string; version?: number },
     contentChanges: SparkdownDocumentContentChangeEvent[],
   ) {
-    const update = (async () => {
+    // Settles once the request is posted, with its answer still to come
+    // (wrapped, so awaiting the post does not await the answer).
+    const posted = (async () => {
       await this.compilerReady();
       const configured = this._configuredDocumentVersions.get(
         textDocument.uri,
@@ -810,7 +862,7 @@ export abstract class SparkdownWorkspace {
         return undefined;
       }
       this._configuredDocumentVersions.delete(textDocument.uri);
-      return this._compilerChannelConnection
+      const answer = this._compilerChannelConnection
         .sendRequest(UpdateCompilerDocumentMessage.type, {
           textDocument,
           contentChanges,
@@ -823,14 +875,26 @@ export abstract class SparkdownWorkspace {
           }
           throw e;
         });
+      return { answer };
     })();
+    const update = posted.then((p) => p?.answer);
     this._documentUpdates = update.catch(() => {});
+    this._documentUpdatesPosted = posted.then(
+      () => {},
+      () => {},
+    );
     return update;
   }
 
   // Settles once every document update sent so far has reached the compiler,
   // so a request that must see them (a preview compile) can wait for them.
   protected _documentUpdates: Promise<unknown> = Promise.resolve();
+
+  // Settles once every document update so far has been posted to the
+  // compiler. The compiler answers requests in the order they were posted, so
+  // a compile posted after this has settled sees those updates, without
+  // waiting for the compiler to answer them (#1881).
+  protected _documentUpdatesPosted: Promise<void> = Promise.resolve();
 
   // Pairs with the encoder in the compiler worker. Every program response is
   // decoded as soon as it arrives, in the order it arrives, except a summary,
@@ -849,12 +913,32 @@ export abstract class SparkdownWorkspace {
   // revision above moved compiles against the files that moved it.
   protected _fileUpdates: Promise<unknown> = Promise.resolve();
 
-  /** Record a project file change: move the revision at once, and run
-   *  `update`, which loads the file and hands it to the compiler, as a change
-   *  preview compiles wait for. */
-  protected trackFileUpdate<T>(update: () => Promise<T>): Promise<T> {
+  // The last change still in progress for each project file.
+  protected _fileUpdatesByUri = new Map<string, Promise<unknown>>();
+
+  /** Record a change to the project file `uri`: move the revision at once,
+   *  and run `update`, which loads the file and hands it to the compiler, as
+   *  a change preview compiles wait for. `update` starts once the changes to
+   *  the same file recorded before it have finished, so a slow create cannot
+   *  land after the delete that followed it; changes to different files run
+   *  side by side. */
+  protected trackFileUpdate<T>(
+    uri: string,
+    update: () => Promise<T>,
+  ): Promise<T> {
     this._filesRevision++;
-    const done = update();
+    const previous = this._fileUpdatesByUri.get(uri);
+    const done = previous ? previous.then(() => update()) : update();
+    const settled = done.then(
+      () => {},
+      () => {},
+    );
+    this._fileUpdatesByUri.set(uri, settled);
+    void settled.then(() => {
+      if (this._fileUpdatesByUri.get(uri) === settled) {
+        this._fileUpdatesByUri.delete(uri);
+      }
+    });
     this._fileUpdates = Promise.allSettled([this._fileUpdates, done]);
     return done;
   }
@@ -902,12 +986,24 @@ export abstract class SparkdownWorkspace {
     return this.compile(uri, force);
   }, DEBOUNCE_DELAY);
 
-  // Trailing debounce for keystroke-driven compiles. A full compile costs
-  // hundreds of ms on a large project, and running one per keystroke just
-  // saturates the compiler worker with results that are stale on arrival.
-  // The max-wait keeps diagnostics/preview converging during sustained
-  // typing instead of freezing until the first pause.
-  protected _changeCompileDebounceDelay = 200;
+  // Trailing debounce for keystroke-driven compiles. Running one compile per
+  // keystroke saturates the compiler worker with results that are stale on
+  // arrival; waiting for a pause in typing costs only the delay. The max-wait
+  // keeps diagnostics/preview converging during sustained typing instead of
+  // freezing until the first pause. The default, 50 ms, was chosen by
+  // measurement for the player's preview compiles (#1797): typing at 80 to
+  // 120 ms a key on a long script, it is the shortest delay whose results are
+  // no more often stale on arrival than at 200 ms. The language-server hosts
+  // use it too since their slim relay stopped carrying the program's files
+  // table (#1815). A host can override it (`compileDebounceDelay` on
+  // initialize); 0 compiles at every keystroke, still one compile at a time.
+  protected _changeCompileDebounceDelay = 50;
+  // Whether the debounce counts from when the editor says it made the edit
+  // (`changedAt`) rather than from its arrival. Off here: the language
+  // server's diagnostics keep their own pace, and a compile of theirs started
+  // as early as the preview's competes with it for the machine. The player
+  // turns it on (#1881).
+  protected debouncesFromEdit = false;
   protected _changeCompileTimer?: ReturnType<typeof setTimeout>;
   protected _changeCompileDeadline?: number;
   // EVERY document with a pending debounced compile. A multi-file change
@@ -916,41 +1012,94 @@ export abstract class SparkdownWorkspace {
   // keeping only the latest uri silently dropped the earlier ones' compiles,
   // stranding their piggybacked waiters and leaving their diagnostics stale.
   protected _pendingChangeCompileUris = new Set<string>();
+  // The worker runs one keystroke compile at a time. A delay shorter than a
+  // compile lets the timer fire while the last batch, or any other compile, is
+  // still running; the batch it would start then waits, and runs as soon as
+  // nothing is compiling, with the text as it is by then.
+  protected _changeCompileRunning = false;
+  protected _changeCompileDue = false;
+  protected _compilesInFlight = 0;
 
-  protected scheduleChangeCompile(uri: string) {
+  /** Schedule the keystroke compile for an edit to `uri`, made at
+   *  `changedAt` (by `Date.now()`) when the editor says when. The debounce
+   *  runs from then: the editor's own work on the key can hold its message
+   *  back by more than the debounce (#1881). The time since the edit counts
+   *  for no more than the debounce and no less than nothing, so what is left
+   *  to wait is between nothing and the whole debounce. That assumes the
+   *  editor's clock agrees with this one, as on one machine: a clock behind
+   *  this one makes the edit look old and the compile start at once, and one
+   *  ahead makes it wait the whole debounce, never longer. */
+  protected scheduleChangeCompile(uri: string, changedAt?: number) {
     const delay = this._changeCompileDebounceDelay;
-    if (delay <= 0) {
-      this.compile(uri, false).catch((e) => {
-        console.error(e);
-      });
+    this._pendingChangeCompileUris.add(uri);
+    if (this._changeCompileDue) {
+      // The debounce already ran out; the batch starts when the compile in
+      // flight returns, and compiles this keystroke's text too.
       return;
     }
-    this._pendingChangeCompileUris.add(uri);
     if (this._changeCompileTimer != null) {
       clearTimeout(this._changeCompileTimer);
+      this._changeCompileTimer = undefined;
+    }
+    if (delay <= 0) {
+      this.runChangeCompiles();
+      return;
     }
     const now = Date.now();
+    const elapsed =
+      changedAt == null ? 0 : Math.min(delay, Math.max(0, now - changedAt));
     if (this._changeCompileDeadline == null) {
-      this._changeCompileDeadline = now + delay * 4;
+      this._changeCompileDeadline = now - elapsed + delay * 4;
     }
-    const wait = Math.min(delay, Math.max(0, this._changeCompileDeadline - now));
-    this._changeCompileTimer = setTimeout(async () => {
+    const wait = Math.min(
+      delay - elapsed,
+      Math.max(0, this._changeCompileDeadline - now),
+    );
+    // Timed even when nothing is left to wait, so the selection the editor
+    // sent after the edit is usually handled before the compile is sent; one
+    // handled after it is answered by it when it routes there
+    // (`compileAnswersEditSelection`).
+    this._changeCompileTimer = setTimeout(() => {
       this._changeCompileTimer = undefined;
-      this._changeCompileDeadline = undefined;
-      const pendingUris = Array.from(this._pendingChangeCompileUris);
-      this._pendingChangeCompileUris.clear();
+      this.runChangeCompiles();
+    }, wait);
+  }
+
+  protected runChangeCompiles() {
+    this._changeCompileDeadline = undefined;
+    if (this._changeCompileRunning || this._compilesInFlight > 0) {
+      this._changeCompileDue = true;
+      return;
+    }
+    this._changeCompileDue = false;
+    if (this._pendingChangeCompileUris.size === 0) {
+      return;
+    }
+    this._changeCompileRunning = true;
+    const pendingUris = Array.from(this._pendingChangeCompileUris);
+    void (async () => {
       // Compile each pending document in order. Documents covered by an
       // earlier compile in this batch hit the no-change early-return (which
       // also flushes their waiters), so same-tree batches still cost one
       // compile; only genuinely separate trees pay for their own.
       for (const pendingUri of pendingUris) {
+        // Taken off the pending set only now: a keystroke to it while an
+        // earlier document of the batch compiled is covered by this compile,
+        // which would otherwise wait on a batch that cannot start until this
+        // one ends.
+        this._pendingChangeCompileUris.delete(pendingUri);
         try {
           await this.compile(pendingUri, false);
         } catch (e) {
           console.error(e);
         }
       }
-    }, wait);
+    })().finally(() => {
+      this._changeCompileRunning = false;
+      if (this._changeCompileDue) {
+        this.runChangeCompiles();
+      }
+    });
   }
 
   async compile(
@@ -1005,6 +1154,7 @@ export abstract class SparkdownWorkspace {
     // actually costs. The `finally` is what the ticket is about: the body
     // below rethrows, and a bare trailing call would drop that measurement.
     profile("start", this._profilerId, "workspace" + " " + "compile", uri);
+    this._compilesInFlight++;
     try {
       state.compilingDocumentVersion = this._documentVersions.get(uri);
       let result: CompileProgramResult | undefined = undefined;
@@ -1014,12 +1164,17 @@ export abstract class SparkdownWorkspace {
       // player rebuilds its whole Game whenever program.version changes -- so
       // detect identity and keep the version stable.
       let programUnchanged = false;
+      // Whether the story compile served the program it served before, by
+      // the fields that survive the trip from the compiler: a host given
+      // summaries, as the player is, gets a new object for every answer.
+      let storyUnchanged = false;
       const mainScriptUri = this.getMainScriptUri(uri);
       try {
         if (mainScriptUri) {
           const previousProgram = this.getProgramState(mainScriptUri).program;
           result = await this.compileDocument(mainScriptUri);
           programUnchanged = result.program === previousProgram;
+          storyUnchanged = isSameProgram(result.program, previousProgram);
           this.getProgramState(mainScriptUri).program = result.program;
           if (result.program.scripts) {
             for (const [uri, version] of Object.entries(result.program.scripts)) {
@@ -1036,6 +1191,17 @@ export abstract class SparkdownWorkspace {
           }
         }
         if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
+          if (
+            this.publishesStoryOfStandaloneCompiles &&
+            mainScriptUri &&
+            result?.program &&
+            !storyUnchanged
+          ) {
+            // The story changed, and the result below replaces it. One the
+            // compile served again is not published: the page would take it
+            // as a new program, and restart PLAY for it.
+            this.publishCompiled(mainScriptUri, result, false);
+          }
           // Target script is not included by main,
           // So it must be parsed on its own to report diagnostics
           const previousProgram = this.getProgramState(uri).program;
@@ -1075,48 +1241,77 @@ export abstract class SparkdownWorkspace {
         throw e;
       }
       if (result?.program) {
-        const state = this.getProgramState(uri);
-        if (!programUnchanged) {
-          result.program.version = state.version;
-        }
-        // With slimProgramNotifications, relay only what the notification's
-        // consumers actually read instead of the whole program (which is ~9MB on
-        // a large project and re-broadcast on EVERY compile; the receiver pays a
-        // structured-clone of all of it per keystroke).
-        //
-        // The impower web editor's main thread needs just `diagnosticsSummary`
-        // (file/tab error+warning colors). Everything else is fetched on demand
-        // or delivered through a dedicated channel:
-        //   - full diagnostics    → textDocument/publishDiagnostics
-        //   - prev/next beat      → sparkdown/offsetSourceLocation
-        // uri/scripts/files/version ride along because they're small and
-        // identify the compile. Resist adding heavy fields back here — prefer an
-        // on-demand request.
-        const notificationParams: CompiledProgramParams = this
-          .slimProgramNotifications
-          ? {
-              ...result,
-              program: {
-                uri: result.program.uri,
-                scripts: result.program.scripts,
-                files: result.program.files,
-                version: result.program.version,
-              },
-              diagnosticsSummary: summarizeDiagnostics(
-                result.program.diagnostics,
-              ),
-            }
-          : result;
-        this.sendNotification(CompiledProgramMessage.method, notificationParams);
-        this.onCompiledTextDocument({
-          textDocument: { uri },
-          program: result.program,
-        });
+        this.publishCompiled(uri, result, programUnchanged);
       }
       return result?.program;
     } finally {
       profile("end", this._profilerId, "workspace" + " " + "compile", uri);
+      this._compilesInFlight--;
+      if (
+        this._changeCompileDue &&
+        !this._changeCompileRunning &&
+        this._compilesInFlight === 0
+      ) {
+        // A keystroke batch waited for this compile.
+        this.runChangeCompiles();
+      }
     }
+  }
+
+  /**
+   * Whether a compile of a script the story does not include also publishes
+   * the story's program, when the story changed. Such a compile compiles the
+   * story first and publishes only the script's own program, so a host that
+   * shows the story would otherwise never hear of the new one. Off here, as
+   * the language server needs only the script's; the player turns it on.
+   */
+  protected publishesStoryOfStandaloneCompiles = false;
+
+  /** Stamp `result`'s program with `uri`'s version, unless the compile
+   *  served the program before, and publish it. */
+  protected publishCompiled(
+    uri: string,
+    result: CompileProgramResult,
+    programUnchanged: boolean,
+  ) {
+    const state = this.getProgramState(uri);
+    if (!programUnchanged) {
+      result.program.version = state.version;
+    }
+    // With slimProgramNotifications, relay only what the notification's
+    // consumers actually read instead of the whole program (which is ~9MB on
+    // a large project and re-broadcast on EVERY compile; the receiver pays a
+    // structured-clone of all of it per keystroke).
+    //
+    // The impower web editor's main thread needs just `diagnosticsSummary`
+    // (file/tab error+warning colors). Everything else is fetched on demand
+    // or delivered through a dedicated channel:
+    //   - full diagnostics    → textDocument/publishDiagnostics
+    //   - prev/next beat      → sparkdown/offsetSourceLocation
+    // uri/scripts/version ride along because they're small and identify
+    // the compile. `files` is NOT small: it describes every asset of the
+    // project and measured 5.8 MB of JSON on a real one, which cost the
+    // editor a ~40 ms clone per compile result for a field nothing there
+    // reads (#1815). Resist adding heavy fields back here — prefer an
+    // on-demand request.
+    const notificationParams: CompiledProgramParams = this
+      .slimProgramNotifications
+      ? {
+          ...result,
+          program: {
+            uri: result.program.uri,
+            scripts: result.program.scripts,
+            files: {},
+            version: result.program.version,
+          },
+          diagnosticsSummary: summarizeDiagnostics(result.program.diagnostics),
+        }
+      : result;
+    this.sendNotification(CompiledProgramMessage.method, notificationParams);
+    this.onCompiledTextDocument({
+      textDocument: { uri },
+      program: result.program,
+    });
   }
 
   stripMarkdown(markdown: string): string {
@@ -1177,16 +1372,18 @@ export abstract class SparkdownWorkspace {
   protected async compileDocument(uri: string) {
     // Wait out initialization rather than throwing "Compiler has not been
     // configured!" at whoever asked first (see `whenCompilerConfigured`).
-    const configuring = this.whenCompilerConfigured;
-    if (configuring) {
-      await configuring;
-    }
+    await this.compilerReady();
+    // Posted after the document updates sent before it, which the compiler
+    // then applies first.
+    await this._documentUpdatesPosted;
     this._lastCompiledUri = uri;
+    const startFrom = this.compileStartFrom();
+    this._lastCompileStartFrom = startFrom;
     const result = await this._compilerChannelConnection.sendRequest(
       CompileProgramMessage.type,
       {
         textDocument: { uri },
-        startFrom: this.compileStartFrom(),
+        startFrom,
       },
     );
     if (!result.program?.summary) {
@@ -1195,9 +1392,107 @@ export abstract class SparkdownWorkspace {
     return result;
   }
 
+  /**
+   * The accessor of a program this workspace received (`ProgramLocator`),
+   * answered by the compiler's worker from the last program it compiled for
+   * the same uri (`LocateProgramMessage`). The copy a compile hands the
+   * workspace leaves the statement chunks' root behind, and a program is
+   * located by its root. An answer the worker's restart abandoned is none.
+   */
+  locatorOf(program: SparkProgram): AsyncProgramLocator {
+    const ask = async (query: LocateQuery) => {
+      try {
+        const [answer] = await this._compilerChannelConnection.sendRequest(
+          LocateProgramMessage.type,
+          { program: program.uri, queries: [query] },
+        );
+        return answer ?? undefined;
+      } catch (e) {
+        unlessRestarted(e);
+        return undefined;
+      }
+    };
+    return {
+      addressAt: async (uri, line, query) =>
+        (await ask({ addressAt: { uri, line, query } })) as
+          | ProgramAddress
+          | undefined,
+      locationOf: async (address) =>
+        (await ask({ locationOf: address })) as SourceLocation | undefined,
+      beatAt: async (uri, line, query) =>
+        (await ask({ beatAt: { uri, line, query } })) as LineBeat | undefined,
+    };
+  }
+
+  /** Where the compile sent last routes the preview to. */
+  protected _lastCompileStartFrom?: { file: string; line: number };
+
+  /** Whether the edit to `uri` the editor has just sent a selection after
+   *  is answered by a compile that publishes a program for the document's
+   *  current version and routes to the point compiles route to now: one sent
+   *  for that version that routes there, or one still to be sent. The timer
+   *  that sends a compile can fire before the selection the editor sent after
+   *  the edit is handled. A version already compiled, by a forced compile
+   *  say, gets no compile from the timer, which finds nothing changed. */
+  protected compileAnswersEditSelection(uri: string) {
+    const version = this._documentVersions.get(uri);
+    const state = this.getProgramState(uri);
+    if (
+      state.compilingDocumentVersion != null &&
+      state.compilingDocumentVersion === version
+    ) {
+      const sent = this._lastCompileStartFrom;
+      const now = this.compileStartFrom();
+      return sent?.file === now?.file && sent?.line === now?.line;
+    }
+    if (state.compiledDocumentVersion === version) {
+      return false;
+    }
+    return this._pendingChangeCompileUris.has(uri);
+  }
+
+  // The selections in the order they arrived, and the last one moving the
+  // compile point whose answer was published. An answer is published only
+  // when no later such selection's has been: one the compiler answers can
+  // come back after a later one the workspace answered at once, and the page
+  // takes each of the author's as the author's current point (#1881). A
+  // selection that does not move the point, which the page does not take,
+  // supersedes nothing.
+  protected _selectionsReceived = 0;
+  protected _pointSelectionPublished = 0;
+
+  /** Number a selection as it arrives, for `publishSelection`. */
+  protected receiveSelection() {
+    return ++this._selectionsReceived;
+  }
+
+  /** Tell the page of the answer to selection `received`, unless the answer
+   *  to a later selection that moved the compile point has been published
+   *  already. */
+  protected publishSelection(
+    received: number,
+    result: SelectCompilerDocumentResult,
+    movesCompilePoint: boolean,
+  ) {
+    if (received < this._pointSelectionPublished) {
+      return;
+    }
+    if (movesCompilePoint) {
+      this._pointSelectionPublished = received;
+    }
+    this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+  }
+
   /** Where a compile routes the preview to: the author's selection. */
   protected compileStartFrom() {
     return this._documentSelected;
+  }
+
+  /** Whether a selection moves the point compiles route to
+   *  (`compileStartFrom`). Every selection does here; a host whose preview
+   *  follows only some of them narrows it. */
+  protected movesCompilePoint(_params: { userEvent?: boolean }): boolean {
+    return true;
   }
 
   program(uri: string) {
@@ -1251,6 +1546,8 @@ export abstract class SparkdownWorkspace {
       version: number;
     };
     contentChanges: SparkdownDocumentContentChangeEvent[];
+    /** When the editor made the change, by `Date.now()`, if it says. */
+    changedAt?: number;
   }) {
     const textDocument = params.textDocument;
     const contentChanges = params.contentChanges;
@@ -1259,9 +1556,16 @@ export abstract class SparkdownWorkspace {
     if (mirrored) {
       TextDocument.update(mirrored, contentChanges, textDocument.version);
     }
-    this.updateCompilerDocument(textDocument, contentChanges).then(() => {
-      this.scheduleChangeCompile(textDocument.uri);
-    });
+    // The compile is scheduled now, not once the compiler has answered the
+    // update: it is posted after the update (`compileDocument`), and the
+    // compiler applies the update first (#1881).
+    this.updateCompilerDocument(textDocument, contentChanges).catch((e) =>
+      console.error(e),
+    );
+    this.scheduleChangeCompile(
+      textDocument.uri,
+      this.debouncesFromEdit ? params.changedAt : undefined,
+    );
     this.onChangeTextDocument(params);
   }
 
@@ -1277,10 +1581,32 @@ export abstract class SparkdownWorkspace {
     userEvent?: boolean;
   }) {
     const { textDocument, selectedRange } = params;
-    this._documentSelected = {
-      file: textDocument.uri,
-      line: selectedRange.start.line,
-    };
+    const received = this.receiveSelection();
+    const movesCompilePoint = this.movesCompilePoint(params);
+    if (movesCompilePoint) {
+      this._documentSelected = {
+        file: textDocument.uri,
+        line: selectedRange.start.line,
+      };
+    }
+    if (
+      movesCompilePoint &&
+      params.docChanged &&
+      this.compileAnswersEditSelection(textDocument.uri)
+    ) {
+      // The selection an edit left, which the edit's compile routes to
+      // (`compileStartFrom`) and answers when it lands (#1881). Sent to the
+      // compiler, it would be handled ahead of a compile still to be sent,
+      // which would wait for it, and could only learn that the program it
+      // routes against is outdated; or after one already sent, when it would
+      // route to the point again and have the page display it a second time.
+      const result: SelectCompilerDocumentResult = {
+        ...params,
+        programOutdated: true,
+      };
+      this.publishSelection(received, result, movesCompilePoint);
+      return result;
+    }
     await this.compilerReady();
     let result: SelectCompilerDocumentResult;
     try {
@@ -1297,12 +1623,13 @@ export abstract class SparkdownWorkspace {
       // it from that compile.
       return { ...params };
     }
-    this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+    this.publishSelection(received, result, movesCompilePoint);
     return result;
   }
 
   async createFile(uri: string) {
-    const file = await this.trackFileUpdate(async () => {
+    const file = await this.trackFileUpdate(uri, async () => {
+      await this.projectLoaded();
       if (this.getFileType(uri) === "script") {
         this._documentVersions.set(uri, 0);
       }
@@ -1313,7 +1640,10 @@ export abstract class SparkdownWorkspace {
       await this.compilerReady();
       await this._compilerChannelConnection
         .sendRequest(AddCompilerFileMessage.type, {
-          file: imageFileForCompiler(file, this._compilerConfig?.stripImageData),
+          file: imageFileForCompiler(
+            file,
+            this._compilerConfig?.stripImageData,
+          ),
         })
         .catch(unlessRestarted);
       return file;
@@ -1327,40 +1657,57 @@ export abstract class SparkdownWorkspace {
     return file;
   }
 
-  async changeFile(uri: string) {
+  /** Whether a change to the file at `uri` is the file's to apply: an asset
+   *  or an unopened script. An open script's text comes from its document. */
+  protected changesFromFile(uri: string) {
     const type = this.getFileType(uri);
-    if (type && (type !== "script" || !this._openDocuments.has(uri))) {
-      // Changed file is an asset or an unopened script
-      this._documentTexts.delete(uri);
-      const file = await this.trackFileUpdate(async () => {
-        const file = await this.loadFile({ uri });
-        this._watchedFiles.set(uri, file);
-        this._documentVersions.set(uri, file.version ?? 0);
-        this.onChangedFile(file);
-        await this.compilerReady();
-        await this._compilerChannelConnection
-          .sendRequest(UpdateCompilerFileMessage.type, {
-            file: imageFileForCompiler(
-              file,
-              this._compilerConfig?.stripImageData,
-            ),
-          })
-          .catch(unlessRestarted);
-        return file;
-      });
-      if (
-        this._lastCompiledUri &&
-        this.textDocumentExists(this._lastCompiledUri)
-      ) {
-        await this.debouncedCompile(this._lastCompiledUri, true);
-      }
-      return file;
+    return Boolean(type && (type !== "script" || !this._openDocuments.has(uri)));
+  }
+
+  async changeFile(uri: string) {
+    if (this._projectLoaded && !this.changesFromFile(uri)) {
+      return this._watchedFiles.get(uri);
     }
-    return this._watchedFiles.get(uri);
+    const file = await this.trackFileUpdate(uri, async () => {
+      // What kind of file it is depends on the settings `initialize` brings,
+      // so a change that arrived before then is told apart only now.
+      if (!this._projectLoaded) {
+        await this.projectLoaded();
+        if (!this.changesFromFile(uri)) {
+          return undefined;
+        }
+      }
+      this._documentTexts.delete(uri);
+      const file = await this.loadFile({ uri });
+      this._watchedFiles.set(uri, file);
+      this._documentVersions.set(uri, file.version ?? 0);
+      this.onChangedFile(file);
+      await this.compilerReady();
+      await this._compilerChannelConnection
+        .sendRequest(UpdateCompilerFileMessage.type, {
+          file: imageFileForCompiler(
+            file,
+            this._compilerConfig?.stripImageData,
+          ),
+        })
+        .catch(unlessRestarted);
+      return file;
+    });
+    if (!file) {
+      return this._watchedFiles.get(uri);
+    }
+    if (
+      this._lastCompiledUri &&
+      this.textDocumentExists(this._lastCompiledUri)
+    ) {
+      await this.debouncedCompile(this._lastCompiledUri, true);
+    }
+    return file;
   }
 
   async deleteFile(uri: string) {
-    const deletedFile = await this.trackFileUpdate(async () => {
+    const deletedFile = await this.trackFileUpdate(uri, async () => {
+      await this.projectLoaded();
       const deletedFile = this._watchedFiles.get(uri);
       this._imageVocabularyCache.delete(uri);
       this._watchedFiles.delete(uri);

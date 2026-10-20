@@ -31,7 +31,7 @@ export interface Binding {
   /**
    * Enclosing `for`-loop variable names (outermost-first) the evaluator takes as
    * parameters, present only for bindings lowered inside a `for` loop. The
-   * evaluator is `__binding_N(<params…>) return <expr> end`; the reactive runtime
+   * evaluator is `__binding$N(<params…>) return <expr> end`; the reactive runtime
    * passes each iteration's loop values as args (loop locals can't be read as
    * globals — see {@link LowerContext.sparkleLoopVars}). Omitted (nullary) for
    * top-level bindings.
