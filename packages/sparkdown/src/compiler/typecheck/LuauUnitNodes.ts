@@ -174,6 +174,35 @@ export function loweredLuauBodyOf(node: SyntaxNode | null): SyntaxNode | null {
 }
 
 /**
+ * Where a lowerer's reading of a body stops reading the author's text
+ * (`loweredLuauBodyOf`): a method's reading reads its `end`, a Sparkle
+ * handler closure's stops before its `}`, which is Sparkdown's own token,
+ * and closes the function value it runs as with an `end` of its own there.
+ */
+export function loweredReadingEnd(body: SyntaxNode): number {
+  return body.getChild("LuauSparkleHandlerClosure_content")?.to ?? body.to;
+}
+
+/**
+ * Whether an error of a Sparkle handler closure's reading (`from`-`to`) is
+ * at the `end` the reading closes it with (`loweredReadingEnd`), which is
+ * no token the author wrote: what is wrong there is the validator's to
+ * report, at the closure's `}` (I-1368). An error of a statement the
+ * validator leaves to the reading (`unread`, a malformed statement or
+ * attribute) is the reading's wherever it stands.
+ */
+export function atClosureReadingEnd(
+  error: { unread?: true; malformed?: string },
+  from: number,
+  to: number,
+  body: SyntaxNode,
+): boolean {
+  if (body.name !== "LuauSparkleHandlerClosure") return false;
+  if (error.unread || error.malformed === "statement" || error.malformed === "attribute") return false;
+  return from === to && from === loweredReadingEnd(body);
+}
+
+/**
  * Whether a reading of Luau that reports its syntax errors reads a node:
  * the type checker's (`isCheckedLuau`), or a lowerer's of a body the
  * checker does not read (`loweredLuauBodyOf`).
@@ -307,11 +336,12 @@ export function endsStatementBefore(name: string, previousToken: string | undefi
  * narrative body, a scene's `end`, or `goto` after a line-ending comma), and
  * Sparkdown reports what the construct lacks. In a body whose lowerer
  * reads it in the checker's stead (`loweredLuauBodyOf`), that reading
- * reports it, at a token up to the body's own end.
+ * reports it, at a token before the reading's end (`loweredReadingEnd`):
+ * a closure's `}` is Sparkdown's to report.
  */
 export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined, read: (from: number, to: number) => string): boolean {
   const lowered = loweredLuauBodyOf(node);
-  if (lowered) return tokenFrom === undefined || (tokenFrom < lowered.to && readingCarriesOnTo(node, tokenFrom, read));
+  if (lowered) return tokenFrom === undefined || (tokenFrom < loweredReadingEnd(lowered) && readingCarriesOnTo(node, tokenFrom, read));
   if (!isCheckedLuau(node, read)) return false;
   if (tokenFrom === undefined) return true;
   let root = node;

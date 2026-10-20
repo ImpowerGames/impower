@@ -83,13 +83,27 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
     expect(errors.filter((e) => e.endsWith("Malformed string; did you forget to finish it?")), errors.join("\n")).toHaveLength(1);
   });
 
-  // Luau's reading of the closure meets its end at the `}`, where the value
-  // it is missing is reported, once.
-  for (const line of ["x = foo(", "local a = (1 + "]) {
-    test(`${JSON.stringify(line)} reports its missing value once`, () => {
-      expect(sparkdownErrors(`layout main with\n  button @click={\n    ${line}\n  }\nend\n`)).toEqual([
-        "3:2-3:2 Expected identifier when parsing expression, got 'end'",
-      ]);
-    });
-  }
+  // Luau's reading closes the closure with an `end` of its own at the `}`,
+  // which the author did not write: what is missing there is reported
+  // once, by the validator, at the `}` (I-1368). A statement the validator
+  // leaves to the reading (`x = (if c)then`, whose `then` it left unread)
+  // keeps the reading's error there.
+  const closure = (body: string) =>
+    `store a, g, x = 0, 0, 0\nlayout form with\n  button "Go" @click={\n    ${body}\n  }\nend\n`;
+  const LAYOUT_OPEN =
+    "1:0-1:16 This layout is missing its closing `end` keyword. Without it, every line up to the next `scene`, `branch` or the end of the file is read as part of this layout.";
+  const HANDLER_OPEN = "2:21-2:22 This handler is missing its closing `}`.";
+  test.each([
+    ["a, g = 1,", ["3:12-3:13 Expected identifier when parsing expression, got '}'"]],
+    ["local a = (1 +", ["4:2-4:3 Expected identifier when parsing expression, got '}'"]],
+    ["x += ", ["4:2-4:3 Expected identifier when parsing expression, got '}'"]],
+    ["local x = if c then 1", ["3:14-3:16 Expected 'else' when parsing if then else expression"]],
+    ["a.b.", ["3:4-4:2 Incomplete statement: expected assignment or a function call", "4:2-4:3 Expected identifier, got '}'"]],
+    ["x = (if c)then", ["3:13-3:14 Expected 'then' when parsing if then else expression, got ')'", "4:2-4:2 Expected identifier when parsing expression, got 'end'"]],
+    ['local s = "abc', ["3:14-3:18 Malformed string; did you forget to finish it?"]],
+    ["if c then x = 1", [LAYOUT_OPEN, HANDLER_OPEN, "4:2-4:3 Expected identifier when parsing expression, got '}'"]],
+    ["while true do", [LAYOUT_OPEN, HANDLER_OPEN, "4:2-4:3 Expected identifier when parsing expression, got '}'"]],
+  ])("%j at the closure's `}` is reported once", (body, expected) => {
+    expect(sparkdownErrors(closure(body))).toEqual(expected);
+  });
 });

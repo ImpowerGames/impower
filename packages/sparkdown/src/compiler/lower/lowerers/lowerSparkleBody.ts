@@ -13,7 +13,8 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { reportBodySyntaxErrors } from "../expression/lowerFunction";
-import { closureBodyAst, closureSyntaxErrors } from "../utils/luauAst";
+import { closureBodyAst, closureSyntaxErrors, rangeOf } from "../utils/luauAst";
+import { atClosureReadingEnd } from "../../typecheck/LuauUnitNodes";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
@@ -556,7 +557,15 @@ function lowerHandlerClosure(
     if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
     ctx.functionBindingsStack?.pop();
     ctx.localConsts = localConsts;
-    if (body) reportBodySyntaxErrors(closureSyntaxErrors(body, ctx), ctx);
+    // An error at the `end` the reading closes the closure with is the
+    // validator's, at the `}` (`atClosureReadingEnd`).
+    if (body) {
+      const errors = closureSyntaxErrors(body, ctx).filter((error) => {
+        const { from, to } = rangeOf(error.location, ctx);
+        return !atClosureReadingEnd(error, from, to, closureNode);
+      });
+      reportBodySyntaxErrors(errors, ctx);
+    }
     const fn = new Function(
       new Identifier(exprId),
       stmts,

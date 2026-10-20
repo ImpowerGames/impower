@@ -23,7 +23,7 @@ import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { atClosureReadingEnd, checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -598,8 +598,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * function (`validateTypes` in `SparkdownCompiler.ts`).
    */
   private loweredReadingReports(message: string, from: number, to: number): boolean {
-    const body = loweredLuauBodyOf(this.tree?.resolveInner(from, 1) ?? null);
-    if (!body) return false;
+    const errors = this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null);
+    return !!errors?.some((error) => error.message === message && error.from <= to && from <= error.to);
+  }
+
+  /**
+   * The errors the lowerer reports of its reading of the define's method or
+   * Sparkle handler's closure a node is in (`loweredLuauBodyOf`), with their
+   * document ranges, or undefined outside one.
+   */
+  private loweredReadingErrors(node: SyntaxNode | null): readonly { message: string; from: number; to: number }[] | undefined {
+    const body = loweredLuauBodyOf(node);
+    if (!body) return undefined;
     const key = `${body.from}:${body.to}`;
     let errors = this.loweredReadings.get(key);
     if (!errors) {
@@ -611,16 +621,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           : content
             ? readLuauStatements([content], text)
             : readLuauBlock([body], text);
+      // As the lowerer reports them (`reportBodySyntaxErrors`), without
+      // those at a closure's `}` (`atClosureReadingEnd`).
       errors = reading.errors
         .filter((error) => !error.sparkdown && !error.pastChunkEnd)
         .map((error) => ({
+          error,
           message: error.message,
           from: luauPositionOffset(error.location.begin, text),
           to: luauPositionOffset(error.location.end, text),
-        }));
+        }))
+        .filter(({ error, from, to }) => !atClosureReadingEnd(error, from, to, body));
       this.loweredReadings.set(key, errors);
     }
-    return errors.some((error) => error.message === message && error.from <= to && from <= error.to);
+    return errors;
   }
 
   /**
@@ -1610,7 +1624,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // ranges (I-1322); where the tree ends the statement first (a line at
       // column 0, #1906), the missing part is reported here.
       const after = found ? this.luauTokenAt(found.at?.to ?? nodeRef.to, authoredIslandEnd(nodeRef.node, this.statementDocumentText())) : undefined;
-      const missing = found && this.inPureLuau(nodeRef.node) && after && this.checkerReadsOnTo(nodeRef.node, after.from) ? undefined : found;
+      // In a define's method or a Sparkle handler's closure, the lowerer's
+      // reading reports it where its errors hold one in the expression's
+      // words; at a closure's `}` they do not (`atClosureReadingEnd`).
+      const lowered = this.loweredReadingErrors(nodeRef.node);
+      const readingReports = lowered
+        ? lowered.some((error) => !!found && error.message.startsWith(found.message) && error.from >= nodeRef.from)
+        : !!after && this.checkerReadsOnTo(nodeRef.node, after.from);
+      const missing = found && this.inPureLuau(nodeRef.node) && readingReports ? undefined : found;
       // A missing condition or arm value is a missing expression, which the
       // type checker reports with Luau's range where it reads the Luau and
       // Luau finds it missing too.
