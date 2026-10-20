@@ -9,6 +9,7 @@ import {
   collectLuauLints,
   duplicateGlobalMemberMessage,
   indexProgramNames,
+  lintBuiltinGlobalWrites,
   lintDuplicateGlobalMembers,
   lintGlobalShadows,
   lintGlobalsUsedAsLocals,
@@ -5635,6 +5636,7 @@ export class SparkdownCompiler {
     // script's version is 0, so presence is tested, not the version).
     if (!(BUILTINS_PRELUDE_URI in program.scripts)) {
       const builtins = lintBuiltinNames();
+      for (const { uri: scriptUri, lint } of lintBuiltinGlobalWrites(names)) report(scriptUri, lint);
       for (const { uri: scriptUri, lint } of lintUnusedGlobalFunctions(names, scripts, builtins)) report(scriptUri, lint);
       const duplicates = lintDuplicateGlobalMembers(names, scripts, (name, original) =>
         duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri)),
