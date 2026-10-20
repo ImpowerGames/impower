@@ -14,7 +14,7 @@ import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
 import type { ProgramAddress } from "../compiler/types/ProgramAddress";
 import { lookupStateAwareStdLib, luauTypeOf } from "../runtime/StdLib";
-import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
+import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
@@ -2704,6 +2704,16 @@ export class ProgramStory implements StoryEngine {
           openVariablePointer(state.callStack, this.root.table.strings[arg]!),
         );
         break;
+      case Op.BindRoot: {
+        const cell = rootVariablePointer(
+          state.callStack,
+          this.root.table.strings[arg]!,
+        );
+        if (cell) {
+          state.variablesState.Assign(this.assignment(arg, SET_DECLARE), cell);
+        }
+        break;
+      }
       case Op.MakeTable: {
         const stack = state.evaluationStack;
         const between = stack.splice(stack.length - arg * 2, arg * 2);

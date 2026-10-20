@@ -316,6 +316,41 @@ describe("the debugger on the program engine", () => {
     expect(h.frames().stackFrames[0]?.moduleId).toBe("function");
   });
 
+  // A method of a define written in a function reads the function's local
+  // through a global cell the compiler names (`DefineCellBinding`, I-823),
+  // which the Vars scope leaves out as Temps leaves out the compiler's
+  // temporaries.
+  it("leaves out of the globals the cell a define's method reads a function's local through", () => {
+    const h = debugGame(
+      [
+        "store health = 100",
+        "function outer(v)",
+        "  local a = v",
+        "  define thing with",
+        "    function get()",
+        "      return a",
+        "    end",
+        "  end",
+        "  return thing.get()",
+        "end",
+        "-> main",
+        "scene main",
+        "  Got {outer(7)}.",
+        "  done",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    h.game.start();
+    expect(h.game.story.currentText).toBe("Got 7.\n");
+    const variablesState = h.game.story.state.variablesState;
+    expect(variablesState.GlobalVariableExistsWithName("__cell$$thing$get$a")).toBe(true);
+    const shown = names(h.game.getVarVariables());
+    expect(shown).toContain("health=100");
+    // A scoped define's key starts with its `$` and stays.
+    expect(shown.filter((entry) => entry.split("=")[0]!.indexOf("$") > 0)).toEqual([]);
+  });
+
   it("fires a data breakpoint where the global is assigned", () => {
     const h = debugGame(NESTED);
     const set = h.game.setDataBreakpoints([{ dataId: "health" }, { dataId: "nope" }]);

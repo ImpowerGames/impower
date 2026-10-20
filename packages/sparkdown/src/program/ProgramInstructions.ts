@@ -135,6 +135,14 @@ export const Op = {
    *  instruction, and opens with the `Visit` of the choice's count symbol,
    *  which a once-only choice reads. */
   Choice: 49,
+  /** Declares the variable `arg` names, as a local of the frame, holding a
+   *  pointer at the binding of that name in the outermost scope of the
+   *  thread's root frame that binds it, when that frame binds it and is not
+   *  this one; otherwise does nothing. A function or a define's method
+   *  written at the top level starts with one for each name it reads that
+   *  no scope of its own binds, so it reaches the top-level local of that
+   *  name as Luau's upvalue does. */
+  BindRoot: 50,
 } as const;
 
 export type Opcode = (typeof Op)[keyof typeof Op];
