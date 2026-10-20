@@ -72,7 +72,7 @@ import { createProgramTable, reseedProgramTable, type ProgramTable } from "../..
 import { type SceneAssetCapture, type SceneAssets } from "../types/SceneAssets";
 import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, type MarkupContent, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, DiagnosticTag, type MarkupContent, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
@@ -5662,10 +5662,14 @@ export class SparkdownCompiler {
       if (!doc) continue;
       list.sort((a, b) => a.from - b.from || a.to - b.to);
       for (const lint of list) {
+        // A deprecation is Information tagged Deprecated, as the compiler
+        // reports `table.getn` (`validateStdLibDeprecation`).
+        const deprecated = lint.code === "DeprecatedApi";
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
           range: doc.range(lint.from, lint.to),
           code: lint.code,
-          severity: DiagnosticSeverity.Warning,
+          severity: deprecated ? DiagnosticSeverity.Information : DiagnosticSeverity.Warning,
+          ...(deprecated ? { tags: [DiagnosticTag.Deprecated] } : {}),
           message: { kind: "markdown", value: lint.message },
           source: LANGUAGE_NAME,
         });

@@ -294,7 +294,7 @@ os.date("!*t")
 });
 
 // Luau: TableLiteral
-describe.skip("duplicate keys in table literals and table types (not implemented: TableLiteral)", () => {
+describe("duplicate keys in table literals and table types", () => {
   test("seven duplicates", () => {
     expect(
       lintMessagesInFunction(`-- line 1
@@ -352,8 +352,36 @@ end
   });
 });
 
+// Luau: read_write_table_props
+// Upstream runs it under the new solver only, whose table types sparkdown's
+// type checker follows: a `read` and a `write` property of one name are not
+// duplicates of each other.
+describe("read and write table type properties", () => {
+  test("six overlapping properties", () => {
+    expect(
+      lintInFunction(`-- line 1
+        type A = {x: number}
+        type B = {read x: number, write x: number}
+        type C = {x: number, read x: number} -- line 4
+        type D = {x: number, write x: number}
+        type E = {read x: number, x: boolean}
+        type F = {read x: number, read x: number}
+        type G = {write x: number, x: boolean}
+        type H = {write x: number, write x: boolean}
+    `),
+    ).toEqual([
+      { line: 3, message: "Table type field 'x' is already read-write; previously defined at line 4" },
+      { line: 4, message: "Table type field 'x' is already read-write; previously defined at line 5" },
+      { line: 5, message: "Table type field 'x' already has a read type defined at line 6" },
+      { line: 6, message: "Table type field 'x' is a duplicate; previously defined at line 7" },
+      { line: 7, message: "Table type field 'x' already has a write type defined at line 8" },
+      { line: 8, message: "Table type field 'x' is a duplicate; previously defined at line 9" },
+    ]);
+  });
+});
+
 // Luau: TableOperations
-describe.skip("suspicious table.insert, remove, move and create calls (not implemented: TableOperations)", () => {
+describe("suspicious table.insert, remove, move and create calls", () => {
   test("ten suspicious calls", () => {
     expect(
       lintMessagesInFunction(`
@@ -396,10 +424,11 @@ table.create(42, {} :: {})
 });
 
 // Luau: DeprecatedApiFenv (adapted)
-// Sparkdown reports nothing for either call today. Upstream uses type casts
-// to choose which calls warn, and type casts are parsed but ignored, so only
-// the uncast first call of each group is kept.
-describe.skip("getfenv and setfenv (not implemented: DeprecatedApi for fenv)", () => {
+// Upstream uses type casts to choose which calls warn, and the rule reads no
+// types, so only the uncast first call of each group is kept. Without the
+// casts that read them, `f`, `g` and `h` are unused, so only this rule's
+// warnings are compared.
+describe("getfenv and setfenv", () => {
   test("getfenv(1) and setfenv(1, {})", () => {
     expect(
       lintMessagesInFunction(`
@@ -407,7 +436,7 @@ local f, g, h = ...
 
 getfenv(1)
 setfenv(1, {})
-`),
+`, "DeprecatedApi"),
     ).toEqual([
       "Function 'getfenv' is deprecated; consider using 'debug.info' instead",
       "Function 'setfenv' is deprecated",
