@@ -34,6 +34,13 @@ describe("TableLiteral", () => {
     ]);
   });
 
+  test("an index and a table type's property warn at the repeated key too", () => {
+    expect(lints("& run()\nfunction run()\n local t = {1, [1] = 2}\n local _x: {a: number, a: string}\n return t\nend\n").map(({ message, range }) => ({ message, range }))).toEqual([
+      { message: "Table index 1 is a duplicate; previously defined as a list entry", range: { start: { line: 2, character: 16 }, end: { line: 2, character: 17 } } },
+      { message: "Table type field 'a' is a duplicate; previously defined at line 4", range: { start: { line: 3, character: 23 }, end: { line: 3, character: 24 } } },
+    ]);
+  });
+
   test("distinct keys, a key in parentheses, and fractional, negative or large indices are not duplicates", () => {
     expect(inFunction(" local t = {a = 1, b = 2, [1] = 1, [2] = 2}\n local u = {1, [(1)] = 2, [1.5] = 1, [1.5] = 2, [2147483648] = 1, [2147483648] = 2}\n return t, u")).toEqual([]);
   });
@@ -87,6 +94,10 @@ describe("TableOperations", () => {
 
   test("reads calls outside functions", () => {
     expect(messages("store t = {}\n& table.insert(t, 0, 1)\n")).toEqual(["table.insert uses index 0 but arrays are 1-based; did you mean 1 instead?"]);
+  });
+
+  test("a call holding a syntax error is left alone", () => {
+    expect(inFunction(" local t = {}\n table.insert(t, 0, 1 2)\n getfenv(1 2)")).toEqual([]);
   });
 
   test("code written in a type is left alone, as in Luau", () => {
