@@ -59,7 +59,10 @@ describe("variadic pure builtin with a no-value last argument", () => {
   // A first-class call (a local alias, `pcall`) keeps the direct call's
   // minimum.
   test.each([
-    ["(function() local f = math.max; return f() end)()", "missing argument #1"],
+    [
+      "(function() local f = math.max; return f() end)()",
+      "missing argument #1 to 'max'",
+    ],
     ["(function() local f = math.max; return f(2, g0()) end)()", null],
   ])("%s", (expr, message) => {
     const { text, errors } = run(expr);
@@ -76,5 +79,16 @@ describe("variadic pure builtin with a no-value last argument", () => {
     const { text, errors } = run("(pcall(math.max))");
     expect(errors).toEqual([]);
     expect(text).toBe("Got false.\n");
+  });
+
+  // Its message names the function without its library, as the direct
+  // call's does.
+  test.each([
+    ["math.max", "max"],
+    ["math.abs", "abs"],
+  ])("pcall(%s) fails naming '%s'", (fn, short) => {
+    const { text, errors } = run(`select(2, pcall(${fn}))`);
+    expect(errors).toEqual([]);
+    expect(text).toBe(`Got missing argument #1 to '${short}'.\n`);
   });
 });

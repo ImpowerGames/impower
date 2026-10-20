@@ -407,7 +407,10 @@ export function tryInvokeStdLibMarkerValue(
     args.length < stdLibRequiredArgs(entry) &&
     !(entry as { validatesArgs?: boolean }).validatesArgs
   ) {
-    story.Error(`missing argument #${args.length + 1} to '${tag.value}'`);
+    // Lua names the function without its library (`'max'`), as the
+    // direct call does.
+    const short = tag.value!.slice(tag.value!.lastIndexOf(".") + 1);
+    story.Error(`missing argument #${args.length + 1} to '${short}'`);
   }
   const callArgs = unwrapArgsForPureStdLibFn(
     entry,
