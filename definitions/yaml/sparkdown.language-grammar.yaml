@@ -1316,11 +1316,32 @@ variables:
   # scope nothing is displayed for them. A comment with code after it on the
   # line is left to the rule that reads that code. This matches only when
   # there is a comment, so whitespace alone after `end` stays where it is.
-  # Block comments are `LUAU_PLAIN_BLOCK_COMMENTS`, so a comment of level four
-  # or more counts too when its text holds no `]` (`end --[====[c]====]`),
-  # as here, between a scope modifier and `function`, after an assignment
-  # operator and after a type operator.
-  LUAU_END_TRAILING_COMMENTS: (?:(?:{{LUAU_PLAIN_BLOCK_COMMENTS}}{{LUAU_LINE_COMMENT_ON_LINE}}?|{{LUAU_LINE_COMMENT_ON_LINE}})$)
+  LUAU_END_TRAILING_COMMENTS: (?:(?:{{LUAU_BLOCK_COMMENTS_ON_LINE}}{{LUAU_LINE_COMMENT_ON_LINE}}?|{{LUAU_LINE_COMMENT_ON_LINE}})$)
+  # One or more block comments that close on their line, of any level, with
+  # the whitespace around them: where no value or type has begun, between a
+  # scope modifier and `function`, after an assignment or type operator, and
+  # after a block's closing `end` (#1321). Levels up to three are
+  # `LUAU_BLOCK_COMMENT_ON_LINE`'s; a longer level is
+  # `LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST`.
+  LUAU_BLOCK_COMMENTS_ON_LINE: (?:{{LUAU_ANY_LEVEL_BLOCK_COMMENT_ON_LINE}}+)
+  # A block comment of any level that closes on its line, with the
+  # whitespace around it.
+  LUAU_ANY_LEVEL_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[{{LUAU_ANY_LEVEL_BLOCK_COMMENT_REST}}{{WS}}*)
+  # The rest of a block comment of any level after `--[`.
+  LUAU_ANY_LEVEL_BLOCK_COMMENT_REST: (?:{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST}})
+  # The rest of a block comment of level four or more after `--[`
+  # (`--[====[a ] b]====]`). A variable cannot hold a backreference that
+  # every use can number, so its text takes any character but a `]` that
+  # four or more `=` and a `]` follow, and it closes at the first such
+  # close. A `]` with fewer `=` closes no comment of these levels, so
+  # `--[====[a ] b]]c]=]d]====]` reads whole. A comment whose text holds the
+  # close of a different level of four or more (`--[====[a]=====]b]====]`)
+  # ends at that close, so the rest of it is read as before.
+  # lookaround: LuauBlockComment reads the comment itself, ending at the
+  # close of its own level with a backreference; this variable only finds
+  # where the comment ends for the rule that takes it, and a negated class
+  # cannot stop the text before a close several characters long.
+  LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST: (?:====+\[(?:[^\]\r\n]|\](?!====+\]))*\]====+\])
   # A line comment and the rest of its line.
   LUAU_LINE_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_LINE_COMMENT_START}}[^\r\n]*)
   # Block comments after an operator with code after them on the line, which
@@ -1331,7 +1352,7 @@ variables:
   # end can see only its own line, so it tells the two apart by what
   # follows the last comment; reordering cannot, since both begin at the
   # same comment.
-  LUAU_OPERATOR_COMMENTS_BEFORE_CODE: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))
+  LUAU_OPERATOR_COMMENTS_BEFORE_CODE: (?:{{LUAU_BLOCK_COMMENTS_ON_LINE}}(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))
   # What follows a block comment that ends a type: anything but a type
   # operator, the `?` suffix, a qualifier or generics, or what ends the type
   # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
@@ -7783,7 +7804,7 @@ repository:
     # Block comments between the scope modifier and `function` are trivia
     # (`local --[[c]] function k()`, #1305): the begin takes them, so the
     # modifier is not read as a variable declaration without a name.
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{LUAU_PLAIN_BLOCK_COMMENTS}}?))?(function)\b({{WS}}*)
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{LUAU_BLOCK_COMMENTS_ON_LINE}}?))?(function)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -14433,7 +14454,7 @@ repository:
   # operand. The rules that hold a type after a `:` or `=` include it too
   # (`function(): --[[c]] <T>(T) -> T`, `type F = --[[c]] <T>(T) -> T`).
   LuauTypeOperatorComments:
-    begin: ({{LUAU_PLAIN_BLOCK_COMMENTS}})
+    begin: ({{LUAU_BLOCK_COMMENTS_ON_LINE}})
     beginCaptures:
       1:
         patterns:

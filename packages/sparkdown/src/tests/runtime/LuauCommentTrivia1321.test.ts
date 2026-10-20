@@ -38,6 +38,7 @@ describe("a comment between a modifier and `function` keeps the function", () =>
     ["attribute and local", "@native local", "@native local --[[c]]"],
     ["two comments", "local", "local --[[a]] --[=[b]=]"],
     ["a level-four comment", "local", "local --[====[ helper ]====]"],
+    ["a level-four comment holding `]`", "local", "local --[====[a ] b]]c]=]d]====]"],
   ])("%s", (_name, plain, commented) => {
     for (const head of [plain, commented]) {
       const source = `${head} function k(x: number)\n  return x\nend\nValue {k(5)}.\n`;
@@ -66,6 +67,7 @@ describe("comments between `=` and a value are not a value", () => {
     ["oneFn", "--[[ a ]] function() return 1 end", "w()", "1"],
     ["threeIf", "--[[ c ]] --[[ d ]] --[==[ e ]==] if c then 1 else 2", "w", "1"],
     ["levelFourIf", "--[====[ c ]====] --[[ d ]] if c then 1 else 2", "w", "1"],
+    ["levelFiveBracketIf", "--[=====[a ] b]=====] --[[ d ]] if c then 1 else 2", "w", "1"],
   ])("%s", (_name, value, read, expected) => {
     const source = `function f(c)\n  local w = ${value}\n  return ${read}\nend\nValue {f(true)}.\n`;
     const result = play(source);
@@ -153,7 +155,7 @@ describe("a comment after a closing `end` at story scope is not story text", () 
       "end",
     ],
   ];
-  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c", "--[====[ c ]====]"]) {
+  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c", "--[====[ c ]====]", "--[====[a ] b]====]"]) {
     test.each(blocks)(`%s, then \`${comment}\``, (_name, block, line) => {
       const controlSource = `${block}\n${line}\n`;
       const control = play(controlSource);

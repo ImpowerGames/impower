@@ -56,6 +56,7 @@ describe("a comment after a function type's `->` keeps the type", () => {
     "() -> --[[c]] {T}",
     "() -> --[[a]] --[[b]] <T>(T) -> T",
     "(number) -> --[==[c]==] <T, U...>(T) -> U...",
+    "() -> --[====[a ] b]====] <T>(T) -> T",
   ])("type F = %s", (type) => {
     const { tree, emptyMatches } = read(
       `function g()\n  type F = ${type}\nend\n`,
