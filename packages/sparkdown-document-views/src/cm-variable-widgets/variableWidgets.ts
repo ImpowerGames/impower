@@ -19,10 +19,9 @@ import type { Audio, LayeredAudio, Synth } from "@impower/spark-engine/src";
 import { clone } from "@impower/spark-engine/src/game/core/utils/clone";
 import { randomizeProperties } from "@impower/spark-engine/src/game/core/utils/randomizeProperties";
 import { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
-import { structStringify } from "@impower/sparkdown/src/compiler/utils/structStringify";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { structStringify } from "@impower/sparkdown/src/compiler/utils/structStringify";
 
-import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
 import StructPlayWidgetType, {
   STRUCT_PLAY_BUTTON_CLASS_NAME,
@@ -36,6 +35,11 @@ import { WaveformConfig } from "./types/WaveformConfig";
 import { WaveformContext } from "./types/WaveformContext";
 import { getAudioBuffer } from "./utils/getAudioBuffer";
 import { updateWaveformElement } from "./utils/updateWaveformElement";
+
+interface FileSystemReader {
+  scheme: string;
+  url: (uri: string | undefined) => string;
+}
 
 /**
  * The per-variable detail these widgets render.
@@ -70,7 +74,6 @@ interface SparkVariable {
 type VariableProgram = SparkProgram & {
   variables?: Record<string, SparkVariable>;
 };
-
 
 const updateVariableDecorationsEffect = StateEffect.define<{
   variables: Record<string, SparkVariable>;
