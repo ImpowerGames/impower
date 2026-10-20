@@ -5670,10 +5670,10 @@ export class SparkdownCompiler {
           code: lint.code,
           severity: deprecated ? DiagnosticSeverity.Information : DiagnosticSeverity.Warning,
           ...(deprecated ? { tags: [DiagnosticTag.Deprecated] } : {}),
-          // Luau's wording is plain text, and a message can quote the
-          // author's own text (a table's string key), which markdown would
-          // read as markup.
-          message: { kind: "plaintext", value: lint.message },
+          // TableLiteral quotes the author's own text, a table's string key,
+          // which markdown would read as markup (`'<b>*x*</b>'`); the other
+          // rules quote only names.
+          message: { kind: lint.code === "TableLiteral" ? "plaintext" : "markdown", value: lint.message },
           source: LANGUAGE_NAME,
         });
       }

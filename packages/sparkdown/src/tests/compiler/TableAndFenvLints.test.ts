@@ -72,6 +72,13 @@ describe("TableLiteral", () => {
     ]);
   });
 
+  test("a key's leading U+FEFF is part of its name", () => {
+    expect(inFunction(" local t = {['\\u{feff}x'] = 1, ['\\u{feff}x'] = 2}\n local _x: {['\\u{feff}x']: number, ['\\u{feff}x']: string}\n return t")).toEqual([
+      "Table field '﻿x' is a duplicate; previously defined at line 3",
+      "Table type field '﻿x' is a duplicate; previously defined at line 4",
+    ]);
+  });
+
   test("a table holding a syntax error is left alone", () => {
     expect(inFunction(" local t = {a = 1 a = 2}\n return t")).toEqual([]);
   });
