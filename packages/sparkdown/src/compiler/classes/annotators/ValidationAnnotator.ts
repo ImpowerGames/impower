@@ -1816,7 +1816,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const kind = nodeRef.node.parent!.name === "Scene_content" ? "scene" : "branch";
       this.error(
         annotations,
-        `Unexpected text after the ${kind}'s header: \`${raw.trim()}\`. Only a \`--\` comment can follow a ${kind}'s name and parameters on its line.`,
+        `Unexpected text after the ${kind}'s header: \`${raw.trim()}\`. Only tags (\`# name\`) and a \`--\` comment can follow a ${kind}'s name and parameters on its line.`,
         from,
         nodeRef.to,
       );

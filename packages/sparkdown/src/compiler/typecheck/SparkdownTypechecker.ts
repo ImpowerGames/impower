@@ -186,8 +186,8 @@ export class SparkdownTypechecker {
         const parseError = parseErrors.indexOf(error);
         if (parseError >= 0) {
           const syntaxError = entry.check.unit.errors[parseError];
-          // An error at a token that is Sparkdown's own, or in a `store`
-          // declaration, is Sparkdown's own syntax's to report.
+          // An error at a token that is Sparkdown's own is Sparkdown's own
+          // syntax's to report.
           if (syntaxError?.sparkdown) continue;
           const message = error.data.kind === "SyntaxError" ? error.data.message : "";
           const start = documentPosition(unit, error.location.begin);

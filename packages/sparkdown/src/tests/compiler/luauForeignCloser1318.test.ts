@@ -9,7 +9,7 @@ import { describe, expect, test } from "vitest";
 import type { SyntaxNode } from "@lezer/common";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
-import { officialSyntaxErrors } from "./officialSyntax";
+import { officialErrorsInReportOrder } from "./officialSyntax";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
@@ -45,23 +45,6 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/**
- * The official parser's errors for the function's Luau, in the same form,
- * in the order it reports them. An error at the end of the input begins,
- * in the document, where the function's text ends, and ends at the start
- * of the line after it, where the official parser's input ends after the
- * function's line break.
- */
-function luauErrors(luau: string): string[] {
-  const last = luau.split("\n").length - 1;
-  return officialSyntaxErrors(luau).map((e) => {
-    const { begin, end } = e.location;
-    const atEof = e.message.includes("got <eof>") && begin.line === last && begin.column === 0;
-    const start = atEof ? `${last - 1}:${"end".length}` : `${begin.line}:${begin.column}`;
-    return `${start}-${end.line}:${end.column} ${e.message}`;
-  });
-}
-
 /** The name of the top-level node a document offset lies in. */
 function topLevelAt(text: string, offset: number): SyntaxNode | null {
   let node = parseSource(text).topNode.firstChild;
@@ -83,7 +66,7 @@ function expectForm({ form, errors, range = {} }: Form): void {
   const control = topLevelAt(`${HEADER}x = 1${FOOTER}${STORY}`, `${HEADER}x = 1${FOOTER}`.length);
   expect([story?.name, story?.from], "the line after the function is read as it is after a function without the form").toEqual([control?.name, luau.length]);
 
-  const official = luauErrors(luau);
+  const official = officialErrorsInReportOrder(luau);
   const messageOfError = (e: string) => e.slice(e.indexOf(" ") + 1);
   if (errors === "official") {
     expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
@@ -332,7 +315,7 @@ describe("a Luau construct yields at a closer it does not own (I-1318)", () => {
       expect(stripAnsi(dumpTree(text))).not.toContain("ERROR_INCOMPLETE");
       const fn = parseSource(text).topNode.firstChild!;
       expect([fn.name, fn.from, fn.to]).toEqual(["LuauFunctionDefinition", 0, luau.length - 1]);
-      expect(luauErrors(luau).length, "the official parser reports the closer").toBeGreaterThan(0);
+      expect(officialErrorsInReportOrder(luau).length, "the official parser reports the closer").toBeGreaterThan(0);
     });
   }
 
@@ -365,6 +348,6 @@ describe("a Luau construct yields at a closer it does not own (I-1318)", () => {
     const text = `${luau}${STORY}`;
     expect(stripAnsi(dumpTree(text))).not.toContain("ERROR_INCOMPLETE");
     expect(parseSource(text).topNode.firstChild!.to).toBe(text.length);
-    expect(luauErrors(luau).map((e) => e.slice(e.indexOf(" ") + 1))).toEqual(["Expected 'end' (to close 'function' at line 1), got <eof>; did you forget to close 'do' at line 2?"]);
+    expect(officialErrorsInReportOrder(luau).map((e) => e.slice(e.indexOf(" ") + 1))).toEqual(["Expected 'end' (to close 'function' at line 1), got <eof>; did you forget to close 'do' at line 2?"]);
   });
 });

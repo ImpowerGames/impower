@@ -7,7 +7,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
-import { officialSyntaxErrors } from "./officialSyntax";
+import { officialErrorList } from "./officialSyntax";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 import { checkLuau, describeDiagnostic } from "../luau-conformance/typecheckTestHarness";
@@ -34,23 +34,6 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/**
- * The official parser's errors for a function's Luau, in the same form. An
- * error at the end of the input begins, in the document, where the
- * function's text ends, and ends at the start of the line after it, where
- * the official parser's input ends after the function's line break.
- */
-function luauErrors(luau: string): string[] {
-  const last = luau.split("\n").length - 1;
-  return officialSyntaxErrors(luau)
-    .map((e) => {
-      const { begin, end } = e.location;
-      const atEof = e.message.includes("got <eof>") && begin.line === last && begin.column === 0;
-      const start = atEof ? `${last - 1}:${"end".length}` : `${begin.line}:${begin.column}`;
-      return `${start}-${end.line}:${end.column} ${e.message}`;
-    })
-    .sort();
-}
 
 /**
  * A form in a function with a story line after it: the tree holds no
@@ -65,7 +48,7 @@ function expectOfficial(form: string, { reported = true, range = {} }: { reporte
   expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
   const fn = parseSource(text).topNode.firstChild!;
   expect([fn.name, fn.from, fn.to], "the function ends at its own `end`").toEqual(["LuauFunctionDefinition", 0, luau.length - 1]);
-  const official = luauErrors(luau).map((e) => {
+  const official = officialErrorList(luau).map((e) => {
     const message = e.slice(e.indexOf(" ") + 1);
     return range[message] ? `${range[message]} ${message}` : e;
   });
@@ -258,10 +241,10 @@ describe("text after a scene or branch header is reported on the header line (I-
       .map((d) => `${d.range.start.character}-${d.range.end.character} ${messageOf(d)}`);
 
   test.each([
-    ["a word after a scene's parameters", scene("scene start(n: number) oops"), "23-27 Unexpected text after the scene's header: `oops`. Only a `--` comment can follow a scene's name and parameters on its line."],
-    ["a word after a scene's name", scene("scene start oops"), "12-16 Unexpected text after the scene's header: `oops`. Only a `--` comment can follow a scene's name and parameters on its line."],
-    ["a word after a branch's name", branch("  branch side oops"), "14-18 Unexpected text after the branch's header: `oops`. Only a `--` comment can follow a branch's name and parameters on its line."],
-    ["a word after a branch's parameters", branch("  branch side(k) oops"), "17-21 Unexpected text after the branch's header: `oops`. Only a `--` comment can follow a branch's name and parameters on its line."],
+    ["a word after a scene's parameters", scene("scene start(n: number) oops"), "23-27 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
+    ["a word after a scene's name", scene("scene start oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
+    ["a word after a branch's name", branch("  branch side oops"), "14-18 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
+    ["a word after a branch's parameters", branch("  branch side(k) oops"), "17-21 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
   ])("%s is reported", (_name, source, expected) => {
     expect(onHeaderLine(source)).toEqual([expected]);
   });
@@ -272,7 +255,31 @@ describe("text after a scene or branch header is reported on the header line (I-
     ["a comment after a branch's name", branch("  branch side -- a note")],
     ["a comment after a branch's parameters", branch("  branch side(k) --[[ a note ]]")],
     ["a header alone", scene("scene start(n: number)")],
-  ])("%s is a comment", (_name, source) => {
+    ["tags after a scene's name", scene("scene start # arc")],
+    ["tags and a comment after a branch's parameters", branch("  branch side(k) # arc -- a note")],
+  ])("%s is not reported", (_name, source) => {
     expect(onHeaderLine(source)).toEqual([]);
   });
+});
+
+// A `store` declaration's value is Luau, and Luau's first error in it is
+// reported with the errors that follow from it: in story as before, and in
+// a function with the rest of Luau's list. Each is Luau's for the same value
+// in a `local` (`store` and `local` are one length, so the columns agree).
+describe("a store declaration's value keeps Luau's first error", () => {
+  test("a store in story", () => {
+    const store = "store t = {1 ? 2}";
+    expect(sparkdownErrors(`${store}\nscene start\n  Hello.\nend\n`)).toEqual(
+      officialErrorList(store.replace("store", "local")).sort(),
+    );
+  });
+
+  for (const value of ["{1 ? 2}", "{nil=1}"]) {
+    test(`a store in a function: ${JSON.stringify(value)}`, () => {
+      const luau = (keyword: string) => `function f()\n  ${keyword} t = ${value}\n  return 0\nend\n`;
+      const errors = sparkdownErrors(luau("store"));
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors).toEqual(officialErrorList(luau("local")).sort());
+    });
+  }
 });

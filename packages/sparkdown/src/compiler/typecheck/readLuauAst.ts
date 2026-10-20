@@ -147,8 +147,7 @@ export interface LuauSyntaxError {
    * Not part of Luau: the token the error names is Sparkdown's own (a line
    * of story where the tree ends the statement, a statement's `&` mark, a
    * `store`, a `choose` block's own keywords, a divert), which is no token
-   * of Luau's, or the error is in a `store` declaration, a statement of
-   * Sparkdown's own; Sparkdown's own syntax reports what is wrong there.
+   * of Luau's; Sparkdown's own syntax reports what is wrong there.
    */
   sparkdown?: true;
   /**
@@ -1631,9 +1630,6 @@ class Parser {
   // Not part of Luau: whether the reading has gone on past the end of the
   // chunk Luau's parser stops at (`parseChunk`).
   private pastChunkEnd = false;
-  // Not part of Luau: how many `store` declarations are being read, whose
-  // errors are Sparkdown's own to report (`LuauSyntaxError.sparkdown`).
-  private storeDepth = 0;
   // Not part of Luau: how many attribute lists (`@[...]`) are being read;
   // every error met in one is the list's (`MalformedConstruct` "attribute").
   private attributeListDepth = 0;
@@ -1818,7 +1814,7 @@ class Parser {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
     }
-    if (atSparkdown || (this.storeDepth > 0 && malformed !== "attribute")) error.sparkdown = true;
+    if (atSparkdown) error.sparkdown = true;
     if (this.pastChunkEnd) error.pastChunkEnd = true;
     if (this.tokens[errorPos]?.unread) this.errorsAtUnread.add(this.errors.length);
     this.errors.push(error);
@@ -2341,7 +2337,6 @@ class Parser {
     const values: AstExpr[] = [];
     // Not part of Luau: a `store` declaration's errors are Sparkdown's own (see `report`).
     this.sparkdownDepth++;
-    this.storeDepth++;
     try {
       this.parseBindingList(names);
       if (this.is("=")) {
@@ -2351,7 +2346,6 @@ class Parser {
       }
     } finally {
       this.sparkdownDepth--;
-      this.storeDepth--;
     }
     const vars = names.map((b) => new AstExprGlobal(b.name.location, b.name.name));
     const end = values.length === 0 ? this.previousLocation() : values[values.length - 1]!.location;

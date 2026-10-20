@@ -12089,11 +12089,23 @@ repository:
   # function, as Luau's rules say. A next line that begins with no name
   # (`end`, a `(`) leaves the `:` alone, so the word stays the token it is
   # and Luau's error for the missing name is reported at it. A `for` loop
-  # variable's `:` is its type's: the path ends before it.
-  # lookaround: the begin's lookahead keeps this `:` to the one that ends
-  # its line, which no other access part takes; the end's lookbehind ends
-  # the rule right after the name, as `LuauKeywordMethodAccessor`'s does,
-  # and its `^` lookahead ends it before a line whose first word is no name.
+  # variable's `:` is its type's: the path ends before it. The rule's `end:`
+  # reads the name, since only the rule that reads the `:` knows the next
+  # line's first word is a method's name.
+  # lookaround: the begin's lookahead keeps the rule to a `:` that ends its
+  # line, the one `:` whose method name is on the next line. The §10.1
+  # alternatives: ordering alone cannot do it, since without the lookahead
+  # this rule, tried first, takes every `:` of a path, and tried after the
+  # rivals that read what follows a `:` on its own line (a name and its
+  # call, `LuauFunctionAccessor`; a keyword, `LuauKeywordMethodAccessor`; a
+  # missing type, `LuauTypeAnnotationMissingType`), it takes the `:` they
+  # leave mid-line too. A `begin:` cannot read the name, since a regex never
+  # spans the line break, and the parent's `end:` cannot, since the path
+  # ends with its line, so this rule's `end:` reads it. The end's `BEAT`
+  # lookahead ends the rule before a header line (`scene`, `branch`), whose
+  # keyword story reads; its `^` lookahead ends it before a line whose first
+  # word is no name (`end`, a `(`, a blank line), leaving what is there to
+  # be read as what it is.
   LuauNextLineMethodAccessor:
     begin: ({{WS}}*)([:](?![:]))(?={{WS}}*$)
     beginCaptures:
@@ -12106,12 +12118,8 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-      - { include: "#LuauNextLineMethodName" }
-    end: (?={{BEAT}})|(?<=\w)|^(?!{{WS}}*{{LUAU_UNRESERVED_IDENTIFIER}})
-
-  LuauNextLineMethodName:
-    match: ({{WS}}*)({{LUAU_UNRESERVED_IDENTIFIER}})
-    captures:
+    end: (?={{BEAT}})|^({{WS}}*)({{LUAU_UNRESERVED_IDENTIFIER}})|^(?!{{WS}}*{{LUAU_UNRESERVED_IDENTIFIER}})
+    endCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
