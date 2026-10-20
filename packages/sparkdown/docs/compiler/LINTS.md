@@ -27,6 +27,8 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `TableOperations` | A call of the global `table` library that is likely a bug: `table.insert(t, #t, v)`, `table.insert(t, #t + 1, v)`, index 0 in `insert`, `remove` or `move`, `table.remove(t, #t - 1)`, `table.create(n, {})`, and `table.insert(t, f())` where `f` returns more than one value. Parentheses around the argument silence it. | Every Luau call outside a type |
 | `DeprecatedApi` for `getfenv`/`setfenv` | A call of the global `getfenv` or `setfenv` with a literal number as its first argument (`Function 'getfenv' is deprecated; consider using 'debug.info' instead`, `Function 'setfenv' is deprecated`). It is an Information diagnostic tagged Deprecated, like the compiler's other deprecations, not a Warning. | Every Luau call outside a type |
 | `ImplicitReturn` | A function with a `return` of values that can also reach its end, at its last statement or the `end` closing it (`Function 'f' can implicitly return no values even though there's an explicit return at line 3; add explicit return to silence`, without the name for a function value). A final `error(...)` or `assert(false)`, a `while true` or `repeat ... until false` without a `break` of its own, and a nested function's returns do not count. | Functions |
+| `MisleadingAndOr` | An `a and false or b` or `a and nil or b`, whose first alternative is always falsy, over the whole expression (`The and-or expression always evaluates to the second alternative because the first alternative is false; consider using if-then-else expression instead`, or `... is nil; ...`). Parentheses around the `and` or around the literal silence it, as in Luau. | Every Luau expression outside a type |
+| `ComparisonPrecedence` | A comparison whose left side is an unparenthesized `not`, unless its right side is one too (`not a == not b`): `not X == Y is equivalent to (not X) == Y; consider using X ~= Y, or add parentheses to silence`, or `... add parentheses to silence` for an ordering. And a comparison whose left side is another comparison: `X <= Y == Z is equivalent to (X <= Y) == Z; add parentheses to silence` when either is an equality, `X <= Y <= Z is equivalent to (X <= Y) <= Z; did you mean X <= Y and Y <= Z?` otherwise. Over the whole expression; parentheses silence it, as in Luau. | Every Luau expression outside a type |
 
 The arms of Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions are not compared with each other; their conditions and the Luau inside them are checked like any other. The `if` and `for` control flow of Sparkle `layout` blocks is a separate construct in the grammar and is not checked.
 
@@ -102,7 +104,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 
 | Luau lint | Test file |
 | --- | --- |
-| `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
+| `IntegerParsing` | `LintCandidatesStyle.test.ts` |
 | `FormatString` | `LintCandidatesStdlib.test.ts` |
 
 ## Rules sparkdown omits

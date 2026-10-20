@@ -15,7 +15,7 @@
 // expressions outside them, in Sparkdown's own text and constructs (an
 // interpolation or call shorthand, a divert's arguments, an alternator's
 // selector, a Sparkle handler and its `{ ... }` statements, a `define`'s
-// values and methods), wherever the tree marks a chain, an `if`, a numeric
+// values and methods), wherever the tree marks a chain, a comparison, an `if`, a numeric
 // or generic `for` or a function, as the tree lints found them. The rules about locals and reachability read the Luau
 // functions a script defines (`function f()`, wherever it is written, and
 // function values): a local outside a function can be read from
@@ -76,6 +76,7 @@ import {
   AstTypeReference,
   AstTypeTable,
   BinaryOp,
+  binaryOpToString,
   TableItemKind,
   UnaryOp,
   getFunctionNameAsString,
@@ -115,6 +116,8 @@ export const LUAU_LINT_CODES = [
   "TableOperations",
   "DeprecatedApi",
   "ImplicitReturn",
+  "MisleadingAndOr",
+  "ComparisonPrecedence",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -247,7 +250,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
 // Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauCompareOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
 const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 
 /** Relevant nodes in Lezer's public packed representation. Avoid constructing
@@ -424,8 +427,8 @@ interface OutsideReading {
  * interpolation (`{a and b}`, `{{f(a or b)}}`, in a line, a choice or a
  * line inside a narrative `if`), a property's value or a method in a
  * `define`, a divert's arguments, the condition of a choice or an
- * alternator, a Sparkle handler. Each expression that holds a chain, an
- * `if` expression or a function value is read on its own
+ * alternator, a Sparkle handler. Each expression that holds a chain, a
+ * comparison, an `if` expression or a function value is read on its own
  * (`readLuauExpression`, `readLuauMethod`), and each `if` or `for`
  * statement as the body of a function (`readLuauStatements`), located in
  * the document's lines; one inside another that reads it is not read again.
@@ -463,7 +466,7 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
         readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([node], text), statements: true }) });
       } else {
-        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
+        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauCompareOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
         readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false }) });
@@ -1575,6 +1578,58 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 }
 
 // ---------------------------------------------------------------------------
+// MisleadingAndOr and ComparisonPrecedence
+
+const isComparison = (op: BinaryOp) =>
+  op === BinaryOp.CompareEq || op === BinaryOp.CompareNe || op === BinaryOp.CompareLt || op === BinaryOp.CompareLe || op === BinaryOp.CompareGt || op === BinaryOp.CompareGe;
+const isEquality = (op: BinaryOp) => op === BinaryOp.CompareEq || op === BinaryOp.CompareNe;
+const isNot = (expr: AstExpr) => expr instanceof AstExprUnary && expr.op === UnaryOp.Not;
+
+// Luau's MisleadingAndOr, `a and false or b` and `a and nil or b`, and its
+// ComparisonPrecedence, `not a == b` and a chain of comparisons
+// (`a < b < c`), each at the whole expression. Parentheses are an
+// `AstExprGroup`, so `(a and false) or b`, `(not a) == b` and `(a < b) < c`
+// are silent, as in Luau; so is `not a == not b`, a boolean comparison. As in
+// Luau, neither walks into types. An expression holding a syntax error is
+// left alone, since recovery can read operands the author did not write.
+function lintExpressionPrecedence(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (!(node instanceof AstExprBinary) || errors.some((error) => node.location.overlaps(error.location))) return true;
+      if (node.op === BinaryOp.Or && node.left instanceof AstExprBinary && node.left.op === BinaryOp.And) {
+        const alternative = node.left.right;
+        const alt = alternative instanceof AstExprConstantNil ? "nil" : alternative instanceof AstExprConstantBool && !alternative.value ? "false" : undefined;
+        if (alt) {
+          out.push({ code: "MisleadingAndOr", ...offsets.range(node.location), message: `The and-or expression always evaluates to the second alternative because the first alternative is ${alt}; consider using if-then-else expression instead` });
+        }
+      }
+      if (!isComparison(node.op)) return true;
+      const op = binaryOpToString(node.op);
+      if (isNot(node.left) && !isNot(node.right)) {
+        out.push({
+          code: "ComparisonPrecedence",
+          ...offsets.range(node.location),
+          message: isEquality(node.op)
+            ? `not X ${op} Y is equivalent to (not X) ${op} Y; consider using X ${node.op === BinaryOp.CompareEq ? "~=" : "=="} Y, or add parentheses to silence`
+            : `not X ${op} Y is equivalent to (not X) ${op} Y; add parentheses to silence`,
+        });
+      } else if (node.left instanceof AstExprBinary && isComparison(node.left.op)) {
+        const left = binaryOpToString(node.left.op);
+        out.push({
+          code: "ComparisonPrecedence",
+          ...offsets.range(node.location),
+          message: isEquality(node.left.op) || isEquality(node.op)
+            ? `X ${left} Y ${op} Z is equivalent to (X ${left} Y) ${op} Z; add parentheses to silence`
+            : `X ${left} Y ${op} Z is equivalent to (X ${left} Y) ${op} Z; did you mean X ${left} Y and Y ${op} Z?`,
+        });
+      }
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // TableLiteral
 
 // Luau's TableLiteral: a table constructor's string field or integer index
@@ -1925,6 +1980,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
+      lintExpressionPrecedence(source.statement, offsets, out, unit.errors);
       lintUnbalancedAssignments(source.statement, text, offsets, out, unsure);
       lintTableLiterals(source.statement, offsets, out, unit.errors);
       lintStdlibCalls(source.statement, offsets, out, unit.errors);
@@ -1941,6 +1997,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateLocals(expr, documentOffsets, out, errors, published, flowParameter);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
+    lintExpressionPrecedence(expr, documentOffsets, out, errors);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
     lintTableLiterals(expr, documentOffsets, out, errors);
     lintStdlibCalls(expr, documentOffsets, out, errors);
