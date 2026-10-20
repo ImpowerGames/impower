@@ -119,6 +119,14 @@ describe("TableOperations", () => {
     expect(messages("store t = {}\n& table.insert(t, 0, 1)\n")).toEqual(["table.insert uses index 0 but arrays are 1-based; did you mean 1 instead?"]);
   });
 
+  test("a library or function a local of the script names is left alone in an interpolation, which is read without its locals", () => {
+    expect(messages("store t = {}\nHi {table.insert(t, 0, 1)} {getfenv(1)}.\n")).toEqual([
+      "table.insert uses index 0 but arrays are 1-based; did you mean 1 instead?",
+      "Function 'getfenv' is deprecated; consider using 'debug.info' instead",
+    ]);
+    expect(messages("local table = { insert = print }\nlocal getfenv = print\nstore t = {}\nHi {table.insert(t, 0, 1)} {getfenv(1)}.\n")).toEqual([]);
+  });
+
   test("a call holding a syntax error is left alone", () => {
     expect(inFunction(" local t = {}\n table.insert(t, 0, 1 2)\n getfenv(1 2)")).toEqual([]);
   });
