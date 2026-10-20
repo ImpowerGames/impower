@@ -7,7 +7,7 @@
 import { describe, expect, test } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { testCompiler } from "../engineUnderTest";
-import { diagnoseDetailed, diagnoseFilesDetailed } from "../luau-conformance/diagnosticTestHarness";
+import { diagnoseDetailed, diagnoseFilesDetailed, lintMessagesInFunction } from "../luau-conformance/diagnosticTestHarness";
 
 const found = (source: string) => diagnoseDetailed(source).filter((d) => d.code === "GlobalUsedAsLocal");
 const messages = (source: string) => found(source).map((d) => d.message);
@@ -62,11 +62,24 @@ describe("GlobalUsedAsLocal in one function", () => {
     expect(messages(source)).toEqual([only("score", "f")]);
   });
 
-  test("a function the author names run is reported, unlike the harness's wrapper", () => {
-    const outer = "function outer()\n  local function run()\n    score = 1\n    return score\n  end\n  return run()\nend\n";
+  test.each([
+    ["a local function", "local function run()"],
+    ["a generic function", "local function run<T>(value: T)"],
+    ["a function with a comment before its name", "local function --[[name]] run()"],
+  ])("%s the author names run is reported, unlike the harness's wrapper", (_label, header) => {
+    const outer = `function outer()\n  ${header}\n    score = 1\n    return score\n  end\n  return run(1)\nend\n`;
     expect(messages(`${outer}& outer()\n`)).toEqual([only("score", "run")]);
-    // With a run of its own in the script, the wrapper's warning is kept too.
-    expect(messages(`function run()\n${outer}return outer()\nend\n& run()\n`)).toEqual([only("outer", "run"), only("score", "run")]);
+    // The harness hides only the wrapper it wrote, and not even that when
+    // the snippet names a function run of its own.
+    expect(lintMessagesInFunction(`\n${outer}return outer()`, "GlobalUsedAsLocal")).toEqual([only("outer", "run"), only("score", "run")]);
+  });
+
+  test("a script the author begins with function run() keeps its warning", () => {
+    expect(messages("function run()\n  score = 1\n  return score\nend\n& run()\n")).toEqual([only("score", "run")]);
+  });
+
+  test("the harness hides the warning of a global only the wrapper it wrote holds", () => {
+    expect(lintMessagesInFunction("\nscore = 1\nreturn score", "GlobalUsedAsLocal")).toEqual([]);
   });
 
   test("a compound write alone assigns nothing", () => {

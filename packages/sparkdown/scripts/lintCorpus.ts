@@ -5,9 +5,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { SparkdownCompiler } from "../src/compiler/classes/SparkdownCompiler";
-import { LUAU_LINT_CODES } from "../src/compiler/lint/collectLuauLints";
+import { collectLuauLints, LUAU_LINT_CODES } from "../src/compiler/lint/collectLuauLints";
 import type { SparkDiagnostic } from "../src/compiler/types/SparkDiagnostic";
-import { onlyRunIsWrapper } from "../src/tests/luau-conformance/wrapperRun";
+import { namesRun, onlyRunIsWrapper } from "../src/tests/luau-conformance/wrapperRun";
 
 interface Script {
   /** What the finding prints as its file. */
@@ -77,14 +77,23 @@ function lint(scripts: Script[], entries: Script[]): Finding[] {
   for (const [uri, diagnostics] of reported) {
     const script = byUri.get(uri);
     if (!script) continue;
+    // The wrapper a conformance file is read in is the corpus's, and nothing
+    // calls it, nor holds the file's globals in Luau, unless the file names
+    // a function `run` of its own.
+    let wrapperOnly: boolean | undefined;
+    const wrappers = () => {
+      if (wrapperOnly === undefined) {
+        const doc = compiler.documents.get(uri);
+        const tree = compiler.documents.tree(uri);
+        wrapperOnly = !!doc && !!tree && onlyRunIsWrapper(collectLuauLints(tree, (from, to) => doc.read(from, to)).names);
+      }
+      return wrapperOnly;
+    };
     for (const d of diagnostics) {
       if (!LINT_CODES.has(String(d.code))) continue;
-      // The wrapper a conformance file is read in is the corpus's, and
-      // nothing calls it, nor holds the file's globals in Luau, unless the file
-      // names a function `run` of its own.
       if (script.offset && d.code === "FunctionUnused" && d.range.start.line === 0) continue;
       const message = typeof d.message === "string" ? d.message : d.message.value;
-      if (script.offset && d.code === "GlobalUsedAsLocal" && onlyRunIsWrapper(script.text) && message.endsWith(" is only used in the enclosing function 'run'; consider changing it to local")) continue;
+      if (script.offset && d.code === "GlobalUsedAsLocal" && namesRun(message) && wrappers()) continue;
       out.push({
         label: script.label,
         line: d.range.start.line + 1 - script.offset,
