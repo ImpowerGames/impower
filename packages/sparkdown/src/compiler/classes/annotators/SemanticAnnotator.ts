@@ -1,5 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
-import { ALTERNATOR_CANDIDATES, opensAlternator } from "../../utils/alternatorDecision";
+import { namesValue } from "../../utils/alternatorDecision";
 import { ChangeDesc, MapMode, Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode, Tree } from "@lezer/common";
@@ -142,15 +142,6 @@ function isAtDeclarationSite(node: any): boolean {
     cur = cur.parent;
   }
   return false;
-}
-
-// Whether a keyword node is a structural word that begins a candidate
-// alternator holding no arms, so it names a value (`opensAlternator`).
-function isNameNotAlternator(node: SyntaxNode): boolean {
-  let begin: SyntaxNode | null = node.parent;
-  while (begin && /_begin_c\d+$/.test(begin.name)) begin = begin.parent;
-  const rule = begin?.name.endsWith("_begin") ? begin.parent : null;
-  return !!rule && ALTERNATOR_CANDIDATES.has(rule.name) && !opensAlternator(rule);
 }
 
 /**
@@ -666,7 +657,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     // keyword's scope, with no token. The word is not recorded as a
     // dependency: a distant edit's replay drops an unbound site's token,
     // which would bring the keyword's colour back.
-    if (nodeRef.name === "LuauControlKeyword" && isNameNotAlternator(nodeRef.node)) {
+    if (nodeRef.name === "LuauControlKeyword" && namesValue(nodeRef.node)) {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       const binding = this.lookupBinding(name);
       annotations.push(

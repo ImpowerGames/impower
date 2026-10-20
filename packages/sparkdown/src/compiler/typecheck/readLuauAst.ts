@@ -4053,7 +4053,7 @@ function sparkdownExpression(token: Token): AstExpr {
       return new AstExprSparkdownRegex(token.location, match?.[1] ?? token.text.slice(2), match?.[2] ?? "", source);
     }
     case "LuauConditionalAlternatorBlock":
-    case "LuauConditionalAlternatorStatement":
+    case "LuauConditionalAlternatorLineStart":
     case "LuauSparkdownExplicitConditionalAlternatorBlock":
       return new AstExprSparkdownConditionalAlternator(token.location, source);
     default:

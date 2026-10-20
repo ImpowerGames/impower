@@ -362,7 +362,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
   test.each(["queue -- note", "shuffle cycle --[[ note ]]"])("a block-form head %j with a comment after it still opens its block", (head) => {
     const source = `function f()\n  ${head}\n    | print(1)\n    | print(2)\n  end\n  return 3\nend\nValue {f()}.\n`;
     expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\n" });
-    expect(stripAnsi(dumpTree(source))).toMatch(/─ LuauSequentialAlternatorStatement \[/);
+    expect(stripAnsi(dumpTree(source))).toMatch(/─ LuauSequentialAlternatorLineStart \[/);
     expect(stripAnsi(dumpTree(source))).toMatch(/─ LuauAlternatorArms \[/);
   });
 
@@ -410,8 +410,8 @@ describe("a structural word is a name outside its shape (#984)", () => {
     expect(tree("Hi {match(x) | 1 = \"a\" | 2 = \"b\"}.\n")).toMatch(/─ LuauConditionalAlternatorBlock \[/);
     expect(tree("Hi {match x|1 = \"a\"|2 = \"b\"}.\n")).toMatch(/─ LuauConditionalAlternatorBlock \[/);
     expect(tree("Hi {cycle \"a\" | \"b\" end}.\n")).toMatch(/─ LuauSequentialAlternatorBlock \[/);
-    expect(tree("function f()\n  queue\n    | print(1)\n    | print(2)\n  end\nend\n")).toMatch(/─ LuauSequentialAlternatorStatement \[/);
-    expect(tree("function f(n)\n  match n\n    | 1 = print(1)\n  end\nend\n")).toMatch(/─ LuauConditionalAlternatorStatement \[/);
+    expect(tree("function f()\n  queue\n    | print(1)\n    | print(2)\n  end\nend\n")).toMatch(/─ LuauSequentialAlternatorLineStart \[/);
+    expect(tree("function f(n)\n  match n\n    | 1 = print(1)\n  end\nend\n")).toMatch(/─ LuauConditionalAlternatorLineStart \[/);
     // Each holds its arms, which make it an alternator (I-1310).
     for (const source of ["Hi {match x|1 = \"a\"|2 = \"b\"}.\n", "Hi {cycle \"a\" | \"b\" end}.\n", "function f(n)\n  match n\n    | 1 = print(1)\n  end\nend\n"]) {
       expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);

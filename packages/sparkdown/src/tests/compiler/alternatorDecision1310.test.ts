@@ -129,10 +129,11 @@ describe("a real alternator in each structural word opens and lowers as before",
   });
 
   test.each([
-    ["the sequential block form", "function f()\n  queue\n    | print(1)\n    | print(2)\n  end\n  return 3\nend\nValue {f()}.\n", "LuauSequentialAlternatorStatement"],
-    ["the sequential block form after a comment", "function f()\n  shuffle cycle -- note\n    | print(1)\n  end\n  return 3\nend\nValue {f()}.\n", "LuauSequentialAlternatorStatement"],
-    ["the conditional block form", "function f(n)\n  match n\n    | 1 = print(1)\n    | 2 = print(2)\n  end\n  return 3\nend\nValue {f(1)}.\n", "LuauConditionalAlternatorStatement"],
-    ["the conditional block form with a parenthesized condition", "function f(n)\n  match (n)\n    | 1 = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n", "LuauConditionalAlternatorStatement"],
+    ["the sequential block form", "function f()\n  queue\n    | print(1)\n    | print(2)\n  end\n  return 3\nend\nValue {f()}.\n", "LuauSequentialAlternatorLineStart"],
+    ["the sequential block form after a comment", "function f()\n  shuffle cycle -- note\n    | print(1)\n  end\n  return 3\nend\nValue {f()}.\n", "LuauSequentialAlternatorLineStart"],
+    ["the conditional block form", "function f(n)\n  match n\n    | 1 = print(1)\n    | 2 = print(2)\n  end\n  return 3\nend\nValue {f(1)}.\n", "LuauConditionalAlternatorLineStart"],
+    ["the sequential block form inside a bracket", "function f()\n  print(\n    chain\n      | 1\n      | 2\n    end\n  )\n  return 3\nend\nValue {f()}.\n", "LuauSequentialAlternatorLineStart"],
+    ["the conditional block form with a parenthesized condition", "function f(n)\n  match (n)\n    | 1 = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n", "LuauConditionalAlternatorLineStart"],
   ])("%s keeps its arms and the function its end", (_, source, rule) => {
     expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\n" });
     expect(tree(source)).toMatch(new RegExp(`─ ${rule} \\[`));
@@ -160,7 +161,7 @@ describe("where a candidate ends", () => {
   test("a candidate whose cast took its line break ends at the next line, which is its own statement", () => {
     const source = `function f(a)\n  ${IDENTITY("queue")}\n  local c = queue("a") :: string | number\n  match a\n    | x = print(1)\n  end\n  return c\nend\n\nValue {f("q")}.\n`;
     expect(run(source)).toMatchObject({ errors: [], output: "Value a.\n" });
-    expect(tree(source)).toMatch(/─ LuauConditionalAlternatorStatement \[/);
+    expect(tree(source)).toMatch(/─ LuauConditionalAlternatorLineStart \[/);
   });
 
   test("a candidate before a closer it does not own leaves it to its block: if c then match(1) end", () => {

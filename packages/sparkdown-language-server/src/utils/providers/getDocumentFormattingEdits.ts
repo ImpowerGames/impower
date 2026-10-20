@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
+import { ALTERNATOR_CANDIDATES, tableArms } from "@impower/sparkdown/src/compiler/utils/alternatorDecision";
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
@@ -82,8 +83,8 @@ const INDENTING_BLOCKS = nodeNameSet([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
-  "LuauSequentialAlternatorStatement",
-  "LuauConditionalAlternatorStatement",
+  "LuauSequentialAlternatorLineStart",
+  "LuauConditionalAlternatorLineStart",
   "LuauSparkleBlockIf",
   "LuauSparkleBlockElseif",
   "LuauSparkleBlockElse",
@@ -518,6 +519,11 @@ function computeBlockIndent(
     // `elseif`; this rule keeps indent correct so both passes
     // agree.
     if (isElseBlockMergeableIntoIf(node, stack[i - 1])) continue;
+
+    // An alternator's arms take its `end` (I-1310), which aligns with the
+    // word that opened it as a block's own `end` does.
+    const arms = stack[i - 2];
+    if (arms && isExplicitRuleName(arms.name, "LuauAlternatorArms") && stack[i - 3]?.name === `${arms.name}_end`) continue;
 
     // Header-opener line (e.g. `then` on its own line inside an
     // if-block whose condition was too long to inline). Such lines
@@ -1258,41 +1264,24 @@ export const getFormatting = (
     }
   }
 
-  // Inline alternator comma-form → pipe-form. The grammar accepts
-  // both `plural(n){one="is",other="are"}` (table-literal sugar)
-  // and `plural(n)|one="is"|other="are"` as identical alternator
-  // expressions; we normalize to pipe-form. This is a structural
-  // rewrite (removes braces, swaps commas for pipes), so we drive
-  // it off the parse tree, not source regex.
+  // Inline alternator comma-form → pipe-form: the table-literal sugar
+  // `plural(n){one="is",other="are"}` is rewritten to the alternator
+  // `plural(n)|one="is"|other="are"`. This is a structural rewrite
+  // (removes braces, swaps commas for pipes), so we drive it off the
+  // parse tree, not source regex.
   if (tree) {
-    // Inline alternators (the ones without `Sparkdown` in the name)
-    // wrap their pipe-or-table arms via these block names. When the
-    // parser saw a `{...}` arm-table instead of `|`, the LuauTable
-    // shows up as a descendant — we walk up the ancestor chain to
-    // see if it's inside one of these constructs.
-    const INLINE_ALTERNATOR_BLOCKS = nodeNameSet([
-      "LuauConditionalAlternatorBlock",
-      "LuauSequentialAlternatorBlock",
-    ]);
+    // A conditional alternator's word whose arms are written as a table
+    // after its condition (`tableArms`): the table becomes its arms. The
+    // compiler reads that form as Luau (a call, I-1310); only the
+    // formatter reads it as an alternator, and only in that shape.
     tree.iterate({
       from: treeIterFrom,
       to: treeIterTo,
       enter: (nodeRef) => {
-        if (!isExplicitRuleName(nodeRef.name, "LuauTable")) return;
-        // Walk up the ancestor chain looking for an inline-alternator
-        // wrapper. If found, this table represents the alternator's
-        // arms and gets rewritten to pipe-form.
-        let ancestor = nodeRef.node.parent;
-        let insideInlineAlternator = false;
-        while (ancestor) {
-          if (INLINE_ALTERNATOR_BLOCKS.has(ancestor.name)) {
-            insideInlineAlternator = true;
-            break;
-          }
-          ancestor = ancestor.parent;
-        }
-        if (!insideInlineAlternator) return;
-        const tableNode = nodeRef.node;
+        if (!ALTERNATOR_CANDIDATES.has(nodeRef.name)) return;
+        const table = tableArms(nodeRef.node);
+        if (!table) return;
+        const tableNode = table;
         // Compute the boundary positions: `{` of LuauTable_begin,
         // each top-level `,` (LuauCommaSeparator) inside content,
         // and `}` of LuauTable_end.

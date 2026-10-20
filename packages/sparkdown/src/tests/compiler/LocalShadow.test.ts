@@ -196,7 +196,9 @@ describe("LocalShadow of a global", () => {
   test("a keyword the grammar reads in place of a global's name silences it", () => {
     const sources = (use: string) => ({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function f()\n local match = print\n return match\nend\n", "use.sd": use });
     expect(programShadows(sources("& match = 1\n"))).toEqual(["subject.sd: Variable 'match' shadows a global variable used at line 1 in 'use.sd'"]);
-    expect(programShadows(sources("& match = 1\n& match(1)\n"))).toEqual([]);
+    expect(programShadows(sources("& match = 1\n& local v = match(1) | a = 1 end\n"))).toEqual([]);
+    // A structural word with no arms is a name (I-1310): its call is a use.
+    expect(programShadows(sources("& match(1)\n"))).toEqual(["subject.sd: Variable 'match' shadows a global variable used at line 1 in 'use.sd'"]);
   });
 
   test("an unchanged script gains and loses its warning as another script changes or leaves", () => {

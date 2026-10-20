@@ -79,8 +79,8 @@ export const SPARKDOWN_ONLY = new Set([
 export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
-  "LuauConditionalAlternatorStatement",
-  "LuauSequentialAlternatorStatement",
+  "LuauConditionalAlternatorLineStart",
+  "LuauSequentialAlternatorLineStart",
   "LuauDivertTargetLiteral",
   "LuauRegexLiteral",
 ].flatMap(explicitRuleNames));

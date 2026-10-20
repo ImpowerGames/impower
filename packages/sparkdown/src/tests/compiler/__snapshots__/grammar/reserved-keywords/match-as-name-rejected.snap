@@ -54,16 +54,16 @@ sparkdown [0..40]
      │   └─ LuauFunctionBody [25..37]
      │       ├─ LuauFunctionBody_begin [25..26]: "\n"
      │       ├─ LuauFunctionBody_content [26..37]
-     │       │   └─ LuauConditionalAlternatorStatement [26..37]
-     │       │       ├─ LuauConditionalAlternatorStatement_begin [26..33]
-     │       │       │   ├─ LuauConditionalAlternatorStatement_begin_c1 [26..28]
+     │       │   └─ LuauConditionalAlternatorLineStart [26..37]
+     │       │       ├─ LuauConditionalAlternatorLineStart_begin [26..33]
+     │       │       │   ├─ LuauConditionalAlternatorLineStart_begin_c1 [26..28]
      │       │       │   │   └─ OptionalWhitespace [26..28]: "  "
-     │       │       │   ├─ LuauConditionalAlternatorStatement_begin_c2 [28..33]
+     │       │       │   ├─ LuauConditionalAlternatorLineStart_begin_c2 [28..33]
      │       │       │   │   └─ LuauControlKeyword [28..33]: "match"
-     │       │       │   └─ LuauConditionalAlternatorStatement_begin_c3 33
-     │       │       │       └─ LuauConditionalAlternatorStatement_begin_c3 33
+     │       │       │   └─ LuauConditionalAlternatorLineStart_begin_c3 33
+     │       │       │       └─ LuauConditionalAlternatorLineStart_begin_c3 33
      │       │       │           └─ OptionalWhitespace 33
-     │       │       ├─ LuauConditionalAlternatorStatement_content [33..37]
+     │       │       ├─ LuauConditionalAlternatorLineStart_content [33..37]
      │       │       │   ├─ LuauConditionalAlternatorCondition [33..36]
      │       │       │   │   ├─ LuauConditionalAlternatorCondition_begin 33
      │       │       │   │   ├─ LuauConditionalAlternatorCondition_content [33..36]
@@ -87,7 +87,7 @@ sparkdown [0..40]
      │       │       │   │   │           └─ LuauParenthetical_end_c2 36
      │       │       │   │   └─ LuauConditionalAlternatorCondition_end 36
      │       │       │   └─ Newline [36..37]: "\n"
-     │       │       └─ LuauConditionalAlternatorStatement_end 37
+     │       │       └─ LuauConditionalAlternatorLineStart_end 37
      │       └─ LuauFunctionBody_end 37
      └─ LuauFunctionDefinition_end [37..40]
          ├─ LuauFunctionDefinition_end_c1 37
