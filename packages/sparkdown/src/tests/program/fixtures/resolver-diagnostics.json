@@ -1011,7 +1011,9 @@
  },
  "capture screenplay": {
   "fallback": null,
-  "diagnostics": []
+  "diagnostics": [
+   "inmemory:///main.sd {\"code\":\"GlobalUsedAsLocal\",\"message\":{\"kind\":\"markdown\",\"value\":\"Global 'total' is only used in the enclosing function 'capture'; consider changing it to local\"},\"range\":{\"end\":{\"character\":16,\"line\":30},\"start\":{\"character\":11,\"line\":30}},\"severity\":2,\"source\":\"sparkdown\"}"
+  ]
  },
  "flow screenplay": {
   "fallback": null,
