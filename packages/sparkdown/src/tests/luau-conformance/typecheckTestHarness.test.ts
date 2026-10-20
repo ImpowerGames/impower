@@ -47,13 +47,12 @@ describe("syntax diagnostics", () => {
     expect(first?.message).toMatch(/^Sparkdown read "->" as DivertMark, not Luau$/);
   });
 
-  test("a construct the parser cannot finish is reported, once per place", () => {
-    // Luau reads a `;` right after a `repeat`'s `until` condition; the
-    // grammar's loop cannot end before it (#1988).
-    const found = checkLuau("\n\n    repeat local x = 1 until x;\n").syntaxDiagnostics;
-    expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
-      [2, 30, `Sparkdown could not finish reading the Luau before ";"`],
-    ]);
+  test("a construct the grammar once could not finish is read whole", () => {
+    // Luau reads a `;` right after a `repeat`'s `until` condition, and the
+    // condition now ends before it (I-1289), so no part of the snippet is
+    // left unfinished: the harness reports an unfinished construct (an error
+    // node) where the grammar leaves one, and none is known to be left now.
+    expect(checkLuau("\n\n    repeat local x = 1 until x;\n").syntaxDiagnostics).toEqual([]);
   });
 
   test("Luau the grammar leaves unread is Luau's to report, and the function keeps its end", () => {

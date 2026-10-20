@@ -963,8 +963,10 @@ sparkdown [0..813]
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 566
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 566
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [566..567]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [566..567]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [566..567]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [566..567]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [566..567]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 567
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 567
  │   │       │   │   │       │   ├─ Space [567..568]: " "
  │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [568..577]
  │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [568..569]
@@ -992,8 +994,10 @@ sparkdown [0..813]
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 576
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 576
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [576..577]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [576..577]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [576..577]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [576..577]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [576..577]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 577
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 577
  │   │       │   │   │       │   ├─ Space [577..578]: " "
  │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [578..588]
  │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [578..579]
@@ -1021,8 +1025,10 @@ sparkdown [0..813]
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 587
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 587
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [587..588]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [587..588]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [587..588]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [587..588]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [587..588]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 588
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 588
  │   │       │   │   │       │   ├─ Space [588..589]: " "
  │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [589..598]
  │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [589..590]
@@ -1050,8 +1056,10 @@ sparkdown [0..813]
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 597
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 597
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [597..598]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [597..598]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [597..598]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [597..598]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [597..598]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 598
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 598
  │   │       │   │   │       │   ├─ Space [598..599]: " "
  │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [599..608]
  │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [599..600]
@@ -1079,8 +1087,10 @@ sparkdown [0..813]
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 607
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 607
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [607..608]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [607..608]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [607..608]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [607..608]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [607..608]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 608
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 608
  │   │       │   │   │       │   ├─ Space [608..609]: " "
  │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [609..620]
  │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [609..610]
@@ -1108,8 +1118,10 @@ sparkdown [0..813]
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 619
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 619
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [619..620]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [619..620]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [619..620]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [619..620]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [619..620]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 620
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 620
  │   │       │   │   │       │   ├─ Space [620..621]: " "
  │   │       │   │   │       │   └─ LuauBacktickStringInterpolation [621..631]
  │   │       │   │   │       │       ├─ LuauBacktickStringInterpolation_begin [621..622]
@@ -1137,8 +1149,10 @@ sparkdown [0..813]
  │   │       │   │   │       │       │       └─ LuauAccessPath_end 630
  │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 630
  │   │       │   │   │       │       └─ LuauBacktickStringInterpolation_end [630..631]
- │   │       │   │   │       │           └─ LuauBacktickStringInterpolation_end_c1 [630..631]
- │   │       │   │   │       │               └─ PunctuationBraceClose [630..631]: "}"
+ │   │       │   │   │       │           ├─ LuauBacktickStringInterpolation_end_c1 [630..631]
+ │   │       │   │   │       │           │   └─ PunctuationBraceClose [630..631]: "}"
+ │   │       │   │   │       │           ├─ LuauBacktickStringInterpolation_end_c2 631
+ │   │       │   │   │       │           └─ LuauBacktickStringInterpolation_end_c3 631
  │   │       │   │   │       └─ LuauInterpolatedString_end [631..632]
  │   │       │   │   │           ├─ LuauInterpolatedString_end_c1 [631..632]
  │   │       │   │   │           │   └─ PunctuationStringBacktickQuoteClose [631..632]: "`"

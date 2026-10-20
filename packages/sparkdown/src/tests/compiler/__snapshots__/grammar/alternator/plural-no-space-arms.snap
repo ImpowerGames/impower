@@ -164,8 +164,10 @@ sparkdown [0..94]
  │   │       │   │   │       │   │   │           ├─ LuauConditionalAlternatorBlock_end_c1 82
  │   │       │   │   │       │   │   │           └─ LuauConditionalAlternatorBlock_end_c2 82
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [82..83]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [82..83]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [82..83]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [82..83]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [82..83]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 83
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 83
  │   │       │   │   │       │   ├─ Space [83..84]: " "
  │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [84..87]
  │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [84..85]
@@ -182,8 +184,10 @@ sparkdown [0..94]
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 86
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 86
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [86..87]
- │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [86..87]
- │   │       │   │   │       │   │           └─ PunctuationBraceClose [86..87]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [86..87]
+ │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [86..87]: "}"
+ │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c2 87
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c3 87
  │   │       │   │   │       │   └─ Space [87..88]: " "
  │   │       │   │   │       └─ LuauInterpolatedString_end [88..89]
  │   │       │   │   │           ├─ LuauInterpolatedString_end_c1 [88..89]
