@@ -681,11 +681,12 @@ export const runStartedAt = (record) => [...(record.previousCoordinators ?? []),
 // merged PR of its own and nothing the record holds for it, is history: it
 // was delivered outside the run, holds no writer place, is never dispatched,
 // and does not count against the parent's completion. One the run saw close,
-// or one closed as not planned, is not.
+// or one closed as not planned, is not. GitHub's closed_at has one-second
+// precision, so a closure in the start's own second counts as during the run.
 export const HISTORY = "closed before the run, delivered outside it";
 export function closedBeforeRun(record, t) {
   const start = runStartedAt(record), own = record.tickets?.[t.number] ?? {};
-  if (t.state !== "closed" || t.stateReason !== "completed" || !t.closedAt || !start || !(Date.parse(t.closedAt) < Date.parse(start))) return false;
+  if (t.state !== "closed" || t.stateReason !== "completed" || !t.closedAt || !start || !(Date.parse(t.closedAt) + 1000 <= Date.parse(start))) return false;
   if (own.owner || own.pending || t.worktrees?.length) return false;
   return !(t.prs ?? []).some((p) => branchTicket(p.branch) === t.number && (p.state === "OPEN" || p.state === "MERGED"));
 }
@@ -1005,7 +1006,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   for (const t of snapshot.tickets) {
     // A closed issue alone is not delivery: until its deliverer's merge
     // delivers it, its unmet blockers keep holding the deliverer.
-    if (!t.deliveredBy || t.delivered) continue;
+    if (!t.deliveredBy || t.delivered || historic.has(t.number)) continue;
     const s = t.deliveredBy.ticket;
     for (const b of t.blockers) {
       if (met(b) || b.number === s || deliveredBySlice.get(b.number) === s) continue;

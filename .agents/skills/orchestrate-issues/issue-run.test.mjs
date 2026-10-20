@@ -1139,6 +1139,18 @@ try {
     const pre = [available("claude-cli", "claude-opus-5-5", [1107])];
     assert.equal(actions(planOf(f, waiting(1103), { preflights: pre }))[1107], "dispatch", "history counts as a delivered blocker");
     assert.equal(actions(planOf(f, waiting(1104), { preflights: pre }))[1107], "wait-dependency", "a blocker closed during the run without its deliverable still holds");
+    // A history Bug's own unmet blocker does not hold its open deliverer.
+    const umbrella = snapshotOf(300, [
+      { ...ticket(1108), parent: 300, type: "Task" },
+      closed(1109, { type: "Bug", parent: 1108, deliveredBy: { ticket: 1108, via: "sub-issue", pr: null, merged: false }, blockers: [{ number: 900, state: "closed", delivered: false }] }),
+    ]);
+    assert.deepEqual(actions(planOf(f, umbrella, { preflights: [available("claude-cli", "claude-opus-5-5", [1108])] })), { 1108: "dispatch", 1109: "done" });
+    // GitHub reports closed_at in whole seconds: a closure in the start's own
+    // second may follow the start, so it is not history.
+    const record = run.readRecord(f.file), start = run.runStartedAt(record);
+    const second = new Date(Math.floor(Date.parse(start) / 1000) * 1000).toISOString().replace(".000Z", "Z");
+    assert.equal(run.closedBeforeRun(record, closed(1110, { closedAt: second })), false, "a closure in the start's second");
+    assert.equal(run.closedBeforeRun(record, closed(1110, { closedAt: new Date(Date.parse(second) - 1000).toISOString() })), true, "a closure in the second before");
     // A reopen and close during the run changes the scope the final gate
     // compares, since the closure decides whether the ticket is history.
     const reclosed = snapshotOf(300, snap.tickets.map((t) => (t.number === 1103 ? { ...t, closedAt: during } : t)));
