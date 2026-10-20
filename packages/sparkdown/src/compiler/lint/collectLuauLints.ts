@@ -70,6 +70,7 @@ import {
   AstStatRepeat,
   AstStatReturn,
   AstStatWhile,
+  AstTableAccess,
   AstType,
   AstTypePack,
   AstTypeReference,
@@ -83,6 +84,7 @@ import {
   type AstNode,
 } from "../typecheck/Ast";
 import { doesCallError } from "../typecheck/DataFlowGraph";
+import { decodeBytes } from "../typecheck/Linter";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
@@ -108,6 +110,9 @@ export const LUAU_LINT_CODES = [
   "DuplicateFunction",
   "DuplicateLocal",
   "GlobalUsedAsLocal",
+  "TableLiteral",
+  "TableOperations",
+  "DeprecatedApi",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -1523,6 +1528,155 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 }
 
 // ---------------------------------------------------------------------------
+// TableLiteral
+
+// Luau's TableLiteral: a table constructor's string field or integer index
+// that an earlier item of the same constructor already has, or that a list
+// entry already fills (`{1, 2, [1] = 3}`), and a table type's property that
+// an earlier one already has. As in Luau's new solver, which sparkdown's
+// type checker follows, a table type's `read` and `write` properties of one
+// name are not duplicates of each other. Unlike Luau's other rules, this one
+// walks into types, `typeof(...)` included, as Luau's does. A key in
+// parentheses (`[(1)]`) is not a literal key, nor a fractional, negative or
+// larger than 32-bit one. A table or table type holding a syntax error is
+// left alone, since recovery can read items the author did not write. A
+// string key is held as one character per UTF-8 byte (`readLuauAst.ts`), so
+// it is compared as read and decoded for the message; a name is ASCII.
+function lintTableLiterals(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
+  const line = (location: Location) => offsets.line(location.begin) + 1;
+  visitAst(root, {
+    visit(node) {
+      if ((node instanceof AstExprTable || node instanceof AstTypeTable) && errors.some((error) => node.location.overlaps(error.location))) return true;
+      if (node instanceof AstExprTable) {
+        const count = node.items.filter((item) => item.kind === TableItemKind.List).length;
+        const names = new Map<string, number>();
+        const indices = new Map<number, number>();
+        for (const { key } of node.items) {
+          if (key instanceof AstExprConstantString) {
+            const previous = names.get(key.value);
+            if (previous) out.push({ code: "TableLiteral", ...offsets.range(key.location), message: `Table field '${decodeBytes(key.value)}' is a duplicate; previously defined at line ${previous}` });
+            else names.set(key.value, line(key.location));
+          } else if (key instanceof AstExprConstantNumber && Number.isInteger(key.value)) {
+            if (key.value >= 1 && key.value <= count) {
+              out.push({ code: "TableLiteral", ...offsets.range(key.location), message: `Table index ${key.value} is a duplicate; previously defined as a list entry` });
+            } else if (key.value >= 0 && key.value <= 2147483647) {
+              const previous = indices.get(key.value);
+              if (previous) out.push({ code: "TableLiteral", ...offsets.range(key.location), message: `Table index ${key.value} is a duplicate; previously defined at line ${previous}` });
+              else indices.set(key.value, line(key.location));
+            }
+          }
+        }
+      } else if (node instanceof AstTypeTable) {
+        const names = new Map<string, { access: AstTableAccess; location: Location }>();
+        for (const prop of node.props) {
+          const previous = names.get(prop.name);
+          if (!previous) {
+            names.set(prop.name, { access: prop.access, location: prop.location });
+            continue;
+          }
+          if (!(previous.access & prop.access)) {
+            previous.access |= prop.access;
+            continue;
+          }
+          const at = line(previous.location);
+          if (previous.access === prop.access) out.push({ code: "TableLiteral", ...offsets.range(prop.location), message: `Table type field '${decodeBytes(prop.name)}' is a duplicate; previously defined at line ${at}` });
+          else if (previous.access === AstTableAccess.ReadWrite) out.push({ code: "TableLiteral", ...offsets.range(prop.location), message: `Table type field '${decodeBytes(prop.name)}' is already read-write; previously defined at line ${at}` });
+          // Luau reports these two at the earlier property.
+          else out.push({ code: "TableLiteral", ...offsets.range(previous.location), message: `Table type field '${decodeBytes(prop.name)}' already has a ${previous.access === AstTableAccess.Read ? "read" : "write"} type defined at line ${at}` });
+        }
+      }
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// TableOperations and DeprecatedApi for getfenv/setfenv
+
+/** The standard library functions, called through their global library
+ * (`string.find`), whose Luau type returns more than one value before any
+ * variadic tail, Luau's `getReturnCount` above 1. A bare global
+ * (`pairs`, `next`) is left out: a function statement of that name can
+ * replace it, and the warning needs its type. */
+const MULTIPLE_RESULTS = new Set(["string.find", "string.gsub", "math.frexp", "math.modf", "utf8.len", "utf8.codes", "coroutine.close"]);
+
+/** A literal number, as Luau's `isConstant` reads one; `(0)` is not. */
+function isConstant(expr: AstExpr | undefined, value: number): boolean {
+  return expr instanceof AstExprConstantNumber && expr.value === value;
+}
+
+/** Luau's `isLength`: `#t` of the same expression as `table`. */
+function isLength(expr: AstExpr, table: AstExpr): boolean {
+  return expr instanceof AstExprUnary && expr.op === UnaryOp.Len && similar(expr.expr, table);
+}
+
+// Luau's TableOperations, the half that reads only syntax: `table.insert`,
+// `table.remove`, `table.move` and `table.create` called on the global
+// `table` with arguments that are likely a bug. Its `table.insert(t, f())`
+// check needs `f`'s type, so it is read only for a standard library function
+// that returns more than one value (`MULTIPLE_RESULTS`), and is silent for
+// any other call. Its other half, `#` or `ipairs` on a table without an
+// array part (TableOperationsIndexer), needs the type checker.
+//
+// And Luau's DeprecatedApi for `getfenv` and `setfenv`: a call of the global
+// with a literal number as its first argument. Luau also reports one whose
+// first argument the type checker types as a number. Like the other
+// deprecations sparkdown reports, the compiler reports it as Information
+// tagged Deprecated (`SparkdownCompiler.validateLints`).
+//
+// As Luau's linter does, both leave code written in a type alone. A call
+// holding a syntax error is left alone, since recovery can read arguments
+// the author did not write.
+function lintStdlibCalls(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[]): void {
+  const report = (code: LuauLintCode, expr: AstExpr, message: string) => out.push({ code, ...offsets.range(expr.location), message });
+  const zero = (name: string, expr: AstExpr) => report("TableOperations", expr, `table.${name} uses index 0 but arrays are 1-based; did you mean 1 instead?`);
+  visitAst(root, {
+    visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (!(node instanceof AstExprCall) || node.self || errors.some((error) => node.location.overlaps(error.location))) return true;
+      const { func, args } = node;
+      if (func instanceof AstExprGlobal && (func.name === "getfenv" || func.name === "setfenv") && args[0] instanceof AstExprConstantNumber) { // not a node name
+        report("DeprecatedApi", node, `Function '${func.name}' is deprecated${func.name === "getfenv" ? "; consider using 'debug.info' instead" : ""}`); // not a node name
+      }
+      if (!(func instanceof AstExprIndexName && func.expr instanceof AstExprGlobal && func.expr.name === "table")) return true; // not a node name
+      if (func.index === "insert" && args.length === 2) {
+        const tail = args[1];
+        if (tail instanceof AstExprCall && !tail.self && tail.func instanceof AstExprIndexName && tail.func.expr instanceof AstExprGlobal && MULTIPLE_RESULTS.has(`${tail.func.expr.name}.${tail.func.index}`)) {
+          report("TableOperations", tail, "table.insert may change behavior if the call returns more than one result; consider adding parentheses around second argument");
+        }
+      }
+      if (func.index === "insert" && args.length >= 3) {
+        const position = args[1]!;
+        if (isConstant(position, 0)) zero("insert", position);
+        if (isLength(position, args[0]!)) {
+          report("TableOperations", position, "table.insert will insert the value before the last element, which is likely a bug; consider removing the second argument or wrap it in parentheses to silence");
+        }
+        if (position instanceof AstExprBinary && position.op === BinaryOp.Add && isLength(position.left, args[0]!) && isConstant(position.right, 1)) {
+          report("TableOperations", position, "table.insert will append the value to the table; consider removing the second argument for efficiency");
+        }
+      }
+      if (func.index === "remove" && args.length >= 2) {
+        const position = args[1]!;
+        if (isConstant(position, 0)) zero("remove", position);
+        if (position instanceof AstExprBinary && position.op === BinaryOp.Sub && isLength(position.left, args[0]!) && isConstant(position.right, 1)) {
+          report("TableOperations", position, "table.remove will remove the value before the last element, which is likely a bug; consider removing the second argument or wrap it in parentheses to silence");
+        }
+      }
+      if (func.index === "move" && args.length >= 4) {
+        if (isConstant(args[1], 0)) zero("move", args[1]!);
+        else if (isConstant(args[3], 0)) zero("move", args[3]!);
+      }
+      if (func.index === "create" && args.length === 2) {
+        const value = args[1]!;
+        const literal = value instanceof AstExprTypeAssertion ? value.expr : value;
+        if (literal instanceof AstExprTable) report("TableOperations", literal, "table.create with a table literal will reuse the same object for all elements; consider using a for loop instead");
+      }
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 
 /** Luau's statement-layout rules, using the boundaries of the existing AST. */
 function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], sameLines: Set<number>): void {
@@ -1695,6 +1849,8 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
       lintUnbalancedAssignments(source.statement, text, offsets, out, unsure);
+      lintTableLiterals(source.statement, offsets, out, unit.errors);
+      lintStdlibCalls(source.statement, offsets, out, unit.errors);
     }
   }
   const documentOffsets = new Offsets(starts, undefined);
@@ -1709,6 +1865,8 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
+    lintTableLiterals(expr, documentOffsets, out, errors);
+    lintStdlibCalls(expr, documentOffsets, out, errors);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
   return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, mentionsUnplacedVariable: facts.mentionsUnplacedVariable, misreadStatements: facts.misreadStatements, topLevelMembers: facts.topLevelMembers };
