@@ -197,6 +197,21 @@ describe("String library methods (I-856)", () => {
     expect(ctx.story.ContinueMaximally()).toBe("97 98 5-x true 4 a,b\n");
   });
 
+  test("a string's member is its string library function", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      [
+        `local s = "abc"`,
+        ``,
+        `{s:byte(1)} {s.byte(s, 2)} {type(s.byte)} {type(("x").format)} {type(s.nope)}`,
+        ``,
+      ].join("\n"),
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(
+      "97 98 function function nil\n",
+    );
+  });
+
   test("a table receiver calls its own field of the same name", () => {
     const ctx = makeRuntimeStoryFromSource(
       [

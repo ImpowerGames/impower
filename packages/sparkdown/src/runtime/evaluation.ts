@@ -1530,6 +1530,17 @@ export function tableFromPairs(
 }
 
 /** `indexBase[indexKey]`, as the `Index` instruction reads it. */
+// The string metatable's `__index` is the `string` library: a string's
+// member `key` is the `string.<key>` function, or nil when the library
+// has none.
+function stringLibraryMember(key: string): ObjectValue | null {
+  const libName = `string.${key}`;
+  if (!isStdLibFunctionName(libName)) return null;
+  const marker = new Map<string, AbstractValue>();
+  marker.set("__stdlib_fn", new StringValue(libName));
+  return new ObjectValue(marker);
+}
+
 export function indexValue(
   story: any,
   indexBase: InkObject | null,
@@ -1594,14 +1605,8 @@ export function indexValue(
         i >= 0 && i < indexBase.value.length ? indexBase.value[i] : "";
       resolved = new StringValue(ch ?? "");
     } else if (indexKey instanceof StringValue) {
-      // The string metatable's `__index` is the `string` library, so
       // `("abc"):byte(1)` calls `string.byte` with the receiver first.
-      const libName = `string.${keyStr}`;
-      if (isStdLibFunctionName(libName)) {
-        const marker = new Map<string, AbstractValue>();
-        marker.set("__stdlib_fn", new StringValue(libName));
-        resolved = new ObjectValue(marker);
-      }
+      resolved = stringLibraryMember(keyStr);
     }
   }
   if (resolved === null) {
@@ -1793,11 +1798,12 @@ export function readVariable(story: any, name: string | null): InkObject {
             break;
           }
         } else {
-          // Strings reach here (member reads like `("x").nope`
-          // resolve to nil, matching the string library's
-          // metatable miss); anything else non-indexable was
-          // already classified above.
-          cur = null;
+          // Strings reach here: a member read resolves through the
+          // string metatable's `__index`, the `string` library, so
+          // `s.byte` is `string.byte` and `s.nope` is nil; anything
+          // else non-indexable was already classified above.
+          cur = cur instanceof StringValue ? stringLibraryMember(seg) : null;
+          if (cur != null) continue;
           break;
         }
       }
