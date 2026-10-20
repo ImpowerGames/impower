@@ -612,7 +612,7 @@ export function walkSubIssues(issue, client, { tickets = null, split = false, pu
     for (const sub of client.subIssues(parent)) {
       const children = client.subIssues(sub.number);
       const closes = closingReferences(sub.body).filter((r) => r.repository === null || (tickets !== null && sameRepository(r.repository, tickets))).map((r) => r.number);
-      nodes.push({ number: sub.number, title: sub.title, state: sub.state, type: sub.type?.name ?? null, parent, depth, children: children.map((c) => ({ number: c.number, bug: isBug(c) })), closes });
+      nodes.push({ number: sub.number, title: sub.title, state: sub.state, stateReason: sub.state_reason ?? null, closedAt: sub.closed_at ?? null, type: sub.type?.name ?? null, parent, depth, children: children.map((c) => ({ number: c.number, bug: isBug(c) })), closes });
       if (children.length && depth < MAX_SUB_ISSUE_DEPTH) visit(sub.number, depth + 1);
     }
   };
@@ -671,6 +671,23 @@ export function walkSubIssues(issue, client, { tickets = null, split = false, pu
     if (listed.get(node.parent)?.delivers && node.type === "Bug") return { ...node, deliveredBy: { ticket: node.parent, via: "sub-issue", pr: null } };
     return node;
   });
+}
+
+// When the run began: its first coordinator's start, which a takeover keeps
+// in the previous coordinators it carries.
+export const runStartedAt = (record) => [...(record.previousCoordinators ?? []), record.coordinator].map((c) => c?.since).filter(Boolean).sort()[0] ?? null;
+
+// A sub-issue closed as completed before the run began, with no open or
+// merged PR of its own and nothing the record holds for it, is history: it
+// was delivered outside the run, holds no writer place, is never dispatched,
+// and does not count against the parent's completion. One the run saw close,
+// or one closed as not planned, is not.
+export const HISTORY = "closed before the run, delivered outside it";
+export function closedBeforeRun(record, t) {
+  const start = runStartedAt(record), own = record.tickets?.[t.number] ?? {};
+  if (t.state !== "closed" || t.stateReason !== "completed" || !t.closedAt || !start || !(Date.parse(t.closedAt) < Date.parse(start))) return false;
+  if (own.owner || own.pending || t.worktrees?.length) return false;
+  return !(t.prs ?? []).some((p) => branchTicket(p.branch) === t.number && (p.state === "OPEN" || p.state === "MERGED"));
 }
 
 // The slices a container's walk plans: every node that is not a container,
@@ -879,7 +896,7 @@ export function verificationGaps(record, snapshot, { running = null } = {}) {
   const slices = (snapshot.tickets ?? []).filter((t) => !t.container);
   const list = (ns) => [...ns].sort((a, b) => a - b).map((n) => `#${n}`).join(", ");
   if (list(slices.map((t) => t.number)) !== list(v.tickets ?? [])) gaps.push(`the parent issue's slices are ${list(slices.map((t) => t.number)) || "none"}, not the verified ${list(v.tickets ?? []) || "none"}`);
-  for (const t of slices) if (!(t.state === "closed" && t.delivered)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
+  for (const t of slices) if (!(t.state === "closed" && t.delivered) && !closedBeforeRun(record, t)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
   const open = (record.operations ?? []).filter((o) => o.id !== running && OPEN_OPERATION.has(o.state));
   if (open.length) gaps.push(`${open.map((o) => (o.kind === "close" ? `closing issue #${o.pr} (${o.id})` : `${o.kind} ${o.id} of PR #${o.pr}`)).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled; settle it with checkpoint.mjs reconcile-operations`);
   return gaps;
@@ -1017,6 +1034,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const how = { "sub-issue": `a Bug under slice #${d.ticket}`, body: `#${d.ticket}'s body claims it with a closing keyword`, pr: "that PR closes it" }[d.via];
       if (own.owner || own.pending) { active++; add(t, "decision-needed", `the record holds a writer or pending start for it, but ${by} delivers it (${how}); settle that writer, since the ticket is never dispatched, and #${d.ticket} waits until it is settled`, { deliveredBy: d }); continue; }
       if (t.worktrees.length && !writerKnownEnded(own)) { active++; add(t, "adopt-worktree", `worktree ${t.worktrees.map((w) => w.path).join(", ")} holds work on it although ${by} delivers it (${how}); find that writer and record it with adopt, then release it once it ends, and #${d.ticket} waits until it is settled`, { worktrees: t.worktrees, reserves: true, deliveredBy: d }); continue; }
+      if (t.state === "closed" && !t.delivered && closedBeforeRun(record, t)) { add(t, "done", HISTORY, { history: true }); continue; }
       if (t.state === "closed") { add(t, t.delivered ? "done" : "decision-needed", t.delivered ? `delivered by ${by}, merged on origin/main` : `closed without a merged deliverable on origin/main, although ${by} delivers it; confirm whether the ticket is complete`, { deliveredBy: d }); continue; }
       if (d.merged) { add(t, "decision-needed", `${by} is merged on origin/main, but GitHub left it open, so that PR's body may lack its closing reference; close it by hand once the merge delivers it, or confirm what remains`, { deliveredBy: d }); continue; }
       add(t, "delivered-by", `${by} delivers it (${how}): it is never dispatched and holds no writer place, and it is done once that PR's merge commit is on origin/main and GitHub has closed it`, { deliveredBy: d });
@@ -1051,6 +1069,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       else add(t, "container", "its own sub-issues are planned individually");
       continue;
     }
+    if (t.state === "closed" && !t.delivered && closedBeforeRun(record, t)) { add(t, "done", HISTORY, { history: true }); continue; }
     if (t.state === "closed") {
       if (own.owner || own.pending) active++;
       // A start with no recorded outcome may have a writer that ran; it is
@@ -1062,7 +1081,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       // worktree is removed through the guarded cleanup.
       const lingering = !own.owner && !own.pending && t.worktrees.length > 0 && !writerKnownEnded(own);
       if (lingering) active++;
-      const base = t.delivered ? "closed with its merged deliverable on origin/main" : "closed without a merged deliverable on origin/main; confirm whether the ticket is complete";
+      const base = t.delivered ? "closed with its merged deliverable on origin/main" : `closed${t.stateReason === "not_planned" ? " as not planned" : ""} without a merged deliverable on origin/main; confirm whether the ticket is complete`;
       // A writer still held on a closed ticket keeps its place until it is
       // released; once it has ended, its last report is read and it is let go.
       if (own.owner?.resuming) { add(t, "reconcile-pending", `${base}; resume ${own.owner.resuming.id} of its writer has no recorded outcome; run reconcile before anything else, since the resumed writer may still run`, { owner: { route: own.owner.route, handle: own.owner.handle, status: statusOf(t.number, own.owner).status } }); continue; }
