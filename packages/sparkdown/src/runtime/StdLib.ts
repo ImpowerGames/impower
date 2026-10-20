@@ -14,7 +14,9 @@ import {
   MultiValue,
   NullValue,
   StringValue,
+  SymbolValue,
   Value,
+  VariablePointerValue,
 } from "./Value";
 import {
   luaPatternToJs,
@@ -305,7 +307,7 @@ function requireStdLibArg(
 ): void {
   const missing =
     v === undefined ||
-    v?.constructor?.name === "Void" ||
+    v instanceof Void ||
     (v instanceof MultiValue && v.values.length === 0);
   if (missing) {
     story.Error(`missing argument #${index} to '${name}'`);
@@ -329,7 +331,7 @@ function requireTableArg(
 ): ObjectValue {
   const missing =
     v === undefined ||
-    v?.constructor?.name === "Void" ||
+    v instanceof Void ||
     (v instanceof MultiValue && v.values.length === 0);
   if (missing) {
     story.Error(`missing argument #${index} to '${name}' (table expected)`);
@@ -384,10 +386,9 @@ export function luauTypeOf(v: any): string {
     // (anonymous fn with upvalues) carry a `__closure_fn` key in
     // their .value Map; SymbolValue (a named function or one with no
     // upvalues) and VariablePointerValue (function held by a local)
-    // are detected via constructor name to avoid the import cycle
-    // these runtime files have with Value.ts.
-    const ctorName = v?.constructor?.name;
-    if (ctorName === "SymbolValue" || ctorName === "VariablePointerValue") {
+    // are detected by class. Never by `constructor.name`: the player's
+    // bundled worker names a self-referencing class `_SymbolValue`.
+    if (v instanceof SymbolValue || v instanceof VariablePointerValue) {
       return "function";
     }
     const raw = (v as any).value;
@@ -438,13 +439,8 @@ export function isTruthy(v: any): boolean {
     if (raw == null || raw === false) return false;
   }
   // Void from the runtime engine is treated as falsy (function returned
-  // nothing). Duck-typed via the constructor name to avoid the import.
-  if (
-    typeof v === "object" &&
-    v != null &&
-    v.constructor &&
-    v.constructor.name === "Void"
-  ) {
+  // nothing).
+  if (v instanceof Void) {
     return false;
   }
   return true;
@@ -1418,8 +1414,7 @@ function classifyGsubRepl(
   // a SymbolValue (not closure-wrapped); var-pointers to
   // function-typed locals arrive as VariablePointerValue. Both route
   // through `story.CallLuauFunction`.
-  const ctorName = repl?.constructor?.name;
-  if (ctorName === "SymbolValue" || ctorName === "VariablePointerValue") {
+  if (repl instanceof SymbolValue || repl instanceof VariablePointerValue) {
     return "function";
   }
   story.Error(
@@ -3219,7 +3214,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           return;
         }
       }
-      const ctorName = v?.constructor?.name;
       // Function values stringify as Lua's `function: <id>` form,
       // not as the underlying JS class name. Sparkdown represents
       // functions as either:
@@ -3230,7 +3224,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // Both should serialize to a stable opaque token so authors
       // can use tostring(fn) in interpolations without leaking
       // internal representation.
-      if (ctorName === "SymbolValue") {
+      if (v instanceof SymbolValue) {
         const path = (v as any).value;
         return `function: ${path?.toString?.() ?? "<unknown>"}`;
       }
@@ -4878,7 +4872,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (
           top != null &&
           !(top instanceof NullValue) &&
-          top.constructor.name !== "Void"
+          !(top instanceof Void)
         ) {
           return top;
         }
@@ -4914,7 +4908,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (
           top != null &&
           !(top instanceof NullValue) &&
-          top.constructor.name !== "Void"
+          !(top instanceof Void)
         ) {
           return top;
         }
@@ -5046,7 +5040,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (
         cmpArg !== undefined &&
         !(cmpArg instanceof NullValue) &&
-        (cmpArg as any)?.constructor?.name !== "Void"
+        !(cmpArg instanceof Void)
       ) {
         const cmpType = luauTypeOf(cmpArg);
         if (cmpType !== "function") {
@@ -5268,7 +5262,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const checkInt = (v: any, idx: number): number => {
         const missing =
           v === undefined ||
-          v?.constructor?.name === "Void" ||
+          v instanceof Void ||
           (v instanceof MultiValue && v.values.length === 0);
         if (missing) {
           story.Error(`missing argument #${idx} to 'move' (number expected)`);
@@ -5291,7 +5285,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const a5Absent =
         a5 === undefined ||
         a5 instanceof NullValue ||
-        a5?.constructor?.name === "Void";
+        a5 instanceof Void;
       const a2 = a5Absent ? a1 : requireTableArg(story, a5, 5, "move");
       if (e >= f) {
         // Luau: luaL_argcheck(f > 0 || e < INT_MAX + f, 3, ...)
@@ -5681,7 +5675,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // then raises Lua's "attempt to call a nil value" (iter.luau
       // line 174).
       if (f instanceof MultiValue) f = f.values[0] ?? new NullValue();
-      if (f != null && (f as any).constructor?.name === "Void") {
+      if (f instanceof Void) {
         f = new NullValue();
       }
       const map =
@@ -5705,7 +5699,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
               results = (results[0] as MultiValue).values;
             }
             let r0 = results[0] ?? new NullValue();
-            if ((r0 as any)?.constructor?.name === "Void") {
+            if (r0 instanceof Void) {
               r0 = new NullValue();
             }
             return [

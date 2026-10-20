@@ -1,21 +1,21 @@
 // Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`): lints about
-// calls into the standard library and table literals that sparkdown does not
-// have yet. Snippets and expected messages are quoted verbatim inside a
-// function body; the upstream test-case name is in the comment above each
-// group. Each `describe.skip` is the ready specification for a lint not
-// implemented (docs/compiler/LINTS.md); a rule that implements one adds its
-// code to `LUAU_LINT_CODES` in `collectLuauLints.ts` and unskips it.
+// calls into the standard library and table literals. Snippets and expected
+// messages are quoted verbatim inside a function body; the upstream test-case
+// name is in the comment above each group.
+//
+// FormatString stays silent on a format Sparkdown's runtime runs
+// (docs/compiler/LINTS.md), so the cases whose format the runtime accepts
+// although Luau's linter warns keep their snippet and drop that warning; the
+// comment above each such group names what the runtime accepts.
 
 import { describe, expect, test } from "vitest";
 import { lintInFunction, lintMessagesInFunction } from "./diagnosticTestHarness";
 
-const BAD_CLASS =
-  "Invalid match pattern: invalid character class, must refer to a defined class or its inverse";
 const UNCLOSED_SET =
   "Invalid match pattern: expected ] at the end of the string to close a set";
 
 // Luau: FormatStringFormat
-describe.skip("malformed string.format specifiers (not implemented: FormatString)", () => {
+describe("malformed string.format specifiers", () => {
   test("unfinished and invalid specifiers", () => {
     expect(
       lintMessagesInFunction(`
@@ -40,7 +40,7 @@ string.format("hello %+10d %.02f %%", 4, 5)
 });
 
 // Luau: FormatStringPack
-describe.skip("malformed string.pack formats (not implemented: FormatString)", () => {
+describe("malformed string.pack formats", () => {
   test("eleven bad formats", () => {
     expect(
       lintMessagesInFunction(`
@@ -89,9 +89,11 @@ string.packsize("=!1bbbI3c42")
   });
 });
 
-// Luau: FormatStringMatch
-describe.skip("malformed match patterns (not implemented: FormatString)", () => {
-  test("fourteen bad patterns", () => {
+// Luau: FormatStringMatch (adapted)
+// Sparkdown's runtime runs `%q` and `%,`, an escape of a character that is
+// not a class or magic, as that character, so their five warnings are dropped.
+describe("malformed match patterns", () => {
+  test("nine bad patterns", () => {
     expect(
       lintMessagesInFunction(`
 local s = ...
@@ -121,10 +123,6 @@ local _ = s:match("%q")
 string.match(s, "[A-Z]+(%d)%1")
 `),
     ).toEqual([
-      BAD_CLASS,
-      BAD_CLASS,
-      BAD_CLASS,
-      BAD_CLASS,
       "Invalid match pattern: unfinished character class",
       "Invalid match pattern: sets can not contain capture references",
       "Invalid match pattern: invalid capture reference, must be 1-9",
@@ -134,13 +132,12 @@ string.match(s, "[A-Z]+(%d)%1")
       "Invalid match pattern: unexpected ) without a matching (",
       "Invalid match pattern: expected ) at the end of the string to close a capture",
       UNCLOSED_SET,
-      "Invalid match pattern: expected a magic character after %",
     ]);
   });
 });
 
 // Luau: FormatStringMatchNested
-describe.skip("capture references into nested captures (not implemented: FormatString)", () => {
+describe("capture references into nested captures", () => {
   test("an unclosed and an out-of-range reference", () => {
     expect(
       lintInFunction(`
@@ -170,9 +167,11 @@ string.match(s, "((a)%3)")
   });
 });
 
-// Luau: FormatStringMatchSets
-describe.skip("malformed sets in match patterns (not implemented: FormatString)", () => {
-  test("seven bad sets", () => {
+// Luau: FormatStringMatchSets (adapted)
+// Sparkdown's runtime runs `[%a-b]` (letters, `-` and `b`), `[%q]` and
+// `[%;]`, so their three warnings are dropped.
+describe("malformed sets in match patterns", () => {
+  test("four bad sets", () => {
     expect(
       lintMessagesInFunction(`
 local s = ...
@@ -206,30 +205,29 @@ string.match(s, "[^]|'[]")
       UNCLOSED_SET,
       UNCLOSED_SET,
       "Invalid match pattern: character range can't include character sets",
-      "Invalid match pattern: character range can't include character sets",
-      BAD_CLASS,
-      "Invalid match pattern: expected a magic character after %",
       "Invalid match pattern: sets can not contain capture references",
     ]);
   });
 });
 
-// Luau: FormatStringFindArgs
-describe.skip("string.find with a plain-text flag (not implemented: FormatString)", () => {
+// Luau: FormatStringFindArgs (adapted)
+// Sparkdown's runtime runs `%q`, so the pattern is `%`, which it rejects, and
+// the warnings are the unfinished class's.
+describe("string.find with a plain-text flag", () => {
   test("only the pattern-mode calls are checked", () => {
     expect(
       lintInFunction(`
 local s = ...
 
 -- incorrect character class specifier
-string.find(s, "%q")
+string.find(s, "%")
 
 -- raw string find
-string.find(s, "%q", 1, true)
-string.find(s, "%q", 1, math.random() < 0.5)
+string.find(s, "%", 1, true)
+string.find(s, "%", 1, math.random() < 0.5)
 
 -- incorrect character class specifier
-string.find(s, "%q", 1, false)
+string.find(s, "%", 1, false)
 
 -- missing arguments
 string.find()
@@ -237,15 +235,17 @@ string.find("foo");
 ("foo"):find()
 `),
     ).toEqual([
-      { line: 4, message: BAD_CLASS },
-      { line: 11, message: BAD_CLASS },
+      { line: 4, message: "Invalid match pattern: unfinished character class" },
+      { line: 11, message: "Invalid match pattern: unfinished character class" },
     ]);
   });
 });
 
-// Luau: FormatStringReplace
-describe.skip("malformed string.gsub replacements (not implemented: FormatString)", () => {
-  test("four bad replacements", () => {
+// Luau: FormatStringReplace (adapted)
+// Sparkdown's runtime, like Lua's, replaces `%1` with the whole match when the
+// pattern has no capture, so the warning for `''` and `"%1"` is dropped.
+describe("malformed string.gsub replacements", () => {
+  test("three bad replacements", () => {
     expect(
       lintMessagesInFunction(`
 local s = ...
@@ -264,14 +264,15 @@ string.gsub(s, 'foo', "%0")
       "Invalid match replacement: unfinished replacement",
       "Invalid match replacement: unexpected replacement character; must be a digit or %",
       "Invalid match replacement: invalid capture index, must refer to pattern capture",
-      "Invalid match replacement: invalid capture index, must refer to pattern capture",
     ]);
   });
 });
 
-// Luau: FormatStringDate
-describe.skip("malformed os.date formats (not implemented: FormatString)", () => {
-  test("four bad formats", () => {
+// Luau: FormatStringDate (adapted)
+// Sparkdown's runtime copies a NUL byte in a date format as text, so the
+// warning for the format holding one is dropped.
+describe("malformed os.date formats", () => {
+  test("three bad formats", () => {
     expect(
       lintMessagesInFunction(`
 -- incorrect formats
@@ -288,7 +289,6 @@ os.date("!*t")
       "Invalid date format: unfinished replacement",
       "Invalid date format: unexpected replacement character; must be a date format specifier or %",
       "Invalid date format: unexpected replacement character; must be a date format specifier or %",
-      "Invalid date format: date format can not contain null characters",
     ]);
   });
 });
