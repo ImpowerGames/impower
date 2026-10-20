@@ -350,7 +350,8 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * declares, or a name a function statement declares in the function or in a
  * function between it and the read (`functionStatementNames`). A name that
  * is a variadic function of an enclosing scope is reached by path and not
- * captured. Any other name is captured, unless no enclosing function
+ * captured, but the locals it captures are, since a call to it passes them.
+ * Any other name is captured, unless no enclosing function
  * declares it and it is a stdlib name or a global callable (a top-level
  * function, `external`, `store` or `const`): a read of a global the program
  * never declares is captured too.
@@ -388,16 +389,19 @@ export function freeVariables(
   // decisions; the name resolves like any other reference here. A local
   // of a function between the sibling's and the read, in scope where the
   // name is read, hides the sibling (`resolveCallableBinding`).
-  const isSiblingSubFlow = (name: string, at: number) => {
+  const siblingSubFlowAt = (
+    name: string,
+    at: number,
+  ): SiblingSubFlowInfo | null => {
     const stack = ctx.siblingSubFlowNamesStack;
-    if (!stack) return false;
+    if (!stack) return null;
     let sibling = stack.length - 1;
     while (sibling >= 0) {
       const entry = stack[sibling]!.get(name);
       if (entry !== undefined && !entry.rebound) break;
       sibling -= 1;
     }
-    if (sibling < 0) return false;
+    if (sibling < 0) return null;
     const locals = ctx.declaredLocalsStack ?? [];
     for (let i = stack.length - 1; i > sibling; i--) {
       const frame = locals[i];
@@ -406,10 +410,10 @@ export function freeVariables(
         frame?.has(name) &&
         localInScope(frame, name, at)
       ) {
-        return false;
+        return null;
       }
     }
-    return true;
+    return stack[sibling]!.get(name)!;
   };
   const isShadowedLocal = (name: string) => {
     const stack = ctx.declaredLocalsStack;
@@ -425,8 +429,15 @@ export function freeVariables(
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
     // A variadic sibling is the innermost binding and wins over a
-    // same-named local of an outer scope (`resolveCallableBinding`).
-    if (isSiblingSubFlow(name, offsetAt(location.begin, ctx))) return;
+    // same-named local of an outer scope (`resolveCallableBinding`). A call
+    // to it, or its value, passes a pointer to each local it captures
+    // (`withSiblingSubFlowUpvalArgs`), which this function captures in
+    // turn so the pointer reaches the enclosing scope's cell.
+    const sibling = siblingSubFlowAt(name, offsetAt(location.begin, ctx));
+    if (sibling) {
+      for (const upval of sibling.upvals) read(upval, location);
+      return;
+    }
     if (!isShadowedLocal(name)) {
       if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name) || isGlobalCallable(name)) {
         return;
