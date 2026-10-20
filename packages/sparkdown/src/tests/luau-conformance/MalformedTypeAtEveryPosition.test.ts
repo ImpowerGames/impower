@@ -2,41 +2,39 @@ import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "./diagnosticTestHarness";
 import { checkLuau, describeDiagnostic, type LuauDiagnostic } from "./typecheckTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
+import { inPositionOrder } from "../compiler/officialSyntax";
 
 // A type that is missing, or that cannot start with the token where one must
-// stand, is one syntax error wherever a type can appear, worded and placed as
-// Luau's parser reports it: from the end of the token before it to the end of
-// the token Luau found instead (#1174), or to the end of its line where that
-// token is on a later line (#1286). So is an annotation written with `::`,
-// which Luau words by where it stands, and one with no name before it.
+// stand, is reported wherever a type can appear, worded and placed as Luau's
+// parser reports it: from the end of the token before it to the end of the
+// token Luau found instead (#1174), or to the end of its line where that
+// token is on a later line (#1286), with every error of Luau's recovery
+// after it (I-1322). So is an annotation written with `::`, which Luau words
+// by where it stands, and one with no name before it.
 
 // Luau's errors for those; its other syntax errors are not type errors.
 const TYPE_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing (?:variable name|table field), got ':'$/;
 
 /**
- * Luau's own type errors for a snippet, one for each token it found: its
- * parser can name a token again as it recovers (`Expected type, got '::'`,
- * then `Expected ')' (to close '(' at column 11), got '::'`), and the first
- * error at the token, which begins first, is the one Sparkdown reports.
+ * Luau's own syntax errors for a snippet, in position order: every one,
+ * Luau's recovery's included, since Sparkdown reports every one (I-1322),
+ * where a token is named again as the parser recovers (`Expected type, got
+ * '::'`, then `Expected ')' (to close '(' at column 11), got '::'`) too.
  */
+function luauSyntaxErrors(diagnostics: LuauDiagnostic[]): string[] {
+  return inPositionOrder(
+    diagnostics
+      .filter((d) => d.code === "SyntaxError")
+      // Sparkdown ends a missing type's range that Luau runs on to a token
+      // on a later line with the line the type is missing from (#1286).
+      .map((d) => (TYPE_ERROR.test(d.message) && (d.endLine > d.line + 1 || (d.endLine === d.line + 1 && d.endColumn > 0)) ? { ...d, endLine: d.line + 1, endColumn: 0 } : d))
+      .map(describeDiagnostic),
+  );
+}
+
+/** Luau's type errors among a snippet's syntax errors (`TYPE_ERROR`). */
 function luauTypeErrors(diagnostics: LuauDiagnostic[]): string[] {
-  const tokens = new Set<string>();
-  return diagnostics
-    // The product selects the first source-position error at a token. The
-    // fixture API preserves fresh checker order, so sort a separate copy here.
-    .slice()
-    .sort((a, b) => a.line - b.line || a.column - b.column)
-    .filter((d) => {
-      if (d.code !== "SyntaxError" || !TYPE_ERROR.test(d.message)) return false;
-      const token = `${d.endLine}:${d.endColumn}`;
-      if (tokens.has(token)) return false;
-      tokens.add(token);
-      return true;
-    })
-    // Sparkdown ends a range that Luau runs on to a token on a later line
-    // with the line the type is missing from (#1286).
-    .map((d) => (d.endLine > d.line + 1 || (d.endLine === d.line + 1 && d.endColumn > 0) ? { ...d, endLine: d.line + 1, endColumn: 0 } : d))
-    .map(describeDiagnostic);
+  return luauSyntaxErrors(diagnostics.filter((d) => TYPE_ERROR.test(d.message)));
 }
 
 /** A `.sd` document's errors, as `line:character-line:character message`. */
@@ -115,12 +113,11 @@ for (const { name, template, followers, nothingIsValid } of POSITIONS) {
 
 describe("a malformed type at every position", () => {
   test.each(cases.filter((c) => !c.valid).map((c) => [c.position, c.shape, c.source] as const))(
-    "%s with %s: %j reports Luau's one error",
+    "%s with %s: %j reports Luau's errors",
     (_position, _shape, source) => {
       const result = checkLuau(source);
-      const luau = luauTypeErrors(result.diagnostics);
-      expect(luau).toHaveLength(1);
-      expect(result.syntaxDiagnostics.map(describeDiagnostic)).toEqual(luau);
+      expect(luauTypeErrors(result.diagnostics).length).toBeGreaterThan(0);
+      expect(inPositionOrder(result.syntaxDiagnostics.map(describeDiagnostic))).toEqual(luauSyntaxErrors(result.diagnostics));
     },
   );
 
@@ -170,8 +167,11 @@ describe("the reported layouts", () => {
     // A table type's field with no name.
     ["local t: { a: number, : string } = nil", "0:22-0:23 SyntaxError: Expected identifier when parsing table field, got ':'"],
     ["local t: { a: number, :: string } = nil", "0:22-0:24 SyntaxError: Expected identifier when parsing table field, got '::'"],
-  ])("%j reports %j", (source, message) => {
-    expect(checkLuau(`${source}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
+  ])("%j reports %j and the errors of Luau's recovery", (source, message) => {
+    const result = checkLuau(`${source}\n`);
+    const errors = result.syntaxDiagnostics.map(describeDiagnostic);
+    expect(errors).toContain(message);
+    expect(inPositionOrder(errors)).toEqual(luauSyntaxErrors(result.diagnostics));
   });
 
   test.each([
@@ -248,11 +248,10 @@ describe("the reported layouts", () => {
     ["a local target, after an opener in a line comment", "-- --[[\nlocal x --[[real]] :: number"],
     ["a local target, with a comment of a high level", `local x --[${"=".repeat(70)}[c]${"=".repeat(70)}] :: number`],
     ["a parameter, after two comments", "function f(a --[[x]] --[[y]] :: number) end"],
-  ])("a long comment before `::` in %s reports Luau's one error", (_position, source) => {
+  ])("a long comment before `::` in %s reports Luau's errors", (_position, source) => {
     const result = checkLuau(`${source}\n`);
-    const luau = luauTypeErrors(result.diagnostics);
-    expect(luau).toHaveLength(1);
-    expect(result.syntaxDiagnostics.map(describeDiagnostic)).toEqual(luau);
+    expect(luauTypeErrors(result.diagnostics).length).toBeGreaterThan(0);
+    expect(inPositionOrder(result.syntaxDiagnostics.map(describeDiagnostic))).toEqual(luauSyntaxErrors(result.diagnostics));
   });
 
   // The loop still binds its variables when they are annotated.

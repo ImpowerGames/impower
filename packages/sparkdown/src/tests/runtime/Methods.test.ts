@@ -154,3 +154,76 @@ describe("Builtin methods (tables)", () => {
     );
   });
 });
+
+// The string library functions without a dedicated method entry take the
+// method form as Luau does: the receiver is the call's first argument.
+describe("String library methods (I-856)", () => {
+  const run = (expr: string) => {
+    const ctx = makeRuntimeStoryFromSource(
+      `function run() return ${expr} end\n\nGot {run()}.\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    return ctx.story.ContinueMaximally();
+  };
+
+  test.each([
+    [`("abc"):byte(1, 2)`, `string.byte("abc", 1, 2)`],
+    [`("%d-%s"):format(5, "x")`, `string.format("%d-%s", 5, "x")`],
+    [`("abc"):contains("b")`, `string.contains("abc", "b")`],
+    [`("i4"):packsize()`, `string.packsize("i4")`],
+    [`("i4"):pack(1):len()`, `string.pack("i4", 1):len()`],
+    [`("i4"):unpack("abcd")`, `string.unpack("i4", "abcd")`],
+  ])("%s gives what %s gives", (method, library) => {
+    expect(run(method)).toBe(run(library));
+  });
+
+  test("method forms give the library values", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      [
+        `local a, b = ("abc"):byte(1, 2)`,
+        `function words()`,
+        `  local parts = {}`,
+        `  for w in ("a b"):gmatch("%a") do`,
+        `    table.insert(parts, w)`,
+        `  end`,
+        `  return table.concat(parts, ",")`,
+        `end`,
+        ``,
+        `{a} {b} {("%d-%s"):format(5, "x")} {("abc"):contains("b")} {("i4"):packsize()} {words()}`,
+        ``,
+      ].join("\n"),
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("97 98 5-x true 4 a,b\n");
+  });
+
+  test("a string's member is its string library function", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      [
+        `local s = "abc"`,
+        ``,
+        `{s:byte(1)} {s.byte(s, 2)} {type(s.byte)} {type(("x").format)} {type(s.nope)}`,
+        ``,
+      ].join("\n"),
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(
+      "97 98 function function nil\n",
+    );
+  });
+
+  test("a table receiver calls its own field of the same name", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      [
+        `local t = {}`,
+        `function t:format(x) return "own " .. x end`,
+        `function t:byte() return "own byte" end`,
+        ``,
+        `{t:format("f")} / {t:byte()}`,
+        ``,
+      ].join("\n"),
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("own f / own byte\n");
+  });
+});

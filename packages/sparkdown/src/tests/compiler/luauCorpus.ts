@@ -83,20 +83,7 @@ export interface KnownCorpusFailure {
  * conformance file's syntax agreement is `luauSyntaxAgreement`'s, against
  * `KNOWN_DISAGREEMENTS`.
  */
-export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
-  ...failing(1987, "syntax", "Luau rejects a function with no valid name; Sparkdown reports nothing", [
-    "typecheck/TypeInfer.test.cpp/tc_after_error_recovery_no_assert",
-    "typecheck/TypeInfer.test.cpp/tc_after_error_recovery_no_replacement_name_in_error check 4",
-  ]),
-  ...failing(1986, "syntax", "Luau rejects `nil` as a table key and a second table indexer; Sparkdown reports nothing", [
-    "typecheck/TypeInfer.test.cpp/fuzzer_missing_follow_in_assign_index_constraint",
-    "typecheck/TypeInfer.singletons.test.cpp/table_properties_alias_or_parens_is_indexer",
-  ]),
-];
-
-function failing(issue: number, check: CorpusCheck, reason: string, inputs: string[]): KnownCorpusFailure[] {
-  return inputs.map((input) => ({ input, check, issue, reason }));
-}
+export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [];
 
 // A snippet is a Luau module, whose chunk takes `...`, so `run` does too.
 const HEADER = "function run()";

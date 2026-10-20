@@ -17,7 +17,7 @@
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { createHash } from "node:crypto";
-import { vi } from "vitest";
+import { expect, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
   AstStatLocal,
@@ -684,6 +684,44 @@ function locationTuple(
 
 export function describeDiagnostic(d: LuauDiagnostic): string {
   return `${d.line}:${d.column}-${d.endLine}:${d.endColumn} ${d.code}: ${d.message}`;
+}
+
+// Luau's errors for a type that is missing or cannot begin where one must stand.
+const MISSING_TYPE_ERROR = /^Expected type, got /;
+
+/**
+ * The syntax errors Luau's parser port reports for a snippet (`diagnostics`
+ * of `checkLuau`), described, in the order of where each begins, those that
+ * begin together by their text: every one, Luau's recovery's included, as
+ * Sparkdown reports every one in a `.luau` file (I-1322). Compare
+ * `syntaxDiagnostics` in the same order. Sparkdown ends a missing type's
+ * range that Luau runs on to a token on a later line with the line the type
+ * is missing from (#1286).
+ */
+export function luauSyntaxErrors(diagnostics: readonly LuauDiagnostic[]): string[] {
+  return inDiagnosticOrder(
+    diagnostics
+      .filter((d) => d.code === "SyntaxError")
+      .map((d) => (MISSING_TYPE_ERROR.test(d.message) && (d.endLine > d.line + 1 || (d.endLine === d.line + 1 && d.endColumn > 0)) ? { ...d, endLine: d.line + 1, endColumn: 0 } : d)),
+  );
+}
+
+/**
+ * Holds a snippet's syntax diagnostics to Luau's: every error Luau's parser
+ * port reports (`luauSyntaxErrors`), the `listed` ones (described) among
+ * them.
+ */
+export function expectLuauSyntax(source: string, listed: readonly string[]): void {
+  const result = checkLuau(source);
+  expect(result.syntaxDiagnostics.map(describeDiagnostic)).toEqual(expect.arrayContaining([...listed]));
+  expect(inDiagnosticOrder(result.syntaxDiagnostics)).toEqual(luauSyntaxErrors(result.diagnostics));
+}
+
+/** Diagnostics described, in the order of where each begins, those that begin together by their text. */
+export function inDiagnosticOrder(diagnostics: readonly LuauDiagnostic[]): string[] {
+  return [...diagnostics]
+    .sort((a, b) => a.line - b.line || a.column - b.column || (describeDiagnostic(a) < describeDiagnostic(b) ? -1 : 1))
+    .map(describeDiagnostic);
 }
 
 // ---------------------------------------------------------------------------
