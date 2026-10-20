@@ -76,6 +76,7 @@ describe("colon call receiver temp", () => {
     const program = compileOnce("", {
       shared: [counter, "store r = 0", "", "scene shared_start", "  & r = a:add(10):add(20)", "end", ""].join("\n"),
     });
+    expect(Object.keys(program.scripts)).toEqual([MAIN_URI, uriOf("shared")]);
     expect(diagnostics(program)).toEqual([]);
   });
 });

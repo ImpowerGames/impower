@@ -7,11 +7,13 @@ export const DEFAULT_MAIN_SCRIPT_FILENAME = "main.sd";
  * the folder of that script, as a URI ending in `/`. A host starts a compile
  * from the nearest main script above the edited one, so this is the folder of
  * that main script; a script with no main script above it is the root of a
- * project of its own. A URI with no folder has no project.
+ * project of its own. A URI with no folder has no project. A URI is read as
+ * the host spells the path, so a `?` or `#` in it is part of a file name, as
+ * the web editor writes an imported `act#1.sd`.
  */
 export function projectRootUri(entryUri: string): string | undefined {
   const at = entryUri.lastIndexOf("/");
-  if (at < 0 || entryUri.includes("?") || entryUri.includes("#")) {
+  if (at < 0) {
     return undefined;
   }
   return entryUri.slice(0, at + 1);
@@ -35,11 +37,11 @@ export function isInProject(
   mainScriptFilename: string,
   hasScript: (uri: string) => boolean,
 ): boolean {
-  if (!uri.startsWith(rootUri) || uri.includes("?") || uri.includes("#")) {
+  if (!uri.startsWith(rootUri)) {
     return false;
   }
   const segments = uri.slice(rootUri.length).split("/");
-  if (segments.some((segment) => isSkippedName(decodeSegment(segment)))) {
+  if (segments.some(isSkippedName)) {
     return false;
   }
   let folder = rootUri;
@@ -56,7 +58,8 @@ export function isInProject(
  * The scripts of the project a compile that starts from `entryUri` reads, in
  * the order their declarations register: the entry first, then every other
  * script of `scriptUris` in the project (`isInProject`) by its path below the
- * root, in byte order. A URI with no folder is a project of itself alone.
+ * root as the host spells it, in byte order. A URI with no folder is a project
+ * of itself alone.
  */
 export function projectScripts(
   entryUri: string,
@@ -74,19 +77,11 @@ export function projectScripts(
       (uri) =>
         uri !== entryUri && isInProject(root, uri, mainScriptFilename, has),
     )
-    .map((uri) => ({ uri, path: decodeSegment(uri.slice(root.length)) }))
+    .map((uri) => ({ uri, path: uri.slice(root.length) }))
     .sort((a, b) => compareCodePoints(a.path, b.path))
     .map(({ uri }) => uri);
   return [entryUri, ...members];
 }
-
-const decodeSegment = (text: string): string => {
-  try {
-    return decodeURIComponent(text);
-  } catch {
-    return text;
-  }
-};
 
 /** Orders two strings by their code points, which is the byte order of their
  *  UTF-8 encodings, where `<` compares UTF-16 code units. */

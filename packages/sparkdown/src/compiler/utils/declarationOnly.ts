@@ -49,19 +49,21 @@ const FLOWS = nodeNameSet(["Scene", "Branch"]);
 const STRUCTURE = nodeNameSet(["LuauEndKeyword", "Include"]);
 
 /**
- * The top-level statements of a script other than main that are neither
- * declarations nor inside a flow, by where each starts: the lines only main
- * runs (a display line, a choice, a divert, a top-level `local`, an
- * assignment, a call, a control block, a `run`). A scene's or a branch's
- * body is written at the top level up to its `end`, so the flows are
- * followed as `validateSceneStructure` follows them, and everything up to the
- * matching `end` is inside one.
+ * The statements of a script's top level outside every flow, by where each
+ * starts, each with whether its syntax declares: false for the lines only
+ * main runs (a display line, a choice, a divert, a top-level `local`, an
+ * assignment, a call, a control block, a `run`). A scene's or a branch's body
+ * is written at the top level up to its `end`, so the flows are followed as
+ * `validateSceneStructure` follows them, and everything up to the matching
+ * `end` is inside one. A statement whose syntax declares can still run
+ * something it holds after its declaration (`& store x = 1; x = 2`), which
+ * only what it lowered to shows (`onlyDeclares`).
  */
-export function contentOutsideScenes(
+export function topLevelStatements(
   top: SyntaxNode,
   read: (from: number, to: number) => string,
-): Set<number> {
-  const found = new Set<number>();
+): Map<number, boolean> {
+  const found = new Map<number, boolean>();
   let depth = 0;
   for (let node = top.firstChild; node; node = node.nextSibling) {
     if (FLOWS.has(node.name)) {
@@ -71,10 +73,9 @@ export function contentOutsideScenes(
     } else if (
       depth === 0 &&
       !STRUCTURE.has(node.name) &&
-      !node.name.endsWith("Comment") &&
-      !declares(node, read)
+      !node.name.endsWith("Comment")
     ) {
-      found.add(node.from);
+      found.set(node.from, declares(node, read));
     }
   }
   return found;

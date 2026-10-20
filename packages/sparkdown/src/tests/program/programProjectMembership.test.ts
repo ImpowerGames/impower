@@ -91,6 +91,23 @@ describe("a project folder", () => {
     }
   });
 
+  it("reads a script whose file name holds # or %, as the web editor names an imported file", () => {
+    // The web editor's URI is its path as written (`getUriFromPath`), so a
+    // `#` is part of the name and `%2e` is three characters, not a dot.
+    const HASH = `${ROOT}scripts/act#1.sd`;
+    const PERCENT = `${ROOT}scripts/%2eact2.sd`;
+    const project = {
+      [MAIN]: lines("-> act1"),
+      [HASH]: lines("scene act1", "  First.", "  -> act2", "end"),
+      [PERCENT]: lines("scene act2", "  Second.", "  done", "end"),
+    };
+    const program = compileProject(project);
+    expect(errorsOf(program)).toEqual([]);
+    expect(Object.keys(program.scripts)).toEqual([MAIN, PERCENT, HASH]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["First.\n", "Second.\n"]);
+  });
+
   it("reads only .sd files as its scripts, whatever else a host registers as one", () => {
     // The Luau file a `run` reads, registered as a script, is run where the
     // line stands and is not also read as a script of the project.
@@ -195,6 +212,23 @@ describe("a script other than main", () => {
     ]);
     const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Gold 4 6.\n"]);
+  });
+
+  it("reports a & line that declares and then runs something after the declaration", () => {
+    const program = compileProject({
+      [MAIN]: lines("Silver {silver}."),
+      [LIB]: lines(
+        "& store gold = 4; gold = 5",
+        "& function f() end; gold = 6",
+        "store silver = 2",
+      ),
+    });
+    expect(reported(program, OUTSIDE_SCENE)).toEqual([
+      [LIB, 0],
+      [LIB, 1],
+    ]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Silver 2.\n"]);
   });
 
   it("reports a top-level local function, and not a function whose body declares a local", () => {

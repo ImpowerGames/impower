@@ -97,6 +97,7 @@ describe("a script of a project of three scripts", () => {
     const program = compileOnce(threeScripts(["scene shared_scene", "  Shared.", "end", ""].join("\n")));
     expect(errors(program)).toEqual([]);
     expect(program.chunks).toBeDefined();
+    expect(count(play(program, "shared_scene"), "Shared.")).toBe(1);
   });
 
   it("declares its function once", () => {

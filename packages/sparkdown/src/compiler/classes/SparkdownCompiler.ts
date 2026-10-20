@@ -162,7 +162,7 @@ import {
 import { debugFileName } from "../utils/debugFileName";
 import {
   CONTENT_OUTSIDE_SCENE_MESSAGE,
-  contentOutsideScenes,
+  topLevelStatements,
 } from "../utils/declarationOnly";
 import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
@@ -284,6 +284,20 @@ function displayScriptPath(scriptUri: string, mainUri: string): string {
     // An unparsable URI is named whole.
   }
   return scriptUri;
+}
+
+/** Whether the objects a top-level statement lowered to only declare: flows
+ *  (a function), globals and constants, and externals, held directly or in
+ *  the statement's weave. Anything else runs where the statement stands. */
+function onlyDeclares(content: readonly ParsedObject[] | undefined): boolean {
+  return (content ?? []).every(
+    (obj) =>
+      obj instanceof FlowBase ||
+      obj instanceof ExternalDeclaration ||
+      obj instanceof ConstantDeclaration ||
+      (obj instanceof ParsedVariableAssignment && obj.isGlobalDeclaration) ||
+      (obj instanceof Weave && onlyDeclares(obj.content)),
+  );
 }
 
 let _preludeGlobalNames: Set<string> | undefined;
@@ -2694,11 +2708,13 @@ export class SparkdownCompiler {
     };
 
     // A script other than main holds declarations only: the statements of its
-    // top level that run are reported and left out (`contentOutsideScenes`).
+    // top level that run are reported and left out (`topLevelStatements`):
+    // those whose syntax runs, and those whose syntax declares but that
+    // lowered to something that runs as well (`onlyDeclares`).
     const tree = declarationOnly ? this.documents.tree(uri) : undefined;
-    const outsideScenes =
+    const topLevel =
       tree && document
-        ? contentOutsideScenes(tree.topNode, (from, to) =>
+        ? topLevelStatements(tree.topNode, (from, to) =>
             document.read(from, to),
           )
         : undefined;
@@ -2758,7 +2774,12 @@ export class SparkdownCompiler {
         hoistedKnots,
       } = rec.block;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
-      if (outsideScenes?.has(rec.from)) {
+      const declares = topLevel?.get(rec.from);
+      if (
+        declares === false ||
+        (declares === true &&
+          !(onlyDeclares(content) && onlyDeclares(hoistedKnots)))
+      ) {
         // Only main runs a line outside a scene. The statement is reported
         // and left out of the program, as if it were not written; what its
         // lowering itself reported still stands.

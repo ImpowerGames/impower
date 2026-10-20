@@ -385,12 +385,14 @@ describe("a local named like a library in a project of several scripts", () => {
   });
 
   test("is in scope in another script of the project, which comes after main", () => {
-    expect(
-      missing({
-        "main.sd": `${SHADOW}\n`,
-        "scripts/chapter.sd": `scene chap_scene\n    & print(table.nogetn)\nend\nfunction chap()\n    print(table.nogetn())\nend\n`,
-      }),
-    ).toEqual([]);
+    const chapter = `scene chap_scene\n    & print(table.nogetn)\nend\nfunction chap()\n    print(table.nogetn())\nend\n`;
+    expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
+    // Without main's local the same script names the missing member, so the
+    // script is read and checked as part of the project.
+    expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
+      "scripts/chapter.sd:2",
+      "scripts/chapter.sd:5",
+    ]);
   });
 });
 
@@ -610,11 +612,13 @@ describe("a colon call on a library and a local named like it in a project of se
   });
 
   test("is in scope in another script of the project, which comes after main", () => {
-    expect(
-      missing({
-        "main.sd": `${SHADOW}\n`,
-        "scripts/chapter.sd": `scene chap_scene\n    & print(table:nogetn())\nend\nfunction chap()\n    print(table:nogetn())\nend\n`,
-      }),
-    ).toEqual([]);
+    const chapter = `scene chap_scene\n    & print(table:nogetn())\nend\nfunction chap()\n    print(table:nogetn())\nend\n`;
+    expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
+    // Without main's local the same script names the missing member, so the
+    // script is read and checked as part of the project.
+    expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
+      "scripts/chapter.sd:2",
+      "scripts/chapter.sd:5",
+    ]);
   });
 });

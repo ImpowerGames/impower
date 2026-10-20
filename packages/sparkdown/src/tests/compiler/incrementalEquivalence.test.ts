@@ -787,6 +787,11 @@ describe("compiler incremental equivalence", () => {
           });
           const after = { ...texts, [edit.uri]: base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length) };
           const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+          // The other scripts are part of the program both compiles build:
+          // their scenes are flows of it.
+          const flows = JSON.stringify(incrProg.chunks);
+          expect(flows).toContain("chapter_0");
+          expect(flows).toContain("side_one");
           expect(stable(incrProg)).toBe(stable(coldProject(after)));
           expect(carriedConstructs(incr, edit.uri, editedBefore), "edited script").toEqual(
             expect.arrayContaining(edit.carries),
