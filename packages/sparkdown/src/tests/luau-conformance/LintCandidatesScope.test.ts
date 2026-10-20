@@ -319,7 +319,7 @@ end
 });
 
 // Luau: DuplicateGlobalFunction
-describe.skip("a global function defined twice (not implemented: DuplicateFunction)", () => {
+describe("a global function defined twice", () => {
   test("function x twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -335,7 +335,7 @@ describe.skip("a global function defined twice (not implemented: DuplicateFuncti
 
 // Luau: DuplicateLocalFunction
 // Upstream checks only that the warning's code is DuplicateFunction.
-describe.skip("a local function defined twice (not implemented: DuplicateFunction)", () => {
+describe("a local function defined twice", () => {
   test("local function x twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -352,7 +352,7 @@ describe.skip("a local function defined twice (not implemented: DuplicateFunctio
 });
 
 // Luau: DuplicateMethod
-describe.skip("a method defined twice (not implemented: DuplicateFunction)", () => {
+describe("a method defined twice", () => {
   test("function T:x twice", () => {
     expect(
       lintMessagesInFunction(`
