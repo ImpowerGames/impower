@@ -194,12 +194,16 @@ describe("a dangling member access (#1079)", () => {
     // Luau reports the token it meets instead of the name, at that token
     // (#1175). Where the name is on a later line, Luau reads it as the
     // member, and Sparkdown, whose access path ends with its line, reports
-    // the `.`.
+    // the `.`. The errors of Luau's recovery after it are reported too
+    // (I-1322), each one of Luau's own, but where the tree ends the
+    // statement before a line Luau reads on into (`STATEMENT_BREAKS`).
     const at =
       message === NAME_ON_LATER_LINE
         ? { line: 2, character: source.split("\n")[2]!.lastIndexOf(".") }
         : luauErrorAt(source, message);
-    expect(errors).toEqual([{ message, severity: 1, ...at }]);
+    expect(errors).toContainEqual({ message, severity: 1, ...at });
+    if (message === NAME_ON_LATER_LINE) expect(errors).toHaveLength(1);
+    else for (const error of errors) expect(officialSyntaxErrors(source).map((e) => e.message)).toContain(error.message);
     expect(functionSpans(program)).toEqual([
       { path: "f", lines: [0, 0, endLine] },
     ]);

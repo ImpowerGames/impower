@@ -60,9 +60,11 @@ test.each([
 });
 
 // Luau reads at most one module prefix, so every segment after the first
-// `module.Type` is a syntax error. It is reported on the extra segments, and
+// `module.Type` is a syntax error. It is reported on the extra segments, in
+// Sparkdown's words with a hint, in place of Luau's error at the `.`, and
 // the rest of the line still belongs to the type, so the enclosing function
-// is not cut short.
+// is not cut short. Luau's recovery errors after the extra segments are
+// reported too (I-1322).
 test.each([
   ["local z: types.ui.Button = 3", ".Button"],
   ["local z: a.b.c.D = 3", ".c.D"],
@@ -72,9 +74,9 @@ test.each([
   ["local x: types.ui.Foo<number>? = nil", ".Foo"],
 ])("%j reports the extra prefix", (source, extra) => {
   const diagnostics = checkLuau(source).syntaxDiagnostics;
-  expect(diagnostics.map((d) => d.message)).toEqual([
-    expect.stringContaining("takes at most one module prefix"),
-  ]);
+  expect(diagnostics[0]?.message).toEqual(expect.stringContaining("takes at most one module prefix"));
+  // Luau's recovery reads on only after a type with arguments.
+  if (!extra.endsWith("Foo")) expect(diagnostics).toHaveLength(1);
   const at = source.indexOf(extra);
   expect(diagnostics[0]).toMatchObject({
     column: at,

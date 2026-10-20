@@ -9,6 +9,7 @@ import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 import { loopBodyBlock } from "./loopDoBlock";
 import { isTrivia, lineTextSpan, makeSource } from "./validateDefineStructure";
+import { isLuauDocument, luauReadingReportsAllAt } from "../../typecheck/LuauUnitNodes";
 
 // Reports every Luau function, type function, `if`, `do`, `while`, `for` and
 // `repeat` block that is left open.
@@ -117,6 +118,25 @@ function asBlock(node: SyntaxNode): Block | null {
 
 function boundedMissingMessage(label: string, closer: "end" | "until"): string {
   return `This ${label} is missing its closing \`${closer}\` keyword on this \`&\` line. The following line remains story text.`;
+}
+
+// Whether the document is a `.luau` or `run` file, where Luau's reading
+// reports every error (I-1322) and the tree's blocks are not the story's (it
+// reads the file's lines as story statements, `nil:do` as a `do` block, or
+// wraps them in the `run`'s own function).
+function luauReportsOpenBlock(ctx: LowerContext): boolean {
+  return ctx.filePath !== undefined && isLuauDocument(ctx.filePath);
+}
+
+// Whether Luau's reading alone reports a block left open at its header: in
+// a `.luau` or `run` file, and in a `.sd` function's own Luau the type
+// checker reads (`luauReadingReportsAllAt`), where Luau's `Expected 'end'
+// (to close ...)` at Luau's range is the report and Sparkdown's on the
+// header would report the same mistake again (I-1322, the maintainer's
+// decision). A block in story, a `store`'s function value and a `&` line's
+// block are Sparkdown's to report.
+function luauReportsOpenBlockAt(header: SyntaxNode, ctx: LowerContext): boolean {
+  return luauReportsOpenBlock(ctx) || luauReadingReportsAllAt(header, (from, to) => ctx.read(from, to));
 }
 
 function missingEndMessage(label: string): string {
@@ -251,7 +271,8 @@ export function validateBlockEnds(
       if (
         !endKeywordOf(node) &&
         (block.bounded || findChildByName(node, `${node.name}_end`)) &&
-        !closedBeforeOuterCloser(node, OWNS_END, chunk)
+        !closedBeforeOuterCloser(node, OWNS_END, chunk) &&
+        !luauReportsOpenBlockAt(block.header, ctx)
       ) {
         report(diagnostics, block.header, block.bounded
           ? boundedMissingMessage(block.label, "end") : missingEndMessage(block.label), ctx);
@@ -267,7 +288,7 @@ export function validateBlockEnds(
       !closedBeforeOuterCloser(node, OWNS_UNTIL, chunk)
     ) {
       openRepeat = true;
-      report(diagnostics, node, BOUNDED_BLOCKS.has(node.name)
+      if (!luauReportsOpenBlockAt(node, ctx)) report(diagnostics, node, BOUNDED_BLOCKS.has(node.name)
         ? boundedMissingMessage("`repeat` loop", "until") : MISSING_UNTIL, ctx);
     }
     for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -361,7 +382,8 @@ type OpenEntry =
 // the document every block, scene and branch. Scenes and branches take part
 // so that their own `end`s are not counted as a block's: one left open after
 // a block inside it took an `end` is reported on that block, and one no block
-// took an `end` from is `validateSceneBranchScope.ts`'s to report.
+// took an `end` from is `validateSceneBranchScope.ts`'s to report. An `end`
+// with nothing open to close is reported on itself.
 export function validateOpenBlocks(
   top: SyntaxNode,
   ctx: LowerContext,
@@ -371,6 +393,7 @@ export function validateOpenBlocks(
   const reportEntry = (entry: OpenEntry) => {
     if (entry.kind === "block") {
       const { header, label, closer } = entry.block;
+      if (luauReportsOpenBlockAt(header, ctx)) return;
       report(
         diagnostics,
         header,
@@ -402,6 +425,14 @@ export function validateOpenBlocks(
       closeAbove((entry) => entry.kind === "scene");
       open.push({ kind: "branch" });
     } else if (node.name === "LuauEndKeyword") {
+      // An `end` with nothing open to close is reported on itself, as Luau
+      // reports one (#774): an extra `end` after a function, or the second
+      // `end` of an if statement written where an if expression is read,
+      // whose first `end` closed the function early. One that a `repeat`
+      // meets in place of its `until` is that loop's missing `until`. In a
+      // `.luau` or `run` file Luau's reading reports it, and nothing after
+      // it, where Luau's parser stops (`luauReportsOpenBlock`).
+      if (open.length === 0 && !luauReportsOpenBlock(ctx)) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
       // An `end` cannot close a `repeat`, so a `repeat` still open inside the
       // block it reaches is left without its `until`.
       closeAbove(
@@ -429,7 +460,9 @@ export function validateOpenBlocks(
         ? loopBodyBlock(node as GrammarSyntaxNode<SparkdownNodeName>)
         : node;
       const block = holder ? asBlock(holder) : null;
-      const prose = block && holder ? proseEnd(node, holder, ctx) : null;
+      // A `.luau` or `run` file holds no story text: Luau reads what follows
+      // an `end` on its line as a statement and reports it.
+      const prose = block && holder && !luauReportsOpenBlock(ctx) ? proseEnd(node, holder, ctx) : null;
       if (block && prose) {
         report(
           diagnostics,

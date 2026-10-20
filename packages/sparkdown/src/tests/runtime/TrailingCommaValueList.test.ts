@@ -278,19 +278,24 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([]);
   });
 
-  test("before the `=`, an unindented if expression after the targets' comma is a missing binding name", () => {
+  test("before the `=`, an unindented if expression after the targets' comma is a missing variable name", () => {
     const { errorMessages } = collectDiagnostics(
       "function f(c)\n  local a,\nif c then 2 else 3\n  return a\nend\nValue {f(true)}.\n",
     );
+    // Luau then reads `if c then 2 else 3` as an if statement, whose arms are
+    // values and which takes the function's `end` (I-1322).
     expect(errorMessages).toEqual([
-      "Expected identifier when parsing binding name, got 'if'",
+      "Expected identifier when parsing variable name, got 'if'",
+      "Expected identifier when parsing expression, got '2'",
+      "Expected identifier when parsing expression, got '3'",
+      "Expected 'end' (to close 'function' at line 1), got <eof>; did you forget to close 'else' at line 3?",
     ]);
   });
 
-  test("before a name, the targets' comma is a missing binding name", () => {
+  test("before a name, the targets' comma is a missing variable name", () => {
     const { errorMessages } = collectDiagnostics("function f()\n  local a,\nend\n");
     expect(errorMessages).toEqual([
-      "Expected identifier when parsing binding name, got 'end'",
+      "Expected identifier when parsing variable name, got 'end'",
     ]);
   });
 });

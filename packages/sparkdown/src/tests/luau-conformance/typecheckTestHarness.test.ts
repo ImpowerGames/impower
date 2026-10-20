@@ -64,6 +64,8 @@ describe("syntax diagnostics", () => {
 
   test("a snippet that closes its function early is reported at what follows", () => {
     expect(checkLuau("local x = 1\nend\nlocal y = 2").syntaxDiagnostics).toEqual([
+      // Luau's error for the `end` that closes nothing it opened (I-1322).
+      { line: 1, column: 0, endLine: 1, endColumn: 3, message: "Expected <eof>, got 'end'", code: "SyntaxError" },
       {
         line: 2,
         column: 0,

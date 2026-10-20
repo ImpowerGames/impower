@@ -132,10 +132,33 @@ import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 // Results
 // ---------------------------------------------------------------------------
 
-/** A syntax error the reading found, located in the document. */
+/**
+ * A syntax error the reading found, located in the document. The type
+ * checker reports every one of a unit's errors but those at Sparkdown's own
+ * tokens (`sparkdown`), in Luau's words at Luau's range (I-1322); the other
+ * flags say which of them a lowerer reports for a body the checker does not
+ * read (`reportBodySyntaxErrors`), and which statements the validator leaves
+ * to the reading (`unreadStatements`).
+ */
 export interface LuauSyntaxError {
   location: Location;
   message: string;
+  /**
+   * Not part of Luau: the token the error names is Sparkdown's own (a line
+   * of story where the tree ends the statement, a statement's `&` mark, a
+   * `store`, a `choose` block's own keywords, a divert), which is no token
+   * of Luau's; Sparkdown's own syntax reports what is wrong there.
+   */
+  sparkdown?: true;
+  /**
+   * Not part of Luau: the error is in what the reading goes on to read after
+   * the end of the chunk, where Luau's parser stops at its `Expected <eof>`
+   * error, so Luau reports none of it: the location of the token it last
+   * stopped at. Each statement the reading reads on into (a later function
+   * of a `.sd` document) is read as Luau would read it alone, so a stop in
+   * it is its own, and the errors after that stop carry that location.
+   */
+  pastChunkEnd?: Location;
   /**
    * Not part of Luau: what the error finds malformed, where only Luau's
    * reading of the tokens sees it and Sparkdown's grammar, which reads a
@@ -1261,6 +1284,23 @@ function describe(token: Token): string {
   }
 }
 
+/** A token's kind in an error, as Luau's `Lexeme::toString` writes a lexeme of its type alone. */
+function describeKind(token: Token): string {
+  switch (token.kind) {
+    case "name":
+      return "identifier";
+    case "number":
+      return "number";
+    case "string":
+    case "rawstring":
+      return "string";
+    case "eof":
+      return "<eof>";
+    default:
+      return `'${token.text}'`;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Literals
 // ---------------------------------------------------------------------------
@@ -1590,6 +1630,9 @@ class Parser {
   // the closing brackets given up on in the blocks being read (see
   // `parseBlockNoScope`).
   private sparkdownDepth = 0;
+  // Not part of Luau: whether the reading has gone on past the end of the
+  // chunk Luau's parser stops at (`parseChunk`).
+  private pastChunkEnd: Location | undefined;
   // Not part of Luau: how many attribute lists (`@[...]`) are being read;
   // every error met in one is the list's (`MalformedConstruct` "attribute").
   private attributeListDepth = 0;
@@ -1617,6 +1660,10 @@ class Parser {
   // Not part of Luau: where the last error of the statement being read begins (see `report`).
   private statementErrorBegin: Position | undefined;
   private readonly abandonedClosers: { text: string }[] = [];
+  // The opener of the last block whose closer stood on another line and in
+  // another column than it, which an `end` Luau finds missing later may
+  // have been meant to close (Luau's `endMismatchSuspect`).
+  private endMismatchSuspect: Token | undefined;
   // Not part of Luau: for each statement being read, the statements read
   // in it so far, by their tokens and errors, and the errors reported at a
   // token the grammar left unread (see `markUnreadErrors`).
@@ -1770,6 +1817,8 @@ class Parser {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
     }
+    if (atSparkdown) error.sparkdown = true;
+    if (this.pastChunkEnd) error.pastChunkEnd = this.pastChunkEnd;
     if (this.tokens[errorPos]?.unread) this.errorsAtUnread.add(this.errors.length);
     this.errors.push(error);
     if (this.errors.length >= ERROR_LIMIT) throw new FatalReadError(location, `Reached error limit (${ERROR_LIMIT})`);
@@ -1951,6 +2000,14 @@ class Parser {
 
   private expectMatchEndAndConsume(text: string, begin: Token): boolean {
     if (this.is(text)) {
+      // A closer on another line and in another column than its opener is
+      // indented as if it closed something else.
+      const at = this.current().location.begin;
+      const opened = begin.location.begin;
+      // A unit's own opener (a flow's wrapper function) is no author's.
+      if (begin.from < begin.to && at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
+        this.endMismatchSuspect = begin;
+      }
       this.nextExpected();
       return true;
     }
@@ -1959,7 +2016,9 @@ class Parser {
     // the converter owns the native misplaced-branch diagnostic. Keep EOF
     // and other keyword-closer diagnostics under their existing ownership.
     const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
-    this.expectMatchAndConsumeFail(text, begin, "", misplacedElseBranch ? "statement" : undefined);
+    const suspect = this.endMismatchSuspect;
+    const suggestion = suspect && suspect.location.begin.line > begin.location.begin.line ? `; did you forget to close ${describeKind(suspect)} at line ${suspect.location.begin.line + 1}?` : "";
+    this.expectMatchAndConsumeFail(text, begin, suggestion, misplacedElseBranch ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
       return false;
@@ -2034,6 +2093,10 @@ class Parser {
     const result = this.parseBlock();
     while (this.current().kind !== "eof") {
       this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`);
+      // Not part of Luau, whose parser stops there: the rest is read on for
+      // Sparkdown's own use, and its errors are none of Luau's, up to the
+      // next place it stops, which the errors after it name.
+      this.pastChunkEnd = this.current().location;
       this.next();
       const rest = this.parseBlock();
       appendAll(result.body, rest.body);
@@ -2070,20 +2133,6 @@ class Parser {
       if (current.kind === "break") {
         this.next();
         continue;
-      }
-      // Not part of Luau: a closer where a statement begins closes a bracket
-      // the reading gave up on, whose error is already reported.
-      const closed = current.kind === "symbol" ? this.abandonedClosers.findLastIndex((closer) => closer.text === current.text) : -1;
-      if (closed >= 0) {
-        this.abandonedClosers.splice(closed, 1);
-        // In the recovery from errors Luau's reading reports (`unread`), the
-        // closer is read as Luau reads it, a statement of the cascade.
-        if (!unreadErrors || followerLine !== current.location.begin.line) {
-          this.next();
-          // A statement on the closer's line begins in the same recovery.
-          followerLine = current.location.end.line;
-          continue;
-        }
       }
       const oldRecursionCount = this.recursionCounter;
       this.incrementRecursionCounter("block");
@@ -2232,7 +2281,6 @@ class Parser {
     }
 
     const start = token.location;
-    const reportsBefore = this.reports;
     const expr = this.parsePrimaryExpr(true);
 
     if (expr instanceof AstExprCall) return new AstStatExpr(expr.location, expr);
@@ -2263,9 +2311,6 @@ class Parser {
       this.skippedPos = this.pos;
       this.next();
     }
-    // Not part of Luau: a statement whose expression is already an error is
-    // that one malformed construct, not also an incomplete statement.
-    if (this.reports > reportsBefore) return new AstStatError(expr.location, [expr], [], this.errors.length - 1);
     const incomplete = this.reportStatError(expr.location, [expr], [], "Incomplete statement: expected assignment or a function call", "statement");
     // Not part of Luau: the statement stops at the token after its value.
     this.errorPos = this.pos;
@@ -3516,12 +3561,6 @@ class Parser {
   private parsePrimaryExpr(asStatement: boolean): AstExpr {
     const start = this.current().location.begin;
     let expr = this.parsePrefixExpr();
-    // Not part of Luau: what follows a value that never began (`{1 +}` as a
-    // statement) is not read as its call, which would report it again;
-    // after a token the grammar left unread, whose errors are Luau's to
-    // report (`markUnreadErrors`), it is read as Luau reads it (`.x` after a
-    // line-ending comma is a member of the missing value).
-    if (expr instanceof AstExprError && !this.current().unread) return expr;
     const oldRecursionCount = this.recursionCounter;
     for (;;) {
       if (this.is(".")) {
@@ -3702,6 +3741,7 @@ class Parser {
     const matchBrace = this.current();
     this.expectAndConsume("{", "table literal");
     while (!this.is("}")) {
+      const itemStart = this.current().location.begin;
       if (this.is("[")) {
         const matchBracket = this.current();
         this.next();
@@ -3722,7 +3762,11 @@ class Parser {
         items.push({ kind: TableItemKind.List, key: undefined, value: expr });
       }
       if (this.is(",") || this.is(";")) this.next();
-      else if (this.is("[") || this.isName()) this.report(this.current().location, "Expected ',' after table constructor element");
+      // An element on a later line in the same column as the one before it
+      // is the next element.
+      else if ((this.is("[") || this.isName()) && this.current().location.begin.line > this.previousLocation().end.line && this.current().location.begin.column === itemStart.column) {
+        this.report(this.current().location, "Expected ',' after table constructor element");
+      }
       else if (!this.is("}")) break;
     }
     let end = this.current().location;
@@ -3810,9 +3854,20 @@ class Parser {
   private parseNumber(): AstExpr {
     const token = this.current();
     this.next();
-    const value = numberValue(token.text);
-    if (value === undefined) return this.reportExprError(token.location, [], "Malformed number");
-    return new AstExprConstantNumber(token.location, value);
+    // Luau's lexer reads a number on through the letters, digits and `_`
+    // written right after it (`0xZ`, `123x`), as one malformed number,
+    // where the tree ends the number before them.
+    let text = token.text;
+    let last = token;
+    while ((this.current().kind === "name" || this.current().kind === "keyword" || this.current().kind === "number") && this.current().from === last.to) {
+      last = this.current();
+      text += last.text;
+      this.next();
+    }
+    const location = Location.span(token.location, last.location);
+    const value = numberValue(text);
+    if (value === undefined) return this.reportExprError(location, [], "Malformed number");
+    return new AstExprConstantNumber(location, value);
   }
 
   /** A quoted or long string's value, or undefined when an escape is malformed. */

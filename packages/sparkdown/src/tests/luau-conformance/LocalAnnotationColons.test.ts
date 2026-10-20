@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { checkLuau, describeDiagnostic, inDiagnosticOrder, luauSyntaxErrors } from "./typecheckTestHarness";
 import { collectDiagnostics } from "../runtime/runtimeTestHarness";
 
 // Colons around a declaration's targets that Luau rejects: a `::` after a
 // target on a line continued from a trailing comma (#1166), a `:` or `::`
 // with no name before it (#1167), and an annotation written with two
-// separate colons (#1168). The editor reports Luau's first error, with its
-// wording and range.
+// separate colons (#1168). The editor reports Luau's errors, the first and
+// those of Luau's recovery after it (I-1322), with their wording and range.
 
 type Fields = [number, number, number, number, string];
 
@@ -19,10 +19,11 @@ const fields = (d: { line: number; column: number; endLine: number; endColumn: n
   d.message,
 ];
 
-function expectLuausFirstError(source: string) {
+function expectLuausErrors(source: string) {
   const { syntaxDiagnostics, diagnostics } = checkLuau(source);
   expect(diagnostics.length).toBeGreaterThan(0);
-  expect(syntaxDiagnostics.map(fields)).toEqual([fields(diagnostics[0]!)]);
+  expect(syntaxDiagnostics.map(fields)).toContainEqual(fields(diagnostics[0]!));
+  expect(inDiagnosticOrder(syntaxDiagnostics)).toEqual(luauSyntaxErrors(diagnostics));
 }
 
 describe("a `::` after a target on a continued line (#1166)", () => {
@@ -34,13 +35,13 @@ describe("a `::` after a target on a continued line (#1166)", () => {
     "local a: number,\n  b :: number",
     "function f()\n  local a,\n    b :: number\nend",
   ])("%j reports the `::` as Luau does", (statement) => {
-    expectLuausFirstError(`${statement}\n`);
+    expectLuausErrors(`${statement}\n`);
   });
 
   test("the error is on the `::`", () => {
-    expect(checkLuau("local a,\n  b :: number\n").syntaxDiagnostics.map(fields)).toEqual([
+    expect(checkLuau("local a,\n  b :: number\n").syntaxDiagnostics.map(fields)).toEqual(expect.arrayContaining([
       [1, 4, 1, 6, "Expected identifier when parsing expression, got '::'"],
-    ]);
+    ]));
   });
 });
 
@@ -54,7 +55,7 @@ describe("a `:` or `::` with no name before it (#1167)", () => {
     "local a, : number",
     "local a,\n  :: number",
   ])("%j reports the colon as Luau does", (statement) => {
-    expectLuausFirstError(`${statement}\n`);
+    expectLuausErrors(`${statement}\n`);
   });
 
   test.each([
@@ -64,7 +65,7 @@ describe("a `:` or `::` with no name before it (#1167)", () => {
     ["const :: number", [0, 6, 0, 8, "Expected identifier when parsing variable name, got '::'"]],
     ["store : number", [0, 6, 0, 7, "Expected identifier when parsing variable name, got ':'"]],
   ] as [string, Fields][])("%j is worded as Luau words it", (statement, expected) => {
-    expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(fields)).toEqual([expected]);
+    expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(fields)).toContainEqual(expected);
   });
 });
 
@@ -77,13 +78,13 @@ describe("an annotation written with two separate colons (#1168)", () => {
     "local a, c: : number",
     "function f(a: : number) end",
   ])("%j reports the second colon as Luau does", (statement) => {
-    expectLuausFirstError(`${statement}\n`);
+    expectLuausErrors(`${statement}\n`);
   });
 
   test("the error runs from the first colon to the end of the second", () => {
-    expect(checkLuau("local c : : number\n").syntaxDiagnostics.map(fields)).toEqual([
+    expect(checkLuau("local c : : number\n").syntaxDiagnostics.map(fields)).toEqual(expect.arrayContaining([
       [0, 9, 0, 11, "Expected type, got ':'"],
-    ]);
+    ]));
   });
 });
 
@@ -100,10 +101,17 @@ describe("in a narrative body", () => {
     ["local c: : number = 1", "Expected type, got ':'"],
     ["scene S\n  local :: number\nend", "Expected identifier when parsing variable name, got '::'"],
     ["scene S\n  local c : : number\nend", "Expected type, got ':'"],
-    // A function in the script is Luau code, where the comma continues the list.
-    ["function f()\n  local a,\n    b :: number\nend", "Expected identifier when parsing expression, got '::'"],
   ])("%j reports the one error", (source, message) => {
     expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([message]);
+  });
+
+  // A function in the script is Luau code, where the comma continues the
+  // list, and every error of Luau's reading is reported (I-1322).
+  test("in a function, the comma continues the list", () => {
+    expect(collectDiagnostics("function f()\n  local a,\n    b :: number\nend\n").errorMessages).toEqual([
+      "Expected identifier when parsing expression, got '::'",
+      "Incomplete statement: expected assignment or a function call",
+    ]);
   });
 
   // The next line is story, so a trailing comma is the only error, as it is
@@ -113,7 +121,7 @@ describe("in a narrative body", () => {
     "%j reports only the trailing comma",
     (source) => {
       expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
-        "Expected identifier when parsing binding name, got <eof>",
+        "Expected identifier when parsing variable name, got <eof>",
       ]);
     },
   );

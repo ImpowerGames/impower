@@ -3,8 +3,8 @@
 //
 //  - a body Luau reads without an error gets no Sparkdown error, and the
 //    story after the function plays;
-//  - a body Luau rejects gets Sparkdown's first error at Luau's first error,
-//    with Luau's wording;
+//  - a body Luau rejects gets Luau's first error among Sparkdown's, at its
+//    place and in Luau's wording;
 //  - after edits inside the body, an incremental compile reports what a cold
 //    compile of the same text reports, errors and warnings with their ranges.
 //
@@ -232,7 +232,9 @@ describe("a function body read as Luau reads it (#1158)", () => {
     const first = errors(program)[0];
     expect(first, source).toBeDefined();
     if (NAME_ON_LATER_LINE.test(first!.message)) return;
-    expect(first, source).toEqual({
+    // Luau's recovery errors are reported too (I-1322), and one can begin
+    // before Luau's first (`Incomplete statement` at the statement's start).
+    expect(found, source).toContainEqual({
       line: expected[0]!.location.begin.line,
       character: expected[0]!.location.begin.column,
       message: expected[0]!.message,

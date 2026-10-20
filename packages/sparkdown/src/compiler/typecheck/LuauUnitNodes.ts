@@ -5,7 +5,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
-import { RUN_QUERY } from "../utils/runWrapper";
+import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
 // The statements of a `.sd` file that are Luau, wherever they sit.
@@ -114,10 +114,40 @@ export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number)
   return false;
 }
 
+/**
+ * Whether a node is in a function's own Luau, its header or its body, a
+ * pure-Luau body, where the type checker reports every error of Luau's
+ * reading, its recovery's included (I-1322). A story statement's Luau is
+ * bounded by its line, and its errors have one owner each (#931, #1907).
+ */
+export function inLuauFunction(node: SyntaxNode | null): boolean {
+  for (let n = node; n; n = n.parent) {
+    if (n.name === "LuauFunctionDefinition") return true;
+  }
+  return false;
+}
+
+/**
+ * Whether the type checker reports every syntax error of Luau's reading at
+ * a node (I-1322): the node is in a `.luau` or `run` file (`uri`, the
+ * document's), whose whole text is Luau, or it is Luau the checker reads
+ * (`isCheckedLuau`) in a function's own Luau (`inLuauFunction`). There a
+ * validator or lowerer reports none of Luau's own syntax errors.
+ */
+export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, to: number) => string, uri?: string): boolean {
+  if (uri !== undefined && isLuauDocument(uri)) return true;
+  return inLuauFunction(node) && isCheckedLuau(node, read);
+}
+
 /** Whether a document is a Luau file, which is Luau from its first line to its last. */
 export function isLuauFile(uri: string): boolean {
   const path = uri.split(/[?#]/, 1)[0]!;
   return path.endsWith(".luau") && !uri.includes(RUN_QUERY);
+}
+
+/** Whether a document is all Luau: a `.luau` file, or the `run` wrapper of one. */
+export function isLuauDocument(uri: string): boolean {
+  return isLuauFile(uri) || runWrapperName(uri) !== undefined;
 }
 
 /**
@@ -130,25 +160,6 @@ export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (fr
   let root = anyNode;
   while (root.parent) root = root.parent;
   return isCheckedLuau(root.resolveInner(position, 1), read);
-}
-
-/**
- * Whether the type checker reports a syntax error of Luau's reading at a
- * document position: the position is Luau it reads (`isCheckedLuau`), and
- * not in a double-quoted string's interpolation, which is Sparkdown's own
- * syntax, whose errors the reading leaves unflagged and the checker drops
- * (`sparkdownDepth` in `readLuauAst.ts`). Elsewhere a lowerer that reads the
- * Luau reports what must be reported.
- */
-export function checkerReportsSyntaxAt(anyNode: SyntaxNode, position: number, read: (from: number, to: number) => string): boolean {
-  let root = anyNode;
-  while (root.parent) root = root.parent;
-  const node = root.resolveInner(position, 1);
-  if (!isCheckedLuau(node, read)) return false;
-  for (let n: SyntaxNode | null = node; n; n = n.parent) {
-    if (n.name === "LuauDoubleQuotedStringInterpolation") return false;
-  }
-  return true;
 }
 
 // Luau's reserved words, which are never a name.

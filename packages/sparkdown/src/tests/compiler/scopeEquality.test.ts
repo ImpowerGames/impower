@@ -33,6 +33,10 @@ const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
 // colon, blank-line-separated content, and comment-line-separated content.
 // Newlines are explicit `\n` so the fixtures are immune to CRLF checkout.
 const TARGETED: Record<string, string> = {
+  // A method's name past the trivia after its `:` (I-1322), and the token
+  // that is no name where a comment leaves the reading.
+  "next-line-method-trivia":
+    "function f()\n  flag:\n\n  -- a note\n  m()\n  flag: --[[note]] m()\n  flag:\n  --[[note]] end\nend\nfunction g()\n  flag:\n  --[[note]] (1)\n  flag:\n  --[[note]] then\nend\nAfter {f()}.\n",
   "long-string-call-argument":
     "function f()\n  print [===[\nend\n]===]\nend\nAfter.\n",
   "long-string-call-chains":

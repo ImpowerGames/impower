@@ -1,6 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import { isLuauDocument } from "../../typecheck/LuauUnitNodes";
 import type { LowerContext } from "../context";
 import { statementSource } from "./statementSource";
 
@@ -76,10 +77,17 @@ function isInsideScene(branch: SyntaxNode): boolean {
   return false;
 }
 
+// A `.luau` or `run` file has no scene or branch, whatever its tree reads:
+// Luau's reading reports its lines (I-1322).
+function inLuauDocument(ctx: LowerContext): boolean {
+  return ctx.filePath !== undefined && isLuauDocument(ctx.filePath);
+}
+
 export function validateScene(
   decl: SyntaxNode,
   ctx: LowerContext,
 ): InkDiagnostic[] {
+  if (inLuauDocument(ctx)) return [];
   if (!findsMatchingEnd(decl)) {
     return [
       {
@@ -97,6 +105,7 @@ export function validateBranch(
   decl: SyntaxNode,
   ctx: LowerContext,
 ): InkDiagnostic[] {
+  if (inLuauDocument(ctx)) return [];
   const diagnostics: InkDiagnostic[] = [];
   if (!isInsideScene(decl)) {
     diagnostics.push({
