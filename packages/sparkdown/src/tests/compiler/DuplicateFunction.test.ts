@@ -114,6 +114,10 @@ describe("DuplicateFunction across scripts", () => {
     expect(programDuplicates(sources("function T.x() end\nfunction T.x() end\n"))).toEqual([`chapter.sd:1: ${message("T.x", 1)}`, `main.sd:2: ${message("T.x", 1)} in 'chapter.sd'`]);
   });
 
+  test("a story constant's table is a global table", () => {
+    expect(programDuplicates({ "main.sd": "include chapter.sd\nconst T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": "function T.x() end\n" })).toEqual([`main.sd:2: ${message("T.x", 1)} in 'chapter.sd'`]);
+  });
+
   test.each([
     ["a member of a local table", "& local T = {}\nfunction T.x() end\n& T.x()\n"],
     ["a definition inside a function", "function setup()\n function T.x() end\nend\n& setup()\n"],

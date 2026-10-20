@@ -75,6 +75,7 @@ import {
   AstTypeReference,
   BinaryOp,
   UnaryOp,
+  getFunctionNameAsString,
   visitAst,
   type AstLocal,
   type AstNode,
@@ -902,19 +903,6 @@ export function lintUnusedGlobalFunctions(program: LuauProgramNames, scripts: { 
 // ---------------------------------------------------------------------------
 // DuplicateFunction
 
-/** Luau's `buildName` for a function statement: a name, or names joined by
- *  `.`, a method's `:` included (`function T:x()` is `T.x`); empty for any
- *  other shape. */
-function functionStatementName(expr: AstExpr): string {
-  if (expr instanceof AstExprLocal) return expr.local.name;
-  if (expr instanceof AstExprGlobal) return expr.name;
-  if (expr instanceof AstExprIndexName) {
-    const receiver = functionStatementName(expr.expr);
-    return receiver && `${receiver}.${expr.index}`;
-  }
-  return "";
-}
-
 function duplicateFunctionMessage(name: string, line: number): string {
   return `Duplicate function definition: '${name}' also defined on line ${line}`;
 }
@@ -959,7 +947,8 @@ function lintDuplicateFunctions(root: AstNode, offsets: Offsets, out: LuauLint[]
         let name = "";
         let location: Location | undefined;
         if (stat instanceof AstStatFunction) {
-          name = functionStatementName(stat.name);
+          // Luau's `buildName`: names joined by `.`, a method's `:` included.
+          name = getFunctionNameAsString(stat.name) ?? "";
           location = stat.name.location;
           if (node === plainNamesCovered && !(stat.name instanceof AstExprIndexName)) continue;
         } else if (stat instanceof AstStatLocalFunction) {
@@ -980,17 +969,19 @@ function lintDuplicateFunctions(root: AstNode, offsets: Offsets, out: LuauLint[]
 
 /** The member definitions on a global table in a script's top level
  *  (`TopLevelMemberDefinition`), leaving out any in a statement holding a
- *  syntax error or a block missing its `end`. */
+ *  syntax error or a block missing its `end`. The receiver is global as the
+ *  name facts bind it at runtime, so a story constant's table (a `const`
+ *  outside every function) is one. */
 function topLevelMembers(names: LuauNameFacts, prelude: AstStatBlock, misread: readonly NameRange[]): TopLevelMemberDefinition[] {
   const found: TopLevelMemberDefinition[] = [];
   for (const definition of names.functions) {
     if (definition.scope !== prelude || !(definition.target instanceof AstExprIndexName)) continue;
     let receiver: AstExpr = definition.target;
     while (receiver instanceof AstExprIndexName) receiver = receiver.expr;
-    if (!(receiver instanceof AstExprGlobal)) continue;
+    const reference = names.references.find((candidate) => candidate.node === receiver);
+    if (!reference || reference.local) continue;
     if (misread.some((range) => range.from <= definition.from && definition.from < range.to)) continue;
-    const name = functionStatementName(definition.target);
-    if (name) found.push({ name, from: definition.from, to: definition.to });
+    found.push({ name: definition.name, from: definition.from, to: definition.to });
   }
   return found;
 }
