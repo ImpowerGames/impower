@@ -188,7 +188,7 @@ fnB() -- prints "false", "nil"
 });
 
 // Luau: LocalShadowLocal
-describe.skip("a local redeclared in the same scope (not implemented: LocalShadow)", () => {
+describe("a local redeclared in the same scope", () => {
   test("local arg twice", () => {
     expect(
       lintMessagesInFunction(`
@@ -204,7 +204,7 @@ print(arg)
 
 // Luau: LocalShadowGlobal
 // Shadowing itself is covered as behavior in LocalShadowsGlobal.test.ts.
-describe.skip("a local named like a global in use (not implemented: LocalShadow)", () => {
+describe("a local named like a global in use", () => {
   test("local global inside bar", () => {
     expect(
       lintMessagesInFunction(`
@@ -223,7 +223,7 @@ return bar()
 });
 
 // Luau: LocalShadowArgument
-describe.skip("a local named like a parameter (not implemented: LocalShadow)", () => {
+describe("a local named like a parameter", () => {
   test("local a inside bar(a, b)", () => {
     expect(
       lintMessagesInFunction(`
@@ -283,12 +283,14 @@ describe.skip("a function used only in a type (not implemented: FunctionUnused)"
   });
 });
 
-// Luau: DeadLocalsUsed
+// Luau: DeadLocalsUsed (adapted)
+// Sparkdown has no `--!nolint` (#598), so the directive is dropped, which
+// moves every line up by one, and the loop variable's LocalShadow warning is
+// expected too.
 describe.skip("locals read but never assigned (not implemented: UninitializedLocal, UnbalancedAssignment)", () => {
   test("x hidden by a loop variable, c without a value", () => {
     expect(
       lintMessagesInFunction(`
---!nolint LocalShadow
 do
     local x
     for x in pairs({}) do
@@ -308,9 +310,10 @@ do
 end
     `),
     ).toEqual([
-      "Variable 'x' defined at line 4 is never initialized or assigned; initialize with 'nil' to silence",
+      "Variable 'x' defined at line 3 is never initialized or assigned; initialize with 'nil' to silence",
+      "Variable 'x' shadows previous declaration at line 3",
       "Assigning 2 values to 3 variables initializes extra variables with nil; add 'nil' to value list to silence",
-      "Variable 'c' defined at line 12 is never initialized or assigned; initialize with 'nil' to silence",
+      "Variable 'c' defined at line 11 is never initialized or assigned; initialize with 'nil' to silence",
     ]);
   });
 });

@@ -27,6 +27,7 @@
 // and the Luau inside, but do not compare its arms' conditions.
 
 import { Tree, TreeBuffer, type NodeSet, type SyntaxNode } from "@lezer/common";
+import { STDLIB, STDLIB_CONSTANTS } from "../../runtime/StdLib";
 import {
   AstExpr,
   AstExprBinary,
@@ -79,11 +80,11 @@ import {
 import { doesCallError } from "../typecheck/DataFlowGraph";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
-import { NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
+import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
-import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type NameRoot } from "./luauNames";
+import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type LuauProgramNames, type NameRange, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
 /** The rules, by the name each warning carries as its diagnostic code. */
@@ -93,6 +94,7 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "LocalShadow",
   "SameLineStatement",
   "MultiLineStatement",
 ] as const;
@@ -110,6 +112,12 @@ export interface LuauScriptLints {
   lints: LuauLint[];
   names: LuauNameFacts;
   roots: NameRoot[];
+  /** Used locals in functions that hide no other local, which warn when the
+   * program uses a global of their name (`lintGlobalShadows`). */
+  globalShadows: GlobalShadowCandidate[];
+  /** The offsets of global references that may not be global uses
+   * (`uncertainGlobalUses`). */
+  uncertainGlobalUses: ReadonlySet<number>;
 }
 
 /** The offset of each line of a document. */
@@ -562,6 +570,188 @@ function keywordWords(tree: Tree, text: string, from: number, to: number, names:
 }
 
 // ---------------------------------------------------------------------------
+// LocalShadow
+
+// Luau's LocalShadow: a used local that hides an earlier local of the same
+// function, or, hiding no local, a global the program uses. A local is used
+// where Luau's LocalHygiene counts it: any occurrence but a plain write.
+// Hiding a local of an enclosing function is not reported, nor a second
+// local function of a name, nor a local declared by the same statement as the
+// one it hides (DuplicateFunction's and DuplicateLocal's cases in Luau). As
+// in Luau, parameters and loop variables share that "same statement" (they
+// have none), so one hiding another is silent, unless the hidden one is a
+// loop variable never used, which Luau's pass never records. Sparkdown also
+// exempts names starting with `_`. A name the grammar reads as a Sparkdown
+// keyword in the function (`keywordWords`) may stand for a local the reading
+// lacks, so it silences the name there.
+
+export interface GlobalShadowCandidate extends NameRange {
+  name: string;
+}
+
+function lintLocalShadows(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], globals: GlobalShadowCandidate[]): void {
+  const declared: AstLocal[] = [];
+  const statementOf = new Map<AstLocal, AstNode>();
+  const localFunctions = new Set<AstLocal>();
+  const parameters = new Set<AstLocal>();
+  const used = new Set<AstLocal>();
+  visitAst(fn, {
+    visit(node) {
+      if (node instanceof AstExprFunction) {
+        const own = [...(node.self ? [node.self] : []), ...node.args];
+        declared.push(...own);
+        for (const local of own) parameters.add(local);
+      } else if (node instanceof AstStatFor) declared.push(node.variable);
+      else if (node instanceof AstStatForIn) declared.push(...node.vars);
+      else if (node instanceof AstStatLocalFunction) {
+        declared.push(node.name);
+        localFunctions.add(node.name);
+        statementOf.set(node.name, node);
+      } else if (node instanceof AstStatLocal) {
+        declared.push(...node.vars);
+        for (const local of node.vars) statementOf.set(local, node);
+      }
+      if (node instanceof AstStatAssign) {
+        for (const target of node.vars) if (!isLocalWrite(target)) visitAst(target, this);
+        for (const value of node.values) visitAst(value, this);
+        return false;
+      }
+      if (node instanceof AstExprLocal) used.add(node.local);
+      return true;
+    },
+  });
+  const names = new Set(declared.map((local) => local.name));
+  const uncertain = new Set(keywordWords(tree, text, offsets.of(fn.location.begin), offsets.of(fn.location.end), names).map(({ name }) => name));
+  for (const local of declared) {
+    if (!used.has(local) || !isAuthoredLuauName(local.name) || local.name.startsWith("_") || uncertain.has(local.name)) continue;
+    const shadow = local.shadow;
+    if (!shadow) {
+      globals.push({ name: local.name, ...offsets.range(local.location) });
+      continue;
+    }
+    if (shadow.functionDepth !== local.functionDepth) continue;
+    if (localFunctions.has(local) && localFunctions.has(shadow)) continue;
+    // Luau's pass records a local it saw declared, as a parameter, or used.
+    const recorded = statementOf.has(shadow) || parameters.has(shadow) || used.has(shadow);
+    if (recorded && statementOf.get(local) === statementOf.get(shadow)) continue;
+    out.push({ code: "LocalShadow", ...offsets.range(local.location), message: `Variable '${local.name}' shadows previous declaration at line ${offsets.line(shadow.location.begin) + 1}` });
+  }
+}
+
+// Only own registry keys are built-ins; Object.prototype names are ordinary globals.
+const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_CONSTANTS)].map((name) => name.split(".")[0]!));
+
+/** Every name in a scene's or branch's parameter list. A flow without Luau
+ * statements has no unit, so the names its narrative reads look global. */
+function flowParameterNames(tree: Tree, text: string): Set<string> {
+  const names = new Set<string>();
+  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+    if (!FLOW_HEADERS.has(node.name)) continue;
+    tree.iterate({
+      from: node.from,
+      to: node.to,
+      enter(inner) {
+        if (inner.name !== "LuauFunctionParameters") return true;
+        for (const match of text.slice(inner.from, inner.to).matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) names.add(match[0]);
+        return false;
+      },
+    });
+  }
+  return names;
+}
+
+/**
+ * The offsets of a script's global references that may not be global uses:
+ * one that a local of its name in the script could reach (the reading of an
+ * expression outside a unit, an interpolation, does not see the locals around
+ * it), one naming a parameter of a scene or branch, and one on a line the
+ * reading reported a syntax error on, where a name can be a misread piece of
+ * something else (an integer literal's `i` suffix, a string's escape).
+ */
+function uncertainGlobalUses(names: LuauNameFacts, parameters: Set<string>, errorLines: Set<number>, starts: number[]): Set<number> {
+  const uncertain = new Set<number>();
+  const lineOf = (offset: number) => {
+    let low = 0;
+    let high = starts.length - 1;
+    while (low < high) {
+      const mid = (low + high + 1) >> 1;
+      if (starts[mid]! <= offset) low = mid;
+      else high = mid - 1;
+    }
+    return low;
+  };
+  const declarations = new Map<string, LuauNameFacts["declarations"]>();
+  for (const declaration of names.declarations) {
+    let list = declarations.get(declaration.name);
+    if (!list) declarations.set(declaration.name, (list = []));
+    list.push(declaration);
+  }
+  for (const reference of names.references) {
+    if (reference.local) continue;
+    const { name, from } = reference;
+    if (parameters.has(name) || errorLines.has(lineOf(from)) || declarations.get(name)?.some((d) => d.from <= from && from <= (d.scopeTo ?? Infinity))) uncertain.add(from);
+  }
+  return uncertain;
+}
+
+/** A global reference, located for a `LocalShadow` message. */
+export interface GlobalShadowReference {
+  uri: string;
+  from: number;
+}
+
+/**
+ * The program-wide half of `LocalShadow`: each script's candidates
+ * (`LuauScriptLints.globalShadows`) against the globals the current program
+ * reads or writes. Luau reports the first use in its one file; the use named
+ * is the first in the candidate's own script, or else the first by
+ * normalized script URI and then offset. A built-in (the standard library's
+ * names, or `builtins`, the globals the prelude declares), a name the reading
+ * could not place somewhere in the program, or only definitions without a
+ * use (a `const`) report nothing. Neither does a name declared as a local
+ * outside every function anywhere in the program: such a local can reach
+ * later scenes and including scripts, which the reading does not show. A
+ * script's uncertain references (`uncertainGlobalUses`) are not uses.
+ */
+export function lintGlobalShadows(
+  program: LuauProgramNames,
+  scripts: { uri: string; globalShadows: GlobalShadowCandidate[]; uncertainGlobalUses: ReadonlySet<number> }[],
+  builtins: ReadonlySet<string>,
+  message: (name: string, reference: GlobalShadowReference, own: boolean) => string,
+): { uri: string; lint: LuauLint }[] {
+  const found: { uri: string; lint: LuauLint }[] = [];
+  const uncertain = new Map(scripts.map(({ uri, uncertainGlobalUses }) => [uri, uncertainGlobalUses]));
+  const firsts = new Map<string, { own: Map<string, GlobalShadowReference>; any?: GlobalShadowReference & { key: string } }>();
+  const firstOf = (name: string) => {
+    let first = firsts.get(name);
+    if (first) return first;
+    first = { own: new Map() };
+    firsts.set(name, first);
+    const global = program.globals.get(name);
+    if (!global || BUILTIN_GLOBALS.has(name) || builtins.has(name) || program.uncertainNames.has(name)) return first;
+    for (const names of program.scripts.values()) if (names.declarations.some((d) => d.name === name && !d.enclosingFunction)) return first;
+    for (const reference of [...global.reads, ...global.writes]) {
+      if (uncertain.get(reference.uri)?.has(reference.from)) continue;
+      const own = first.own.get(reference.uri);
+      if (!own || reference.from < own.from) first.own.set(reference.uri, { uri: reference.uri, from: reference.from });
+      const key = new URL(reference.uri).href;
+      if (!first.any || key < first.any.key || (key === first.any.key && reference.from < first.any.from)) first.any = { uri: reference.uri, from: reference.from, key };
+    }
+    return first;
+  };
+  for (const { uri, globalShadows } of scripts) {
+    for (const candidate of globalShadows) {
+      const first = firstOf(candidate.name);
+      const own = first.own.get(uri);
+      const reference = own ?? first.any;
+      if (!reference) continue;
+      found.push({ uri, lint: { code: "LocalShadow", from: candidate.from, to: candidate.to, message: message(candidate.name, reference, !!own) } });
+    }
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
 // PlaceholderRead
 
 // A read of `_`, whether it names a local or a global. A plain write is the
@@ -853,7 +1043,7 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 }
 
 // ---------------------------------------------------------------------------
-const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[] }>();
+const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number> }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
@@ -873,16 +1063,24 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     roots.push(...outside.map(({ expr, statements }) => ({ root: statements && expr instanceof AstExprFunction ? expr.body : expr, offsets: new Offsets(starts, undefined), functionBody: statements && expr instanceof AstExprFunction })));
     const names = collectNameFacts(roots, text);
     names.uncertainNames = uncertainNames(nodes, text, names);
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots };
+    const errorLines = new Set<number>();
+    for (const unit of [units.prelude, ...units.flows]) {
+      const offsets = new Offsets(starts, unit.lines);
+      for (const { location } of unit.errors) for (let line = offsets.line(location.begin); line <= offsets.line(location.end); line++) errorLines.add(line);
+    }
+    for (const { errors } of outside) for (const { location } of errors) for (let line = location.begin.line; line <= location.end.line; line++) errorLines.add(line);
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, flowParameterNames(tree, text), errorLines, starts) };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
   const out: LuauLint[] = [];
   // Separate AST readings can share a document line (two interpolations).
   const sameLines = new Set<number>();
+  const globalShadows: GlobalShadowCandidate[] = [];
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
     for (const fn of functions) {
       lintUnusedLocals(fn, tree, text, offsets, out);
+      lintLocalShadows(fn, tree, text, offsets, out, globalShadows);
       lintPlaceholderReads(fn, offsets, out);
       lintUnreachable(fn, offsets, out);
     }
@@ -907,5 +1105,6 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
-  return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to), names: facts.names, roots: facts.roots };
+  const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
+  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses };
 }

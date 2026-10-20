@@ -24,6 +24,8 @@ export interface LuauNameDeclaration extends NameRange {
   enclosingFunction?: AstExprFunction;
   function?: AstExprFunction;
   scope?: AstStatBlock;
+  /** The document offset where `scope` ends; absent without a scope. */
+  scopeTo?: number;
 }
 export interface LuauGlobalDefinition extends NameRange {
   name: string;
@@ -107,7 +109,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         published.add(local);
         facts.globals.push({ name: local.name, kind: "const", ...offsets.range(local.location), node: stat ?? fn ?? root, enclosingFunction, function: fn, scope: declarationScope });
       }
-      else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope });
+      else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope, scopeTo: declarationScope && offsets.range(declarationScope.location).to });
     };
     const reference = (node: AstExprGlobal | AstExprLocal, access: LuauNameReference["access"]) => {
       const local = binding(node);

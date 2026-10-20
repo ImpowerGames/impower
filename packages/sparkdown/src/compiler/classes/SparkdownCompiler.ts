@@ -8,6 +8,8 @@ import {
 import {
   collectLuauLints,
   indexProgramNames,
+  lintGlobalShadows,
+  type LuauLint,
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
@@ -71,7 +73,7 @@ import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
 import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
-import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
+import { getBuiltinTypeNames, setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
@@ -253,6 +255,21 @@ function getCompiledPrelude(): {
   // `mergePreludeSparkle` reaches here before the parse.
   setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
   return _cachedPrelude;
+}
+
+/** A script's path as a message names it: relative to the main script's
+ *  folder, as an `include` line names it, or else its whole URI. */
+function displayScriptPath(scriptUri: string, mainUri: string): string {
+  try {
+    const script = new URL(scriptUri);
+    const root = new URL("./", mainUri);
+    if (script.protocol === root.protocol && script.host === root.host && script.pathname.startsWith(root.pathname)) {
+      return decodeURIComponent(script.pathname.slice(root.pathname.length));
+    }
+  } catch {
+    // An unparsable URI is named whole.
+  }
+  return scriptUri;
 }
 
 let _preludeGlobalNames: Set<string> | undefined;
@@ -5572,12 +5589,24 @@ export class SparkdownCompiler {
   }
 
   /** Luau lints (unused locals, unreachable code, repeated conditions,
-   *  suspicious numeric `for` ranges, reads of the placeholder `_`); see
+   *  suspicious numeric `for` ranges, reads of the placeholder `_`, locals
+   *  hiding another variable); see
    *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
-    const scripts: { uri: string; names: LuauScriptLints["names"] }[] = [];
+    const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses">)[] = [];
+    const report = (scriptUri: string, lint: LuauLint) => {
+      const doc = this.documents.get(scriptUri);
+      if (!doc) return;
+      ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+        range: doc.range(lint.from, lint.to),
+        code: lint.code,
+        severity: DiagnosticSeverity.Warning,
+        message: { kind: "markdown", value: lint.message },
+        source: LANGUAGE_NAME,
+      });
+    };
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
@@ -5587,18 +5616,20 @@ export class SparkdownCompiler {
         script = collectLuauLints(tree, (from, to) => doc.read(from, to));
         this._lintsByTree.set(tree, script);
       }
-      scripts.push({ uri: scriptUri, names: script.names });
-      for (const lint of script.lints) {
-        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
-          range: doc.range(lint.from, lint.to),
-          code: lint.code,
-          severity: DiagnosticSeverity.Warning,
-          message: { kind: "markdown", value: lint.message },
-          source: LANGUAGE_NAME,
-        });
-      }
+      scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses });
+      for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);
+    // Program-wide rules rerun on every compile over the cached facts. The
+    // prelude's own compile, which seeds the prelude's globals, has none.
+    if (!program.scripts[BUILTINS_PRELUDE_URI] && scripts.some((script) => script.globalShadows.length)) {
+      const builtins = new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
+      const shadows = lintGlobalShadows(names, scripts, builtins, (name, reference, own) => {
+        const line = (this.documents.get(reference.uri)?.positionAt(reference.from).line ?? 0) + 1;
+        return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri)}'`}`;
+      });
+      for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
+    }
     profile("end", this._profilerId, "validateLints", uri);
     return names;
   }
