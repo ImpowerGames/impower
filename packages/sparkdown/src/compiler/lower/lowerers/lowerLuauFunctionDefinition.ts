@@ -7,6 +7,7 @@ import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
+import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -148,12 +149,18 @@ export function lowerLuauFunctionDefinition(
   }
 
   const args = functionArguments(func);
+  // The names the body reads that no scope of its own binds, which its
+  // entry binds to the top-level locals of those names (`RootBinding`): a
+  // function written at the top level reads and writes a top-level local as
+  // Luau's upvalue, though it is built before the local exists.
+  const rootNames = freeVariables(parameterNames(func), func.body, ctx);
   // The body opens a per-function buffer for any nested callables
   // (function values, nested named functions), so they live as subFlows of
   // this function rather than at the chunk's top level, and stacks this
   // function's own locals so a nested function's capture scan can detect
   // shadowing.
   const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx);
+  hoisted.unshift(...rootNames.map((name) => new RootBinding(name)));
   const knot = new Knot(identifier, [], args, true);
   close(knot);
   // A definition closes at its `end` or just before a following `scene` or

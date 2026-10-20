@@ -22,6 +22,7 @@ import {
   ObjectExpressionEntry,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/VariablePointerExpression";
+import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -355,11 +356,17 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * declares it and it is a stdlib name or a global callable (a top-level
  * function, `external`, `store` or `const`): a read of a global the program
  * never declares is captured too.
+ *
+ * `stdlibReads`, when given, collects the stdlib names left uncaptured that
+ * way (`_G` aside), in the order they are first read, which the function
+ * binds to a top-level local of the name, if one exists as it runs
+ * (`stdlibRootReads`).
  */
 export function freeVariables(
   params: readonly string[],
   body: AstStatBlock | null,
   ctx: LowerContext,
+  { stdlibReads }: { stdlibReads?: string[] } = {},
 ): string[] {
   if (!body) return [];
   // Names bound inside the function: its parameters, and the `store`s its
@@ -425,6 +432,7 @@ export function freeVariables(
   };
   const free: string[] = [];
   const seen = new Set<string>();
+  const stdlibSeen = new Set<string>();
   const read = (name: string, location: Location) => {
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
@@ -439,7 +447,12 @@ export function freeVariables(
       return;
     }
     if (!isShadowedLocal(name)) {
-      if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name) || isGlobalCallable(name)) {
+      if (isGlobalCallable(name)) return;
+      if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) {
+        if (stdlibReads && name !== "_G" && !stdlibSeen.has(name)) {
+          stdlibSeen.add(name);
+          stdlibReads.push(name);
+        }
         return;
       }
     }
@@ -565,13 +578,32 @@ export function buildClosureExpression(
 }
 
 /**
+ * The stdlib names a function's body reads that no function around it
+ * declares (`freeVariables`' `stdlibReads`), as `RootBinding`s: a closure
+ * cannot capture such a name, since the builtin it names is no variable, so
+ * the function binds it to a top-level local of the name, if one exists as
+ * it runs (`local count = 0` above a function that counts), and otherwise
+ * reads the builtin.
+ */
+export function stdlibRootReads(
+  params: readonly string[],
+  body: AstStatBlock | null,
+  ctx: LowerContext,
+): RootBinding[] {
+  const stdlibReads: string[] = [];
+  freeVariables(params, body, ctx, { stdlibReads });
+  return stdlibReads.map((name) => new RootBinding(name));
+}
+
+/**
  * Lowers the body of the function `func` (written at the syntax node `node`)
  * inside the scopes a function opens: a buffer for the functions nested in
  * it, its own locals on the declared-locals stack, a buffer for the
  * `local NAME = nil` declarations its bare nested `function NAME`s hoist,
  * and a frame for its variadic nested functions. Returns the body's objects
  * with the hoisted declarations first and the nested functions last, and
- * passes the shape of the body to `close` once the function is built.
+ * passes the shape of the body to `close` once the function is built. The
+ * hoisted objects begin with the function's `stdlibRootReads`.
  */
 export function lowerFunctionBody(
   func: AstExprFunction,
@@ -585,6 +617,8 @@ export function lowerFunctionBody(
   close: (flow: ParsedObject) => void;
 } {
   const content = getFunctionBodyContent(node);
+  // Read in the scopes around the function, before its own are pushed.
+  const rootReads = stdlibRootReads(parameterNames(func), func.body, ctx);
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
   const bindings = functionBindings(
@@ -611,6 +645,7 @@ export function lowerFunctionBody(
   ctx.declaredLocalsStack?.pop();
   ctx.functionBindingsStack?.pop();
   ctx.functionScopeStack?.pop();
+  hoisted.unshift(...rootReads);
   return {
     hoisted,
     body,

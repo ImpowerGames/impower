@@ -22,6 +22,11 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { StructDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import { StructPropertyDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructPropertyDefinition";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import {
+  DefineCellBinding,
+  defineCellName,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/DefineCellBinding";
+import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -455,10 +460,23 @@ export function lowerLuauDefine(
   // A computed key's name is unknown until init, so it takes no modifier
   // list, struct property or context entry.
   const named = properties.filter((p) => !p.key);
+  // Where a define is written in a function, the bindings of the cells its
+  // methods read that function's locals through (`DefineCellBinding`).
+  const cellBindings: DefineCellBinding[] = [];
   for (const method of methodNodes) {
-    const closure = lowerDefineMethod(method.name, method.node, ctx);
-    if (closure) {
-      entries.push(new ObjectExpressionEntry(method.name, closure));
+    const lowered = lowerDefineMethod(method.name, method.node, ctx, (local) =>
+      defineCellName(
+        parentIdentifier?.name ?? "",
+        nameIdentifier.name ?? "",
+        method.name,
+        local,
+      ),
+    );
+    if (lowered) {
+      entries.push(new ObjectExpressionEntry(method.name, lowered.closure));
+      for (const { cell, local } of lowered.cells) {
+        cellBindings.push(new DefineCellBinding(cell, local));
+      }
     }
   }
   // Hidden modifier lists. `__storeProps` drives the copy-into-instance
@@ -547,7 +565,11 @@ export function lowerLuauDefine(
     isDefineDeclaration: true,
   });
 
-  const block = wrapInWeave([declaration]);
+  // A define written in a function has its table built when the story
+  // starts, like any other, and where it is written points the cells its
+  // methods read at the function's locals, so they read the locals of the
+  // call that ran it.
+  const block = wrapInWeave([declaration, ...cellBindings]);
 
   // ----- Compile-time struct registry (engine specs) for typed defines.
   //
@@ -636,12 +658,16 @@ export function lowerLuauDefine(
 // expression that the class table stores under the method's name.
 // Mirrors `lowerPropertyTargetFunctionDefinition`'s colon form
 // (`function Class:method(...)`) — same upval capture, same
-// `__closure_user_arity` contract (counts `self`).
+// `__closure_user_arity` contract (counts `self`). In a define written in a
+// function, the closure captures, for each local it reads, the global
+// `cellName` names for it (`DefineCellBinding`), and the cells are returned
+// with the locals they stand for.
 function lowerDefineMethod(
   _methodName: string,
   node: SyntaxNode,
   ctx: LowerContext,
-): Expression | null {
+  cellName: (local: string) => string,
+): { closure: Expression; cells: { cell: string; local: string }[] } | null {
   const content = getFunctionBodyContent(node);
   if (!content) return null;
 
@@ -653,11 +679,26 @@ function lowerDefineMethod(
     .filter((a) => !a.isVararg)
     .map((a) => a.identifier?.name ?? "");
   const reading = readBodyAst(content, METHOD_BODY_SKIP, ctx);
+  // The stdlib names it reads that no function around it declares, which it
+  // binds to a top-level local of the name (`stdlibRootReads`).
+  const stdlibReads: string[] = [];
   const upvals = freeVariables(
     params,
     reading?.unit.root ?? null,
     ctx,
+    { stdlibReads },
   ).filter((n) => n !== "self");
+  // The define's table is built when the story starts, before the top level
+  // runs, so what a method captures there is not yet the top-level local it
+  // reads: a method of a define written at the top level binds each name it
+  // reads to the top-level local of that name at its entry, after its
+  // parameters, as it runs (`RootBinding`), as a top-level function's does,
+  // and otherwise reads what it captured, which reads the global of the
+  // name. It keeps those captures, so a closure of it that a save holds (a
+  // method kept in a variable) passes the parameters the method binds. A
+  // method of a define written in a function reads that function's locals
+  // through cells the define's line points at them when it runs.
+  const atTopLevel = !ctx.functionScopeStack?.length;
   recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
@@ -696,6 +737,11 @@ function lowerDefineMethod(
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
+  hoistedDecls.unshift(
+    ...[...(atTopLevel ? upvals : []), ...stdlibReads].map(
+      (name) => new RootBinding(name),
+    ),
+  );
   const fn = new Function(
     new Identifier(synthName),
     [...hoistedDecls, ...body, ...nested],
@@ -719,7 +765,17 @@ function lowerDefineMethod(
   }
 
   const userArity = 1 + userArgs.filter((a) => !a.isVararg).length;
-  return buildClosureExpression(synthName, upvals, userArity);
+  const cells = atTopLevel
+    ? []
+    : upvals.map((local) => ({ cell: cellName(local), local }));
+  return {
+    closure: buildClosureExpression(
+      synthName,
+      atTopLevel ? upvals : cells.map(({ cell }) => cell),
+      userArity,
+    ),
+    cells,
+  };
 }
 
 // ----------------------------------------------------------------------------
