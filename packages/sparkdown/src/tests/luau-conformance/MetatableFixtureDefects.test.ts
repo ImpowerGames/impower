@@ -73,6 +73,25 @@ assert(f() == 3, tostring(f()))
 `);
   });
 
+  // Round 2's review (comment 6280983135): a definition of a name that is
+  // a parameter assigns the parameter.
+  test("a redefinition of a parameter assigns the parameter", () => {
+    passes(`
+local function change(f)
+  assert(f() == 1)
+  function f(...) return 2 end
+  assert(f() == 2)
+end
+change(function() return 1 end)
+local function fixed(g)
+  assert(g() == 1)
+  function g() return 3 end
+  assert(g() == 3)
+end
+fixed(function() return 1 end)
+`);
+  });
+
   test("a variadic redefinition of a local function", () => {
     passes(`
 local t = {}
@@ -134,6 +153,22 @@ assert(not ok and err:match("attempt to call a number value"))
 local c = setmetatable({}, { __eq = 42 })
 local d = setmetatable({}, { __eq = 42 })
 assert(not pcall(function() return c == d end))
+`);
+  });
+
+  test("a NaN handler matches no handler, unless one metatable holds it as `__eq`", () => {
+    passes(`
+local nan = 0/0
+local lt = function() return false end
+local a = setmetatable({}, { __le = nan, __lt = lt })
+local b = setmetatable({}, { __le = nan, __lt = lt })
+assert(a <= b)
+local c = setmetatable({}, { __eq = nan })
+local d = setmetatable({}, { __eq = nan })
+assert(c ~= d)
+local mt = { __eq = nan }
+local e, f = setmetatable({}, mt), setmetatable({}, mt)
+assert(not pcall(function() return e == f end))
 `);
   });
 

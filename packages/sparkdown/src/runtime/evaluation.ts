@@ -345,6 +345,13 @@ const UNOP_TO_METAMETHOD: Record<string, string> = {
 // even if the wrapper instances differ.
 function sameLuauFunctionValue(a: any, b: any): boolean {
   if (a == null || b == null) return false;
+  // A number is rawequal by value, so a NaN handler matches nothing, not
+  // even itself.
+  const rawA = (a as { value?: unknown }).value;
+  const rawB = (b as { value?: unknown }).value;
+  if (typeof rawA === "number" || typeof rawB === "number") {
+    return rawA === rawB;
+  }
   if (a === b) return true;
   if (a instanceof ObjectValue && b instanceof ObjectValue) {
     if (a.value === b.value) return true;
@@ -365,10 +372,8 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
   // A handler that is no function (`__le = 42` on two metatables) is
   // still compared rawequal, by value, as Luau's `get_compTM` does; the
   // call then raises.
-  const rawA = (a as { value?: unknown }).value;
-  const rawB = (b as { value?: unknown }).value;
   return (
-    ["number", "string", "boolean"].includes(typeof rawA) &&
+    ["string", "boolean"].includes(typeof rawA) &&
     typeof rawA === typeof rawB &&
     rawA === rawB
   );
@@ -518,10 +523,20 @@ function tryBinaryMetamethod(
 }
 
 // The comparison metamethod `metaName` both operands share: each has
-// one and the two are the same function value, or null.
+// one and the two are rawequal, or null. Two operands with one metatable
+// share its `__eq` whatever it holds (Luau's `get_compTM` returns it
+// without comparing), where an order metamethod is compared even then
+// (`call_orderTM`).
 function sameComparisonHandler(lhs: any, rhs: any, metaName: string): any {
   const handlerL = lookupMetamethod(lhs, metaName);
   const handlerR = lookupMetamethod(rhs, metaName);
+  if (
+    metaName === "__eq" &&
+    handlerL != null &&
+    lhs.metatable.value === rhs.metatable?.value
+  ) {
+    return handlerL;
+  }
   if (
     handlerL == null ||
     handlerR == null ||
