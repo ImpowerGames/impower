@@ -561,63 +561,69 @@ function lintUnreachable(fn: AstExprFunction, offsets: Offsets, out: LuauLint[])
 // ---------------------------------------------------------------------------
 // ImplicitReturn
 
-/** A break belonging to this loop, rather than a nested loop or function. */
-function hasLoopBreak(stat: AstStat): boolean {
+/** Luau's `hasBreak`: a `break` in a block or `if` arm, not one in a nested loop. */
+function hasBreak(stat: AstStat): boolean {
   if (stat instanceof AstStatBreak) return true;
-  if (stat instanceof AstStatBlock) return stat.body.some(hasLoopBreak);
-  if (stat instanceof AstStatIf) return hasLoopBreak(stat.thenbody) || (!!stat.elsebody && hasLoopBreak(stat.elsebody));
+  if (stat instanceof AstStatBlock) return stat.body.some(hasBreak);
+  if (stat instanceof AstStatIf) return hasBreak(stat.thenbody) || (!!stat.elsebody && hasBreak(stat.elsebody));
   return false;
 }
 
-/** Luau's getFallthrough: the statement through which a body can reach its end. */
+/** Whether a `while` guard is always true. Luau reads only `true`; a number
+ * or a string is as truthy (`0` and `""` included), so Sparkdown reads them
+ * too, and stays silent where such a loop cannot end. */
+function alwaysTrue(expr: AstExpr): boolean {
+  return (expr instanceof AstExprConstantBool && expr.value) || expr instanceof AstExprConstantNumber || expr instanceof AstExprConstantString;
+}
+
+/** Luau's `getFallthrough`: the last statement before `stat` exits, or undefined when it never does. */
 function fallthrough(stat: AstStat): AstStat | undefined {
   if (stat instanceof AstStatBlock) {
     if (!stat.body.length) return stat;
     for (let i = 0; i < stat.body.length - 1; i++) if (!fallthrough(stat.body[i]!)) return undefined;
     return fallthrough(stat.body[stat.body.length - 1]!);
   }
-  if (stat instanceof AstStatIf) {
-    const then = fallthrough(stat.thenbody);
-    if (then) return then;
-    return stat.elsebody ? fallthrough(stat.elsebody) : stat;
-  }
+  if (stat instanceof AstStatIf) return fallthrough(stat.thenbody) ?? (stat.elsebody ? fallthrough(stat.elsebody) : stat);
   if (stat instanceof AstStatReturn) return undefined;
-  if (stat instanceof AstStatExpr && stat.expr instanceof AstExprCall && doesCallError(stat.expr)) return undefined;
-  if (stat instanceof AstStatWhile && ((stat.condition instanceof AstExprConstantBool && stat.condition.value) || stat.condition instanceof AstExprConstantNumber || stat.condition instanceof AstExprConstantString) && !hasLoopBreak(stat.body)) return undefined;
+  if (stat instanceof AstStatExpr) return stat.expr instanceof AstExprCall && doesCallError(stat.expr) ? undefined : stat;
+  if (stat instanceof AstStatWhile) return alwaysTrue(stat.condition) && !hasBreak(stat.body) ? undefined : stat;
   if (stat instanceof AstStatRepeat) {
-    if (stat.condition instanceof AstExprConstantBool && !stat.condition.value && !hasLoopBreak(stat.body)) return undefined;
-    if (!fallthrough(stat.body)) return undefined;
+    if (stat.condition instanceof AstExprConstantBool && !stat.condition.value && !hasBreak(stat.body)) return undefined;
+    return fallthrough(stat.body) && stat;
   }
   return stat;
 }
 
-/** Luau's LintImplicitReturn, excluding another function's returns. */
-function lintImplicitReturns(root: AstExprFunction, offsets: Offsets, out: LuauLint[]): void {
-  visitAst(root, {
+// Luau's ImplicitReturn: a function with a `return` of values that can also
+// reach its end. A return belongs to its own function, and, as Luau's linter
+// does not walk into types, a function written in one is not checked. The
+// caller leaves alone a function holding a syntax error, every function in it
+// included: recovery can read statements the author did not write (a missing
+// `then` reads the `return` after it as the `if`'s body).
+function lintImplicitReturns(fn: AstExprFunction, offsets: Offsets, out: LuauLint[]): void {
+  visitAst(fn, {
     visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
       if (!(node instanceof AstExprFunction)) return true;
       let valueReturn: AstStatReturn | undefined;
-      let malformed = false;
       visitAst(node.body, {
         visit(child) {
-          if (child instanceof AstExprFunction) return false;
-          if (child instanceof AstStatError || child instanceof AstExprError) malformed = true;
-          if (child instanceof AstStatReturn && child.list.length && !valueReturn) valueReturn = child;
+          if (valueReturn || child instanceof AstExpr || child instanceof AstType || child instanceof AstTypePack) return false;
+          if (child instanceof AstStatReturn && child.list.length) valueReturn = child;
           return true;
         },
       });
-      const end = valueReturn && !malformed ? fallthrough(node.body) : undefined;
-      if (end && valueReturn) {
-        const location = end.location;
-        const range = offsets.range(location);
-        // Luau highlights an ordinary final statement whole, or the closing
-        // `end` of a multiline block, loop or conditional.
-        if (!(end instanceof AstStatExpr || end instanceof AstStatAssign || end instanceof AstStatLocal) && location.begin.line !== location.end.line) {
-          range.from = range.to - Math.min(3, location.end.column);
-        }
-        const name = node.debugname ? ` '${node.debugname}'` : "";
-        out.push({ code: "ImplicitReturn", ...range, message: `Function${name} can implicitly return no values even though there's an explicit return at line ${offsets.line(valueReturn.location.begin) + 1}; add explicit return to silence` });
+      const end = valueReturn && fallthrough(node.body);
+      if (!valueReturn || !end) return true;
+      const range = offsets.range(end.location);
+      // Luau marks an ordinary final statement whole, and otherwise the
+      // `end` closing a statement over several lines.
+      const { begin, end: last } = end.location;
+      if (!(end instanceof AstStatExpr || end instanceof AstStatAssign || end instanceof AstStatLocal) && begin.line !== last.line) {
+        range.from = range.to - Math.min(3, last.column);
       }
+      const name = node.debugname ? ` '${node.debugname}'` : "";
+      out.push({ code: "ImplicitReturn", ...range, message: `Function${name} can implicitly return no values even though there's an explicit return at line ${offsets.line(valueReturn.location.begin) + 1}; add explicit return to silence` });
       return true;
     },
   });
@@ -1902,7 +1908,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintPlaceholderReads(fn, offsets, out);
       if (!typeOnly.has(fn)) lintUninitializedLocals(fn, tree, text, offsets, out, broken);
       lintUnreachable(fn, offsets, out);
-      lintImplicitReturns(fn, offsets, out);
+      if (!broken && !typeOnly.has(fn)) lintImplicitReturns(fn, offsets, out);
     }
   };
   for (const unit of [units.prelude, ...units.flows]) {
