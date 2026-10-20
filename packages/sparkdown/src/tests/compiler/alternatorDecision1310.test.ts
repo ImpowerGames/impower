@@ -148,6 +148,14 @@ describe("where a candidate ends", () => {
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
   });
 
+  test.each([
+    ["a comment after the head that ends in `end`", "function f()\n  queue -- end\n    | print(1)\n  end\n  return 3\nend\nValue {f()}.\n"],
+    ["a comment line between the head and its arms that ends in `end`", "function f(n)\n  match n\n    -- the end\n    | a = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n"],
+  ])("%s leaves the candidate open to its arms", (_, source) => {
+    expect(run(source)).toEqual({ errors: [], warnings: expect.any(Array), output: "Value 3.\n" });
+    expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
+  });
+
   test("a candidate first on its line that no arms follow ends before the next statement", () => {
     const source = "Value {f()}.\nfunction f()\n  local match = function(n) return n end\n  match(1)\n\n  -- a note\n  return 7\nend\n\nAfter.\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 7.\nAfter.\n" });
@@ -201,6 +209,7 @@ describe("both engines read the candidates alike", () => {
     "function f()\n  if c then match(1) end\n  return 1\nend\n",
     'Value {match(x) | 1 = "a" | 2 = "b"} {cycle "a" | "b" end} {match(x)}.\n',
     "& local y = queue | 1 | 2 end\n",
+    "function f(n)\n  queue -- end\n    | print(1)\n  end\n  match n --[[ c ]] -- the end\n\n    -- end\n    | a = print(1)\n  end\nend\n",
     "function f(a)\n  local c = queue(\"a\") :: string | number\n  match a\n    | x = print(1)\n  end\n  return c\nend\n",
   ])("%j", async (source) => {
     const result = await compareEnginesFull(source);

@@ -727,9 +727,14 @@ variables:
   # `LuauAccessPath` (`queue = 5`, `match.x = 1`).
   LUAU_ALTERNATOR_LINE_START_AHEAD: (?!{{WS}}*{{LUAU_EXPRESSION_GOES_ON}})
   # Right after the `end` a candidate's arms took: the candidate ends with
-  # them. A candidate takes no `end` of its own.
+  # them. A candidate takes no `end` of its own. A comment that ends its
+  # line in a line-start candidate's head is read through the line break
+  # (`LuauAlternatorHeadComment`), so its last word is never this `end`.
   # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
   LUAU_AFTER_ALTERNATOR_ARMS: (?<=\bend)
+  # The first character of a token that does not begin a comment.
+  # lookaround: LuauComment reads a `--`.
+  LUAU_TOKEN_NOT_COMMENT: (?:(?!--)\S)
   # The start of a line that does not go on with a line-start candidate's
   # arms: one that begins neither with a `|` nor with a comment, and is not
   # blank. A candidate whose word holds no arms ends there, so a call
@@ -11449,6 +11454,22 @@ repository:
       - { include: "#LuauConditionalAlternatorBlock" }
       - { include: "#LuauSequentialAlternatorBlock" }
 
+  # A comment in a line-start candidate's head, or on a line between the
+  # head and its arms, read through the line break after it, so that the
+  # candidate's end never takes a comment's last word for the `end` its
+  # arms took (`queue -- the end`, then `| print(1)` lines).
+  # lookaround: LuauComment reads the comment this opens before, and the
+  # rule after the comment on its line reads what follows it.
+  LuauAlternatorHeadComment:
+    begin: (?={{WS}}*--)
+    patterns:
+      - { include: "#LuauComment" }
+    end: (?={{BEAT}})|(\n)|(?={{WS}}*{{LUAU_TOKEN_NOT_COMMENT}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#Newline" }
+
   # A candidate alternator's arms, from its first `|` at the word's own
   # level to the `end` they take. The candidate is an alternator only when
   # it holds them (`opensAlternator`, I-1310): a `|` there is never valid
@@ -11597,6 +11618,7 @@ repository:
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauAlternatorHeadComment" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -11790,6 +11812,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauAlternatorHeadComment" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }

@@ -451,6 +451,7 @@
     "LUAU_ALTERNATOR_CANDIDATE_AHEAD": "(?!{{WS}}*(?:{{LUAU_EXPRESSION_GOES_ON}}|{{LUAU_LINE_END_OR_COMMENT}}))",
     "LUAU_ALTERNATOR_LINE_START_AHEAD": "(?!{{WS}}*{{LUAU_EXPRESSION_GOES_ON}})",
     "LUAU_AFTER_ALTERNATOR_ARMS": "(?<=\\bend)",
+    "LUAU_TOKEN_NOT_COMMENT": "(?:(?!--)\\S)",
     "LUAU_LINE_WITHOUT_ALTERNATOR_ARMS": "^(?!{{WS}}*(?:[|]|--|$))",
     "LUAU_EXPRESSION_GOES_ON": "(?:[)\\]},;:=.+*/%^<>~#]|{{LUAU_ARITHMETIC_MINUS}}|{{LUAU_KEYWORD}})",
     "LUAU_ARITHMETIC_MINUS": "(?:-(?![>-]))",
@@ -15163,6 +15164,24 @@
         }
       ]
     },
+    "LuauAlternatorHeadComment": {
+      "begin": "(?=(?:[^\\S\\n\\r])*--)",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(\\n)|(?=(?:[^\\S\\n\\r])*(?:(?!--)\\S))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
     "LuauAlternatorArms": {
       "begin": "(?=(?:[^\\S\\n\\r])*[|])",
       "patterns": [
@@ -15403,6 +15422,9 @@
         },
         {
           "include": "#LuauAlternatorArms"
+        },
+        {
+          "include": "#LuauAlternatorHeadComment"
         },
         {
           "include": "#LuauExpression"
@@ -15748,6 +15770,9 @@
       "patterns": [
         {
           "include": "#LuauAlternatorArms"
+        },
+        {
+          "include": "#LuauAlternatorHeadComment"
         },
         {
           "include": "#LuauExpression"

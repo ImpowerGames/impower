@@ -55,25 +55,3 @@ export function namesValue(keyword: SyntaxNode): boolean {
   const candidate = candidateOfWord(keyword);
   return !!candidate && !opensAlternator(candidate);
 }
-
-const CONDITIONS: ReadonlySet<string> = new Set(
-  explicitRuleNames("LuauConditionalAlternatorCondition"),
-);
-const PARENTHETICALS: ReadonlySet<string> = new Set(explicitRuleNames("LuauParenthetical"));
-const TABLES: ReadonlySet<string> = new Set(explicitRuleNames("LuauTable"));
-
-/**
- * The table written right after a conditional candidate's parenthesized
- * condition when the candidate holds no arms and nothing else
- * (`plural(n){one="is",other="are"}`), or null. The formatter rewrites that
- * table into arms; the compiler, which asks only `opensAlternator`, reads it
- * as Luau, a call.
- */
-export function tableArms(node: SyntaxNode): SyntaxNode | null {
-  if (!ALTERNATOR_CANDIDATES.has(node.name) || alternatorArms(node)) return null;
-  const condition = node.getChild(`${node.name}_content`)?.firstChild;
-  if (!condition || !CONDITIONS.has(condition.name) || condition.nextSibling) return null;
-  const parenthetical = condition.getChild(`${condition.name}_content`)?.firstChild;
-  const table = parenthetical?.nextSibling;
-  return parenthetical && PARENTHETICALS.has(parenthetical.name) && table && TABLES.has(table.name) && !table.nextSibling ? table : null;
-}

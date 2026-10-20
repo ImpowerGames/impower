@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import { opensAlternator, tableArms } from "./alternatorDecision";
+import { opensAlternator } from "./alternatorDecision";
 import type { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { nodeNameSet } from "./nodeNameSet";
 
@@ -37,9 +37,8 @@ export function isInsideOneLineAlternator(
   names: Set<string>,
 ): boolean {
   for (let ancestor: SyntaxNode | null = node; ancestor; ancestor = ancestor.parent) {
-    // A structural word that holds no arms is a name (I-1310), unless the
-    // formatter rewrites its table into arms (`tableArms`).
-    if (!names.has(ancestor.name) || (!opensAlternator(ancestor) && !tableArms(ancestor))) continue;
+    // A structural word that holds no arms is a name (I-1310).
+    if (!names.has(ancestor.name) || !opensAlternator(ancestor)) continue;
     // The shared rule names cover BOTH the single-line inline form
     // and the multi-line block form (e.g. `return ( chain | ... end )`).
     // Only the single-line form is "inline" for formatter purposes.

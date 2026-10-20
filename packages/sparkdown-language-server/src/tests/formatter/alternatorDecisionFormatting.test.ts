@@ -22,7 +22,11 @@ describe("formatting a structural word that names a value", () => {
     expect(formatSource(source)).toBe(source);
   });
 
-  test("the table form after a condition still becomes arms", () => {
-    expect(formatSource('{plural(n){one="is",other="are"}}\n')).toBe('{plural(n)|one="is"|other="are"}\n');
+  // A table after the condition is a call's argument in Luau, not arms, so
+  // formatting never turns the call into an alternator.
+  test("a table after a call of the word stays the call's", () => {
+    const source = "function choose()\n  local match = function (n)\n    return function (t) return t.one end\n  end\n  return match(1){ one = \"is\", other = \"are\" }\nend\n";
+    expect(formatSource(source)).toBe(source);
+    expect(formatSource('{plural(n){one="is",other="are"}}\n')).not.toContain("|");
   });
 });
