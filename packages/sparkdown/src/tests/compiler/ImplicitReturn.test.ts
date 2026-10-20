@@ -5,6 +5,7 @@
 // Sparkdown forms.
 
 import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 
 const implicit = (source: string) => diagnoseDetailed(source).filter((d) => d.code === "ImplicitReturn");
@@ -71,6 +72,13 @@ describe("ImplicitReturn", () => {
   });
 
   // As in Luau, a function value is named only as a table field's value.
+  // Luau's linter reads a `repeat` body that ends in a return as never
+  // leaving the loop, even past an earlier `break` or `continue`; luau-analyze
+  // 0.721 is silent for each of these.
+  test.each(["until true", "until false", "until a"])("a repeat that breaks before its final return, %s, is silent as in Luau", (until) => {
+    expect(messages(implicit(`function f(a)\n repeat\n  if a then break end\n  return 1\n ${until}\nend\n`))).toEqual([]);
+  });
+
   test("a function in a Sparkle handler is read", () => {
     expect(messages(implicit("layout main with\n  button @click={ local g = function(a) if a then return 1 end end; g() }\nend\n"))).toEqual([falls("", 2)]);
   });
@@ -108,6 +116,29 @@ describe("a function holding a syntax error", () => {
     const source = "function reward(flag)\n  if flag\n    return 1\n  end\nend\n\nfunction other(a)\n  if a then return 1 end\nend\n";
     expect(syntaxErrors(source).length).toBeGreaterThan(0);
     expect(messages(implicit(source))).toEqual([falls("other", 8)]);
+  });
+});
+
+// The type checker's FunctionExitsWithoutReturning reads the same walk
+// (`getFallthrough`) with Luau's own guard: only a literal `true` keeps a
+// `while` from ending, so `while 1` still falls through there.
+describe("the type checker's return paths", () => {
+  const URI = "inmemory:///main.sd";
+  const codepaths = (loop: string) => {
+    const text = `---\ntitle: Paths\ntypecheck: strict\n---\n\nfunction f(a: boolean): number\n ${loop}\nend\n`;
+    const compiler = new SparkdownCompiler();
+    compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
+    const { program } = compiler.compile({ textDocument: { uri: URI } });
+    return (program.diagnostics?.[URI] ?? []).filter((d) => d.code === "FunctionExitsWithoutReturning").length;
+  };
+
+  test.each([
+    ["an if without else", "if a then return 1 end", 1],
+    ["a while true without a break", "while true do\n  if a then return 1 end\n end", 0],
+    ["a while 1 without a break", "while 1 do\n  if a then return 1 end\n end", 1],
+    ["a final error", "if a then return 1 end\n error('stop')", 0],
+  ])("%s", (_label, body, expected) => {
+    expect(codepaths(body)).toBe(expected);
   });
 });
 
