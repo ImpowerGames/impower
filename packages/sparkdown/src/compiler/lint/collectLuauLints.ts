@@ -83,7 +83,7 @@ import {
   type AstLocal,
   type AstNode,
 } from "../typecheck/Ast";
-import { doesCallError } from "../typecheck/DataFlowGraph";
+import { doesCallError, getFallthrough } from "../typecheck/DataFlowGraph";
 import { decodeBytes } from "../typecheck/Linter";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
@@ -561,37 +561,11 @@ function lintUnreachable(fn: AstExprFunction, offsets: Offsets, out: LuauLint[])
 // ---------------------------------------------------------------------------
 // ImplicitReturn
 
-/** Luau's `hasBreak`: a `break` in a block or `if` arm, not one in a nested loop. */
-function hasBreak(stat: AstStat): boolean {
-  if (stat instanceof AstStatBreak) return true;
-  if (stat instanceof AstStatBlock) return stat.body.some(hasBreak);
-  if (stat instanceof AstStatIf) return hasBreak(stat.thenbody) || (!!stat.elsebody && hasBreak(stat.elsebody));
-  return false;
-}
-
 /** Whether a `while` guard is always true. Luau reads only `true`; a number
  * or a string is as truthy (`0` and `""` included), so Sparkdown reads them
  * too, and stays silent where such a loop cannot end. */
 function alwaysTrue(expr: AstExpr): boolean {
   return (expr instanceof AstExprConstantBool && expr.value) || expr instanceof AstExprConstantNumber || expr instanceof AstExprConstantString;
-}
-
-/** Luau's `getFallthrough`: the last statement before `stat` exits, or undefined when it never does. */
-function fallthrough(stat: AstStat): AstStat | undefined {
-  if (stat instanceof AstStatBlock) {
-    if (!stat.body.length) return stat;
-    for (let i = 0; i < stat.body.length - 1; i++) if (!fallthrough(stat.body[i]!)) return undefined;
-    return fallthrough(stat.body[stat.body.length - 1]!);
-  }
-  if (stat instanceof AstStatIf) return fallthrough(stat.thenbody) ?? (stat.elsebody ? fallthrough(stat.elsebody) : stat);
-  if (stat instanceof AstStatReturn) return undefined;
-  if (stat instanceof AstStatExpr) return stat.expr instanceof AstExprCall && doesCallError(stat.expr) ? undefined : stat;
-  if (stat instanceof AstStatWhile) return alwaysTrue(stat.condition) && !hasBreak(stat.body) ? undefined : stat;
-  if (stat instanceof AstStatRepeat) {
-    if (stat.condition instanceof AstExprConstantBool && !stat.condition.value && !hasBreak(stat.body)) return undefined;
-    return fallthrough(stat.body) && stat;
-  }
-  return stat;
 }
 
 // Luau's ImplicitReturn: a function with a `return` of values that can also
@@ -613,7 +587,7 @@ function lintImplicitReturns(fn: AstExprFunction, offsets: Offsets, out: LuauLin
           return true;
         },
       });
-      const end = valueReturn && fallthrough(node.body);
+      const end = valueReturn && getFallthrough(node.body, alwaysTrue);
       if (!valueReturn || !end) return true;
       const range = offsets.range(end.location);
       // Luau marks an ordinary final statement whole, and otherwise the

@@ -74,6 +74,7 @@ import {
 import { findUniqueTypesIn } from "./AstUtils";
 import { matchAssert, matchSetMetatable, matchTypeOf } from "./BuiltinDefinitions";
 import { ValueContext } from "./Constraint";
+import { getFallthrough } from "./DataFlowGraph";
 import {
   CannotExtendTableContext,
   CannotInferBinaryOperationKind,
@@ -553,99 +554,6 @@ export class TypeChecker2 {
     }
 
     return loc;
-  }
-
-  private isErrorCall(call: AstExprCall): boolean {
-    const global = call.func instanceof AstExprGlobal ? call.func : undefined;
-    if (!global) return false;
-
-    if (global.name === "error") return true;
-    else if (global.name === "assert") {
-      // assert() errors because it is missing its first argument.
-      if (call.args.length === 0) return true;
-
-      const expr = call.args[0];
-      if (expr instanceof AstExprConstantBool) {
-        if (!expr.value) return true;
-      }
-    }
-
-    return false;
-  }
-
-  private hasBreak(node: AstStat): boolean {
-    if (node instanceof AstStatBlock) {
-      for (let i = 0; i < node.body.length; ++i) {
-        if (this.hasBreak(node.body[i]!)) return true;
-      }
-
-      return false;
-    }
-
-    if (node instanceof AstStatBreak) return true;
-
-    if (node instanceof AstStatIf) {
-      if (this.hasBreak(node.thenbody)) return true;
-
-      if (node.elsebody && this.hasBreak(node.elsebody)) return true;
-
-      return false;
-    }
-
-    return false;
-  }
-
-  /** A statement through which control can fall out of `node`, or undefined when none can. */
-  private getFallthrough(node: AstStat): AstStat | undefined {
-    if (node instanceof AstStatBlock) {
-      if (node.body.length === 0) return node;
-
-      for (let i = 0; i < node.body.length - 1; ++i) {
-        if (this.getFallthrough(node.body[i]!) === undefined) return undefined;
-      }
-
-      return this.getFallthrough(node.body[node.body.length - 1]!);
-    }
-
-    if (node instanceof AstStatIf) {
-      const thenf = this.getFallthrough(node.thenbody);
-      if (thenf) return thenf;
-
-      if (node.elsebody) {
-        const elsef = this.getFallthrough(node.elsebody);
-        if (elsef) return elsef;
-
-        return undefined;
-      } else return node;
-    }
-
-    if (node instanceof AstStatReturn) return undefined;
-
-    if (node instanceof AstStatExpr) {
-      if (node.expr instanceof AstExprCall && this.isErrorCall(node.expr)) return undefined;
-
-      return node;
-    }
-
-    if (node instanceof AstStatWhile) {
-      if (node.condition instanceof AstExprConstantBool) {
-        if (node.condition.value && !this.hasBreak(node.body)) return undefined;
-      }
-
-      return node;
-    }
-
-    if (node instanceof AstStatRepeat) {
-      if (node.condition instanceof AstExprConstantBool) {
-        if (!node.condition.value && !this.hasBreak(node.body)) return undefined;
-      }
-
-      if (this.getFallthrough(node.body) === undefined) return undefined;
-
-      return node;
-    }
-
-    return node;
   }
 
   /**
@@ -1955,7 +1863,7 @@ export class TypeChecker2 {
         // The vararg annotation, when there is one, is checked too.
         if (fn.vararg && fn.varargAnnotation) this.visitTypePack(fn.varargAnnotation);
 
-        const reachesImplicitReturn = this.getFallthrough(fn.body) !== undefined;
+        const reachesImplicitReturn = getFallthrough(fn.body) !== undefined;
         if (reachesImplicitReturn && !TypeChecker2.allowsNoReturnValues(followPack(inferredFtv.retTypes))) {
           this.reportError({ kind: "FunctionExitsWithoutReturning", expectedReturnType: inferredFtv.retTypes }, TypeChecker2.getEndLocation(fn));
         }
