@@ -53,9 +53,11 @@ import {
   containerValueNodes,
   lowerExpression,
   pathNames,
+} from "../expression/lowerExpression";
+import {
   processLuauEscapes,
   stripQuotes,
-} from "../expression/lowerExpression";
+} from "../../utils/stringLiteralValue";
 import {
   buildClosureExpression,
   freeVariables,
