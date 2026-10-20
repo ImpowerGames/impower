@@ -102,6 +102,7 @@ export const LUAU_LINT_CODES = [
   "MultiLineStatement",
   "UninitializedLocal",
   "UnbalancedAssignment",
+  "DuplicateFunction",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -136,6 +137,9 @@ export interface LuauScriptLints {
    * as narrative or as its own, so FunctionUnused does not report a function
    * defined in one. */
   misreadStatements: NameRange[];
+  /** The members its top level defines on a global table, which
+   * `lintDuplicateGlobalMembers` compares across scripts. */
+  topLevelMembers: TopLevelMemberDefinition[];
 }
 
 /** The offset of each line of a document. */
@@ -896,6 +900,148 @@ export function lintUnusedGlobalFunctions(program: LuauProgramNames, scripts: { 
 }
 
 // ---------------------------------------------------------------------------
+// DuplicateFunction
+
+/** Luau's `buildName` for a function statement: a name, or names joined by
+ *  `.`, a method's `:` included (`function T:x()` is `T.x`); empty for any
+ *  other shape. */
+function functionStatementName(expr: AstExpr): string {
+  if (expr instanceof AstExprLocal) return expr.local.name;
+  if (expr instanceof AstExprGlobal) return expr.name;
+  if (expr instanceof AstExprIndexName) {
+    const receiver = functionStatementName(expr.expr);
+    return receiver && `${receiver}.${expr.index}`;
+  }
+  return "";
+}
+
+function duplicateFunctionMessage(name: string, line: number): string {
+  return `Duplicate function definition: '${name}' also defined on line ${line}`;
+}
+
+/** A member definition in a script's top level on a global table
+ *  (`function T.x()`, `function T:x()`), which the program-wide half of
+ *  DuplicateFunction compares across scripts. */
+export interface TopLevelMemberDefinition extends NameRange {
+  name: string;
+}
+
+/**
+ * Luau's DuplicateFunction (`LintDuplicateFunction`): a function statement or
+ * local function whose name an earlier one in the same block already
+ * defines, reported at its name against the first. As in Luau, only the
+ * statements of one block are compared, so definitions in separate arms of
+ * an `if`, or in separate functions, are not duplicates, and a member's name
+ * counts its receiver (`T.x`). The top level of a script is the exception:
+ * the compiler makes each plain-named function there a story function, and
+ * already reports a second of the same name as a duplicate identifier, so
+ * only its members are compared (`plainNamesCovered`). A block missing its
+ * `end`, a function holding one, a statement holding a syntax error and code
+ * inside a type are left alone, and so is a name the grammar reads as a
+ * keyword somewhere in the block, which may stand for a definition the
+ * reading lacks.
+ */
+function lintDuplicateFunctions(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], uncertain: readonly LuauNameFacts["uncertainNames"][number][], plainNamesCovered?: AstStatBlock): void {
+  const complete = (stat: AstStat) => !errors.some((error) => stat.location.overlaps(error.location));
+  const visitor = {
+    visit(node: AstNode): boolean {
+      if (node instanceof AstType || node instanceof AstTypePack || node instanceof AstStatError || node instanceof AstExprError) return false;
+      if (node instanceof AstExprFunction && !readToEnd(node)) return false;
+      if (!(node instanceof AstStatBlock)) return true;
+      if (!node.hasEnd) return false;
+      const block = offsets.range(node.location);
+      const unsure = (name: string) => uncertain.some((occurrence) => occurrence.name === name && block.from <= occurrence.from && occurrence.to <= block.to);
+      const first = new Map<string, Location>();
+      for (const stat of node.body) {
+        let name = "";
+        let location: Location | undefined;
+        if (stat instanceof AstStatFunction) {
+          name = functionStatementName(stat.name);
+          location = stat.name.location;
+          if (node === plainNamesCovered && !(stat.name instanceof AstExprIndexName)) continue;
+        } else if (stat instanceof AstStatLocalFunction) {
+          name = stat.name.name;
+          location = stat.name.location;
+          if (node === plainNamesCovered) continue;
+        }
+        if (!name || !location || !isAuthoredLuauName(name) || !complete(stat) || unsure(name.split(".")[0]!)) continue;
+        const defined = first.get(name);
+        if (!defined) first.set(name, location);
+        else out.push({ code: "DuplicateFunction", ...offsets.range(location), message: duplicateFunctionMessage(name, offsets.line(defined.begin) + 1) });
+      }
+      return true;
+    },
+  };
+  visitAst(root, visitor);
+}
+
+/** The member definitions on a global table in a script's top level
+ *  (`TopLevelMemberDefinition`), leaving out any in a statement holding a
+ *  syntax error or a block missing its `end`. */
+function topLevelMembers(names: LuauNameFacts, prelude: AstStatBlock, misread: readonly NameRange[]): TopLevelMemberDefinition[] {
+  const found: TopLevelMemberDefinition[] = [];
+  for (const definition of names.functions) {
+    if (definition.scope !== prelude || !(definition.target instanceof AstExprIndexName)) continue;
+    let receiver: AstExpr = definition.target;
+    while (receiver instanceof AstExprIndexName) receiver = receiver.expr;
+    if (!(receiver instanceof AstExprGlobal)) continue;
+    if (misread.some((range) => range.from <= definition.from && definition.from < range.to)) continue;
+    const name = functionStatementName(definition.target);
+    if (name) found.push({ name, from: definition.from, to: definition.to });
+  }
+  return found;
+}
+
+/** A definition located in its script, for a program-wide `DuplicateFunction` message. */
+export interface DuplicateFunctionReference {
+  uri: string;
+  from: number;
+}
+
+/**
+ * The program-wide half of `DuplicateFunction`: the members a script's top
+ * level defines on a global table (`LuauScriptLints.topLevelMembers`),
+ * against the same member in another script's top level. Every script's top
+ * level is one scope of the program, as a Luau file's is, so the first
+ * definition, by normalized script URI and then offset, is the original,
+ * and every other script's first definition of the name is reported against
+ * it; a later one in the same script is reported against that script's
+ * first by the script's own pass. A receiver the grammar reads as a keyword
+ * somewhere in the program reports nothing. Plain names are left to the
+ * compiler's duplicate-identifier error, which already spans scripts.
+ */
+export function lintDuplicateGlobalMembers(
+  program: LuauProgramNames,
+  scripts: { uri: string; topLevelMembers: readonly TopLevelMemberDefinition[] }[],
+  message: (name: string, original: DuplicateFunctionReference) => string,
+): { uri: string; lint: LuauLint }[] {
+  const firsts = new Map<string, Map<string, TopLevelMemberDefinition>>();
+  for (const { uri, topLevelMembers } of scripts) {
+    for (const definition of topLevelMembers) {
+      let byScript = firsts.get(definition.name);
+      if (!byScript) firsts.set(definition.name, (byScript = new Map()));
+      const own = byScript.get(uri);
+      if (!own || definition.from < own.from) byScript.set(uri, definition);
+    }
+  }
+  const found: { uri: string; lint: LuauLint }[] = [];
+  for (const [name, byScript] of firsts) {
+    if (byScript.size < 2 || program.uncertainNames.has(name.split(".")[0]!)) continue;
+    const ordered = [...byScript].sort(([a, x], [b, y]) => (normalizedUri(a) < normalizedUri(b) ? -1 : normalizedUri(a) > normalizedUri(b) ? 1 : x.from - y.from));
+    const [originalUri, original] = ordered[0]!;
+    for (const [uri, definition] of ordered.slice(1)) {
+      found.push({ uri, lint: { code: "DuplicateFunction", from: definition.from, to: definition.to, message: message(name, { uri: originalUri, from: original.from }) } });
+    }
+  }
+  return found;
+}
+
+/** The message of a program-wide `DuplicateFunction` warning, given the original's line and, in another script, its path. */
+export function duplicateGlobalMemberMessage(name: string, line: number, path: string): string {
+  return `${duplicateFunctionMessage(name, line)} in '${path}'`;
+}
+
+// ---------------------------------------------------------------------------
 // PlaceholderRead
 
 // A read of `_`, whether it names a local or a global. A plain write is the
@@ -1288,7 +1434,7 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 }
 
 // ---------------------------------------------------------------------------
-const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; errorLines: NameRange[]; mentionsUnplaced: (name: string) => boolean }>();
+const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; errorLines: NameRange[]; mentionsUnplaced: (name: string) => boolean; topLevelMembers: TopLevelMemberDefinition[] }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
@@ -1344,7 +1490,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       }
       return found;
     };
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, misreadStatements, errorLines: errors, mentionsUnplaced };
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, misreadStatements, errorLines: errors, mentionsUnplaced, topLevelMembers: topLevelMembers(names, units.prelude.root, misreadStatements) };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
@@ -1371,6 +1517,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     const narrative = (stat: AstStatIf) => narrativeIfs.has(offsets.of(stat.location.begin));
     lintFunctions(definedFunctions(unit), offsets, unit.errors);
     lintStatementLayout(unit.root, offsets, out, unit.errors, sameLines);
+    lintDuplicateFunctions(unit.root, offsets, out, unit.errors, facts.names.uncertainNames, unit === units.prelude ? unit.root : undefined);
     for (const source of unit.statements) {
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
@@ -1384,10 +1531,11 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     completeFunctions(statements && expr instanceof AstExprFunction ? expr.body : expr, functions);
     lintFunctions(functions, documentOffsets, errors);
     lintStatementLayout(expr, documentOffsets, out, errors, sameLines);
+    lintDuplicateFunctions(expr, documentOffsets, out, errors, facts.names.uncertainNames);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
     lintUnbalancedAssignments(expr, text, documentOffsets, out, unsure);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
-  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, misreadStatements: facts.misreadStatements };
+  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, misreadStatements: facts.misreadStatements, topLevelMembers: facts.topLevelMembers };
 }
