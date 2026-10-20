@@ -5595,7 +5595,7 @@ export class SparkdownCompiler {
    *  suspicious numeric `for` ranges, reads of the placeholder `_`, locals
    *  hiding another variable, functions nothing uses, locals read without a
    *  value, value lists that do not match their names, functions defined
-   *  twice); see
+   *  twice, names declared twice in one list); see
    *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
