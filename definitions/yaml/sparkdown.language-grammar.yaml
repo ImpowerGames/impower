@@ -1317,31 +1317,54 @@ variables:
   # line is left to the rule that reads that code. This matches only when
   # there is a comment, so whitespace alone after `end` stays where it is.
   LUAU_END_TRAILING_COMMENTS: (?:(?:{{LUAU_BLOCK_COMMENTS_ON_LINE}}{{LUAU_LINE_COMMENT_ON_LINE}}?|{{LUAU_LINE_COMMENT_ON_LINE}})$)
-  # One or more block comments that close on their line, of any level, with
-  # the whitespace around them: where no value or type has begun, between a
-  # scope modifier and `function`, after an assignment or type operator, and
-  # after a block's closing `end` (#1321). Levels up to three are
-  # `LUAU_BLOCK_COMMENT_ON_LINE`'s; a longer level is
-  # `LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST`.
+  # One or more block comments that close on their line, with the
+  # whitespace around them, where no value or type has begun: between a
+  # scope modifier and `function`, after an assignment operator, and after a
+  # block's closing `end` (#1321). `LuauBlockComment` reads each comment in
+  # the rule that takes them; this finds where they end. A variable cannot
+  # match a close to its opening's level with a backreference: a nested
+  # capture moves the captures after it, and an `end` reads `\N` as the
+  # begin's capture. So levels up to eight are spelled out, each closing
+  # only at its own level (`--[====[a]=====]b]====]` is one comment), and a
+  # longer level closes at the first close of nine or more `=`.
   LUAU_BLOCK_COMMENTS_ON_LINE: (?:{{LUAU_ANY_LEVEL_BLOCK_COMMENT_ON_LINE}}+)
   # A block comment of any level that closes on its line, with the
   # whitespace around it.
   LUAU_ANY_LEVEL_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[{{LUAU_ANY_LEVEL_BLOCK_COMMENT_REST}}{{WS}}*)
   # The rest of a block comment of any level after `--[`.
-  LUAU_ANY_LEVEL_BLOCK_COMMENT_REST: (?:{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST}})
-  # The rest of a block comment of level four or more after `--[`
-  # (`--[====[a ] b]====]`). A variable cannot hold a backreference that
-  # every use can number, so its text takes any character but a `]` that
-  # four or more `=` and a `]` follow, and it closes at the first such
-  # close. A `]` with fewer `=` closes no comment of these levels, so
-  # `--[====[a ] b]]c]=]d]====]` reads whole. A comment whose text holds the
-  # close of a different level of four or more (`--[====[a]=====]b]====]`)
-  # ends at that close, so the rest of it is read as before.
-  # lookaround: LuauBlockComment reads the comment itself, ending at the
-  # close of its own level with a backreference; this variable only finds
-  # where the comment ends for the rule that takes it, and a negated class
-  # cannot stop the text before a close several characters long.
-  LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST: (?:====+\[(?:[^\]\r\n]|\](?!====+\]))*\]====+\])
+  LUAU_ANY_LEVEL_BLOCK_COMMENT_REST: (?:{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_BLOCK_COMMENT_LEVELS_4_TO_8_REST}}|{{LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST}})
+  # The rest of a block comment of level four to eight after `--[`.
+  LUAU_BLOCK_COMMENT_LEVELS_4_TO_8_REST: (?:{{LUAU_BLOCK_COMMENT_LEVEL_4_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_5_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_6_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_7_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_8_REST}})
+  # The rest of a level-four block comment after `--[`: `====[`, its text,
+  # `]====]`. Like the levels below it, its text takes any character but
+  # the `]` of its own close.
+  # lookaround: LuauBlockComment reads the comment, closing at its own level
+  # with a backreference no variable can hold; a negated class cannot stop
+  # the text before a close several characters long.
+  LUAU_BLOCK_COMMENT_LEVEL_4_REST: (?:====\[(?:[^\]\r\n]|\](?!====\]))*\]====\])
+  # The rest of a level-five block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_5_REST: (?:=====\[(?:[^\]\r\n]|\](?!=====\]))*\]=====\])
+  # The rest of a level-six block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_6_REST: (?:======\[(?:[^\]\r\n]|\](?!======\]))*\]======\])
+  # The rest of a level-seven block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_7_REST: (?:=======\[(?:[^\]\r\n]|\](?!=======\]))*\]=======\])
+  # The rest of a level-eight block comment after `--[`.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LEVEL_8_REST: (?:========\[(?:[^\]\r\n]|\](?!========\]))*\]========\])
+  # The rest of a block comment of level nine or more after `--[`. Its text
+  # takes any character but a `]` that nine or more `=` and a `]` follow, so
+  # a close of a lower level stays text; a close of another level of nine or
+  # more ends it early.
+  # lookaround: LuauBlockComment reads the comment; see
+  # `LUAU_BLOCK_COMMENT_LEVEL_4_REST`.
+  LUAU_BLOCK_COMMENT_LONGER_LEVEL_REST: (?:=========+\[(?:[^\]\r\n]|\](?!=========+\]))*\]=========+\])
   # A line comment and the rest of its line.
   LUAU_LINE_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_LINE_COMMENT_START}}[^\r\n]*)
   # Block comments after an operator with code after them on the line, which
@@ -14453,20 +14476,24 @@ repository:
   # generics before it ends and the type after them is the operator's
   # operand. The rules that hold a type after a `:` or `=` include it too
   # (`function(): --[[c]] <T>(T) -> T`, `type F = --[[c]] <T>(T) -> T`).
+  # `LuauComment` reads each comment, so it closes at its own level
+  # (`--[====[a]=====]b]====]` is one comment).
+  # lookaround: the begin opens at a block comment only, where the parent's
+  # LuauComment would read it; this rule is tried first so the comments and
+  # the generics after them are read in one scope, which a match on the
+  # comment alone cannot carry on to the generics.
   LuauTypeOperatorComments:
-    begin: ({{LUAU_BLOCK_COMMENTS_ON_LINE}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#LuauComment" }
+    begin: (?={{WS}}*{{LUAU_COMMENT_START}}\[=*\[)
     patterns:
+      - { include: "#LuauComment" }
       - { include: "#LuauTypeGenerics" }
     # lookaround: LuauTypeLiteral reads a type after the comments, and its
     # end, like LuauTypeBinaryOperation's, reads a `<` after a comment's
     # close as a comparison after a complete type. A lookbehind cannot see
     # past the comment to the operator, so this rule, which only the
-    # operator reaches, takes the generics instead.
-    end: (?={{BEAT}})|(?![<])
+    # operator reaches, takes the generics instead, and ends at anything
+    # but another block comment or a `<`.
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_COMMENT_START}}\[=*\[|[<]))
 
   LuauTypeAnnotationOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_OPERATOR}})

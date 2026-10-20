@@ -39,6 +39,9 @@ describe("a comment between a modifier and `function` keeps the function", () =>
     ["two comments", "local", "local --[[a]] --[=[b]=]"],
     ["a level-four comment", "local", "local --[====[ helper ]====]"],
     ["a level-four comment holding `]`", "local", "local --[====[a ] b]]c]=]d]====]"],
+    ["a level-four comment holding a level-five close", "local", "local --[====[a]=====]b]====]"],
+    ["a level-five comment holding a level-four close", "local", "local --[=====[a]====]b]=====]"],
+    ["a level-nine comment holding a level-four close", "local", "local --[=========[a]====]b]=========]"],
   ])("%s", (_name, plain, commented) => {
     for (const head of [plain, commented]) {
       const source = `${head} function k(x: number)\n  return x\nend\nValue {k(5)}.\n`;
@@ -94,9 +97,17 @@ describe("comments between `=` and a value are not a value", () => {
     expect(result.lines[0]).toBe("Value 1.\n");
   });
 
-  test.each(["local", "store"])("a story-scope `%s` declaration", (modifier) => {
+  // At story scope the declaration ended between the comments (#1298); a
+  // comment of any level counts, closing at its own level.
+  test.each([
+    ["local", "--[[ c ]] --[[ d ]]"],
+    ["store", "--[[ c ]] --[[ d ]]"],
+    ["store", "--[====[a ] b]====] --[[ d ]]"],
+    ["store", "--[====[a]=====]b]====] --[[ d ]]"],
+    ["store", "--[=====[a]====]b]=====] --[[ d ]]"],
+  ])("a story-scope `%s` declaration with `%s`", (modifier, comments) => {
     const result = play(
-      `${modifier} w = --[[ c ]] --[[ d ]] if true then 1 else 2\nValue {w}.\n`,
+      `${modifier} w = ${comments} if true then 1 else 2\nValue {w}.\n`,
     );
     expect(result.errors).toEqual([]);
     expect(result.lines[0]).toBe("Value 1.\n");
@@ -113,6 +124,11 @@ describe("a comment after a type operator keeps the type", () => {
     ["a return type", "  local id = function(): --[[c]] <T>(T) -> T return function(v) return v end end\n  local w = id()(5)"],
     ["a union", "  local w: number | --[[c]] string = 5"],
     ["a plain alias", "  type K = --[[c]] number\n  local w: K = 5"],
+    // A comment holding the close of another level closes at its own.
+    ["an alias, foreign close", "  type F = () -> --[====[a]=====]b]====] <T>(T) -> T\n  local id: F = function(v) return v end\n  local w = id(5)"],
+    ["a generic alias, foreign close", "  type F = --[====[a]=====]b]====] <T>(T) -> T\n  local id: F = function(v) return v end\n  local w = id(5)"],
+    ["an annotation, foreign close", "  local id: --[====[a]=====]b]====] <T>(T) -> T = function(v) return v end\n  local w = id(5)"],
+    ["a return type, foreign close", "  local id = function(): --[====[a]=====]b]====] <T>(T) -> T return function(v) return v end end\n  local w = id()(5)"],
   ])("%s", (_name, body) => {
     const result = play(`function f()\n${body}\n  return w\nend\nValue {f()}.\n`);
     expect(result.errors).toEqual([]);
@@ -155,7 +171,7 @@ describe("a comment after a closing `end` at story scope is not story text", () 
       "end",
     ],
   ];
-  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c", "--[====[ c ]====]", "--[====[a ] b]====]"]) {
+  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c", "--[====[ c ]====]", "--[====[a ] b]====]", "--[====[a]=====]b]====]"]) {
     test.each(blocks)(`%s, then \`${comment}\``, (_name, block, line) => {
       const controlSource = `${block}\n${line}\n`;
       const control = play(controlSource);
