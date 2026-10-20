@@ -118,6 +118,9 @@ export interface LuauScriptLints {
   /** The offsets of global references that may not be global uses
    * (`uncertainGlobalUses`). */
   uncertainGlobalUses: ReadonlySet<number>;
+  /** The names declared as locals in a unit's outermost block (`outermost`),
+   * leaving out a branch's parameters, which the reading declares there. */
+  outermostLocals: ReadonlySet<string>;
 }
 
 /** The offset of each line of a document. */
@@ -648,7 +651,7 @@ const BUILTIN_GLOBALS = new Set([...Object.keys(STDLIB), ...Object.keys(STDLIB_C
  * `readLuauUnits` pairs them (a branch inside a scene is closed first). A
  * flow without Luau statements has no unit, so the names its narrative reads
  * look global. */
-function flowParameters(tree: Tree, text: string): { from: number; to: number; names: Set<string> }[] {
+function flowParameters(tree: Tree, text: string, starts: Set<number>): { from: number; to: number; names: Set<string> }[] {
   const flows: { from: number; to: number; names: Set<string> }[] = [];
   const open: { from: number; to: number; names: Set<string> }[] = [];
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
@@ -665,6 +668,7 @@ function flowParameters(tree: Tree, text: string): { from: number; to: number; n
       enter(inner) {
         if (!isExplicitRuleName(inner.name, "LuauFunctionParameter")) return true;
         flow.names.add(text.slice(inner.from, inner.to));
+        starts.add(inner.from);
         return false;
       },
     });
@@ -730,15 +734,15 @@ export interface GlobalShadowReference {
  * normalized script URI and then offset. A built-in (the standard library's
  * names, or `builtins`, the globals the prelude declares), a name the reading
  * could not place somewhere in the program, or only definitions without a
- * use (a `const`) report nothing. Neither does a name declared as a local
- * in a unit's outermost block anywhere in the program (`outermost`): such a
- * local can reach later scenes and including scripts, which the reading does
- * not show. A
+ * use (a `const`) report nothing. Neither does a name a script declares as
+ * a local in a unit's outermost block (`LuauScriptLints.outermostLocals`):
+ * such a local can reach later scenes and including scripts, which the
+ * reading does not show. A
  * script's uncertain references (`uncertainGlobalUses`) are not uses.
  */
 export function lintGlobalShadows(
   program: LuauProgramNames,
-  scripts: { uri: string; globalShadows: GlobalShadowCandidate[]; uncertainGlobalUses: ReadonlySet<number> }[],
+  scripts: { uri: string; globalShadows: GlobalShadowCandidate[]; uncertainGlobalUses: ReadonlySet<number>; outermostLocals: ReadonlySet<string> }[],
   builtins: ReadonlySet<string>,
   message: (name: string, reference: GlobalShadowReference, own: boolean) => string,
 ): { uri: string; lint: LuauLint }[] {
@@ -752,7 +756,7 @@ export function lintGlobalShadows(
     firsts.set(name, first);
     const global = program.globals.get(name);
     if (!global || BUILTIN_GLOBALS.has(name) || builtins.has(name) || program.uncertainNames.has(name)) return first;
-    for (const names of program.scripts.values()) if (names.declarations.some((d) => d.name === name && d.outermost)) return first;
+    if (scripts.some((script) => script.outermostLocals.has(name))) return first;
     for (const reference of [...global.reads, ...global.writes]) {
       if (uncertain.get(reference.uri)?.has(reference.from)) continue;
       const own = first.own.get(reference.uri);
@@ -1066,7 +1070,7 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 }
 
 // ---------------------------------------------------------------------------
-const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number> }>();
+const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string> }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
@@ -1096,7 +1100,10 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     }
     for (const { errors: found } of outside) for (const { location } of found) error(documentOffsets, location);
     const outsideRanges = outside.map(({ expr }) => documentOffsets.range(expr.location));
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flowParameters(tree, text), errors) };
+    const parameterStarts = new Set<number>();
+    const flows = flowParameters(tree, text, parameterStarts);
+    const outermostLocals = new Set(names.declarations.filter((d) => d.outermost && !parameterStarts.has(d.from)).map((d) => d.name));
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
@@ -1136,5 +1143,5 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintForRanges(expr, documentOffsets, out);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
-  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses };
+  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals };
 }

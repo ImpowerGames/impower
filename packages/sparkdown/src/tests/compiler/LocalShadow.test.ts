@@ -146,6 +146,8 @@ describe("LocalShadow of a global", () => {
     ["a scene parameter after the use", "& state = 1\nscene inspect(state)\n State: {state}.\nend\n", {}],
     ["a Sparkle handler's local", "& state = 1\nlayout main with\n button @click={ local state = 3; print(state) }\nend\n", {}],
     ["another script's scene parameter", "& state = 1\n", { "flow.sd": "scene inspect(state)\n & print(state)\nend\n" }],
+    // The reading declares a nested branch's parameters as a local of its scene.
+    ["another script's nested branch parameter", "& state = 1\n", { "flow.sd": "scene inspect()\n branch inner(state)\n  State: {state}.\n end\nend\n" }],
   ])("%s does not hide a global use elsewhere", (_label, use, more) => {
     const includes = Object.keys(more).map((path) => `include ${path}\n`).join("");
     expect(programShadows({ "main.sd": `include subject.sd\ninclude use.sd\n${includes}Ready.\n`, "subject.sd": subject, "use.sd": use, ...more })).toEqual([
