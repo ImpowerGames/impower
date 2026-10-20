@@ -203,6 +203,7 @@ function indexThroughMetatable(
   story: any,
   base: any,
   keyStr: string,
+  key: AbstractValue | null = null,
   depth: number = 0,
 ): AbstractValue | null {
   const MAX_DEPTH = 32;
@@ -212,32 +213,33 @@ function indexThroughMetatable(
   if (direct != null) return direct as AbstractValue;
   const indexFn = lookupMetamethod(base, "__index");
   if (indexFn == null) return null;
-  if (indexFn instanceof ObjectValue) {
-    // Treat closure-shaped ObjectValues (`__closure_fn` marker) as
-    // function-form even though they're ObjectValues. Otherwise an
-    // ObjectValue is a plain table — recurse.
-    if (
-      (indexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
-      null
-    ) {
-      const results = story.CallLuauFunction(indexFn, [
-        base,
-        new StringValue(keyStr),
-      ]);
-      return oneValue((results[0] as AbstractValue) ?? null);
-    }
-    return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
-  }
-  // A function held by reference — function form. An index is one value:
-  // the handler's first, or nil when it returns none.
-  if (isFunctionReference(indexFn)) {
+  // Function form — a closure, a function held by reference or a builtin,
+  // which are `ObjectValue`s too — receives the key as written (`t[2]`
+  // passes the number 2). An index is one value: the handler's first, or
+  // nil when it returns none. Otherwise an `ObjectValue` is a table to
+  // index in turn.
+  if (isMetamethodFunction(indexFn)) {
     const results = story.CallLuauFunction(indexFn, [
       base,
-      new StringValue(keyStr),
+      key ?? new StringValue(keyStr),
     ]);
     return oneValue((results[0] as AbstractValue) ?? null);
   }
+  if (indexFn instanceof ObjectValue) {
+    return indexThroughMetatable(story, indexFn, keyStr, key, depth + 1);
+  }
+  // Any other handler is indexed in turn, as Luau's `luaV_gettable` does,
+  // which raises for a number or a boolean (`__index = 42`).
+  const indexError = luauIndexTargetError(indexFn);
+  if (indexError) throw new StoryException(indexError);
   return null;
+}
+
+// Whether a metamethod is a function to call, rather than a table to
+// index or store into: a closure, a function held by reference, or a
+// builtin (`__newindex = rawset`), each of which Luau calls.
+function isMetamethodFunction(v: unknown): boolean {
+  return luauTypeOf(v) === "function";
 }
 
 /** Whether `v` is a function held by reference: a symbol value. */
@@ -343,14 +345,38 @@ const UNOP_TO_METAMETHOD: Record<string, string> = {
 // even if the wrapper instances differ.
 function sameLuauFunctionValue(a: any, b: any): boolean {
   if (a == null || b == null) return false;
+  // A number is rawequal by value, so a NaN handler matches nothing, not
+  // even itself.
+  const rawA = (a as { value?: unknown }).value;
+  const rawB = (b as { value?: unknown }).value;
+  if (typeof rawA === "number" || typeof rawB === "number") {
+    return rawA === rawB;
+  }
   if (a === b) return true;
   if (a instanceof ObjectValue && b instanceof ObjectValue) {
-    return a.value === b.value;
+    if (a.value === b.value) return true;
+    // A builtin is the same function wherever it is referenced, though
+    // each reference builds its own marker (`__eq = print` on two
+    // metatables).
+    const tagA = (a.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
+    const tagB = (b.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
+    return (
+      tagA instanceof StringValue &&
+      tagB instanceof StringValue &&
+      tagA.value === tagB.value
+    );
   }
   if (a instanceof SymbolValue && b instanceof SymbolValue) {
     return a.ref.Equals(b.ref);
   }
-  return false;
+  // A handler that is no function (`__le = 42` on two metatables) is
+  // still compared rawequal, by value, as Luau's `get_compTM` does; the
+  // call then raises.
+  return (
+    ["string", "boolean"].includes(typeof rawA) &&
+    typeof rawA === typeof rawB &&
+    rawA === rawB
+  );
 }
 
 // Direct JS-side dispatch for `__stdlib_fn` marker values — stdlib
@@ -435,15 +461,6 @@ function tryBinaryMetamethod(
   }
   let handler: any;
   if (metaName === "__eq") {
-    // Lua's getequalhandler rule: primitive (reference) equality is
-    // checked FIRST — `a == a` never consults the metamethod. The
-    // handler then fires only when BOTH operands have an `__eq` and
-    // the two handlers are the same value (rawequal). Different
-    // handlers → plain reference equality (which is false here,
-    // since the primitive check above already ruled out identity).
-    if (lhs.value === rhs.value) {
-      return new BoolValue(!invertEq);
-    }
     // Stdlib markers compare by TAG, not identity — every source
     // reference to `print` builds a fresh marker object, so
     // `a[f] == print` (where a[f] holds a previously-stored `print`)
@@ -460,18 +477,31 @@ function tryBinaryMetamethod(
         return new BoolValue(invertEq ? !same : same);
       }
     }
-    const handlerL = lookupMetamethod(callLhs, metaName);
-    const handlerR = lookupMetamethod(callRhs, metaName);
-    if (
-      handlerL == null ||
-      handlerR == null ||
-      handlerL instanceof NullValue ||
-      handlerR instanceof NullValue ||
-      !sameLuauFunctionValue(handlerL, handlerR)
-    ) {
-      return null;
+    // Luau's rule (`get_compTM`): the handler fires when BOTH operands
+    // have an `__eq` and the two are the same value (rawequal), even
+    // for a table compared with itself (events.luau's `t ~= t` under
+    // `__eq = print`). Otherwise `==` is reference equality.
+    handler = sameComparisonHandler(callLhs, callRhs, metaName);
+    if (handler == null) {
+      return lhs.value === rhs.value ? new BoolValue(!invertEq) : null;
     }
-    handler = handlerL;
+  } else if (metaName === "__lt" || metaName === "__le") {
+    // Luau's `call_orderTM`: an order metamethod fires only when both
+    // operands have it and the two are the same value; `a <= b` with
+    // no such `__le` is `not (b < a)` through `__lt`. Neither leaves
+    // the comparison to the operand types, which raise.
+    handler = sameComparisonHandler(callLhs, callRhs, metaName);
+    if (handler == null && metaName === "__le") {
+      const lt = sameComparisonHandler(callRhs, callLhs, "__lt");
+      if (lt == null) return null;
+      const results = story.CallLuauFunction(lt, [callRhs, callLhs]) as
+        | AbstractValue[]
+        | null;
+      const first = oneValue((results && results[0]) || new NullValue());
+      return new BoolValue(
+        !(first instanceof AbstractValue ? first.isTruthy : false),
+      );
+    }
   } else {
     handler =
       lookupMetamethod(callLhs, metaName) ?? lookupMetamethod(callRhs, metaName);
@@ -492,6 +522,33 @@ function tryBinaryMetamethod(
   return first;
 }
 
+// The comparison metamethod `metaName` both operands share: each has
+// one and the two are rawequal, or null. Two operands with one metatable
+// share its `__eq` whatever it holds (Luau's `get_compTM` returns it
+// without comparing), where an order metamethod is compared even then
+// (`call_orderTM`).
+function sameComparisonHandler(lhs: any, rhs: any, metaName: string): any {
+  const handlerL = lookupMetamethod(lhs, metaName);
+  const handlerR = lookupMetamethod(rhs, metaName);
+  if (
+    metaName === "__eq" &&
+    handlerL != null &&
+    lhs.metatable.value === rhs.metatable?.value
+  ) {
+    return handlerL;
+  }
+  if (
+    handlerL == null ||
+    handlerR == null ||
+    handlerL instanceof NullValue ||
+    handlerR instanceof NullValue ||
+    !sameLuauFunctionValue(handlerL, handlerR)
+  ) {
+    return null;
+  }
+  return handlerL;
+}
+
 // Unary metamethod dispatch — `-x` (`__unm`) and `#x` (`__len`).
 // `LEN` for ObjectValue falls through to the existing `t.value.size`
 // path when no metamethod is present; that path is in
@@ -509,7 +566,12 @@ function tryUnaryMetamethod(
   const results = story.CallLuauFunction(handler, [operand]) as
     | AbstractValue[]
     | null;
-  return oneValue((results && results[0]) || new NullValue());
+  const result = oneValue((results && results[0]) || new NullValue());
+  // Luau's `luaV_dolen` takes only a number from `__len`.
+  if (metaName === "__len" && typeof (result as any)?.value !== "number") {
+    throw new StoryException("'__len' must return a number");
+  }
+  return result;
 }
 
 // Spreads the last of the `count` arguments a call site pushed, as Luau
@@ -1245,17 +1307,23 @@ export function callValueAsFunction(
 // skip its own rawset on the ORIGINAL `base`. `false` means no
 // `__newindex` was found at any level; caller falls through to its
 // own rawset on `base`.
+//
+// A `__newindex` function receives the key as it was written (`t[2] =
+// v` passes the number 2). A nil or NaN key (`keyStr` null) is not
+// present in any table, so it reaches a `__newindex` function as Luau
+// passes it, and only a raw set raises Luau's error for it.
 function newindexThroughMetatable(
   story: any,
   base: any,
-  keyStr: string,
+  key: InkObject | null,
+  keyStr: string | null,
   newVal: AbstractValue,
   depth: number = 0,
 ): boolean {
   const MAX_DEPTH = 32;
   if (depth > MAX_DEPTH) return false;
   if (!(base instanceof ObjectValue)) return false;
-  if (base.value?.has(keyStr)) {
+  if (keyStr !== null && base.value?.has(keyStr)) {
     // Lua-fidelity edge case: when called RECURSIVELY (depth > 0,
     // i.e. via a table-form __newindex), the recursion handled the
     // write by doing a settable on the target — and the key already
@@ -1264,11 +1332,7 @@ function newindexThroughMetatable(
     // base's rawset (which is what we want — the original base
     // should NOT receive the value).
     if (depth > 0) {
-      if (base.isFrozen) {
-        throw new StoryException("attempt to modify a readonly table");
-      }
-      story.state.variablesState.WriteBarrier(base);
-      base.value.set(keyStr, newVal);
+      rawStore(story, base, key, keyStr, newVal);
       return true;
     }
     return false;
@@ -1280,44 +1344,75 @@ function newindexThroughMetatable(
     // step of the table-form chain. If we're at the top, return
     // false so the caller does its own rawset on the original base.
     if (depth > 0) {
-      if (base.isFrozen) {
-        throw new StoryException("attempt to modify a readonly table");
-      }
-      story.state.variablesState.WriteBarrier(base);
-      base.value!.set(keyStr, newVal);
+      rawStore(story, base, key, keyStr, newVal);
       return true;
     }
     return false;
   }
+  const passedKey =
+    (key as AbstractValue | null) ?? (new NullValue() as AbstractValue);
+  // A builtin (`__newindex = rawset`) is a function too, not a table to
+  // store into.
+  if (isMetamethodFunction(newindexFn)) {
+    story.CallLuauFunction(newindexFn, [base, passedKey, newVal]);
+    return true;
+  }
   if (newindexFn instanceof ObjectValue) {
-    if (
-      (newindexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
-      null
-    ) {
-      story.CallLuauFunction(newindexFn, [
-        base,
-        new StringValue(keyStr),
-        newVal,
-      ]);
-      return true;
-    }
     return newindexThroughMetatable(
       story,
       newindexFn,
+      key,
       keyStr,
       newVal,
       depth + 1,
     );
   }
-  if (isFunctionReference(newindexFn)) {
-    story.CallLuauFunction(newindexFn, [
-      base,
-      new StringValue(keyStr),
-      newVal,
-    ]);
-    return true;
-  }
+  // Any other handler is stored into in turn, as Luau's `luaV_settable`
+  // does, which raises for a number or a boolean (`__newindex = 42`).
+  const indexError = luauIndexTargetError(newindexFn);
+  if (indexError) throw new StoryException(indexError);
   return false;
+}
+
+// Luau's error for a key no table can hold, or null for a key it can.
+function invalidKeyMessage(key: InkObject | null): string | null {
+  if (key == null || key instanceof NullValue) return "table index is nil";
+  const numKey = (key as { value?: unknown }).value;
+  if (typeof numKey === "number" && Number.isNaN(numKey)) {
+    return "table index is NaN";
+  }
+  return null;
+}
+
+// `rawset(t, k, v)` as a write reaches it: a frozen table and a nil or
+// NaN key raise, and a nil value removes the key — a nil-valued entry
+// doesn't exist (`t[k] = nil` is the idiomatic delete; `pairs` must not
+// see the key afterwards).
+function rawStore(
+  story: any,
+  base: ObjectValue,
+  key: InkObject | null,
+  keyStr: string | null,
+  val: AbstractValue,
+): void {
+  if (base.isFrozen) {
+    throw new StoryException("attempt to modify a readonly table");
+  }
+  if (keyStr === null) {
+    throw new StoryException(invalidKeyMessage(key) ?? "table index is nil");
+  }
+  story.state.variablesState.WriteBarrier(base);
+  if (val instanceof NullValue) {
+    base.value!.delete(keyStr);
+  } else {
+    base.value!.set(keyStr, val);
+  }
+  // Reactive dep tracking: an in-place table mutation, keyed by the
+  // table's backing-Map identity (a binding that read this table
+  // re-runs). Cheap no-op when reactive tracking is disabled.
+  if (story.state.variablesState.reactiveDepsEnabled) {
+    story.state.variablesState.recordReactiveTableChange(base.value);
+  }
 }
 
 // The value operations below are the handlers the binary program's engine
@@ -1450,7 +1545,12 @@ export function indexValue(
     if (direct != null) {
       resolved = direct;
     } else {
-      resolved = indexThroughMetatable(story, indexBase, keyStr);
+      resolved = indexThroughMetatable(
+        story,
+        indexBase,
+        keyStr,
+        asOrNull(indexKey, AbstractValue),
+      );
     }
   } else if (indexBase instanceof StringValue) {
     // 1-indexed character access, matching Luau's string indexing.
@@ -1501,47 +1601,26 @@ export function storeIndex(
     return;
   }
   if (storeBase instanceof ObjectValue) {
-    // Lua rejects nil and NaN as table KEYS on write (reads
+    // Lua rejects nil and NaN as table KEYS on a raw write (reads
     // just produce nil) — `a[NaN] = 1` raises "table index
-    // is NaN" through pcall (math.luau NaN section).
-    if (storeKey == null || storeKey instanceof NullValue) {
-      throw new StoryException("table index is nil");
-    }
-    {
-      const numKey = (storeKey as { value?: unknown }).value;
-      if (typeof numKey === "number" && Number.isNaN(numKey)) {
-        throw new StoryException("table index is NaN");
-      }
-    }
-    const keyStr = luauMapKeyString(storeKey);
+    // is NaN" through pcall (math.luau NaN section) — but a
+    // `__newindex` function receives them (events.luau).
+    const invalidKey = invalidKeyMessage(storeKey);
+    const keyStr = invalidKey === null ? luauMapKeyString(storeKey!) : null;
     const val = asOrNull(storeValue, AbstractValue);
     if (storeBase.value && val !== null) {
       // `__newindex`: only consulted on a raw miss (key not
       // already present). If the metatable handles the write,
       // skip the direct mutation. Cycle-bounded recursion via
-      // `newindexThroughMetatable`. Frozen tables refuse all
-      // writes including through `__newindex`.
-      if (storeBase.isFrozen) {
-        throw new StoryException("attempt to modify a readonly table");
-      }
-      if (newindexThroughMetatable(story, storeBase, keyStr, val)) {
+      // `newindexThroughMetatable`. A frozen table refuses the
+      // raw write, but a key absent from it still reaches its
+      // `__newindex` (Luau).
+      if (newindexThroughMetatable(story, storeBase, storeKey, keyStr, val)) {
         return;
       }
-      // Lua: assigning nil REMOVES the key — a nil-valued
-      // entry doesn't exist (`t[k] = nil` is the idiomatic
-      // delete; `pairs` must not see the key afterwards).
-      story.state.variablesState.WriteBarrier(storeBase);
-      if (val instanceof NullValue) {
-        storeBase.value.delete(keyStr);
-      } else {
-        storeBase.value.set(keyStr, val);
-      }
-      // Reactive dep tracking: an in-place table mutation, keyed by the
-      // table's backing-Map identity (a binding that read this table
-      // re-runs). Cheap no-op when reactive tracking is disabled.
-      if (story.state.variablesState.reactiveDepsEnabled) {
-        story.state.variablesState.recordReactiveTableChange(storeBase.value);
-      }
+      rawStore(story, storeBase, storeKey, keyStr, val);
+    } else if (invalidKey !== null) {
+      throw new StoryException(invalidKey);
     }
   } else {
     throw new StoryException("Cannot assign to a property of a non-object value");
