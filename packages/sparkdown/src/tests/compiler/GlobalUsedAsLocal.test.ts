@@ -96,6 +96,7 @@ describe("GlobalUsedAsLocal is silent for a use outside the function", () => {
     ["a Sparkle handler's statements", "layout main with\n button @click={ print(score) }\nend\n"],
     ["a bare Sparkle handler", "layout main with\n button @click=score\nend\n"],
     ["a Luau string", "& print(\"score\")\n"],
+    ["a member of the globals table", "& print(_G.score)\n"],
     ["a type", "type T = typeof(score)\n"],
     ["another function", "function g()\n  return score\nend\n& g()\n"],
   ])("%s", (_label, use) => {

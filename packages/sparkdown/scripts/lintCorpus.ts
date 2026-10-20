@@ -9,7 +9,7 @@ import { collectLuauLints, LUAU_LINT_CODES } from "../src/compiler/lint/collectL
 import type { SparkDiagnostic } from "../src/compiler/types/SparkDiagnostic";
 import { namesRun, onlyRunIsWrapper } from "../src/tests/luau-conformance/wrapperRun";
 
-interface Script {
+export interface Script {
   /** What the finding prints as its file. */
   label: string;
   text: string;
@@ -17,7 +17,7 @@ interface Script {
   offset: number;
 }
 
-interface Finding {
+export interface Finding {
   label: string;
   line: number;
   column: number;
@@ -27,8 +27,17 @@ interface Finding {
 
 const LINT_CODES = new Set<string>(LUAU_LINT_CODES);
 
-function uriOf(label: string) {
-  return `file:///corpus/${encodeURIComponent(label)}`;
+/** A script's URI. A wrapped conformance file is the `.sd` script its
+ *  wrapper makes, so its URI ends in `.sd`: with its own `.luau` ending, the
+ *  compiler would read it as a `.luau` file (`isLuauFile`). */
+function uriOf(script: Script) {
+  return `file:///corpus/${encodeURIComponent(script.label)}${script.offset ? ".sd" : ""}`;
+}
+
+/** A Luau conformance file as the corpus compiles it, wrapped in a function
+ *  (sparkdown is Luau only inside one), with its line numbers kept. */
+export function conformanceScript(label: string, fileText: string): Script {
+  return { label, text: `function run()\n${fileText}\nend\n`, offset: 1 };
 }
 
 /** Runs `fn` with the console silenced: the compiler logs the diagnostics
@@ -46,11 +55,11 @@ function quietly<T>(fn: () => T): T {
 }
 
 /** Compiles `scripts` as one program and returns the lints each reports. */
-function lint(scripts: Script[], entries: Script[]): Finding[] {
+export function lint(scripts: Script[], entries: Script[]): Finding[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: scripts.map((s) => ({
-      uri: uriOf(s.label),
+      uri: uriOf(s),
       type: "script",
       name: s.label.replace(/^.*\//, "").replace(/\.[^.]*$/, ""),
       ext: "sd",
@@ -59,10 +68,10 @@ function lint(scripts: Script[], entries: Script[]): Finding[] {
       languageId: "sparkdown",
     })),
   });
-  const byUri = new Map(scripts.map((s) => [uriOf(s.label), s]));
+  const byUri = new Map(scripts.map((s) => [uriOf(s), s]));
   const reported = new Map<string, SparkDiagnostic[]>();
   for (const entry of entries) {
-    const uri = uriOf(entry.label);
+    const uri = uriOf(entry);
     if (reported.has(uri)) continue;
     const { program } = quietly(() =>
       compiler.compile({ textDocument: { uri } }),
@@ -156,11 +165,7 @@ export function main(repo: string, project?: string) {
     .sort();
   const luauFindings: Finding[] = [];
   for (const full of luau) {
-    const script = {
-      label: slash(relative(repo, full)),
-      text: `function run()\n${readFileSync(full, "utf8")}\nend\n`,
-      offset: 1,
-    };
+    const script = conformanceScript(slash(relative(repo, full)), readFileSync(full, "utf8"));
     luauFindings.push(...lint([script], [script]));
   }
   run("Luau conformance files", luauFindings, luau.length);
