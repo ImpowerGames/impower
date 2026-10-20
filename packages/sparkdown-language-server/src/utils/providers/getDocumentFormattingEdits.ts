@@ -82,6 +82,8 @@ const INDENTING_BLOCKS = nodeNameSet([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
+  "LuauSequentialAlternatorStatement",
+  "LuauConditionalAlternatorStatement",
   "LuauSparkleBlockIf",
   "LuauSparkleBlockElseif",
   "LuauSparkleBlockElse",

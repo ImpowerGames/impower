@@ -497,18 +497,14 @@ const PURE_LUAU_BODY_CONTENT = nodeNameSet([
   "LuauIfBlock_content",
   "LuauElseifBlock_content",
   "LuauElseBlock_content",
-  "LuauConditionalAlternatorBlock_content",
-  "LuauSequentialAlternatorBlock_content",
+  "LuauAlternatorArms_content",
   "LuauFunctionTypeDeclaration_content",
 ]);
 
 // The alternator bodies among them. The type checker reads an alternator as
 // a value of any type, not its arms, so an arm that holds an unread token is
 // the alternator lowerer's to report (`lowerArms`).
-const ALTERNATOR_CONTENT = nodeNameSet([
-  "LuauConditionalAlternatorBlock_content",
-  "LuauSequentialAlternatorBlock_content",
-]);
+const ALTERNATOR_CONTENT = nodeNameSet(["LuauAlternatorArms_content"]);
 // The bodies whose statements are read one member or one closure at a time:
 // a define's (its members, each a method, a function or a property) and a
 // sparkle handler's closure's (read whole, as `lowerSparkleBody.ts` reads it).

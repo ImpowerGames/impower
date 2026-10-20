@@ -60,6 +60,8 @@ const LUAU_BLOCKS = nodeNameSet([
   "LuauRepeatLoop",
   "LuauConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorStatement",
+  "LuauSequentialAlternatorStatement",
   "LuauSparkdownDoBlock",
   "LuauSparkdownIfBlock",
   "LuauSparkdownElseifBlock",

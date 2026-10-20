@@ -88,7 +88,7 @@ import { doesCallError, getFallthrough } from "../typecheck/DataFlowGraph";
 import { decodeBytes } from "../typecheck/Linter";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
-import { FLOW_HEADERS, NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
+import { FLOW_HEADERS, NEUTRAL, RESERVED, isSparkdownExpression, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
 import { readLuauExpression, readLuauMethod, readLuauStatements, type LuauAstUnit } from "../typecheck/readLuauAst";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { nodeNameSet } from "../utils/nodeNameSet";
@@ -366,7 +366,7 @@ const BEGIN_OR_END = /_(begin|end)(_c\d+)*$/;
 
 /** Whether the reading of the tree passes over a node: narrative text, or one of Sparkdown's own constructs or expressions (see `readLuauAst.ts`). */
 function isOpaque(node: SyntaxNode): boolean {
-  if (SPARKDOWN_ONLY.has(node.name) || SPARKDOWN_EXPRESSIONS.has(node.name)) return true;
+  if (SPARKDOWN_ONLY.has(node.name) || isSparkdownExpression(node)) return true;
   return !node.name.startsWith("Luau") && !NEUTRAL.test(node.name);
 }
 
@@ -374,7 +374,7 @@ function isOpaque(node: SyntaxNode): boolean {
 function endsExpression(node: SyntaxNode, text: string): boolean {
   // One of Sparkdown's own expressions (a divert target, a regular
   // expression, an alternator) is one operand, which the reading takes whole.
-  if (SPARKDOWN_EXPRESSIONS.has(node.name)) return false;
+  if (isSparkdownExpression(node)) return false;
   if (isOpaque(node) || BEGIN_OR_END.test(node.name)) return true;
   if (/Keyword$|Separator$/.test(node.name) || node.name === "LuauAssignmentOperator") return true;
   return node.name.startsWith("Punctuation") && /[,;]/.test(text.slice(node.from, node.to));

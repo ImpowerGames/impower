@@ -108,61 +108,65 @@ sparkdown [0..94]
  │   │       │   │   │       │   │   │       │   │   │           │   └─ PunctuationParenClose [57..58]: ")"
  │   │       │   │   │       │   │   │       │   │   │           └─ LuauParenthetical_end_c2 58
  │   │       │   │   │       │   │   │       │   │   └─ LuauConditionalAlternatorCondition_end 58
- │   │       │   │   │       │   │   │       │   ├─ LuauAlternatorSeparator [58..63]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 58
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [58..59]: "|"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 59
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 59
- │   │       │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace 59
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [59..62]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [59..62]: "one"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 62
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 62
- │   │       │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace 62
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [62..63]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [62..63]: "="
- │   │       │   │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 63
- │   │       │   │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 63
- │   │       │   │   │       │   │   │       │   │           └─ OptionalWhitespace 63
- │   │       │   │   │       │   │   │       │   ├─ LuauDoubleQuotedString [63..67]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauDoubleQuotedString_begin [63..64]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauDoubleQuotedString_begin_c1 [63..64]
- │   │       │   │   │       │   │   │       │   │   │       └─ PunctuationStringDoubleQuoteOpen [63..64]: "\""
- │   │       │   │   │       │   │   │       │   │   ├─ LuauDoubleQuotedString_content [64..66]
- │   │       │   │   │       │   │   │       │   │   │   └─ Word [64..66]: "is"
- │   │       │   │   │       │   │   │       │   │   └─ LuauDoubleQuotedString_end [66..67]
- │   │       │   │   │       │   │   │       │   │       ├─ LuauDoubleQuotedString_end_c1 [66..67]
- │   │       │   │   │       │   │   │       │   │       │   └─ PunctuationStringDoubleQuoteClose [66..67]: "\""
- │   │       │   │   │       │   │   │       │   │       └─ LuauDoubleQuotedString_end_c2 67
- │   │       │   │   │       │   │   │       │   ├─ LuauAlternatorSeparator [67..77]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 67
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [67..68]: "|"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 [68..69]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [68..69]
- │   │       │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace [68..69]: " "
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [69..74]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [69..74]: "other"
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 [74..75]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 [74..75]
- │   │       │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace [74..75]: " "
- │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [75..76]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [75..76]: "="
- │   │       │   │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 [76..77]
- │   │       │   │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 [76..77]
- │   │       │   │   │       │   │   │       │   │           └─ OptionalWhitespace [76..77]: " "
- │   │       │   │   │       │   │   │       │   └─ LuauDoubleQuotedString [77..82]
- │   │       │   │   │       │   │   │       │       ├─ LuauDoubleQuotedString_begin [77..78]
- │   │       │   │   │       │   │   │       │       │   └─ LuauDoubleQuotedString_begin_c1 [77..78]
- │   │       │   │   │       │   │   │       │       │       └─ PunctuationStringDoubleQuoteOpen [77..78]: "\""
- │   │       │   │   │       │   │   │       │       ├─ LuauDoubleQuotedString_content [78..81]
- │   │       │   │   │       │   │   │       │       │   └─ Word [78..81]: "are"
- │   │       │   │   │       │   │   │       │       └─ LuauDoubleQuotedString_end [81..82]
- │   │       │   │   │       │   │   │       │           ├─ LuauDoubleQuotedString_end_c1 [81..82]
- │   │       │   │   │       │   │   │       │           │   └─ PunctuationStringDoubleQuoteClose [81..82]: "\""
- │   │       │   │   │       │   │   │       │           └─ LuauDoubleQuotedString_end_c2 82
+ │   │       │   │   │       │   │   │       │   └─ LuauAlternatorArms [58..82]
+ │   │       │   │   │       │   │   │       │       ├─ LuauAlternatorArms_begin 58
+ │   │       │   │   │       │   │   │       │       ├─ LuauAlternatorArms_content [58..82]
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauAlternatorSeparator [58..63]
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 58
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [58..59]: "|"
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 59
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 59
+ │   │       │   │   │       │   │   │       │       │   │   │       └─ OptionalWhitespace 59
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 [59..62]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorAssignmentName [59..62]: "one"
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 62
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorSeparator_c5 62
+ │   │       │   │   │       │   │   │       │       │   │   │       └─ OptionalWhitespace 62
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 [62..63]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorAssignmentOperator [62..63]: "="
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauAlternatorSeparator_c7 63
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauAlternatorSeparator_c7 63
+ │   │       │   │   │       │   │   │       │       │   │           └─ OptionalWhitespace 63
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauDoubleQuotedString [63..67]
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauDoubleQuotedString_begin [63..64]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauDoubleQuotedString_begin_c1 [63..64]
+ │   │       │   │   │       │   │   │       │       │   │   │       └─ PunctuationStringDoubleQuoteOpen [63..64]: "\""
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauDoubleQuotedString_content [64..66]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ Word [64..66]: "is"
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauDoubleQuotedString_end [66..67]
+ │   │       │   │   │       │   │   │       │       │   │       ├─ LuauDoubleQuotedString_end_c1 [66..67]
+ │   │       │   │   │       │   │   │       │       │   │       │   └─ PunctuationStringDoubleQuoteClose [66..67]: "\""
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauDoubleQuotedString_end_c2 67
+ │   │       │   │   │       │   │   │       │       │   ├─ LuauAlternatorSeparator [67..77]
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 67
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [67..68]: "|"
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [68..69]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [68..69]
+ │   │       │   │   │       │   │   │       │       │   │   │       └─ OptionalWhitespace [68..69]: " "
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 [69..74]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorAssignmentName [69..74]: "other"
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 [74..75]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorSeparator_c5 [74..75]
+ │   │       │   │   │       │   │   │       │       │   │   │       └─ OptionalWhitespace [74..75]: " "
+ │   │       │   │   │       │   │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 [75..76]
+ │   │       │   │   │       │   │   │       │       │   │   │   └─ LuauAlternatorAssignmentOperator [75..76]: "="
+ │   │       │   │   │       │   │   │       │       │   │   └─ LuauAlternatorSeparator_c7 [76..77]
+ │   │       │   │   │       │   │   │       │       │   │       └─ LuauAlternatorSeparator_c7 [76..77]
+ │   │       │   │   │       │   │   │       │       │   │           └─ OptionalWhitespace [76..77]: " "
+ │   │       │   │   │       │   │   │       │       │   └─ LuauDoubleQuotedString [77..82]
+ │   │       │   │   │       │   │   │       │       │       ├─ LuauDoubleQuotedString_begin [77..78]
+ │   │       │   │   │       │   │   │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [77..78]
+ │   │       │   │   │       │   │   │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [77..78]: "\""
+ │   │       │   │   │       │   │   │       │       │       ├─ LuauDoubleQuotedString_content [78..81]
+ │   │       │   │   │       │   │   │       │       │       │   └─ Word [78..81]: "are"
+ │   │       │   │   │       │   │   │       │       │       └─ LuauDoubleQuotedString_end [81..82]
+ │   │       │   │   │       │   │   │       │       │           ├─ LuauDoubleQuotedString_end_c1 [81..82]
+ │   │       │   │   │       │   │   │       │       │           │   └─ PunctuationStringDoubleQuoteClose [81..82]: "\""
+ │   │       │   │   │       │   │   │       │       │           └─ LuauDoubleQuotedString_end_c2 82
+ │   │       │   │   │       │   │   │       │       └─ LuauAlternatorArms_end 82
+ │   │       │   │   │       │   │   │       │           ├─ LuauAlternatorArms_end_c1 82
+ │   │       │   │   │       │   │   │       │           └─ LuauAlternatorArms_end_c2 82
  │   │       │   │   │       │   │   │       └─ LuauConditionalAlternatorBlock_end 82
- │   │       │   │   │       │   │   │           ├─ LuauConditionalAlternatorBlock_end_c1 82
- │   │       │   │   │       │   │   │           └─ LuauConditionalAlternatorBlock_end_c2 82
  │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [82..83]
  │   │       │   │   │       │   │       ├─ LuauBacktickStringInterpolation_end_c1 [82..83]
  │   │       │   │   │       │   │       │   └─ PunctuationBraceClose [82..83]: "}"

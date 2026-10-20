@@ -202,8 +202,6 @@ sparkdown [0..189]
  │   │       │       │   │   │       │       │           └─ LuauTable_end_c2 108
  │   │       │       │   │   │       │       └─ LuauConditionalAlternatorCondition_end 108
  │   │       │       │   │   │       └─ LuauConditionalAlternatorBlock_end 108
- │   │       │       │   │   │           ├─ LuauConditionalAlternatorBlock_end_c1 108
- │   │       │       │   │   │           └─ LuauConditionalAlternatorBlock_end_c2 108
  │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [108..109]
  │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [108..109]
  │   │       │       │   │           └─ PunctuationBraceClose [108..109]: "}"
@@ -369,8 +367,6 @@ sparkdown [0..189]
  │   │       │       │   │   │       │       │           └─ LuauTable_end_c2 182
  │   │       │       │   │   │       │       └─ LuauConditionalAlternatorCondition_end 182
  │   │       │       │   │   │       └─ LuauConditionalAlternatorBlock_end 182
- │   │       │       │   │   │           ├─ LuauConditionalAlternatorBlock_end_c1 182
- │   │       │       │   │   │           └─ LuauConditionalAlternatorBlock_end_c2 182
  │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [182..183]
  │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [182..183]
  │   │       │       │   │           └─ PunctuationBraceClose [182..183]: "}"

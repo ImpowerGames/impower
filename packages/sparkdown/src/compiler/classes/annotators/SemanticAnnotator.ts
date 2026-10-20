@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { ALTERNATOR_CANDIDATES, opensAlternator } from "../../utils/alternatorDecision";
 import { ChangeDesc, MapMode, Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode, Tree } from "@lezer/common";
@@ -141,6 +142,15 @@ function isAtDeclarationSite(node: any): boolean {
     cur = cur.parent;
   }
   return false;
+}
+
+// Whether a keyword node is a structural word that begins a candidate
+// alternator holding no arms, so it names a value (`opensAlternator`).
+function isNameNotAlternator(node: SyntaxNode): boolean {
+  let begin: SyntaxNode | null = node.parent;
+  while (begin && /_begin_c\d+$/.test(begin.name)) begin = begin.parent;
+  const rule = begin?.name.endsWith("_begin") ? begin.parent : null;
+  return !!rule && ALTERNATOR_CANDIDATES.has(rule.name) && !opensAlternator(rule);
 }
 
 /**
@@ -648,6 +658,22 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           ),
         );
       }
+    }
+    // A structural word whose rule holds no arms names a value (`match(1)`
+    // calls `match`, I-1310). The grammar gave it the alternator keyword's
+    // scope, since the arms come later than the word; this token overrides
+    // that with the name's, as a reference. An alternator's word keeps the
+    // keyword's scope, with no token. The word is not recorded as a
+    // dependency: a distant edit's replay drops an unbound site's token,
+    // which would bring the keyword's colour back.
+    if (nodeRef.name === "LuauControlKeyword" && isNameNotAlternator(nodeRef.node)) {
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      const binding = this.lookupBinding(name);
+      annotations.push(
+        SparkdownAnnotation.mark<SemanticInfo>(
+          binding ? semanticInfo(binding, false) : { tokenType: "variable", tokenModifiers: [] },
+        ).range(nodeRef.from, nodeRef.to),
+      );
     }
     // Narrative-scope **beat** declarations: `scene NAME`,
     // `branch NAME`, and `:: NAME` label headings. "Beat" is the

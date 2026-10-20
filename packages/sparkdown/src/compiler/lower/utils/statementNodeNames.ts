@@ -23,6 +23,8 @@ export const LUAU_BLOCK_NAMES = nodeNameSet([
   "LuauElseBlock",
   "LuauConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorStatement",
+  "LuauSequentialAlternatorStatement",
 ]);
 
 export const BLOCK_NAMES = nodeNameSet([
@@ -69,6 +71,8 @@ export const BLOCK_NAMES = nodeNameSet([
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorStatement",
+  "LuauSequentialAlternatorStatement",
 ]);
 
 export const NARRATIVE_STATEMENT_NAMES = nodeNameSet([

@@ -24,6 +24,7 @@ import { isTrivia } from "../../lint/luauTree";
 import { reportSyntaxErrors } from "../expression/lowerFunction";
 import { readExpressionAst } from "./luauAst";
 import { containsUnreadToken } from "../../utils/unreadTokens";
+import { ALTERNATOR_CANDIDATES, alternatorArms } from "../../utils/alternatorDecision";
 
 // The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
 // a literal, a name or path, a parenthesized value, a table, a divert
@@ -95,6 +96,11 @@ export function lowerArms(
 ): AlternatorArm[] {
   const arms: AlternatorArm[] = [];
   if (!content) return arms;
+  // A candidate in Luau code holds its separators and arms in its
+  // `LuauAlternatorArms` (I-1310); a story alternator holds them itself.
+  const candidate = content.parent;
+  const armsNode = candidate && ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
+  if (armsNode) content = armsNode.getChild(`${armsNode.name}_content`) ?? armsNode;
   let current: AlternatorArm | null = null;
   // The nodes of the current arm. The type checker reads an alternator as a
   // value of any type, not its arms, so an arm holding a token no rule read
