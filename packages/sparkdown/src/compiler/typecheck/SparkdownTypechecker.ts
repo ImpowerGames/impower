@@ -201,6 +201,12 @@ export class SparkdownTypechecker {
     // from the character before it (an error at the end of the unit begins
     // right after the function's `end`).
     const read = (from: number, to: number) => text.slice(from, to);
+    // Where the top-level statement a document position is in begins.
+    const topLevelAt = (position: { line: number; character: number }) => {
+      let node = tree.resolveInner(offsetOf(position), 1);
+      while (node.parent?.parent) node = node.parent;
+      return node.from;
+    };
     const inFunction = (position: { line: number; character: number }) =>
       luauReadingReportsAllAt(tree.resolveInner(offsetOf(position), -1), read);
     const report = (entry: CachedUnit, unit: LuauUnit, pureLuau: boolean) => {
@@ -229,11 +235,14 @@ export class SparkdownTypechecker {
           // statement that holds a token the grammar left unread
           // (`LuauSyntaxError.unread`), Sparkdown's own syntax's for the rest.
           const inPureLuau = pureLuau || inFunction(start);
-          // In a `.luau` or `run` file Luau's parser stops at the end of the
-          // chunk, and what the reading reads on after it is none of Luau's.
-          // A `.sd` document's functions after it are compiled on their own,
-          // and their errors are theirs.
-          if (pureLuau && syntaxError?.pastChunkEnd) continue;
+          // Luau's parser stops at the end of the chunk, and what the reading
+          // reads on after it is none of Luau's: in a `.luau` or `run` file
+          // all of it, in a `.sd` document the rest of the top-level
+          // statement it stopped in. The document's statements after that
+          // one (a later function) are compiled on their own, and their
+          // errors are theirs.
+          const stoppedAt = syntaxError?.pastChunkEnd;
+          if (stoppedAt && (pureLuau || topLevelAt(start) === topLevelAt(documentPosition(unit, stoppedAt.begin)))) continue;
           if (!inPureLuau) {
             if (!syntaxError?.malformed && !syntaxError?.unread) continue;
             const token = `${end.line}:${end.character}`;

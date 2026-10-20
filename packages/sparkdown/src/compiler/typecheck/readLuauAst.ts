@@ -153,9 +153,10 @@ export interface LuauSyntaxError {
   /**
    * Not part of Luau: the error is in what the reading goes on to read after
    * the end of the chunk, where Luau's parser stops at its `Expected <eof>`
-   * error, so Luau reports none of it.
+   * error, so Luau reports none of it: the location of the token it stopped
+   * at.
    */
-  pastChunkEnd?: true;
+  pastChunkEnd?: Location;
   /**
    * Not part of Luau: what the error finds malformed, where only Luau's
    * reading of the tokens sees it and Sparkdown's grammar, which reads a
@@ -1629,7 +1630,7 @@ class Parser {
   private sparkdownDepth = 0;
   // Not part of Luau: whether the reading has gone on past the end of the
   // chunk Luau's parser stops at (`parseChunk`).
-  private pastChunkEnd = false;
+  private pastChunkEnd: Location | undefined;
   // Not part of Luau: how many attribute lists (`@[...]`) are being read;
   // every error met in one is the list's (`MalformedConstruct` "attribute").
   private attributeListDepth = 0;
@@ -1815,7 +1816,7 @@ class Parser {
       this.statementErrorBegin = location.begin;
     }
     if (atSparkdown) error.sparkdown = true;
-    if (this.pastChunkEnd) error.pastChunkEnd = true;
+    if (this.pastChunkEnd) error.pastChunkEnd = this.pastChunkEnd;
     if (this.tokens[errorPos]?.unread) this.errorsAtUnread.add(this.errors.length);
     this.errors.push(error);
     if (this.errors.length >= ERROR_LIMIT) throw new FatalReadError(location, `Reached error limit (${ERROR_LIMIT})`);
@@ -2092,7 +2093,7 @@ class Parser {
       this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`);
       // Not part of Luau, whose parser stops there: the rest is read on for
       // Sparkdown's own use, and its errors are none of Luau's.
-      this.pastChunkEnd = true;
+      this.pastChunkEnd ??= this.current().location;
       this.next();
       const rest = this.parseBlock();
       appendAll(result.body, rest.body);
