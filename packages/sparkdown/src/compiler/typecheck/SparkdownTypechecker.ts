@@ -173,25 +173,13 @@ export class SparkdownTypechecker {
     };
     const report = (entry: CachedUnit, unit: LuauUnit) => {
       checks.push(entry.check);
-      // The tokens a syntax error has been reported at, each once.
-      const reportedTokens = new Set<string>();
       const parseErrors = entry.check.sourceModule.parseErrors;
       for (const error of entry.check.errors) {
-        const parseError = parseErrors.indexOf(error);
-        if (parseError >= 0) {
-          // Syntax is the grammar's to report, but for a construct only
-          // Luau's reading finds malformed (`LuauSyntaxError.malformed`)
-          // and for a statement that holds a token the grammar left unread
-          // (`LuauSyntaxError.unread`).
-          const syntaxError = entry.check.unit.errors[parseError];
-          if (!syntaxError?.malformed && !syntaxError?.unread) continue;
+        if (parseErrors.includes(error)) {
           const message = error.data.kind === "SyntaxError" ? error.data.message : "";
           const start = documentPosition(unit, error.location.begin);
           const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"), message.startsWith("Expected type"));
-          // The error's range ends with the token the reading found.
-          const token = `${end.line}:${end.character}`;
-          if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
-          reportedTokens.add(token);
+          if (isSparkdownSyntax(end)) continue;
           diagnostics.push({ start, end, code: "SyntaxError", message, syntax: true });
           continue;
         }

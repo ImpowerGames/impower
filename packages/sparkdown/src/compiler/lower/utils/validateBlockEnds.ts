@@ -361,7 +361,8 @@ type OpenEntry =
 // the document every block, scene and branch. Scenes and branches take part
 // so that their own `end`s are not counted as a block's: one left open after
 // a block inside it took an `end` is reported on that block, and one no block
-// took an `end` from is `validateSceneBranchScope.ts`'s to report.
+// took an `end` from is `validateSceneBranchScope.ts`'s to report. An `end`
+// with nothing open to close is reported on itself.
 export function validateOpenBlocks(
   top: SyntaxNode,
   ctx: LowerContext,
@@ -408,6 +409,11 @@ export function validateOpenBlocks(
         (entry) => entry.kind !== "block" || entry.block.closer !== "until",
       );
       const closed = open.pop();
+      // An `end` that closes nothing is reported on itself, as Luau reports
+      // one (#774): an extra `end` after a function, or the second `end` of
+      // an if statement written where an if expression is read, whose first
+      // `end` closed the function early.
+      if (!closed) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
       // The block an `end` closes, or the one a closing branch recorded, took
       // the `end` of the scene or branch around it if that is left open.
       const took = closed?.kind === "block" ? closed.block : closed?.lastClosed;

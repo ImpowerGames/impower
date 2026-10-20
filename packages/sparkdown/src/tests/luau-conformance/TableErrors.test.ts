@@ -8,7 +8,7 @@ import { diagnoseInFunction } from "./diagnosticTestHarness";
 
 // Luau: parse_error_table_literal
 // A `(name = t)` where `{name = t}` was meant.
-describe.skip("parentheses used as a table constructor (diverges: accepted silently)", () => {
+describe("parentheses used as a table constructor", () => {
   test("local foo = (name = t)", () => {
     const msgs = diagnoseInFunction(
       "function stringifyTable(t)\n    local foo = (name = t)\n    return foo\nend",

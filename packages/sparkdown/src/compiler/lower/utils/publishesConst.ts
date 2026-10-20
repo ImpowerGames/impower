@@ -18,7 +18,7 @@ import {
   type AstExpr,
   type AstNode,
 } from "../../typecheck/Ast";
-import { checkerReportsSyntaxAt } from "../../typecheck/LuauUnitNodes";
+import { isCheckedLuauAt } from "../../typecheck/LuauUnitNodes";
 import type { Location } from "../../typecheck/Location";
 import type { LowerContext } from "../context";
 import { offsetAt, rangeOf } from "./luauAst";
@@ -41,10 +41,11 @@ export function publishesConst(ctx: LowerContext): boolean {
 /**
  * Reports one of Luau's errors for a `const` of a function (a name with no
  * value, a reassignment), in Luau's words at Luau's range (`location`, from
- * the converter's AST), where the type checker does not report it
- * (`checkerReportsSyntaxAt`): a function value in an interpolation of the
- * story or of a double-quoted string, a define's method or property, a
- * Sparkle handler. Where it does, its reading reports the error
+ * the converter's AST), where the type checker does not read the Luau
+ * (`isCheckedLuauAt`): a function value in an interpolation of the story, a
+ * define's method or property, a Sparkle handler. Where it does, a
+ * double-quoted string's interpolation included, its reading reports the
+ * error
  * (`isLuauConst` in `readLuauAst.ts`). A body whose syntax errors the
  * lowering reports itself (`reportBodySyntaxErrors`) leaves out the one
  * reported here at the same place.
@@ -56,7 +57,7 @@ export function reportLuauConstError(
   ctx: LowerContext,
 ): void {
   const range = rangeOf(location, ctx);
-  if (checkerReportsSyntaxAt(node, range.from, (from, to) => ctx.read(from, to))) return;
+  if (isCheckedLuauAt(node, range.from, (from, to) => ctx.read(from, to))) return;
   ctx.diagnostics?.push({
     message,
     severity: ErrorType.Error,

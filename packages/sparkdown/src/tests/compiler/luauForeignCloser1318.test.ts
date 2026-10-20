@@ -22,18 +22,14 @@ interface Form {
   /** The lines in the function, the first indented by the header. */
   form: string;
   /**
-   * Sparkdown's syntax errors, each one of the official parser's, at its
-   * range unless `range` says otherwise, or `"official"` for every one of
-   * the official parser's errors, each at its range.
+   * The official parser's errors the form is about, Luau's first among
+   * them, or `"official"` for a form about no one error. Sparkdown reports
+   * every one of the official parser's errors (I-1322), each at its range
+   * unless `range` says otherwise.
    */
   errors: string[] | "official";
   /** A range Sparkdown gives on purpose that differs from the official parser's, by message. */
   range?: Record<string, string>;
-  /**
-   * Luau's first error ends at the token of one that begins before it, and
-   * Sparkdown keeps that one of the token's errors (I-1174).
-   */
-  firstSharesToken?: true;
 }
 
 /** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
@@ -49,9 +45,21 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/** The official parser's errors for the function's Luau, in the same form. */
+/**
+ * The official parser's errors for the function's Luau, in the same form,
+ * in the order it reports them. An error at the end of the input begins,
+ * in the document, where the function's text ends, and ends at the start
+ * of the line after it, where the official parser's input ends after the
+ * function's line break.
+ */
 function luauErrors(luau: string): string[] {
-  return officialSyntaxErrors(luau).map((e) => `${e.location.begin.line}:${e.location.begin.column}-${e.location.end.line}:${e.location.end.column} ${e.message}`);
+  const last = luau.split("\n").length - 1;
+  return officialSyntaxErrors(luau).map((e) => {
+    const { begin, end } = e.location;
+    const atEof = e.message.includes("got <eof>") && begin.line === last && begin.column === 0;
+    const start = atEof ? `${last - 1}:${"end".length}` : `${begin.line}:${begin.column}`;
+    return `${start}-${end.line}:${end.column} ${e.message}`;
+  });
 }
 
 /** The name of the top-level node a document offset lies in. */
@@ -61,7 +69,7 @@ function topLevelAt(text: string, offset: number): SyntaxNode | null {
   return node;
 }
 
-function expectForm({ form, errors, range = {}, firstSharesToken }: Form): void {
+function expectForm({ form, errors, range = {} }: Form): void {
   const luau = `${HEADER}${form}${FOOTER}`;
   const text = `${luau}${STORY}`;
   const tree = stripAnsi(dumpTree(text));
@@ -76,34 +84,33 @@ function expectForm({ form, errors, range = {}, firstSharesToken }: Form): void 
   expect([story?.name, story?.from], "the line after the function is read as it is after a function without the form").toEqual([control?.name, luau.length]);
 
   const official = luauErrors(luau);
+  const messageOfError = (e: string) => e.slice(e.indexOf(" ") + 1);
   if (errors === "official") {
     expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
-    expect(sparkdownErrors(text)).toEqual([...official].sort());
-    return;
+  } else {
+    // Luau's first error is always one of them (round 4, `undirected`
+    // finding 1), so a later error of its recovery never stands in for it.
+    if (official.length > 0) {
+      expect(errors, `Luau's first error is expected:\n${official.join("\n")}`).toContain(messageOfError(official[0]!));
+    }
+    for (const message of errors) {
+      expect(official.map(messageOfError), `the official parser reports ${JSON.stringify(message)}:\n${official.join("\n")}`).toContain(message);
+    }
   }
-  // Luau's first error is always one of them (round 4, `undirected`
-  // finding 1), so a later error of its recovery never stands in for it.
-  if (official.length > 0 && !firstSharesToken) {
-    expect(errors, `Luau's first error is expected:\n${official.join("\n")}`).toContain(official[0]!.slice(official[0]!.indexOf(" ") + 1));
-  }
-  const expected = errors.map((message) => {
-    const found = official.find((e) => e.slice(e.indexOf(" ") + 1) === message);
-    expect(found, `the official parser reports ${JSON.stringify(message)}:\n${official.join("\n")}`).toBeDefined();
-    return range[message] ? `${range[message]} ${message}` : found!;
-  });
+  const expected = official.map((e) => (range[messageOfError(e)] ? `${range[messageOfError(e)]} ${messageOfError(e)}` : e));
   expect(sparkdownErrors(text)).toEqual(expected.sort());
 }
 
 const CASES: Record<string, Form[]> = {
-  // A parenthesis left open in a function (I-1286). Luau reports a token
-  // once, with its first error (`Expected identifier when parsing
-  // expression, got '::'` is at the token of `Assigned expression`), and a
-  // missing type's range ends with the line it is missing from.
+  // A parenthesis left open in a function (I-1286). Every error Luau
+  // reports at a token is reported (`Expected identifier when parsing
+  // expression, got '::'` and `Assigned expression` end at the same one,
+  // I-1322), and a missing type's range ends with the line it is missing
+  // from.
   "an unclosed parenthesis": [
     {
       form: "(::,",
-      errors: ["Assigned expression must be a variable or a field", "Expected type, got ','", "Expected identifier when parsing expression, got 'end'"],
-      firstSharesToken: true,
+      errors: ["Expected identifier when parsing expression, got '::'", "Assigned expression must be a variable or a field", "Expected type, got ','", "Expected identifier when parsing expression, got 'end'"],
     },
     {
       form: "(::",
@@ -200,8 +207,9 @@ const CASES: Record<string, Form[]> = {
   ],
   // A loop left without its `do` or `until` before the function's `end`
   // (I-1295). Luau's reading then closes the loop at that `end` and reports
-  // the function left open at the end of the input; the function keeps its
-  // `end`, so only the loop's error is reported.
+  // the function left open at the end of the input, which is reported too
+  // (I-1322), though the tree's function keeps its `end` and the story line
+  // after it stays the story's.
   "a loop without its do or until": [
     { form: "while true", errors: ["Expected 'do' when parsing while loop, got 'end'"] },
     { form: "while true d", errors: ["Expected 'do' when parsing while loop, got 'd'"] },

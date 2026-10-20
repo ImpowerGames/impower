@@ -132,7 +132,13 @@ import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 // Results
 // ---------------------------------------------------------------------------
 
-/** A syntax error the reading found, located in the document. */
+/**
+ * A syntax error the reading found, located in the document. The type
+ * checker reports every one of a unit's errors, in Luau's words at Luau's
+ * range (I-1322); the flags below say which of them a lowerer reports for a
+ * body the checker does not read (`reportBodySyntaxErrors`), and which
+ * statements the validator leaves to the reading (`unreadStatements`).
+ */
 export interface LuauSyntaxError {
   location: Location;
   message: string;
@@ -492,8 +498,6 @@ interface Token {
   loopHeaderEnd?: true;
   /** A token of such a header, where Luau's error is the loop's diagnostic too (`while true print(1)`). */
   loopHeader?: true;
-  /** The `:` of a method access the grammar reads outside an access path (`readMethodColon`), where Luau's error is the expression's. */
-  methodColon?: true;
   /** End offset of the grammar-owned marked narrative island containing this token. */
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
@@ -535,8 +539,6 @@ const BRACKET_CLOSERS = new Set([")", "]", "}", ">"]);
 
 // The loops of Luau code whose body is a `do` block.
 const LUAU_LOOPS = new Set(["LuauWhileLoop", "LuauForLoop"]);
-// The rules holding the `:` of a method access outside an access path (`readMethodColon`).
-const METHOD_COLON_RULES = new Set(["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon", "LuauExpressionKeywordMethodAccessor"]);
 
 // The reserved words a type can hold, among a `local`'s annotated names.
 const TYPE_KEYWORDS = new Set(["nil", "true", "false"]);
@@ -995,29 +997,7 @@ class Tokenizer {
       this.readHeaderOnlyLoop(node);
       return;
     }
-    if (METHOD_COLON_RULES.has(name)) {
-      this.readMethodColon(node);
-      return;
-    }
     this.readChildren(node);
-  }
-
-  /**
-   * The `:` of a method access whose name is a header's keyword or a
-   * reserved word the grammar reads outside an access path
-   * (`LuauLoopHeaderMethodColon`, `LuauIfHeaderMethodColon`,
-   * `LuauExpressionKeywordMethodAccessor`, I-1318). After a value Luau calls
-   * no method on (`while 1: do`, `for k = 1 : then`), Luau's first error is at
-   * the `:`, and the validator leaves it to the type checker, so the errors
-   * there are the expression's. After a value Luau calls a method on, Luau
-   * reads the `:` and reports nothing at it.
-   */
-  private readMethodColon(node: SyntaxNode): void {
-    const first = this.tokens.length;
-    this.readChildren(node);
-    for (let i = first; i < this.tokens.length; i++) {
-      if (this.tokens[i]!.text === ":") this.tokens[i]!.methodColon = true;
-    }
   }
 
   /**
@@ -1256,6 +1236,23 @@ function describe(token: Token): string {
       return `"${token.text.replace(/^\[=*\[|^["']|["']$|\]=*\]$/g, "")}"`;
     case "interp":
       return token.text;
+    default:
+      return `'${token.text}'`;
+  }
+}
+
+/** A token's kind in an error, as Luau's `Lexeme::toString` writes a lexeme of its type alone. */
+function describeKind(token: Token): string {
+  switch (token.kind) {
+    case "name":
+      return "identifier";
+    case "number":
+      return "number";
+    case "string":
+    case "rawstring":
+      return "string";
+    case "eof":
+      return "<eof>";
     default:
       return `'${token.text}'`;
   }
@@ -1617,6 +1614,10 @@ class Parser {
   // Not part of Luau: where the last error of the statement being read begins (see `report`).
   private statementErrorBegin: Position | undefined;
   private readonly abandonedClosers: { text: string }[] = [];
+  // The opener of the last block whose closer stood on another line and in
+  // another column than it, which an `end` Luau finds missing later may
+  // have been meant to close (Luau's `endMismatchSuspect`).
+  private endMismatchSuspect: Token | undefined;
   // Not part of Luau: for each statement being read, the statements read
   // in it so far, by their tokens and errors, and the errors reported at a
   // token the grammar left unread (see `markUnreadErrors`).
@@ -1761,9 +1762,6 @@ class Parser {
     // A story loop header with no `do` on its line meets its end of input
     // where the `do` should be (#1907): Luau's error there is the loop's.
     malformed ??= (boundedStoryEnd && this.current().loopHeaderEnd) || this.current().loopHeader ? "statement" : undefined;
-    // So is one at the `:` of a method access after a value Luau calls no
-    // method on (`while 1: do`, `readMethodColon`).
-    malformed ??= this.current().methodColon ? "expression" : undefined;
     const sparkdownOwned = this.sparkdownDepth > 0 && malformed !== "attribute";
     const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation" || malformed === "attribute"));
     if (malformed && !follows && !consequence && !sparkdownOwned && !atSparkdown && !this.atAbandonedCloser()) {
@@ -1951,6 +1949,13 @@ class Parser {
 
   private expectMatchEndAndConsume(text: string, begin: Token): boolean {
     if (this.is(text)) {
+      // A closer on another line and in another column than its opener is
+      // indented as if it closed something else.
+      const at = this.current().location.begin;
+      const opened = begin.location.begin;
+      if (at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
+        this.endMismatchSuspect = begin;
+      }
       this.nextExpected();
       return true;
     }
@@ -1959,7 +1964,9 @@ class Parser {
     // the converter owns the native misplaced-branch diagnostic. Keep EOF
     // and other keyword-closer diagnostics under their existing ownership.
     const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
-    this.expectMatchAndConsumeFail(text, begin, "", misplacedElseBranch ? "statement" : undefined);
+    const suspect = this.endMismatchSuspect;
+    const suggestion = suspect && suspect.location.begin.line > begin.location.begin.line ? `; did you forget to close ${describeKind(suspect)} at line ${suspect.location.begin.line + 1}?` : "";
+    this.expectMatchAndConsumeFail(text, begin, suggestion, misplacedElseBranch ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
       return false;
@@ -2070,20 +2077,6 @@ class Parser {
       if (current.kind === "break") {
         this.next();
         continue;
-      }
-      // Not part of Luau: a closer where a statement begins closes a bracket
-      // the reading gave up on, whose error is already reported.
-      const closed = current.kind === "symbol" ? this.abandonedClosers.findLastIndex((closer) => closer.text === current.text) : -1;
-      if (closed >= 0) {
-        this.abandonedClosers.splice(closed, 1);
-        // In the recovery from errors Luau's reading reports (`unread`), the
-        // closer is read as Luau reads it, a statement of the cascade.
-        if (!unreadErrors || followerLine !== current.location.begin.line) {
-          this.next();
-          // A statement on the closer's line begins in the same recovery.
-          followerLine = current.location.end.line;
-          continue;
-        }
       }
       const oldRecursionCount = this.recursionCounter;
       this.incrementRecursionCounter("block");
@@ -2232,7 +2225,6 @@ class Parser {
     }
 
     const start = token.location;
-    const reportsBefore = this.reports;
     const expr = this.parsePrimaryExpr(true);
 
     if (expr instanceof AstExprCall) return new AstStatExpr(expr.location, expr);
@@ -2263,9 +2255,6 @@ class Parser {
       this.skippedPos = this.pos;
       this.next();
     }
-    // Not part of Luau: a statement whose expression is already an error is
-    // that one malformed construct, not also an incomplete statement.
-    if (this.reports > reportsBefore) return new AstStatError(expr.location, [expr], [], this.errors.length - 1);
     const incomplete = this.reportStatError(expr.location, [expr], [], "Incomplete statement: expected assignment or a function call", "statement");
     // Not part of Luau: the statement stops at the token after its value.
     this.errorPos = this.pos;
@@ -3516,12 +3505,6 @@ class Parser {
   private parsePrimaryExpr(asStatement: boolean): AstExpr {
     const start = this.current().location.begin;
     let expr = this.parsePrefixExpr();
-    // Not part of Luau: what follows a value that never began (`{1 +}` as a
-    // statement) is not read as its call, which would report it again;
-    // after a token the grammar left unread, whose errors are Luau's to
-    // report (`markUnreadErrors`), it is read as Luau reads it (`.x` after a
-    // line-ending comma is a member of the missing value).
-    if (expr instanceof AstExprError && !this.current().unread) return expr;
     const oldRecursionCount = this.recursionCounter;
     for (;;) {
       if (this.is(".")) {
@@ -3702,6 +3685,7 @@ class Parser {
     const matchBrace = this.current();
     this.expectAndConsume("{", "table literal");
     while (!this.is("}")) {
+      const itemStart = this.current().location.begin;
       if (this.is("[")) {
         const matchBracket = this.current();
         this.next();
@@ -3722,7 +3706,11 @@ class Parser {
         items.push({ kind: TableItemKind.List, key: undefined, value: expr });
       }
       if (this.is(",") || this.is(";")) this.next();
-      else if (this.is("[") || this.isName()) this.report(this.current().location, "Expected ',' after table constructor element");
+      // An element on a later line in the same column as the one before it
+      // is the next element.
+      else if ((this.is("[") || this.isName()) && this.current().location.begin.line > this.previousLocation().end.line && this.current().location.begin.column === itemStart.column) {
+        this.report(this.current().location, "Expected ',' after table constructor element");
+      }
       else if (!this.is("}")) break;
     }
     let end = this.current().location;

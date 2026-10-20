@@ -2496,11 +2496,22 @@ repository:
       # engines in lock-step. See GRAMMAR.md §17.
       - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
+      # A `--` comment after the header is a comment, as after a
+      # definition's `end` (#674); other text is `Unknown`, which the
+      # validator reports on the header line.
+      - { include: "#LuauLineComment" }
       - { include: "#Unknown" }
     end: $
 
+  # The name is the word right after the keyword; a word after the header
+  # is `Unknown`, which the validator reports (#674).
+  # lookaround: the lookbehind keeps the name to the word right after
+  # `scene`, so a word later on the header line is `Unknown`'s rather than a
+  # second name; the begin's `(` lookahead and the end's leave the parameter
+  # list to `LuauFunctionParameters` and the rest of the line to `Unknown`
+  # or `LuauLineComment`.
   SceneWithParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
+    begin: (?<=\bscene{{WS}}+)({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -2512,8 +2523,10 @@ repository:
       - { include: "#LuauFunctionParameters" }
     end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
+  # lookaround: as `SceneWithParametersDeclaration`'s, so a word after the
+  # name is `Unknown`'s rather than a second name.
   SceneWithoutParametersDeclaration:
-    match: ({{IDENTIFIER}})({{WS}}*)
+    match: (?<=\bscene{{WS}}+)({{IDENTIFIER}})({{WS}}*)
     captures:
       1:
         patterns:
@@ -2554,12 +2567,17 @@ repository:
       - { include: "#BranchWithoutParametersDeclaration" }
       # Tile the rest of the line so the rule always closes at `end: $`
       # rather than `ERROR_INCOMPLETE` (see the matching note on `Scene`
-      # and GRAMMAR.md §17).
+      # and GRAMMAR.md §17), a `--` comment as one (#674).
+      - { include: "#LuauLineComment" }
       - { include: "#Unknown" }
     end: $
 
+  # As `SceneWithParametersDeclaration`, the word right after the keyword.
+  # lookaround: as `SceneWithParametersDeclaration`'s, after `branch`, so a
+  # word later on the line is `Unknown`'s; `LuauFunctionParameters` reads the
+  # list the `(` lookahead leaves it.
   BranchWithParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
+    begin: (?<=\bbranch{{WS}}+)({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -2571,8 +2589,10 @@ repository:
       - { include: "#LuauFunctionParameters" }
     end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
+  # lookaround: as `SceneWithParametersDeclaration`'s, after `branch`, so a
+  # word after the name is `Unknown`'s rather than a second name.
   BranchWithoutParametersDeclaration:
-    match: ({{IDENTIFIER}})({{WS}}*)
+    match: (?<=\bbranch{{WS}}+)({{IDENTIFIER}})({{WS}}*)
     captures:
       1:
         patterns:
@@ -12051,6 +12071,7 @@ repository:
   LuauAccessPart:
     emit: true
     patterns:
+      - { include: "#LuauNextLineMethodAccessor" }
       - { include: "#LuauKeywordMethodAccessor" }
       - { include: "#LuauTypeAnnotationMissingType" }
       - { include: "#LuauFunctionAccessor" }
@@ -12060,6 +12081,43 @@ repository:
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionCall" }
       - { include: "#LuauVariable" }
+
+  # A method access whose `:` ends its line (`flag:` with `Hello there.` on
+  # the next line), which Luau reads across the line break: the first word
+  # of the next line is the method's name, and what follows it the call's
+  # arguments, in error (#780). The function's line after it is part of the
+  # function, as Luau's rules say. A next line that begins with no name
+  # (`end`, a `(`) leaves the `:` alone, so the word stays the token it is
+  # and Luau's error for the missing name is reported at it. A `for` loop
+  # variable's `:` is its type's: the path ends before it.
+  # lookaround: the begin's lookahead keeps this `:` to the one that ends
+  # its line, which no other access part takes; the end's lookbehind ends
+  # the rule right after the name, as `LuauKeywordMethodAccessor`'s does,
+  # and its `^` lookahead ends it before a line whose first word is no name.
+  LuauNextLineMethodAccessor:
+    begin: ({{WS}}*)([:](?![:]))(?={{WS}}*$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+    patterns:
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+      - { include: "#LuauNextLineMethodName" }
+    end: (?={{BEAT}})|(?<=\w)|^(?!{{WS}}*{{LUAU_UNRESERVED_IDENTIFIER}})
+
+  LuauNextLineMethodName:
+    match: ({{WS}}*)({{LUAU_UNRESERVED_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauFunctionName" }
 
   # A method access whose name is a reserved word on the `:`'s line
   # (`a:do`, `a:end`), which Luau reads as the method's name, in error
@@ -12297,8 +12355,12 @@ repository:
   # indexer chain links; the end fires once no more follow.
   # A `.` with no name after it (`(t).a.`) is a dangling accessor, as after
   # a path; `..` is the concatenation operator.
+  #
+  # An access also continues a table constructor or a string (`{}.x`,
+  # `"s"[1]`), a value Luau indexes only in brackets, so the statement keeps
+  # the access and the converter reports Luau's errors for it (#1348).
   LuauChainedPropertyAccess:
-    begin: "(?<=\\))({{WS}}*)(?=[.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}|{{LUAU_INDEXER_START}})"
+    begin: "(?<=[)}\"'`])({{WS}}*)(?=[.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}|{{LUAU_INDEXER_START}})"
     beginCaptures:
       1:
         patterns:
@@ -13265,8 +13327,10 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
+  # `nil` before a `:` is a value too (`while nil:do`), whose method access
+  # Luau reports (#1350), as after any value Luau calls no method on.
   LuauNil:
-    match: (nil(?!:))\b{{_LUAU_VALUE_OPERATOR_AHEAD_}}
+    match: (nil)\b{{_LUAU_VALUE_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: "null"

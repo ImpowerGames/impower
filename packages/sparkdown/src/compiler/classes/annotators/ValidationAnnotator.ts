@@ -169,19 +169,14 @@ const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleBlockUnknown",
   "LuauSparkleElementInvalid",
 ]);
+// A scene's or branch's header line, whose text after the name or
+// parameters the grammar reads as `Unknown`.
+const HEADER_CONTENT: ReadonlySet<string> = nodeNameSet(["Scene_content", "Branch_content"]);
 const MISSING_TYPE = "Expected type";
 // The `:` a loop's `do` or an `if`'s `then` follows with no method name
 // between, which ends the header there (I-1318).
 const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
 const HEADER_METHOD_COLONS = nodeNameSet(HEADER_METHOD_COLON_NAMES);
-// The values Luau can call a method on, as its primary expression is: a name
-// or access path, a value in brackets, and a call or access chained onto one.
-const METHOD_RECEIVERS = nodeNameSet([
-  "LuauAccessPath",
-  "LuauParenthetical",
-  "LuauChainedFunctionCall",
-  "LuauChainedPropertyAccess",
-]);
 // The grammar's tokens for a type that is missing or malformed, and for a
 // declaration target's `::`, and a header's method colon.
 const TYPE_ERROR_TOKENS = nodeNameSet([
@@ -973,63 +968,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * Whether a node directly follows a `for` loop variable, an access path of
-   * one name in the loop's header with no `in` or `=` before it
-   * (`for k: then`), where a `:` is the variable's type annotation. Comments
-   * may stand between them (`for k --[[c]] : then`).
-   */
-  protected followsForBinding(node: SyntaxNode): boolean {
-    let path = node.prevSibling;
-    while (path && isTrivia(path)) {
-      path = path.prevSibling;
-    }
-    if (!path || !isExplicitRuleName(path.name, "LuauAccessPath") || path.parent?.name !== "LuauForCondition_content") {
-      return false;
-    }
-    const content = childNamed(path, `${path.name}_content`);
-    const part = content?.firstChild;
-    let after = part?.nextSibling;
-    while (after && isTrivia(after)) {
-      after = after.nextSibling;
-    }
-    if (!part || !isExplicitRuleName(part.name, "LuauAccessPart") || after) {
-      return false;
-    }
-    for (let before = path.prevSibling; before; before = before.prevSibling) {
-      if (before.name === "LuauInKeyword" || isExplicitRuleName(before.name, "LuauAssignmentOperation")) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Whether the value right before a node is one Luau can call a method on:
-   * a name or access path, a value in brackets, or a call or access chained
-   * onto one, as Luau's primary expression is. The value is the last one the
-   * previous sibling holds (`for k = i : then` reads `i` inside the `=`'s
-   * operation). A literal is none (`for k = 1 : then`), and there Luau's first
-   * error is the `:` itself, which the type checker reports.
-   */
-  protected followsMethodReceiver(node: SyntaxNode): boolean {
-    let value: SyntaxNode | null = node.prevSibling;
-    while (value && isTrivia(value)) {
-      value = value.prevSibling;
-    }
-    while (value) {
-      if (METHOD_RECEIVERS.has(value.name)) {
-        return true;
-      }
-      let last = value.lastChild;
-      while (last && isTrivia(last)) {
-        last = last.prevSibling;
-      }
-      value = last;
-    }
-    return false;
-  }
-
-  /**
    * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
    * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
    * directly after `for` or after a comma before the loop's `in` or `=`.
@@ -1264,19 +1202,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // Luau names the token it found instead. After a name in a value, the `:`
     // starts a method call, which is missing its name.
     // A reserved word as a method's name (`a:do`): Luau's first error is the
-    // missing name, at the word (I-1318).
+    // missing name, at the word (I-1318). In Luau the type checker reads,
+    // Luau's reading reports it and every error around it (I-1322).
     if (nodeRef.name === "LuauKeywordMethodName") {
-      // After a `for` loop variable the `:` is its type's, and the word is
-      // the type Luau found missing (`for k: then`), which the type checker
-      // reports.
-      // After a value no method is called on (`for k = 1 : then`), Luau's
-      // first error is the `:`, which the type checker reports too.
-      const accessor = nodeRef.node.parent?.parent;
-      if (
-        accessor &&
-        isExplicitRuleName(accessor.name, "LuauExpressionKeywordMethodAccessor") &&
-        (this.followsForBinding(accessor) || !this.followsMethodReceiver(accessor))
-      ) {
+      if (isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))) {
         return annotations;
       }
       this.error(
@@ -1288,9 +1217,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
-      // A header's `:` after a value no method is called on (`while 1: do`):
-      // Luau's first error is the `:` itself, which the type checker reports.
-      if (HEADER_METHOD_COLONS.has(nodeRef.name) && !this.followsMethodReceiver(nodeRef.node)) {
+      // A header's `:` before its `do` or `then` (`while t: do`): in Luau the
+      // type checker reads, Luau's reading reports every error there,
+      // whatever the value before the `:` (I-1322).
+      if (HEADER_METHOD_COLONS.has(nodeRef.name) && checkerReportsType) {
         return annotations;
       }
       const isMethodColon = this.isMethodColon(nodeRef.node);
@@ -1778,6 +1708,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
+    }
+    // Text after a scene's or branch's name or parameters on its header line
+    // (`scene start oops`), which the grammar reads to the line's end as
+    // `Unknown` (#674). A `--` comment there is a comment, as after a
+    // definition's `end`.
+    if (nodeRef.name === "Unknown" && HEADER_CONTENT.has(nodeRef.node.parent?.name ?? "")) {
+      const raw = this.read(nodeRef.from, nodeRef.to);
+      const from = nodeRef.from + (raw.length - raw.trimStart().length);
+      const kind = nodeRef.node.parent!.name === "Scene_content" ? "scene" : "branch";
+      this.error(
+        annotations,
+        `Unexpected text after the ${kind}'s header: \`${raw.trim()}\`. Only a \`--\` comment can follow a ${kind}'s name and parameters on its line.`,
+        from,
+        nodeRef.to,
+      );
+      return annotations;
     }
     // Unrecognized inline RICH TEXT tag inside a content string
     // (`text "a <bold>x</bold>"`). The runtime leaves an unknown tag as literal

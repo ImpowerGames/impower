@@ -132,25 +132,6 @@ export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (fr
   return isCheckedLuau(root.resolveInner(position, 1), read);
 }
 
-/**
- * Whether the type checker reports a syntax error of Luau's reading at a
- * document position: the position is Luau it reads (`isCheckedLuau`), and
- * not in a double-quoted string's interpolation, which is Sparkdown's own
- * syntax, whose errors the reading leaves unflagged and the checker drops
- * (`sparkdownDepth` in `readLuauAst.ts`). Elsewhere a lowerer that reads the
- * Luau reports what must be reported.
- */
-export function checkerReportsSyntaxAt(anyNode: SyntaxNode, position: number, read: (from: number, to: number) => string): boolean {
-  let root = anyNode;
-  while (root.parent) root = root.parent;
-  const node = root.resolveInner(position, 1);
-  if (!isCheckedLuau(node, read)) return false;
-  for (let n: SyntaxNode | null = node; n; n = n.parent) {
-    if (n.name === "LuauDoubleQuotedStringInterpolation") return false;
-  }
-  return true;
-}
-
 // Luau's reserved words, which are never a name.
 export const RESERVED: ReadonlySet<string> = new Set([
   "and",

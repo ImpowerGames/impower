@@ -547,6 +547,10 @@ export class SparkdownCompiler {
   // `.luau` file's text is parsed as a `run` wraps it (`luauFileUnit`).
   protected _typechecker = new SparkdownTypechecker((text) => this.documents.parser.parse(text));
 
+  // The diagnostics the grammar's validator reported (`validateSyntax`), which
+  // give way to a syntax error of Luau's reading at the same token.
+  protected _syntaxValidations = new WeakSet<SparkDiagnostic>();
+
   protected _files = new SparkdownFileRegistry();
   get files() {
     return this._files;
@@ -5429,7 +5433,7 @@ export class SparkdownCompiler {
                       : DiagnosticSeverity.Warning;
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push({
+              const validation: SparkDiagnostic = {
                 range,
                 severity,
                 message: diagnosticMarkup(diagnostic.message),
@@ -5440,7 +5444,9 @@ export class SparkdownCompiler {
                   },
                 ],
                 source: LANGUAGE_NAME,
-              });
+              };
+              this._syntaxValidations.add(validation);
+              program.diagnostics[uri].push(validation);
             }
           }
           cur.next();
@@ -5718,23 +5724,36 @@ export class SparkdownCompiler {
         else report(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", unknownModeMessage(setting.value));
       }
       // A name Sparkdown's own resolver cannot find is already reported there,
-      // and so is a token Sparkdown already reports an error at.
+      // and so is a token Sparkdown already reports an error at. A syntax
+      // error of Luau's reading is Luau's own, in its words at its range, so
+      // the validator's report of the same error at the same token gives way
+      // to it; a different one there (a Sparkdown limitation such as a
+      // 64-bit integer literal) keeps the token.
       const unresolved: { name: string; range: Range }[] = [];
-      const errors: Range[] = [];
+      const errors: SparkDiagnostic[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error) errors.push(d.range);
+        if (d.severity === DiagnosticSeverity.Error) errors.push(d);
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       // A syntax error's range ends with the token the reading found.
       const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });
+      const messageOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
+      const replaced = new Set<SparkDiagnostic>();
+      for (const d of checked) {
+        if (!d.syntax) continue;
+        for (const e of errors) {
+          if (this._syntaxValidations.has(e) && messageOf(e) === d.message && rangeContains(e.range, tokenOf(d))) replaced.add(e);
+        }
+      }
       for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
-        if (d.syntax && errors.some((range) => rangeContains(range, tokenOf(d)))) continue;
+        if (d.syntax && errors.some((e) => !replaced.has(e) && rangeContains(e.range, tokenOf(d)))) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
+      if (replaced.size > 0) program.diagnostics![scriptUri] = program.diagnostics![scriptUri]!.filter((d) => !replaced.has(d));
     }
     this._typechecker.endCompile();
     profile("end", this._profilerId, "validateTypes", uri);
