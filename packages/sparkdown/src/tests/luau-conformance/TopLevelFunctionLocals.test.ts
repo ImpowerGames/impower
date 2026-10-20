@@ -168,6 +168,43 @@ describe("a function written at the top level and a top-level local", () => {
     ).toEqual(got("Got 4."));
   });
 
+  // A stdlib name read in a function names the builtin unless a local of
+  // the name is in scope, which no function around a top-level function
+  // declares; a top-level local of the name is bound at the entry.
+  test.each([
+    ["a function", ["local count = 0", "function inc()", "  count = count + 1", "  return count", "end", "Got {inc()} {count}."]],
+    ["a closure", ["local count = 0", "local inc = function() count = count + 1 return count end", "Got {inc()} {count}."]],
+    ["a closure in a function", ["local count = 0", "function g()", "  local inc = function() count = count + 1 return count end", "  return inc()", "end", "Got {g()} {count}."]],
+  ])("reads and writes a local named after a stdlib entry in %s", (_, lines) => {
+    expect(run(lines)).toEqual(got("Got 1 1."));
+  });
+
+  test("reads a local that takes a stdlib namespace's name", () => {
+    expect(run(["local math = 7", "function g()", "  return math", "end", "Got {g()}."])).toEqual(
+      got("Got 7."),
+    );
+  });
+
+  test("reads the builtin where no local takes its name", () => {
+    expect(run(["function lib()", "  return math.abs(-3)", "end", "Got {lib()}."])).toEqual(
+      got("Got 3."),
+    );
+  });
+
+  // The check in StdLibMissingMemberCall.test.ts, "in a function written
+  // after the local, it reads the local", at run time.
+  test("calls a method of a local that takes a stdlib namespace's name", () => {
+    expect(
+      run([
+        "local table = { nogetn = function() return 1 end }",
+        "function run()",
+        "  return table:nogetn()",
+        "end",
+        "Got {run()}.",
+      ]),
+    ).toEqual(got("Got 1."));
+  });
+
   test("reads it in a variadic function", () => {
     expect(
       run(["local a = 1", "function g(...)", "  return a + select('#', ...)", "end", "Got {g(1, 2)}."]),
@@ -242,6 +279,45 @@ describe("a define written in a function", () => {
     );
   });
 
+  // The converter's reading of a function's body leaves a define out, so
+  // each function around the define reads what its methods read.
+  test("in a function nested in another, has methods that read the outer function's local", () => {
+    expect(
+      run([
+        "function outer(v)",
+        "  local a = v",
+        "  function inner()",
+        "    define thing with",
+        "      function get()",
+        "        return a",
+        "      end",
+        "    end",
+        "    return thing.get()",
+        "  end",
+        "  return inner()",
+        "end",
+        "Got {outer(7)}.",
+      ]),
+    ).toEqual(got("Got 7."));
+  });
+
+  test("has methods that read a top-level local the function itself does not read", () => {
+    expect(
+      run([
+        "local b = 5",
+        "function outer()",
+        "  define thing with",
+        "    function get()",
+        "      return b",
+        "    end",
+        "  end",
+        "  return thing.get()",
+        "end",
+        "Got {outer()}.",
+      ]),
+    ).toEqual(got("Got 5."));
+  });
+
   test("leaves the methods of another define of its name alone", () => {
     expect(
       run([
@@ -294,7 +370,12 @@ describe("the entry of a function written at the top level", () => {
       ]),
     ).get("g")!;
     expect(listing.slice(0, 2)).toEqual(["SetVar p flags 1", "BindRoot a"]);
-    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual(["BindRoot a"]);
+    // A stdlib name is bound too, since a top-level local can take it (as
+    // `local math = 7` does); with none, `math` reads the builtin.
+    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([
+      "BindRoot a",
+      "BindRoot math",
+    ]);
   });
 
   // The define's table still captures what the method reads, as it did

@@ -12,6 +12,7 @@ import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
@@ -22,6 +23,7 @@ import {
   ObjectExpressionEntry,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/VariablePointerExpression";
+import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -52,6 +54,7 @@ import { reportErasedConstErrors } from "../utils/publishesConst";
 import type { Location } from "../../typecheck/Location";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
+import { defineMethodReads } from "../lowerers/lowerLuauDefine";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
@@ -355,11 +358,24 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * declares it and it is a stdlib name or a global callable (a top-level
  * function, `external`, `store` or `const`): a read of a global the program
  * never declares is captured too.
+ *
+ * `stdlibReads`, when given, collects the stdlib names left uncaptured that
+ * way (`_G` aside), which the function binds to a top-level local of the
+ * name, if one exists as it runs (`stdlibRootReads`). `node`, the syntax node
+ * the function is written at, adds the reads of the methods of each
+ * `define` written inside it, which the converter's reading of the body
+ * leaves out, and which a method takes from the scopes around it
+ * (`defineMethodReads`): a name this function declares binds the read here,
+ * and any other is read as the body's own reads are.
  */
 export function freeVariables(
   params: readonly string[],
   body: AstStatBlock | null,
   ctx: LowerContext,
+  {
+    stdlibReads,
+    node,
+  }: { stdlibReads?: string[]; node?: SyntaxNode | null } = {},
 ): string[] {
   if (!body) return [];
   // Names bound inside the function: its parameters, and the `store`s its
@@ -425,7 +441,7 @@ export function freeVariables(
   };
   const free: string[] = [];
   const seen = new Set<string>();
-  const read = (name: string, location: Location) => {
+  const readAt = (name: string, at: number) => {
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
     // A variadic sibling is the innermost binding and wins over a
@@ -433,19 +449,25 @@ export function freeVariables(
     // to it, or its value, passes a pointer to each local it captures
     // (`withSiblingSubFlowUpvalArgs`), which this function captures in
     // turn so the pointer reaches the enclosing scope's cell.
-    const sibling = siblingSubFlowAt(name, offsetAt(location.begin, ctx));
+    const sibling = siblingSubFlowAt(name, at);
     if (sibling) {
-      for (const upval of sibling.upvals) read(upval, location);
+      for (const upval of sibling.upvals) readAt(upval, at);
       return;
     }
     if (!isShadowedLocal(name)) {
-      if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name) || isGlobalCallable(name)) {
+      if (isGlobalCallable(name)) return;
+      if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) {
+        if (stdlibReads && name !== "_G" && !stdlibReads.includes(name)) {
+          stdlibReads.push(name);
+        }
         return;
       }
     }
     seen.add(name);
     free.push(name);
   };
+  const read = (name: string, location: Location) =>
+    readAt(name, offsetAt(location.begin, ctx));
   const readNames = (node: AstNode): boolean => {
     if (node instanceof AstExprGlobal) read(node.name, node.location);
     else if (node instanceof AstExprLocal) {
@@ -470,6 +492,14 @@ export function freeVariables(
     return true;
   };
   walk(body, readNames);
+  if (node) {
+    const own = immediateBodyDeclarations(params, body);
+    for (const define of getDescendents("LuauDefine", node)) {
+      for (const name of defineMethodReads(define, ctx)) {
+        if (!own.has(name)) readAt(name, define.from);
+      }
+    }
+  }
   return free;
 }
 
@@ -565,13 +595,32 @@ export function buildClosureExpression(
 }
 
 /**
+ * The stdlib names a function's body reads that no function around it
+ * declares (`freeVariables`' `stdlibReads`), as `RootBinding`s: a closure
+ * cannot capture such a name, since the builtin it names is no variable, so
+ * the function binds it to a top-level local of the name, if one exists as
+ * it runs (`local count = 0` above a function that counts), and otherwise
+ * reads the builtin.
+ */
+export function stdlibRootReads(
+  params: readonly string[],
+  body: AstStatBlock | null,
+  ctx: LowerContext,
+): RootBinding[] {
+  const stdlibReads: string[] = [];
+  freeVariables(params, body, ctx, { stdlibReads });
+  return stdlibReads.map((name) => new RootBinding(name));
+}
+
+/**
  * Lowers the body of the function `func` (written at the syntax node `node`)
  * inside the scopes a function opens: a buffer for the functions nested in
  * it, its own locals on the declared-locals stack, a buffer for the
  * `local NAME = nil` declarations its bare nested `function NAME`s hoist,
  * and a frame for its variadic nested functions. Returns the body's objects
  * with the hoisted declarations first and the nested functions last, and
- * passes the shape of the body to `close` once the function is built.
+ * passes the shape of the body to `close` once the function is built. The
+ * hoisted objects begin with the function's `stdlibRootReads`.
  */
 export function lowerFunctionBody(
   func: AstExprFunction,
@@ -585,6 +634,8 @@ export function lowerFunctionBody(
   close: (flow: ParsedObject) => void;
 } {
   const content = getFunctionBodyContent(node);
+  // Read in the scopes around the function, before its own are pushed.
+  const rootReads = stdlibRootReads(parameterNames(func), func.body, ctx);
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
   const bindings = functionBindings(
@@ -611,6 +662,7 @@ export function lowerFunctionBody(
   ctx.declaredLocalsStack?.pop();
   ctx.functionBindingsStack?.pop();
   ctx.functionScopeStack?.pop();
+  hoisted.unshift(...rootReads);
   return {
     hoisted,
     body,
@@ -736,7 +788,7 @@ export function lowerFunctionExpression(
   }
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
-  const upvals = freeVariables(parameterNames(func), func.body, ctx);
+  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
   recordCaptureRead(ctx, upvals);
   const userArity = func.args.length;
 

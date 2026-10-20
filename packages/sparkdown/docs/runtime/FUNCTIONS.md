@@ -142,11 +142,22 @@ by name as the function runs, not by where it is written: a function
 written above `local a` reads that local once it exists, a second
 `local a` in the same scope replaces the one a function written
 between the two reads, and a scene's `local a`, which shares the top
-level's frame, is the one it reads while it holds. A `define` written
-in a function has its methods read that function's locals through a
-global cell for each (`DefineCellBinding`), which the define's line
-points at the running call's local, so they read the locals of the
-last call that ran it, and a save keeps the cell.
+level's frame, is the one it reads while it holds. A name of the
+standard library (`count`, `math`, `table`) that no function around it
+declares is bound the same way by every function, closures included,
+since a closure cannot capture a builtin: a top-level `local count`
+is the `count` a function reads, as the editor's checks read it, and
+with no such local the name reads the builtin. By name, that holds
+for a function written above `local table` or for a scene's
+`local count` too, which then hides the builtin from functions called
+while it holds. A `define` written in a function has its methods read
+that function's locals through a global cell for each
+(`DefineCellBinding`), which the define's line points at the running
+call's local, so they read the locals of the last call that ran it,
+and a save keeps the cell. Each function around the define reads
+what its methods read, since the converter's reading of a function's
+body leaves a define out, so a method reaches a local of a function
+further out, or a top-level local, through them.
 
 > **Note on iteration variables**: numeric `for` (e.g. `for i = 1, 10 do`) drives a hidden index, and the user variable `i` is a fresh copy of it each iteration, so a body write to `i` does not change how the loop iterates (`src/tests/luau-conformance/LuaLoops.test.ts`). Loop variables are declared by the loop itself, so numeric and generic `for` loops compile inside anonymous functions and may shadow an outer local (`src/tests/luau-conformance/ForLoopVarCapture.test.ts`).
 
