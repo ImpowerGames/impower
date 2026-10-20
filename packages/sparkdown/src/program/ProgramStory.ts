@@ -81,6 +81,7 @@ import {
   JUMP_LUAU,
   KEEP_OR,
   LEAVE_CONTINUE,
+  NATIVE_CALL_ARGS,
   NUM_FLOAT,
   Op,
   SET_DECLARE,
@@ -2781,9 +2782,12 @@ export class ProgramStory implements StoryEngine {
         if (!OPERATOR_NATIVES.has(func.name) && !TEXT_BUILTINS.has(func.name)) {
           this.callsMade += 1;
         }
-        const params = state.PopEvaluationStack(func.numberOfParameters);
+        const callArgs = (flags & NATIVE_CALL_ARGS) !== 0;
+        const params = state.PopEvaluationStack(
+          callArgs ? auxOf(w0) : func.numberOfParameters,
+        );
         state.PushEvaluationStack(
-          callNativeFunction(this, func, params) as InkObject,
+          callNativeFunction(this, func, params, callArgs) as InkObject,
         );
         break;
       }
