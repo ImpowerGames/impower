@@ -107,7 +107,15 @@ export function lowerLuauFunctionDefinition(
     // their `...` when it runs, as every call arranges its arguments
     // (`arrangeArgsFor`). A `local` of the name hides the subflow for
     // the rest of its block (`shadowSiblingSubFlow`).
-    if (!func.vararg) {
+    //
+    // A name that is already a variable here (a `local`, or the local a
+    // non-variadic `function NAME` in this body declares) keeps one
+    // binding: the variadic definition assigns that variable a closure,
+    // as a non-variadic one does, so a closure that captured it, a call
+    // inside either body and a later `NAME = <expr>` all see the same
+    // value. A subflow of the name beside the variable would be a
+    // second binding that diverts reach instead.
+    if (!func.vararg || namesVariable(identifier.name ?? "", ctx)) {
       return lowerNestedNamedFunction(
         func,
         node,
@@ -221,16 +229,6 @@ function lowerNestedNamedFunction(
     const alreadyHoisted = hoistBuf.some(
       (o) => o instanceof VariableAssignment && o.variableName === targetName,
     );
-    // A variadic `function NAME(...)` earlier in this body is a subflow
-    // that calls reach by path; this definition replaces it, so calls
-    // after it dispatch through the value, as after a plain `NAME =
-    // <expr>` (`lowerReassignment`). The subflow is named apart from
-    // the local (`lowerNestedAsSubFlow`).
-    const frame = ctx.siblingSubFlowNamesStack?.at(-1);
-    const replaced = frame?.get(targetName);
-    if (frame && replaced && !replaced.rebound) {
-      frame.set(targetName, { ...replaced, rebound: true });
-    }
     if (!alreadyHoisted) {
       hoistBuf.push(
         new VariableAssignment({
@@ -323,15 +321,9 @@ function lowerNestedAsSubFlow(
   // order, call sites before the redefinition bound the first
   // container and sites after bind this one — matching Lua's
   // assign-a-global semantics.
-  // A variable of the name (a `local function NAME`, or the local a
-  // non-variadic `function NAME` declares) takes the name too: a
-  // reference to the subflow as a value is a divert to its name, which
-  // would reach the variable instead.
-  const knotName =
-    enclosingSiblingFrame?.has(identifier.name ?? "") ||
-    namesVariable(identifier.name ?? "", ctx)
-      ? `${identifier.name}__redef_${syntheticId(node.from, ctx)}`
-      : (identifier.name ?? "");
+  const knotName = enclosingSiblingFrame?.has(identifier.name ?? "")
+    ? `${identifier.name}__redef_${syntheticId(node.from, ctx)}`
+    : (identifier.name ?? "");
   const knotIdentifier =
     knotName === identifier.name ? identifier : new Identifier(knotName);
   if (enclosingSiblingFrame && identifier.name) {

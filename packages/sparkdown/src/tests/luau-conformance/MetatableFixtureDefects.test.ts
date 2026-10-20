@@ -41,6 +41,38 @@ assert(f() == 2)
 `);
   });
 
+  // Round 1's compiler review (comment 6280158984): the name has one
+  // binding, which every call and capture sees.
+  test("a call inside a fixed redefinition of a variadic function reaches the redefinition", () => {
+    passes(`
+function f(...) return 1 end
+function f(n)
+  if n == 0 then return 2 end
+  return f(n - 1)
+end
+assert(f(1) == 2, tostring(f(1)))
+`);
+  });
+
+  test("a closure that captured a local sees its variadic redefinition", () => {
+    passes(`
+local function f() return 1 end
+local g = function() return f() end
+function f(...) return 2 end
+assert(f() == 2)
+assert(g() == 2, tostring(g()))
+`);
+  });
+
+  test("an assignment after a variadic redefinition replaces it", () => {
+    passes(`
+function f() return 1 end
+function f(...) return 2 end
+f = function() return 3 end
+assert(f() == 3, tostring(f()))
+`);
+  });
+
   test("a variadic redefinition of a local function", () => {
     passes(`
 local t = {}
