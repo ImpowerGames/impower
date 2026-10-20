@@ -270,16 +270,19 @@ function uncertainNames(nodes: SyntaxNode[], text: string, facts: LuauNameFacts)
  * Whether a script spells `name` as a whole word where the reading placed no
  * name, in syntax that can name a function: Luau or Sparkle syntax the
  * reading passes over (a bare `@click=f` handler, a `define`'s value), a
- * divert's path, or a Luau string. Comments and narrative words are not.
+ * divert's path, or a Luau string. Comments and narrative words are not,
+ * unless the script holds a misread statement (`misread`): recovery there
+ * can read the code after it as narrative, so every mention outside a
+ * comment counts but a function statement's own name (`definitions`).
  * Absence-based rules consult it, since such a mention may be a use.
  */
-function unplacedMention(tree: Tree, text: string, placed: ReadonlySet<number>, name: string): boolean {
+function unplacedMention(tree: Tree, text: string, placed: ReadonlySet<number>, definitions: ReadonlySet<number>, misread: boolean, name: string): boolean {
   const word = new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`, "g");
   for (const match of text.matchAll(word)) {
-    if (placed.has(match.index)) continue;
+    if (definitions.has(match.index) || (!misread && placed.has(match.index))) continue;
     const node = tree.resolveInner(match.index, 1);
     if (node.name.includes("Comment")) continue;
-    if (node.name.startsWith("Luau") || node.name.startsWith("Divert")) return true;
+    if (misread || node.name.startsWith("Luau") || node.name.startsWith("Divert")) return true;
     if (node.name === "Word" && node.parent?.name.startsWith("Luau") && node.parent.name.includes("String")) return true;
   }
   return false;
@@ -1163,7 +1166,7 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 }
 
 // ---------------------------------------------------------------------------
-const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; mentionsUnplaced: (name: string) => boolean }>();
+const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; mentionsUnplaced: (name: string) => boolean }>();
 
 export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
   const text = read(0, tree.length);
@@ -1196,19 +1199,30 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     const parameterStarts = new Set<number>();
     const flows = flowParameters(tree, text, parameterStarts);
     const outermostLocals = new Set(names.declarations.filter((d) => d.outermost && !parameterStarts.has(d.from)).map((d) => d.name));
+    const misreadStatements: NameRange[] = [];
+    const misread = (root: AstNode, offsets: Offsets, found: readonly { location: Location }[]) => {
+      if (!readToEnd(root) || found.some((error) => root.location.overlaps(error.location))) misreadStatements.push(offsets.range(root.location));
+    };
+    for (const unit of [units.prelude, ...units.flows]) {
+      const offsets = new Offsets(starts, unit.lines);
+      for (const source of unit.statements) misread(source.statement, offsets, unit.errors);
+    }
+    for (const { expr, errors: found } of outside) misread(expr, documentOffsets, found);
     // Asked only for a few names (FunctionUnused's candidates), so each is
     // searched for when first asked about.
     let placed: Set<number> | undefined;
+    let definitions: Set<number> | undefined;
     const mentions = new Map<string, boolean>();
     const mentionsUnplaced = (name: string) => {
       let found = mentions.get(name);
       if (found === undefined) {
         placed ??= new Set([...names.declarations, ...names.references, ...names.globals, ...names.functions, ...names.uncertainNames].map((range) => range.from));
-        mentions.set(name, (found = unplacedMention(tree, text, placed, name)));
+        definitions ??= new Set(names.functions.map((range) => range.from));
+        mentions.set(name, (found = unplacedMention(tree, text, placed, definitions, misreadStatements.length > 0, name)));
       }
       return found;
     };
-    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, mentionsUnplaced };
+    facts = { outside, narrativeIfs: narrativeIfStarts(nodes), names, roots, uncertainGlobalUses: uncertainGlobalUses(names, outsideRanges, flows, errors), outermostLocals, misreadStatements, mentionsUnplaced };
     documentFacts.set(tree, facts);
   }
   const { narrativeIfs } = facts;
@@ -1219,10 +1233,6 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   // A const outside every function goes to the facts' globals, not their declarations.
   const declaredLocals = new Set(facts.names.declarations.map((d) => d.local));
   const published = (local: AstLocal) => local.isConst && !declaredLocals.has(local);
-  const misreadStatements: NameRange[] = [];
-  const misread = (root: AstNode, offsets: Offsets, errors: readonly { location: Location }[]) => {
-    if (!readToEnd(root) || errors.some((error) => root.location.overlaps(error.location))) misreadStatements.push(offsets.range(root.location));
-  };
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets, errors: readonly { location: Location }[]) => {
     for (const fn of functions) {
       const broken = errors.some((error) => fn.location.overlaps(error.location));
@@ -1238,7 +1248,6 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintFunctions(definedFunctions(unit), offsets, unit.errors);
     lintStatementLayout(unit.root, offsets, out, unit.errors, sameLines);
     for (const source of unit.statements) {
-      misread(source.statement, offsets, unit.errors);
       lintDuplicateConditions(source.statement, offsets, out, narrative);
       lintForRanges(source.statement, offsets, out);
     }
@@ -1249,11 +1258,10 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     // The function written around statements is not the author's; those inside it are.
     completeFunctions(statements && expr instanceof AstExprFunction ? expr.body : expr, functions);
     lintFunctions(functions, documentOffsets, errors);
-    misread(expr, documentOffsets, errors);
     lintStatementLayout(expr, documentOffsets, out, errors, sameLines);
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
   const order = (a: NameRange, b: NameRange) => a.from - b.from || a.to - b.to;
-  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, misreadStatements };
+  return { lints: out.sort(order), names: facts.names, roots: facts.roots, globalShadows: globalShadows.sort(order), uncertainGlobalUses: facts.uncertainGlobalUses, outermostLocals: facts.outermostLocals, mentionsUnplaced: facts.mentionsUnplaced, misreadStatements: facts.misreadStatements };
 }

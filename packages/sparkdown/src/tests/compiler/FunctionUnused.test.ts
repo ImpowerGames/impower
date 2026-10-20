@@ -116,6 +116,37 @@ describe("FunctionUnused for a global function", () => {
     expect(messages("& run()\nfunction run()\n function helper() end\n public x\nend\n")).toEqual([]);
   });
 
+  // The `end` of `class C` (or recovery after `public x`) closes `caller`
+  // early, so the call after it reads as narrative.
+  test.each([
+    ["a construct the grammar lacks", " class C\n end\n"],
+    ["a statement the reading recovers from", " public x\n end\n"],
+  ])("a call another script's misread function loses is still a use (%s)", (_label, broken) => {
+    expect(programUnused({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function helper()\nend\n", "use.sd": `function caller()\n${broken} helper()\nend\n& caller()\n` })).toEqual([]);
+  });
+
+  test("edits to a misread caller change the warning while the defining script stays cached", () => {
+    const compiler = testCompiler();
+    const file = (path: string, text: string) => ({ uri: `inmemory:///${path}`, type: "script" as const, name: path.replace(/\.sd$/, ""), ext: "sd", text, version: 1, languageId: "sparkdown" });
+    const broken = "function caller()\n public x\n end\n print(1)\nend\n& caller()\n";
+    compiler.configure({ files: [file("main.sd", "include subject.sd\ninclude use.sd\nReady.\n"), file("subject.sd", "function helper()\nend\n"), file("use.sd", broken)] });
+    const found = () => {
+      const program: SparkProgram = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
+      return (program.diagnostics?.["inmemory:///subject.sd"] ?? []).filter((d) => d.code === "FunctionUnused").length;
+    };
+    const update = (text: string, version: number) => compiler.updateDocument({ textDocument: { uri: "inmemory:///use.sd", version }, contentChanges: [{ text }] });
+    // Nothing mentions `helper`, so even the misread script hides no use of it.
+    expect(found()).toBe(1);
+    const tree = compiler.documents.tree("inmemory:///subject.sd");
+    update(broken.replace("print(1)", "helper()"), 2);
+    expect(found()).toBe(0);
+    update("function caller()\n print(1)\nend\n& caller()\n", 3);
+    expect(found()).toBe(1);
+    update(broken.replace("print(1)", "print(helper)"), 4);
+    expect(found()).toBe(0);
+    expect(compiler.documents.tree("inmemory:///subject.sd")).toBe(tree);
+  });
+
   test("a name on a line with a syntax error is a use", () => {
     expect(programUnused({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function helper()\nend\n", "use.sd": "& v = 0x10i helper\n" })).toEqual([]);
   });
