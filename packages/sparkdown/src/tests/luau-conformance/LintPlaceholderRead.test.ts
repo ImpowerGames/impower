@@ -81,12 +81,14 @@ print(t._, t:_(), "_")
     ).toEqual([]);
   });
 
+  // The repeated keys are TableLiteral's duplicates too, which this
+  // rule's tests leave out.
   test("a table constructor's key `_` is a field name; its value is a read", () => {
     expect(
       lintInFunction(`
 print({_ = 1, n = 2; _ = 3})
 print({_ = _})
-`),
+`, "PlaceholderRead"),
     ).toEqual([{ line: 2, message: PLACEHOLDER_READ }]);
   });
 
@@ -100,7 +102,7 @@ print({
   = 2,
   --[[ before the key ]] _ = 3,
 })
-`),
+`, "PlaceholderRead"),
     ).toEqual([]);
   });
 
