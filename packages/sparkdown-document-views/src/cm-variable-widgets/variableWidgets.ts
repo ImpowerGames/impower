@@ -38,7 +38,7 @@ import { updateWaveformElement } from "./utils/updateWaveformElement";
 
 interface FileSystemReader {
   scheme: string;
-  url: (uri: string | undefined) => string;
+  url: (uri: string | undefined) => string | undefined;
 }
 
 /**
@@ -467,6 +467,7 @@ const variableWidgetsConfig = Facet.define<
         sliderBackgroundColor: "#00000040",
         sliderFillColor: "#2B83B7",
       },
+      programContext: {},
     });
   },
 });

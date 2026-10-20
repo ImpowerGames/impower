@@ -97,6 +97,44 @@ export function doesCallError(call: AstExprCall): boolean {
   return false;
 }
 
+/** Luau's `hasBreak`: a `break` in a block or an `if` arm, not one in a nested loop. */
+export function hasBreak(node: AstStat): boolean {
+  if (node instanceof AstStatBlock) return node.body.some(hasBreak);
+  if (node instanceof AstStatBreak) return true;
+  if (node instanceof AstStatIf) return hasBreak(node.thenbody) || (!!node.elsebody && hasBreak(node.elsebody));
+  return false;
+}
+
+const isTrue = (condition: AstExpr) => condition instanceof AstExprConstantBool && condition.value;
+
+/**
+ * Luau's `getFallthrough`: the last statement before `node` exits, or
+ * undefined when it never does. `alwaysTrue` reads a `while` guard that
+ * never ends its loop; Luau's reads only the literal `true`.
+ */
+export function getFallthrough(node: AstStat, alwaysTrue: (condition: AstExpr) => boolean = isTrue): AstStat | undefined {
+  if (node instanceof AstStatBlock) {
+    if (node.body.length === 0) return node;
+    for (let i = 0; i < node.body.length - 1; ++i) {
+      if (getFallthrough(node.body[i]!, alwaysTrue) === undefined) return undefined;
+    }
+    return getFallthrough(node.body[node.body.length - 1]!, alwaysTrue);
+  }
+  if (node instanceof AstStatIf) {
+    const thenf = getFallthrough(node.thenbody, alwaysTrue);
+    if (thenf) return thenf;
+    return node.elsebody ? getFallthrough(node.elsebody, alwaysTrue) : node;
+  }
+  if (node instanceof AstStatReturn) return undefined;
+  if (node instanceof AstStatExpr) return node.expr instanceof AstExprCall && doesCallError(node.expr) ? undefined : node;
+  if (node instanceof AstStatWhile) return alwaysTrue(node.condition) && !hasBreak(node.body) ? undefined : node;
+  if (node instanceof AstStatRepeat) {
+    if (node.condition instanceof AstExprConstantBool && !node.condition.value && !hasBreak(node.body)) return undefined;
+    return getFallthrough(node.body, alwaysTrue) && node;
+  }
+  return node;
+}
+
 export function isLValue(expr: AstExpr): boolean {
   return expr instanceof AstExprLocal || expr instanceof AstExprGlobal || expr instanceof AstExprIndexName || expr instanceof AstExprIndexExpr;
 }
