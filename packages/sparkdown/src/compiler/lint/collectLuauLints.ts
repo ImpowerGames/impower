@@ -83,7 +83,7 @@ import {
   type AstLocal,
   type AstNode,
 } from "../typecheck/Ast";
-import { doesCallError } from "../typecheck/DataFlowGraph";
+import { doesCallError, getFallthrough } from "../typecheck/DataFlowGraph";
 import { decodeBytes } from "../typecheck/Linter";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
@@ -113,6 +113,7 @@ export const LUAU_LINT_CODES = [
   "TableLiteral",
   "TableOperations",
   "DeprecatedApi",
+  "ImplicitReturn",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -552,6 +553,51 @@ function lintUnreachable(fn: AstExprFunction, offsets: Offsets, out: LuauLint[])
   visitAst(fn, {
     visit(node) {
       if (node instanceof AstExprFunction) travel(node.body);
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// ImplicitReturn
+
+/** Whether a `while` guard is always true. Luau reads only `true`; a number
+ * or a string is as truthy (`0` and `""` included), so Sparkdown reads them
+ * too, and stays silent where such a loop cannot end. */
+function alwaysTrue(expr: AstExpr): boolean {
+  return (expr instanceof AstExprConstantBool && expr.value) || expr instanceof AstExprConstantNumber || expr instanceof AstExprConstantString;
+}
+
+// Luau's ImplicitReturn: a function with a `return` of values that can also
+// reach its end. A return belongs to its own function, and, as Luau's linter
+// does not walk into types, a function written in one is not checked. The
+// caller leaves alone a function holding a syntax error, every function in it
+// included: recovery can read statements the author did not write (a missing
+// `then` reads the `return` after it as the `if`'s body).
+function lintImplicitReturns(fn: AstExprFunction, offsets: Offsets, out: LuauLint[]): void {
+  visitAst(fn, {
+    visit(node) {
+      if (node instanceof AstType || node instanceof AstTypePack) return false;
+      if (!(node instanceof AstExprFunction)) return true;
+      let valueReturn: AstStatReturn | undefined;
+      visitAst(node.body, {
+        visit(child) {
+          if (valueReturn || child instanceof AstExpr || child instanceof AstType || child instanceof AstTypePack) return false;
+          if (child instanceof AstStatReturn && child.list.length) valueReturn = child;
+          return true;
+        },
+      });
+      const end = valueReturn && getFallthrough(node.body, alwaysTrue);
+      if (!valueReturn || !end) return true;
+      const range = offsets.range(end.location);
+      // Luau marks an ordinary final statement whole, and otherwise the
+      // `end` closing a statement over several lines.
+      const { begin, end: last } = end.location;
+      if (!(end instanceof AstStatExpr || end instanceof AstStatAssign || end instanceof AstStatLocal) && begin.line !== last.line) {
+        range.from = range.to - Math.min(3, last.column);
+      }
+      const name = node.debugname ? ` '${node.debugname}'` : "";
+      out.push({ code: "ImplicitReturn", ...range, message: `Function${name} can implicitly return no values even though there's an explicit return at line ${offsets.line(valueReturn.location.begin) + 1}; add explicit return to silence` });
       return true;
     },
   });
@@ -1836,6 +1882,7 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
       lintPlaceholderReads(fn, offsets, out);
       if (!typeOnly.has(fn)) lintUninitializedLocals(fn, tree, text, offsets, out, broken);
       lintUnreachable(fn, offsets, out);
+      if (!broken && !typeOnly.has(fn)) lintImplicitReturns(fn, offsets, out);
     }
   };
   for (const unit of [units.prelude, ...units.flows]) {

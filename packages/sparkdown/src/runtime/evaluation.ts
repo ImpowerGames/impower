@@ -1884,11 +1884,14 @@ const RANDOM_METHOD = `${METHOD_PREFIX}random`;
 /** The result of the native function or operator `func` over `funcParams`:
  *  a stdlib namespace a global replaced dispatches the replacement's member,
  *  an operand's metamethod handles the operator, and otherwise the native
- *  function does. */
+ *  function does. With `callArgs`, `funcParams` are the call's own
+ *  arguments, which the replacement takes as a Luau call passes them and
+ *  the native takes padded with void or cut to its parameters (I-826). */
 export function callNativeFunction(
   story: any,
   func: NativeFunctionCall,
   funcParams: InkObject[],
+  callArgs = false,
 ): InkObject | null {
   // Environment override: `getfenv().math = { abs = ... }` (or a
   // plain global assignment `math = {...}`) replaces a stdlib
@@ -1910,14 +1913,16 @@ export function callNativeFunction(
         func.name.slice(nsDotIdx + 1),
       );
       if (member != null && !(member instanceof NullValue)) {
-        // Padded Void slots represent missing args — drop them;
-        // the Lua-call arg normalization pads nil as needed.
-        const callArgs = funcParams.filter(
-          (p: any) => !(p instanceof Void),
-        ) as AbstractValue[];
+        // The call's own arguments, which a namespace member's call
+        // keeps (`NATIVE_CALL_ARGS`) and a variadic native's always
+        // are, pass as Luau passes them: the last spreads, and a call
+        // that returned nothing before it is nil
+        // (`math.abs(none(), 2)`).
+        const args = [...funcParams] as AbstractValue[];
+        spreadCallArgs(args);
         const results = story.CallLuauFunction(
           member as AbstractValue,
-          callArgs,
+          args,
         ) as AbstractValue[] | null;
         if (results && results.length === 1) {
           return results[0]!;
@@ -1927,6 +1932,14 @@ export function callNativeFunction(
         return new NullValue();
       }
     }
+  }
+  // The native takes its own parameters: the arguments past them are
+  // dropped once evaluated, and the ones a call left out are void, as a
+  // call site that pads or cuts them gives.
+  if (callArgs) {
+    const arity = func.numberOfParameters;
+    funcParams = funcParams.slice(0, arity);
+    while (funcParams.length < arity) funcParams.push(new Void());
   }
   // Metamethod dispatch: if any operand is an ObjectValue carrying a
   // metatable with a matching `__add` / `__sub` / `__eq` / etc., the

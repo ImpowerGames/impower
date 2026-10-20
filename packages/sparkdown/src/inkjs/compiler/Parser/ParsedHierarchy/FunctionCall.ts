@@ -14,6 +14,7 @@ import {
   CALL_OPEN,
   COUNT_TURNS,
   ConstValue,
+  NATIVE_CALL_ARGS,
   Op,
 } from "../../../../program/ProgramInstructions";
 import { displayLeavesLineOpen } from "../../../../program/displayCallFlags";
@@ -265,7 +266,10 @@ export class FunctionCall extends Expression {
   // `CallStd`, whose discard flag stands for the pop after a statement's
   // call. A `display` table that writes no newline sets the open flag. A
   // native function or operator is its arguments, padded with void or cut to
-  // its arity as the runtime objects are, then `Native`. A call of a function
+  // its arity as the runtime objects are, then `Native`; a namespace member
+  // (`math.abs`) keeps them as the call passed them, under the call
+  // arguments flag, since a script can replace its namespace with a table
+  // whose member takes more (I-826). A call of a function
   // is its divert's code (`Divert.EmitCall`), then `Pop` where the value is
   // discarded. A read count or turns since is its target's symbol value, or
   // the variable that holds one, then `CountOf`.
@@ -305,7 +309,8 @@ export class FunctionCall extends Expression {
       for (const arg of this.args) {
         emitter.emitObject(arg);
       }
-      if (!native.isVariadic) {
+      const callArgs = !native.isVariadic && this.name.includes(".");
+      if (!native.isVariadic && !callArgs) {
         for (let i = this.args.length; i < native.numberOfParameters; i += 1) {
           emitter.emit(Op.Const, 0, ConstValue.Void);
         }
@@ -313,7 +318,12 @@ export class FunctionCall extends Expression {
           emitter.emit(Op.Pop);
         }
       }
-      emitter.emit(Op.Native, emitter.string(this.name), this.args.length);
+      emitter.emit(
+        Op.Native,
+        emitter.string(this.name),
+        this.args.length,
+        callArgs ? NATIVE_CALL_ARGS : 0,
+      );
       if (this.shouldPopReturnedValue) {
         emitter.emit(Op.Pop);
       }
