@@ -70,6 +70,11 @@ describe("DuplicateFunction in one block", () => {
     expect(inFunction(" local T = {}\n function T.x() end\n function T.x() public y end\n return T")).toEqual([]);
   });
 
+  test("a statement holding a syntax error is left alone with the blocks in it", () => {
+    expect(messages("& run()\nfunction run()\n public y\n local function f() end\n local function f() end\n f()\nend\n")).toEqual([]);
+    expect(inFunction(" do\n  public y\n  local function f() end\n  local function f() end\n  f()\n end")).toEqual([]);
+  });
+
   test("a name the grammar reads as a keyword is left alone", () => {
     expect(inFunction(" local function match() end\n local function match() end\n match(1)")).toEqual([]);
   });

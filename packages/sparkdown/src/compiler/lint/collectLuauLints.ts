@@ -947,6 +947,9 @@ function lintDuplicateFunctions(root: AstNode, offsets: Offsets, out: LuauLint[]
     visit(node: AstNode): boolean {
       if (node instanceof AstType || node instanceof AstTypePack || node instanceof AstStatError || node instanceof AstExprError) return false;
       if (node instanceof AstExprFunction && !readToEnd(node)) return false;
+      // Recovery does not necessarily preserve a statement's boundaries, so
+      // a statement holding a syntax error is left alone with every block in it.
+      if (node instanceof AstStat && !(node instanceof AstStatBlock) && !complete(node)) return false;
       if (!(node instanceof AstStatBlock)) return true;
       if (!node.hasEnd) return false;
       const block = offsets.range(node.location);
