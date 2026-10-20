@@ -129,11 +129,15 @@ of its block, like Luau's (`docs/runtime/DIVERGENCES.md`).
 **A function or a `define`'s method written at the top level** reads
 and writes a top-level `local` declared above it, as Luau's upvalue
 (#823). It can be called from lines above its definition, and a
-define's table is built when the story starts, so it captures nothing
-when it is built: its entry binds each name it reads that none of its
-own scopes binds to the root frame's local of that name, when one
-exists as it runs (`BindRoot`), sharing the cell a closure over that
-local holds, and the name reads the global otherwise. The binding is
+define's table is built when the story starts, so nothing it could
+capture when it is built is the local yet: its entry binds, after its
+parameters, each name it reads that none of its own scopes binds to
+the root frame's local of that name, when one exists as it runs
+(`BindRoot`), sharing the cell a closure over that local holds, and
+the name reads the global otherwise. A define's method still captures
+those names when its table is built, as it did before, a pointer at
+the global of each name, which the binding replaces: a closure of the
+method that an older save holds passes the same parameters. The binding is
 by name as the function runs, not by where it is written: a function
 written above `local a` reads that local once it exists, a second
 `local a` in the same scope replaces the one a function written
