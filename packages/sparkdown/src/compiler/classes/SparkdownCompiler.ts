@@ -5591,7 +5591,8 @@ export class SparkdownCompiler {
 
   /** Luau lints (unused locals, unreachable code, repeated conditions,
    *  suspicious numeric `for` ranges, reads of the placeholder `_`, locals
-   *  hiding another variable, functions nothing uses); see
+   *  hiding another variable, functions nothing uses, locals read without a
+   *  value, value lists that do not match their names); see
    *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
