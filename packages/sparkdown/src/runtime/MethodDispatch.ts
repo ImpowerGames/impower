@@ -40,6 +40,9 @@ import {
 } from "./Value";
 import { StoryException } from "./StoryException";
 import { oneValue, spreadCallArgs } from "./CallArgs";
+// StdLib imports this module too; these are only called at run time, after
+// both modules have loaded, so the cycle is safe.
+import { coerceNumber, luauTypeOf } from "./StdLib";
 // LuaPatterns is a pure leaf module (zero imports), so a static
 // import is cycle-safe — the lazy `require("./LuaPatterns")` this
 // replaces failed under vitest's ESM transform ("Cannot find module")
@@ -111,6 +114,51 @@ function asNumber(
   throw new StoryException(
     `:${method} expected ${position} to be a number`,
   );
+}
+
+/**
+ * Luau `luaL_checknumber` / `luaL_optnumber` for argument #`index` of the
+ * builtin `name` (the short name, `'sub'`). A number or numeric string is
+ * accepted. An absent slot raises `missing argument #N to 'name' (number
+ * expected)`; any other non-number, nil included, raises `invalid argument #N
+ * to 'name' (number expected, got <type>)`. With `optional`, an absent or nil
+ * slot returns `undefined` instead. Both the `string.*` entry and the method
+ * form call this, the method form numbering its arguments without the
+ * receiver, as Luau does.
+ */
+export function checkNumberArg(
+  v: any,
+  index: number,
+  name: string,
+  optional: true,
+): number | undefined;
+export function checkNumberArg(v: any, index: number, name: string): number;
+export function checkNumberArg(
+  v: any,
+  index: number,
+  name: string,
+  optional = false,
+): number | undefined {
+  const missing =
+    v === undefined ||
+    v?.constructor?.name === "Void" ||
+    (v instanceof MultiValue && v.values.length === 0);
+  const raw = v instanceof MultiValue ? v.values[0] : v;
+  if (optional && (missing || luauTypeOf(raw) === "nil")) {
+    return undefined;
+  }
+  if (missing) {
+    throw new StoryException(
+      `missing argument #${index} to '${name}' (number expected)`,
+    );
+  }
+  const n = coerceNumber(raw);
+  if (n === null) {
+    throw new StoryException(
+      `invalid argument #${index} to '${name}' (number expected, got ${luauTypeOf(raw)})`,
+    );
+  }
+  return n;
 }
 
 // Extract the array portion of a table — integer keys 1, 2, 3, ...
@@ -373,11 +421,8 @@ function methodAt(params: InkObject[]): InkObject {
 
 function methodSub(params: InkObject[]): InkObject {
   const r = params[0];
-  const i = asNumber(params[1], "sub", "start index");
-  const j =
-    params[2] !== undefined
-      ? asNumber(params[2], "sub", "end index")
-      : undefined;
+  const i = checkNumberArg(params[1], 1, "sub");
+  const j = checkNumberArg(params[2], 2, "sub", true);
   if (r instanceof StringValue) {
     const s = r.value ?? "";
     const [start, end] = normalizeRange(i, j, s.length);
