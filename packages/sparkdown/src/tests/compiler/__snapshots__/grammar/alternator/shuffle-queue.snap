@@ -106,5 +106,6 @@ sparkdown [0..35]
          ├─ LuauSparkdownSequentialAlternatorBlock_end_c1 32
          │   └─ LuauSparkdownSequentialAlternatorBlock_end_c1 32
          │       └─ OptionalWhitespace 32
-         └─ LuauSparkdownSequentialAlternatorBlock_end_c2 [32..35]
-             └─ LuauEndKeyword [32..35]: "end"
+         ├─ LuauSparkdownSequentialAlternatorBlock_end_c2 [32..35]
+         │   └─ LuauEndKeyword [32..35]: "end"
+         └─ LuauSparkdownSequentialAlternatorBlock_end_c3 35

@@ -297,6 +297,7 @@ sparkdown [0..206]
  │       ├─ LuauDefine_end_c1 202
  │       │   └─ LuauDefine_end_c1 202
  │       │       └─ OptionalWhitespace 202
- │       └─ LuauDefine_end_c2 [202..205]
- │           └─ LuauEndKeyword [202..205]: "end"
+ │       ├─ LuauDefine_end_c2 [202..205]
+ │       │   └─ LuauEndKeyword [202..205]: "end"
+ │       └─ LuauDefine_end_c3 205
  └─ Newline [205..206]: "\n"

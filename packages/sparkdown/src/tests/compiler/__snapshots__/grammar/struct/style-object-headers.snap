@@ -172,6 +172,7 @@ sparkdown [0..124]
  │       ├─ LuauStyle_end_c1 120
  │       │   └─ LuauStyle_end_c1 120
  │       │       └─ OptionalWhitespace 120
- │       └─ LuauStyle_end_c2 [120..123]
- │           └─ LuauEndKeyword [120..123]: "end"
+ │       ├─ LuauStyle_end_c2 [120..123]
+ │       │   └─ LuauEndKeyword [120..123]: "end"
+ │       └─ LuauStyle_end_c3 123
  └─ Newline [123..124]: "\n"

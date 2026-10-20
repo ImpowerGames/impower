@@ -738,21 +738,23 @@ export function nextSignificantToken(
 }
 
 // The `=`/`+=`/`..=` token's own range, with the surrounding same-line
-// whitespace the `LuauAssignmentOperator` node captures (`(WS*)(op)(WS*)`)
-// trimmed off — so the squiggle lands on the operator, not its trailing
-// spaces.
+// whitespace the `LuauAssignmentOperator` node's begin captures
+// (`(WS*)(op)(WS*)`) trimmed off — so the squiggle lands on the operator, not
+// its trailing spaces. Only the begin is read: the node also holds the block
+// comments between the operator and a value on its line (#1298).
 function operatorTokenRange(
   operator: SyntaxNode,
   ctx: LowerContext,
 ): { from: number; to: number } {
-  const text = ctx.read(operator.from, operator.to);
+  const begin = operator.firstChild?.name === `${operator.name}_begin` ? operator.firstChild : operator;
+  const text = ctx.read(begin.from, begin.to);
   const leading = text.length - text.trimStart().length;
   const trailing = text.length - text.trimEnd().length;
-  const from = operator.from + leading;
-  const to = operator.to - trailing;
+  const from = begin.from + leading;
+  const to = begin.to - trailing;
   // Guard against an all-whitespace read (shouldn't happen — the operator is
   // always present) collapsing to a zero/negative span.
-  return to > from ? { from, to } : { from: operator.from, to: operator.to };
+  return to > from ? { from, to } : { from: begin.from, to: begin.to };
 }
 
 // Reports a Luau parse error worded `message` on the source `range`.

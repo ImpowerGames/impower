@@ -396,6 +396,7 @@ sparkdown [0..244]
  │       ├─ LuauMorph_end_c1 240
  │       │   └─ LuauMorph_end_c1 240
  │       │       └─ OptionalWhitespace 240
- │       └─ LuauMorph_end_c2 [240..243]
- │           └─ LuauEndKeyword [240..243]: "end"
+ │       ├─ LuauMorph_end_c2 [240..243]
+ │       │   └─ LuauEndKeyword [240..243]: "end"
+ │       └─ LuauMorph_end_c3 243
  └─ Newline [243..244]: "\n"

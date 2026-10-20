@@ -203,8 +203,9 @@ sparkdown [0..191]
  │   │       │   │       ├─ LuauFunctionDefinition_end_c1 89
  │   │       │   │       │   └─ LuauFunctionDefinition_end_c1 89
  │   │       │   │       │       └─ OptionalWhitespace 89
- │   │       │   │       └─ LuauFunctionDefinition_end_c2 [89..92]
- │   │       │   │           └─ LuauEndKeyword [89..92]: "end"
+ │   │       │   │       ├─ LuauFunctionDefinition_end_c2 [89..92]
+ │   │       │   │       │   └─ LuauEndKeyword [89..92]: "end"
+ │   │       │   │       └─ LuauFunctionDefinition_end_c3 92
  │   │       │   ├─ Newline [92..93]: "\n"
  │   │       │   ├─ LuauVariableDefinition [93..144]
  │   │       │   │   ├─ LuauVariableDefinition_begin [93..101]
@@ -307,8 +308,9 @@ sparkdown [0..191]
  │   │       │   │   │       │       │       │           ├─ LuauFunctionDefinition_end_c1 [140..141]
  │   │       │   │   │       │       │       │           │   └─ LuauFunctionDefinition_end_c1 [140..141]
  │   │       │   │   │       │       │       │           │       └─ OptionalWhitespace [140..141]: " "
- │   │       │   │   │       │       │       │           └─ LuauFunctionDefinition_end_c2 [141..144]
- │   │       │   │   │       │       │       │               └─ LuauEndKeyword [141..144]: "end"
+ │   │       │   │   │       │       │       │           ├─ LuauFunctionDefinition_end_c2 [141..144]
+ │   │       │   │   │       │       │       │           │   └─ LuauEndKeyword [141..144]: "end"
+ │   │       │   │   │       │       │       │           └─ LuauFunctionDefinition_end_c3 144
  │   │       │   │   │       │       │       └─ LuauAttributedFunctionValue_end 144
  │   │       │   │   │       │       └─ LuauAssignmentOperation_end 144
  │   │       │   │   │       └─ LuauVariableAssignment_end 144
@@ -400,8 +402,9 @@ sparkdown [0..191]
  │       ├─ LuauFunctionDefinition_end_c1 172
  │       │   └─ LuauFunctionDefinition_end_c1 172
  │       │       └─ OptionalWhitespace 172
- │       └─ LuauFunctionDefinition_end_c2 [172..175]
- │           └─ LuauEndKeyword [172..175]: "end"
+ │       ├─ LuauFunctionDefinition_end_c2 [172..175]
+ │       │   └─ LuauEndKeyword [172..175]: "end"
+ │       └─ LuauFunctionDefinition_end_c3 175
  ├─ Newline [175..176]: "\n"
  ├─ ImplicitAction [176..190]
  │   ├─ ImplicitAction_begin 176

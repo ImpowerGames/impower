@@ -163,8 +163,9 @@ sparkdown [0..124]
  │       ├─ LuauSparkdownIfBlock_end_c1 [106..110]
  │       │   └─ LuauSparkdownIfBlock_end_c1 [106..110]
  │       │       └─ OptionalWhitespace [106..110]: "    "
- │       └─ LuauSparkdownIfBlock_end_c2 [110..113]
- │           └─ LuauEndKeyword [110..113]: "end"
+ │       ├─ LuauSparkdownIfBlock_end_c2 [110..113]
+ │       │   └─ LuauEndKeyword [110..113]: "end"
+ │       └─ LuauSparkdownIfBlock_end_c3 113
  ├─ Newline [113..114]: "\n"
  ├─ Whitespace [114..116]: "  "
  ├─ LuauEndKeyword [116..119]: "end"

@@ -235,6 +235,7 @@ sparkdown [0..166]
  │       ├─ LuauLayout_end_c1 162
  │       │   └─ LuauLayout_end_c1 162
  │       │       └─ OptionalWhitespace 162
- │       └─ LuauLayout_end_c2 [162..165]
- │           └─ LuauEndKeyword [162..165]: "end"
+ │       ├─ LuauLayout_end_c2 [162..165]
+ │       │   └─ LuauEndKeyword [162..165]: "end"
+ │       └─ LuauLayout_end_c3 165
  └─ Newline [165..166]: "\n"

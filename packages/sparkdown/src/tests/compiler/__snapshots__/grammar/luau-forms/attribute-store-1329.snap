@@ -78,8 +78,9 @@ sparkdown [0..55]
  │   │       │       │           ├─ LuauFunctionDefinition_end_c1 [37..38]
  │   │       │       │           │   └─ LuauFunctionDefinition_end_c1 [37..38]
  │   │       │       │           │       └─ OptionalWhitespace [37..38]: " "
- │   │       │       │           └─ LuauFunctionDefinition_end_c2 [38..41]
- │   │       │       │               └─ LuauEndKeyword [38..41]: "end"
+ │   │       │       │           ├─ LuauFunctionDefinition_end_c2 [38..41]
+ │   │       │       │           │   └─ LuauEndKeyword [38..41]: "end"
+ │   │       │       │           └─ LuauFunctionDefinition_end_c3 41
  │   │       │       └─ LuauSparkdownAssignmentOperation_end 41
  │   │       └─ LuauSparkdownVariableAssignment_end 41
  │   └─ LuauSparkdownVariableDefinition_end 41
