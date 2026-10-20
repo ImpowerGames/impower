@@ -19,6 +19,26 @@ import {
 
 // Luau: BuiltinGlobalWrite
 describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
+  test("math = {} and function assert", () => {
+    expect(
+      lintMessagesInFunction(`
+math = {}
+
+function assert(x)
+end
+
+assert(5)
+`),
+    ).toEqual([
+      "Built-in global 'math' is overwritten here; consider using a local or changing the name",
+      "Built-in global 'assert' is overwritten here; consider using a local or changing the name",
+    ]);
+  });
+});
+
+// Sparkdown-specific: the rule over sparkdown's flows, callbacks, handlers and
+// included scripts, which upstream has no counterpart for.
+describe("overwriting a builtin global across sparkdown's units and scripts (BuiltinGlobalWrite)", () => {
   test("a future flow local does not hide a preceding write to an explicit global", () => {
     const diagnostics = diagnoseDetailed("store math = {}\nfunction run()\n math = {}\n local math = {}\n math = {}\nend\nReady.\n");
     expect(diagnostics.filter((d) => d.code === "BuiltinGlobalWrite").map((d) => [d.severity, d.range])).toEqual([
@@ -89,7 +109,8 @@ describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
     "& if true then local math = {} end\n& math = {}\nReady.\n",
     "& for math = 1, 2 do end\n& math = {}\nReady.\n",
     "scene intro()\n  & do local math = {} end\n  & math = {}\nend\n",
-  ])("a local in a nested top-level block does not silence a later write: %s", (source) => {
+    "& math = {}\nlayout main with\n  button \"Check\" @click={ local math = {} }\nend\nReady.\n",
+  ])("a local in a nested top-level block or a handler does not silence another write: %s", (source) => {
     const ds = diagnoseDetailed(source).filter((d) => d.code === "BuiltinGlobalWrite");
     const lines = source.split("\n");
     expect(ds.map((d) => lines[d.range!.start.line]!.trim())).toEqual(["& math = {}"]);
@@ -161,21 +182,6 @@ constructor = 1
 toString = 1
 return math, assert, f
 `)).toEqual([]);
-  });
-  test("math = {} and function assert", () => {
-    expect(
-      lintMessagesInFunction(`
-math = {}
-
-function assert(x)
-end
-
-assert(5)
-`),
-    ).toEqual([
-      "Built-in global 'math' is overwritten here; consider using a local or changing the name",
-      "Built-in global 'assert' is overwritten here; consider using a local or changing the name",
-    ]);
   });
 });
 

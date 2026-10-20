@@ -25,7 +25,8 @@ export interface LuauNameDeclaration extends NameRange {
   function?: AstExprFunction;
   scope?: AstStatBlock;
   /** Declared in its unit's outermost block, outside every authored
-   * function and nested block, so later units can still see it. */
+   * function, nested block and Sparkle handler body, so later units can
+   * still see it. */
   outermost?: boolean;
 }
 export interface LuauGlobalDefinition extends NameRange {
@@ -114,7 +115,7 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         published.add(local);
         facts.globals.push({ name: local.name, kind: "const", ...offsets.range(local.location), node: stat ?? fn ?? root, enclosingFunction, function: fn, scope: declarationScope });
       }
-      else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope, outermost: !enclosingFunction && nested === 0 && (kind === "local" || kind === "function") });
+      else facts.declarations.push({ name: local.name, local, kind, ...offsets.range(local.location), enclosingFunction, function: fn, scope: declarationScope, outermost: !enclosingFunction && !functionBody && nested === 0 && (kind === "local" || kind === "function") });
     };
     const reference = (node: AstExprGlobal | AstExprLocal, access: LuauNameReference["access"]) => {
       const local = binding(node);
