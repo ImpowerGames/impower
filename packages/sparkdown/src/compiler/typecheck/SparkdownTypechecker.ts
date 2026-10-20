@@ -229,9 +229,11 @@ export class SparkdownTypechecker {
           // statement that holds a token the grammar left unread
           // (`LuauSyntaxError.unread`), Sparkdown's own syntax's for the rest.
           const inPureLuau = pureLuau || inFunction(start);
-          // Luau's parser stops at the end of the chunk; what the reading
-          // reads on after it is none of Luau's.
-          if (inPureLuau && syntaxError?.pastChunkEnd) continue;
+          // In a `.luau` or `run` file Luau's parser stops at the end of the
+          // chunk, and what the reading reads on after it is none of Luau's.
+          // A `.sd` document's functions after it are compiled on their own,
+          // and their errors are theirs.
+          if (pureLuau && syntaxError?.pastChunkEnd) continue;
           if (!inPureLuau) {
             if (!syntaxError?.malformed && !syntaxError?.unread) continue;
             const token = `${end.line}:${end.character}`;

@@ -239,6 +239,16 @@ describe("an end at the script root that closes nothing is reported (I-774)", ()
     ].join("\n");
     expect(errorsMatching(text, /<eof>/)).toEqual([]);
   });
+
+  // Luau's parser stops at a stray `end`, but a `.sd` document's functions
+  // after it are compiled on their own, and their errors are reported.
+  test.each([
+    ["1 + ;", "6:16-6:17 Expected identifier when parsing expression, got ';'"],
+    ["?", "6:12-6:13 Expected identifier when parsing expression, got '?'"],
+  ])("a function after a stray end keeps its own errors: %s", (value, error) => {
+    const text = `function f()\n  do\n    until true\n  end\nend\nfunction g()\n  local x = ${value}\nend\n${STORY}`;
+    expect(sparkdownErrors(text)).toContain(error);
+  });
 });
 
 describe("text after a scene or branch header is reported on the header line (I-674)", () => {
@@ -357,6 +367,8 @@ describe("a .luau file's errors are the official parser's", () => {
     // A line that reads like a scene's header is Luau's, after the root
     // `end` where Luau's parser stops.
     "end\nscene start oops\nend\n",
+    "scene start oops\n",
+    "branch side oops\n",
     // A token that reads like a line reference is the author's.
     "local \"(to close 'function' at line 999)\" = 1\n",
     "function f(\"(to close 'function' at line 999)\") end\n",
