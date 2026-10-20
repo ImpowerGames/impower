@@ -15,7 +15,7 @@
 // expressions outside them, in Sparkdown's own text and constructs (an
 // interpolation or call shorthand, a divert's arguments, an alternator's
 // selector, a Sparkle handler and its `{ ... }` statements, a `define`'s
-// values and methods), wherever the tree marks a chain, an `if`, a numeric
+// values and methods), wherever the tree marks a chain, a comparison, an `if`, a numeric
 // or generic `for` or a function, as the tree lints found them. The rules about locals and reachability read the Luau
 // functions a script defines (`function f()`, wherever it is written, and
 // function values): a local outside a function can be read from
@@ -250,7 +250,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
 // Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauCompareOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
 const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 
 /** Relevant nodes in Lezer's public packed representation. Avoid constructing
@@ -427,8 +427,8 @@ interface OutsideReading {
  * interpolation (`{a and b}`, `{{f(a or b)}}`, in a line, a choice or a
  * line inside a narrative `if`), a property's value or a method in a
  * `define`, a divert's arguments, the condition of a choice or an
- * alternator, a Sparkle handler. Each expression that holds a chain, an
- * `if` expression or a function value is read on its own
+ * alternator, a Sparkle handler. Each expression that holds a chain, a
+ * comparison, an `if` expression or a function value is read on its own
  * (`readLuauExpression`, `readLuauMethod`), and each `if` or `for`
  * statement as the body of a function (`readLuauStatements`), located in
  * the document's lines; one inside another that reads it is not read again.
@@ -466,7 +466,7 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
         readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([node], text), statements: true }) });
       } else {
-        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
+        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauCompareOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
         readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false }) });

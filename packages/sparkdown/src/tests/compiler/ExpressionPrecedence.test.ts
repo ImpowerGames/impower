@@ -107,6 +107,22 @@ describe("both rules", () => {
     ]);
   });
 
+  test.each([
+    ['"a" < "b" < "c"', "strings"],
+    ["true == false == true", "booleans"],
+    ["nil == false == true", "nil"],
+    ["1 < 2 < 3", "numbers"],
+    ["not true == false", "a negated literal"],
+  ])("reads a comparison of literals alone outside functions: %s (%s)", (expr) => {
+    const source = `Hi {${expr}}.\n`;
+    expect(diagnoseDetailed(source).filter((d) => d.code === "SyntaxError")).toEqual([]);
+    expect(covered(source)).toEqual([{ code: "ComparisonPrecedence", text: expr }]);
+  });
+
+  test("reads a comparison of literals alone in a narrative if block's condition", () => {
+    expect(covered("if 1 < 2 < 3 then\n  Hi.\nend\n")).toEqual([{ code: "ComparisonPrecedence", text: "1 < 2 < 3" }]);
+  });
+
   test("reads a narrative if block's condition", () => {
     expect(covered("store a = true\nstore b = false\nif not a == b then\n  & a = b\nend\n")).toEqual([{ code: "ComparisonPrecedence", text: "not a == b" }]);
   });
