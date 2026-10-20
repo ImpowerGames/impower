@@ -13,8 +13,8 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { reportBodySyntaxErrors } from "../expression/lowerFunction";
-import { closureBodyAst, closureSyntaxErrors, rangeOf } from "../utils/luauAst";
-import { atClosureReadingEnd } from "../../typecheck/LuauUnitNodes";
+import { closureBodyAst, closureSyntaxErrors, documentText } from "../utils/luauAst";
+import { closureReadingErrors } from "../../typecheck/closureReading";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
@@ -557,15 +557,9 @@ function lowerHandlerClosure(
     if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
     ctx.functionBindingsStack?.pop();
     ctx.localConsts = localConsts;
-    // An error at the `end` the reading closes the closure with is the
-    // validator's, at the `}` (`atClosureReadingEnd`).
-    if (body) {
-      const errors = closureSyntaxErrors(body, ctx).filter((error) => {
-        const { from, to } = rangeOf(error.location, ctx);
-        return !atClosureReadingEnd(error, from, to, closureNode);
-      });
-      reportBodySyntaxErrors(errors, ctx);
-    }
+    // An error at the `end` the reading closes the closure with is reported
+    // at the closure's `}` (`closureReadingErrors`).
+    if (body) reportBodySyntaxErrors(closureReadingErrors(closureSyntaxErrors(body, ctx), closureNode, documentText(ctx)), ctx);
     const fn = new Function(
       new Identifier(exprId),
       stmts,

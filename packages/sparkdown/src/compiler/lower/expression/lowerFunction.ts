@@ -51,7 +51,8 @@ import { withMessageLines } from "../../typecheck/messageLines";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
-import type { Location } from "../../typecheck/Location";
+import { Location, Position } from "../../typecheck/Location";
+import { lineCountOf, syntaxErrorEnd } from "../../typecheck/syntaxErrorRange";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -148,7 +149,8 @@ export function reportBodySyntaxErrors(
 /**
  * Reports syntax errors of a reading no other reader reports, those from
  * `from` on, each once, leaving out an error already reported at the same
- * place. A line a message names (`at line N`, of the document the reading
+ * place, each ranged as the type checker ranges one (`syntaxErrorEnd`). A
+ * line a message names (`at line N`, of the document the reading
  * read) is counted from the chunk's first line, as the error's range is,
  * and the compile names the document's line again where it emits the
  * chunk (`messageLinesInChunk`), so a chunk carried to another line names
@@ -165,16 +167,17 @@ export function reportSyntaxErrors(
     diagnostics.map((d) => `${d.source?.startLineNumber}:${d.source?.startCharacterNumber} ${d.message}`),
   );
   for (const error of errors) {
-    const range = rangeOf(error.location, ctx);
-    const from = range.from;
+    // Ranged as the type checker ranges an error of its reading
+    // (`syntaxErrorEnd`).
+    const { begin, end } = error.location;
+    const rangeEnd = syntaxErrorEnd(
+      { line: begin.line, character: begin.column },
+      { line: end.line, character: end.column },
+      error.message,
+      () => lineCountOf(documentText(ctx)),
+    );
+    const { from, to } = rangeOf(new Location(begin, new Position(rangeEnd.line, rangeEnd.character)), ctx);
     if (from < bodyFrom) continue;
-    // A missing type's range ends with the line it is missing from, as the
-    // type checker ranges one (`rangeEnd` in `SparkdownTypechecker.ts`).
-    let to = range.to;
-    if (error.message.startsWith("Expected type") && error.location.end.line > error.location.begin.line && (error.location.end.line > error.location.begin.line + 1 || error.location.end.column > 0)) {
-      const lineBreak = documentText(ctx).indexOf("\n", from);
-      if (lineBreak >= 0) to = lineBreak + 1;
-    }
     const source = {
       fileName: null,
       filePath: ctx.filePath ?? null,

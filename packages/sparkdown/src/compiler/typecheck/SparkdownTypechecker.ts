@@ -35,6 +35,7 @@ import {
 } from "./LuauDocumentChecker";
 import { luauReadingReportsAllAt } from "./LuauUnitNodes";
 import { withMessageLines } from "./messageLines";
+import { syntaxErrorEnd } from "./syntaxErrorRange";
 import { Mode } from "./Module";
 import { Scope } from "./Scope";
 import { follow, persist, TypeArena, TypeFun } from "./Type";
@@ -158,27 +159,6 @@ export class SparkdownTypechecker {
       }
       return false;
     };
-    // A range that ends at the end of a unit, whose trailing line break is
-    // not in its text, ends at the start of the next line, where Luau's
-    // end-of-file range ends when the source ends with a line break.
-    const rangeEnd = (
-      start: { line: number; character: number },
-      end: { line: number; character: number },
-      atEnd: boolean,
-      missingType: boolean,
-    ) => {
-      // A missing type's range from where the type should stand to the token
-      // found on a later line (`local w:` before a line `local z = 1`) ends
-      // with the line the type is missing from, not at the token Luau's
-      // parser recovers with. Other errors keep their range.
-      if (missingType && (end.line > start.line + 1 || (end.line === start.line + 1 && end.character > 0))) {
-        return start.line + 1 < lineStartsOf().length ? { line: start.line + 1, character: 0 } : end;
-      }
-      const after = end.line > start.line || (end.line === start.line && end.character > start.character);
-      if (after && (!atEnd || end.character === 0)) return end;
-      const line = after ? end.line : start.line;
-      return line + 1 < lineStartsOf().length ? { line: line + 1, character: 0 } : after ? end : start;
-    };
     // Whether a document position is in a function's own Luau, its header or
     // its body, that the checker reads (`luauReadingReportsAllAt`; not a
     // function value in a `store`'s, whose errors are Sparkdown's own), read
@@ -208,7 +188,7 @@ export class SparkdownTypechecker {
           if (syntaxError?.sparkdown) continue;
           const message = error.data.kind === "SyntaxError" ? error.data.message : "";
           const start = documentPosition(unit, error.location.begin);
-          const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"), message.startsWith("Expected type"));
+          const end = syntaxErrorEnd(start, documentPosition(unit, error.location.end), message, () => lineStartsOf().length);
           if (isSparkdownSyntax(end)) continue;
           // In a pure-Luau body (a `.luau` or `run` file, a function's own
           // Luau) every error of Luau's reading is reported, in Luau's words

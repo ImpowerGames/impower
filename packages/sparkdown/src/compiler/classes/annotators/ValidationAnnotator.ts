@@ -21,9 +21,10 @@ import {
 } from "../../lower/utils/lineContinuation";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
+import { closureReadingErrors } from "../../typecheck/closureReading";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { atClosureReadingEnd, checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -595,11 +596,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * words at a range that meets `from`-`to`, which it reports in Luau's
    * range (`reportBodySyntaxErrors`), so the validator's own report of it
    * gives way, as Sparkdown's does to the type checker's reading in a
-   * function (`validateTypes` in `SparkdownCompiler.ts`).
+   * function (`validateTypes` in `SparkdownCompiler.ts`): the ranges meet
+   * where either holds the other's start, or only space lies between them
+   * (a comma the validator marks and the `}` the reading names after it).
    */
   private loweredReadingReports(message: string, from: number, to: number): boolean {
     const errors = this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null);
-    return !!errors?.some((error) => error.message === message && error.from <= to && from <= error.to);
+    return !!errors?.some(
+      (error) =>
+        error.message === message &&
+        ((error.from <= to && from <= error.to) || (to <= error.from && this.read(to, error.from).trim() === "")),
+    );
   }
 
   /**
@@ -621,17 +628,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           : content
             ? readLuauStatements([content], text)
             : readLuauBlock([body], text);
-      // As the lowerer reports them (`reportBodySyntaxErrors`), without
-      // those at a closure's `}` (`atClosureReadingEnd`).
-      errors = reading.errors
+      // As the lowerer reports them (`reportBodySyntaxErrors`), a closure's
+      // at its `}` (`closureReadingErrors`).
+      errors = closureReadingErrors(reading.errors, body, text)
         .filter((error) => !error.sparkdown && !error.pastChunkEnd)
         .map((error) => ({
-          error,
           message: error.message,
           from: luauPositionOffset(error.location.begin, text),
           to: luauPositionOffset(error.location.end, text),
-        }))
-        .filter(({ error, from, to }) => !atClosureReadingEnd(error, from, to, body));
+        }));
       this.loweredReadings.set(key, errors);
     }
     return errors;
