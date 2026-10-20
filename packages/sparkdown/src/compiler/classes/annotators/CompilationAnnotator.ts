@@ -412,7 +412,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
       // Top-level `store NAME = …` / `const NAME = …` — collect the
       // declared identifier(s). Each `LuauVariableAssignment` carries
-      // one name in `LuauVariableName` under `_begin_c1`.
+      // one name in `LuauVariableName` under `_begin_c1`. A plain
+      // `local NAME = …` is a local a closure captures, not a global
+      // (I-822).
+      if (/^local\b/.test(this.read(node.from, node.to).trimStart())) return;
       let cur = node.firstChild;
       while (cur) {
         if (VARIABLE_DEFINITION_CONTENT_NAMES.has(cur.name)) {
