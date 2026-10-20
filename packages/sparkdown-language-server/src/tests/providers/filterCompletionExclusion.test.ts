@@ -28,16 +28,19 @@ describe("provider · attribute completion exclusion (#478)", () => {
     expect(labels, "phone is already applied on this line").not.toContain(
       "phone",
     );
-    expect(labels, "the others are still offered").toContain("look.down");
+    expect(labels, "the others are still offered").toContain("look");
+    expect(labels).toContain("down");
     expect(labels).toContain("coat");
   });
 
-  test("every attribute already in a longer chain is left out", () => {
+  test("every group already set in a longer chain is left out", () => {
     const labels = labelsAt(`[[bunny_bruh~phone~look.down~|]]\n`);
     expect(labels).not.toContain("phone");
-    expect(labels).not.toContain("look.down");
-    expect(labels).toContain("look.up");
+    expect(labels).not.toContain("look");
+    expect(labels).not.toContain("down");
+    expect(labels).not.toContain("up");
     expect(labels).toContain("coat");
+    expect(labelsAt(`[[bunny_bruh~phone~look.down~look.|]]\n`), "after its dot, only the group's other options").toEqual(["up"]);
   });
 
   test("the partial name under the cursor is still offered", () => {
@@ -45,14 +48,14 @@ describe("provider · attribute completion exclusion (#478)", () => {
     // as an applied attribute would hide the very name being completed.
     const labels = labelsAt(`[[bunny_bruh~phone~look.d|]]\n`);
     expect(labels, "the name being typed must stay in the list").toContain(
-      "look.down",
+      "down",
     );
     expect(labels).not.toContain("phone");
   });
 
   test("a fully-typed attribute being replaced is still offered", () => {
     const labels = labelsAt(`[[bunny_bruh~phone~look.up|]]\n`);
-    expect(labels).toContain("look.up");
+    expect(labels).toContain("up");
     expect(labels).not.toContain("phone");
   });
 
