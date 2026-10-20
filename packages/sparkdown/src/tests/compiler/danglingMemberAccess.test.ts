@@ -230,7 +230,7 @@ describe("a dangling member access (#1079)", () => {
     ["spaced", 'return t.a .. "y"'],
     ["unspaced", 'return t.a.."y"'],
   ])("leaves %s concatenation alone", (_name, line) => {
-    const source = `function f()\n  local t = { a = "x" }\n  ${line}\nend\n`;
+    const source = `function _f()\n  local t = { a = "x" }\n  ${line}\nend\n`;
     expect(diagnostics(compile(source))).toEqual([]);
   });
 
