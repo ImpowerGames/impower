@@ -11,7 +11,8 @@
 //
 // Compared: `context`, the engine UI channels and `sparkle` equal, with the
 // `span` of each Sparkle binding in the shifted file moved down; the
-// diagnostics equal with the shifted file's ranges moved down; and every
+// diagnostics equal with the shifted file's ranges, and the lines their
+// messages name, moved down; and every
 // location table equal with the shifted file's rows moved down. A leading
 // blank line moves no column, so columns are compared as they are. The
 // statement chunks' shift oracle is `programShift.test.ts`.
@@ -95,6 +96,18 @@ function shiftRanges(value: unknown, lines: number): unknown {
   return value;
 }
 
+// A copy of a diagnostic with the lines its message names in its own
+// document (`to close 'function' at line 3`) moved down, as its range is; a
+// line of another script, named with it (`at line 3 in 'other'`), stays.
+function shiftMessageLines(diagnostic: unknown, lines: number): unknown {
+  const d = diagnostic as { message?: string | { value: string } };
+  const shift = (text: string) =>
+    text.replace(/\bat line (\d+)(?! in ')/g, (_, line: string) => `at line ${Number(line) + lines}`);
+  if (typeof d?.message === "string") return { ...d, message: shift(d.message) };
+  if (d?.message && typeof d.message.value === "string") return { ...d, message: { ...d.message, value: shift(d.message.value) } };
+  return diagnostic;
+}
+
 // A copy of the Sparkle trees with the binding spans of `uri` moved down. A
 // span holds a line and two offsets, and each blank line above it adds one
 // character before it.
@@ -117,7 +130,10 @@ function surface(program: SparkProgram, uri: string, lines: number) {
   const s = Object.keys(program.scripts).indexOf(uri);
   expect(s, `${uri} is a script of the program`).toBeGreaterThanOrEqual(0);
   const diagnostics = Object.fromEntries(
-    Object.entries(program.diagnostics ?? {}).map(([at, list]) => [at, at === uri ? shiftRanges(list, lines) : list]),
+    Object.entries(program.diagnostics ?? {}).map(([at, list]) => [
+      at,
+      at === uri ? (shiftRanges(list, lines) as unknown[]).map((d) => shiftMessageLines(d, lines)) : list,
+    ]),
   );
   return {
     context: stable(program.context),
