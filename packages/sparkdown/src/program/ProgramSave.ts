@@ -1030,9 +1030,9 @@ class FormPlacer {
    *  main that declares a global and writes a member function is two such
    *  chunks of the script's declaration sequence, the global's first, and a
    *  save taken before I-1438 names the write alone (`topOf`), which the
-   *  alignment places on the first of the run (`decodeSymbol`). A level
-   *  below such a statement whose body the placed chunk lacks is found by
-   *  the search of step 3, in every sequence. */
+   *  alignment places on the first of the run: the level below it and the
+   *  symbol it names are looked for along the run (`placeLevels`,
+   *  `decodeSymbol`). */
   protected sameRun(placed: StatementPlacement): number[] {
     const chunks = placed.sequence.arrays.chunks;
     const own = chunks[placed.entry];
@@ -1072,6 +1072,17 @@ class FormPlacer {
       } else {
         const owner = out[i - 1];
         sequence = owner ? this.bodyOf(owner, level) : undefined;
+        // An owner placed in a run of statements of its fingerprint whose
+        // chunk has no such body: the nearest of the run that has it
+        // (`sameRun`), which then owns the level.
+        for (const entry of owner && !sequence ? this.sameRun(owner) : []) {
+          const other = { ...owner!, entry };
+          sequence = this.bodyOf(other, level);
+          if (sequence) {
+            out[i - 1] = other;
+            break;
+          }
+        }
       }
       const placed = this.placeIn(sequence, level);
       if (placed?.moved && levels[0]?.flow !== undefined) {
