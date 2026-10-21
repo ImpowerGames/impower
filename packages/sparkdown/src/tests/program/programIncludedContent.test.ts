@@ -4,15 +4,16 @@
 // flows of their own in its script, so their statements carry line tables and
 // addresses in that script, an edit inside one re-emits one chunk and keeps
 // every other, and a save taken before the edit loads after it. Its top-level
-// lines other than declarations report an error and are dropped, so no
-// `$include:` flow stands for it but the one its member functions' writes
-// run in (I-1438). A `run` statement is a call of its file's wrapper where
-// its line stands, a statement of the flow it is written in (I-1439).
+// lines other than declarations report an error and are dropped, and the
+// writes of its member functions run with the declarations, after every
+// script's globals initialize (I-1438), so no `$include:` flow stands for
+// it. A `run` statement is a call of its file's wrapper where its line
+// stands, a statement of the flow it is written in (I-1439).
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { chunkId } from "../../program/ProgramChunk";
+import { blockCount, chunkId } from "../../program/ProgramChunk";
 import {
   describeRoot,
   programCompiler,
@@ -193,10 +194,9 @@ describe("a script other than main", () => {
     expect(shows(texts, [], luau).beats).toEqual(["Main 7.\n", "In S 8.\n", "More.\n"]);
   });
 
-  // The one use of the mechanism a script other than main still makes (#1387):
-  // a member function's write runs where it is placed, before main's top
-  // level, as the `$include:` flow of its script.
-  it("keeps an `$include:` flow for its member functions' writes, which run before main's top level", () => {
+  // A member function's write (#1387) runs with the declarations, before
+  // main's top level, and not as a flow of its script (I-1438).
+  it("has no `$include:` flow for its member functions' writes, which run before main's top level", () => {
     const texts = {
       [MAIN]: lines("Main {api.twice(3)}."),
       [FIRST]: lines("store api = {}", "", "function api.twice(n)", "  return n * 2", "end"),
@@ -206,8 +206,70 @@ describe("a script other than main", () => {
       .flowSequences()
       .map((row) => [root.table.symbols[row.flow]!, row.uri] as const)
       .filter(([name]) => name.startsWith("$include:"));
-    expect(included).toEqual([[includedFlowName(FIRST), FIRST]]);
+    expect(included).toEqual([]);
     expect(shows(texts).beats).toEqual(["Main 6.\n"]);
+  });
+
+  it("emits no `$include:` flow for any script of a project, and declares main's globals, then each script's in path order, then the scripts' writes", () => {
+    const texts = {
+      [MAIN]: lines("store total = 2", "run start", "Main {api.twice(total)} {api.add(1)}.", "-> S"),
+      [FIRST]: lines("store api = {}", "", "function api.twice(n)", "  return n * 2", "end"),
+      // A write into a table another script declares, and a scene.
+      [SECOND]: lines(
+        "store base = 10",
+        "",
+        "function api.add(n)",
+        "  return n + base",
+        "end",
+        "",
+        "scene S",
+        "  In S {api.twice(base)}.",
+        "end",
+      ),
+    };
+    const luau = { "file://proj/start.luau": "total = total + 1\n" };
+    const program = compileProgram(texts, luau);
+    expect(reported(program)).toEqual([]);
+    const root = program.chunks!;
+    expect(
+      root
+        .flowSequences()
+        .map((row) => root.table.symbols[row.flow]!)
+        .filter((name) => name.startsWith("$include:")),
+    ).toEqual([]);
+    for (const uri of [MAIN, FIRST, SECOND]) {
+      expect(root.flowNamed(includedFlowName(uri))).toBeUndefined();
+    }
+    // The declaration chunks in the order they run, by script and first
+    // line: the globals, main's first and then each script's in path order,
+    // and then the writes, in the same order.
+    const scripts = new Set([MAIN, FIRST, SECOND]);
+    expect(
+      root.initialization
+        .map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21))
+        .filter((at) => at && scripts.has(at.uri))
+        .map((at) => [at!.uri, at!.startLine]),
+    ).toEqual([
+      [MAIN, 0],
+      [FIRST, 0],
+      [SECOND, 0],
+      [FIRST, 2],
+      [SECOND, 2],
+    ]);
+    // Main's top level holds its own lines alone.
+    const top = root.flowNamed("")!;
+    expect(
+      top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
+    ).toMatchObject([
+      { uri: MAIN, startLine: 1 },
+      { uri: MAIN, startLine: 2 },
+      { uri: MAIN, startLine: 3 },
+    ]);
+    expect(shows(texts, [], luau)).toEqual({
+      beats: ["Main 6 11.\n", "In S 20.\n"],
+      menus: [],
+      errors: [],
+    });
   });
 
   it("holds its scenes as flows of their own in its script, at their lines, and adds nothing to the top level", () => {
@@ -474,6 +536,50 @@ describe("an edit inside a script other than main", () => {
       startLine: 4,
     });
     matchesCold(after, s.texts);
+  });
+
+  // A member function's write is a declaration chunk of its script
+  // (I-1438), whose function's body keeps its statements' chunks as a scene
+  // does.
+  it("re-emits one chunk for an edit inside a member function's body, and runs the edited function from main's first line", () => {
+    const s = session({
+      [MAIN]: lines("Main {api.twice(3)} {api.half(8)}."),
+      [FIRST]: lines(
+        "store api = {}",
+        "",
+        "function api.twice(n)",
+        "  return n * 2",
+        "end",
+        "",
+        "function api.half(n)",
+        "  return n / 2",
+        "end",
+      ),
+    });
+    const run = () =>
+      quiet(() => storyRun(new ProgramStory(s.root))).beats.map((beat) => beat.text);
+    expect(run()).toEqual(["Main 6 4.\n"]);
+    // The chunks of the script's declarations, their bodies' included.
+    const declared = (root: ProgramRoot): Int32Array[] => {
+      const of = (chunks: readonly Int32Array[]): Int32Array[] =>
+        chunks.flatMap((chunk) => [
+          chunk,
+          ...Array.from({ length: blockCount(chunk) }, (_, k) =>
+            of(root.body(chunk, k)?.arrays.chunks ?? []),
+          ).flat(),
+        ]);
+      return of(root.declarations(FIRST)!.arrays.chunks);
+    };
+    const before = s.root;
+    const was = declared(before);
+    const after = s.edit(FIRST, "n * 2", "n * 3");
+    expect(s.store.emittedLastBuild).toBe(1);
+    const is = declared(after);
+    expect(is.filter((chunk) => !was.includes(chunk))).toHaveLength(1);
+    expect(was.filter((chunk) => !is.includes(chunk))).toHaveLength(1);
+    expect(is).toHaveLength(was.length);
+    matchesCold(after, s.texts);
+    expect(run()).toEqual(["Main 9 4.\n"]);
   });
 
   it("matches a cold compile when a script other than main gains top-level content, which it reports and drops, and loses it again", () => {
