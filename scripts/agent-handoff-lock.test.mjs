@@ -106,6 +106,7 @@ refused("a malformed recorded child identity", lockRecord, [...launched, { event
 refused("a recorded child identity naming another PID", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "identified", index: 0, childIdentity: { pid: 4444, start: "200" } }], { [childIdentity.pid]: childIdentity }, /malformed OS identity/);
 refused("an empty journal", lockRecord, [], {}, /is empty/);
 refused("a delegated execution service whose shutdown failed", lockRecord, [...launched, { event: "execution-service", index: 0, directory: "execution-x" }, { event: "running", index: 0, pid: childIdentity.pid }, { event: "exited", index: 0, code: 0, executionDrained: false }, { event: "blocked", reason: "Editor shutdown unverified" }], {}, /shutdown failed or was not recorded/);
+refused("a drain confirmation recorded before the exit row", lockRecord, [...launched, { event: "execution-service", index: 0, directory: "execution-x" }, { event: "running", index: 0, pid: childIdentity.pid }, { event: "execution-drained", index: 0 }, { event: "exited", index: 0, code: 0, executionDrained: false }, { event: "blocked", reason: "Editor shutdown unverified" }], {}, /confirm-drained/);
 refused("a delegated execution service whose exit row records no drain", lockRecord, [...launched, { event: "execution-service", index: 0, directory: "execution-x" }, { event: "running", index: 0, pid: childIdentity.pid }, { event: "exited", index: 0, code: 0 }], {}, /shutdown failed or was not recorded/);
 refused("a delegated execution service without a journalled exit", lockRecord, [...launched, { event: "route-probed", index: 0 }, { event: "reserved", index: 0 }, { event: "execution-service", index: 0, directory: "execution-x" }, { event: "running", index: 0, pid: childIdentity.pid }, { event: "confirmed-absent", index: 0 }], {}, /delegated execution service/);
 refused("a launch without a step index", lockRecord, [launched[0], { event: "launching", step: "review" }, { event: "exited", code: 0 }], {}, /without a step index/);
@@ -135,6 +136,7 @@ accepted("a coordinator gone before its journal", lockRecord, null, {});
 accepted("a child whose exit was journalled", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "exited", index: 0, code: 0 }], { [childIdentity.pid]: childIdentity });
 accepted("a child whose recorded identity is reused", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "identified", index: 0, childIdentity }], { [childIdentity.pid]: { pid: childIdentity.pid, start: "201" } });
 accepted("a delegated execution service drained before the child's exit row", lockRecord, [...launched, { event: "execution-service", index: 0, directory: "execution-x" }, { event: "running", index: 0, pid: childIdentity.pid }, { event: "exited", index: 0, code: 0, executionDrained: true }], {});
+accepted("a failed drain that confirm-drained confirmed afterwards", lockRecord, [...launched, { event: "execution-service", index: 0, directory: "execution-x" }, { event: "running", index: 0, pid: childIdentity.pid }, { event: "exited", index: 0, code: 0, executionDrained: false }, { event: "probe-checkouts-removed", index: 0 }, { event: "blocked", reason: "Editor shutdown unverified" }, { event: "execution-drained", index: 0 }, { event: "finished" }], {});
 accepted("a coordinator that died waiting for a slot", lockRecord, [...launched, { event: "route-probed", index: 0 }, { event: "waiting", index: 0 }], {});
 accepted("a child confirmed absent at registration", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "confirmed-absent", index: 0 }], {});
 console.log("PASS: recover-lock removes the lock of a gone coordinator whose journal leaves no child that may run");
@@ -221,5 +223,81 @@ assert.match(coordinate(plan(whileAside)).stderr, /lock recovery is running/, "a
 assert.ok(!fs.existsSync(lock) && !fs.existsSync(whileAside), "the refused coordinator leaves no lock or journal");
 fs.unlinkSync(path.join(path.dirname(lock), aside[0])); fs.unlinkSync(marker);
 console.log("PASS: a failure after the lock is moved aside puts it back, and a failed restore keeps the recovery marker");
+
+// A launcher that died after its child was identified leaves a journal at
+// identified; settle-launch ends it on record once both are gone and the lock
+// is recovered, and recover-lock settles such a journal in the same call.
+{
+  const agentHandoff = await import("./agent-handoff.mjs");
+  const { roundState } = await import("../.agents/skills/orchestrate-issues/review-checkpoint.mjs");
+  const settleLaunch = (file, live) => agentHandoff.settleLaunch(file, { identifyProcess: probe(live) });
+  const settleDir = path.join(scratch, "repo.review-jobs", "pr-962", "round-3");
+  fs.mkdirSync(settleDir, { recursive: true });
+  const settleJournal = path.join(settleDir, "journal.jsonl");
+  const identifiedRows = [{ event: "coordinator", pid: coordinator.pid, processIdentity: coordinator }, { event: "launching", index: 0, step: "review", role: "review", round: 1 }, { event: "route-probed", index: 0 }, { event: "reserved", index: 0 }, { event: "running", index: 0, step: "review", pid: childIdentity.pid }, { event: "identified", index: 0, step: "review", childIdentity }];
+  const recoveredCopy = path.join(settleDir, "agent-handoff.lock.recovered-1.json");
+  const write = (journalRows, { copy = true } = {}) => {
+    for (const name of fs.readdirSync(settleDir)) fs.unlinkSync(path.join(settleDir, name));
+    fs.writeFileSync(settleJournal, journalRows.map((row) => JSON.stringify({ time: new Date().toISOString(), ...row })).join("\n") + (journalRows.length ? "\n" : ""));
+    if (copy) fs.writeFileSync(recoveredCopy, JSON.stringify({ ...lockRecord, journal: settleJournal }));
+  };
+  const launchBlockers = (file) => roundState([{ file, rows: agentHandoff.readJournalRows(file), plan: null }]).blockers.filter((b) => /has not finished|has no exited row/.test(b));
+
+  write(identifiedRows);
+  const before = launchBlockers(settleJournal);
+  console.log(`roundState on an identified journal: ${JSON.stringify(before)}`);
+  assert.equal(before.length, 2, "an unsettled journal holds the unfinished-launcher and missing-exit blockers");
+  const settled = settleLaunch(settleJournal, {});
+  assert.deepEqual(settled.child, childIdentity, "settling records the verified child identity");
+  const settledRows = agentHandoff.readJournalRows(settleJournal);
+  assert.deepEqual(settledRows.slice(0, identifiedRows.length).map((row) => row.event), identifiedRows.map((row) => row.event), "the original rows are kept");
+  const [absent, blocked] = settledRows.slice(identifiedRows.length);
+  assert.equal(absent.event, "confirmed-absent");
+  assert.deepEqual([absent.index, absent.step, absent.childIdentity, absent.coordinatorIdentity, absent.settledBy], [0, "review", childIdentity, coordinator, "settle-launch"], "the confirmed-absent row names the launch and both verified identities");
+  assert.ok(Date.parse(absent.verifiedAt), "the confirmed-absent row records the verification time");
+  assert.equal(blocked.event, "blocked");
+  assert.match(blocked.reason, /died.*settled/);
+  assert.doesNotMatch(blocked.reason, /unconfirmed/, "the settled reason is not read as an unconfirmed child");
+  assert.deepEqual(launchBlockers(settleJournal), [], "roundState treats the settled launch as ended");
+  // Lock recovery's own rule holds on the settled journal.
+  setup({ ...lockRecord, journal: settleJournal }, null);
+  assert.ok(recoverHandoffLock(worktree, { identifyProcess: probe({}), host }).recovered, "lock recovery accepts the settled journal");
+  console.log("PASS: settle-launch ends a dead launcher's identified journal on record");
+
+  const refusedSettle = (label, journalRows, live, pattern, options) => {
+    write(journalRows, options);
+    const bytes = fs.readFileSync(settleJournal);
+    assert.throws(() => settleLaunch(settleJournal, live), pattern, label);
+    assert.ok(fs.readFileSync(settleJournal).equals(bytes), `${label}: the journal is byte-identical`);
+  };
+  refusedSettle("a live child", identifiedRows, { [childIdentity.pid]: childIdentity }, /child \(PID 4343\) is still running/);
+  refusedSettle("a live coordinator", identifiedRows, { [coordinator.pid]: coordinator }, /coordinator \(PID 4242\) is still running/);
+  refusedSettle("a child PID in use with no recorded identity", identifiedRows.slice(0, -1), { [childIdentity.pid]: { pid: childIdentity.pid, start: "999" } }, /no OS start identity/);
+  refusedSettle("an existing exited row", [...identifiedRows, { event: "exited", index: 0, code: 0 }], {}, /has an exited row/);
+  refusedSettle("a terminal journal", [...identifiedRows, { event: "finished" }], {}, /terminal finished row/);
+  refusedSettle("an undrained execution service", [...identifiedRows.slice(0, 4), { event: "execution-service", index: 0, directory: "execution-x" }, ...identifiedRows.slice(4)], {}, /delegated execution service/);
+  refusedSettle("an empty journal", [], {}, /is empty/);
+  refusedSettle("no recovered lock copy", identifiedRows, {}, /no recovered lock copy/, { copy: false });
+  // A still-present lock the journal's plan leads to refuses.
+  write(identifiedRows);
+  fs.writeFileSync(path.join(settleDir, "plan.json"), JSON.stringify({ worktree, journal: settleJournal, steps: {} }));
+  fs.writeFileSync(lock, JSON.stringify({ ...lockRecord, journal: settleJournal }));
+  const bytes = fs.readFileSync(settleJournal);
+  assert.throws(() => settleLaunch(settleJournal, {}), /still names it/, "a still-present lock refuses");
+  assert.ok(fs.readFileSync(settleJournal).equals(bytes), "a still-present lock: the journal is byte-identical");
+  fs.unlinkSync(lock);
+  fs.writeFileSync(settleJournal, "{\n");
+  assert.throws(() => settleLaunch(settleJournal, {}), /unreadable/, "an unparsable journal refuses");
+  console.log("PASS: settle-launch refuses a live child or coordinator, an ended launch, an undrained service, an empty or unparsable journal and an unrecovered lock");
+
+  // recover-lock settles the identified journal in the same call.
+  write(identifiedRows, { copy: false });
+  setup({ ...lockRecord, journal: settleJournal }, null);
+  const recoveredAndSettled = recoverHandoffLock(worktree, { identifyProcess: probe({}), host });
+  assert.ok(recoveredAndSettled.recovered && recoveredAndSettled.settled && !recoveredAndSettled.settleError, JSON.stringify(recoveredAndSettled));
+  assert.equal(agentHandoff.readJournalRows(settleJournal).at(-1).event, "blocked", "recover-lock appends the terminal row");
+  assert.deepEqual(launchBlockers(settleJournal), [], "roundState treats the launch recovered by recover-lock as ended");
+  console.log("PASS: recover-lock settles a dead launcher's journal in the same call");
+}
 
 fs.rmSync(scratch, { recursive: true, force: true });
