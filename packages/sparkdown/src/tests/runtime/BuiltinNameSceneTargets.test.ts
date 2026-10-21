@@ -159,7 +159,7 @@ end
 
   test("a bare instance name is not a global: `assets.predict_distance` warns", () => {
     // A seeded story fails at runtime on a bare `assets.predict_distance`
-    // ("attempt to index a nil value"); `assets` is reached as
+    // ("attempt to index nil with ..."); `assets` is reached as
     // `config.assets`. The unseeded compile says so instead of hiding it
     // behind a marker.
     const program = compileUnseeded(`layout loading with

@@ -159,6 +159,8 @@ ProgramStory.Continue()                 — also ContinueAsync()
 
 `Step` runs exactly one instruction. `execute` reads the two words at the position, moves the offset past them, and does what the opcode says; a jump adds its operand to the offset. When the offset passes the end of a chunk's code, the position moves to the next entry of the sequence. When a sequence runs out, `fetch` pops the block stack (`state.blockStack`) and resumes the owner chunk at the block row's resume offset (`B_RESUME`); when the flow's own sequence runs out, the flow ends as `Done` ends it.
 
+An error the VM raises for an instruction's operation (a call, an index, arithmetic, a comparison: `luauRuntimeError` in `runtime/StoryException.ts`) takes that instruction's position from the host's `errorMessageFormatter`, as `error` does; `Step` adds it as the error leaves `execute`. A builtin's argument error carries none, as Luau's `luaL_error` does. The conformance harness installs a formatter that writes `<fixture>:<line>: `; the game and the language server install none.
+
 The continue stops when:
 
 - the output ends in a newline outside a capture (a line was written: `display` writes its table and then a newline),
@@ -240,7 +242,7 @@ Images of this state (whole keyframes and deltas, for route search nodes, checkp
 **Reading.** `GetVar name` calls `readVariable` (`runtime/evaluation.ts`), which tries in order:
 
 1. `VariablesState.GetVariableWithName(name)`: the current frame's temporaries, innermost scope first, then the globals. Locals shadow globals for reads and writes alike.
-2. A dotted name (`hero.hp`) when no variable has that whole name: the first segment as a variable, then each later segment as a key, through `ObjectValue` entries and the `__index` chain. Indexing nil, a number or a function on the way raises "attempt to index a nil value" or its like, which `pcall` can trap; a missing last member is nil. `_G.x` reads the global `x` past any local of that name.
+2. A dotted name (`hero.hp`) when no variable has that whole name: the first segment as a variable, then each later segment as a key, through `ObjectValue` entries and the `__index` chain. Indexing nil, a number or a function on the way raises Luau's "attempt to index nil with 'hp'" or its like, which `pcall` can trap; a missing last member is nil. `_G.x` reads the global `x` past any local of that name.
 3. A flow or function of that name, as a function value (`FlowValueNamed`), so `local f = double` works.
 4. A standard library function of that name, as a marker value.
 5. Otherwise nil. An undefined name is nil, not a runtime warning.
@@ -268,8 +270,8 @@ Images of this state (whole keyframes and deltas, for route search nodes, checkp
 
 - `and` and `or` return one of their operands by Luau truthiness (only nil and false are falsy); `not` returns a boolean by the same rule. The compiler short-circuits `and` and `or` with `JumpIfKeep`.
 - `..` concatenates strings and numbers (numbers formatted as Luau formats them); any other operand raises "attempt to concatenate ...".
-- `==` and `~=` with a nil operand compare nil-ness; any other operator with a nil operand raises.
-- Arithmetic converts a numeric string operand (`"2" + 3`); a non-numeric string raises.
+- `==` and `~=` with a nil operand compare nil-ness. Arithmetic or a comparison with a nil, table, function or userdata operand raises Luau's message: "attempt to perform arithmetic (add) on nil and number", "attempt to compare table < table" (Luau runs `a > b` as `b < a` and names the operands in that order).
+- Arithmetic converts a numeric string operand (`"2" + 3`); a non-numeric string raises the same arithmetic error.
 - Otherwise the operands are coerced to the highest `ValueType` among them (an int and a float make floats) and the operation registered for that type runs: `AddIntBinaryOp`, `AddFloatBinaryOp`, `AddStringBinaryOp`, `AddObjectUnaryOp` and the like, in `GenerateNativeFunctionsIfNecessary`. `#` (`LEN`) is registered for strings and tables.
 
 **Methods.** `obj:method(args)` lowers to a call with `obj` as the first argument. A builtin method (`__method_<name>`) dispatches on the receiver's type in `runtime/MethodDispatch.ts`; a `define`'s method dispatches through the table's `__index` chain like any other member.
@@ -370,7 +372,7 @@ A step trace does not reset the output between lines as a continue does, so read
 | --- | --- |
 | "The compile built no statement chunks" in a test, or the game keeps running the old program | The compile has an error, or a construct the writer has no emit path for (§11.1). Read `program.diagnostics`. |
 | `Divert target not found.` | A `Call` or jump names a symbol the root does not define. The compile reports `target not found` for the same reference. |
-| `attempt to index a nil value` | A dotted read or `Index` reached nil before its last segment (§6). Check the value at each segment. |
+| `attempt to index nil with 'x'` | A dotted read, `Index` or store reached nil before its last segment (§6). Check the value at each segment. |
 | A value reads as nil | The name is undefined at that point (undefined names are nil, §6), or a local in an inner scope shadowed it, or the scope that declared it was closed. |
 | A continue never returns, or a test hits `StepLimitExceeded` | A loop or recursion with no exit. `stepLimit` bounds a run's instructions. |
 | Text doubled, joined or split wrongly | The display tables' flags (§3.1, §4), or the lowering. Compare the listing's `display` tables with what the source asks for. |

@@ -268,10 +268,10 @@ assert(u[u] == true and u.k == false)
     passes(`
 local r = setmetatable({}, { __index = 42 })
 local ok, err = pcall(function() return r.x end)
-assert(not ok and err:match("attempt to index a number value"))
+assert(not ok and err:match("attempt to index number with 'x'"))
 local w = setmetatable({}, { __newindex = 42 })
 ok, err = pcall(function() w.x = 1 end)
-assert(not ok and err:match("attempt to index a number value"))
+assert(not ok and err:match("attempt to index number with 'x'"))
 assert(rawget(w, "x") == nil)
 `);
   });
