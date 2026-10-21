@@ -531,6 +531,8 @@ interface Token {
   broken?: true;
   /** The implicit `function` of a function the author wrote without it (a `define` method, a handler's closure), read as Luau reads the function it stands for. */
   written?: true;
+  /** A `store` that Luau code's `LuauVariableDefinition` begins, which is a name when no name or `function` follows it (see `parseStat`). */
+  luauCodeStore?: true;
 }
 
 
@@ -1001,7 +1003,12 @@ class Tokenizer {
     if (name === "LuauScopeModifier") {
       const modifier = this.text.slice(from, to);
       if (LUAU_SCOPE_MODIFIERS.has(modifier)) this.lex(from, to);
-      else if (modifier === "store") this.push("store", from, to);
+      else if (modifier === "store") {
+        this.push("store", from, to);
+        let rule = node.parent;
+        while (rule && rule.name.includes("_")) rule = rule.parent;
+        if (rule?.name === "LuauVariableDefinition") this.tokens[this.tokens.length - 1]!.luauCodeStore = true;
+      }
       return;
     }
     if (!name.startsWith("Luau") && !isNeutral(node)) return;
@@ -2312,7 +2319,12 @@ class Parser {
     } else if (token.kind === "mark") {
       return this.parseExplicit();
     } else if (token.kind === "store") {
-      return this.parseStore();
+      // Luau code begins a store before a comment that spans lines, which
+      // hides the token after it from the grammar; with no name or
+      // `function` after the comment (`store --[[ c`, then `]] = 3`) the
+      // word is the name Luau reads (#1328).
+      if (!token.luauCodeStore || this.isName(this.lookahead()) || this.is("function", this.lookahead())) return this.parseStore();
+      this.tokens[this.pos] = { ...token, kind: "name" };
     } else if (token.kind === "choose") {
       return this.parseChoose();
     }

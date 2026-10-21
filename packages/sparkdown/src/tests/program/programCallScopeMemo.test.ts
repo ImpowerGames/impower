@@ -8,7 +8,9 @@
 // from the start of the document, would lower and emit the statement again
 // after every edit above it that changes the text's length. The scope's
 // answer is recorded instead, asked where the call is written, counted from
-// the statement's start (`localInScope`).
+// the statement's start (`localInScope`). Since I-1360 a variadic function
+// is a local like any other, so only the registry's own cases below still
+// ask the scope by position.
 import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
@@ -107,16 +109,18 @@ describe("a call whose scope decides between a block's local and a variadic func
     expect(shown(s)).toEqual(["Got 2."]);
   });
 
+  // Since I-1360 the variadic function is a local of `run` too, which `g`
+  // captures, so the call is a call of whichever `foo` is in scope where it
+  // runs, by name, either way: it records the same reads, and an incremental
+  // compile still gives what a cold one does.
   it.each([
     ["out of its block, so the call reaches it", BLOCK, UNBLOCKED, "100"],
     ["into a block, so the call reaches the function", UNBLOCKED, BLOCK, "2"],
-  ])("records other reads when an edit moves the local %s", (_, from, to, result) => {
-    // The local's text is as long either way after the edit above it, so
-    // only the answer tells the two apart.
+  ])("records the same reads when an edit moves the local %s", (_, from, to, result) => {
     const s = programSession(script(from));
     const before = callReads(s.compiler);
     s.edit(from, to);
-    expect(callReads(s.compiler)).not.toBe(before);
+    expect(callReads(s.compiler)).toBe(before);
     sameAsCold(s);
     expect(shown(s)).toEqual([`Got ${result}.`]);
   });
