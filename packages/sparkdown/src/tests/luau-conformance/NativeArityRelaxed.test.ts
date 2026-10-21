@@ -64,7 +64,7 @@ describe("dotted-path unresolved variable is a warning, not an error", () => {
     const r = runConformanceSource(`local s = \`val: {unknown.path}\`
 assert(s == "val: nil")`);
     expect(
-      r.errorMessages.some((e) => e.includes("attempt to index a nil value")),
+      r.errorMessages.some((e) => e.includes("attempt to index nil with 'path'")),
     ).toBe(true);
   });
 

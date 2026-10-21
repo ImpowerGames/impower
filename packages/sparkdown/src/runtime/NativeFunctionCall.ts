@@ -9,7 +9,7 @@ import {
   StringValue,
   SymbolRef,
 } from "./Value";
-import { StoryException } from "./StoryException";
+import { StoryException, luauRuntimeError } from "./StoryException";
 import { Void } from "./Void";
 import { InkObject } from "./Object";
 import {
@@ -45,6 +45,72 @@ const ARITHMETIC_OP_NAMES: ReadonlySet<string> = new Set([
   "//",
   "_", // unary negate — `-" 10 "` is -10
 ]);
+
+// Luau's name for each arithmetic op in its error message: the op's
+// metamethod without the `__` (`luaG_aritherror`).
+const LUAU_ARITH_NAMES: Readonly<Record<string, string>> = {
+  "+": "add",
+  "-": "sub",
+  "*": "mul",
+  "/": "div",
+  "//": "idiv",
+  "%": "mod",
+  POW: "pow",
+  _: "unm",
+};
+
+const COMPARISON_OP_NAMES: ReadonlySet<string> = new Set([
+  "<",
+  "<=",
+  ">",
+  ">=",
+]);
+
+// The operand types no arithmetic or comparison takes once the
+// metamethods have had their turn (`tryBinaryMetamethod`).
+const NON_OPERAND_TYPES: ReadonlySet<string> = new Set([
+  "nil",
+  "table",
+  "function",
+  "userdata",
+]);
+
+// Luau's error for arithmetic `op` on `operands`, named by their types:
+// one type when they share it, else both (`luaG_aritherror`).
+function luauArithError(op: string, operands: InkObject[]): StoryException {
+  const t1 = luauTypeOf(operands[0]);
+  const t2 = operands.length > 1 ? luauTypeOf(operands[1]) : t1;
+  const name = LUAU_ARITH_NAMES[op] ?? op;
+  return luauRuntimeError(
+    t1 === t2
+      ? `attempt to perform arithmetic (${name}) on ${t1}`
+      : `attempt to perform arithmetic (${name}) on ${t1} and ${t2}`,
+  );
+}
+
+// Luau's error for comparing `a` with `b` (`luaG_ordererror`). Luau runs
+// `a > b` as `b < a` and `a >= b` as `b <= a`, and names the operands in
+// that order.
+function luauOrderError(op: string, a: InkObject, b: InkObject): StoryException {
+  const swapped = op === ">" || op === ">=";
+  const [l, r] = swapped ? [b, a] : [a, b];
+  const name = op === ">" ? "<" : op === ">=" ? "<=" : op;
+  return luauRuntimeError(
+    `attempt to compare ${luauTypeOf(l)} ${name} ${luauTypeOf(r)}`,
+  );
+}
+
+// Raises Luau's error when arithmetic or a comparison has an operand it
+// cannot take: nil, a table, a function or a userdata.
+function luauOperandCheck(op: string, operands: InkObject[]): void {
+  const arith = ARITHMETIC_OP_NAMES.has(op);
+  if (!arith && !COMPARISON_OP_NAMES.has(op)) return;
+  if (!operands.some((p) => NON_OPERAND_TYPES.has(luauTypeOf(p)))) return;
+  if (arith) throw luauArithError(op, operands);
+  if (operands.length === 2) {
+    throw luauOrderError(op, operands[0]!, operands[1]!);
+  }
+}
 type UnaryOp<T> = (val: T) => any;
 
 export class NativeFunctionCall extends InkObject {
@@ -374,7 +440,7 @@ export class NativeFunctionCall extends InkObject {
       const l = coerce(parameters[0]);
       const r = coerce(parameters[1]);
       if (l === null || r === null) {
-        throw new StoryException(
+        throw luauRuntimeError(
           `attempt to concatenate ${luauTypeOf(parameters[0])} with ${luauTypeOf(parameters[1])}`,
         );
       }
@@ -400,6 +466,7 @@ export class NativeFunctionCall extends InkObject {
         if (this.name === NativeFunctionCall.NotEquals) {
           return new BoolValue(!(aIsNull && bIsNull));
         }
+        luauOperandCheck(this.name, parameters);
         throw new StoryException(
           `Attempting to perform ${this.name} on a nil value.`,
         );
@@ -413,10 +480,10 @@ export class NativeFunctionCall extends InkObject {
     // unary minus; any other one-operand op keeps the binary wording.
     if (parameters.length === 1 && parameters[0] instanceof NullValue) {
       if (this.name === NativeFunctionCall.Length) {
-        throw new StoryException("attempt to get length of a nil value");
+        throw luauRuntimeError("attempt to get length of a nil value");
       }
       if (this.name === NativeFunctionCall.Negate) {
-        throw new StoryException(
+        throw luauRuntimeError(
           "attempt to perform arithmetic (unm) on a nil value",
         );
       }
@@ -432,15 +499,16 @@ export class NativeFunctionCall extends InkObject {
     // `-" 10  " == -10` (math.luau lines 5-10; whitespace-padded
     // strings included). `..`/comparisons/equality keep their own
     // string semantics, so only the arithmetic op names coerce.
+    // A table or a function operand raises Luau's error first.
+    luauOperandCheck(this.name, parameters);
     if (ARITHMETIC_OP_NAMES.has(this.name)) {
+      const operands = [...parameters];
       for (let i = 0; i < parameters.length; i++) {
         const p = parameters[i];
         if (p instanceof StringValue && p.value !== null) {
           const n = parseLuauNumber(p.value);
           if (n === null) {
-            throw new StoryException(
-              `attempt to perform arithmetic (${this.name}) on a string value`,
-            );
+            throw luauArithError(this.name, operands);
           }
           const replaced = Value.Create(n);
           if (replaced !== null) parameters[i] = replaced;
