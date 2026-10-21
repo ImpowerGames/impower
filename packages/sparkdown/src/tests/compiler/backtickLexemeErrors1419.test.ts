@@ -59,6 +59,14 @@ describe("a rejected backtick string is read as Luau's lexemes (I-1419)", () => 
     "`a {x} b",
     "`a {x} b {y} c",
     "local t = (1 `a {x} b)",
+    // A later interpolation left open, a string as a type, and a loop
+    // header's hint naming the string's first lexeme's kind (round 2).
+    "local s = (1 `a {x} b {y)",
+    "local s: `a {} b` = 1",
+    "local s: `a {x} b",
+    "local s: `a {1 2} b` = 1",
+    "while true `a {x} b` do end",
+    "for k in t `a {x} b` do end",
   ];
   for (const body of bodies) {
     test(`a function's ${body}`, () => {
@@ -104,8 +112,14 @@ function placements(rest: string): [string, string, string[]][] {
 describe("a rejected backtick string in a story statement is read as Luau's lexemes (I-1419)", () => {
   // On a line of its own, the string still follows the expression it
   // cannot continue (round 2).
-  for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}", "s = (1 `a {} b`)", "s = (1\n  `a {} b`)", "s = {1,\n  2 `a {} b`}", "s = (\n  `a {} b`)"]) {
+  // After an index's `.`, and with no closing backtick (round 2). A bracket
+  // the unfinished string leaves open reads on into a scene's story lines,
+  // which the comparison's one statement does not hold, so those forms are
+  // compared where nothing follows them or in a function.
+  const unfinished = ["s = (1 `a {} b)", "s = (1\n  `a {x} b)"];
+  for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}", "s = (1 `a {} b`)", "s = (1\n  `a {} b`)", "s = {1,\n  2 `a {} b`}", "s = (\n  `a {} b`)", "s = x.`a {} b`", ...unfinished]) {
     for (const [form, text, expected] of placements(rest)) {
+      if (unfinished.includes(rest) && form === "a scene-level local") continue;
       test(`${form} ${rest}`, () => {
         expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
         expect(sparkdownErrors(text)).toEqual(expected);
@@ -154,6 +168,19 @@ describe("an unfinished string's last section after a stray token is a malformed
     test(`a function's local ${rest}`, () => {
       const luau = `function f()\n  local ${rest}\n  return s\nend\n`;
       expect(sparkdownErrors(luau)).toEqual(official(luau));
+    });
+  }
+  // An alternator's arm is read by its own lowerer, which reports none of
+  // Luau's errors for the string: the validator's reading of the string
+  // reports the one Luau reports, at the string's opening section (round 2).
+  for (const [text, error] of [
+    ["store s = cycle `a {} b` | 'c' end\n", "0:16-0:20"],
+    ["store s = shuffle `a {} b` | 'c' end\n", "0:18-0:22"],
+    ["scene start\n  local s = cycle `a {} b` | 'c' end\n  Hello.\nend\n", "1:18-1:22"],
+    ["scene start\n  Hello {cycle `a {} b` | 'c' end}.\nend\n", "1:15-1:19"],
+  ] as const) {
+    test(`an alternator's ${text.split("\n").find((line) => line.includes("`"))!.trim()}`, () => {
+      expect(sparkdownErrors(text)).toEqual([`${error} Malformed interpolated string, expected expression inside '{}'`]);
     });
   }
   // The open interpolation's form already matches; it keeps matching.

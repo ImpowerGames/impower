@@ -222,6 +222,10 @@ const BINARY_TABLE_RESEED_RATIO = 1.5;
 const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
+
+// The validator's diagnostics that are Luau's errors for a backtick string,
+// from a reading of the string alone (`ValidationAnnotator.luauStringError`).
+const LUAU_STRING_DIAGNOSTICS = new WeakSet<SparkDiagnostic>();
 // Synthetic URI for the bundled builtins prelude (used as the file URI when the
 // prelude is compiled once to seed the builtins cache; see getCompiledPrelude).
 const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
@@ -5777,7 +5781,7 @@ export class SparkdownCompiler {
                       : DiagnosticSeverity.Warning;
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push({
+              const reported: SparkDiagnostic = {
                 range,
                 severity,
                 message: diagnosticMarkup(diagnostic.message),
@@ -5788,7 +5792,9 @@ export class SparkdownCompiler {
                   },
                 ],
                 source: LANGUAGE_NAME,
-              });
+              };
+              if (diagnostic.luauString) LUAU_STRING_DIAGNOSTICS.add(reported);
+              program.diagnostics[uri].push(reported);
             }
           }
           cur.next();
@@ -6161,7 +6167,11 @@ export class SparkdownCompiler {
       for (const d of checked) {
         if (!d.syntax) continue;
         for (const e of errors) {
-          if (messageOf(e) === d.message && meets(e.range, d)) {
+          // Luau's error for a backtick string, which the validator gives
+          // from a reading of the string alone, gives way to any the
+          // reading of its statement reports at its token: there the
+          // statement rejects the string before reading it (I-1419).
+          if ((messageOf(e) === d.message && meets(e.range, d)) || (LUAU_STRING_DIAGNOSTICS.has(e) && rangeContains(e.range, tokenOf(d)))) {
             replaced.add(e);
             replacing.add(d);
           }

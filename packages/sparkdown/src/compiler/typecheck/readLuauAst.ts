@@ -1307,6 +1307,13 @@ function describeKind(token: Token): string {
       return "string";
     case "eof":
       return "<eof>";
+    case "interp":
+      // A backtick string's lexemes (`interpLexemes`), or the whole string,
+      // which Luau's lexer reads as its first lexeme (I-1419).
+      if (token.broken) return "malformed string";
+      if (token.node) return stringPartNodes(token.node, BACKTICK_INTERPOLATION).length > 0 ? "the beginning of an interpolated string" : "interpolated string";
+      if (token.text.startsWith("`")) return "the beginning of an interpolated string";
+      return token.text.endsWith("{") ? "the middle of an interpolated string" : "the end of an interpolated string";
     default:
       return `'${token.text}'`;
   }
@@ -3339,9 +3346,11 @@ class Parser {
       return { type: this.reportTypeError(start, [], "String literal contains malformed escape sequence") };
     }
     if (token.kind === "interp" && token.node) {
-      // Luau reads the whole string and reports it at its first lexeme (`` `a { ``, I-1419).
+      // Luau reads the whole string, with the errors its reading reports,
+      // and then reports it at its first lexeme (`` `a { ``, I-1419), where
+      // an error of the string's at that lexeme is the one Luau keeps.
       const location = this.interpLexemes(token)?.[0]!.location ?? start;
-      this.next();
+      this.parseInterpString();
       return { type: this.reportTypeError(location, [], "Interpolated string literals cannot be used as types") };
     }
     if (this.isName()) {
@@ -4037,9 +4046,10 @@ class Parser {
    * its parser does not read it as a string: one lexeme per section
    * (`` `a { ``, `} b {`, `` } c` ``) with each interpolation's tokens
    * between them; with no closing backtick, the last section is one Luau's
-   * lexer could not finish (`stringRest`). Undefined for any other token, a
-   * string Luau reads as one lexeme, or one that the reading of a string
-   * reports on its own (an interpolation left open, I-1318).
+   * lexer could not finish (`stringRest`), and after an interpolation left
+   * open, its tokens end them. Undefined for any other token, a string Luau
+   * reads as one lexeme, or one whose first interpolation is left open,
+   * which the reading of a string reports on its own (I-1318).
    */
   private interpLexemes(token: Token): Token[] | undefined {
     const node = token.node;
@@ -4052,8 +4062,15 @@ class Parser {
     if (!opened || !closed) return undefined;
     const to = first.from + (shorthand ? 2 : 1);
     const rest = this.stringRest(token, body, parts);
-    // A later interpolation left open ends the lexemes before the string's end.
-    if (rest[rest.length - 1]?.to !== token.to) return undefined;
+    // After a later interpolation left open, Luau's lexer reads on as code
+    // through what the tree takes into the string after that
+    // interpolation's tokens (the `)` of `` `a {x} b {y) ``).
+    const end = rest[rest.length - 1]?.to ?? to;
+    if (end < token.to) {
+      const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
+      tokenizer.lex(end, token.to);
+      rest.push(...tokenizer.tokens.map((t) => ({ ...t, source: token.source, unread: true as const, authoredIsland: token.authoredIsland })));
+    }
     // The grammar read the string as one, so its first lexeme is a token it
     // left unread too: the errors at it are the reading's (`stringRest`).
     const begin: Token = {
@@ -5107,35 +5124,6 @@ export function nextLuauToken(from: number, documentText: string, to = documentT
   if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
   return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
-}
-
-/**
- * Whether the token Luau's lexer reads before `from` ends an expression (a
- * name, a literal, a closing bracket, `end`), after which Luau's parser
- * reads no expression, so a backtick string there is not read as a string
- * but rejected as its first lexeme (I-1419). A line break between them
- * changes nothing: the string either continues the expression (`(1` and
- * then `` `a {} b`) `` on the next line) or begins a statement, and Luau
- * rejects it at either.
- */
-export function luauEndsExpressionBefore(from: number, documentText: string): boolean {
-  const tokens = lexAhead(documentText, from);
-  const before = tokens[firstFrom(tokens, from) - 1];
-  if (!before || before.to > from) return false;
-  switch (before.kind) {
-    case "name":
-    case "number":
-    case "string":
-    case "rawstring":
-    case "interp":
-      return true;
-    case "keyword":
-      return before.text === "end" || before.text === "true" || before.text === "false" || before.text === "nil";
-    case "symbol":
-      return before.text === ")" || before.text === "]" || before.text === "}" || before.text === "...";
-    default:
-      return false;
-  }
 }
 
 /** Whether Luau's lexer reads the token that begins at `from` as a name, rather than a keyword or a symbol. */
