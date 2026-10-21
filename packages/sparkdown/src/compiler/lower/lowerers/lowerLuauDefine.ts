@@ -663,6 +663,42 @@ export function lowerLuauDefine(
   return block;
 }
 
+/**
+ * The names the methods of the define written at `defineNode` read from the
+ * scopes around the define, in the order they are first read: what each
+ * method's body reads that the method does not bind, the implicit `self`
+ * aside, the defines written in it included (`freeVariables`' `node`). The
+ * scopes around the define decide nothing here (`unscoped`): a function the
+ * define is written in reads each name at the define, in its own scopes
+ * (I-1373).
+ */
+export function defineMethodReads(
+  defineNode: SyntaxNode,
+  ctx: LowerContext,
+): string[] {
+  const reads = new Set<string>();
+  const content = findChildByName(defineNode, "LuauDefine_content");
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    const declName =
+      child.name === "LuauFunctionDefinition" ? findOwnDeclarationName(child) : null;
+    const isMethod =
+      (child.name === "LuauMethodDefinition" && !!getDescendent("LuauFunctionName", child)) ||
+      (!!declName && !!getDescendent("LuauFunctionName", declName));
+    const body = isMethod ? getFunctionBodyContent(child) : null;
+    if (!body) continue;
+    const params = lowerArguments(child, ctx)
+      .filter((a) => !a.isVararg)
+      .map((a) => a.identifier?.name ?? "");
+    const reading = readBodyAst(body, METHOD_BODY_SKIP, ctx);
+    const free = freeVariables(["self", ...params], reading?.unit.root ?? null, ctx, {
+      node: child,
+      unscoped: true,
+    });
+    for (const name of free) reads.add(name);
+  }
+  return [...reads];
+}
+
 // Lower one method member into a hoisted anonymous Function knot with
 // an implicit `self` first parameter, returning the closure-shaped
 // expression that the class table stores under the method's name.
@@ -693,11 +729,17 @@ function lowerDefineMethod(
   // The stdlib names it reads that no function around it declares, which it
   // binds to a top-level local of the name (`stdlibRootReads`).
   const stdlibReads: string[] = [];
+  const atTopLevel = !ctx.functionScopeStack?.length;
+  // The names only the methods of the defines written in it read
+  // (`freeVariables`' `node`), which a method of a define at the top level
+  // binds and does not capture, so that its captured parameters are what
+  // its own body reads.
+  const defineReads: string[] = [];
   const upvals = freeVariables(
     params,
     reading?.unit.root ?? null,
     ctx,
-    { stdlibReads },
+    { stdlibReads, node, defineReads: atTopLevel ? defineReads : undefined },
   ).filter((n) => n !== "self");
   // The define's table is built when the story starts, before the top level
   // runs, so what a method captures there is not yet the top-level local it
@@ -709,7 +751,6 @@ function lowerDefineMethod(
   // method kept in a variable) passes the parameters the method binds. A
   // method of a define written in a function reads that function's locals
   // through cells the define's line points at them when it runs.
-  const atTopLevel = !ctx.functionScopeStack?.length;
   recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
@@ -753,7 +794,7 @@ function lowerDefineMethod(
   ctx.functionScopeStack?.pop();
 
   hoistedDecls.unshift(
-    ...[...(atTopLevel ? upvals : []), ...stdlibReads].map(
+    ...[...(atTopLevel ? [...upvals, ...defineReads] : []), ...stdlibReads].map(
       (name) => new RootBinding(name),
     ),
   );
