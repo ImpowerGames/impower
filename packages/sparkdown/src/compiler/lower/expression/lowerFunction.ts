@@ -266,7 +266,7 @@ function functionStatementNames(body: AstStatBlock): Set<string> {
 // The names a function's body declares for the whole body rather than from
 // a point in a block: its function statements' (`functionStatementNames`)
 // and its `store`s'.
-function bodyWideDeclarations(body: AstStatBlock): Set<string> {
+export function bodyWideDeclarations(body: AstStatBlock): Set<string> {
   const names = functionStatementNames(body);
   walk(body, (node) => {
     if (node instanceof AstExprFunction) return false;

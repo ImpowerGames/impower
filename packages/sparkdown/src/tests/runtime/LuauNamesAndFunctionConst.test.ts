@@ -407,13 +407,14 @@ describe("a function's `const` reassigned from a body read on its own", () => {
     expect([...ctx.errorMessages]).toEqual([REASSIGNED]);
   });
 
-  // A function value in a handler inside a function also fails to resolve
-  // its synthetic target, which is not this error (I-1332's class).
-  test("from a nested function in a Sparkle handler is Luau's error, once", () => {
+  test.each([
+    ["a nested function", "local g = function() a = 2 end g()"],
+    ["a local function", "local function g() a = 2 end g()"],
+  ])("from %s in a Sparkle handler is Luau's error, once", (_label, handler) => {
     const ctx = makeRuntimeStoryFromSource(
-      fn("  const a = 1\n  layout form with\n    button \"Go\" @click={ local g = function() a = 2 end g() }\n  end\n  return a"),
+      fn(`  const a = 1\n  layout form with\n    button "Go" @click={ ${handler} }\n  end\n  return a`),
     );
-    expect([...ctx.errorMessages].filter((m) => m.includes("constant"))).toEqual([REASSIGNED]);
+    expect([...ctx.errorMessages]).toEqual([REASSIGNED]);
   });
 
   test.each([
