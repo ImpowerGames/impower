@@ -87,6 +87,25 @@ describe("a store with more names than values", () => {
       expect(play(`${BUMP}${declaration}\n\nValue {x} {calls}.\n`)).toEqual([expected]);
     });
 
+    it("evaluates them in source order", () => {
+      const ORDERED = [
+        "store calls = 0",
+        "function first()",
+        "  calls = calls * 10 + 1",
+        "end",
+        "function second()",
+        "  calls = calls * 10 + 2",
+        "end",
+        "",
+      ].join("\n");
+      expect(play(`${ORDERED}store x = 1, first(), second()\n\nValue {calls}.\n`)).toEqual([
+        "Value 12.\n",
+      ]);
+      expect(
+        play(`${ORDERED}store x, y = 1, 2, first(), second()\n\nValue {calls}.\n`),
+      ).toEqual(["Value 12.\n"]);
+    });
+
     it("keeps evaluating them across later compiles of an edited document", () => {
       const beats = (root: ProgramRoot) =>
         storyBeats(new ProgramStory(root)).beats.map((b) => b.text);

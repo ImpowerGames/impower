@@ -31,4 +31,23 @@ describe("a store's values after its last name", () => {
   ])("%s runs every value", (declaration, expected) => {
     expect(play(declaration)).toBe(expected);
   });
+
+  test("runs them in source order", () => {
+    const { story, errorMessages } = makeRuntimeStoryFromSource(
+      [
+        "store calls = 0",
+        "store x = 1, first(), second()",
+        "Value {calls}.",
+        "function first()",
+        "  calls = calls * 10 + 1",
+        "end",
+        "function second()",
+        "  calls = calls * 10 + 2",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errorMessages).toEqual([]);
+    expect(story.ContinueMaximally()).toBe("Value 12.\n");
+  });
 });
