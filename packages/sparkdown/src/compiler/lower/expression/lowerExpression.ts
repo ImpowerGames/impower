@@ -170,7 +170,7 @@ export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {
 export function lowerExpressionFromContainer(
   parent: SyntaxNode,
   ctx: LowerContext,
-  scope: ReadingErrorScope = "string",
+  scope: ReadingErrorScope | null = "string",
 ): Expression | null {
   const expr = lowerExpressionFromNodes(containerValueNodes(parent), ctx, scope);
   if (FUNCTION_CALL_SHORTHAND_NODES.has(parent.name)) {

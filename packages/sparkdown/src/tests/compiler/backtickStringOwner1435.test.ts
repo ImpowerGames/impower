@@ -346,6 +346,36 @@ describe("round 1's undirected probes", () => {
   }
 });
 
+// Round 2's author-experience probes: a define's value on the line after its
+// `=` dropped with a key that does not lower, and a story `match`'s
+// condition that rejects a string.
+describe("round 2's author-experience probes", () => {
+  test("a define's value on the next line, whose key does not lower", () => {
+    const text = "define Bad with\n  [`a {} b`] =\n    `c {} d`\nend\n";
+    expect(sparkdownErrors(text)).toEqual(
+      [...officialFirst("local _ = `a {} b`\n", 1, -7), ...officialFirst("local _ = `c {} d`\n", 2, -6)].sort(),
+    );
+    expectIncrementalEqualsCold(text);
+  });
+  test("a story match condition that rejects a string", () => {
+    const text = "scene start\n  Hello {match 1 `a {} b` | 1 = 'ok' end}.\nend\n";
+    expect(sparkdownErrors(text)).toEqual(["1:17-1:21 Expected the end of the expression, got `a {"]);
+    expectIncrementalEqualsCold(text);
+  });
+  test("a story match condition that holds a string", () => {
+    const text = "scene start\n  Hello {match `a {} b` | 1 = 'ok' end}.\nend\n";
+    expect(sparkdownErrors(text)).toEqual(officialFirst("local _ = `a {} b`\n", 1, 5));
+    expectIncrementalEqualsCold(text);
+  });
+  test("a parenthesized story match condition that rejects a string", () => {
+    const text = "scene start\n  Hello {match (1 `a {} b`) | 1 = 'ok' end}.\nend\n";
+    const errors = sparkdownErrors(text);
+    expect(errors).toContain("1:18-1:22 Expected ')' (to close '(' at column 16), got `a {");
+    expect(errors.some((e) => e.includes("expected expression inside"))).toBe(false);
+    expectIncrementalEqualsCold(text);
+  });
+});
+
 // The probes of I-1419's fourth review round: a string split over lines by
 // an escape, and a statement's error at the string's first lexeme after
 // which Luau reads the string on, in a function the type checker reads and

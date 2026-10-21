@@ -877,12 +877,34 @@ function findAssignmentValueNode(
  * own (I-1435), and those of each alternator it holds.
  */
 function reportUnreadValueErrors(propNode: SyntaxNode, ctx: LowerContext): void {
+  const { consumed } = propertyValueNodes(propNode, ctx);
+  const reading = consumed.length > 0 ? readExpressionAst(consumed, ctx) : null;
+  if (!reading) return;
+  reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
+  reportNestedAlternators(reading.expr, ctx);
+}
+
+/**
+ * A property's `=` operation and the nodes its value is read from: the
+ * operation's own, or those of the lines after it the value runs on into
+ * (call sugar, a value after a line-ending `=`), as the shared reader
+ * decides.
+ */
+function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: SyntaxNode | undefined; consumed: SyntaxNode[] } {
   const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
   const valueNodes = opNode ? containerValueNodes(opNode) : [];
-  const reading = valueNodes.length > 0 ? readExpressionAst(valueNodes, ctx) : null;
-  if (!reading) return;
-  reportReadingErrors(reading.source.errors, valueNodes[0]!, ctx, "string");
-  reportNestedAlternators(reading.expr, ctx);
+  const candidates = [...valueNodes];
+  for (let next = propNode.nextSibling; next; next = next.nextSibling) {
+    // A bracket-key property's operation is a sibling of its key node.
+    // Its value nodes are already present above.
+    if (opNode && next.to <= opNode.to) continue;
+    if (DEFINE_MEMBER_NAMES.has(next.name)) break;
+    candidates.push(next);
+  }
+  const continued = readExpressionAst(candidates, ctx);
+  const end = continued ? rangeOf(continued.expr.location, ctx).to : propNode.to;
+  const consumed = end <= propNode.to ? valueNodes : candidates.filter((node) => node.from < end);
+  return { opNode, consumed };
 }
 
 function readPropertyDefinition(
@@ -947,21 +969,9 @@ function readPropertyDefinition(
     name = ctx.read(nameNode.from, nameNode.to);
   }
 
-  const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
-  const valueNodes = opNode ? containerValueNodes(opNode) : [];
   // Let the shared reader decide how much of the following lines belongs
   // to the value (including call sugar and a value after a line-ending `=`).
-  const candidates = [...valueNodes];
-  for (let next = propNode.nextSibling; next; next = next.nextSibling) {
-    // A bracket-key property's operation is a sibling of its key node.
-    // Its value nodes are already present above.
-    if (opNode && next.to <= opNode.to) continue;
-    if (DEFINE_MEMBER_NAMES.has(next.name)) break;
-    candidates.push(next);
-  }
-  const continued = readExpressionAst(candidates, ctx);
-  const end = continued ? rangeOf(continued.expr.location, ctx).to : propNode.to;
-  const consumed = end <= propNode.to ? valueNodes : candidates.filter((node) => node.from < end);
+  const { opNode, consumed } = propertyValueNodes(propNode, ctx);
   const reading = readExpressionAst(consumed, ctx);
   if (reading) reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
   if (opNode && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
