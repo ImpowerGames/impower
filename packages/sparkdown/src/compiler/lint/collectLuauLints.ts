@@ -688,7 +688,7 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
           used.add(node.local);
         } else if (node instanceof AstExprGlobal) {
           // A method's `self` is its implicit receiver, which its reading leaves out.
-          if (!own && node.name !== "self") methodReads.push({ name: node.name, at: offsets.of(node.location.begin) });
+          if (!own && node.name !== "self") methodReads.push({ name: node.name, at: offsets.of(node.location.begin) }); // not a node name
         }
         else if (node instanceof AstTypeReference) {
           if (own) typeNames.push({ name: node.prefix ?? node.name, at: offsets.of(node.location.begin) });
