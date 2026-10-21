@@ -62,18 +62,38 @@ function documentOf(form: string): { luau: string; text: string } {
 }
 
 describe("a double-quoted string's interpolation left open ends at the string's closing quote (I-1342)", () => {
-  // The interpolation's text, `{` to the closing quote, in `g("a ` ... `" .. x)`.
-  for (const interpolation of ["{b", "{b ", "{t.b", "{f()", "{f(1)", "{c .. b", "{c + b", "{-b", "{{b"]) {
-    const form = `g("a ${interpolation}" .. x)`;
+  // The interpolation's text, `{` to the closing quote, and what follows the
+  // quote on its line, in `g("a ` ... `)`. The function's next line is
+  // `return 1`, which stays the function's.
+  for (const [interpolation, after] of [
+    ["{b", " .. x"],
+    ["{b ", " .. x"],
+    ["{t.b", " .. x"],
+    ["{f()", " .. x"],
+    ["{f(1)", " .. x"],
+    ["{c .. b", " .. x"],
+    ["{c + b", " .. x"],
+    ["{-b", " .. x"],
+    ["{{b", " .. x"],
+    // A `"` string in brackets is the expression's.
+    ['{f("x")', " .. y"],
+    ['{t["k"]', " .. y"],
+    // Quotes after the closing quote, in a string or a comment
+    // (round 1, `ax` finding 1).
+    ["{b", ' .. "c"'],
+    ["{b", ' .. x) -- say "hello"'],
+  ] as const) {
+    const form = `g("a ${interpolation}"${after}${after.includes(")") ? "" : ")"}\n  return 1`;
     test(JSON.stringify(form), () => {
       const { text } = documentOf(form);
       const from = 2 + form.indexOf("{");
       const to = from + interpolation.length;
-      const errors = sparkdownErrors(text);
       // The unclosed interpolation, at its text, is the only error: no
       // string runs on from the closing quote, and the call keeps its `)`.
-      expect(errors).toContain(`1:${from}-1:${to} Malformed interpolated string; did you forget to add a \`}\`?`);
-      for (const error of errors) expect(error).toMatch(/ Malformed interpolated string; did you forget to add a [`']\}[`']\?$/);
+      // The converter's own report of the same interpolation, in Luau's
+      // words, is left aside: it reports every unclosed `"` interpolation
+      // on the base too (`"a {(b)"`), which this change does not touch.
+      expect(sparkdownErrors(text).filter((e) => !e.endsWith("did you forget to add a '}'?"))).toEqual([`1:${from}-1:${to} Malformed interpolated string; did you forget to add a \`}\`?`]);
     });
   }
 
@@ -82,10 +102,17 @@ describe("a double-quoted string's interpolation left open ends at the string's 
     expect(sparkdownErrors(documentOf('g("a {f"x"} y")').text)).toEqual([]);
   });
 
-  test("a later quote on the line is the string's closing quote", () => {
-    // The call's string argument `" .. "` is one the line closes, so the
-    // last quote closes the string around the interpolation.
-    expect(sparkdownErrors(documentOf('g("a {b" .. "c")').text)).toEqual(["1:7-1:16 Malformed interpolated string; did you forget to add a `}`?"]);
+  test("a closed interpolation's braces are its punctuation", () => {
+    // Round 1, `ax` finding 2: the closing brace's capture stays with the
+    // interpolation.
+    const text = 'local s = "a {b} c"\n';
+    const names = (at: number) => {
+      const found: string[] = [];
+      for (let node: SyntaxNode | null = parseSource(text).resolveInner(at, 1); node; node = node.parent) found.push(node.name);
+      return found;
+    };
+    expect(names(text.indexOf("{"))).toContain("PunctuationBraceOpen");
+    expect(names(text.indexOf("}"))).toContain("PunctuationBraceClose");
   });
 
   test("a store's value", () => {
