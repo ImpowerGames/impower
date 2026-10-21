@@ -891,6 +891,9 @@ function readPropertyDefinition(
     // an expression key evaluated at init, and the context never sees it. The
     // key is the string's value, its escapes read.
     const key = readExpressionAst(containerValueNodes(indexNode), ctx);
+    // A backtick string's own errors in the key are its reading's to
+    // report, whether or not the key lowers (I-1435).
+    if (key) reportReadingErrors(key.source.errors, indexNode, ctx, "string");
     if (
       key?.expr instanceof AstExprConstantString &&
       key.expr.quoteStyle !== QuoteStyle.QuotedRaw

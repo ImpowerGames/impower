@@ -189,6 +189,27 @@ describe("a backtick string's own errors, from the lowerer's reading where no ot
   }
 });
 
+// What no lowerer lowers is still read for the string's errors: a `match`
+// alternator's condition and an alternator nested in another's arm where
+// Luau code uses the outer one as a value, a define's computed key, and an
+// alternator in a tag's braces (round 1).
+describe("a backtick string where no lowerer lowers the expression it stands in", () => {
+  const places: [string, string, number, number][] = [
+    ["a match alternator's condition, used as a value", "store c = match `a {} b` | 1 = 'one' | 'other' end\n", 0, 16],
+    ["an alternator in parentheses in another's arm, used as a value", "store n = cycle | (cycle | `a {} b` | 'ok' end) | 'last' end\n", 0, 27],
+    ["an alternator in another's arm, used as a value", "store n = cycle | cycle | `a {} b` | 'ok' end | 'last' end\n", 0, 26],
+    ["an alternator in a sequential alternator's head, used as a value", "store n = cycle (cycle | `a {} b` | 'ok' end) | 'last' end\n", 0, 25],
+    ["a define's computed key", "define Thing with\n  [`a {} b`] = 1\nend\n", 1, 3],
+    ["an alternator in a tag's braces", "scene start\n  Hello # tag {cycle | `a {} b` | 2 end}\nend\n", 1, 23],
+  ];
+  for (const [place, text, line, column] of places) {
+    test(place, () => {
+      expect(sparkdownErrors(text)).toEqual(officialFirst("local _ = `a {} b`\n", line, column - 10));
+      expectIncrementalEqualsCold(text);
+    });
+  }
+});
+
 // A tag's braces hold an expression the tag shows as its text unless it is
 // one name, so only the string's own error is reported there.
 describe("a backtick string's own error in a tag's braces", () => {

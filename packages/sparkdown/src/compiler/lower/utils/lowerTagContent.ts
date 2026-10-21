@@ -13,6 +13,7 @@ import {
 } from "../expression/lowerExpression";
 import { reportReadingErrors } from "../expression/lowerFunction";
 import { readExpressionAst } from "./luauAst";
+import { reportNestedAlternators } from "./alternatorArms";
 
 // Shared lowering for a tag body (`# tag {var}`). The grammar classifies a
 // `TagContent` body into `TagText` literal runs interleaved with
@@ -64,7 +65,10 @@ export function lowerTagContent(
         // A backtick string's own errors in it are still its reading's to
         // report, as everywhere (I-1435).
         const reading = content ? readExpressionAst(containerValueNodes(child), ctx) : null;
-        if (reading) reportReadingErrors(reading.source.errors, child, ctx, "string");
+        if (reading) {
+          reportReadingErrors(reading.source.errors, child, ctx, "string");
+          reportNestedAlternators(reading.expr, ctx);
+        }
         segs.push({ kind: "text", raw: ctx.read(child.from, child.to) });
       }
       cursor = child.to;
