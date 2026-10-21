@@ -22,10 +22,9 @@ import {
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
-import { storeReadingErrors } from "../../typecheck/storeReading";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, loweredLuauStoreOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -593,8 +592,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
 
   /**
    * Whether the lowerer's reading of a define's method or a Sparkle
-   * handler's closure (`loweredLuauBodyOf`), or of a `store` declaration
-   * (`loweredLuauStoreOf`), reports an error in the same
+   * handler's closure (`loweredLuauBodyOf`) reports an error in the same
    * words at a range that meets `from`-`to`, which it reports in Luau's
    * range (`reportBodySyntaxErrors`), so the validator's own report of it
    * gives way, as Sparkdown's does to the type checker's reading in a
@@ -603,11 +601,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * (a comma the validator marks and the `}` the reading names after it).
    */
   private loweredReadingReports(message: string, from: number, to: number): boolean {
-    // An error at a store's end of input (`store x = 1 +` before a line
-    // break) begins right after the store, in the node before it.
-    const errors =
-      this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null) ??
-      this.loweredStoreReadingErrors(this.tree?.resolveInner(from, -1) ?? null);
+    const errors = this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null);
     return !!errors?.some(
       (error) =>
         error.message === message &&
@@ -616,14 +610,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * The errors the lowerer reports of its reading of the define's method,
-   * Sparkle handler's closure (`loweredLuauBodyOf`) or `store` declaration
-   * (`loweredStoreReadingErrors`) a node is in, with their document ranges,
-   * or undefined outside one.
+   * The errors the lowerer reports of its reading of the define's method or
+   * Sparkle handler's closure a node is in (`loweredLuauBodyOf`), with their
+   * document ranges, or undefined outside one.
    */
   private loweredReadingErrors(node: SyntaxNode | null): readonly { message: string; from: number; to: number }[] | undefined {
     const body = loweredLuauBodyOf(node);
-    if (!body) return this.loweredStoreReadingErrors(node);
+    if (!body) return undefined;
     const key = `${body.from}:${body.to}`;
     let errors = this.loweredReadings.get(key);
     if (!errors) {
@@ -644,29 +637,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           from: luauPositionOffset(error.location.begin, text),
           to: luauPositionOffset(error.location.end, text),
         }));
-      this.loweredReadings.set(key, errors);
-    }
-    return errors;
-  }
-
-  /**
-   * The errors the lowerer reports of its reading of the `store` declaration
-   * a node is in (`loweredLuauStoreOf`, `storeReadingErrors`), with their
-   * document ranges, or undefined outside one.
-   */
-  private loweredStoreReadingErrors(node: SyntaxNode | null): readonly { message: string; from: number; to: number }[] | undefined {
-    const read = (from: number, to: number) => this.read(from, to);
-    const store = loweredLuauStoreOf(node, read);
-    if (!store) return undefined;
-    const key = `store ${store.from}:${store.to}`;
-    let errors = this.loweredReadings.get(key);
-    if (!errors) {
-      const text = this.statementDocumentText();
-      errors = storeReadingErrors(store, text, read).map((error) => ({
-        message: error.message,
-        from: luauPositionOffset(error.location.begin, text),
-        to: luauPositionOffset(error.location.end, text),
-      }));
       this.loweredReadings.set(key, errors);
     }
     return errors;

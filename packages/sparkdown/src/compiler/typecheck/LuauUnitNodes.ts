@@ -176,32 +176,33 @@ export function loweredLuauBodyOf(node: SyntaxNode | null): SyntaxNode | null {
   return null;
 }
 
-// A double-quoted string, whose interpolations Sparkdown reads itself.
-const DOUBLE_QUOTED_STRING = "LuauDoubleQuotedString";
+// A double-quoted string's interpolation, which Sparkdown reads itself.
+const DOUBLE_QUOTED_INTERPOLATION = "LuauDoubleQuotedStringInterpolation";
 
 /**
- * The `store` declaration a node is in where its lowerer reports every
- * syntax error of Luau's reading of the declaration alone, its names and its
- * values, as the declaration spelled with Luau's `local` reports them
- * (`storeReadingErrors`, I-1370): a store no reading that reports all of
- * Luau's errors reads (`luauReadingReportsAllAt`), since the type checker
- * leaves a store's errors to Sparkdown (`isCheckedLuau`). Null outside one,
- * in Sparkdown's own constructs and expressions in its value (an
- * alternator, a divert target) and in a double-quoted string, whose
- * interpolations Sparkdown reads itself, which are Sparkdown's syntax's to
+ * The story `store` declaration a node is in, whose syntax errors Luau's
+ * reading of the declaration alone, its names and its values, reports where
+ * Sparkdown reports none (`storeReadingErrors`, I-1370): a store outside
+ * every function and every body a reading that reports all of Luau's errors
+ * reads (`luauReadingReportsAllAt`), since the type checker leaves a store's
+ * errors to Sparkdown (`isCheckedLuau`). A store in a function's own Luau
+ * is read on into the lines after it, as its function is, and no reading of
+ * it alone stands for Luau's. Null outside one, in Sparkdown's own
+ * constructs and expressions in its value (an alternator, a divert target, a
+ * double-quoted string's interpolation), which are Sparkdown's syntax's to
  * report, and in a store inside one of Sparkdown's own blocks (a `define`).
  */
-export function loweredLuauStoreOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
+export function storyStoreOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
   let store: SyntaxNode | null = null;
   for (let n = node; n; n = n.parent) {
     if (SPARKDOWN_ONLY.has(n.name) || SPARKDOWN_EXPRESSIONS.has(n.name)) return null;
-    if (!store && n.name.startsWith(DOUBLE_QUOTED_STRING)) return null;
+    if (!store && n.name.startsWith(DOUBLE_QUOTED_INTERPOLATION)) return null;
     if (!store && VARIABLE_DEFINITION_NAMES.has(n.name)) {
       const modifier = findChild(n.getChild(`${n.name}_begin`)?.firstChild ?? null, "LuauScopeModifier");
       if (modifier && read(modifier.from, modifier.to).trim() === "store") store = n;
     }
   }
-  return store && !luauReadingReportsAllAt(store, read) ? store : null;
+  return store && !inLuauFunction(store) && !luauReadingReportsAllAt(store, read) ? store : null;
 }
 
 /**
