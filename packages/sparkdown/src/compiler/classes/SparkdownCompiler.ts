@@ -18,7 +18,8 @@ import {
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
-import { isLuauFile } from "../typecheck/LuauUnitNodes";
+import { isLuauDocument, isLuauFile } from "../typecheck/LuauUnitNodes";
+import { storeSyntaxErrors } from "../typecheck/storeReading";
 import { withMessageLines } from "../typecheck/messageLines";
 import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
@@ -2174,6 +2175,8 @@ export class SparkdownCompiler {
       this.validateMorphs(program);
       this.validateLints(program);
       this.validateTypes(program);
+      // After every other reporter, which a store's own reports defer to.
+      this.validateStores(program);
     }
     // A construct the program has no emit path for, reported after the
     // validators: a statement they report an error at (a malformed loop
@@ -4395,7 +4398,9 @@ export class SparkdownCompiler {
 
   /** Reports the construct that kept the program from being built as an
    *  error over the line of the statement that holds it, unless the compile
-   *  reported an error on that line already. */
+   *  reported an error on that line already. The same per-statement
+   *  ownership rule decides a story store's Luau errors (`validateStores`):
+   *  a statement already in error keeps the report it has. */
   protected reportUnsupportedConstruct(
     unsupported: UnsupportedConstructSite,
     program: SparkProgram,
@@ -5972,6 +5977,58 @@ export class SparkdownCompiler {
     }
     profile("end", this._profilerId, "validateLints", uri);
     return names;
+  }
+
+  /**
+   * Reports a story `store` declaration's syntax errors as Luau reads the
+   * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
+   * I-1370), for a store no other reporter reported an error on. The type
+   * checker leaves a store's errors to Sparkdown, which reports what the tree
+   * marks missing or unread, in its own words and ranges; a store's errors
+   * have one owner, as a story statement's do (#931, #1907), and Luau's
+   * reading is theirs where Sparkdown's syntax reads the value token by token
+   * and reports nothing (`store t = {1 2}`).
+   */
+  validateStores(program: SparkProgram) {
+    for (const scriptUri of Object.keys(program.scripts)) {
+      if (scriptUri === BUILTINS_PRELUDE_URI || isLuauDocument(scriptUri)) continue;
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      const errors = storeSyntaxErrors(tree, doc.read(0, doc.length));
+      if (errors.length === 0) continue;
+      const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
+      const reported = new Map<string, boolean>();
+      for (const error of errors) {
+        const key = `${error.store.from}:${error.store.to}`;
+        let inError = reported.get(key);
+        if (inError === undefined) {
+          // The store's lines, as `reportCompileThrow` reads a statement's:
+          // a report at its end of input begins where its line ends. A store
+          // the tree ends with its line break ends on the line before it.
+          const { from, to } = error.store;
+          const last = to > from && doc.read(to - 1, to) === "\n" ? to - 1 : to;
+          const range = doc.range(from, last);
+          inError =
+            !range ||
+            diagnostics.some(
+              (d) =>
+                d.severity === DiagnosticSeverity.Error &&
+                d.range.start.line >= range.start.line &&
+                d.range.start.line <= range.end.line,
+            );
+          reported.set(key, inError);
+        }
+        if (inError) continue;
+        diagnostics.push({
+          range: { start: error.start, end: error.end },
+          code: "SyntaxError",
+          severity: DiagnosticSeverity.Error,
+          message: error.message,
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
   }
 
   /**
