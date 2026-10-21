@@ -158,10 +158,10 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
   // Sparkdown's own syntax in a store's value.
   test("a double-quoted string's interpolation is Sparkdown's", () => {
     expect(sparkdownErrors(`store s = "a {1 2} b"\n${SCENE}`)).toEqual([]);
+    // The interpolation left open ends at the string's closing quote, which
+    // `x` does not take as a call's string argument (I-1342).
     expect(sparkdownErrors(`store s = "a {x"\n${SCENE}`)).toEqual([
-      "0:10-0:16 Malformed string; did you forget to finish it?",
-      "0:13-0:16 Malformed interpolated string; did you forget to add a `}`?",
-      "0:15-0:16 Malformed string; did you forget to finish it?",
+      "0:13-0:15 Malformed interpolated string; did you forget to add a `}`?",
     ]);
   });
   test("a divert target is Sparkdown's", () => {
