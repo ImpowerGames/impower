@@ -724,15 +724,11 @@ function lowerDefineMethod(
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, METHOD_BODY_SKIP, shape);
   if (reading) reportErasedConstErrors(reading.unit.root, node, ctx);
-  // Its body's errors, as Luau reports them for the function the method
-  // stands for (or is, in the `function name() … end` form), its `end`
-  // included.
-  let bodyStart = content.firstChild;
-  while (bodyStart && METHOD_BODY_SKIP.has(bodyStart.name)) bodyStart = bodyStart.nextSibling;
-  if (bodyStart) {
-    const errors = node.name === "LuauMethodDefinition" ? methodSyntaxErrors(node, ctx) : readBlockAst([node], ctx)?.unit.errors ?? [];
-    reportBodySyntaxErrors(errors, ctx, bodyStart.from);
-  }
+  // Its errors, as Luau reports them for the function the method stands
+  // for (or is, in the `function name() … end` form) read whole: its
+  // header's parameter list, its body and its `end` (I-1401).
+  const errors = node.name === "LuauMethodDefinition" ? methodSyntaxErrors(node, ctx) : readBlockAst([node], ctx)?.unit.errors ?? [];
+  reportBodySyntaxErrors(errors, ctx, node.from);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.functionBindingsStack?.pop();
