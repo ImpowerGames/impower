@@ -187,12 +187,15 @@ export interface LuauSyntaxError {
  * the token found, a member access with no name after its `.` or `:`, a
  * method call with no arguments, or a function value with a name
  * (`expression`); a statement that is a value but not a call
- * (`statement`); and an attribute Luau does not know, repeats, or gives
+ * (`statement`); a local declaration's name list with a name missing
+ * where a token of its line stands (`local = 1`, `local a, = 1`), which the
+ * grammar reads as names and an assignment however few names it holds
+ * (`declaration`); and an attribute Luau does not know, repeats, or gives
  * arguments it does not take, such as a value that is not a literal
  * (`attribute`), where the grammar reads the attribute and its arguments
  * as it reads any.
  */
-export type MalformedConstruct = "type" | "annotation" | "expression" | "statement" | "attribute";
+export type MalformedConstruct = "type" | "annotation" | "expression" | "statement" | "declaration" | "attribute";
 
 /** A node of the syntax tree, by its name and document offsets (a `SyntaxNode` is not kept, since the tree makes a new one on every visit). */
 export interface TreeNodeRef {
@@ -2776,7 +2779,7 @@ class Parser {
       return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     const names: Binding[] = [];
-    this.parseBindingList(names, false, isConst);
+    this.parseBindingList(names, false, isConst, true);
     const values: AstExpr[] = [];
     let equalsSignLocation: Location | undefined;
     if (this.is("=")) {
@@ -2977,16 +2980,22 @@ class Parser {
     return this.parseExpr();
   }
 
-  private parseBinding(isConst = false): Binding {
-    // Not part of Luau: a `:` with no name before it is an annotation with no name.
-    let name = this.parseNameOpt("variable name", this.is(":") ? "annotation" : undefined);
+  /** `declaration` is whether the binding is a local declaration's (see `MalformedConstruct`). */
+  private parseBinding(isConst = false, declaration = false): Binding {
+    // Not part of Luau: a `:` with no name before it is an annotation with
+    // no name, and a local declaration's name missing before a token of its
+    // line leaves the declaration malformed. One missing at its line's end
+    // is Sparkdown's own syntax's to report.
+    const kind = this.current().kind;
+    const missing = this.is(":") ? "annotation" : declaration && kind !== "eof" && kind !== "break" ? "declaration" : undefined;
+    let name = this.parseNameOpt("variable name", missing);
     if (!name) name = { name: ERROR_NAME, location: this.current().location };
     const annotation = this.parseOptionalType();
     return { name, annotation, isConst };
   }
 
-  /** Returns whether the list ends in `...`, the location of the `...`, and its annotation. */
-  parseBindingList(result: Binding[], allowDot3 = false, isConst = false): [boolean, Location, AstTypePack | undefined] {
+  /** Returns whether the list ends in `...`, the location of the `...`, and its annotation. `declaration` is whether it is a local declaration's names. */
+  parseBindingList(result: Binding[], allowDot3 = false, isConst = false, declaration = false): [boolean, Location, AstTypePack | undefined] {
     for (;;) {
       if (this.is("...") && allowDot3) {
         const varargLocation = this.current().location;
@@ -2998,7 +3007,7 @@ class Parser {
         }
         return [true, varargLocation, tailAnnotation];
       }
-      result.push(this.parseBinding(isConst));
+      result.push(this.parseBinding(isConst, declaration));
       if (!this.is(",")) break;
       this.next();
     }
@@ -4833,7 +4842,9 @@ export function readLuauStatementCandidate(
   }
   const read = (current: SyntaxNode): void => {
     if (current.to <= from || current.from >= to) return;
-    if (current.from >= from && current.to <= to && !WRAPPER.test(current.name)) {
+    // The tree's top node, which a span to the document's end encloses, is
+    // descended as a clipped node is: it is no Luau node of its own.
+    if (current.parent && current.from >= from && current.to <= to && !WRAPPER.test(current.name)) {
       if (current.name.startsWith("Luau") && !current.type.isError) tokenizer.read(current);
       else tokenizer.lex(current.from, current.to);
       return;
