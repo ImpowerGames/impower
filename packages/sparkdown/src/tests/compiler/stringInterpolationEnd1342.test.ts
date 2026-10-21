@@ -79,6 +79,9 @@ describe("a double-quoted string's interpolation left open ends at the string's 
     // A lone quote in a trailing comment (round 2, `ax` finding 1).
     ["{b", ' .. x) -- say "hello'],
     ["{b", ' .. x) -- "a" "b'],
+    // A quoted brace in a trailing comment (round 2, `undirected` finding 2).
+    ["{b", ' .. x) -- say "hello }"'],
+    ["{b", ', "c")'],
   ] as const) {
     const form = `g("a ${interpolation}"${after}${after.includes(")") ? "" : ")"}\n  return 1`;
     test(JSON.stringify(form), () => {
@@ -110,6 +113,12 @@ describe("a double-quoted string's interpolation left open ends at the string's 
       'local s = "a {tostring"x" .. [[y]]} z"',
       'local s = "a {tostring"x" .. tostring({{1}})} y"',
       'local s = "a {if true then "x" else tostring({{1}})} y"',
+      // A `"` string the expression goes on after, and a backtick string
+      // with a quote in its interpolation (round 2, `undirected` finding 1).
+      'local s = "a {if true then "x" else "y"} z"',
+      'local c = 1\n  local s = "a {c == 1 and "x" or "y"} z"',
+      'local c = "c"\n  local s = "a {c .. "x" .. c} z"',
+      'local s = "a {`x {"`"} y`} z"',
     ]) {
       expect(sparkdownErrors(documentOf(form).text), form).toEqual([]);
     }
