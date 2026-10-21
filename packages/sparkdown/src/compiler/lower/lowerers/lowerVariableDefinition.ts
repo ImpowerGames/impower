@@ -17,7 +17,10 @@ import {
   lowerCallArguments,
   type PathName,
 } from "../expression/lowerExpression";
-import { rangeOf } from "../utils/luauAst";
+import { loweredLuauStoreOf } from "../../typecheck/LuauUnitNodes";
+import { storeReadingErrors } from "../../typecheck/storeReading";
+import { reportSyntaxErrors } from "../expression/lowerFunction";
+import { documentText, offsetAt, rangeOf } from "../utils/luauAst";
 import { publishesConst, reportMissingConstInitializer } from "../utils/publishesConst";
 import { statementSource } from "../utils/statementSource";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
@@ -47,6 +50,7 @@ export function lowerVariableDefinition(
   // A function's `const` with more names than values, and no call or `...`
   // last to give the rest, is Luau's error on the declaration.
   if (stat instanceof AstStatLocal) reportMissingConstInitializer(stat, site.node, ctx);
+  else reportStoreSyntaxErrors(stat, site, ctx);
   const targets: PathName[] =
     stat instanceof AstStatLocal
       ? stat.vars.map((v) => ({ name: v.name, location: v.location }))
@@ -214,4 +218,27 @@ export function lowerVariableDefinition(
     shadowSiblingSubFlow(lastIdentifier.name, ctx);
   }
   return wrapInWeave([va]);
+}
+
+/**
+ * Reports, for a `store` declaration no other reading reports all of Luau's
+ * errors for (`loweredLuauStoreOf`), every syntax error of Luau's reading
+ * of the declaration alone, in Luau's words at Luau's range, as the
+ * declaration spelled with Luau's `local` reports them (`storeReadingErrors`,
+ * I-1370). The validator's report of the same error gives way to it
+ * (`loweredReadingReports`), and so does the type checker's report of one at
+ * a token the grammar left unread, which the compile makes once
+ * (`validateTypes` in `SparkdownCompiler.ts`).
+ */
+function reportStoreSyntaxErrors(
+  stat: AstStatSparkdownStore,
+  site: StatementSite,
+  ctx: LowerContext,
+): void {
+  const read = (from: number, to: number) => ctx.read(from, to);
+  const store = loweredLuauStoreOf(
+    site.source.top.resolveInner(offsetAt(stat.location.begin, ctx), 1),
+    read,
+  );
+  if (store) reportSyntaxErrors(storeReadingErrors(store, documentText(ctx), read), ctx);
 }
