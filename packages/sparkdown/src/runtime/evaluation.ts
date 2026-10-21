@@ -98,8 +98,8 @@ export function extractClosureTarget(
   const upvalsMap = upvalsVal.value;
   if (!(upvalsMap instanceof Map)) return null;
   // The cells of the root locals the function's entry binds that the
-  // closure kept where it was built, which the frame the call enters takes
-  // (`CallStack.Element.closureRoots`); none for a closure built before
+  // closure kept where it was built, which the call keeps in the function's
+  // frame as it enters it (`EnterFunction`); none for a closure built before
   // closures kept them, whose entry binds them as it runs.
   const rootsVal = map.get("__closure_roots");
   story.SetClosureRoots?.(

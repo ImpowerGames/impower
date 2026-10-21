@@ -356,6 +356,39 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 1 2 2."));
   });
 
+  // The call binds the kept cell as it enters the closure's frame, in the
+  // frame's own state, which a save taken before the entry's code runs
+  // holds: taking one does not change what the game shows.
+  test("keeps the cell it kept across a save taken as its call enters", () => {
+    const story = new ProgramStory(
+      rootOf([
+        "store a = 0",
+        "store fs = {}",
+        "-> S(1)",
+        "scene S(v)",
+        "  local a = v",
+        "  & fs[v] = function() return a end",
+        "  if v == 1 then",
+        "    -> S(2)",
+        "  end",
+        "  Ready.",
+        "  local result = fs[1]()",
+        "  Got {result} {fs[2]()}.",
+        "end",
+      ]),
+    );
+    story.onError = () => {};
+    story.keepBeatImages = true;
+    expect(quiet(() => story.Continue())?.trim()).toBe("Ready.");
+    const frames = () => (story as any).state.callStack.elements.length as number;
+    for (let step = 0; frames() < 2 && step < 10000; step += 1) {
+      quiet(() => story.ContinueAsync());
+    }
+    expect(frames()).toBe(2);
+    quiet(() => story.toSave());
+    expect(quiet(() => story.Continue())?.trim()).toBe("Got 1 2.");
+  });
+
   test("keeps a scene's stdlib-named local across the scene's next run", () => {
     expect(
       run([

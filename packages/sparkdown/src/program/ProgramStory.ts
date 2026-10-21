@@ -204,6 +204,11 @@ const entryBindings = (
   return { bindings, variadic };
 };
 
+/** The slot of a closure's frame that keeps the cell of the root local
+ *  `name` the closure kept where it was built (`EnterFunction`). No name an
+ *  author writes holds a `$`, and the Variables view leaves such names out. */
+const keptSlotName = (name: string): string => `${name}$kept`;
+
 class SymbolTarget implements FunctionTarget {
   constructor(
     readonly symbol: number,
@@ -1954,10 +1959,33 @@ export class ProgramStory implements StoryEngine {
     const pending = this._closureRoots;
     this._closureRoots = null;
     this.enter(target as SymbolTarget, PushPopType.Function);
+    // A closure's call keeps, as it enters the frame, the cell of each root
+    // local the closure kept where it was built (`__closure_roots`), in the
+    // frame's slot `<name>$kept`, before any of the entry's code runs: the
+    // frame's own state, which a save, an image or a thread's copy taken
+    // before the entry's `BindRoot`s carries, and which those `BindRoot`s
+    // bind the name to.
     if (pending && pending.target === target) {
-      this._state.callStack.currentElement!.closureRoots = pending.roots;
+      for (const [name, cell] of pending.roots) {
+        if (cell instanceof VariablePointerValue) {
+          this._state.variablesState.Assign(this.rootDeclaration(keptSlotName(name)), cell);
+        }
+      }
     }
   }
+
+  /** The declaration of the frame's slot `name` a closure's call keeps a
+   *  cell in (`EnterFunction`), made once. */
+  protected rootDeclaration(name: string): VariableAssignment {
+    let binding = this._rootDeclarations.get(name);
+    if (!binding) {
+      binding = new VariableAssignment(name, true, false, false);
+      this._rootDeclarations.set(name, binding);
+    }
+    return binding;
+  }
+
+  protected _rootDeclarations = new Map<string, VariableAssignment>();
 
   /** The cells of the root locals a closure kept where it was built
    *  (`__closure_roots`), for the frame the call of `target` the closure's
@@ -2771,24 +2799,25 @@ export class ProgramStory implements StoryEngine {
         // With `ROOT_SLOT`, `arg` names the slot of the declaration the
         // function reads, and the local it declares is the name before the
         // slot's first `$`.
-        // A closure's call takes the cell the closure kept where it was
-        // built (`closureRoots`), and any other the root frame's binding.
-        const kept = state.callStack.currentElement?.closureRoots;
+        // A closure's call binds the cell the closure kept where it was
+        // built, which its frame holds in `<name>$kept` (`EnterFunction`),
+        // and any other the root frame's binding.
+        const own = state.callStack.currentElement?.temporaryScopes[0];
         if (flagsOf(w0) & ROOT_SLOT) {
           const slot = this.root.table.strings[arg]!;
           const binding = this.slotBinding(arg, slot);
-          const own = kept?.get(binding.variableName!);
+          const kept = own?.get(keptSlotName(binding.variableName!));
           const cell =
-            own instanceof VariablePointerValue
-              ? own
+            kept instanceof VariablePointerValue
+              ? kept
               : rootVariablePointer(state.callStack, binding.variableName!, slot);
           if (cell) state.variablesState.Assign(binding, cell);
           break;
         }
         const name = this.root.table.strings[arg]!;
-        const own = kept?.get(name);
+        const kept = own?.get(keptSlotName(name));
         const cell =
-          own instanceof VariablePointerValue ? own : rootVariablePointer(state.callStack, name);
+          kept instanceof VariablePointerValue ? kept : rootVariablePointer(state.callStack, name);
         if (cell) {
           state.variablesState.Assign(this.assignment(arg, SET_DECLARE), cell);
         }
