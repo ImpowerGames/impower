@@ -25,11 +25,25 @@ const ARMS: ReadonlySet<string> = new Set(
   explicitRuleNames("LuauAlternatorArms"),
 );
 
-/** A candidate's arms, or null when it holds none. */
+const HEADS: ReadonlySet<string> = new Set(
+  ["LuauAlternatorHead", "LuauAlternatorLineStartHead"].flatMap(explicitRuleNames),
+);
+
+/**
+ * A candidate's arms, or null when it holds none: its content's arms, or its
+ * head's, which hold them when an alternator in the condition ends against
+ * the `|` (`match match(x) | a = 1 end| b = 2 end`).
+ */
 export function alternatorArms(node: SyntaxNode): SyntaxNode | null {
   const content = node.getChild(`${node.name}_content`);
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (ARMS.has(child.name)) return child;
+    if (HEADS.has(child.name)) {
+      const head = child.getChild(`${child.name}_content`);
+      for (let part = head?.firstChild ?? null; part; part = part.nextSibling) {
+        if (ARMS.has(part.name)) return part;
+      }
+    }
   }
   return null;
 }

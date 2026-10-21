@@ -178,6 +178,27 @@ describe("where a candidate ends", () => {
     expect(owned).toEqual(['match : | mage = "yes" end', 'match(: | x = "mage" end']);
   });
 
+  // An alternator in the condition whose `end` stands against the outer `|`
+  // leaves the outer word its arms as the spaced form does.
+  test.each([
+    ["in display text", 'Value {match match("x") | x = "mage" end| mage = "yes" end}.\n', "match"],
+    ["in a narrative statement", '& local v = match match("x") | x = 1 end| mage = 2 end\nDone.\n', "match"],
+    ["at the start of a function's line", 'function f()\n  match match("x") | x = print(1) end| mage = print(2) end\n  return 3\nend\nValue {f()}.\n', "match"],
+    ["around a sequential word", 'Value {cycle match("x") | x = "a" end| "b" end}.\n', "cycle"],
+  ])("written against the outer `|` %s", (_, source, outer) => {
+    expect(errorsOf(source)).toEqual([]);
+    expect(semanticTokenOf(source, outer, 1)).toBeUndefined();
+    expect(semanticTokenOf(source, "match", outer === "match" ? 2 : 1)).toBeUndefined();
+    const owners: string[] = [];
+    getParser().parse(source).iterate({
+      enter: (ref) => {
+        if (!/^Luau(?:SparkdownExplicit)?(?:Conditional|Sequential)Alternator(?:Block|LineStart)$/.test(ref.name)) return;
+        owners.push(alternatorArms(ref.node) ? "arms" : "none");
+      },
+    });
+    expect(owners).toEqual(["arms", "arms"]);
+  });
+
   test.each([["\r\n"], ["\r"]])("a head comment ending in `end` reads the line break %j whole", (eol) => {
     const source = ["function f(n)", "  queue -- end", "    | print(1)", "  end", "  match n -- end", "    | a = print(1)", "  end", "  return 3", "end", "Value {f(1)}.", "After.", ""].join(eol);
     expect(tree(source)).not.toMatch(/ERROR_INCOMPLETE/);

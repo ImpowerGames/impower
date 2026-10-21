@@ -729,13 +729,23 @@ variables:
   # Right after the `end` a candidate's arms took: the candidate ends with
   # them. A candidate takes no `end` of its own, and its only children are
   # its head (`LuauAlternatorHead`) and its arms. The head never ends right
-  # after its own text: before the arms' `|` it takes the whitespace, on a
-  # line-start candidate it ends at the start of a later line, and anywhere
-  # else it ends where the candidate does. So the `end` this follows is the arms' own,
+  # after an `end`: before the arms' `|` it ends only where an `end` does not
+  # stand against the `|`, or after the whitespace before it
+  # (`_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_`), keeping the arms inside it
+  # otherwise; on a line-start candidate it ends at the start of a later
+  # line; and anywhere else it ends where the candidate does. So the `end` this follows is the arms' own,
   # never a comment's last word (`match n -- end`) or the `end` of an
   # alternator in the condition (`match match(x) | a = 1 end | b = 2 end`).
   # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
   LUAU_AFTER_ALTERNATOR_ARMS: (?<=\bend)
+  # Where a candidate's head ends before its arms' `|`: right before it,
+  # or after the whitespace before it, but never right after an `end`, which
+  # would leave the candidate's end (`LUAU_AFTER_ALTERNATOR_ARMS`) to read
+  # that `end` as its own arms'. After an alternator in the condition that
+  # ends against the `|` (`match match(x) | a = 1 end| b = 2 end`), the head
+  # stays open and the arms open inside it, as its last child.
+  # lookaround: `LuauAlternatorArms` reads the `|`.
+  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+)(?=[|]))
   # The start of a line that does not go on with a line-start candidate's
   # head: one that is neither blank nor a comment line.
   # lookaround: `LuauAlternatorArms` and the next statement read the line.
@@ -9334,10 +9344,11 @@ repository:
   LuauSparkdownExplicitAlternatorHead:
     begin: (?!{{WS}}*[|])
     patterns:
+      - { include: "#LuauSparkdownExplicitAlternatorArms" }
       - { include: "#LuauSparkdownExplicitConditionalAlternatorCondition" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(?=[|])|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
     endCaptures:
       1:
         patterns:
@@ -11481,10 +11492,11 @@ repository:
   LuauAlternatorHead:
     begin: (?!{{WS}}*[|])
     patterns:
+      - { include: "#LuauAlternatorArms" }
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(?=[|])|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
     endCaptures:
       1:
         patterns:
@@ -11499,11 +11511,12 @@ repository:
   LuauAlternatorLineStartHead:
     begin: (?!{{WS}}*[|])
     patterns:
+      - { include: "#LuauAlternatorArms" }
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(?=[|])|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_AFTER_ALTERNATOR_HEAD}}
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_AFTER_ALTERNATOR_HEAD}}
     endCaptures:
       1:
         patterns:
