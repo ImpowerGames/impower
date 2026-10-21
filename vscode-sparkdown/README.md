@@ -39,7 +39,9 @@ If you use another Luau extension, such as luau-lsp, and want it to own `.luau` 
 }
 ```
 
-Workspace discovery includes scripts and assets below the opened folder, including a nested `project` directory. Dependencies under `node_modules` and hidden subdirectories are skipped. An explicitly opened folder can itself be hidden. Other folders still contribute assets, so opening a repository with research or prototype assets can report name collisions that are absent when opening only its game project.
+## Projects
+
+A project is the folder of its main script, `main.sd`: every `.sd` script and every asset under that folder belongs to it, with no line to write to bring a script in. A subfolder with its own `main.sd` is a separate project, whose scripts and assets are not part of the parent's, so a workspace can hold several projects at once, and assets in folders outside a project do not collide with its asset names. (The web editor's layout migration currently moves a sub-project's assets out of its folder, so this separation holds in a folder layout such as the one VS Code opens.) Workspace discovery finds scripts and assets anywhere below the opened folder. Files and folders named `node_modules`, or whose name starts with `.`, belong to no project; an explicitly opened folder can itself be hidden. The [Basic Concepts guide](https://github.com/ImpowerGames/impower/blob/main/packages/sparkdown/docs/guide/Structure.md#28-scripts-and-projects) describes the rules for scripts other than `main.sd` and the two forms of `run`.
 
 ## Previewing suggestions in the Game Preview
 

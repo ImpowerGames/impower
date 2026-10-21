@@ -296,7 +296,7 @@ A folder has no "layers inside layers", so a file cannot inherit a condition fro
 
 An explicit `layered_image` definition with the same name overrides the folder convention.
 
-Portrait names are global: two folders named `mia`, or a folder named `mia` beside `mia.png`, produce a name-collision warning. Rename one to make each image addressable. Numbered files also retain their ordinary image name when that name is unique, so an existing `[[01_intro]]` still works. Repeated filenames such as `90_body.png` in different portrait folders are private layers; refer to their portrait instead.
+Portrait names are shared by the whole project: two folders named `mia` anywhere in one project, or a folder named `mia` beside `mia.png`, produce a name-collision warning. A sub-project (a subfolder with its own `main.sd`) has names of its own, in a folder layout such as VS Code's; the web editor's layout migration currently moves a sub-project's assets out of its folder ([Scripts and projects](./Structure.md#28-scripts-and-projects)). Rename one to make each image addressable. Numbered files also retain their ordinary image name when that name is unique, so an existing `[[01_intro]]` still works. Repeated filenames such as `90_body.png` in different portrait folders are private layers; refer to their portrait instead.
 
 Export naming differs between programs and export commands. The numbered names above are the input convention. Check the exported files and rename them to this pattern when necessary. Measured export compatibility for Photoshop, Krita, and Clip Studio Paint is tracked in [the export compatibility follow-up](https://github.com/ImpowerGames/impower/issues/486).
 

@@ -312,17 +312,18 @@ export class Story extends FlowBase {
     return "Story";
   }
 
-  // Before this function is called, we have IncludedFile objects interspersed
-  // in our content wherever an include statement was.
-  // So that the include statement can be added in a sensible place (e.g. the
-  // top of the file) without side-effects of jumping into a knot that was
-  // defined in that include, we separate knots and stitches from anything
-  // else defined at the top scope of the included file.
+  // Before this function is called, our content holds an IncludedFile for
+  // each story the compiler included: the builtins prelude, the documents a
+  // `run` statement compiles, the project's other scripts and the member
+  // functions' writes of those scripts (`SparkdownCompiler.
+  // parseIncrementally`). So that an included story's flows are not entered
+  // by running into them, we separate knots and stitches from anything else
+  // defined at the top scope of the included story.
   //
   // Algorithm: For each IncludedFile we find, split its contents into
-  // knots/stiches and any other content. Insert the normal content wherever
-  // the include statement was, and append the knots/stitches to the very
-  // end of the main story.
+  // knots/stiches and any other content. Insert the normal content where the
+  // IncludedFile stands, and add the knots/stitches to the main story's
+  // flows.
   public override PreProcessTopLevelObjects(
     topLevelContent: ParsedObject[],
   ): void {
@@ -347,27 +348,23 @@ export class Story extends FlowBase {
         // Remove the IncludedFile itself
         topLevelContent.splice(i, 1);
 
-        // When an included story fails to load, the include
-        // line itself is still valid, so we have to handle it here
-        if (file.includedStory) {
-          const nonFlowContent: ParsedObject[] = [];
-          const subStory = file.includedStory;
-          // Allow empty file
-          if (subStory.content != null) {
-            for (const subStoryObj of subStory.content) {
-              if (subStoryObj instanceof FlowBase) {
-                flowsFromOtherFiles.push(subStoryObj);
-              } else {
-                nonFlowContent.push(subStoryObj);
-              }
+        const nonFlowContent: ParsedObject[] = [];
+        const subStory = file.includedStory;
+        // Allow empty file
+        if (subStory.content != null) {
+          for (const subStoryObj of subStory.content) {
+            if (subStoryObj instanceof FlowBase) {
+              flowsFromOtherFiles.push(subStoryObj);
+            } else {
+              nonFlowContent.push(subStoryObj);
             }
-
-            // Add newline on the end of the include
-            nonFlowContent.push(new Text("\n"));
-
-            // Add contents of the file in its place
-            topLevelContent.splice(i, 0, ...nonFlowContent);
           }
+
+          // Add newline on the end of the include
+          nonFlowContent.push(new Text("\n"));
+
+          // Add contents of the file in its place
+          topLevelContent.splice(i, 0, ...nonFlowContent);
         }
 
         // Re-visit position `i`: if the first spliced-in item is itself

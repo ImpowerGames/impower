@@ -42,29 +42,12 @@ describe("Misc (ported from inkjs)", () => {
 });
 
 describe("Misc — multi-file fixtures", () => {
-  // Left for I-1390, which retargets it to run: included scripts' top-level lines no longer run at an include site (#1387).
-  test.skip("include directive splices content from sibling files", () => {
-    // Upstream ink fixture:
-    //   INCLUDE includes/included_file.ink
-    //     INCLUDE includes/included_file_2.ink
-    //   This is the main file.
-    //
-    // Each included file emits one line; output is the concatenation in
-    // include order, then the main file's own line.
-    //
-    // Sparkdown rewrite uses lowercase `include` and `.sd` extensions;
-    // multi-file fixtures live in `fixtures/<feature>/<name>/` with a
-    // `main.sd` entry point. The harness's `makeRuntimeStoryFromDirectory`
-    // helper walks the directory tree and registers every `.sd` under a
-    // stable in-memory URI tree so the compiler's `ResolveInkFilename`
-    // can find them.
-    const ctx = makeRuntimeStoryFromDirectory("misc", "include");
-    expect(ctx.errorMessages).toEqual([]);
-    expect(ctx.story.ContinueMaximally()).toBe(
-      "This is include 1.\nThis is include 2.\nThis is the main file.\n",
-    );
-  });
-
+  // Upstream ink's INCLUDE fixture, which spliced each included file's lines
+  // in where it was included, has no port: a project's scripts are part of
+  // the story with no include line, and only main's top level runs (#1387).
+  // Multi-file fixtures live in `fixtures/<feature>/<name>/` with a `main.sd`
+  // entry point; `makeRuntimeStoryFromDirectory` registers every `.sd` under
+  // it in one in-memory project folder.
   test("cross-file var/knot references", () => {
     // Upstream ink fixture:
     //   - `nested_include.ink` includes `included_file_3.ink`

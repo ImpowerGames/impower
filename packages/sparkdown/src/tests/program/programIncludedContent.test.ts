@@ -5,9 +5,10 @@
 // addresses in that script, an edit inside one re-emits one chunk and keeps
 // every other, and a save taken before the edit loads after it. Its top-level
 // lines other than declarations report an error and are dropped, so no
-// `$include:` flow stands for it; a `run` statement's flow is the one left
-// (#1681, docs/engine/binary-program.md, What is built, Flows and statements),
-// which I-1390 retargets the tests left pending here to.
+// `$include:` flow stands for it but the one its member functions' writes
+// run in (I-1438). A `run` statement's flow is the other one left (#1681,
+// docs/engine/binary-program.md, What is built, Flows and statements), and
+// every test here of included content runs a file.
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -145,6 +146,73 @@ describe("a script other than main", () => {
     ).toEqual(["Main 7.\n"]);
   });
 
+  it("has no `$include:` flow of its own, and a `run` statement's flow is the one left, entered on the run line", () => {
+    const texts = {
+      [MAIN]: lines("store counter = 0", "run start", "Main {counter}.", "-> S"),
+      // The declarations a script other than main may hold (`external`, an
+      // error in a program of its own, aside).
+      [FIRST]: lines(
+        "store step = 1",
+        "const big = 10",
+        "type Point = { x: number, y: number }",
+        "",
+        "define hero as character with",
+        '  name = "Hero"',
+        "end",
+        "",
+        "function bump()",
+        "  counter += step",
+        "  return counter",
+        "end",
+      ),
+      [SECOND]: lines("scene S", "  In S {bump()}.", "  -> .more", "  branch more", "    More.", "  end", "end"),
+    };
+    const luau = { "file://proj/start.luau": "counter = 7\n" };
+    const program = compileProgram(texts, luau);
+    expect(reported(program)).toEqual([]);
+    const root = program.chunks!;
+    // The `$include:` flows, by the uri each stands for.
+    const included = root
+      .flowSequences()
+      .map((row) => [root.table.symbols[row.flow]!, row.uri] as const)
+      .filter(([name]) => name.startsWith("$include:"));
+    for (const uri of [MAIN, FIRST, SECOND]) {
+      expect(root.flowNamed(includedFlowName(uri))).toBeUndefined();
+    }
+    // The call document of the one `run` statement.
+    expect(included).toHaveLength(1);
+    const [[name, uri]] = included as [readonly [string, string]];
+    expect(uri).toMatch(/^file:\/\/proj\/start\.luau\?run=.*&site=\d+$/);
+    expect(name).toBe(includedFlowName(uri));
+    // The top level enters it on the run line, and goes on to main's next.
+    const top = root.flowNamed("")!;
+    expect(
+      top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
+    ).toMatchObject([
+      { uri: MAIN, startLine: 1 },
+      { uri: MAIN, startLine: 2 },
+      { uri: MAIN, startLine: 3 },
+    ]);
+    expect(shows(texts, [], luau).beats).toEqual(["Main 7.\n", "In S 8.\n", "More.\n"]);
+  });
+
+  // The one use of the mechanism a script other than main still makes (#1387):
+  // a member function's write runs where it is placed, before main's top
+  // level, as the `$include:` flow of its script.
+  it("keeps an `$include:` flow for its member functions' writes, which run before main's top level", () => {
+    const texts = {
+      [MAIN]: lines("Main {api.twice(3)}."),
+      [FIRST]: lines("store api = {}", "", "function api.twice(n)", "  return n * 2", "end"),
+    };
+    const root = rootOf(texts);
+    const included = root
+      .flowSequences()
+      .map((row) => [root.table.symbols[row.flow]!, row.uri] as const)
+      .filter(([name]) => name.startsWith("$include:"));
+    expect(included).toEqual([[includedFlowName(FIRST), FIRST]]);
+    expect(shows(texts).beats).toEqual(["Main 6.\n"]);
+  });
+
   it("holds its scenes as flows of their own in its script, at their lines, and adds nothing to the top level", () => {
     const texts = {
       [MAIN]: lines("Main.", "-> S"),
@@ -231,11 +299,15 @@ function posAt(text: string, offset: number) {
   return { line: before.length - 1, character: before.at(-1)!.length };
 }
 
-/** A compiler over `texts` with statement chunks on, and an editor of any of
- *  its scripts that compiles the main script after each edit. */
-function session(initial: Record<string, string>) {
+/** A compiler over `texts` and the Luau files `luau` with statement chunks
+ *  on, and an editor of any of its scripts that compiles the main script
+ *  after each edit. */
+function session(initial: Record<string, string>, luau: Record<string, string> = {}) {
   const texts = { ...initial };
-  const c = programCompiler(texts, { seedBuiltinsIntoStory: true });
+  const c = programCompiler(texts, {
+    seedBuiltinsIntoStory: true,
+    files: projectFiles(texts, luau) as never,
+  });
   let version = 1;
   let program = quiet(() => c.compile(MAIN).program);
   let root = program.chunks!;
@@ -429,46 +501,51 @@ describe("an edit inside a script other than main", () => {
     expect(reported(s.program)).toEqual([]);
     expect(s.root.flowNamed(includedFlowName(SECOND))).toBeUndefined();
   });
+});
 
-  // Left for I-1390, which retargets it to run: the order of an included script's top-level content is now only the order of `run` lines in main.
-  it.skip("runs included content in its new order after the starting script swaps two includes in the middle", () => {
-    const child = (name: string) => `file://proj/includes/${name}.sd`;
-    const s = session({
-      [MAIN]: lines(
-        "include includes/a.sd",
-        "include includes/b.sd",
-        "include includes/c.sd",
-        "include includes/d.sd",
-        "Main.",
-      ),
-      [child("a")]: lines("A."),
-      [child("b")]: lines("B."),
-      [child("c")]: lines("C."),
-      [child("d")]: lines("D."),
-    });
-    s.edit(MAIN, "include includes/b.sd\ninclude includes/c.sd", "include includes/c.sd\ninclude includes/b.sd");
-    matchesCold(s.root, s.texts);
+describe("an edit to main's `run` lines", () => {
+  // What `root` shows, beside what a cold compile of the same texts shows. A
+  // `run` statement's call document is numbered by the compiler that compiles
+  // it (`_runSites`), so a cold compile names its flow otherwise, and only
+  // what the two run is compared.
+  const runsAsCold = (root: ProgramRoot, texts: Record<string, string>, luau: Record<string, string>) => {
+    const shown = storyRun(new ProgramStory(root)).beats.map((beat) => beat.text);
+    expect(shown).toEqual(shows(texts, [], luau).beats);
+    return shown;
+  };
+
+  // Each Luau file adds its letter to `log`.
+  const letters = Object.fromEntries(
+    ["a", "b", "c", "d"].map((name) => [
+      `file://proj/lib/${name}.luau`,
+      `log = log .. "${name.toUpperCase()}"\n`,
+    ]),
+  );
+
+  it("runs the files in their new order after main swaps two run lines in the middle", () => {
+    const s = session(
+      { [MAIN]: lines('store log = ""', "run a", "run b", "run c", "run d", "Main {log}.") },
+      letters,
+    );
     expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
-      "A.\n",
-      "C.\n",
-      "B.\n",
-      "D.\n",
-      "Main.\n",
+      "Main ABCD.\n",
     ]);
+    s.edit(MAIN, "run b\nrun c", "run c\nrun b");
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Main ACBD.\n"]);
   });
 
-  // Left for I-1390, which retargets it to run: main gaining and losing an included script's top-level content is now main gaining and losing a `run` line.
-  it.skip("matches a cold compile when the including script gains an include and loses it again", () => {
-    const s = session({
-      [MAIN]: lines("include includes/first.sd", "include includes/second.sd", "Main one."),
-      [FIRST]: lines("First one."),
-      [SECOND]: lines("scene T", "  In T.", "end"),
-      [INNER]: lines("Inner top."),
-    });
-    s.edit(MAIN, "include includes/second.sd", "include includes/second.sd\ninclude includes/inner.sd");
-    matchesCold(s.root, s.texts);
-    s.edit(MAIN, "\ninclude includes/inner.sd", "");
-    matchesCold(s.root, s.texts);
+  it("runs as a cold compile does when main gains a run line and loses it again", () => {
+    const s = session(
+      {
+        [MAIN]: lines('store log = ""', "run a", "run b", "Main {log}.", "-> T"),
+        [SECOND]: lines("scene T", "  In T.", "end"),
+      },
+      letters,
+    );
+    s.edit(MAIN, "run b", "run b\nrun c");
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Main ABC.\n", "In T.\n"]);
+    s.edit(MAIN, "\nrun c", "");
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Main AB.\n", "In T.\n"]);
   });
 });
 

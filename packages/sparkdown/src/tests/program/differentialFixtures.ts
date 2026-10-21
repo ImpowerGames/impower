@@ -32,7 +32,7 @@ const fixtureFiles = (dir: string, out: string[] = []): string[] => {
 /** The fixtures of the differential run, by name. */
 export const fixtures = (): [string, string][] => {
   const { files } = buildBeatsFixture({ lines: 300 });
-  const beats = files.get("main.sd")!.replace("include scripts/characters\n", "");
+  const beats = files.get("main.sd")!;
   return [
     ...fixtureFiles(FIXTURES).map(
       (file): [string, string] => [relative(FIXTURES, file).split(sep).join("/"), readFileSync(file, "utf8")],
