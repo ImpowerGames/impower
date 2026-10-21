@@ -510,12 +510,16 @@ export const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.ex
 // its branch's ticket's; one whose branch ticket is among them is that
 // ticket's only, so a sibling's PR that closes a Bug is seen from the
 // sibling's side; and one whose branch ticket is not among them belongs to
-// the tickets it closes, whatever its branch says.
-export const ownsPull = (p, n, split) => {
+// the tickets it closes, whatever its branch says. A PR with none that was
+// opened before ticket n was created (ticketCreated, its created_at) is a
+// pre-cutover PR whose old branch number collides with n, so it is no
+// ticket's; an unknown time on either side keeps the branch match.
+export const ownsPull = (p, n, split, ticketCreated = null) => {
   const refs = p.closingIssuesReferences ?? [], branch = branchTicket(p.headRefName);
   const closes = (k) => refs.some((r) => r.number === k);
   if (!split) return closes(n) || branch === n;
-  return refs.length === 0 ? branch === n : closes(n) && (branch === n || !closes(branch));
+  const predates = Boolean(ticketCreated && p.createdAt) && Date.parse(p.createdAt) < Date.parse(ticketCreated);
+  return refs.length === 0 ? branch === n && !predates : closes(n) && (branch === n || !closes(branch));
 };
 
 export function parseWorktrees(text) {
@@ -529,7 +533,7 @@ export function parseWorktrees(text) {
 export function githubClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 }) } = {}) {
   const { code, tickets, split, thread } = repositoriesOf(names);
   const pages = (args) => JSON.parse(run("gh", ["api", "--paginate", "--slurp", ...args])).flat();
-  const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit";
+  const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
   let account;
   // GitHub's head: qualifier matches a branch name's start, so a branch with a
   // prefix a claim allows (codex/fix/<N>-) is found by the second query, the
@@ -699,12 +703,16 @@ const plannedNodes = (nodes) => nodes.filter((t) => !t.container || t.truncated)
 // PR's closing references kept to the tickets repository (an unqualified
 // reference names it; a reference to another repository names nothing). The
 // client that reads PRs once tickets live apart already keeps only those, and
-// in one repository the code repository is the tickets repository.
+// in one repository the code repository is the tickets repository. Once
+// tickets live apart, a PR with no references on n's branch reads n's
+// creation time, once per ticket, to tell a pre-cutover PR from a fresh draft.
 const pullsFilter = (client, tickets = null, split = false) => {
-  const cache = new Map();
+  const cache = new Map(), created = new Map();
   const refsOf = (p) => (tickets === null ? (p.closingIssuesReferences ?? []).filter((r) => !r.repository?.name) : closingIn(p.closingIssuesReferences, tickets, tickets));
+  const createdOf = (n) => { if (!created.has(n)) created.set(n, client.issue?.(n)?.created_at ?? null); return created.get(n); };
+  const owns = (p, n) => ownsPull(p, n, split, split && p.closingIssuesReferences.length === 0 && branchTicket(p.headRefName) === n && p.createdAt ? createdOf(n) : null);
   return (n) => {
-    if (!cache.has(n)) cache.set(n, client.pulls(n).map((p) => ({ ...p, closingIssuesReferences: refsOf(p) })).filter((p) => ownsPull(p, n, split)));
+    if (!cache.has(n)) cache.set(n, client.pulls(n).map((p) => ({ ...p, closingIssuesReferences: refsOf(p) })).filter((p) => owns(p, n)));
     return cache.get(n);
   };
 };
