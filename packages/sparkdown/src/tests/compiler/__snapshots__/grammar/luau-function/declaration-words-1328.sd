@@ -22,7 +22,3 @@ function f()
   store(4)
   return define + store + const
 end
-define
-end
-define "Named" with
-end

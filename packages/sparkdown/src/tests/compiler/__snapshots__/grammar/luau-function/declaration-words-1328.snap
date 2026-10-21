@@ -1,4 +1,4 @@
-sparkdown [0..380]
+sparkdown [0..345]
  ├─ LuauSparkdownVariableDefinition [0..15]
  │   ├─ LuauSparkdownVariableDefinition_begin [0..6]
  │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 0
@@ -759,62 +759,4 @@ sparkdown [0..380]
  │       ├─ LuauFunctionDefinition_end_c2 [341..344]
  │       │   └─ LuauEndKeyword [341..344]: "end"
  │       └─ LuauFunctionDefinition_end_c3 344
- ├─ Newline [344..345]: "\n"
- ├─ LuauDefine [345..355]
- │   ├─ LuauDefine_begin [345..351]
- │   │   ├─ LuauDefine_begin_c1 345
- │   │   │   └─ OptionalWhitespace 345
- │   │   ├─ LuauDefine_begin_c2 [345..351]
- │   │   │   └─ LuauDefineKeyword [345..351]: "define"
- │   │   └─ LuauDefine_begin_c3 351
- │   │       └─ LuauDefine_begin_c3 351
- │   │           └─ OptionalWhitespace 351
- │   ├─ LuauDefine_content [351..352]
- │   │   └─ Newline [351..352]: "\n"
- │   └─ LuauDefine_end [352..355]
- │       ├─ LuauDefine_end_c1 352
- │       │   └─ LuauDefine_end_c1 352
- │       │       └─ OptionalWhitespace 352
- │       ├─ LuauDefine_end_c2 [352..355]
- │       │   └─ LuauEndKeyword [352..355]: "end"
- │       └─ LuauDefine_end_c3 355
- ├─ Newline [355..356]: "\n"
- ├─ LuauDefine [356..379]
- │   ├─ LuauDefine_begin [356..363]
- │   │   ├─ LuauDefine_begin_c1 356
- │   │   │   └─ OptionalWhitespace 356
- │   │   ├─ LuauDefine_begin_c2 [356..362]
- │   │   │   └─ LuauDefineKeyword [356..362]: "define"
- │   │   └─ LuauDefine_begin_c3 [362..363]
- │   │       └─ LuauDefine_begin_c3 [362..363]
- │   │           └─ OptionalWhitespace [362..363]: " "
- │   ├─ LuauDefine_content [363..376]
- │   │   ├─ LuauDoubleQuotedString [363..370]
- │   │   │   ├─ LuauDoubleQuotedString_begin [363..364]
- │   │   │   │   └─ LuauDoubleQuotedString_begin_c1 [363..364]
- │   │   │   │       └─ PunctuationStringDoubleQuoteOpen [363..364]: "\""
- │   │   │   ├─ LuauDoubleQuotedString_content [364..369]
- │   │   │   │   └─ Word [364..369]: "Named"
- │   │   │   └─ LuauDoubleQuotedString_end [369..370]
- │   │   │       ├─ LuauDoubleQuotedString_end_c1 [369..370]
- │   │   │       │   └─ PunctuationStringDoubleQuoteClose [369..370]: "\""
- │   │   │       └─ LuauDoubleQuotedString_end_c2 370
- │   │   ├─ ExtraWhitespace [370..371]: " "
- │   │   ├─ LuauAccessPath [371..375]
- │   │   │   ├─ LuauAccessPath_begin 371
- │   │   │   ├─ LuauAccessPath_content [371..375]
- │   │   │   │   └─ LuauAccessPart [371..375]
- │   │   │   │       └─ LuauVariable [371..375]
- │   │   │   │           └─ LuauVariable_c1 [371..375]
- │   │   │   │               └─ LuauVariableName [371..375]: "with"
- │   │   │   └─ LuauAccessPath_end 375
- │   │   │       └─ LuauAccessPath_end_c1 375
- │   │   └─ Newline [375..376]: "\n"
- │   └─ LuauDefine_end [376..379]
- │       ├─ LuauDefine_end_c1 376
- │       │   └─ LuauDefine_end_c1 376
- │       │       └─ OptionalWhitespace 376
- │       ├─ LuauDefine_end_c2 [376..379]
- │       │   └─ LuauEndKeyword [376..379]: "end"
- │       └─ LuauDefine_end_c3 379
- └─ Newline [379..380]: "\n"
+ └─ Newline [344..345]: "\n"

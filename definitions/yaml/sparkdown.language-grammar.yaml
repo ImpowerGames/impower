@@ -805,12 +805,8 @@ variables:
   # unless a reserved word begins there.
   LUAU_STRUCTURE_NAME: (?:(?!{{LUAU_KEYWORD}})[a-zA-Z0-9_])
   # After a declaration's word (`define`, `store`, `const`), the name it
-  # declares, as a structural keyword's block opens only before its name;
-  # or a block comment that closes on a later line (`store --[[ note`, then
-  # `]] tally = 2`), which hides the name from any lookahead (GRAMMAR.md
-  # §11.5), so the word begins its declaration there, as it did before the
-  # name was required (#1328). A value followed by such a comment
-  # (`return store --[[`, then `]]`) is read as a declaration: the cost.
+  # declares, as a structural keyword's block opens only before its name
+  # (#1328).
   # lookaround: the declaration's own rules read the name
   # (`LuauDefineNameAndInheritance`, `LuauVariableAssignment`), and without
   # one `LuauAccessPath` reads the word as a name. The rival rules cannot be
@@ -818,28 +814,49 @@ variables:
   # declaration's word as a name, and a declaration tried first commits at
   # its begin, which no parent `end:` can undo, so the begin must see the
   # name. Only the token after the word decides, never a scan of the line.
-  LUAU_DECLARATION_NAME_AHEAD: (?={{WS}}*(?:{{LUAU_STRUCTURE_NAME_AHEAD}}|{{LUAU_HEADER_COMMENTS}}?{{LUAU_LINE_SPANNING_BLOCK_COMMENT_START}}))
+  LUAU_DECLARATION_NAME_AHEAD: (?={{WS}}*{{LUAU_STRUCTURE_NAME_AHEAD}})
+  # Where a declaration's word begins its line and a block comment that
+  # closes on a later line follows it (`store --[[ note`, then
+  # `]] tally = 2`): the comment hides the token after it from any
+  # lookahead (GRAMMAR.md §11.5), so the word begins its declaration there,
+  # as it did before the name was required. Later on a line the word is a
+  # name (`return define --[[ note`, `local store --[[ note`). The cost: a
+  # name that begins its line before such a comment (`store --[[ c`, then
+  # `]] = 3`) is read as a declaration.
+  # lookaround: as for `LUAU_DECLARATION_NAME_AHEAD`; `LuauComment` reads
+  # the comment.
+  LUAU_DECLARATION_COMMENT_AHEAD: (?:{{LUAU_WORD_BEGINS_LINE}}(?={{WS}}*{{LUAU_HEADER_COMMENTS}}?{{LUAU_LINE_SPANNING_BLOCK_COMMENT_START}}))
+  # Right after a word that begins its line.
+  # lookaround: the word's own rule (`LuauDefine`, `LuauVariableDefinition`)
+  # has read it; a word later on its line is left to `LuauAccessPath`.
+  LUAU_WORD_BEGINS_LINE: (?<=^{{WS}}*[a-z]+)
   # The start of a block comment that does not close on its line.
   # lookaround: `LuauComment` reads the comment, here or where it closes.
   LUAU_LINE_SPANNING_BLOCK_COMMENT_START: (?:(?!{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}){{LUAU_COMMENT_START}}\[=*\[)
-  # Where `define` begins its line, it opens a define unless a token that
-  # carries a name on follows it (`LUAU_EXPRESSION_GOES_ON`, a call's `(` or
-  # an index's `[`; `define = 1`, `define()`, `define.x = 1`): a define
-  # written without its name or with one it cannot read (`define`,
+  # Where `define` begins a line at column 0, the top level's own column,
+  # it opens a define unless a token that carries a name on follows it
+  # (`LUAU_EXPRESSION_GOES_ON`, a call's `(` or an index's `[`;
+  # `define = 1`, `define()`, `define.x = 1`): a top-level define written
+  # without its name or with one it cannot read (`define`,
   # `define "hero" with`) is still a define, whose validation reports the
-  # name, as a line-start alternator word opens before a line end
-  # (`LUAU_ALTERNATOR_LINE_START_AHEAD`).
+  # name. An indented `define` is a function body's, where Luau reads it
+  # as a name before anything but a name (`define "abc"`, `define {n = 3}`,
+  # `return` then `define`). The cost: an unindented function body line
+  # `define "abc"` opens a define.
   # lookaround: before such a token `LuauAccessPath` reads the word as a
   # name; reordering cannot decide it, for the reasons
   # `LUAU_DECLARATION_NAME_AHEAD` gives.
-  LUAU_DEFINE_LINE_START_AHEAD: (?<=^{{WS}}*define)(?!{{WS}}*(?:{{LUAU_EXPRESSION_GOES_ON}}|[(\[]))
+  LUAU_DEFINE_COLUMN_0_AHEAD: (?<=^define)(?!{{WS}}*(?:{{LUAU_EXPRESSION_GOES_ON}}|[(\[]))
+  # Where `define` opens a define.
+  LUAU_DEFINE_AHEAD: (?:{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_DECLARATION_COMMENT_AHEAD}}|{{LUAU_DEFINE_COLUMN_0_AHEAD}})
   # Where `store` or `const` begins a declaration in Luau code: before its
-  # first name, or before `function`. Anywhere else the word is a name, as
-  # Luau reads it (`local store = 1`, `return const`, `local a, store = 1, 2`,
+  # first name, before a comment spanning lines where it begins its line,
+  # or before `function`. Anywhere else the word is a name, as Luau reads it
+  # (`local store = 1`, `return const`, `local a, store = 1, 2`,
   # `{store = 4}`, #1328). `local` is Luau's keyword and always begins one.
   # lookaround: without a name after it `LuauAccessPath` reads the word as a
   # name.
-  LUAU_DECLARATION_WORD_AHEAD: (?:{{LUAU_DECLARATION_NAME_AHEAD}}|(?={{WS}}*function\b))
+  LUAU_DECLARATION_WORD_AHEAD: (?:{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_DECLARATION_COMMENT_AHEAD}}|(?={{WS}}*function\b))
   # `store` or `const` where it begins a declaration.
   LUAU_NAMED_DECLARATION_WORD: (?:(?:store|const)\b{{LUAU_DECLARATION_WORD_AHEAD}})
   # The word that begins a declaration in Luau code (`LuauVariableDefinition`).
@@ -4976,15 +4993,16 @@ repository:
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
 
-  # A define opens before its name, as a structural keyword's block does
-  # (`LUAU_DECLARATION_NAME_AHEAD`), or where `define` begins its line
-  # (`LUAU_DEFINE_LINE_START_AHEAD`). Anywhere else `define` is a name, as
-  # Luau reads it (`return define`, `define()`, `{define = 4}`), and the
-  # `end` after it is its block's (#1328).
+  # A define opens before its name, as a structural keyword's block does,
+  # before a comment spanning lines where `define` begins its line, and
+  # where `define` begins a line at column 0 (`LUAU_DEFINE_AHEAD`).
+  # Anywhere else `define` is a name, as Luau reads it (`return define`,
+  # `define()`, `{define = 4}`), and the `end` after it is its block's
+  # (#1328).
   LuauDefine:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(define)\b(?:{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_DEFINE_LINE_START_AHEAD}})({{WS}}*)
+    begin: ({{WS}}*)(define)\b{{LUAU_DEFINE_AHEAD}}({{WS}}*)
     beginCaptures:
       1:
         patterns:

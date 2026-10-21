@@ -158,8 +158,45 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(text).toBe("Go 3 5.\n");
   });
 
+  // Before anything but a name, the word is a name wherever it stands in a
+  // function: before a string or a table (call sugar), before a comment and
+  // a call, on the line after `return`, and before a comment spanning lines
+  // where it does not begin its line.
+  test.each(STRUCTURAL_WORDS)("`%s` as a name before a string, a table or a comment", (word) => {
+    const source = [
+      "Go {f()} {g()} {h()} {k()}.",
+      "function f()",
+      "  local n = 0",
+      `  local function ${word}(x) n = n + #x end`,
+      `  ${word} "abc"`,
+      `  ${word} {1, 2}`,
+      `  ${word} --[[ note ]] ("de")`,
+      "  return n",
+      "end",
+      "function g()",
+      `  local ${word} = 3`,
+      "  return",
+      `    ${word}`,
+      "end",
+      "function h()",
+      `  local ${word} = 4`,
+      `  return ${word} --[[ note`,
+      "  ]]",
+      "end",
+      "function k()",
+      `  local ${word} --[[ note`,
+      "  ]] = 5",
+      `  return ${word}`,
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({ errorMessages: [], warningMessages: [] });
+    expect(run(source)).toEqual({ errors: [], text: "Go 7 3 4 5.\n" });
+  });
+
   // A block comment that closes on a later line hides the name from the
-  // grammar's lookahead, so the word still begins its declaration there.
+  // grammar's lookahead, so a word that begins its line still begins its
+  // declaration there.
   test("a store and a const whose name follows a comment spanning lines", () => {
     const source = [
       "function f()",

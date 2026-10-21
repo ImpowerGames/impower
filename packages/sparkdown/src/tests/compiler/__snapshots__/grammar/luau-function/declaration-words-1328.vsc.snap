@@ -1,4 +1,4 @@
-text.source.sparkdown [0..380]
+text.source.sparkdown [0..345]
  ├─ storage.modifier.scope.luau [0..5]: "store"
  ├─ punctuation.whitespace.optional.sd [5..6]: " "
  ├─ variable.other.readwrite.luau [6..11]: "count"
@@ -234,23 +234,4 @@ text.source.sparkdown [0..380]
  ├─ Newline [340..341]: "\n"
  ├─ meta.function.luau [341..344]
  │   └─ keyword.control.end.luau [341..344]: "end"
- ├─ Newline [344..345]: "\n"
- ├─ meta.function.luau [345..351]
- │   └─ keyword.control.define.luau [345..351]: "define"
- ├─ Newline [351..352]: "\n"
- ├─ meta.function.luau [352..355]
- │   └─ keyword.control.end.luau [352..355]: "end"
- ├─ Newline [355..356]: "\n"
- ├─ meta.function.luau [356..375]
- │   ├─ keyword.control.define.luau [356..362]: "define"
- │   ├─ punctuation.whitespace.optional.sd [362..363]: " "
- │   ├─ string.quoted.double.luau [363..370]
- │   │   ├─ punctuation.definition.string.double.begin.sd [363..364]: "\""
- │   │   ├─ markup.raw.text.sd [364..369]: "Named"
- │   │   └─ punctuation.definition.string.double.end.sd [369..370]: "\""
- │   ├─ punctuation.whitespace.extra.sd [370..371]: " "
- │   └─ variable.other.readwrite.luau [371..375]: "with"
- ├─ Newline [375..376]: "\n"
- ├─ meta.function.luau [376..379]
- │   └─ keyword.control.end.luau [376..379]: "end"
- └─ Newline [379..380]: "\n"
+ └─ Newline [344..345]: "\n"
