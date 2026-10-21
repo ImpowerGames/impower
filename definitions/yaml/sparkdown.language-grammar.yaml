@@ -115,6 +115,13 @@ variables:
   # before its parts, so its own keyword accessor never meets these two.
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which is no method's `:`; the variable is read only inside the `end:` lookaheads of the path and of an operation (GRAMMAR.md §10.1, the end carrying the load).
   LUAU_COLON_BEFORE_HEADER_END: (?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})
+  # A `:` that a reserved word no type can begin follows on its line, with
+  # no name between (`t :: T:do`, `local x: T:end`). Luau's type ends before
+  # the `:`, and the word is the name of a method called on the value before
+  # it, in error, so a type ends there and the expression around it reads
+  # the `:` and the word (`LuauExpressionKeywordMethodAccessor`, I-1351).
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which is no method's `:`; the variable is read only inside a type's `end:` lookahead and an accessor's begin lookahead (GRAMMAR.md §10.1, the end carrying the load).
+  LUAU_COLON_BEFORE_RESERVED_WORD: (?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_NON_TYPE_KEYWORDS}})
   # A bracket also ends before a bracket closer it did not open, as Luau's
   # expression parser stops at it and reports the bracket left open
   # (`{ f(1 }` closes the call before the `}`, which the table takes):
@@ -11495,7 +11502,11 @@ repository:
     # followed by `then` or `do` at this level only follows a completed arm,
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
     # Right after `elseif`, a `then` is that clause's own, with its condition
-    # missing (`elseif then 2`).
+    # missing (`elseif then 2`). It also ends before a `:` that `do` or
+    # `then` follows after its last arm (`while if t then a else b:do`,
+    # `LUAU_COLON_BEFORE_HEADER_END`), as the access path does, so the
+    # condition around it reads the `:` before its own keyword, and an
+    # expression reads the word as a method's name (I-1351).
     #
     # lookaround: a `then` glued to its condition is taken by the condition,
     # so at a line end right after it no then arm is open yet, and the end,
@@ -11510,7 +11521,7 @@ repository:
     # It also ends before an `end` or `until` after its last arm, which
     # closes the block around it (`return if a then 2 else 3 end`), as its
     # `LuauSparkdownExplicitTernaryExpression` twin does.
-    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -11612,10 +11623,12 @@ repository:
     # otherwise leave the scope to be force-closed by the outer
     # interpolation / paren / index rule. The glued alternative closes the
     # arm before the `then` or `do` of the statement whose condition it
-    # ends (see `LuauTernaryExpression`'s `end`). After an `else` that ends
-    # its line, a next line that begins a statement ends the arm empty, and
-    # so does a reassignment at column 0 (`else` then `y = 6`), which the
-    # reassignment around the expression then ends before.
+    # ends (see `LuauTernaryExpression`'s `end`), and so does a `:` that one
+    # of them follows (`else b:do`, `LUAU_COLON_BEFORE_HEADER_END`). After an
+    # `else` that ends its line, a next line that begins a statement ends
+    # the arm empty, and so does a reassignment at column 0 (`else` then
+    # `y = 6`), which the reassignment around the expression then ends
+    # before.
     #
     # lookaround: the `(?!…)` in the column-0 reassignment end leaves a
     # clause keyword to `LuauElseOperator` and `LuauTernaryExpression`.
@@ -11627,7 +11640,7 @@ repository:
     # help, since the end is tried before them; the parent's end cannot carry
     # the boundary while this arm is open; and the begin cannot take the
     # keyword, which `LuauElseOperator` reads with the line break after it.
-    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
+    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)
@@ -12498,9 +12511,19 @@ repository:
   # and after a value in brackets (`(t):do()`). The word opens no block, so
   # the function keeps its own `end`. The spaces and block comments between
   # the `:` and the word, and the word, are read inside the rule, which ends
-  # right after the word. It takes only these two words: after a `for`
-  # loop's variable the `:` is its type's (`for k: in t`), which this rule
-  # cannot tell from a method's, and the other words never leave a path.
+  # right after the word.
+  #
+  # After a value no access path holds, it also takes every other reserved
+  # word no type can begin (I-1344): a bracketed receiver (`(t):end`,
+  # `f():function`, `(t)[1]:end`), a type that ends before the `:`
+  # (`t :: T:end`, `LUAU_COLON_BEFORE_RESERVED_WORD`), or any other value
+  # Luau reads a method's `:` after, in error (`1:end`). The value's last
+  # character is one a type can end with (`LUAU_TYPE_END`), which a
+  # bracket's, a name's, a string's and a table's last character is. A
+  # `for` loop's variable is excluded, since there the `:` is its type's
+  # (`for k: in t`, `LUAU_SHARED_FOR_BINDING_BEHIND`); `do` and `then` keep
+  # the first alternative there, as before. `nil`, `true` and `false` are
+  # types, so a type annotation reads them as it did.
   #
   # lookaround: the begin's lookahead is what tells this `:` from the rivals
   # that begin at the same character (`LuauTypeAnnotationOperation`,
@@ -12520,9 +12543,12 @@ repository:
   # the end is zero-width right after it: a lowercase letter stands before
   # only the keyword's end, since the trivia ends in a space, a `]` or the
   # `:`. The `$` is the end's bail-out, which the begin's lookahead never
-  # leaves it to need.
+  # leaves it to need. The begin's lookbehinds name the value before the
+  # `:`, which no rule that reads the `:` can know: the receiver is a
+  # sibling the expression read before it, and the type that ended before
+  # the `:` cannot read it either, since a type's `:` is no method's.
   LuauExpressionKeywordMethodAccessor:
-    begin: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})
+    begin: (?:(?={{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?!{{LUAU_SHARED_FOR_BINDING_BEHIND}})(?={{WS}}*{{LUAU_COLON_BEFORE_RESERVED_WORD}}))({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_KEYWORD}})
     beginCaptures:
       1:
         patterns:
@@ -14217,7 +14243,10 @@ repository:
     # shared value-operator variable would break ordinary expressions.
     # Excluding `::` prevents closing before the cast operator is consumed;
     # `<` belongs to LuauTypeGenerics and `->` to LuauTypeBinaryOperation.
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # It ends where its type does before a `:` and a reserved word
+    # (`t :: T:do`, `LUAU_COLON_BEFORE_RESERVED_WORD`), so the expression
+    # reads them as a method access (I-1351).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
 
   LuauTypeCastOperator:
     begin: ({{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
@@ -14572,8 +14601,11 @@ repository:
   # opener leaves the name opener needing the same exclusion, and a
   # type-name variable used only here would hold the lookahead without
   # replacing it.
+  # A `:` that a reserved word no type can begin follows begins no type
+  # either: the type ends before one (`LUAU_COLON_BEFORE_RESERVED_WORD`), so
+  # a type opened there would end where it began, again and again.
   LuauTypeLiteral:
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_NAME_OR_CONSTANT}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:]|[.][.][.])"
+    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_NAME_OR_CONSTANT}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|(?!{{LUAU_COLON_BEFORE_RESERVED_WORD}})[:]|[.][.][.])"
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -14612,7 +14644,10 @@ repository:
     # this type's own end must return it to LuauArithmeticOperation.
     # Tightening the shared value-operator variable would change values;
     # `<`, `->`, `::` and comments retain their existing type rules.
-    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # A complete type also ends before a `:` that a reserved word no type
+    # can begin follows (`t :: T:do`, `LUAU_COLON_BEFORE_RESERVED_WORD`),
+    # which the expression around it reads as a method's (I-1351).
+    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
 
   # A block comment right after a type that closes on a later line
   # (`local w: number --[[a` then `b]] print(1)`). No pattern on the
