@@ -73,15 +73,19 @@ sparkdown [0..439]
  │   │       │   │   │       └─ LuauReturnStatement_begin_c3 [39..40]
  │   │       │   │   │           └─ OptionalWhitespace [39..40]: " "
  │   │       │   │   ├─ LuauReturnStatement_content [40..45]
- │   │       │   │   │   └─ LuauAccessPath [40..45]
- │   │       │   │   │       ├─ LuauAccessPath_begin 40
- │   │       │   │   │       ├─ LuauAccessPath_content [40..45]
- │   │       │   │   │       │   └─ LuauAccessPart [40..45]
- │   │       │   │   │       │       └─ LuauVariable [40..45]
- │   │       │   │   │       │           └─ LuauVariable_c1 [40..45]
- │   │       │   │   │       │               └─ LuauVariableName [40..45]: "store"
- │   │       │   │   │       └─ LuauAccessPath_end 45
- │   │       │   │   │           └─ LuauAccessPath_end_c1 45
+ │   │       │   │   │   └─ LuauDeclarationWordAsName [40..45]
+ │   │       │   │   │       ├─ LuauDeclarationWordAsName_c1 40
+ │   │       │   │   │       │   └─ OptionalWhitespace 40
+ │   │       │   │   │       └─ LuauDeclarationWordAsName_c2 [40..45]
+ │   │       │   │   │           └─ LuauAccessPath [40..45]
+ │   │       │   │   │               ├─ LuauAccessPath_begin 40
+ │   │       │   │   │               ├─ LuauAccessPath_content [40..45]
+ │   │       │   │   │               │   └─ LuauAccessPart [40..45]
+ │   │       │   │   │               │       └─ LuauVariable [40..45]
+ │   │       │   │   │               │           └─ LuauVariable_c1 [40..45]
+ │   │       │   │   │               │               └─ LuauVariableName [40..45]: "store"
+ │   │       │   │   │               └─ LuauAccessPath_end 45
+ │   │       │   │   │                   └─ LuauAccessPath_end_c1 45
  │   │       │   │   └─ LuauReturnStatement_end 45
  │   │       │   └─ Newline [45..46]: "\n"
  │   │       └─ LuauFunctionBody_end 46
@@ -131,15 +135,19 @@ sparkdown [0..439]
  │   │       │   │   │       └─ LuauReturnStatement_begin_c3 [76..77]
  │   │       │   │   │           └─ OptionalWhitespace [76..77]: " "
  │   │       │   │   ├─ LuauReturnStatement_content [77..82]
- │   │       │   │   │   └─ LuauAccessPath [77..82]
- │   │       │   │   │       ├─ LuauAccessPath_begin 77
- │   │       │   │   │       ├─ LuauAccessPath_content [77..82]
- │   │       │   │   │       │   └─ LuauAccessPart [77..82]
- │   │       │   │   │       │       └─ LuauVariable [77..82]
- │   │       │   │   │       │           └─ LuauVariable_c1 [77..82]
- │   │       │   │   │       │               └─ LuauVariableName [77..82]: "store"
- │   │       │   │   │       └─ LuauAccessPath_end 82
- │   │       │   │   │           └─ LuauAccessPath_end_c1 82
+ │   │       │   │   │   └─ LuauDeclarationWordAsName [77..82]
+ │   │       │   │   │       ├─ LuauDeclarationWordAsName_c1 77
+ │   │       │   │   │       │   └─ OptionalWhitespace 77
+ │   │       │   │   │       └─ LuauDeclarationWordAsName_c2 [77..82]
+ │   │       │   │   │           └─ LuauAccessPath [77..82]
+ │   │       │   │   │               ├─ LuauAccessPath_begin 77
+ │   │       │   │   │               ├─ LuauAccessPath_content [77..82]
+ │   │       │   │   │               │   └─ LuauAccessPart [77..82]
+ │   │       │   │   │               │       └─ LuauVariable [77..82]
+ │   │       │   │   │               │           └─ LuauVariable_c1 [77..82]
+ │   │       │   │   │               │               └─ LuauVariableName [77..82]: "store"
+ │   │       │   │   │               └─ LuauAccessPath_end 82
+ │   │       │   │   │                   └─ LuauAccessPath_end_c1 82
  │   │       │   │   └─ LuauReturnStatement_end 82
  │   │       │   └─ Newline [82..83]: "\n"
  │   │       └─ LuauFunctionBody_end 83
@@ -450,15 +458,19 @@ sparkdown [0..439]
  │   │       │   │   │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [232..233]
  │   │       │   │   │       │   │   │           └─ OptionalWhitespace [232..233]: " "
  │   │       │   │   │       │   │   └─ LuauArithmeticOperator_end 233
- │   │       │   │   │       │   └─ LuauAccessPath [233..238]
- │   │       │   │   │       │       ├─ LuauAccessPath_begin 233
- │   │       │   │   │       │       ├─ LuauAccessPath_content [233..238]
- │   │       │   │   │       │       │   └─ LuauAccessPart [233..238]
- │   │       │   │   │       │       │       └─ LuauVariable [233..238]
- │   │       │   │   │       │       │           └─ LuauVariable_c1 [233..238]
- │   │       │   │   │       │       │               └─ LuauVariableName [233..238]: "store"
- │   │       │   │   │       │       └─ LuauAccessPath_end 238
- │   │       │   │   │       │           └─ LuauAccessPath_end_c1 238
+ │   │       │   │   │       │   └─ LuauDeclarationWordAsName [233..238]
+ │   │       │   │   │       │       ├─ LuauDeclarationWordAsName_c1 233
+ │   │       │   │   │       │       │   └─ OptionalWhitespace 233
+ │   │       │   │   │       │       └─ LuauDeclarationWordAsName_c2 [233..238]
+ │   │       │   │   │       │           └─ LuauAccessPath [233..238]
+ │   │       │   │   │       │               ├─ LuauAccessPath_begin 233
+ │   │       │   │   │       │               ├─ LuauAccessPath_content [233..238]
+ │   │       │   │   │       │               │   └─ LuauAccessPart [233..238]
+ │   │       │   │   │       │               │       └─ LuauVariable [233..238]
+ │   │       │   │   │       │               │           └─ LuauVariable_c1 [233..238]
+ │   │       │   │   │       │               │               └─ LuauVariableName [233..238]: "store"
+ │   │       │   │   │       │               └─ LuauAccessPath_end 238
+ │   │       │   │   │       │                   └─ LuauAccessPath_end_c1 238
  │   │       │   │   │       └─ LuauArithmeticOperation_end 238
  │   │       │   │   └─ LuauReturnStatement_end 238
  │   │       │   └─ Newline [238..239]: "\n"
@@ -653,15 +665,19 @@ sparkdown [0..439]
  │   │       │   │   │       │   │   │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [311..312]
  │   │       │   │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [311..312]: " "
  │   │       │   │   │       │   │   │       │       │   │   └─ LuauArithmeticOperator_end 312
- │   │       │   │   │       │   │   │       │       │   └─ LuauAccessPath [312..317]
- │   │       │   │   │       │   │   │       │       │       ├─ LuauAccessPath_begin 312
- │   │       │   │   │       │   │   │       │       │       ├─ LuauAccessPath_content [312..317]
- │   │       │   │   │       │   │   │       │       │       │   └─ LuauAccessPart [312..317]
- │   │       │   │   │       │   │   │       │       │       │       └─ LuauVariable [312..317]
- │   │       │   │   │       │   │   │       │       │       │           └─ LuauVariable_c1 [312..317]
- │   │       │   │   │       │   │   │       │       │       │               └─ LuauVariableName [312..317]: "store"
- │   │       │   │   │       │   │   │       │       │       └─ LuauAccessPath_end 317
- │   │       │   │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 317
+ │   │       │   │   │       │   │   │       │       │   └─ LuauDeclarationWordAsName [312..317]
+ │   │       │   │   │       │   │   │       │       │       ├─ LuauDeclarationWordAsName_c1 312
+ │   │       │   │   │       │   │   │       │       │       │   └─ OptionalWhitespace 312
+ │   │       │   │   │       │   │   │       │       │       └─ LuauDeclarationWordAsName_c2 [312..317]
+ │   │       │   │   │       │   │   │       │       │           └─ LuauAccessPath [312..317]
+ │   │       │   │   │       │   │   │       │       │               ├─ LuauAccessPath_begin 312
+ │   │       │   │   │       │   │   │       │       │               ├─ LuauAccessPath_content [312..317]
+ │   │       │   │   │       │   │   │       │       │               │   └─ LuauAccessPart [312..317]
+ │   │       │   │   │       │   │   │       │       │               │       └─ LuauVariable [312..317]
+ │   │       │   │   │       │   │   │       │       │               │           └─ LuauVariable_c1 [312..317]
+ │   │       │   │   │       │   │   │       │       │               │               └─ LuauVariableName [312..317]: "store"
+ │   │       │   │   │       │   │   │       │       │               └─ LuauAccessPath_end 317
+ │   │       │   │   │       │   │   │       │       │                   └─ LuauAccessPath_end_c1 317
  │   │       │   │   │       │   │   │       │       └─ LuauArithmeticOperation_end 317
  │   │       │   │   │       │   │   │       └─ LuauAssignmentOperation_end 317
  │   │       │   │   │       │   │   └─ LuauReassignment_end 317

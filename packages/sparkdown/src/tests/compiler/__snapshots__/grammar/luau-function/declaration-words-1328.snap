@@ -747,7 +747,13 @@ sparkdown [0..345]
  │   │       │   │   │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [334..335]
  │   │       │   │   │       │   │   │           └─ OptionalWhitespace [334..335]: " "
  │   │       │   │   │       │   │   └─ LuauArithmeticOperator_end 335
- │   │       │   │   │       │   └─ LuauConstKeyword [335..340]: "const"
+ │   │       │   │   │       │   └─ LuauDeclarationWordAsName [335..340]
+ │   │       │   │   │       │       ├─ LuauDeclarationWordAsName_c1 335
+ │   │       │   │   │       │       │   └─ OptionalWhitespace 335
+ │   │       │   │   │       │       └─ LuauDeclarationWordAsName_c2 [335..340]
+ │   │       │   │   │       │           └─ LuauVariable [335..340]
+ │   │       │   │   │       │               └─ LuauVariable_c1 [335..340]
+ │   │       │   │   │       │                   └─ LuauVariableName [335..340]: "const"
  │   │       │   │   │       └─ LuauArithmeticOperation_end 340
  │   │       │   │   └─ LuauReturnStatement_end 340
  │   │       │   └─ Newline [340..341]: "\n"

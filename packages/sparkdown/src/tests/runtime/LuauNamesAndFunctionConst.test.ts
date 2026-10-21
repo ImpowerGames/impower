@@ -276,6 +276,43 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 3.\n" });
   });
 
+  // A store or const whose name follows on the next line, after the line's
+  // end or a line comment, still declares it.
+  test.each([
+    ["store", ""],
+    ["store", " -- note"],
+    ["const", ""],
+    ["const", " -- note"],
+  ])("a `%s` whose name follows on the next line%s", (word, trailing) => {
+    const source = `function f()\n  ${word}${trailing}\n    tally = 2\n  return tally\nend\nGo {f()}.\n`;
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 2.\n" });
+  });
+
+  // A define opens in a function only before its name, so before a comment
+  // spanning lines it is the name, here an assignment's target and a
+  // table's, and the function keeps its `end`.
+  test("`define` assigned after a comment spanning lines", () => {
+    const source = [
+      "Go {f()} {g()}.",
+      "function f()",
+      "  local define = 1",
+      "  define --[[ note",
+      "  ]] = 3",
+      "  return define",
+      "end",
+      "function g()",
+      "  local define = {x = 1}",
+      "  define --[[ note",
+      "  ]] .x = 4",
+      "  return define.x",
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3 4.\n" });
+  });
+
   // Where an expression goes on, on a later line, the word before a comment
   // spanning lines is its value or a list's next name, as Luau reads it.
   test.each(["const", ...STRUCTURAL_WORDS])("`%s` continuing an expression before a comment spanning lines", (word) => {

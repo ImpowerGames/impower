@@ -230,7 +230,7 @@ text.source.sparkdown [0..345]
  │           ├─ punctuation.whitespace.optional.sd [332..333]: " "
  │           ├─ keyword.operator.arithmetic.luau [333..334]: "+"
  │           ├─ punctuation.whitespace.optional.sd [334..335]: " "
- │           └─ storage.modifier.const.luau [335..340]: "const"
+ │           └─ variable.other.readwrite.luau [335..340]: "const"
  ├─ Newline [340..341]: "\n"
  ├─ meta.function.luau [341..344]
  │   └─ keyword.control.end.luau [341..344]: "end"
