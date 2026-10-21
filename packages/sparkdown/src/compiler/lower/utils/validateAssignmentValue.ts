@@ -14,7 +14,7 @@ import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { checkerReadsOnTo, luauReadingReportsAllAt, readingCarriesOnTo } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, loweredLuauBodyOf, luauReadingReportsAllAt, readingCarriesOnTo } from "../../typecheck/LuauUnitNodes";
 import { AstExprBinary, AstExprCall, AstExprError, AstExprIndexExpr, AstExprIndexName, AstExprUnary } from "../../typecheck/Ast";
 import { isLuauNameAt, luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
@@ -177,12 +177,7 @@ function siblingAssignmentOperation(node: SyntaxNode): SyntaxNode | null {
  */
 function luauReadingReportsUnread(node: SyntaxNode, offset: number, read: (from: number, to: number) => string): boolean {
   if (!isUnreadTokenAt(node, offset)) return false;
-  if (checkerReadsOnTo(node, offset, read)) return true;
-  for (let parent = node.parent; parent; parent = parent.parent) {
-    if (parent.name === "LuauMethodDefinition_content" || parent.name === "LuauSparkleHandlerClosure_content") return true;
-    if (parent.name === "LuauFunctionDefinition" && parent.parent?.name === "LuauDefine_content") return true;
-  }
-  return false;
+  return checkerReadsOnTo(node, offset, read) || loweredLuauBodyOf(node) !== null;
 }
 
 export function validateAssignmentValue(

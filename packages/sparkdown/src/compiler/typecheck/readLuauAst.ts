@@ -135,10 +135,11 @@ import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 /**
  * A syntax error the reading found, located in the document. The type
  * checker reports every one of a unit's errors but those at Sparkdown's own
- * tokens (`sparkdown`), in Luau's words at Luau's range (I-1322); the other
- * flags say which of them a lowerer reports for a body the checker does not
- * read (`reportBodySyntaxErrors`), and which statements the validator leaves
- * to the reading (`unreadStatements`).
+ * tokens (`sparkdown`), in Luau's words at Luau's range (I-1322), as a
+ * lowerer reports them for a body the checker does not read
+ * (`reportBodySyntaxErrors`, I-1368); the other flags say which of them are
+ * reported in a story statement's Luau, which ends at its line, and which
+ * statements the validator leaves to the reading (`unreadStatements`).
  */
 export interface LuauSyntaxError {
   location: Location;
