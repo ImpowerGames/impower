@@ -22,7 +22,7 @@ This was called when an InkObject was compiled into a runtime object, to record 
 
 ## Compiler Changes:
 
-### 1. The keywords `var` `const` `list` `external` and `include` can be lowercase
+### 1. The keywords `var` `const` `list` and `external` can be lowercase
 
 This helps keep our keyword naming convention consistent across the entire syntax.
 

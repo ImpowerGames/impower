@@ -2,7 +2,7 @@ import { ParsedObject } from "./Object";
 import { Story } from "./Story";
 
 export class IncludedFile extends ParsedObject {
-  constructor(public readonly includedStory: Story | null) {
+  constructor(public readonly includedStory: Story) {
     super();
   }
 
