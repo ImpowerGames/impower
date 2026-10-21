@@ -408,6 +408,16 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     owner: string | undefined,
   ) {
     const last = this._lastPublishedDiagnostics.get(uri);
+    // An open `.luau` document's own compile owns its diagnostics
+    // (`publishLuauDocument`): no other publisher replaces them while an
+    // editor has it open, though a story that runs it reports under its uri.
+    if (
+      last?.owner === LUAU_DOCUMENT_OWNER &&
+      owner !== LUAU_DOCUMENT_OWNER &&
+      this.textDocumentIsOpen(uri)
+    ) {
+      return;
+    }
     const version = this._documentVersions.get(uri);
     const fingerprint = JSON.stringify(diagnostics);
     this._lastPublishedDiagnostics.set(uri, { fingerprint, version, diagnostics, owner });
@@ -449,7 +459,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ]);
     this._runtimeDiagnostics = { params, files: this._fileChanges };
     for (const uri of uris) {
-      const owner = this._lastPublishedDiagnostics.get(uri)?.owner;
+      // An open `.luau` document's own compile is no story entry: the run's
+      // report is published as its story's, which leaves the document's own
+      // diagnostics in place while it stays open (`publishDiagnostics`).
+      const published = this._lastPublishedDiagnostics.get(uri)?.owner;
+      const owner = published === LUAU_DOCUMENT_OWNER ? undefined : published;
       const entryUri = [
         params.program.uri,
         owner,
@@ -573,11 +587,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ]);
     for (const uri of uris) {
       const last = this._lastPublishedDiagnostics.get(uri);
-      // An open `.luau` document's own compile owns its diagnostics, which a
-      // story that runs it also reports under its uri.
-      if (last?.owner === LUAU_DOCUMENT_OWNER && this.textDocumentIsOpen(uri)) {
-        continue;
-      }
       // An unrelated entry point must not clear another program's assets.
       // An explicit asset result transfers ownership even if it is unchanged.
       if (
@@ -725,6 +734,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     // would also replace the last script URI used by subsequent file updates.
     if (!this.isScriptDocument(uri)) {
       const mainUri = this.getMainScriptUri(uri);
+      // A `.luau` file is no entry, but an edit to it changes the story that
+      // runs it, which compiles again; the file's own diagnostics, while an
+      // editor has it open, are its own compile's (`publishLuauDocument`).
+      if (mainUri && isLuauFile(uri)) {
+        return super.compile(mainUri, force);
+      }
       return mainUri ? this.program(mainUri) : undefined;
     }
     return super.compile(uri, force);
