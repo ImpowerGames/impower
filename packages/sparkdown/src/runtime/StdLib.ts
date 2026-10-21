@@ -128,7 +128,7 @@ export interface StdLibEntry {
    */
   validatesArgs?: boolean;
   /**
-   * Fewest arguments a VARIADIC pure entry accepts. A direct call with
+   * Fewest arguments a VARIADIC entry accepts. A direct call with
    * fewer raises `missing argument #N to 'name'` for the first absent
    * one (`math.max()` is `missing argument #1 to 'max'`, as in Luau).
    * Omitted means any count, including none (`bit32.band()`).
@@ -3052,29 +3052,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `math.randomseed([seed])` — set the PRNG seed and reset
-  // `previousRandom` to 0. With no arg (Luau form), seeds from the
-  // current system time (non-deterministic; runs won't reproduce
-  // across saves). Used to make RNG-dependent scripts deterministic
-  // across runs when an explicit seed is given.
+  // `math.randomseed(seed)` — set the PRNG seed and reset
+  // `previousRandom` to 0. The seed is required, as Luau's
+  // `luaL_checkinteger(L, 1)` requires it. Used to make RNG-dependent
+  // scripts deterministic across runs.
   "math.randomseed": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
-      let seed: number;
-      if (args.length === 0) {
-        // System-derived seed. Lua's behavior is platform-dependent;
-        // Luau uses `os.time()`-equivalent. Mirroring that here —
-        // sparkdown's narrative-fiction runtime doesn't promise
-        // determinism across saves when this form is used.
-        ambientReads.count += 1;
-        seed = Math.floor(Date.now());
-      } else {
-        const n = coerceNumber(args[0]);
-        if (n === null) {
-          story.Error("Invalid value passed to math.randomseed");
-          return;
-        }
-        seed = n;
+      const seed = coerceNumber(args[0]);
+      if (seed === null) {
+        story.Error("Invalid value passed to math.randomseed");
+        return;
       }
       story.state.storySeed = seed;
       story.state.previousRandom = 0;
@@ -3649,6 +3638,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // upstreamPatches.ts — a documented divergence).
   loadstring: {
     arity: -1,
+    minArgs: 1,
     fn: (_, args) => {
       const chunkRaw = args[0];
       const chunk =
@@ -3669,6 +3659,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   require: {
     arity: -1,
+    minArgs: 1,
     fn: (story) =>
       story.Error(
         "require: not yet implemented in sparkdown — use `run \"path\"` for .luau loading",
@@ -3710,6 +3701,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   setfenv: {
     arity: -1,
+    minArgs: 2,
     fn: (story) =>
       story.Error(
         "setfenv: removed in Lua 5.2 and not in Luau",
@@ -3722,6 +3714,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // when code references them.
   "coroutine.create": {
     arity: -1,
+    minArgs: 1,
     fn: (story) =>
       story.Error(
         "coroutine.create: not yet implemented in sparkdown (needs fiber / CPS infra)",
@@ -3729,6 +3722,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   "coroutine.close": {
     arity: -1,
+    minArgs: 1,
     fn: (story) =>
       story.Error("coroutine.close: not yet implemented in sparkdown"),
   },
@@ -3739,6 +3733,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   "coroutine.resume": {
     arity: -1,
+    minArgs: 1,
     fn: (story) =>
       story.Error("coroutine.resume: not yet implemented in sparkdown"),
   },
@@ -3749,11 +3744,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   "coroutine.status": {
     arity: -1,
+    minArgs: 1,
     fn: (story) =>
       story.Error("coroutine.status: not yet implemented in sparkdown"),
   },
   "coroutine.wrap": {
     arity: -1,
+    minArgs: 1,
     fn: (story) =>
       story.Error("coroutine.wrap: not yet implemented in sparkdown"),
   },
@@ -3790,25 +3787,30 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // for the same reason as above.
   "buffer.create": {
     arity: -1,
+    minArgs: 1,
     fn: (story) =>
       story.Error("buffer.create: not yet implemented in sparkdown (needs Buffer ValueType)"),
   },
   "buffer.fromstring": {
     arity: -1,
+    minArgs: 1,
     fn: (story) => story.Error("buffer.fromstring: not yet implemented in sparkdown"),
   },
   "buffer.tostring": {
     arity: -1,
+    minArgs: 1,
     fn: (story) => story.Error("buffer.tostring: not yet implemented in sparkdown"),
   },
   "buffer.len": {
     arity: -1,
+    minArgs: 1,
     fn: (story) => story.Error("buffer.len: not yet implemented in sparkdown"),
   },
   // `vector.*` — Luau 3D-vector type. Would need a new ValueType.Vector
   // runtime value (three floats). Stubbed for the same reason as above.
   "vector.create": {
     arity: -1,
+    minArgs: 3,
     fn: (story) =>
       story.Error("vector.create: not yet implemented in sparkdown (needs Vector ValueType)"),
   },
@@ -3821,6 +3823,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // block. See `Story.CallLuauFunctionProtected` for the trap impl.
   pcall: {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       if (args.length === 0) {
         story.Error("pcall: requires a function argument");
@@ -3853,6 +3856,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // failure" rule).
   xpcall: {
     arity: -1,
+    minArgs: 2,
     fn: (story, args) => {
       if (args.length < 2) {
         story.Error("xpcall: requires a function and a message handler");
@@ -3888,6 +3892,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // Negative `n` counts from the end (-1 is the last arg).
   select: {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       if (args.length === 0) {
         story.Error("select: missing first argument");
@@ -4021,6 +4026,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // for ASCII, gives the surrogate code unit for higher planes.
   "string.byte": {
     arity: -1,
+    minArgs: 1,
     fn: (_, args) => {
       const s = coerceString(args[0]) ?? "";
       let i = args.length > 1 ? (coerceNumber(args[1]) ?? 1) : 1;
@@ -4062,6 +4068,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `string.rep("ab", 3, "-") == "ab-ab-ab"`).
   "string.rep": {
     arity: -1,
+    minArgs: 2,
     fn: (_, args) => {
       const s = coerceString(args[0]) ?? "";
       const n = Math.max(0, Math.floor(coerceNumber(args[1]) ?? 0));
@@ -4085,6 +4092,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // the caller provided.
   "string.sub": {
     arity: -1,
+    minArgs: 1,
     fn: (_, args) => {
       const str = coerceString(args[0]) ?? "";
       let i = checkNumberArg(args[1], 2, "sub");
@@ -4113,6 +4121,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `%f[]`, position captures) emit a runtime error via story.Error.
   "string.find": {
     arity: -1,
+    minArgs: 2,
     fn: (story, args) => {
       const s = coerceString(args[0]) ?? "";
       const patternStr = coerceString(args[1]) ?? "";
@@ -4155,6 +4164,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   //   - on no match: `nil`.
   "string.match": {
     arity: -1,
+    minArgs: 2,
     fn: (story, args) => {
       const s = coerceString(args[0]) ?? "";
       const patternStr = coerceString(args[1]) ?? "";
@@ -4196,6 +4206,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   //     dispatch. Currently errors with a friendly message.
   "string.gsub": {
     arity: -1,
+    minArgs: 3,
     fn: (story, args) => {
       const input = coerceString(args[0]) ?? "";
       const patternStr = coerceString(args[1]) ?? "";
@@ -4394,6 +4405,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // specifiers and conversion errors throw via `story.Error`.
   "string.format": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       const fmt = coerceString(args[0]) ?? "";
       const rest = args.slice(1);
@@ -4407,6 +4419,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // holding `s`.
   "string.split": {
     arity: -1,
+    minArgs: 1,
     fn: (_, args) => {
       const str = coerceString(args[0]) ?? "";
       const sep = args.length > 1 ? (coerceString(args[1]) ?? "") : "";
@@ -4463,6 +4476,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // (Lua byte-string convention).
   "string.pack": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       const fmt = coerceString(args[0]) ?? "";
       const result = packString(fmt, args.slice(1), story);
@@ -4475,6 +4489,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // last consumed byte (so a follow-up unpack can resume).
   "string.unpack": {
     arity: -1,
+    minArgs: 2,
     fn: (story, args) => {
       const fmt = coerceString(args[0]) ?? "";
       const data = coerceString(args[1]) ?? "";
@@ -4718,6 +4733,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // non-number elements raise an error (matches Lua).
   "table.concat": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       const t = args[0];
       const map =
@@ -4773,6 +4789,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // not found. `init` defaults to 1.
   "table.find": {
     arity: -1,
+    minArgs: 2,
     fn: (story, args) => {
       const t = args[0];
       const map =
@@ -4920,6 +4937,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // frozen. Returns nothing.
   "table.insert": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       if (!(args[0] instanceof ObjectValue)) {
         story.Error("table.insert: first argument must be a table");
@@ -4976,6 +4994,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // or nil. Refuses on a frozen table.
   "table.remove": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       if (!(args[0] instanceof ObjectValue)) {
         story.Error("table.remove: first argument must be a table");
@@ -5191,6 +5210,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // (Lua semantics; mutations to a shared table propagate).
   "table.create": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       const count = coerceNumber(args[0]);
       if (count === null || !Number.isInteger(count) || count < 0) {
@@ -5364,6 +5384,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // (see the `unpack` entry below).
   "table.unpack": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => unpackImpl(story, args, "table.unpack"),
   },
   // `unpack(t [, i [, j]])` — Lua 5.1 / Luau global. Identical to
@@ -5371,6 +5392,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // global in Luau for backwards compat).
   unpack: {
     arity: -1,
+    minArgs: 1,
     deprecated:
       "The global `unpack` is deprecated in Luau. Use `table.unpack(t)` instead.",
     fn: (story, args) => unpackImpl(story, args, "unpack"),
@@ -5395,6 +5417,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   next: {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       const t = args[0];
       const map =
@@ -6042,6 +6065,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // "invalid UTF-8" error path Lua specifies never triggers.
   "utf8.codepoint": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       // codepoint (lutf8lib.cpp): codepoints for all characters
       // STARTING in byte range [i, j]; decode failures raise.
@@ -6083,6 +6107,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   "utf8.len": {
     arity: -1,
+    minArgs: 1,
     fn: (story, args) => {
       // utflen (lutf8lib.cpp): characters STARTING in byte range
       // [i, j]; on a malformed sequence returns (nil, position)
@@ -6129,6 +6154,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // otherwise `#s + 1`. Returns `null` (nil) when out of range.
   "utf8.offset": {
     arity: -1,
+    minArgs: 2,
     fn: (story, args) => {
       // byteoffset (lutf8lib.cpp): byte index where the n-th
       // character counting from position i starts; n == 0 finds the
@@ -6310,6 +6336,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // Lua truthiness: only `nil` and `false` are falsy — `assert(0)`
   // and `assert("")` pass. Zero args raises "missing argument #1"
   // (Luau's exact message — no `to 'assert'` suffix).
+  // No `minArgs`: a call with no argument raises Luau's `luaL_checkany`
+  // message below, which names no function.
   assert: {
     arity: -1,
     fn: (story, args) => {
@@ -6535,6 +6563,29 @@ export function isStdLibNamespaceName(name: string): boolean {
 // first-class, `pcall`) raises the same missing argument below it.
 export function stdLibRequiredArgs(entry: StdLibEntry): number {
   return entry.arity >= 0 ? entry.arity : (entry.minArgs ?? 0);
+}
+
+// The 1-based position of the first required argument of `entry` that `args`
+// leaves absent (`undefined`, the `Void` a short call site pads with, or an
+// empty multi-return), or 0 when every required one is there. An explicit nil
+// is present; the entry checks its type itself.
+export function firstMissingStdLibArg(
+  entry: StdLibEntry,
+  args: readonly unknown[],
+): number {
+  if (entry.validatesArgs) return 0;
+  const required = stdLibRequiredArgs(entry);
+  for (let i = 0; i < required; i++) {
+    const v = args[i];
+    if (
+      v === undefined ||
+      v instanceof Void ||
+      (v instanceof MultiValue && v.values.length === 0)
+    ) {
+      return i + 1;
+    }
+  }
+  return 0;
 }
 
 export function isPureNumberStdLibOp(name: string): boolean {
