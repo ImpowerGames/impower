@@ -100,6 +100,17 @@ describe("a double-quoted string's interpolation left open ends at the string's 
   test("an interpolation closed before a `\"` string in it keeps the string", () => {
     expect(sparkdownErrors(documentOf('g("a {c .. "x"} y")').text)).toEqual([]);
     expect(sparkdownErrors(documentOf('g("a {f"x"} y")').text)).toEqual([]);
+    // A line the scan for the interpolation's `}` cannot read through: a
+    // comment, a long string or braces two deep (round 1, `undirected`
+    // finding 1).
+    for (const form of [
+      'local s = "a {tostring"x" --[[note]] } y"',
+      'local s = "a {tostring"x" .. [[y]]} z"',
+      'local s = "a {tostring"x" .. tostring({{1}})} y"',
+      'local s = "a {if true then "x" else tostring({{1}})} y"',
+    ]) {
+      expect(sparkdownErrors(documentOf(form).text), form).toEqual([]);
+    }
   });
 
   test("a closed interpolation's braces are its punctuation", () => {

@@ -1232,7 +1232,20 @@ variables:
   # would take that quote as the opening of a string of their own, and
   # only the rest of the line tells that the interpolation does not close
   # on it (`LuauDoubleQuotedInterpolationBeforeClose`).
-  LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE: (?:(?!{{LUAU_INTERPOLATION_NESTED_TEXT_ON_LINE}}*[}]){{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}+(?=["]))
+  LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE: (?:(?={{LUAU_DOUBLE_QUOTED_INTERPOLATION_UNCLOSED_LINE}}){{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}+(?=["]))
+  # The rest of a line that shows an interpolation does not close on it: its
+  # strings read whole from the interpolation's start, with no brace, comment
+  # or long bracket outside them, up to a `"` its line ends inside, the
+  # string's closing quote and the text after it. A line the scan cannot read
+  # through (`{b --[[c]] }`, `{b .. [[c]]}`, `{f({{1}})}`) may close the
+  # interpolation, so it keeps the reading without the rule (round 1,
+  # `undirected` finding 1).
+  LUAU_DOUBLE_QUOTED_INTERPOLATION_UNCLOSED_LINE: (?:{{LUAU_INTERPOLATION_LINE_TOKEN}}*["]{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}$)
+  # A token of that scan: a string closed on the line, or a character that
+  # is no brace, quote or start of a comment or long bracket.
+  # lookaround: `LuauComment` and `LuauMultilineString` own a `--`, `[[` or
+  # `[=`, whose text runs past the line's brace or quote.
+  LUAU_INTERPOLATION_LINE_TOKEN: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}}|[^{}`"'\r\n\[-]|-(?!-)|\[(?![\[=]))
   # The text of that expression: a bracketed group, which may hold `"`
   # strings, or text with no `"`, bracket, comment or long string in it.
   LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT: (?:{{LUAU_INTERPOLATION_GROUP_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}}|{{LUAU_INTERPOLATION_PLAIN_CHARACTER}})
