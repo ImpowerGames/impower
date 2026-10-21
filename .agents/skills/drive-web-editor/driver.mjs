@@ -313,11 +313,85 @@ export function removeStoppedState(file, { remove = () => removeState(file), log
   catch (error) { report(`${context}; state cleanup failed: ${error.message} The record is kept. Check ownership, resolve the filesystem error and retry down.`); fail(1); return false; }
 }
 
-export function stopExitHandler(file, pid, { remove = () => removeState(file), log: report = log, fail = (code) => { process.exitCode = code; } } = {}) {
+// A nonzero stop exit keeps the record unless `verifyStopped` shows the whole
+// tree gone: taskkill /T exits 255 when one member, already exiting, refuses
+// termination although every other member was killed (I-1395). Without that
+// evidence, or when it shows a survivor, the failure stands.
+export function stopExitHandler(file, pid, { remove = () => removeState(file), log: report = log, fail = (code) => { process.exitCode = code; }, verifyStopped } = {}) {
   return (code) => {
-    if (code !== 0) { report(`could not stop pid ${pid} (exit ${code}); the record is kept`); fail(1); return; }
+    if (code !== 0) {
+      const failed = (why) => { report(`could not stop pid ${pid} (exit ${code}${why ? `; ${why}` : ""}); the record is kept`); fail(1); };
+      if (!verifyStopped) { failed(); return; }
+      return Promise.resolve().then(verifyStopped).catch((error) => ({ stopped: false, reason: `the tree could not be checked: ${error.message}` })).then((check) => {
+        if (!check?.stopped) { failed(check?.reason); return; }
+        report(`the stop command for pid ${pid} exited ${code}, but no process of the tree it was asked to stop remains`);
+        if (removeStoppedState(file, { remove, log: report, fail, context: `Every process of pid ${pid}'s tree is gone` })) report("stopped");
+      });
+    }
     if (removeStoppedState(file, { remove, log: report, fail, context: `Stop command for pid ${pid} succeeded; server exit has not been independently verified` })) report("stopped");
   };
+}
+
+// Every process on Windows, as { pid, ppid, start }, `start` being its
+// creation time in UTC ticks (null when the system will not say). `down`
+// reads it before and after taskkill to tell a stopped tree from a survivor.
+export function windowsProcessTable() {
+  const script = "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().Ticks } else { '-' }) }";
+  return new Promise((resolve, reject) => {
+    const p = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    let out = "";
+    p.stdout.on("data", (d) => (out += d));
+    p.on("error", reject);
+    p.on("close", (code) => {
+      const rows = out.split(/\r?\n/).filter(Boolean).map((line) => {
+        const [pid, ppid, start] = line.trim().split(" ");
+        return { pid: Number(pid), ppid: Number(ppid), start: /^\d+$/.test(start ?? "") ? start : null };
+      });
+      if (code !== 0 || !rows.length || rows.some((row) => !Number.isSafeInteger(row.pid) || !Number.isSafeInteger(row.ppid))) reject(new Error(`the process census failed (exit ${code})`));
+      else resolve(rows);
+    });
+  });
+}
+
+// The processes of `root`'s tree in the census `before` that are still there
+// in `after`: a member with its pid and creation time unchanged, or a process
+// created after `before` by a member (a child the stop may have missed). A
+// child counts only when it was created after its parent, since Windows keeps
+// a parent pid after that parent exits and the pid can be reused. A creation
+// time the system did not report is treated as unchanged. null means the
+// root was not in `before`, so the tree is unknown.
+export function treeSurvivors(before, after, root) {
+  const rootRow = before.find((row) => row.pid === root);
+  if (!rootRow) return null;
+  const later = (child, parent) => child.start === null || parent.start === null || BigInt(child.start) >= BigInt(parent.start);
+  const members = new Map([[root, rootRow]]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const row of before) {
+      if (members.has(row.pid) || !members.has(row.ppid) || !later(row, members.get(row.ppid))) continue;
+      members.set(row.pid, row);
+      grew = true;
+    }
+  }
+  const known = new Set(before.map((row) => `${row.pid}:${row.start}`));
+  return after.filter((row) => {
+    const member = members.get(row.pid);
+    if (member && (member.start === null || row.start === null || member.start === row.start)) return true;
+    return members.has(row.ppid) && !known.has(`${row.pid}:${row.start}`) && later(row, members.get(row.ppid));
+  });
+}
+
+// Whether the tree `before` recorded for `root` is gone, read a few times
+// since a member taskkill could not terminate may still be exiting.
+export async function treeStopped(before, root, { table = windowsProcessTable, attempts = 6, waitMs = 500 } = {}) {
+  let survivors = [];
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    survivors = treeSurvivors(before, await table(), root);
+    if (survivors === null) return { stopped: false, reason: `pid ${root} was not in the process census taken before the stop, so its tree is unknown` };
+    if (!survivors.length) return { stopped: true };
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  return { stopped: false, reason: `pid${survivors.length > 1 ? "s" : ""} ${survivors.map((row) => row.pid).join(", ")} of its tree still run` };
 }
 
 // Which Chromium the driver launches, and why. In order:
@@ -695,7 +769,8 @@ export async function stopLinuxTree(pid, { read = linuxProcesses, signal = proce
 // tears down the whole tree. Only a record that stands names a tree to kill: a
 // stale record's pid may belong to any process by now, so that record is
 // removed and nothing is signalled. The record goes only with a kill that
-// reported success; a refused kill keeps it, so the tree stays stoppable.
+// reported success, or on Windows one whose tree a census shows gone; a
+// refused kill keeps it, so the tree stays stoppable.
 async function down(args = []) {
   const file = stateFile();
   const s = readState();
@@ -728,6 +803,13 @@ async function down(args = []) {
     }
     return;
   }
+  // The census taken before the kill names the tree a nonzero taskkill exit
+  // is checked against; without it that exit stays a failure.
+  let tree = null;
+  if (process.platform === "win32") {
+    try { tree = await windowsProcessTable(); }
+    catch (error) { log(`the process tree could not be listed before the stop (${error.message}); a nonzero taskkill exit will not be checked`); }
+  }
   const killer =
     process.platform === "win32"
       ? spawn("taskkill", ["/pid", String(s.pid), "/T", "/F"], {
@@ -740,7 +822,7 @@ async function down(args = []) {
     process.exitCode = 1;
   };
   killer.on("error", (err) => failed(err.message));
-  killer.on("exit", stopExitHandler(file, s.pid, { remove: removeState, log }));
+  killer.on("exit", stopExitHandler(file, s.pid, { remove: removeState, log, verifyStopped: tree ? () => treeStopped(tree, s.pid) : undefined }));
 }
 
 // Check the things that fail LATE and expensively if they are wrong:
