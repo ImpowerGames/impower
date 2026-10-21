@@ -822,11 +822,18 @@ describe("a save taken inside a scene of a script other than main", () => {
 const SAVE_BEFORE_MEMBER_WRITES_DECLARE = String.raw`{"engine":"program","format":2,"engineVersion":"2","gameVersion":"","beats":[{"flags":0,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":0,"flow":""}]},"a":"start"},"evalStack":[],"output":[],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":47,"previousRandom":0,"didSafeExit":false,"variablesState":{"api":{"objid":1,"anchor":"[\"api\"]","obj":{}}},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[]},{"flags":1,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":2,"flow":""}]},"a":"start"},"evalStack":[],"output":[{"objid":2,"obj":{"target":"^action","text":"^Before."}},"\n"],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":47,"previousRandom":0,"previousFlow":"","didSafeExit":false,"globals":{},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[[{"n":""},1,-1],[{"n":"$include:file://proj/scripts/defs%2Esd"},1,-1],[{"n":"$include:file://proj/scripts/defs%2Esd$end"},1,-1]],"tables":[{"objid":1,"anchor":"[\"api\"]","obj":{"f":{"objid":3,"obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":1,\"at\":0,\"flow\":\"$include:file://proj/scripts/defs%2Esd\"}]},\"k\":\"functions\",\"i\":0,\"pl\":0}"},"__closure_upvals":{"objid":4,"obj":{}},"__closure_user_arity":0}}}}],"cells":[]}],"listings":[{"n":3,"windows":[[0,"3b9659ece42a4ea8","f042dbd371746f58","686aa7d57a09b025"]]},{"n":2,"windows":[[0,"5aec392f3f41f221","92497f75959fab38"]]}],"parts":[{"k":"functions","l":["633a3a7e8e13afea"]}]}`;
 const SAVE_BEFORE_MEMBER_WRITES_DECLARE_SHARED_LINE = String.raw`{"engine":"program","format":2,"engineVersion":"2","gameVersion":"","beats":[{"flags":0,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":0,"flow":""}]},"a":"start"},"evalStack":[],"output":[],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":16,"previousRandom":0,"didSafeExit":false,"variablesState":{"api":{"objid":1,"anchor":"[\"api\"]","obj":{}}},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[]},{"flags":1,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":2,"flow":""}]},"a":"start"},"evalStack":[],"output":[{"objid":2,"obj":{"target":"^action","text":"^Before."}},"\n"],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":16,"previousRandom":0,"previousFlow":"","didSafeExit":false,"globals":{},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[[{"n":""},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd"},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd$end"},1,-1]],"tables":[{"objid":1,"anchor":"[\"api\"]","obj":{"f":{"objid":3,"obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":1,\"at\":0,\"flow\":\"$include:file://proj/scripts/a%2Esd\"}]},\"k\":\"functions\",\"i\":0,\"pl\":0}"},"__closure_upvals":{"objid":4,"obj":{}},"__closure_user_arity":0}}}}],"cells":[]}],"listings":[{"n":3,"windows":[[0,"c550fbd2442caaf7","f042dbd371746f58","686aa7d57a09b025"]]},{"n":2,"windows":[[0,"993f97c9bd606ce5","ba3d361f1da8713f"]]}],"parts":[{"k":"functions","l":["3da10608bddb8eb6"]}]}`;
 const SAVE_BEFORE_MEMBER_WRITES_DECLARE_INNER_CLOSURE = String.raw`{"engine":"program","format":2,"engineVersion":"2","gameVersion":"","beats":[{"flags":0,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":0,"flow":""}]},"a":"start"},"evalStack":[],"output":[],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":93,"previousRandom":0,"didSafeExit":false,"variablesState":{"g":0,"api":{"objid":1,"anchor":"[\"api\"]","obj":{}}},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[]},{"flags":1,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":3,"flow":""}]},"a":"start"},"evalStack":[],"output":[{"objid":2,"obj":{"target":"^action","text":"^Before."}},"\n"],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":93,"previousRandom":0,"previousFlow":"","didSafeExit":false,"globals":{"g":{"objid":3,"obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":2,\"at\":0,\"flow\":\"$include:file://proj/scripts/a%2Esd\"},{\"s\":1,\"at\":0,\"p\":0,\"k\":\"functions\",\"i\":0}]},\"k\":\"functions\",\"i\":0,\"pl\":1}"},"__closure_upvals":{"objid":4,"obj":{}},"__closure_user_arity":0}}},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[[{"n":""},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd"},1,-1],[{"st":{"levels":[{"s":2,"at":0,"flow":"$include:file://proj/scripts/a%2Esd"}]},"k":"functions","i":0,"pl":0},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd$end"},1,-1]],"tables":[{"objid":1,"anchor":"[\"api\"]","obj":{"make":{"objid":5,"obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":2,\"at\":0,\"flow\":\"$include:file://proj/scripts/a%2Esd\"}]},\"k\":\"functions\",\"i\":0,\"pl\":0}"},"__closure_upvals":{"objid":6,"obj":{}},"__closure_user_arity":0}}}}],"cells":[]}],"listings":[{"n":4,"windows":[[0,"c550fbd2442caaf7","81634cd7f61a4290","f042dbd371746f58","686aa7d57a09b025"]]},{"n":1,"windows":[[0,"bcd09127fccc4052"]]},{"n":2,"windows":[[0,"274a6072f61abe69","ba3d361f1da8713f"]]}],"parts":[{"k":"functions","l":["833f29c42ff93618"]},{"k":"functions","l":["f92363a5be25d6a0"]}]}`;
+const SAVE_BEFORE_MEMBER_WRITES_DECLARE_INITIALIZER_CLOSURE = String.raw`{"engine":"program","format":2,"engineVersion":"2","gameVersion":"","beats":[{"flags":0,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":0,"flow":""}]},"a":"start"},"evalStack":[],"output":[],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":38,"previousRandom":0,"didSafeExit":false,"variablesState":{"api":{"objid":1,"anchor":"[\"api\"]","obj":{"fallback":{"objid":2,"anchor":"[\"api\",\".fallback\"]","obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":1,\"at\":0,\"decl\":\"file://proj/scripts/a.sd\"}]},\"k\":\"functions\",\"i\":0,\"pl\":0}"},"__closure_upvals":{"objid":3,"anchor":"[\"api\",\".fallback\",\".__closure_upvals\"]","obj":{}},"__closure_user_arity":0}}}}},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[]},{"flags":1,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":2,"flow":""}]},"a":"start"},"evalStack":[],"output":[{"objid":4,"obj":{"target":"^action","text":"^Before."}},"\n"],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":38,"previousRandom":0,"previousFlow":"","didSafeExit":false,"globals":{},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[[{"n":""},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd"},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd$end"},1,-1]],"tables":[{"objid":1,"anchor":"[\"api\"]","obj":{"fallback":{"objref":2,"anchor":"[\"api\",\".fallback\"]"},"f":{"objid":5,"obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":2,\"at\":0,\"flow\":\"$include:file://proj/scripts/a%2Esd\"}]},\"k\":\"functions\",\"i\":1,\"pl\":1}"},"__closure_upvals":{"objid":6,"obj":{}},"__closure_user_arity":0}}}}],"cells":[]}],"listings":[{"n":3,"windows":[[0,"c550fbd2442caaf7","f042dbd371746f58","686aa7d57a09b025"]]},{"n":1,"windows":[[0,"43ac6c3a779ca2a6"]]},{"n":2,"windows":[[0,"43ac6c3a779ca2a6","ba3d361f1da8713f"]]}],"parts":[{"k":"functions","l":["6dee3edaaa7b068d"]},{"k":"functions","l":["6dee3edaaa7b068d","3da10608bddb8eb6"]}]}`;
 
 /** Loads `save` into the program of `main` and `script`, the script other
- *  than main at `uri`, and takes the save's menu, `Go`, whose line calls
- *  the function the save holds, which returns 7. */
-const loadsOldSave = (save: string, main: string, uri: string, script: string) => {
+ *  than main at `uri`, and takes the save's menu, `Go`, whose line `result`
+ *  shows what the functions the save holds return. */
+const loadsOldSave = (
+  save: string,
+  main: string,
+  uri: string,
+  script: string,
+  result = "Result 7.",
+) => {
   const program = quiet(() =>
     programCompiler({ [MAIN]: main, [uri]: script }, { seedBuiltinsIntoStory: true }).compile(MAIN),
   ).program;
@@ -844,7 +851,7 @@ const loadsOldSave = (save: string, main: string, uri: string, script: string) =
   expect(report.warnings).toEqual([]);
   const run = storyRun(loaded, [0]);
   expect(run.menus.map((menu) => menu.choices.map((choice) => choice.text))).toEqual([["Go"]]);
-  expect(run.beats.map((beat) => beat.text)).toEqual(["Go\n", "Result 7.\n"]);
+  expect(run.beats.map((beat) => beat.text)).toEqual(["Go\n", `${result}\n`]);
   expect(run.errors).toEqual([]);
   expect(errors).toEqual([]);
 };
@@ -880,6 +887,18 @@ describe("a save taken before a member function's write ran with the declaration
       lines("store g = 0", "& g = api.make()", "Before.", "choose", "  * Go", "    Result {g()}.", "end"),
       "file://proj/scripts/a.sd",
       lines("& store api = {}; function api.make() return function() return 7 end end"),
+    );
+  });
+
+  // The global's chunk of the line has a function too, the initializer's
+  // closure, but not the member function the save names.
+  it("loads when the line's initializer holds a closure of its own", () => {
+    loadsOldSave(
+      SAVE_BEFORE_MEMBER_WRITES_DECLARE_INITIALIZER_CLOSURE,
+      lines("Before.", "choose", "  * Go", "    Result {api.f()} {api.fallback()}.", "end"),
+      "file://proj/scripts/a.sd",
+      lines("& store api = { fallback = function() return 1 end }; function api.f() return 7 end"),
+      "Result 7 1.",
     );
   });
 });

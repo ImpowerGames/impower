@@ -1417,23 +1417,31 @@ class FormPlacer {
         : symbol;
     }
     const statement = this.placeStatement(form.st);
-    let chunk = statement
-      ? statement.placed.sequence.arrays.chunks[statement.placed.entry]
-      : undefined;
-    let parts = chunk ? chunkPartsOf(chunk)?.[form.k] : undefined;
-    // A statement placed in a run of statements of its fingerprint whose
-    // chunk has no part of the kind: the nearest of the run that has one
+    if (!statement) {
+      return undefined;
+    }
+    // The part in the placed statement's chunk, or, when that chunk cannot
+    // place it, in the nearest chunk of its run of one fingerprint that can
     // (`sameRun`).
-    for (const entry of statement && chunk && !parts?.length ? this.sameRun(statement.placed) : []) {
-      const other = statement!.placed.sequence.arrays.chunks[entry]!;
-      const own = chunkPartsOf(other)?.[form.k];
-      if (own?.length) {
-        chunk = other;
-        parts = own;
-        break;
+    const chunks = statement.placed.sequence.arrays.chunks;
+    for (const entry of [statement.placed.entry, ...this.sameRun(statement.placed)]) {
+      const chunk = chunks[entry];
+      const symbol = chunk ? this.partSymbol(chunk, form) : undefined;
+      if (symbol !== undefined) {
+        return symbol;
       }
     }
-    if (!chunk || !parts) {
+    return undefined;
+  }
+
+  /** The symbol of the part an anonymous symbol's form names in `chunk`, or
+   *  nothing when the chunk cannot place it. */
+  protected partSymbol(
+    chunk: ProgramChunk,
+    form: Extract<SavedSymbol, { st: SavedStatement }>,
+  ): number | undefined {
+    const parts = chunkPartsOf(chunk)?.[form.k];
+    if (!parts) {
       return undefined;
     }
     let index = -1;
