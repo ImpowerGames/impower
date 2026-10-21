@@ -47,6 +47,15 @@ describe("a .luau file's top level is Luau (I-732)", () => {
     expect(names).not.toContain("ImplicitAction");
   });
 
+  // The lints read the `.luau` file's own tree as Luau reads it too: a
+  // top-level `;` separates two statements, so the second one on the line
+  // is not reported as missing one.
+  test("a statement after a top-level semicolon is not reported as on the same line", () => {
+    const { errorMessages, warningMessages } = collectDiagnostics("local a; b = 1, 2\nprint(a, b)\n", "inmemory:///util.luau");
+    expect(errorMessages).toEqual([]);
+    expect(warningMessages.filter((m) => m.includes("A new statement is on the same line"))).toEqual([]);
+  });
+
   test("the same text in a .sd script is still read as story after the declaration", () => {
     expect(nodeNames("inmemory:///main.sd", CONTINUED)).toContain("ImplicitAction");
   });

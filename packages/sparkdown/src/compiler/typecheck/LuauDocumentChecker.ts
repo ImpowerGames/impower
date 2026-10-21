@@ -105,16 +105,18 @@ export interface SparkdownUnits {
 const documentUnits = new WeakMap<Tree, LuauAstUnits>();
 
 /**
- * A `.sd` file's Luau units as `readLuauUnits` reads them, each in its own
- * lines, read once per syntax tree: the checker and the lints
- * (`collectLuauLints.ts`) read the same units. A unit's Sparkdown statements
+ * A document's Luau units, each in its own lines, read once per syntax tree:
+ * the checker and the lints (`collectLuauLints.ts`) read the same units. A
+ * `.sd` file's are `readLuauUnits`'s; a `.luau` file (`luauFile`), whose
+ * tree the grammar's `.luau` root reads (GRAMMAR.md §1.5), is one unit, its
+ * whole text (`readLuauFile`), with no flows. A unit's Sparkdown statements
  * are read as the Luau they hold (`readSparkdownStatements`), as the checker
  * reads them.
  */
-export function readDocumentUnits(tree: Tree, documentText: string): LuauAstUnits {
+export function readDocumentUnits(tree: Tree, documentText: string, luauFile = false): LuauAstUnits {
   let read = documentUnits.get(tree);
   if (!read) {
-    read = readLuauUnits(tree, documentText, { unitLines: true });
+    read = luauFile ? { prelude: readLuauFile(tree, documentText, { unitLines: true }), flows: [] } : readLuauUnits(tree, documentText, { unitLines: true });
     for (const unit of [read.prelude, ...read.flows]) readSparkdownStatements(unit.root);
     documentUnits.set(tree, read);
   }
@@ -145,10 +147,10 @@ export function runFileUnit(uri: string, documentText: string, tree: Tree): Luau
 /**
  * A `.luau` file's Luau, read from the document's own tree, which the
  * grammar's `.luau` root reads as Luau from the first line (GRAMMAR.md
- * §1.5): the whole document, as one unit.
+ * §1.5): the whole document, as one unit, the one the lints read.
  */
 export function luauFileUnit(documentText: string, tree: Tree): LuauUnit {
-  return checkedUnit(readLuauFile(tree, documentText, { unitLines: true }));
+  return checkedUnit(readDocumentUnits(tree, documentText, true).prelude);
 }
 
 /** The result of checking one unit. */
