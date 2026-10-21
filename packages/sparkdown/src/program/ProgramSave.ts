@@ -777,6 +777,10 @@ interface Placed {
 const SEARCH_SIDE = 8;
 const SEARCH_NEIGHBOURS = 2;
 
+/** How a save taken before I-1438 starts the name of the flow of a script's
+ *  member functions' writes (`topOf`). */
+const SAVED_INCLUDED_FLOW_PREFIX = "$include:";
+
 /** The longest run of `a[alo..ahi)` that `b[blo..bhi)` holds, the first of
  *  the longest, as `difflib`'s `find_longest_match` finds it. */
 const longestMatch = (
@@ -968,10 +972,20 @@ class FormPlacer {
     return this._renames;
   }
 
-  // The flow or declaration sequence a first level names.
+  // The flow or declaration sequence a first level names. A save taken
+  // before I-1438 names a member function's write of a script other than
+  // main by the flow its script's top level then had, `$include:` and the
+  // script's uri with each `.` written `%2E`; the write is now a statement
+  // of that script's declaration sequence.
   protected topOf(level: SavedLevel): SequenceRow | undefined {
     if (level.flow !== undefined) {
-      return this.root.flowNamed(this.renamed(level.flow));
+      const flow = this.root.flowNamed(this.renamed(level.flow));
+      if (!flow && level.flow.startsWith(SAVED_INCLUDED_FLOW_PREFIX)) {
+        return this.root.declarations(
+          level.flow.slice(SAVED_INCLUDED_FLOW_PREFIX.length).replace(/%2E/g, "."),
+        );
+      }
+      return flow;
     }
     return level.decl !== undefined ? this.root.declarations(level.decl) : undefined;
   }
