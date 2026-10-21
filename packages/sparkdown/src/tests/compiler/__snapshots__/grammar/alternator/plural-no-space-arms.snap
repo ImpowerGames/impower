@@ -86,28 +86,33 @@ sparkdown [0..94]
  │   │       │   │   │       │   │   │       │       └─ LuauConditionalAlternatorBlock_begin_c3 55
  │   │       │   │   │       │   │   │       │           └─ OptionalWhitespace 55
  │   │       │   │   │       │   │   │       ├─ LuauConditionalAlternatorBlock_content [55..82]
- │   │       │   │   │       │   │   │       │   ├─ LuauConditionalAlternatorCondition [55..58]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauConditionalAlternatorCondition_begin 55
- │   │       │   │   │       │   │   │       │   │   ├─ LuauConditionalAlternatorCondition_content [55..58]
- │   │       │   │   │       │   │   │       │   │   │   └─ LuauParenthetical [55..58]
- │   │       │   │   │       │   │   │       │   │   │       ├─ LuauParenthetical_begin [55..56]
- │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauParenthetical_begin_c1 [55..56]
- │   │       │   │   │       │   │   │       │   │   │       │       └─ PunctuationParenOpen [55..56]: "("
- │   │       │   │   │       │   │   │       │   │   │       ├─ LuauParenthetical_content [56..57]
- │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauAccessPath [56..57]
- │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauAccessPath_begin 56
- │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauAccessPath_content [56..57]
- │   │       │   │   │       │   │   │       │   │   │       │       │   └─ LuauAccessPart [56..57]
- │   │       │   │   │       │   │   │       │   │   │       │       │       └─ LuauVariable [56..57]
- │   │       │   │   │       │   │   │       │   │   │       │       │           └─ LuauVariable_c1 [56..57]
- │   │       │   │   │       │   │   │       │   │   │       │       │               └─ LuauVariableName [56..57]: "n"
- │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauAccessPath_end 57
- │   │       │   │   │       │   │   │       │   │   │       │           └─ LuauAccessPath_end_c1 57
- │   │       │   │   │       │   │   │       │   │   │       └─ LuauParenthetical_end [57..58]
- │   │       │   │   │       │   │   │       │   │   │           ├─ LuauParenthetical_end_c1 [57..58]
- │   │       │   │   │       │   │   │       │   │   │           │   └─ PunctuationParenClose [57..58]: ")"
- │   │       │   │   │       │   │   │       │   │   │           └─ LuauParenthetical_end_c2 58
- │   │       │   │   │       │   │   │       │   │   └─ LuauConditionalAlternatorCondition_end 58
+ │   │       │   │   │       │   │   │       │   ├─ LuauAlternatorHead [55..58]
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorHead_begin 55
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauAlternatorHead_content [55..58]
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauConditionalAlternatorCondition [55..58]
+ │   │       │   │   │       │   │   │       │   │   │       ├─ LuauConditionalAlternatorCondition_begin 55
+ │   │       │   │   │       │   │   │       │   │   │       ├─ LuauConditionalAlternatorCondition_content [55..58]
+ │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauParenthetical [55..58]
+ │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauParenthetical_begin [55..56]
+ │   │       │   │   │       │   │   │       │   │   │       │       │   └─ LuauParenthetical_begin_c1 [55..56]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       └─ PunctuationParenOpen [55..56]: "("
+ │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauParenthetical_content [56..57]
+ │   │       │   │   │       │   │   │       │   │   │       │       │   └─ LuauAccessPath [56..57]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       ├─ LuauAccessPath_begin 56
+ │   │       │   │   │       │   │   │       │   │   │       │       │       ├─ LuauAccessPath_content [56..57]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │   └─ LuauAccessPart [56..57]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │       └─ LuauVariable [56..57]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │           └─ LuauVariable_c1 [56..57]
+ │   │       │   │   │       │   │   │       │   │   │       │       │       │               └─ LuauVariableName [56..57]: "n"
+ │   │       │   │   │       │   │   │       │   │   │       │       │       └─ LuauAccessPath_end 57
+ │   │       │   │   │       │   │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 57
+ │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauParenthetical_end [57..58]
+ │   │       │   │   │       │   │   │       │   │   │       │           ├─ LuauParenthetical_end_c1 [57..58]
+ │   │       │   │   │       │   │   │       │   │   │       │           │   └─ PunctuationParenClose [57..58]: ")"
+ │   │       │   │   │       │   │   │       │   │   │       │           └─ LuauParenthetical_end_c2 58
+ │   │       │   │   │       │   │   │       │   │   │       └─ LuauConditionalAlternatorCondition_end 58
+ │   │       │   │   │       │   │   │       │   │   └─ LuauAlternatorHead_end 58
+ │   │       │   │   │       │   │   │       │   │       └─ LuauAlternatorHead_end_c1 58
  │   │       │   │   │       │   │   │       │   └─ LuauAlternatorArms [58..82]
  │   │       │   │   │       │   │   │       │       ├─ LuauAlternatorArms_begin 58
  │   │       │   │   │       │   │   │       │       ├─ LuauAlternatorArms_content [58..82]

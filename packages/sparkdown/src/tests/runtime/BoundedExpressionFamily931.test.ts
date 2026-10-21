@@ -36,8 +36,8 @@ describe("closed narrative expression family", () => {
     // their closer or the next header (#1907), so they have no counterpart.
     // The type function parameters' named-parameter twin went with them.
     // The comments after a type operator have a twin (I-1321), and so do
-    // an alternator's arms (I-1310).
-    expect(pairs).toHaveLength(73);
+    // an alternator's head and arms (I-1310).
+    expect(pairs).toHaveLength(74);
     const originals = new Set(pairs.map(([original]) => original));
     for (const [original, twin] of pairs) {
       for (const field of ["name", "contentName", "captures", "beginCaptures", "endCaptures"]) expect(captureScopes(repository[twin]![field])).toEqual(captureScopes(repository[original]![field]));

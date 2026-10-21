@@ -9,7 +9,8 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
-import { dumpTree, stripAnsi } from "./grammarSnapshot";
+import { alternatorArms } from "../../compiler/utils/alternatorDecision";
+import { dumpTree, getParser, stripAnsi } from "./grammarSnapshot";
 import { loadOfficialLuau } from "./officialLuau";
 import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 
@@ -151,6 +152,8 @@ describe("where a candidate ends", () => {
   test.each([
     ["a comment after the head that ends in `end`", "function f()\n  queue -- end\n    | print(1)\n  end\n  return 3\nend\nValue {f()}.\n"],
     ["a comment line between the head and its arms that ends in `end`", "function f(n)\n  match n\n    -- the end\n    | a = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n"],
+    ["a comment after a bare condition that ends in `end`", "function f(n)\n  match n -- end\n    | print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n"],
+    ["a comment after a parenthesized condition that ends in `end`", "function f(n)\n  plural (n) -- the end\n    | one = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n"],
   ])("%s leaves the candidate open to its arms", (_, source) => {
     expect(run(source)).toEqual({ errors: [], warnings: expect.any(Array), output: "Value 3.\n" });
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
@@ -159,7 +162,26 @@ describe("where a candidate ends", () => {
   test("a condition that is itself an alternator leaves the outer word its arms", () => {
     const source = 'Value {match match("x") | x = "mage" end | mage = "yes" end}.\n';
     expect(errorsOf(source)).toEqual([]);
-    expect(tree(source).match(/─ LuauAlternatorArms \[/g)).toHaveLength(2);
+    // Each word holds its own arms: both are alternators' words, with no
+    // name token and no warning of an unknown `match`.
+    expect(semanticTokenOf(source, "match", 1)).toBeUndefined();
+    expect(semanticTokenOf(source, "match", 2)).toBeUndefined();
+    expect(run(source).warnings.join("\n")).not.toContain("match");
+    const owned: string[] = [];
+    getParser().parse(source).iterate({
+      enter: (ref) => {
+        if (ref.name !== "LuauConditionalAlternatorBlock") return;
+        const arms = alternatorArms(ref.node);
+        owned.push(`${source.slice(ref.from, ref.from + 6)}: ${arms ? source.slice(arms.from, arms.to).trim() : "none"}`);
+      },
+    });
+    expect(owned).toEqual(['match : | mage = "yes" end', 'match(: | x = "mage" end']);
+  });
+
+  test.each([["\r\n"], ["\r"]])("a head comment ending in `end` reads the line break %j whole", (eol) => {
+    const source = ["function f(n)", "  queue -- end", "    | print(1)", "  end", "  match n -- end", "    | a = print(1)", "  end", "  return 3", "end", "Value {f(1)}.", "After.", ""].join(eol);
+    expect(tree(source)).not.toMatch(/ERROR_INCOMPLETE/);
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\nAfter.\n" });
   });
 
   test("a candidate first on its line that no arms follow ends before the next statement", () => {
