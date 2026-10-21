@@ -9,7 +9,9 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 import { processIdentity } from "./reviewer-slots.mjs";
+import { readRepos } from "../.agents/repos.mjs";
 import { sessionDir } from "../.agents/skills/drive-web-editor/session-dir.mjs";
 import { readJournals, roundState } from "../.agents/skills/orchestrate-issues/review-checkpoint.mjs";
 import { stopExitHandler } from "../.agents/skills/drive-web-editor/driver.mjs";
@@ -126,7 +128,7 @@ const goodComment = (t, id) => ({ id, issue_url: t.issueUrl, body: `Report for $
 // the journal, its plan, the completion artifact, and the editor session's
 // started records, session file, up.log and down.log; with `state`, the
 // driver's server record that a failed `down` keeps.
-const fixture = (name, { thread, coordinator = launcherGone, state, planName = "plan.json", session: withSession = true, startedIdentity = upChild, downPids = [stopped.pid], datedAt = recordedAt, alsoBlockedBy = null } = {}) => {
+const fixture = (name, { thread, coordinator = launcherGone, state, planName = "plan.json", session: withSession = true, startedIdentity = upChild, downPids = [stopped.pid], datedAt = recordedAt, alsoBlockedBy = null, stateChecked = true, stateRow = {} } = {}) => {
   const launchDir = path.join(scratch, name, "round-1", "launch-ax-1");
   const execution = path.join(launchDir, "handoff-0-review", "execution-x");
   const session = path.join(execution, "editor-author-x");
@@ -157,6 +159,7 @@ const fixture = (name, { thread, coordinator = launcherGone, state, planName = "
     { time: at(37), event: "execution-service", index: 0, head, directory: execution, operations: [{ id: "author", kind: "editor" }] },
     { time: at(37), event: "running", index: 0, step: "review-ax", pid: 1, head },
     { time: at(43), event: "exited", index: 0, step: "review-ax", code: 0, signal: null, executionDrained: false },
+    ...(stateChecked ? [{ time: at(43), event: "review-state-checked", index: 0, step: "review-ax", headUnchanged: true, changedPaths: 0, installChanges: [], ...stateRow }] : []),
     { time: at(43), event: "probe-checkouts-removed", index: 0, step: "review-ax" },
     { time: at(43), event: "blocked", reason: `Editor shutdown unverified; preserve ${session} and inspect ${path.join(session, "down.log")}${alsoBlockedBy ? `; ${alsoBlockedBy}` : ""}` },
   ];
@@ -332,6 +335,12 @@ const raced = fixture("launch-raced");
 const sequence = (...readings) => { let reading = 0; return () => readings[Math.min(reading++, readings.length - 1)](); };
 await refusedUnchanged(raced.journal, () => confirmWith(raced.journal, { census: sequence(quietCensus, () => [...quietCensus(), childOf(stopped.pid, Date.now())]), env }), /PID 999999 \(descended from recorded PID \d+\)/, "a child started after the first census");
 await refusedUnchanged(raced.journal, () => confirmWith(raced.journal, { census: sequence(quietCensus, () => [...quietCensus(), { pid: stopped.pid, ppid: 4, start: ticks(recordedAt.getTime() - 60000), commandLine: "node" }]), env }), new RegExp(`recorded PID ${stopped.pid} is held by a process the last census cannot show is newer than the records naming it`), "a recorded PID the last census shows held by an older process");
+// Ancestry runs through both censuses: a chain the first census saw from a
+// recorded PID, whose intermediates exited before the last census, still
+// holds the confirmation through its surviving leaf.
+const chained = fixture("launch-chained");
+const chain = [{ pid: 999001, ppid: stopped.pid, start: ticks(Date.now() - 3000), commandLine: "cmd" }, { pid: 999002, ppid: 999001, start: ticks(Date.now() - 2000), commandLine: "npm" }, { pid: 999003, ppid: 999002, start: ticks(Date.now() - 1000), commandLine: "vite" }];
+await refusedUnchanged(chained.journal, () => confirmWith(chained.journal, { census: sequence(() => [...quietCensus(), ...chain], () => [...quietCensus(), chain[2]]) }), /PID 999003 \(descended from recorded PID \d+\)/, "a leaf whose intermediates exited between the censuses");
 // Only an editor shutdown failure is answered by confirming the drain; any
 // other failure the service's close joined into the blocked reason, such as
 // a changed frozen worktree, keeps the review uncompleted.
@@ -388,5 +397,72 @@ assert.deepEqual([completed.time, completed.reviewerId, completed.commentIds, co
 assert.deepEqual(roundState(readJournals(reviewed.jobDir)).blockers, [], "the round completes and nothing blocks the checkpoint");
 await refusedUnchanged(reviewed.journal, () => confirm(reviewed.journal), /already confirmed/, "a finished journal");
 console.log("PASS: a clean review blocked only by its drain completes once the drain is confirmed and its report verifies");
+
+// A review is completed only on the launcher's own check of the reviewed
+// head, worktree and install at the reviewer's exit. A journal from a
+// launcher that predates that record keeps its drain confirmation, and the
+// review is left to a retry.
+const stateUnchecked = fixture("launch-unchecked", { thread, stateChecked: false });
+const historical = await confirmWith(stateUnchecked.journal, { census: quietCensus, readComment: goodComment });
+assert.equal(historical.confirmed.event, "execution-drained", "a historical journal's drain is still confirmed");
+assert.match(historical.reason ?? "", /recorded no check of the reviewed head, worktree and install/, "a historical journal's review is not counted");
+const stateChanged = fixture("launch-state-changed", { thread, stateRow: { installChanges: ["node_modules added 1 (added-by-review)"] } });
+const changedState = await confirmWith(stateChanged.journal, { census: quietCensus, readComment: goodComment });
+assert.match(changedState.reason ?? "", /left the reviewed head, worktree or install changed or unchecked/, "a recorded install change holds the completion even when the reason names only the drain");
+// The launcher records that check when a clean review's drain fails, and a
+// reviewer that changed the install is never completed.
+{
+  const OFF = readRepos((() => { const file = path.join(scratch, "repos-off.json"); fs.writeFileSync(file, JSON.stringify({ ...readRepos(), cutover: false })); return file; })());
+  const repo = path.join(scratch, "exec-repo");
+  fs.mkdirSync(repo);
+  const repoGit = (...args) => execFileSync("git", args, { cwd: repo, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
+  fs.writeFileSync(path.join(repo, ".gitignore"), "node_modules/\n");
+  fs.mkdirSync(path.join(repo, ".agents", "skills", "drive-web-editor"), { recursive: true });
+  fs.writeFileSync(path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs"), "");
+  fs.mkdirSync(path.join(repo, "node_modules", "present"), { recursive: true });
+  repoGit("init"); repoGit("add", "."); repoGit("commit", "-m", "execution fixture");
+  const repoHead = repoGit("rev-parse", "HEAD").trim();
+  const reviewerScript = path.join(scratch, "clean-reviewer.mjs");
+  fs.writeFileSync(reviewerScript, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} if(process.argv.includes("--damage")) fs.mkdirSync("node_modules/added-by-review", { recursive: true }); process.exit(0);`);
+  const jobs = path.join(scratch, "exec-repo.review-jobs", "pr-962", "round-1");
+  fs.mkdirSync(jobs, { recursive: true });
+  const prompt = path.join(jobs, "prompt.txt");
+  fs.writeFileSync(prompt, "test fixture");
+  const launched = async (name, damage) => {
+    const journal = path.join(jobs, `launch-${name}`, "journal.jsonl");
+    fs.mkdirSync(path.dirname(journal), { recursive: true });
+    const plan = path.join(path.dirname(journal), "plan.json");
+    fs.writeFileSync(plan, JSON.stringify({ worktree: repo, pr: 962, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", completedReviewRound: 0, maxSteps: 1, first: "review", journal, steps: { review: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [reviewerScript, "--model", "reviewer-test", ...(damage ? ["--damage"] : [])], prompt, next: [null], execution: [{ id: "ui", kind: "editor", maxRequests: 1, timeoutSeconds: 60 }] } } }));
+    let session;
+    const startExecution = async ({ directory }) => {
+      session = path.join(directory, "editor-ui-x");
+      fs.mkdirSync(session);
+      fs.writeFileSync(path.join(session, "up.started.json"), JSON.stringify({ phase: "running", pid: upChild.pid, identity: upChild }));
+      fs.utimesSync(path.join(session, "up.started.json"), recordedAt, recordedAt);
+      return { environment: {}, close: async () => { throw new Error(`Editor shutdown unverified; preserve ${session} and inspect ${path.join(session, "down.log")}`); } };
+    };
+    await assert.rejects(handoff.runHandoff(plan, { repos: OFF, jobRoot: scratch, slotRoot: path.join(scratch, "exec-slots"), editorPreflight: async () => ({ passed: true, failing: [] }), startExecution }), /Editor shutdown unverified/, `${name}: the run ends blocked on the drain`);
+    const rows = journalRows(journal);
+    fs.writeFileSync(rows.find((row) => row.event === "launching").completion, JSON.stringify({ head: repoHead, next: null, commentIds: [123], summary: "Review complete." }));
+    if (damage) fs.rmSync(path.join(repo, "node_modules", "added-by-review"), { recursive: true });
+    return { journal, rows };
+  };
+  // The launcher runs in this process, so its coordinator identity is this
+  // one; the confirmation is told it is gone.
+  const gone = (pid) => (pid === process.pid ? null : probeStandIns(pid));
+  const clean = await launched("clean", false);
+  assert.deepEqual(clean.rows.filter((row) => row.event === "review-state-checked").map((row) => [row.headUnchanged, row.changedPaths, row.installChanges]), [[true, 0, []]], "a clean review's state is checked and journalled before the drain failure stops it");
+  const cleanResult = await confirmWith(clean.journal, { identifyProcess: gone, census: quietCensus, readComment: (t, id) => ({ id, issue_url: t.issueUrl, body: `Report for ${repoHead}` }) });
+  assert.equal(cleanResult.ended, "finished", `a clean review blocked only by its drain completes: ${cleanResult.reason ?? ""}`);
+  const damaged = await launched("damaged", true);
+  const checked = damaged.rows.find((row) => row.event === "review-state-checked");
+  assert.match(checked.installChanges.join("; "), /node_modules added 1 \(added-by-review\)/, "the install change is journalled");
+  assert.match(damaged.rows.at(-1).reason, /Review changed the reviewed install: node_modules added 1/, "the install change joins the blocked reason");
+  const damagedResult = await confirmWith(damaged.journal, { identifyProcess: gone, census: quietCensus, readComment: (t, id) => ({ id, issue_url: t.issueUrl, body: `Report for ${repoHead}` }) });
+  assert.equal(damagedResult.confirmed.event, "execution-drained", "the drain of a review that changed the install is still confirmed");
+  assert.equal(damagedResult.ended, "blocked", "a review that changed the install is never completed");
+  assert.equal(journalRows(damaged.journal).some((row) => row.event === "completed"), false);
+}
+console.log("PASS: a review is completed only on the launcher's own check of the reviewed head, worktree and install");
 
 fs.rmSync(scratch, { recursive: true });

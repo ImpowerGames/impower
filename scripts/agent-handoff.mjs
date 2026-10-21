@@ -566,7 +566,7 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   const exitAt = rows.indexOf(exited);
   const blockedAt = rows.findIndex((row, i) => i > exitAt && row.event === "blocked");
   if (blockedAt < 0 || blockedAt !== rows.length - 1) throw refuse("it does not end blocked after that exit, so its launcher may not have finished");
-  if (rows.slice(exitAt + 1, blockedAt).some((row) => row.event !== "probe-checkouts-removed")) throw refuse("rows other than probe cleanup follow that exit; inspect it by hand");
+  if (rows.slice(exitAt + 1, blockedAt).some((row) => !["probe-checkouts-removed", "review-state-checked"].includes(row.event))) throw refuse("rows other than probe cleanup and the review state check follow that exit; inspect it by hand");
   const directory = serviceRow.directory;
   if (typeof directory !== "string" || !path.isAbsolute(directory)) throw refuse("its execution-service row names no absolute directory");
   let files;
@@ -696,10 +696,43 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   // records naming it may be the original, whatever the probes found.
   const unproven = [...recorded].filter((id) => current.has(id) && !newer(id));
   if (unproven.length) throw refuse(`recorded PID${unproven.length > 1 ? "s" : ""} ${unproven.join(", ")} ${unproven.length > 1 ? "are" : "is"} held by a process the last census cannot show is newer than the records naming ${unproven.length > 1 ? "them" : "it"}`);
-  const heldByNewer = (id, child) => newer(id) && child.start !== null && BigInt(child.start) >= BigInt(current.get(id).start);
-  const owner = (p) => [p.ppid, p.group, p.sessionId].find((id) => recorded.has(id) && !heldByNewer(id, p));
-  const orphans = processes.filter((p) => p.pid !== process.pid && owner(p) !== undefined);
-  if (orphans.length) throw refuse(`${orphans.map((p) => `PID ${p.pid} (descended from recorded PID ${owner(p)})`).join(", ")} still ${orphans.length > 1 ? "run" : "runs"}; only a recorded PID now held by a process newer than the records, and older than its child, shows that child is not the service's`);
+  // Ancestry is traced by process identity through both censuses, so a
+  // process whose parent, or any process between it and a recorded PID,
+  // exited between them is still found. A process's parent is whichever
+  // process held its parent PID when it was created: the latest one seen
+  // with that PID created no later than it. A process descends from the
+  // service when that chain reaches a recorded PID that no seen process
+  // newer than the records naming it holds, or, on Linux, when its process
+  // group or session is a recorded PID.
+  const seenByPid = new Map();
+  for (const p of new Map([...firstCensus, ...processes].map((p) => [`${p.pid}:${p.start}`, p])).values()) seenByPid.set(p.pid, [...(seenByPid.get(p.pid) ?? []), p]);
+  const notAfter = (a, b) => a.start === null || b.start === null || BigInt(a.start) <= BigInt(b.start);
+  const newerThanRecords = (p) => p.start !== null && BigInt(p.start) > windowsTicks(namedAt.get(p.pid) ?? Date.now());
+  const parentOf = (p) => {
+    let parent = null;
+    for (const other of seenByPid.get(p.ppid) ?? []) {
+      if (other === p || !notAfter(other, p)) continue;
+      if (!parent || (parent.start !== null && other.start !== null && BigInt(other.start) > BigInt(parent.start))) parent = other;
+    }
+    return parent;
+  };
+  const roots = new Map();
+  const serviceRoot = (p, visiting = new Set()) => {
+    const key = `${p.pid}:${p.start}`;
+    if (roots.has(key)) return roots.get(key);
+    if (visiting.has(key)) return null;
+    visiting.add(key);
+    let root = recorded.has(p.pid) && !newerThanRecords(p) ? p.pid : [p.group, p.sessionId].find((id) => id !== p.pid && recorded.has(id)) ?? null;
+    if (root === null) {
+      const parent = parentOf(p);
+      if (parent) root = serviceRoot(parent, visiting);
+      else if (recorded.has(p.ppid)) root = p.ppid;
+    }
+    roots.set(key, root);
+    return root;
+  };
+  const orphans = processes.filter((p) => p.pid !== process.pid && serviceRoot(p) !== null);
+  if (orphans.length) throw refuse(`${orphans.map((p) => `PID ${p.pid} (descended from recorded PID ${serviceRoot(p)})`).join(", ")} still ${orphans.length > 1 ? "run" : "runs"}; only a recorded PID now held by a process newer than the records, and older than its child, shows that child is not the service's`);
   let confirmer = null;
   try { confirmer = os.userInfo().username; } catch {}
   const drained = { event: "execution-drained", index, step: exited.step, directory, confirmedBy: { pid: process.pid, processIdentity: identifyProcess(process.pid), host, user: confirmer }, census: { processes: processes.length, namingDirectory: 0, childrenOfRecorded: 0, identities, downLogs, pids, servers, ports: checkedPorts } };
@@ -727,6 +760,13 @@ async function settledCompletion(rows, exited, journalFile, { readComment, cwd, 
   if (!onlyDrainFailures(blockedReason)) throw new Error(`its launcher was blocked by more than the drain, which confirming the drain does not answer: ${blockedReason ?? "no reason recorded"}`);
   if (exited.code !== 0 || exited.signal) throw new Error(`its reviewer exited with code ${exited.code}${exited.signal ? ` (signal ${exited.signal})` : ""}`);
   if (rows.some((row) => row.event === "completed" && row.index === exited.index)) throw new Error(`launch ${exited.index} already has a completed row`);
+  // The launcher checks a clean review's frozen head, worktree and install
+  // before it gives up on a failed drain; without that record (a launcher
+  // that predates it) the review is not counted, and a retry of the same
+  // reviewer replaces it.
+  const state = rows.find((row) => row.event === "review-state-checked" && row.index === exited.index);
+  if (!state) throw new Error("its launcher recorded no check of the reviewed head, worktree and install at the reviewer's exit (it predates that record), so the review is not counted; relaunch that reviewer with a higher attempt");
+  if (state.error || state.headUnchanged !== true || state.changedPaths !== 0 || !Array.isArray(state.installChanges) || state.installChanges.length) throw new Error(`its reviewer left the reviewed head, worktree or install changed or unchecked (${JSON.stringify({ headUnchanged: state.headUnchanged, changedPaths: state.changedPaths, installChanges: state.installChanges, error: state.error })})`);
   const thread = rows.find((row) => row.event === "coordinator")?.thread;
   if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("its coordinator row names no review thread");
   const plan = planNaming(journalFile);
@@ -1429,6 +1469,19 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         throw error;
       }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run${executionFailure ? `; delegated execution: ${executionFailure.message}` : ""}`);}}
+      // A failed drain stops this launch before the review checks below, so a
+      // review that exited cleanly has its frozen head, worktree and install
+      // checked and journalled first: confirm-drained completes it later only
+      // on that evidence, and damage found here joins the failure.
+      if (executionFailure && step.role === "review" && result.code === 0 && !result.signal) {
+        let state;
+        try { state = { headUnchanged: gitHead(cwd) === head, changedPaths: gitStatus(cwd).split("\n").filter(Boolean).length, installChanges: installChanges(install, installFingerprint(cwd)) }; }
+        catch (error) { state = { error: error.message }; }
+        try { append({ event: "review-state-checked", index, step: current, ...state }); }
+        catch (error) { executionFailure.message += `; review state journal write failed: ${error.message}`; }
+        if (state.headUnchanged === false || state.changedPaths) executionFailure.message += `; Review changed the frozen head or worktree${state.changedPaths ? ` (${state.changedPaths} changed paths; restore them before trusting any evidence)` : ""}`;
+        if (state.installChanges?.length) executionFailure.message += `; Review changed the reviewed install: ${state.installChanges.join("; ")}; restore these before any later step or local test`;
+      }
       if(executionFailure)throw executionFailure;
       if (result.code !== 0) throw exitFailure(current, output, diagnostics);
       if(step.nativeResult){const native=verifyNativeReviewResult(output,step.nativeResult);if(native?.warnings?.length)append({event:"reviewer-warnings",index,step:current,warnings:native.warnings});}
