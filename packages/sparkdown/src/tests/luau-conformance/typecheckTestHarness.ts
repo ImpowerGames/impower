@@ -739,18 +739,16 @@ interface WrappedSnippet {
 }
 
 // `run` compiles the file as a blank line, then `function <wrapper>()`, the
-// file's text, and `end`, in a declaration document of its own, and the call
-// `& <wrapper>()` in a call document of the `run` statement's (`&site=`).
-// Find the declaration and check the snippet sits in it unchanged, so that a
-// change to how `run` wraps a file fails here rather than skewing every
-// position.
+// file's text, and `end`, in a declaration document of its own, and the
+// `run` statement calls the wrapper where it stands. Find the declaration and
+// check the snippet sits in it unchanged, so that a change to how `run` wraps
+// a file fails here rather than skewing every position.
 function wrappedSnippet(
   documents: SparkdownDocumentRegistry,
   source: string,
 ): WrappedSnippet {
-  const uris = [...documents.keys()].filter(
-    (uri) =>
-      uri.startsWith(`${SNIPPET_URI}?run=`) && !uri.includes("&site="),
+  const uris = [...documents.keys()].filter((uri) =>
+    uri.startsWith(`${SNIPPET_URI}?run=`),
   );
   if (uris.length !== 1) {
     throw new Error(

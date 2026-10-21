@@ -6,9 +6,8 @@
 // every other, and a save taken before the edit loads after it. Its top-level
 // lines other than declarations report an error and are dropped, so no
 // `$include:` flow stands for it but the one its member functions' writes
-// run in (I-1438). A `run` statement's flow is the other one left (#1681,
-// docs/engine/binary-program.md, What is built, Flows and statements), and
-// every test here of included content runs a file.
+// run in (I-1438). A `run` statement is a call of its file's wrapper where
+// its line stands, a statement of the flow it is written in (I-1439).
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -146,7 +145,7 @@ describe("a script other than main", () => {
     ).toEqual(["Main 7.\n"]);
   });
 
-  it("has no `$include:` flow of its own, and a `run` statement's flow is the one left, entered on the run line", () => {
+  it("has no `$include:` flow of its own, and a `run` statement is a statement of main's top level, on the run line", () => {
     const texts = {
       [MAIN]: lines("store counter = 0", "run start", "Main {counter}.", "-> S"),
       // The declarations a script other than main may hold (`external`, an
@@ -179,12 +178,10 @@ describe("a script other than main", () => {
     for (const uri of [MAIN, FIRST, SECOND]) {
       expect(root.flowNamed(includedFlowName(uri))).toBeUndefined();
     }
-    // The call document of the one `run` statement.
-    expect(included).toHaveLength(1);
-    const [[name, uri]] = included as [readonly [string, string]];
-    expect(uri).toMatch(/^file:\/\/proj\/start\.luau\?run=.*&site=\d+$/);
-    expect(name).toBe(includedFlowName(uri));
-    // The top level enters it on the run line, and goes on to main's next.
+    // Nor has the `run` statement: its call runs in main's top level.
+    expect(included).toEqual([]);
+    // The top level calls the wrapper on the run line, and goes on to main's
+    // next.
     const top = root.flowNamed("")!;
     expect(
       top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
@@ -504,13 +501,18 @@ describe("an edit inside a script other than main", () => {
 });
 
 describe("an edit to main's `run` lines", () => {
-  // What `root` shows, beside what a cold compile of the same texts shows. A
-  // `run` statement's call document is numbered by the compiler that compiles
-  // it (`_runSites`), so a cold compile names its flow otherwise, and only
-  // what the two run is compared.
+  // What `root` shows, after checking that it is the root a cold compile of
+  // the same texts builds and shows the same.
   const runsAsCold = (root: ProgramRoot, texts: Record<string, string>, luau: Record<string, string>) => {
+    const cold = quiet(() =>
+      programCompiler(texts, {
+        seedBuiltinsIntoStory: true,
+        files: projectFiles(texts, luau) as never,
+      }).compile(MAIN),
+    ).program.chunks!;
+    expect(describeRoot(root)).toEqual(describeRoot(cold));
     const shown = storyRun(new ProgramStory(root)).beats.map((beat) => beat.text);
-    expect(shown).toEqual(shows(texts, [], luau).beats);
+    expect(shown).toEqual(storyRun(new ProgramStory(cold)).beats.map((beat) => beat.text));
     return shown;
   };
 
@@ -546,6 +548,38 @@ describe("an edit to main's `run` lines", () => {
     expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Main ABC.\n", "In T.\n"]);
     s.edit(MAIN, "\nrun c", "");
     expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Main AB.\n", "In T.\n"]);
+  });
+
+  // A run line in a scene is a statement of the scene's flow (I-1439), which
+  // an edit to another line of the scene builds again around it.
+  it("runs as a cold compile does after an edit to a scene that holds a run line, and after the run line moves", () => {
+    const s = session(
+      {
+        [MAIN]: lines(
+          'store log = ""',
+          "-> T",
+          "",
+          "scene T",
+          "  In T {log}.",
+          "  run a",
+          "  Then {log}.",
+          "  run b",
+          "  Last {log}.",
+          "end",
+        ),
+      },
+      letters,
+    );
+    expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
+      "In T .\n",
+      "Then A.\n",
+      "Last AB.\n",
+    ]);
+    s.edit(MAIN, "  Then {log}.", "  Then, now, {log}.");
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["In T .\n", "Then, now, A.\n", "Last AB.\n"]);
+    s.edit(MAIN, "  run a\n", "");
+    s.edit(MAIN, "  Last {log}.", "  run a\n  Last {log}.");
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["In T .\n", "Then, now, .\n", "Last BA.\n"]);
   });
 });
 

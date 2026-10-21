@@ -66,14 +66,16 @@ export interface RunOperand {
   quote: string;
   /** The operand's range, quotes included, in the chunk. */
   source: SourceMetadata;
+  /** The statement's range in the chunk, which its call is placed at. */
+  line: SourceMetadata;
 }
 
 export interface CompiledBlock {
   diagnostics?: InkDiagnostic[];
   content?: ParsedObject[];
   // The operand of a `run` statement. Compiler resolves the file, wraps its
-  // body in a function-call knot, and emits an invocation. See
-  // SparkdownCompiler's `run` handling.
+  // body in a function, and places a call of it where the statement stands.
+  // See SparkdownCompiler's `run` handling.
   run?: RunOperand;
   context?: {
     [type: string]: { [name: string]: any };
