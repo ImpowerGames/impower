@@ -152,7 +152,7 @@ export default class WorkspaceFileSystem {
       this._files[file.uri] = { ...file };
       result[file.uri] = file;
     });
-    if (!files.some((f) => f.name === "main" && f.type === "script")) {
+    if (!files.some((f) => f.name === "main" && f.ext === "sd")) {
       // Create a default empty main script if one doesn't exist
       this._files ??= {};
       const mainScriptUri = this.getFileUri(projectId, "main.sd");
