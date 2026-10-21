@@ -68,13 +68,15 @@ describe("a type annotation left empty at the end of its line", () => {
     ]);
   });
 
-  // The implicit `function` of a method in a `define` block.
+  // The implicit `function` of a method in a `define` block, whose errors
+  // are those Luau reports for the function it stands for, its recovery's
+  // included (I-1368).
   test.each([
-    ["  greet():\n    return 1\n  end\n", "1:10-2:0 Expected type, got 'return'"],
-    ["  greet(): = nil end\n", "1:10-1:12 Expected type, got '='"],
-  ])("a method's return type in %j", (method, message) => {
+    ["  greet():\n    return 1\n  end\n", ["1:10-2:0 Expected type, got 'return'"]],
+    ["  greet(): = nil end\n", ["1:10-1:12 Expected type, got '='", "1:11-1:12 Expected identifier when parsing expression, got '='"]],
+  ])("a method's return type in %j", (method, messages) => {
     const source = `define hero as character with\n${method}end\nHi.\n`;
-    expect(errorsIn("main.sd", { "main.sd": source })).toEqual([message]);
+    expect(errorsIn("main.sd", { "main.sd": source })).toEqual(messages);
   });
 
   test.each([

@@ -48,6 +48,10 @@ export interface InkDiagnostic {
   // The Unnecessary tag is what VS Code uses to render diagnostics
   // faded out — used here for unreachable code after `done` / `fin`.
   tags?: number[];
+  // The lines `message` names (`withMessageLines`, a Luau reading's
+  // `at line N`) are counted from the chunk's first line, as `source` is,
+  // so a chunk carried to another line names the lines it stands on.
+  messageLinesInChunk?: true;
 }
 
 export interface CompiledBlock {

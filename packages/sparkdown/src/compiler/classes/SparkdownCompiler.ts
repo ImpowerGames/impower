@@ -19,6 +19,7 @@ import {
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
 import { isLuauFile } from "../typecheck/LuauUnitNodes";
+import { withMessageLines } from "../typecheck/messageLines";
 import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
@@ -2746,7 +2747,9 @@ export class SparkdownCompiler {
           offsetSource.fileName ??= fileName;
           offsetSource.filePath ??= uri;
           onDiagnostic(
-            diagnostic.message,
+            diagnostic.messageLinesInChunk
+              ? withMessageLines(diagnostic.message, (line) => line + lineNumberOffset)
+              : diagnostic.message,
             diagnostic.severity,
             offsetSource,
             diagnostic.tags,

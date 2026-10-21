@@ -128,15 +128,71 @@ export function inLuauFunction(node: SyntaxNode | null): boolean {
 }
 
 /**
- * Whether the type checker reports every syntax error of Luau's reading at
- * a node (I-1322): the node is in a `.luau` or `run` file (`uri`, the
- * document's), whose whole text is Luau, or it is Luau the checker reads
- * (`isCheckedLuau`) in a function's own Luau (`inLuauFunction`). There a
- * validator or lowerer reports none of Luau's own syntax errors.
+ * Whether a reading of Luau reports every syntax error of Luau's at a node
+ * (I-1322): the type checker's, where the node is in a `.luau` or `run`
+ * file (`uri`, the document's), whose whole text is Luau, or it is Luau the
+ * checker reads (`isCheckedLuau`) in a function's own Luau
+ * (`inLuauFunction`); or a lowerer's, where it is in the body of a define's
+ * method or a Sparkle handler's closure (`loweredLuauBodyOf`, I-1368).
+ * There a validator or lowerer reports none of Luau's own syntax errors
+ * from the tree.
  */
 export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, to: number) => string, uri?: string): boolean {
   if (uri !== undefined && isLuauDocument(uri)) return true;
+  if (loweredLuauBodyOf(node)) return true;
   return inLuauFunction(node) && isCheckedLuau(node, read);
+}
+
+// The nodes of a define's method's content that are its header, not its
+// body's statements (`METHOD_BODY_SKIP` in `lowerLuauDefine.ts`).
+const METHOD_HEADER = new Set([
+  "LuauFunctionDeclarationName",
+  "LuauFunctionName",
+  "LuauFunctionParameters",
+  "LuauFunctionReturnType",
+  "LuauGenericsDeclaration",
+]);
+
+/**
+ * The reading a node's body is in where the type checker does not read it
+ * and its lowerer reports every syntax error of Luau's reading of the body
+ * alone, its `end` included (`reportBodySyntaxErrors`, I-1368): a define's
+ * method, in either spelling (`f()` … `end`, `function f()` … `end`), or a
+ * Sparkle handler's closure. Null outside them, in a method's header,
+ * whose errors are not its body's, and in Sparkdown's own constructs and
+ * expressions in the body (an alternator), which the reading reads as one
+ * opaque value, as the type checker's does (`isCheckedLuau`).
+ */
+export function loweredLuauBodyOf(node: SyntaxNode | null): SyntaxNode | null {
+  for (let n = node; n?.parent; n = n.parent) {
+    if (SPARKDOWN_ONLY.has(n.name) || SPARKDOWN_EXPRESSIONS.has(n.name)) return null;
+    const content = n.parent;
+    const method =
+      content.name === "LuauMethodDefinition_content" ||
+      (content.name === "LuauFunctionDefinition_content" && content.parent?.parent?.name === "LuauDefine_content");
+    if (method) return METHOD_HEADER.has(n.name) ? null : content.parent;
+    if (content.name === "LuauSparkleHandlerClosure_content") return content.parent;
+  }
+  return null;
+}
+
+/**
+ * Where a lowerer's reading of a body stops reading the author's text
+ * (`loweredLuauBodyOf`): a method's reading reads its `end`, a Sparkle
+ * handler closure's stops before its `}`, which is Sparkdown's own token,
+ * and closes the function value it runs as with an `end` of its own there.
+ */
+export function loweredReadingEnd(body: SyntaxNode): number {
+  return body.getChild("LuauSparkleHandlerClosure_content")?.to ?? body.to;
+}
+
+/**
+ * Whether a reading of Luau that reports its syntax errors reads a node:
+ * the type checker's (`isCheckedLuau`), or a lowerer's of a body the
+ * checker does not read (`loweredLuauBodyOf`).
+ */
+export function isReadLuau(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
+  return isCheckedLuau(node, read) || loweredLuauBodyOf(node) !== null;
 }
 
 /** Whether a document is a Luau file, which is Luau from its first line to its last. */
@@ -262,9 +318,15 @@ export function endsStatementBefore(name: string, previousToken: string | undefi
  * that the reading ends the construct's statement before (`STATEMENT_BREAKS`).
  * Otherwise Sparkdown's own syntax ends the statement first (at story in a
  * narrative body, a scene's `end`, or `goto` after a line-ending comma), and
- * Sparkdown reports what the construct lacks.
+ * Sparkdown reports what the construct lacks. In a body whose lowerer
+ * reads it in the checker's stead (`loweredLuauBodyOf`), that reading
+ * reports it, at a token up to the body's own end, a closure's `}`
+ * included, which the reading names where it closes the closure
+ * (`closureReadingErrors`).
  */
 export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined, read: (from: number, to: number) => string): boolean {
+  const lowered = loweredLuauBodyOf(node);
+  if (lowered) return tokenFrom === undefined || (tokenFrom < lowered.to && readingCarriesOnTo(node, tokenFrom, read));
   if (!isCheckedLuau(node, read)) return false;
   if (tokenFrom === undefined) return true;
   let root = node;

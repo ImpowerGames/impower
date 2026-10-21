@@ -34,6 +34,8 @@ import {
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
 import { luauReadingReportsAllAt } from "./LuauUnitNodes";
+import { withMessageLines } from "./messageLines";
+import { syntaxErrorEnd } from "./syntaxErrorRange";
 import { Mode } from "./Module";
 import { Scope } from "./Scope";
 import { follow, persist, TypeArena, TypeFun } from "./Type";
@@ -55,26 +57,9 @@ export interface TypecheckDiagnostic {
 // (`::name::`) and a `goto` statement, which the grammar names.
 const SPARKDOWN_SYNTAX = new Set(["LuauLabel", "LuauGotoStatement"]);
 
-// The places a message names a line of the unit's Luau, each where its
-// template puts it: the opener a missing closer closes, at the start
-// (`Expected 'end' (to close 'function' at line 1), got ...`), Luau's
-// suggestion after the token found, at the end (`; did you forget to close
-// 'do' at line 2?`), and a type's earlier definition (`Redefinition of type
-// 'T', previously defined at line 3`). Nothing else in a message is a line:
-// the token found (`got "(to close 'function' at line 9)"`) and a string's
-// text are the author's.
-const LINE_REFERENCES = [
-  /^(Expected '[^']*' \(to close '[^']*' at line )(\d+)(\))/,
-  /(; did you forget to close \S+ at line )(\d+)(\?)$/,
-  /^(Redefinition of type '[^']*', previously defined at line )(\d+)()$/,
-];
-
-/** A message with each line it names (`LINE_REFERENCES`) named as the document's line it stands on. */
+/** A message with each line it names (`withMessageLines`) named as the document's line it stands on. */
 function inDocumentLines(unit: LuauUnit, message: string): string {
-  for (const pattern of LINE_REFERENCES) {
-    message = message.replace(pattern, (_, before: string, line: string, after: string) => `${before}${documentLine(unit, Number(line) - 1) + 1}${after}`);
-  }
-  return message;
+  return withMessageLines(message, (line) => documentLine(unit, line - 1) + 1);
 }
 
 interface CachedUnit {
@@ -174,27 +159,6 @@ export class SparkdownTypechecker {
       }
       return false;
     };
-    // A range that ends at the end of a unit, whose trailing line break is
-    // not in its text, ends at the start of the next line, where Luau's
-    // end-of-file range ends when the source ends with a line break.
-    const rangeEnd = (
-      start: { line: number; character: number },
-      end: { line: number; character: number },
-      atEnd: boolean,
-      missingType: boolean,
-    ) => {
-      // A missing type's range from where the type should stand to the token
-      // found on a later line (`local w:` before a line `local z = 1`) ends
-      // with the line the type is missing from, not at the token Luau's
-      // parser recovers with. Other errors keep their range.
-      if (missingType && (end.line > start.line + 1 || (end.line === start.line + 1 && end.character > 0))) {
-        return start.line + 1 < lineStartsOf().length ? { line: start.line + 1, character: 0 } : end;
-      }
-      const after = end.line > start.line || (end.line === start.line && end.character > start.character);
-      if (after && (!atEnd || end.character === 0)) return end;
-      const line = after ? end.line : start.line;
-      return line + 1 < lineStartsOf().length ? { line: line + 1, character: 0 } : after ? end : start;
-    };
     // Whether a document position is in a function's own Luau, its header or
     // its body, that the checker reads (`luauReadingReportsAllAt`; not a
     // function value in a `store`'s, whose errors are Sparkdown's own), read
@@ -224,7 +188,7 @@ export class SparkdownTypechecker {
           if (syntaxError?.sparkdown) continue;
           const message = error.data.kind === "SyntaxError" ? error.data.message : "";
           const start = documentPosition(unit, error.location.begin);
-          const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"), message.startsWith("Expected type"));
+          const end = syntaxErrorEnd(start, documentPosition(unit, error.location.end), message, () => lineStartsOf().length);
           if (isSparkdownSyntax(end)) continue;
           // In a pure-Luau body (a `.luau` or `run` file, a function's own
           // Luau) every error of Luau's reading is reported, in Luau's words
