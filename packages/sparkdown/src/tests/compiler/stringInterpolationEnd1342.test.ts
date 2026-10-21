@@ -72,16 +72,6 @@ describe("a double-quoted string's interpolation left open ends at the string's 
     // A `"` string in brackets is the expression's.
     ['{f("x")', " .. y"],
     ['{t["k"]', " .. y"],
-    // Quotes after the closing quote, in a string or a comment
-    // (round 1, `ax` finding 1).
-    ["{b", ' .. "c"'],
-    ["{b", ' .. x) -- say "hello"'],
-    // A lone quote in a trailing comment (round 2, `ax` finding 1).
-    ["{b", ' .. x) -- say "hello'],
-    ["{b", ' .. x) -- "a" "b'],
-    // A quoted brace in a trailing comment (round 2, `undirected` finding 2).
-    ["{b", ' .. x) -- say "hello }"'],
-    ["{b", ', "c")'],
   ] as const) {
     const form = `g("a ${interpolation}"${after}${after.includes(")") ? "" : ")"}\n  return 1`;
     test(JSON.stringify(form), () => {
@@ -101,6 +91,28 @@ describe("a double-quoted string's interpolation left open ends at the string's 
       expect(converter.map((e) => e.split("-", 1)[0])).toEqual([`1:${to}`]);
     });
   }
+
+  // A line with a `"` after the closing quote keeps the reading without the
+  // rule, the base's: a valid nested string always has a later quote, so the
+  // rule gives these up rather than guess which quote closes the string
+  // (round 4, decision 96eb2328). The call loses its `)` and the next line
+  // reports it, but the string still ends at its line (I-1318), the
+  // function keeps its `end` and the story after it parses. Each list is
+  // the base's, pinned as a documented divergence from I-1342's reading.
+  test("a quote after the closing quote keeps the base's reading, bounded to its line", () => {
+    const missingParen = "2:2-2:8 Expected ')' (to close '(' at line 2), got 'return'";
+    const cases: [string, string[]][] = [
+      ['g("a {b" .. "c")', ["1:4-1:18 Malformed string; did you forget to finish it?", "1:7-1:18 Malformed interpolated string; did you forget to add a `}`?", missingParen]],
+      ['g("a {b", "c")', ["1:4-1:16 Malformed string; did you forget to finish it?", "1:7-1:16 Malformed interpolated string; did you forget to add a `}`?", missingParen]],
+      ['g("a {b" .. x) -- say "hello"', ["1:30-1:31 Malformed string; did you forget to finish it?", "1:4-1:31 Malformed string; did you forget to finish it?", "1:7-1:31 Malformed interpolated string; did you forget to add a `}`?", missingParen]],
+      ['g("a {b" .. x) -- say "hello', ["1:4-1:30 Malformed string; did you forget to finish it?", "1:7-1:30 Malformed interpolated string; did you forget to add a `}`?", missingParen]],
+      ['g("a {b" .. x) -- "a" "b', ["1:4-1:26 Malformed string; did you forget to finish it?", "1:7-1:26 Malformed interpolated string; did you forget to add a `}`?", missingParen]],
+      ['g("a {b" .. x) -- say "hello }"', ["1:25-1:30 Malformed interpolated string, got 'hello'", missingParen]],
+    ];
+    for (const [form, errors] of cases) {
+      expect(sparkdownErrors(documentOf(`${form}\n  return 1`).text), form).toEqual(errors);
+    }
+  });
 
   test("an interpolation closed before a `\"` string in it keeps the string", () => {
     expect(sparkdownErrors(documentOf('g("a {c .. "x"} y")').text)).toEqual([]);
