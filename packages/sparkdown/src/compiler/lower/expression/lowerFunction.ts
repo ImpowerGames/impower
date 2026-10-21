@@ -134,8 +134,8 @@ export function readBodyAst(
  * to this reading (`loweredLuauBodyOf`). An error at a token that is
  * Sparkdown's own (`LuauSyntaxError.sparkdown`) is Sparkdown's syntax's to
  * report, and one past the end of the chunk (`pastChunkEnd`) is none of
- * Luau's. Only errors from `bodyFrom` on are the body's (a method's header
- * is read with it). Called once the body is lowered, it leaves out an error
+ * Luau's. Only errors from `bodyFrom` on are reported (a define's method
+ * passes its own start, so its header's are too, I-1401). Called once the body is lowered, it leaves out an error
  * the lowering already reported at the same place.
  */
 export function reportBodySyntaxErrors(
