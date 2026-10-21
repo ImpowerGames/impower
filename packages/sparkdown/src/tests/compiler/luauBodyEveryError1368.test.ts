@@ -40,6 +40,9 @@ const FORMS = [
   "local function g(a :: number) end",
   "local function g(:: number) end",
   "local function g(a, : number) end",
+  // A statement after the body's last statement, which closes the
+  // function there (I-1400).
+  "return 1 2",
 ];
 
 describe("a define's method reports every error Luau reports for its body (I-1368)", () => {
@@ -77,6 +80,15 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
       expect(sparkdownErrors(`layout main with\n  button @click={\n    ${line}\n  }\nend\n`)).toEqual(official);
     });
   }
+
+  // A statement after the body's last statement closes the function there,
+  // as Luau reads it; the function the closure stands for begins at its
+  // `{` (I-1400).
+  test('"return 1 2" in a closure', () => {
+    expect(sparkdownErrors(`layout main with\n  button @click={\n    return 1 2\n  }\nend\n`)).toEqual([
+      "2:13-2:14 Expected 'end' (to close 'function' at line 2), got '2'",
+    ]);
+  });
 
   test('"local s = \\"abc" in a closure is reported once', () => {
     const errors = sparkdownErrors('layout main with\n  button @click={ local s = "abc }\nend\n');
