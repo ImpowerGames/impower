@@ -899,7 +899,10 @@ function readPropertyDefinition(
       "LuauTableIndexDeclaration",
       bracketAssignment,
     );
-    if (!indexNode) return null;
+    if (!indexNode) {
+      reportUnreadValueErrors(propNode, ctx);
+      return null;
+    }
     // Only STRING-LITERAL keys are representable in the compile-time struct;
     // a computed key (`[expr]`) is runtime-only: the __def table carries it as
     // an expression key evaluated at init, and the context never sees it. The

@@ -1331,7 +1331,7 @@ function describeKind(token: Token): string {
     case "interp":
       // A backtick string's lexemes (`interpLexemes`), or the whole string,
       // which Luau's lexer reads as its first lexeme (I-1419).
-      if (token.broken) return "malformed string";
+      if (token.broken || (!token.lexemesOf && token.text.startsWith("`") && !isFinished(token))) return "malformed string";
       if (token.node) return stringPartNodes(token.node, BACKTICK_INTERPOLATION).length > 0 ? "the beginning of an interpolated string" : "interpolated string";
       if (token.text.startsWith("`")) return "the beginning of an interpolated string";
       return token.text.endsWith("{") ? "the middle of an interpolated string" : "the end of an interpolated string";
