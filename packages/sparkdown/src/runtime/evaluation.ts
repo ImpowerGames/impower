@@ -25,6 +25,7 @@ import { NativeFunctionCall } from "./NativeFunctionCall";
 import {
   BUILTIN_ITER_TAG,
   GLOBALS_PROXY_TAG,
+  firstMissingStdLibArg,
   isPureNumberStdLibOp,
   isStdLibFunctionName,
   isStdLibNamespaceName,
@@ -951,6 +952,15 @@ function runBuiltinCall(
   spreadCallArgs(args);
   if (entry.arity >= 0 && args.length > entry.arity) {
     args.length = entry.arity;
+  }
+  // A state-aware builtin raises what its direct call (`callStd`) raises for
+  // a required argument left absent.
+  if (!entry.pure) {
+    const missing = firstMissingStdLibArg(entry, args);
+    if (missing) {
+      const short = name.slice(name.lastIndexOf(".") + 1);
+      story.Error(`missing argument #${missing} to '${short}'`);
+    }
   }
   const values = unwrapArgsForPureStdLibFn(entry, args, story, name);
   // A builtin of numbers given fewer arguments than it takes raises what its
