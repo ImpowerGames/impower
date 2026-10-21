@@ -72,7 +72,8 @@ import {
   type LuauSource,
 } from "../utils/luauAst";
 import { syntheticId } from "../utils/documentTag";
-import { rootLocalAnswer, rootSlotName } from "../utils/rootLocalReads";
+import { answersDeclaration, rootLocalAnswer, rootSlotName } from "../utils/rootLocalReads";
+import { ROOT_NONE } from "../../utils/rootLocals";
 import { followsLineEndingComma } from "../utils/lineContinuation";
 import { statementSource } from "../utils/statementSource";
 import {
@@ -411,13 +412,16 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * way (`_G` aside), in the order they are first read.
  *
  * `rootReads`, when given, collects each name read that no function around
- * the function declares and a `local` of the root frame's own scope takes
- * where the function is written (`rootLocalAnswer`), with that answer, in
- * the order they are first read, whether captured or not: a function's entry
- * binds such a name to that local (`RootBinding`), and a closure built in
- * the root frame captures a captured one through the local's slot when it
- * has one (`rootSlotName`). The answer of every such read is recorded, so
- * the function is lowered again when a `local` above it changes it.
+ * the function declares and the converter does not bind to a local, with the
+ * `local` of the root frame's own scope that takes it where the function is
+ * written (`rootLocalAnswer`), in the order they are first read, whether
+ * captured or not: a function's entry binds such a name to that local
+ * (`RootBinding`), and a closure built in the root frame captures a captured
+ * one through the local's slot when it has one (`rootSlotName`), and at the
+ * global when the scope declares the name but none of its declarations is in
+ * scope there (`ROOT_NONE`). The answer of every such read is
+ * recorded, so the function is lowered again when a `local` above it
+ * changes it.
  *
  * `node`, the syntax node the function is written at, adds what the methods
  * of each `define` written in the function read from around the define
@@ -540,8 +544,7 @@ export function freeVariables(
       // scope of its name.
       if (!readsLocal && !isShadowedLocal(name) && !rootSeen.has(name)) {
         rootSeen.add(name);
-        const answer = rootLocalAnswer(name, at, ctx);
-        if (answer) rootReads?.push({ name, answer });
+        rootReads?.push({ name, answer: rootLocalAnswer(name, at, ctx) });
       }
       if (!isShadowedLocal(name) && !readsLocal) {
         if (isGlobalCallable(name)) return;
@@ -762,7 +765,7 @@ export function buildClosureExpression(
   synthName: string,
   upvals: string[],
   userArity: number,
-  rootSlots?: ReadonlyMap<string, string>,
+  rootCaptures?: ReadonlyMap<string, RootCapture>,
 ): Expression {
   const fnDivert = new DivertTarget(
     new Divert([new Identifier(synthName)]),
@@ -772,7 +775,7 @@ export function buildClosureExpression(
     (name, i) =>
       new ObjectExpressionEntry(
         String(i),
-        new VariablePointerExpression(name, rootSlots?.get(name) ?? null),
+        new VariablePointerExpression(name, rootCaptures?.get(name)),
       ),
   );
   const upvalObject = new ObjectExpression(upvalEntries);
@@ -795,7 +798,9 @@ export interface RootRead {
  *  through the slot of its declaration when it has one (`rootSlotName`),
  *  and otherwise by name. */
 export function rootBindingsOf(reads: readonly RootRead[], ctx: LowerContext): RootBinding[] {
-  return reads.map(({ name, answer }) => new RootBinding(name, rootSlotName(name, answer, ctx)));
+  return reads
+    .filter(({ answer }) => answersDeclaration(answer))
+    .map(({ name, answer }) => new RootBinding(name, rootSlotName(name, answer, ctx)));
 }
 
 /**
@@ -826,24 +831,38 @@ export function rootBindings(
   );
 }
 
-/** The slot each of `upvals` a closure built in the root frame captures
- *  through: the slot of the declaration of the root frame's own scope it
- *  reads, for a name declared there more than once (`rootSlotName`). A
- *  closure built in a function captures the function's own binding of the
- *  name, which the function's entry bound (`rootBindings`). */
+/** How a closure built in the root frame captures one of its upvalues in
+ *  place of by name (`VariablePointerExpression`): through the slot of the
+ *  declaration it reads, or at the global. */
+export type RootCapture = { slot: string } | "global";
+
+/** How each of `upvals` a closure built in the root frame captures, where
+ *  not by name: through the slot of the declaration of the root frame's own
+ *  scope it reads, for a name declared there more than once
+ *  (`rootSlotName`), and at the global for a name it reads as a global that
+ *  the scope declares where no such declaration is in scope (`ROOT_NONE`), so
+ *  that a scene's `local` of the name, which the scope may bind as the
+ *  closure is built, is not captured (I-1374). A name the index finds no
+ *  declaration of at all is captured by name, since a local of a choice's
+ *  body, which the index does not read, is a binding of that scope too. A
+ *  closure built in a function captures the
+ *  function's own binding of the name, which the function's entry bound
+ *  (`rootBindings`). */
 export function rootCaptureSlots(
   reads: readonly RootRead[],
   upvals: readonly string[],
   ctx: LowerContext,
-): Map<string, string> | undefined {
+): Map<string, RootCapture> | undefined {
   if (ctx.functionScopeStack && ctx.functionScopeStack.length > 0) return undefined;
-  const slots = new Map<string, string>();
+  const captures = new Map<string, RootCapture>();
   const captured = new Set(upvals);
   for (const { name, answer } of reads) {
-    const slot = captured.has(name) ? rootSlotName(name, answer, ctx) : null;
-    if (slot) slots.set(name, slot);
+    if (!captured.has(name)) continue;
+    const slot = rootSlotName(name, answer, ctx);
+    if (slot) captures.set(name, { slot });
+    else if (answer === ROOT_NONE) captures.set(name, "global");
   }
-  return slots.size > 0 ? slots : undefined;
+  return captures.size > 0 ? captures : undefined;
 }
 
 /**

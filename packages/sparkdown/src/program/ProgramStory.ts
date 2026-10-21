@@ -18,7 +18,7 @@ import {
   lookupStateAwareStdLib,
   luauTypeOf,
 } from "../runtime/StdLib";
-import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootSlotPointer, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
+import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, keepLegacyRootBinding, readVariable, rootGlobalPointer, rootSlotPointer, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
@@ -91,7 +91,9 @@ import {
   NUM_FLOAT,
   Op,
   SET_DECLARE,
+  ROOT_GLOBAL,
   ROOT_SLOT,
+  SET_ROOT_SLOTTED,
   SET_GLOBAL,
   SET_INITIALIZE,
   SET_VARARGS,
@@ -2743,7 +2745,9 @@ export class ProgramStory implements StoryEngine {
         state.PushEvaluationStack(
           flagsOf(w0) & ROOT_SLOT
             ? rootSlotPointer(state.callStack, this.root.table.strings[arg]!)
-            : openVariablePointer(state.callStack, this.root.table.strings[arg]!),
+            : flagsOf(w0) & ROOT_GLOBAL
+              ? rootGlobalPointer(this.root.table.strings[arg]!)
+              : openVariablePointer(state.callStack, this.root.table.strings[arg]!),
         );
         break;
       case Op.BindRoot: {
@@ -2811,6 +2815,9 @@ export class ProgramStory implements StoryEngine {
         // variadic function's `...` local, which keeps it whole.
         if (!(flags & SET_VARARGS)) {
           value = oneValue(value);
+        }
+        if (flags & SET_ROOT_SLOTTED) {
+          keepLegacyRootBinding(state.callStack, this.root.table.strings[arg]!);
         }
         state.variablesState.Assign(this.assignment(arg, flags), value);
         // A declaration chunk declares its globals one after another, each

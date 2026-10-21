@@ -146,6 +146,12 @@ describe("a function written at the top level", () => {
     ).toEqual(got("Got 1."));
   });
 
+  test("written in a scene, reads the scene's parameter", () => {
+    expect(
+      run(["-> S(5)", "scene S(x)", "  function g()", "    return x", "  end", "  Got {tostring(g())}.", "end"]),
+    ).toEqual(got("Got 5."));
+  });
+
   test("written in a scene, reads the scene's local declared above it", () => {
     expect(
       run([
@@ -202,6 +208,65 @@ describe("a closure written in the root frame", () => {
         "end",
       ]),
     ).toEqual(got("Got 1 5."));
+  });
+
+  test("reads the global, not a local another scene left in the scope", () => {
+    expect(
+      run([
+        "-> S",
+        "scene S",
+        "  local a = 5",
+        "  -> T",
+        "end",
+        "scene T",
+        "  local f = function() return a end",
+        "  Got {tostring(f())}.",
+        "end",
+      ]),
+    ).toEqual(got("Got nil."));
+  });
+
+  // A choice's body declares in the root frame's own scope too; the index
+  // reads no statement of it, so a name it alone declares is captured by name.
+  test("reads a local of the choice body it is written in", () => {
+    const story = new ProgramStory(
+      rootOf([
+        "-> S",
+        "scene S",
+        "  choose",
+        "    + Go",
+        "      local x = 3",
+        "      local f = function() return x end",
+        "      Got {tostring(f())}.",
+        "  end",
+        "end",
+      ]),
+    );
+    quiet(() => storyBeats(story));
+    story.ChooseChoiceIndex(0);
+    const { beats, errors } = quiet(() => storyBeats(story));
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Go", "Got 3."));
+  });
+
+  test("reads the parameter of the scene it is written in", () => {
+    expect(
+      run(["-> S(5)", "scene S(x)", "  local f = function() return x end", "  Got {tostring(f())}.", "end"]),
+    ).toEqual(got("Got 5."));
+  });
+
+  test("reads the parameter of the branch it is written in", () => {
+    expect(
+      run([
+        "-> S",
+        "scene S",
+        "  -> B(7)",
+        "  branch B(y)",
+        "    local f = function() return y end",
+        "    Got {tostring(f())}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 7."));
   });
 
   test("reads a stdlib-named local declared above it", () => {
@@ -301,6 +366,21 @@ describe("a save written by an engine that bound top-level locals by name", () =
     loaded.loadSave(save);
     const { beats, errors } = storyBeats(loaded);
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 2 2."));
+  });
+
+  // `redeclared-after-load-save-ae10deabd.json` is the save the engine at
+  // ae10deabd wrote of `redeclared-after-load.sd` after `First 1.`: the scope
+  // holds the first `a`, which `f` captured, and no slot. The scene's `local a`
+  // that runs after the load keeps that binding's cell (`<name>$0`), which the
+  // function, written after the first declaration, reads in place of the slot
+  // that engine never wrote.
+  test("loads, and a later declaration keeps the binding it left for the function", () => {
+    const text = readFileSync(join(FIXTURES, "redeclared-after-load.sd"), "utf-8");
+    const save = readFileSync(join(FIXTURES, "redeclared-after-load-save-ae10deabd.json"), "utf-8");
+    const loaded = new ProgramStory(rootOf([text.trimEnd()]));
+    loaded.loadSave(save);
+    const { beats, errors } = storyBeats(loaded);
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 1 1 2."));
   });
 });
 

@@ -1,4 +1,4 @@
-import { ROOT_ONLY } from "../../utils/rootLocals";
+import { ROOT_NONE, ROOT_ONLY, ROOT_PARAM } from "../../utils/rootLocals";
 import type { LowerContext } from "../context";
 import { documentTag } from "./documentTag";
 
@@ -6,7 +6,7 @@ import { documentTag } from "./documentTag";
  * The `local` of the root frame's own scope that code written at `at` reads
  * `name` from (`RootLocals.answer`), recorded as a `rootLocal` read so the
  * chunk is lowered again when a `local` written, removed or moved above it
- * changes the answer: `ROOT_ONLY`, a declaration's ordinal, or "" for none.
+ * changes the answer (`RootLocals.answer`).
  */
 export function rootLocalAnswer(name: string, at: number, ctx: LowerContext): string {
   const answer = ctx.rootLocals?.answer(name, at) ?? "";
@@ -25,18 +25,27 @@ export function rootDeclarationAnswer(name: string, at: number, ctx: LowerContex
   return answer;
 }
 
+/** Whether an answer names a declaration in scope (`RootLocals.answer`), which
+ *  a function's entry binds. */
+export function answersDeclaration(answer: string): boolean {
+  return answer !== "" && answer !== ROOT_NONE;
+}
+
 /**
  * The root frame's slot that keeps the binding of one declaration of a name
  * the document declares more than once in that scope (`name$<ordinal>$<tag>`),
  * or null for an answer that needs none: the only declaration of its name,
- * whose binding is the scope's own, or no declaration at all. The slot holds
+ * or a flow's parameter, whose binding is the scope's own, or no declaration
+ * at all. The slot holds
  * the cell of the declaration's binding (`RootBinding`), so a later
  * declaration of the name, which replaces the binding, leaves it to the code
  * written between them. No name an author writes holds a `$`, and the
  * document's tag keeps the slots of two scripts' scenes apart.
  */
 export function rootSlotName(name: string, answer: string, ctx: LowerContext): string | null {
-  if (!answer || answer === ROOT_ONLY) return null;
+  if (!answer || answer === ROOT_NONE || answer === ROOT_ONLY || answer === ROOT_PARAM) {
+    return null;
+  }
   return `${name}$${answer}$${documentTag(ctx.filePath)}`;
 }
 

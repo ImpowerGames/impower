@@ -355,11 +355,13 @@ export function rootVariablePointer(
 
 /**
  * The cell the root frame's own scope (`scope`) keeps for one declaration of
- * `name` in its slot (`slot`, `ROOT_SLOT`); null when the declaration has
- * not run there, where the name reads the global; or undefined when the
- * scope binds the name but holds no slot of it at all: a binding an engine
- * before the slots made, which a save it wrote holds, and which is reached by
- * name as that engine reached it.
+ * `name` in its slot (`slot`, `ROOT_SLOT`). Where that slot is missing,
+ * the binding an engine before the slots made, which a save it wrote holds:
+ * the cell a later declaration of the name kept of it (`<name>$0`,
+ * `keepLegacyRootBinding`), or undefined while the scope binds the name and
+ * holds no slot of it at all, where it is reached by name as that engine
+ * reached it. Null otherwise: the declaration has not run, and the name
+ * reads the global.
  */
 export function rootSlotCell(
   scope: Map<string, unknown>,
@@ -368,12 +370,37 @@ export function rootSlotCell(
 ): VariablePointerValue | null | undefined {
   const cell = scope.get(slot);
   if (cell instanceof VariablePointerValue) return cell;
+  const legacy = scope.get(`${name}$0`);
+  if (legacy instanceof VariablePointerValue) return legacy;
   if (!scope.has(name)) return null;
   const prefix = `${name}$`;
   for (const key of scope.keys()) {
     if (key.startsWith(prefix)) return null;
   }
   return undefined;
+}
+
+/**
+ * Keeps the binding of `name` that a declaration of a `local` the root
+ * frame's own scope declares more than once (`SET_ROOT_SLOTTED`) is about to
+ * replace, when the scope holds it with no slot of the name at all: one an
+ * engine before the slots made, which a save it wrote holds. Its cell goes in
+ * the slot `<name>$0`, which the declaration's replacement closes on the
+ * binding's value, so a function or a closure that reads a declaration whose
+ * slot that engine never wrote still reaches the binding it left (I-1374).
+ */
+export function keepLegacyRootBinding(callStack: CallStack, name: string): void {
+  const root = callStack.elements[0];
+  if (!root || callStack.elements.length !== 1 || root.temporaryScopes.length !== 1) {
+    return;
+  }
+  const scope = root.temporaryScopes[0]!;
+  if (!scope.has(name)) return;
+  const prefix = `${name}$`;
+  for (const key of scope.keys()) {
+    if (key.startsWith(prefix)) return;
+  }
+  callStack.SetTemporaryVariable(`${name}$0`, openVariablePointer(callStack, name), true, 1);
 }
 
 /**
@@ -392,7 +419,15 @@ export function rootSlotPointer(
   const root = callStack.elements[0];
   const cell = root ? rootSlotCell(root.temporaryScopes[0]!, name, slot) : null;
   if (cell === undefined) return openVariablePointer(callStack, name);
-  return cell ?? new VariablePointerValue(name, 0);
+  return cell ?? rootGlobalPointer(name);
+}
+
+/** The pointer at the global `name` a closure built in the root frame
+ *  captures for a name no `local` of the root frame's own scope takes where
+ *  it is written (`ROOT_GLOBAL`), whatever `local` of the name a scene left
+ *  in that scope. */
+export function rootGlobalPointer(name: string): VariablePointerValue {
+  return new VariablePointerValue(name, 0);
 }
 
 // Maps a `NativeFunctionCall` operator name to the Luau metamethod

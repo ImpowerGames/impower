@@ -150,10 +150,14 @@ changes it. A name declared once in that scope is bound by name there. Each
 declaration of a name declared more than once keeps the cell of its binding
 in a slot of the scope (`name$<ordinal>$<document tag>`), which a later
 declaration of the name closes on its value and leaves in place, and the
-function binds the slot of the declaration it reads. A save is the scope's
-temporaries as before, the slots among them. A save written before the
-slots holds no slot of a name declared more than once, and a function
-reaches the binding of that name by name, as the engine that wrote it did.
+function binds the slot of the declaration it reads. A scene's or a
+branch's parameter is a declaration of its body too, bound by name. A save
+is the scope's temporaries as before, the slots among them. A save written
+before the slots holds no slot of a name declared more than once: a
+function reaches the binding of that name by name, as the engine that wrote
+it did, until a declaration of the name runs, which keeps that binding's
+cell in the slot `name$0` before it replaces it, and a function whose
+declaration's slot is missing reads that cell.
 A define's method still captures the names its body reads when its table
 is built, as it did before, a pointer at the global of each name, which the
 binding replaces: a closure of the method that an older save holds passes
@@ -164,13 +168,16 @@ t.f`) is built where it is written and captures there the locals it reads,
 as Luau's does (#822). Built in the root frame, it captures a name the root
 frame's scope declares more than once through the slot of the declaration
 in scope where it is written, so a scene's `local` of the name, which runs
-before the closure is built, is not the one it captures. A name a `store`,
+before the closure is built, is not the one it captures; and a name the
+scope declares only where it is not in scope (another scene's `local`) at
+the global. A name the scope declares nowhere the compiler reads (a
+`local` of a choice's body) is captured by name. A name a `store`,
 a `const`, a top-level function or a stdlib entry would answer, which a
 closure does not capture, is bound at its entry as a top-level function
 binds it: a closure written after a `local` of the name reads the local
 (I-1365), and one written before it reads what the name names there. A
 top-level `local` beside a `store` of its name stays a compile error
-(#1177), so the `local` that shadows a `store` or a `const` is a scene's
+(I-767), so the `local` that shadows a `store` or a `const` is a scene's
 or a branch's.
 
 Where a script's control flow differs from its text, the text decides. A
@@ -183,7 +190,9 @@ the block runs, and a name a local of the block takes reads the global in
 it (I-1444); in an `if` or a loop it fails when the block runs (I-1443). A
 name a script declares once is bound by name in the root frame's scope, so
 a scene of another script that declares the name too replaces it while it
-runs.
+runs. A closure in a choice's body whose name another scene also declares
+captures the global in place of the body's `local`, since the compiler
+reads no statement of a choice's body.
 
 A `define` written in a function has its methods read
 that function's locals through a global cell for each

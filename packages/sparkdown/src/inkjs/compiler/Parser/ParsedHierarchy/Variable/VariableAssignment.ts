@@ -16,6 +16,7 @@ import {
   Op,
   SET_DECLARE,
   SET_INITIALIZE,
+  SET_ROOT_SLOTTED,
 } from "../../../../../program/ProgramInstructions";
 
 export class VariableAssignment extends ParsedObject {
@@ -222,7 +223,8 @@ export class VariableAssignment extends ParsedObject {
       emitter.variable(this.variableName),
       0,
       (this.isNewTemporaryDeclaration ? SET_DECLARE : 0) |
-        (this.isDeclarationInitializer ? SET_INITIALIZE : 0),
+        (this.isDeclarationInitializer ? SET_INITIALIZE : 0) |
+        (this.rootSlot ? SET_ROOT_SLOTTED : 0),
     );
     this.EmitRootSlot(emitter);
   }

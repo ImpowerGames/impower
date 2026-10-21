@@ -193,10 +193,18 @@ export const JUMP_DECISION = 2;
 /** `BindRoot`'s and `VarPtr`'s flag: `arg` names the root frame's slot that
  *  keeps the binding of one declaration of a `local` its own scope declares
  *  more than once, `<name>$<ordinal>$<document tag>`, and the instruction
- *  reaches the cell the slot holds. Where the slot is missing and the scope
- *  holds no slot of the name, the binding is one an engine before the slots
- *  made (a save it wrote), which is reached by name as that engine did. */
+ *  reaches the cell the slot holds. Where the slot is missing, the binding an
+ *  engine before the slots made (a save it wrote) is reached instead: the
+ *  cell the first declaration of the name to run since kept of it
+ *  (`SET_ROOT_SLOTTED`, the slot `<name>$0`), or while none has run, the
+ *  binding by name, as that engine reached it. */
 export const ROOT_SLOT = 1;
+
+/** `VarPtr`'s flag for a closure built in the root frame that captures a
+ *  name no `local` of the root frame's own scope takes where it is written:
+ *  it pushes a pointer at the global of the name, whatever `local` of the
+ *  name the scope binds as it is built (a scene's, I-1374). */
+export const ROOT_GLOBAL = 2;
 
 /** `SetVar`'s flags. */
 export const SET_DECLARE = 1;
@@ -210,6 +218,13 @@ export const SET_VARARGS = 4;
  *  after its name is declared, #1720). It assigns as an assignment does, and
  *  a data breakpoint's write watch does not hear it. */
 export const SET_INITIALIZE = 8;
+/** The declaration is one of a `local` the root frame's own scope declares
+ *  more than once, which keeps the cell of its binding in a slot
+ *  (`ROOT_SLOT`). Before it replaces a binding of the name that the scope
+ *  holds with no slot of the name at all, one an engine before the slots
+ *  made, it keeps that binding's cell in the slot `<name>$0`, which the
+ *  readers of a declaration whose slot is missing reach. */
+export const SET_ROOT_SLOTTED = 16;
 
 /** `CallValue`'s `aux` when the call site does not say how many arguments it
  *  passed. */

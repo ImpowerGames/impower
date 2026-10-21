@@ -6,6 +6,8 @@ import {
   scopeOf,
   statementsOf,
 } from "./declarationOnly";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { isExplicitRuleName } from "./explicitRuleNames";
 import {
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -19,13 +21,25 @@ import {
  *  by name (`RootBinding`). */
 export const ROOT_ONLY = "only";
 
+/** The answer for a name the root frame's own scope declares, none of whose
+ *  declarations is in scope where code is written (a scene's `local` read in
+ *  another scene, or one declared below the code): the name reads the global,
+ *  whatever binding of it the scope holds as the code runs. */
+export const ROOT_NONE = "none";
+
+/** The answer for a scene's or a branch's parameter, which its entry binds
+ *  in the root frame's own scope with no slot: a function reads it by name. */
+export const ROOT_PARAM = "param";
+
 /** A `local` of the root frame's own scope: where its name is written, from
  *  where code reads it (the end of its statement), and the flow whose body
- *  declares it, -1 for the top level. */
+ *  declares it, -1 for the top level. A scene's or a branch's parameter is
+ *  one of its flow, from its name on. */
 interface RootDeclaration {
   at: number;
   visibleFrom: number;
   flow: number;
+  param?: boolean;
 }
 
 /** A scene or a branch: where its header starts and its `end` ends, and the
@@ -67,6 +81,15 @@ export class RootLocals {
           parent: open[open.length - 1] ?? -1,
         });
         open.push(this.flows.length - 1);
+        const params = getDescendent("LuauFunctionParameters", node);
+        for (const param of params ? getDescendents("LuauFunctionParameter", params) : []) {
+          this.add(read(param.from, param.to).trim(), {
+            at: param.from,
+            visibleFrom: param.to,
+            flow: this.flows.length - 1,
+            param: true,
+          });
+        }
       } else if (node.name === "LuauEndKeyword") {
         const flow = open.pop();
         if (flow !== undefined) this.flows[flow]!.to = node.to;
@@ -80,8 +103,12 @@ export class RootLocals {
    * The declaration of `name` a function reads where code at `at` is
    * written: the last one before it at the top level or in a flow whose body
    * holds it. `ROOT_ONLY` for the document's only declaration of the name,
-   * its ordinal (from 1) for one of several, and "" for none, where the name
-   * reads the global, or the builtin of a stdlib name.
+   * `ROOT_PARAM` for a parameter of a flow around it, its ordinal (from 1)
+   * for one of several, and `ROOT_NONE` for none, where the name reads the
+   * global, or the builtin of a stdlib name. "" for a name the document
+   * declares nowhere in that scope, as far as this index reads it (a local of
+   * a choice's body, whose statements it does not read, is a binding of the
+   * scope too).
    */
   answer(name: string, at: number): string {
     const list = this.declarations.get(name);
@@ -93,10 +120,11 @@ export class RootLocals {
         declaration.visibleFrom <= at &&
         (declaration.flow < 0 || around.has(declaration.flow))
       ) {
+        if (declaration.param) return ROOT_PARAM;
         return list.length === 1 ? ROOT_ONLY : String(i + 1);
       }
     }
-    return "";
+    return ROOT_NONE;
   }
 
   /** What the declaration of `name` written at `at` is known by, as `answer`
