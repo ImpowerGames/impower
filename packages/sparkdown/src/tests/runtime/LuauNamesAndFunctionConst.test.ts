@@ -257,6 +257,25 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 2.\n" });
   });
 
+  // The grammar cannot see past a comment that spans lines, so a statement
+  // that begins with the word before one begins a declaration there; with
+  // no name after the comment, the reading takes the word as the name Luau
+  // reads, here an assignment's target.
+  test.each(["const", "store"])("`%s` assigned after a comment spanning lines", (word) => {
+    const source = [
+      "function f()",
+      `  local ${word} = 1`,
+      `  ${word} --[[ explain the update`,
+      "  ]] = 3",
+      `  return ${word}`,
+      "end",
+      "Go {f()}.",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3.\n" });
+  });
+
   // Where an expression goes on, on a later line, the word before a comment
   // spanning lines is its value or a list's next name, as Luau reads it.
   test.each(["const", ...STRUCTURAL_WORDS])("`%s` continuing an expression before a comment spanning lines", (word) => {
