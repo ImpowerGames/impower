@@ -40,6 +40,17 @@ assert(g() == 3, tostring(g()))`);
     expect(r.returnedOK).toBe(true);
   });
 
+  test("assigns a parameter of the enclosing function", () => {
+    const r = runConformanceSource(`local function outer(g)
+  local function change() function g() return 3 end end
+  change()
+  return g()
+end
+assert(outer(nil) == 3, tostring(outer(nil)))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
   test("the defining function and other closures see the new value", () => {
     const r = runConformanceSource(`local g = nil
 local function get() return g() end
