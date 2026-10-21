@@ -1194,35 +1194,6 @@ variables:
   # of it. These are not the `_STRING_TEXT` bodies above, which a header's
   # lookbehind holds and so take no lookahead.
   LUAU_UNFINISHED_LINE_STRING: (?:(?:"{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}|'{{LUAU_UNFINISHED_SINGLE_QUOTED_TEXT}}|`{{LUAU_UNFINISHED_BACKTICK_TEXT}})$)
-  # A line whose first token cannot go on with an expression the line before
-  # it ended (`` f(`a {b `` and then `x = 1`), where Luau's parser stops
-  # reading an interpolation left open and reads the token after it (I-1343).
-  # A blank line or a comment line does not decide, the line after it does.
-  # A binary operator, a `.`, a `:`, a call's opener (`(`, `{`, a string),
-  # an indexer's `[`, the interpolation's `}` and an if-expression's `then`
-  # go on with it, and so does a `\` or a backtick, which a string carried
-  # over the line may begin it with. A line that holds the interpolation's
-  # `}` (`x}`) is no such line: Luau's lexer reads the string on from that
-  # `}`, which its parser reads after the interpolation.
-  # lookaround: the line's start is the one place the rule that ends there
-  # (`LuauBacktickStringInterpolation`, and `LuauInterpolatedString` after
-  # it) can tell that the expression did not go on, since a regex never
-  # spans the line break; it reads only that line.
-  LUAU_INTERPOLATION_STOP_LINE: (?:^(?!{{WS}}*{{LUAU_INTERPOLATION_LINE_GOES_ON}})(?!{{LUAU_INTERPOLATION_NESTED_TEXT_ON_LINE}}*[}]))
-  # The start of a line that goes on with the expression before it, or does
-  # not decide (`LUAU_INTERPOLATION_STOP_LINE`).
-  LUAU_INTERPOLATION_LINE_GOES_ON: (?:$|==|[-+*/%^<>~.:(\[{}"'`\\]|{{LUAU_INTERPOLATION_GOES_ON_KEYWORD}})
-  LUAU_INTERPOLATION_GOES_ON_KEYWORD: (?:(?:and|or|then){{LUAU_NAME_END}})
-  # The text of an interpolation on its line, with one level of braces in it
-  # (`x = {1}}`), up to the interpolation's own `}`.
-  LUAU_INTERPOLATION_NESTED_TEXT_ON_LINE: (?:{{LUAU_INTERPOLATION_TEXT_ON_LINE}}|[{]{{LUAU_INTERPOLATION_TEXT_ON_LINE}}*[}])
-  # The end of a line, or a comment that goes on to it: a line comment, or a
-  # block comment that does not close on the line
-  # (`LuauBacktickInterpolationOpenLine`).
-  # lookaround: `LuauBlockComment` reads a block comment that closes on its
-  # line, after which the line may hold the interpolation's expression
-  # (`{ --[[x]] 1 }`), so only a comment it cannot close there ends the line.
-  LUAU_LINE_END_OR_OPEN_COMMENT: (?:$|{{LUAU_COMMENT_START}}(?!{{LUAU_PLAIN_LONG_BRACKET}}))
   # The expression of a `"` string's interpolation that does not close on
   # its line, up to the string's closing quote, the first `"` outside
   # brackets (I-1342). A comment after the string may hold quotes
@@ -13434,9 +13405,8 @@ repository:
     # has stopped reading the string at a line it could not finish
     # (`` f(`a {b`) `` and then `end`). The string ends there too, before a
     # closer that begins the line, so the call and the function around it
-    # take their own closers, and before a line that cannot go on with the
-    # interpolation's expression, where the interpolation ends (I-1343).
-    end: ([`]){{_LUAU_BINARY_OPERATOR_AHEAD_}}|$|(?=^{{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{LUAU_INTERPOLATION_STOP_LINE}})
+    # take their own closers.
+    end: ([`]){{_LUAU_BINARY_OPERATOR_AHEAD_}}|$|(?=^{{WS}}*{{LUAU_NOT_BRACE_CLOSER}})
     endCaptures:
       1:
         patterns:
@@ -13542,7 +13512,6 @@ repository:
         patterns:
           - include: "#PunctuationBraceOpen"
     patterns:
-      - include: "#LuauBacktickInterpolationOpenLine"
       - include: "#LuauExpression"
       - include: "#ExtraWhitespace"
       - include: "#Newline"
@@ -13555,14 +13524,7 @@ repository:
     # go on to the next line, and the converter reports Luau's error at it
     # (`Malformed interpolated string; did you forget to add a '}'?`). A
     # string finished on its line is an expression (`` `a {`b`} c` ``).
-    # Its expression ends at a line that cannot go on with it
-    # (`LUAU_INTERPOLATION_STOP_LINE`), where Luau's parser stops reading
-    # the interpolation and reads that line's token after it (I-1343): the
-    # string ends there as well, so the call or the statement around it
-    # reads the line (`` f(`a {b `` and then `x = 1`). An interpolation whose
-    # `{` ends its line reads its expression from a later line
-    # (`LuauBacktickInterpolationOpenLine`).
-    end: ([}])|({{WS}}*)({{LUAU_UNFINISHED_LINE_STRING}})|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{BEAT}})|(?={{LUAU_INTERPOLATION_STOP_LINE}})
+    end: ([}])|({{WS}}*)({{LUAU_UNFINISHED_LINE_STRING}})|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{BEAT}})
     endCaptures:
       "1":
         patterns:
@@ -13657,13 +13619,12 @@ repository:
         patterns:
           - { include: "#PunctuationBraceOpen" }
     patterns:
-      - { include: "#LuauBacktickInterpolationOpenLine" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
     # Ends as `LuauBacktickStringInterpolation` does.
-    end: ([}])([}])?|({{WS}}*)({{LUAU_UNFINISHED_LINE_STRING}})|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{BEAT}})|(?={{LUAU_INTERPOLATION_STOP_LINE}})
+    end: ([}])([}])?|({{WS}}*)({{LUAU_UNFINISHED_LINE_STRING}})|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{BEAT}})
     endCaptures:
       1:
         patterns:
@@ -13677,29 +13638,6 @@ repository:
       4:
         patterns:
           - { include: "#LuauString" }
-
-  # A backtick string's interpolation whose `{` ends its line, or is followed
-  # on it only by comments (`` `a { `` and then `b}`), whose expression
-  # begins on a later line. It reads the interpolation as the interpolation
-  # does, without the end at a line that cannot go on with an expression
-  # (`LUAU_INTERPOLATION_STOP_LINE`), since no expression has begun before
-  # the first line it reads, and it ends before what ends the interpolation,
-  # which the interpolation then reads. Its end consumes nothing, so it
-  # takes no `LuauUnreadToken`: a token it cannot read ends it, and
-  # `LuauBacktickStringInterpolation` reads that token.
-  # lookaround: `LuauBacktickStringInterpolation`'s end at a line that
-  # cannot go on with an expression would end the interpolation before its
-  # expression's first line; the lookbehind keeps the rule to the place right
-  # after the interpolation's `{` (textmate-grammar-tree has no `\G`), and
-  # the lookahead to a `{` whose line holds no code after it, which only the
-  # `{`'s own line tells.
-  LuauBacktickInterpolationOpenLine:
-    begin: (?<=[{])(?={{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*{{LUAU_LINE_END_OR_OPEN_COMMENT}})
-    patterns:
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
-    end: (?=[}])|(?={{WS}}*{{LUAU_UNFINISHED_LINE_STRING}})|(?={{WS}}*{{LUAU_NOT_BRACE_CLOSER}})|(?={{BEAT}})
 
   LuauStringEscape:
     patterns:
