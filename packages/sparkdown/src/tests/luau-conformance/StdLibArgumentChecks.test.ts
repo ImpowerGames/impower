@@ -83,6 +83,7 @@ const invalid: [line: string, message: string][] = [
   [`local s = ("abc"):padend("x")`, "invalid argument #1 to 'padend' (number expected, got string)"],
   [`local t = {1, 2}\nt:remove("x")`, "invalid argument #1 to 'remove' (number expected, got string)"],
   [`local t = {1, 2}\nt:remove(true)`, "invalid argument #1 to 'remove' (number expected, got boolean)"],
+  [`local t = {}\nt:remove("x")`, "invalid argument #1 to 'remove' (number expected, got string)"],
   [`local t = {1, 2}\nt:insert("x", 5)`, "invalid argument #1 to 'insert' (number expected, got string)"],
   [`local t = {1, 2}\nlocal s = t:concat(",", "x")`, "invalid argument #2 to 'concat' (number expected, got string)"],
 ];

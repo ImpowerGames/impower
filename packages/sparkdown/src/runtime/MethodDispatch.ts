@@ -515,11 +515,12 @@ function methodInsert(params: InkObject[]): InkObject {
 function methodRemove(params: InkObject[]): InkObject {
   const t = asTable(params[0], "remove", "receiver");
   const arr = arrayPortion(t);
+  const given = checkNumberArg(params[1], 1, "remove", true);
   if (arr.length === 0) {
     // Remove from empty array — return the same shape (no-op).
     return new ObjectValue(new Map(t));
   }
-  const pos = checkNumberArg(params[1], 1, "remove", true) ?? arr.length;
+  const pos = given ?? arr.length;
   if (pos < 1 || pos > arr.length) {
     throw new StoryException(`:remove index ${pos} out of range`);
   }
