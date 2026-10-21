@@ -331,6 +331,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // written directly in that function's body, outside every block of it.
   // See `definitionSite`.
   public _outsideBlocks = false;
+  // The name a function statement nested in another function is written
+  // with (`function foo`, `local function foo`), set by the lowering on the
+  // function it builds under a generated name: what its frames and its
+  // value are labelled by (`functionLabel`), as Luau names it.
+  public _authoredName: string | null = null;
   public variableDeclarations: Map<string, VariableAssignment> =
     FlowBase.declarationTable();
 

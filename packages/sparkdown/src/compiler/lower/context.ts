@@ -291,23 +291,12 @@ export interface LowerContext {
    */
   hoistedNestedFnDeclsStack?: ParsedObject[][];
   /**
-   * Stack of per-enclosing-function-scope sibling-subflow frames,
-   * mapping each subflow's NAME to its captured upvalue names. Holds
-   * nested function declarations that route through
-   * `lowerNestedAsSubFlow` rather than emitting a `local NAME = closure`
-   * binding — currently the variadic-nested-fn case. References to
-   * these names from inner closures must NOT be captured as upvals:
-   * the closure-capture path emits `VariablePointerExpression(NAME)`,
-   * which resolves to nil since NAME is a SubFlow not a variable.
-   * Instead the inner-closure body's references fall through to
-   * `FunctionCall` dispatch, which resolves NAME via ink's relative-
-   * path walk; the call packs the subflow's `...` when it runs.
-   *
-   * The upvalue-name list is the subflow's free variables: the
-   * subflow prepends them as parameters and every call site prepends
-   * matching `VariablePointerExpression`s (mirroring the closure
-   * upval mechanism) — `local abs = math.abs function foo(...) return
-   * abs(...) end` must read the enclosing local.
+   * Stack of per-enclosing-function-scope sibling-subflow frames. A
+   * nested function statement, variadic or not, lowers as a closure
+   * assigned to a local (`lowerNestedNamedFunction`), so no lowerer
+   * registers a subflow here any more (I-1360); the frames hold the
+   * names an assignment rebinds (`lowerReassignment`), whose calls
+   * dispatch through the variable (`SiblingSubFlowInfo.rebound`).
    *
    * Parallel to `functionScopeStack` / `hoistedNestedFnDeclsStack`:
    * each function-definition lowerer pushes one frame on entry and
@@ -342,8 +331,10 @@ export interface LowerContext {
 }
 
 /**
- * Registry entry for a variadic nested function lowered as a
- * knot-form SubFlow (`lowerNestedAsSubFlow`). `upvals` are the
+ * Registry entry for a name of the sibling-subflow frames. Only rebound
+ * entries are registered now (`LowerContext.siblingSubFlowNamesStack`);
+ * the fields below describe the knot-form SubFlow that variadic nested
+ * functions lowered as before I-1360, whose readers remain. `upvals` are the
  * captured free-variable names — prepended as parameters on the
  * SubFlow and as `VariablePointerExpression` args at direct call
  * sites. `arity` is the declared FIXED parameter count (excludes

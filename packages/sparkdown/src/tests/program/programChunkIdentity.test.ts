@@ -754,15 +754,18 @@ describe("a statement that writes a function", () => {
     expect(shows(edited)).toEqual(["Got 3."]);
   });
 
-  // A closure calls a function declared with `...` in the same function by
-  // name and does not capture it, so an edit that swaps its calls of two
-  // such functions changes none of the statement's code.
-  it("keeps its chunk when an edit to a closure's body swaps its calls of two functions it does not capture", () => {
+  // A closure captures the two functions declared with `...` in the same
+  // function that it calls, in the order its first line reads them, so an
+  // edit that swaps its calls of them changes none of the statement's code.
+  // (Before I-1360 such a function was a subflow the closure called by name
+  // and did not capture.)
+  it("keeps its chunk when an edit to a closure's body swaps its calls of two functions it captures", () => {
     const text = [
       "function run()",
       "  function foo(...) return 1 end",
       "  function bar(...) return 2 end",
       "  local f = function()",
+      "    local _ = { foo, bar }",
       "    return foo() * 10 + bar()",
       "  end",
       "  return f()",

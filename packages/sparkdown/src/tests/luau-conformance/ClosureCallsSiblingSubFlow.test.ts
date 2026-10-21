@@ -1,10 +1,9 @@
 // A closure that calls a function declared with `...` in the same function
 // passes that function the locals it captures, whether or not the closure
-// reads them itself (I-817). The function lowers as a subflow that takes the
-// locals it captures as leading parameters (`lowerNestedAsSubFlow`), and a
-// call passes a pointer to each (`withSiblingSubFlowUpvalArgs`), so a closure
-// that calls the subflow, or reads it as a value, captures those locals too
-// (`freeVariables`).
+// reads them itself (I-817). Since I-1360 the function lowers as a closure
+// assigned to a local of the function around it, which captures the locals
+// it reads where it is defined, and a closure that calls it captures that
+// local (`lowerNestedNamedFunction`).
 
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -147,9 +146,13 @@ describe("a closure that calls a variadic function of the same function", () => 
 });
 
 // An edit to the function's body alone that changes the locals it captures
-// changes the locals the closure that calls it captures: an incremental
-// compile gives the closure's call what a cold compile of the edited script
-// does.
+// changes the function's statement, while the closure that calls it captures
+// only the function's local and keeps its own: an incremental compile gives
+// the closure's call what a cold compile of the edited script does. `other`
+// is declared before the function, so the function's body
+// reads it as Luau scopes it: these cases expected the same results with
+// `other` declared after the function, which a call reached only because
+// it looked the captured names up where the call was written (I-1361).
 describe("an edit to the body of a variadic function a closure calls", () => {
   const texts = (root: ProgramRoot) =>
     storyBeats(new ProgramStory(root)).beats.map((beat) => beat.text);
@@ -159,13 +162,20 @@ describe("an edit to the body of a variadic function a closure calls", () => {
     ["reads both locals", "return base", "return base + other", ["Got 15.\n"]],
     ["reads no local", "return base", "return 7", ["Got 7.\n"]],
   ])("so that it %s, gives the closure's call what a cold compile does", (_, before, after, expected) => {
-    const source = story([
-      "local other = 5",
-      "local bar = function()",
-      "  return foo()",
+    const source = [
+      "function run()",
+      "  local base = 10",
+      "  local other = 5",
+      "  function foo(...)",
+      "    return base",
+      "  end",
+      "  local bar = function()",
+      "    return foo()",
+      "  end",
+      "  return bar()",
       "end",
-      "return bar()",
-    ]);
+      "Got {run()}.",
+    ].join("\n");
     const session = programSession(source);
     expect(texts(session.root)).toEqual(["Got 10.\n"]);
     const edited = session.edit(before, after);
