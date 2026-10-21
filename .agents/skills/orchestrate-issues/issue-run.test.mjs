@@ -598,7 +598,7 @@ try {
   const ghCalls = (names, reply) => { const calls = []; return { calls, client: run.githubClient(names, checkout, { run: (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return reply(args); } }) }; };
   // `pulls` answers every PR search, or, as a function, each search by its query.
   const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(typeof pulls === "function" ? pulls(args[args.indexOf("--search") + 1]) : pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
-  const listFields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit";
+  const listFields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
   {
     const { client: one, calls } = ghCalls({ repository: "acme/widgets" }, replies([]));
     one.issue(200); one.subIssues(200); one.blockedBy(201); one.effort(201); one.pulls(201); one.comments(401, 201); one.checks(401);
@@ -716,6 +716,25 @@ try {
       const sibling = { ...stale, number: 1358, headRefName: "feat/7-x", closingIssuesReferences: [ref(INTERNAL, 7), ref(INTERNAL, 8)], author: { login: "shared" } };
       const { client: siblingGh } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => [sibling]));
       assert.deepEqual([siblingGh.pulls(7).map((p) => p.number), siblingGh.pulls(8)], [[1358], []], "a PR whose branch ticket it closes is that ticket's only");
+    }
+    // A pre-cutover draft with no closing references at all, on
+    // codex/refactor/1389-x, was opened before internal #1389 existed, so it
+    // is no internal ticket's PR and #1389 is dispatched; a draft with no
+    // references yet opened after its ticket is still its branch ticket's.
+    {
+      const old = { number: 1413, state: "OPEN", isDraft: true, headRefName: "codex/refactor/1389-x", headRefOid: "o", baseRefName: "main", mergeCommit: null, closingIssuesReferences: [], createdAt: "2026-10-05T00:00:00Z" };
+      const fresh = { number: 1401, state: "OPEN", isDraft: true, headRefName: "feat/8-x", headRefOid: "f", baseRefName: "main", mergeCommit: null, closingIssuesReferences: [], createdAt: "2026-10-21T00:00:00Z" };
+      assert.equal(run.ownsPull(old, 1389, true, "2026-10-20T00:00:00Z"), false, "a no-reference PR older than its branch's ticket is not that ticket's");
+      assert.equal(run.ownsPull(fresh, 8, true, "2026-10-20T00:00:00Z"), true, "a no-reference PR opened after its branch's ticket is that ticket's");
+      const created = { 6: "2026-10-01T00:00:00Z", 1389: "2026-10-20T00:00:00Z", 8: "2026-10-20T00:00:00Z" };
+      const tree = { 6: [{ number: 1389, state: "open", title: "slice", type: { name: "Task" }, body: "", created_at: created[1389] }, { number: 8, state: "open", title: "fresh slice", type: { name: "Task" }, body: "", created_at: created[8] }] };
+      const oldClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" }, created_at: created[n] }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], effort: () => "Low", comments: () => [], checks: () => [], pulls: (n) => (n === 1389 ? [old] : n === 8 ? [fresh] : []) };
+      const oldSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, oldClient);
+      const of = (n) => oldSnap.tickets.find((t) => t.number === n);
+      assert.deepEqual([of(1389).prs, of(8).prs.map((p) => p.number)], [[], [1401]], "the snapshot gives the old draft to no ticket and the fresh draft to its branch's");
+      const oldPlan = run.planDispatch({ record: run.readRecord(file), snapshot: oldSnap, preflights: [available("claude-cli", "claude-opus-5-5", [1389, 8])], freeBytes: 100 * GB, defaults, census: () => [] });
+      assert.notEqual(actions(oldPlan)[1389], "adopt-pr", "plan does not adopt the old draft for the ticket its branch number collides with");
+      assert.equal(actions(oldPlan)[8], "adopt-pr", "and still adopts the fresh draft");
     }
     const splitBrief = run.brief(run.readRecord(file), splitPlanFile, 7, [], defaults);
     assert.match(splitBrief, new RegExp(`You are the writer for ${INTERNAL} ticket #7 `));

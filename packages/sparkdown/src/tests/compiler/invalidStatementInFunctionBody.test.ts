@@ -593,9 +593,12 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ]);
   });
 
+  // As in a function: `Hello` and `there.` are each a statement Luau finds
+  // incomplete, and the `.` names the method's `end` (I-1368).
   it("reports such a line in a method of a define block", () => {
     const source = `define foo as object with\n  greet(x)\n    Hello there.\n  end\nend\n`;
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
+      [2, "Incomplete statement: expected assignment or a function call"],
       [2, "Incomplete statement: expected assignment or a function call"],
       [3, "Expected identifier, got 'end'"],
     ]);

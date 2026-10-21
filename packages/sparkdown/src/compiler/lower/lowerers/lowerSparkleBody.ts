@@ -13,7 +13,8 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { reportBodySyntaxErrors } from "../expression/lowerFunction";
-import { closureBodyAst, closureSyntaxErrors } from "../utils/luauAst";
+import { closureBodyAst, closureSyntaxErrors, documentText } from "../utils/luauAst";
+import { closureReadingErrors } from "../../typecheck/closureReading";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
@@ -556,7 +557,9 @@ function lowerHandlerClosure(
     if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
     ctx.functionBindingsStack?.pop();
     ctx.localConsts = localConsts;
-    if (body) reportBodySyntaxErrors(closureSyntaxErrors(body, ctx), ctx);
+    // An error at the `end` the reading closes the closure with is reported
+    // at the closure's `}` (`closureReadingErrors`).
+    if (body) reportBodySyntaxErrors(closureReadingErrors(closureSyntaxErrors(body, ctx), closureNode, documentText(ctx)), ctx);
     const fn = new Function(
       new Identifier(exprId),
       stmts,

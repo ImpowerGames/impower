@@ -47,15 +47,18 @@ import {
   type AstNode,
 } from "../../typecheck/Ast";
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
+import { withMessageLines } from "../../typecheck/messageLines";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
-import type { Location } from "../../typecheck/Location";
+import { Location, Position } from "../../typecheck/Location";
+import { lineCountOf, syntaxErrorEnd } from "../../typecheck/syntaxErrorRange";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
+  documentText,
   enclosingNode,
   nodeAfterAttributes,
   offsetAt,
@@ -125,27 +128,33 @@ export function readBodyAst(
 
 /**
  * Reports, for a body the type checker does not read (a `define`'s method,
- * a sparkle handler's closure), the syntax errors of Luau's reading that
- * the type checker reports in a function's body and the validator leaves
- * to it: those of a statement that holds a token the grammar left unread
- * (`LuauSyntaxError.unread`), and those that find a statement or an
- * attribute malformed (`Hello` on a line of its own,
- * `@[deprecated{reason=reason}]`). Only errors from `bodyFrom` on are the
- * body's (a method's header is read with it). Called once the body is
- * lowered, it leaves out an error the lowering already reported at the
- * same place.
+ * a sparkle handler's closure), every syntax error of Luau's reading of the
+ * body alone, in Luau's words at Luau's range, as the type checker reports
+ * them in a function's body (I-1322, I-1368); the validator leaves them all
+ * to this reading (`loweredLuauBodyOf`). An error at a token that is
+ * Sparkdown's own (`LuauSyntaxError.sparkdown`) is Sparkdown's syntax's to
+ * report, and one past the end of the chunk (`pastChunkEnd`) is none of
+ * Luau's. Only errors from `bodyFrom` on are the body's (a method's header
+ * is read with it). Called once the body is lowered, it leaves out an error
+ * the lowering already reported at the same place.
  */
 export function reportBodySyntaxErrors(
   errors: readonly LuauSyntaxError[],
   ctx: LowerContext,
   bodyFrom = 0,
 ): void {
-  reportSyntaxErrors(errors.filter((error) => error.unread || error.malformed === "statement" || error.malformed === "attribute"), ctx, bodyFrom);
+  reportSyntaxErrors(errors.filter((error) => !error.sparkdown && !error.pastChunkEnd), ctx, bodyFrom);
 }
 
 /**
  * Reports syntax errors of a reading no other reader reports, those from
- * `from` on, leaving out an error already reported at the same place.
+ * `from` on, each once, leaving out an error already reported at the same
+ * place, each ranged as the type checker ranges one (`syntaxErrorEnd`). A
+ * line a message names (`at line N`, of the document the reading
+ * read) is counted from the chunk's first line, as the error's range is,
+ * and the compile names the document's line again where it emits the
+ * chunk (`messageLinesInChunk`), so a chunk carried to another line names
+ * the lines it stands on.
  */
 export function reportSyntaxErrors(
   errors: readonly LuauSyntaxError[],
@@ -158,7 +167,16 @@ export function reportSyntaxErrors(
     diagnostics.map((d) => `${d.source?.startLineNumber}:${d.source?.startCharacterNumber} ${d.message}`),
   );
   for (const error of errors) {
-    const { from, to } = rangeOf(error.location, ctx);
+    // Ranged as the type checker ranges an error of its reading
+    // (`syntaxErrorEnd`).
+    const { begin, end } = error.location;
+    const rangeEnd = syntaxErrorEnd(
+      { line: begin.line, character: begin.column },
+      { line: end.line, character: end.column },
+      error.message,
+      () => lineCountOf(documentText(ctx)),
+    );
+    const { from, to } = rangeOf(new Location(begin, new Position(rangeEnd.line, rangeEnd.character)), ctx);
     if (from < bodyFrom) continue;
     const source = {
       fileName: null,
@@ -168,8 +186,22 @@ export function reportSyntaxErrors(
       startCharacterNumber: ctx.characterNumber(from) + 1,
       endCharacterNumber: ctx.characterNumber(to) + 1,
     };
-    if (reported.has(`${source.startLineNumber}:${source.startCharacterNumber} ${error.message}`)) continue;
-    diagnostics.push({ message: error.message, severity: ErrorType.Error, source });
+    // The document's line the chunk begins on.
+    const chunkLine = error.location.begin.line - ctx.lineNumber(from);
+    let namesLine = false;
+    const message = withMessageLines(error.message, (line) => {
+      namesLine = true;
+      return line - chunkLine;
+    });
+    const key = `${source.startLineNumber}:${source.startCharacterNumber} ${message}`;
+    if (reported.has(key)) continue;
+    reported.add(key);
+    diagnostics.push({
+      message,
+      severity: ErrorType.Error,
+      source,
+      ...(namesLine ? { messageLinesInChunk: true as const } : {}),
+    });
   }
 }
 
