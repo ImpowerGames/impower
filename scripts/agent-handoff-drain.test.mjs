@@ -80,16 +80,22 @@ const goneWithin = async (pid, ms = 30000) => {
   while (processIdentity(pid) !== null) { if (Date.now() > end) throw new Error(`PID ${pid} never disappeared`); await sleep(100); }
 };
 
-// A process that has exited, with the identity it had while it ran.
+// A process that has exited, with the identity it had while it ran and
+// when it exited.
 const exitedProcess = async () => {
   const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 3000)"], { stdio: "ignore", windowsHide: true });
   const identity = processIdentity(child.pid);
-  await new Promise((resolve) => child.once("exit", resolve));
+  const exitedAt = await new Promise((resolve) => child.once("exit", () => resolve(Date.now())));
   await goneWithin(child.pid);
   assert.ok(identity, "the stand-in process was identified while it ran");
-  return identity;
+  return { identity, exitedAt };
 };
-const [launcherGone, upChild, stopped, serverLauncher] = await Promise.all([exitedProcess(), exitedProcess(), exitedProcess(), exitedProcess()]);
+const standIns = await Promise.all([exitedProcess(), exitedProcess(), exitedProcess(), exitedProcess()]);
+const [launcherGone, upChild, stopped, serverLauncher] = standIns.map((standIn) => standIn.identity);
+// The fixture's records are dated when the stand-ins exited, as a real
+// shutdown's are: a process that reuses one of their PIDs is created later,
+// so it reads as reused rather than as a process that may predate them.
+const recordedAt = new Date(Math.min(...standIns.map((standIn) => standIn.exitedAt)) - 1000);
 // Ports nothing listens on: each was bound once and released.
 const closedPort = async () => {
   const server = net.createServer();
@@ -105,7 +111,7 @@ const head = "85c2ec9b2930617de3da95c4e78da826498855c4";
 // the journal, its plan, the completion artifact, and the editor session's
 // started records, session file, up.log and down.log; with `state`, the
 // driver's server record that a failed `down` keeps.
-const fixture = (name, { thread, coordinator = launcherGone, state, planName = "plan.json", session: withSession = true, startedIdentity = upChild, downPids = [stopped.pid] } = {}) => {
+const fixture = (name, { thread, coordinator = launcherGone, state, planName = "plan.json", session: withSession = true, startedIdentity = upChild, downPids = [stopped.pid], datedAt = recordedAt } = {}) => {
   const launchDir = path.join(scratch, name, "round-1", "launch-ax-1");
   const execution = path.join(launchDir, "handoff-0-review", "execution-x");
   const session = path.join(execution, "editor-author-x");
@@ -123,6 +129,7 @@ const fixture = (name, { thread, coordinator = launcherGone, state, planName = "
     }
   }
   fs.writeFileSync(path.join(session, "down.log"), downPids.map((pid) => `SUCCESS: The process with PID ${pid} (child process of PID ${startedIdentity.pid}) has been terminated.`).join("\n") + `\ncould not stop pid ${downPids.at(-1)} (exit 255); the record is kept\n`);
+  for (const file of [path.join(session, "up.started.json"), path.join(session, "down.log"), path.join(session, "up.log"), stateFile]) if (file && fs.existsSync(file)) fs.utimesSync(file, datedAt, datedAt);
   const journal = path.join(launchDir, "journal.jsonl");
   const completion = path.join(launchDir, "completion.json");
   fs.writeFileSync(completion, JSON.stringify({ head, next: null, commentIds: [6302234332], summary: "Author-experience review complete; no findings." }));
@@ -230,7 +237,7 @@ console.log("PASS: confirm-drained refuses while any process of the service may 
   const survivors = census.filter((p) => (process.platform === "win32" ? p.ppid === starterIdentity.pid : p.sessionId === detached));
   try {
     assert.ok(survivors.length, `the detached server outlives the recorded launcher ${recorded.pid}`);
-    const orphaned = fixture("launch-detached", { session: false, startedIdentity: recorded, downPids: [recorded.pid] });
+    const orphaned = fixture("launch-detached", { session: false, startedIdentity: recorded, downPids: [recorded.pid], datedAt: new Date() });
     await refusedUnchanged(orphaned.journal, () => confirm(orphaned.journal), /descended from recorded PID/, "a real detached server whose launcher is gone");
   } finally {
     for (const p of handoff.processCensus().filter((p) => p.ppid === detached || p.pid === detached || p.sessionId === detached || survivors.some((s) => s.pid === p.pid))) {

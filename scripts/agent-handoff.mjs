@@ -417,16 +417,23 @@ export function processCensus() {
 }
 
 // Whether something accepts connections on a local port: true when it does,
-// false when the connection is refused; anything else (a timeout, another
-// error) is unknown and throws.
-export function portAnswers(host, port, { timeoutMs = 10000 } = {}) {
-  return new Promise((resolve, reject) => {
-    const socket = net.connect({ host, port });
-    const done = (settle) => { socket.destroy(); settle(); };
-    socket.setTimeout(timeoutMs, () => done(() => reject(new Error(`no answer within ${timeoutMs} ms`))));
-    socket.once("connect", () => done(() => resolve(true)));
-    socket.once("error", (error) => done(() => (error.code === "ECONNREFUSED" ? resolve(false) : reject(error))));
-  });
+// false when every address refuses; anything else (a timeout, another error)
+// is unknown and throws. `localhost` is tried as 127.0.0.1 and ::1 one at a
+// time, since a server may listen on either; an IPv6 loopback the machine
+// does not have cannot hold a listener.
+export async function portAnswers(host, port, { timeoutMs = 10000 } = {}) {
+  const addresses = host === "localhost" ? ["127.0.0.1", "::1"] : [host];
+  for (const address of addresses) {
+    const answered = await new Promise((resolve, reject) => {
+      const socket = net.connect({ host: address, port, autoSelectFamily: false });
+      const done = (settle) => { socket.destroy(); settle(); };
+      socket.setTimeout(timeoutMs, () => done(() => reject(new Error(`no answer from ${address} within ${timeoutMs} ms`))));
+      socket.once("connect", () => done(() => resolve(true)));
+      socket.once("error", (error) => done(() => (error.code === "ECONNREFUSED" || (address === "::1" && ["EADDRNOTAVAIL", "ENETUNREACH", "EAFNOSUPPORT"].includes(error.code)) ? resolve(false) : reject(error))));
+    });
+    if (answered) return true;
+  }
+  return false;
 }
 
 // Every file under a directory, without following links.
