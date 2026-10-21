@@ -131,6 +131,9 @@ export class AstExprCall extends AstExpr {
     public self: boolean,
     public typeArguments: AstTypeOrPack[],
     public argLocation: Location,
+    // Not part of Luau: the argument list has a syntax error before its
+    // `)`, so `args` holds only the arguments read before it (I-1428).
+    public malformed = false,
   ) {
     super(location);
   }

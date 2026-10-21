@@ -108,6 +108,9 @@ export class Divert extends ParsedObject {
   }
 
   public isFunctionCall: boolean = false;
+  // The call's argument list has a syntax error, reported where it was
+  // read, so its arguments are not the call's to check (I-1428).
+  public argumentsMalformed: boolean = false;
   public isEmpty: boolean = false;
   public isTunnel: boolean = false;
   public isThread: boolean = false;
@@ -839,7 +842,7 @@ export class Divert extends ParsedObject {
 
   // Returns false if there's an error
   public readonly CheckArgumentValidity = (): void => {
-    if (this.isEmpty) {
+    if (this.isEmpty || this.argumentsMalformed) {
       return;
     }
 

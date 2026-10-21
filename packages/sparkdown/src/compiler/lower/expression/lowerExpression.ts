@@ -562,12 +562,17 @@ function lowerCall(
   // Sibling subflows dispatch against their CONTAINER name — mangled when
   // the source name was redefined (see SiblingSubFlowInfo.knotName).
   const callName = siblingSubFlowInfo(name, ctx)?.knotName ?? name;
-  return makeGlobalFunctionCall(
+  const functionCall = makeGlobalFunctionCall(
     new Identifier(callName),
     withSiblingSubFlowUpvalArgs(name, args, ctx),
     rangeOf(call.location, ctx),
     ctx,
   );
+  // An argument list Luau could not read is reported there; the arguments
+  // read before its error are not the call's to check against the
+  // function's parameters (I-1428).
+  functionCall.proxyDivert.argumentsMalformed = call.malformed;
+  return functionCall;
 }
 
 // The libraries the grammar reads as stdlib namespaces

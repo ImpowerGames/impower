@@ -3733,8 +3733,11 @@ class Parser {
       const args: AstExpr[] = [];
       if (!this.is(")")) this.parseExprList(args);
       const end = this.current().location;
+      // Not part of Luau: whether the list stopped before its `)`, which
+      // the closer's recovery past one token does not undo (I-1428).
+      const malformed = !this.is(")");
       this.expectMatchAndConsume(")", matchParen);
-      return new AstExprCall(Location.span(func.location, end), func, args, self, [], new Location(argStart, end.end));
+      return new AstExprCall(Location.span(func.location, end), func, args, self, [], new Location(argStart, end.end), malformed);
     }
     if (this.is("{")) {
       const argStart = this.current().location.end;
