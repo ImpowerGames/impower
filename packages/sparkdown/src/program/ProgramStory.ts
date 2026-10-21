@@ -2668,7 +2668,12 @@ export class ProgramStory implements StoryEngine {
         if (state.evaluationStack.length > 0) {
           const output = state.PopEvaluationStack();
           if (!(output instanceof Void)) {
-            state.PushToOutputStream(new StringValue(output.toString()));
+            // A function value's `toString` is its table key, not its text.
+            const text =
+              output instanceof SymbolValue
+                ? output.displayText
+                : output.toString();
+            state.PushToOutputStream(new StringValue(text));
           }
         }
         break;

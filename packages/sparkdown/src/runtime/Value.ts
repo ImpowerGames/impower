@@ -421,12 +421,17 @@ export class SymbolValue extends Value<SymbolRef> {
 
     throw this.BadCastException(newType);
   }
-  // The text is also the value's key in a table (`luauMapKeyString`), and a
-  // save holds table keys as they are, so it keeps the form the object engine
-  // printed its divert targets in, its class name around the label.
-  // `tostring` prints a function value as `function: <label>` instead.
+  // The text is the value's key in a table (`luauMapKeyString`), and a save
+  // holds table keys as they are, so it keeps the form the object engine
+  // printed its divert targets in, its class name around the label. It is
+  // never shown: a line and `tostring` print `displayText`.
   public override toString() {
     return "DivertTargetValue(" + this.ref.label + ")";
+  }
+  /** Luau's text for a function, `function: <label>`: what a line prints
+   *  for the value and what `tostring` returns. */
+  public get displayText(): string {
+    return "function: " + this.ref.label;
   }
   public override Copy() {
     return new SymbolValue(this.ref);

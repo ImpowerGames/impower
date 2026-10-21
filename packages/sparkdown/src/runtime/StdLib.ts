@@ -3225,8 +3225,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // can use tostring(fn) in interpolations without leaking
       // internal representation.
       if (v instanceof SymbolValue) {
-        const path = (v as any).value;
-        return `function: ${path?.toString?.() ?? "<unknown>"}`;
+        return v.displayText;
       }
       if (typeof v === "object" && "value" in v) {
         const map = (v as any).value;
