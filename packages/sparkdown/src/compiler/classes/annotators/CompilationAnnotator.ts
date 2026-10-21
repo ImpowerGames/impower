@@ -34,6 +34,7 @@ import {
   VARIABLE_DEFINITION_NAMES,
   valueListAssignmentName,
 } from "../../utils/variableDefinitionNames";
+import { RootLocals } from "../../utils/rootLocals";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import {
   SparkdownAnnotator,
@@ -409,6 +410,21 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     return this._defineTypeNameIndex?.names ?? new Set<string>();
   }
 
+  /** The `local`s of the root frame's own scope the document declares
+   *  (`RootLocals`), built once for each tree. */
+  private rootLocals(): RootLocals | undefined {
+    const tree = this.tree;
+    if (!tree) return undefined;
+    if (this._rootLocalsTree !== tree || !this._rootLocals) {
+      this._rootLocals = new RootLocals(tree.topNode, (a, b) => this.read(a, b));
+      this._rootLocalsTree = tree;
+    }
+    return this._rootLocals;
+  }
+
+  private _rootLocals?: RootLocals;
+  private _rootLocalsTree?: unknown;
+
   private collectGlobalNameAt(
     node: import("@lezer/common").SyntaxNode,
     set: Set<string>,
@@ -694,6 +710,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         functionScopeStack,
         loopStack,
         diagnostics: chunkDiagnostics,
+        rootLocals: this.rootLocals(),
         globalCallableNames: {
           has: (name) => {
             const found = callableNames.has(name);
@@ -808,6 +825,16 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     const tree = this.tree;
     if (!text || !tree) {
       return undefined;
+    }
+    // A root local's read names its variable, not a node: the document's
+    // answer is its `RootLocals`'.
+    if (kind === "rootLocal" || kind === "rootDeclaration") {
+      const locals = this.rootLocals();
+      const answer =
+        kind === "rootLocal"
+          ? (locals?.answer(name, from) ?? "")
+          : (locals?.declared(name, from) ?? "");
+      return `${name}=${answer}`;
     }
     const node = nodeStartingAt(tree, from, name);
     if (!node) {

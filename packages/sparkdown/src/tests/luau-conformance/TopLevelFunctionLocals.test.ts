@@ -5,7 +5,8 @@
 // table is built when the story starts, so neither can capture the local as
 // a closure does when it is built: each binds, at its entry, every name it
 // reads that no scope of its own binds to the root frame's local of that
-// name, when one exists as it runs (`Op.BindRoot`), and reads the global
+// name in scope where it is written, when that local exists as it runs
+// (`Op.BindRoot`, TopLevelLexicalBinding.test.ts), and reads the global
 // otherwise. A define written in a function has its methods read that
 // function's locals through global cells its line points at them when it
 // runs (`DefineCellBinding`), which a save keeps.
@@ -331,12 +332,10 @@ describe("the entry of a function written at the top level", () => {
       ]),
     ).get("g")!;
     expect(listing.slice(0, 2)).toEqual(["SetVar p flags 1", "BindRoot a"]);
-    // A stdlib name is bound too, since a top-level local can take it (as
-    // `local math = 7` does); with none, `math` reads the builtin.
-    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([
-      "BindRoot a",
-      "BindRoot math",
-    ]);
+    // A stdlib name is bound only where a top-level local above the function
+    // takes it (as `local math = 7` does); with none, `math` reads the
+    // builtin (I-1374).
+    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual(["BindRoot a"]);
   });
 
   // The define's table still captures what the method reads, as it did

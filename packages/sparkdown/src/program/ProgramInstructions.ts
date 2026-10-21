@@ -137,12 +137,14 @@ export const Op = {
    *  which a once-only choice reads. */
   Choice: 49,
   /** Declares the variable `arg` names, as a local of the frame, holding a
-   *  pointer at the binding of that name in the outermost scope of the
-   *  thread's root frame that binds it, when that frame binds it and is not
-   *  this one; otherwise does nothing. A function or a define's method
-   *  written at the top level starts with one for each name it reads that
-   *  no scope of its own binds, so it reaches the top-level local of that
-   *  name as Luau's upvalue does. */
+   *  pointer at the binding of that name in the own scope of the thread's
+   *  root frame, when that frame binds it there and is not this one;
+   *  otherwise does nothing. With `ROOT_SLOT`, `arg` names the slot that
+   *  keeps the binding of one declaration of the name (its text up to the
+   *  first `$`), and the local points at the cell the slot holds. A
+   *  function, a define's method or a closure starts with one for each name
+   *  it reads from a `local` of that scope in scope where it is written
+   *  (I-1374), so it reaches that local as Luau's upvalue does. */
   BindRoot: 50,
 } as const;
 
@@ -187,6 +189,14 @@ export const JUMP_LUAU = 1;
 /** The jump is a decision the route planner can pause at and force, as a
  *  conditional divert is today. */
 export const JUMP_DECISION = 2;
+
+/** `BindRoot`'s and `VarPtr`'s flag: `arg` names the root frame's slot that
+ *  keeps the binding of one declaration of a `local` its own scope declares
+ *  more than once, `<name>$<ordinal>$<document tag>`, and the instruction
+ *  reaches the cell the slot holds. Where the slot is missing and the scope
+ *  holds no slot of the name, the binding is one an engine before the slots
+ *  made (a save it wrote), which is reached by name as that engine did. */
+export const ROOT_SLOT = 1;
 
 /** `SetVar`'s flags. */
 export const SET_DECLARE = 1;

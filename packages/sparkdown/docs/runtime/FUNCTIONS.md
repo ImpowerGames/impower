@@ -127,32 +127,65 @@ through the environment chain. A `const` inside a function is a local
 of its block, like Luau's (`docs/runtime/DIVERGENCES.md`).
 
 **A function or a `define`'s method written at the top level** reads
-and writes a top-level `local` declared above it, as Luau's upvalue
-(#823). It can be called from lines above its definition, and a
-define's table is built when the story starts, so nothing it could
-capture when it is built is the local yet: its entry binds, after its
-parameters, each name it reads that none of its own scopes binds to
-the root frame's local of that name, when one exists as it runs
-(`BindRoot`), sharing the cell a closure over that local holds, and
-the name reads the global otherwise. A define's method still captures
-those names when its table is built, as it did before, a pointer at
-the global of each name, which the binding replaces: a closure of the
-method that an older save holds passes the same parameters. The binding is
-by name as the function runs, not by where it is written: a function
-written above `local a` reads that local once it exists, a second
-`local a` in the same scope replaces the one a function written
-between the two reads, a scene's `local a`, which shares the top
-level's frame, is the one it reads while it holds, and with no `a` in
-the top level's own scope, a block's `a` there (a loop's variable, an
-`if`'s local) is the one it reads while the block runs. A name of the
-standard library (`count`, `math`, `table`) that no function around it
-declares is bound the same way by every function, closures included,
-since a closure cannot capture a builtin: a top-level `local count`
-is the `count` a function reads, as the editor's checks read it, and
-with no such local the name reads the builtin. By name, that holds
-for a function written above `local table` or for a scene's
-`local count` too, which then hides the builtin from functions called
-while it holds. A `define` written in a function has its methods read
+and writes the top-level `local` in scope where it is written, as Luau's
+upvalue (#823, I-1374): the newest `local` of the name declared above it
+in the root frame's own scope. The top level and the bodies of its scenes
+and branches share that scope (a scene opens no scope of its own), so the
+local is the newest one above the function at the top level or in the
+scene or branch whose body holds the function. It can be called from lines
+above its definition, and a define's table is built when the story starts,
+so nothing it could capture when it is built is the local yet: its entry
+binds, after its parameters, each name it reads that none of its own scopes
+binds and a `local` takes where it is written (`BindRoot`), sharing the
+cell a closure over that local holds, and the name reads the global until
+that local's line has run. A name no such `local` takes reads the global,
+or the builtin of a stdlib name (`count`, `math`, `table`): a `local`
+of the name declared below the function, a later `local` of the name in
+the same scope, a scene's `local` (a scene other than the one the function
+is written in) and a block's local (a loop's variable, an `if`'s local) are
+never the one it reads. The compiler decides which declaration each name
+reads (`RootLocals`), and records the answer, so an incremental compile
+lowers a function again when a `local` written, removed or moved above it
+changes it. A name declared once in that scope is bound by name there. Each
+declaration of a name declared more than once keeps the cell of its binding
+in a slot of the scope (`name$<ordinal>$<document tag>`), which a later
+declaration of the name closes on its value and leaves in place, and the
+function binds the slot of the declaration it reads. A save is the scope's
+temporaries as before, the slots among them. A save written before the
+slots holds no slot of a name declared more than once, and a function
+reaches the binding of that name by name, as the engine that wrote it did.
+A define's method still captures the names its body reads when its table
+is built, as it did before, a pointer at the global of each name, which the
+binding replaces: a closure of the method that an older save holds passes
+the same parameters.
+
+**A closure** (a function value, `local function` in a function, `function
+t.f`) is built where it is written and captures there the locals it reads,
+as Luau's does (#822). Built in the root frame, it captures a name the root
+frame's scope declares more than once through the slot of the declaration
+in scope where it is written, so a scene's `local` of the name, which runs
+before the closure is built, is not the one it captures. A name a `store`,
+a `const`, a top-level function or a stdlib entry would answer, which a
+closure does not capture, is bound at its entry as a top-level function
+binds it: a closure written after a `local` of the name reads the local
+(I-1365), and one written before it reads what the name names there. A
+top-level `local` beside a `store` of its name stays a compile error
+(#1177), so the `local` that shadows a `store` or a `const` is a scene's
+or a branch's.
+
+Where a script's control flow differs from its text, the text decides. A
+closure written in a scene captures a top-level `local` above the scene
+even when the top level diverted to the scene before that `local`'s line
+ran; it then reads the global. A function statement written inside a
+top-level block, which Luau's would close over the block's locals, reads
+none of them: in a `do` block it is a function of the story, built before
+the block runs, and a name a local of the block takes reads the global in
+it (I-1444); in an `if` or a loop it fails when the block runs (I-1443). A
+name a script declares once is bound by name in the root frame's scope, so
+a scene of another script that declares the name too replaces it while it
+runs.
+
+A `define` written in a function has its methods read
 that function's locals through a global cell for each
 (`DefineCellBinding`), which the define's line points at the running
 call's local, so they read the locals of the last call that ran it,

@@ -18,7 +18,7 @@ import {
   lookupStateAwareStdLib,
   luauTypeOf,
 } from "../runtime/StdLib";
-import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
+import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootSlotPointer, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
@@ -91,6 +91,7 @@ import {
   NUM_FLOAT,
   Op,
   SET_DECLARE,
+  ROOT_SLOT,
   SET_GLOBAL,
   SET_INITIALIZE,
   SET_VARARGS,
@@ -531,6 +532,7 @@ export class ProgramStory implements StoryEngine {
    *  evaluated compares it before and after (#657). */
   callsMade = 0;
   protected _assignments = new Map<number, VariableAssignment>();
+  protected _slotBindings = new Map<number, VariableAssignment>();
   protected _asyncContinueActive = false;
   protected _recursiveContinueCount = 0;
   protected _stateIsPristine = false;
@@ -2739,14 +2741,23 @@ export class ProgramStory implements StoryEngine {
         break;
       case Op.VarPtr:
         state.PushEvaluationStack(
-          openVariablePointer(state.callStack, this.root.table.strings[arg]!),
+          flagsOf(w0) & ROOT_SLOT
+            ? rootSlotPointer(state.callStack, this.root.table.strings[arg]!)
+            : openVariablePointer(state.callStack, this.root.table.strings[arg]!),
         );
         break;
       case Op.BindRoot: {
-        const cell = rootVariablePointer(
-          state.callStack,
-          this.root.table.strings[arg]!,
-        );
+        // With `ROOT_SLOT`, `arg` names the slot of the declaration the
+        // function reads, and the local it declares is the name before the
+        // slot's first `$`.
+        if (flagsOf(w0) & ROOT_SLOT) {
+          const slot = this.root.table.strings[arg]!;
+          const binding = this.slotBinding(arg, slot);
+          const cell = rootVariablePointer(state.callStack, binding.variableName!, slot);
+          if (cell) state.variablesState.Assign(binding, cell);
+          break;
+        }
+        const cell = rootVariablePointer(state.callStack, this.root.table.strings[arg]!);
         if (cell) {
           state.variablesState.Assign(this.assignment(arg, SET_DECLARE), cell);
         }
@@ -3346,6 +3357,17 @@ export class ProgramStory implements StoryEngine {
       this._assignments.set(key, assignment);
     }
     return assignment;
+  }
+
+  /** The declaration of the local a keyed `BindRoot` binds, the name before
+   *  its slot's first `$` (`slot`, the string `slotId` names), made once. */
+  protected slotBinding(slotId: number, slot: string): VariableAssignment {
+    let binding = this._slotBindings.get(slotId);
+    if (!binding) {
+      binding = new VariableAssignment(slot.slice(0, slot.indexOf("$")), true, false, false);
+      this._slotBindings.set(slotId, binding);
+    }
+    return binding;
   }
 
   /** The native function `Native`'s operands name, made once. */

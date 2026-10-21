@@ -69,6 +69,7 @@ export class MultiVariableAssignment extends ParsedObject {
         0,
         target.isNewTemporaryDeclaration ? SET_DECLARE : 0,
       );
+      target.EmitRootSlot(emitter);
     }
   }
 

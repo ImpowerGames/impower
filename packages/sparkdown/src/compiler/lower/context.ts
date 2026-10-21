@@ -1,5 +1,6 @@
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
+import type { RootLocals } from "../utils/rootLocals";
 import type { SparkleJoins } from "./utils/sparkleContinuations";
 
 /**
@@ -20,11 +21,19 @@ import type { SparkleJoins } from "./utils/sparkleContinuations";
  * `lowerDoneOrFin.ts`): the statements after it in its scope, which an edit
  * below it changes. It decides the hint and not the statement's code, so the
  * chunk store does not compare it.
+ *
+ * `rootLocal` is the `local` of the root frame's own scope a function or a
+ * closure reads a name from where it is written (`RootLocals.answer`), and
+ * `rootDeclaration` what a root-frame declaration is known by among the
+ * document's declarations of its name (`RootLocals.declared`): a `local`
+ * written, removed or moved above either changes the code it lowers to. Each
+ * names the variable in place of a node, and its value is `name=answer`.
  */
 export interface LoweringRead {
-  kind: "routing" | "unreachable";
+  kind: "routing" | "unreachable" | "rootLocal" | "rootDeclaration";
   value: string;
-  /** The name of the node that read it. */
+  /** The name of the node that read it, or for a `rootLocal` or a
+   *  `rootDeclaration`, the variable's. */
   node: string;
   /** Where that node starts in the document. */
   from: number;
@@ -233,6 +242,14 @@ export interface LowerContext {
    * changes one of the answers.
    */
   globalCallableNames?: Pick<ReadonlySet<string>, "has">;
+  /**
+   * The `local`s of the root frame's own scope the document declares, by
+   * where each is written (`RootLocals`). A function or a closure binds a
+   * name it reads to the one in scope where it is written, which
+   * `rootLocalAnswer` asks and records (I-1374, I-1365). Absent for callers
+   * that lower no document, where no such local is in scope.
+   */
+  rootLocals?: Pick<RootLocals, "answer" | "declared">;
   /**
    * Names that are used as a TYPE somewhere in the document — every
    * `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every

@@ -61,6 +61,20 @@ export class VariableAssignment extends ParsedObject {
    *  (`ProgramResolver.decideWrites`), and kept while the statement is
    *  carried; null until decided (`Story.writesGlobal`). */
   public boundLocally: boolean | null = null;
+  /** For a `local` of the root frame's own scope whose name that scope
+   *  declares more than once, the slot that keeps its binding (`rootSlotName`):
+   *  the declaration stores the cell of the binding it makes there, which a
+   *  later declaration of the name closes on its value and leaves to the code
+   *  written between them (I-1374). */
+  public rootSlot: string | null = null;
+
+  /** Stores the cell of the binding the declaration just made in its slot
+   *  (`rootSlot`), when it has one. */
+  public EmitRootSlot(emitter: ProgramEmitter): void {
+    if (!this.rootSlot) return;
+    emitter.emit(Op.VarPtr, emitter.variable(this.variableName));
+    emitter.emit(Op.SetVar, emitter.variable(this.rootSlot), 0, SET_DECLARE);
+  }
   // True for a `define`'s VariableAssignment (a runtime type/instance
   // table). Lets ParsedHierarchy/Story identify the full set of
   // defined type names when computing IMPLICIT parent types
@@ -210,6 +224,7 @@ export class VariableAssignment extends ParsedObject {
       (this.isNewTemporaryDeclaration ? SET_DECLARE : 0) |
         (this.isDeclarationInitializer ? SET_INITIALIZE : 0),
     );
+    this.EmitRootSlot(emitter);
   }
 
   /** How the assignment assigns its name, as a chunk records it: it declares

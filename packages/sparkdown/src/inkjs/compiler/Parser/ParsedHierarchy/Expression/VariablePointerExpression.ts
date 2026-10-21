@@ -1,6 +1,6 @@
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { Op } from "../../../../../program/ProgramInstructions";
+import { Op, ROOT_SLOT } from "../../../../../program/ProgramInstructions";
 
 // A parsed expression that, when emitted into a runtime container,
 // produces a `VariablePointerValue` for the named variable. At
@@ -21,8 +21,16 @@ import { Op } from "../../../../../program/ProgramInstructions";
 // container and rely on the runtime to canonicalize it. We give it a
 // dedicated parsed class so the closure-build lowering can use it as
 // an Expression (slottable into `ObjectExpressionEntry.value`).
+//
+// A closure built in the root frame that reads a `local` the root frame's
+// own scope declares more than once captures the binding of the declaration
+// in scope where it is written, which that declaration's slot keeps
+// (`rootSlot`, `rootSlotName`), rather than the newest binding of the name.
 export class VariablePointerExpression extends Expression {
-  constructor(public readonly variableName: string) {
+  constructor(
+    public readonly variableName: string,
+    public readonly rootSlot: string | null = null,
+  ) {
     super();
   }
 
@@ -35,8 +43,13 @@ export class VariablePointerExpression extends Expression {
   }
 
   public override EmitExpression(emitter: ProgramEmitter): void {
+    if (this.rootSlot) {
+      emitter.emit(Op.VarPtr, emitter.variable(this.rootSlot), 0, ROOT_SLOT);
+      return;
+    }
     emitter.emit(Op.VarPtr, emitter.variable(this.variableName));
   }
 
-  public override readonly toString = (): string => `&${this.variableName}`;
+  public override readonly toString = (): string =>
+    `&${this.rootSlot ?? this.variableName}`;
 }

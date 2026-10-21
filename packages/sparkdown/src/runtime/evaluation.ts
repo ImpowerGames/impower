@@ -314,33 +314,85 @@ export function openVariablePointer(
 }
 
 /**
- * The pointer at the top-level local `name` a function written at the top
- * level reaches (`Op.BindRoot`): the binding of the name in the outermost
- * scope of the current thread's root frame that binds it, registered there
- * as an open upvalue, and shared with a closure that captured the same
- * binding (`openVariablePointer`). Null when the root frame binds no such
- * name, as before its `local` statement runs, or is the current frame.
+ * The pointer at the top-level local `name` a function reaches at its entry
+ * (`Op.BindRoot`): the binding of the name in the own scope of the current
+ * thread's root frame, which the top level and its scenes share, registered
+ * there as an open upvalue, and shared with a closure that captured the
+ * same binding (`openVariablePointer`). A block's local of the name, in a
+ * scope of its own, is never it. Null when that scope binds no such name, as
+ * before its `local` statement runs, or the root frame is the current one.
+ *
+ * With `slot` (`ROOT_SLOT`), the binding of one declaration of a name the
+ * scope declares more than once: the cell the declaration stored in its slot
+ * (`rootSlotCell`), or null when it has not run.
  */
 export function rootVariablePointer(
   callStack: CallStack,
   name: string,
+  slot: string | null = null,
 ): VariablePointerValue | null {
   const root = callStack.elements[0];
   if (!root || callStack.elements.length < 2) return null;
-  const scopeIdx = root.temporaryScopes.findIndex((scope) => scope.has(name));
-  if (scopeIdx < 0) return null;
-  const slotValue = root.temporaryScopes[scopeIdx]!.get(name);
+  if (slot) {
+    const cell = rootSlotCell(root.temporaryScopes[0]!, name, slot);
+    if (cell !== undefined) return cell;
+  }
+  const scope = root.temporaryScopes[0]!;
+  if (!scope.has(name)) return null;
+  const slotValue = scope.get(name);
   if (slotValue instanceof VariablePointerValue) {
     return slotValue;
   }
-  const existing = callStack.FindOpenUpvalue(1, name, scopeIdx);
+  const existing = callStack.FindOpenUpvalue(1, name, 0);
   if (existing) {
     return existing;
   }
   const newPtr = new VariablePointerValue(name, 1);
-  newPtr.scopeIndex = scopeIdx;
+  newPtr.scopeIndex = 0;
   callStack.RegisterOpenUpvalue(newPtr, 1);
   return newPtr;
+}
+
+/**
+ * The cell the root frame's own scope (`scope`) keeps for one declaration of
+ * `name` in its slot (`slot`, `ROOT_SLOT`); null when the declaration has
+ * not run there, where the name reads the global; or undefined when the
+ * scope binds the name but holds no slot of it at all: a binding an engine
+ * before the slots made, which a save it wrote holds, and which is reached by
+ * name as that engine reached it.
+ */
+export function rootSlotCell(
+  scope: Map<string, unknown>,
+  name: string,
+  slot: string,
+): VariablePointerValue | null | undefined {
+  const cell = scope.get(slot);
+  if (cell instanceof VariablePointerValue) return cell;
+  if (!scope.has(name)) return null;
+  const prefix = `${name}$`;
+  for (const key of scope.keys()) {
+    if (key.startsWith(prefix)) return null;
+  }
+  return undefined;
+}
+
+/**
+ * The pointer a closure built in the root frame captures for a `local` its
+ * own scope declares more than once (`Op.VarPtr` with `ROOT_SLOT`): the cell
+ * of the declaration in scope where the closure is written, which its slot
+ * keeps (`rootSlotCell`), whichever declaration of the name runs last. One
+ * that has not run leaves a pointer at the global; a binding a save of an
+ * engine before the slots holds is captured by name, as that engine did.
+ */
+export function rootSlotPointer(
+  callStack: CallStack,
+  slot: string,
+): VariablePointerValue {
+  const name = slot.slice(0, slot.indexOf("$"));
+  const root = callStack.elements[0];
+  const cell = root ? rootSlotCell(root.temporaryScopes[0]!, name, slot) : null;
+  if (cell === undefined) return openVariablePointer(callStack, name);
+  return cell ?? new VariablePointerValue(name, 0);
 }
 
 // Maps a `NativeFunctionCall` operator name to the Luau metamethod

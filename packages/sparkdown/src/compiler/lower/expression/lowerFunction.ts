@@ -72,6 +72,7 @@ import {
   type LuauSource,
 } from "../utils/luauAst";
 import { syntheticId } from "../utils/documentTag";
+import { rootLocalAnswer, rootSlotName } from "../utils/rootLocalReads";
 import { followsLineEndingComma } from "../utils/lineContinuation";
 import { statementSource } from "../utils/statementSource";
 import {
@@ -402,10 +403,21 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * function, `external`, `store` or `const`): a read of a global the program
  * never declares is captured too.
  *
+ * A read the converter binds to a local declared outside the function (a
+ * local of a block around it, written in the same statement) reads that
+ * local, whatever its name.
+ *
  * `stdlibReads`, when given, collects the stdlib names left uncaptured that
- * way (`_G` aside), in the order they are first read, which the function
- * binds to a top-level local of the name, if one exists as it runs
- * (`stdlibRootReads`).
+ * way (`_G` aside), in the order they are first read.
+ *
+ * `rootReads`, when given, collects each name read that no function around
+ * the function declares and a `local` of the root frame's own scope takes
+ * where the function is written (`rootLocalAnswer`), with that answer, in
+ * the order they are first read, whether captured or not: a function's entry
+ * binds such a name to that local (`RootBinding`), and a closure built in
+ * the root frame captures a captured one through the local's slot when it
+ * has one (`rootSlotName`). The answer of every such read is recorded, so
+ * the function is lowered again when a `local` above it changes it.
  *
  * `node`, the syntax node the function is written at, adds what the methods
  * of each `define` written in the function read from around the define
@@ -428,11 +440,13 @@ export function freeVariables(
   ctx: LowerContext,
   {
     stdlibReads,
+    rootReads,
     node,
     defineReads,
     unscoped = false,
   }: {
     stdlibReads?: string[];
+    rootReads?: RootRead[];
     node?: SyntaxNode | null;
     defineReads?: string[];
     unscoped?: boolean;
@@ -503,10 +517,11 @@ export function freeVariables(
   const free: string[] = [];
   const seen = new Set<string>();
   const stdlibSeen = new Set<string>();
+  const rootSeen = new Set<string>();
   // Where a read lands: the list returned, or `defineReads` for the reads
   // only a define's methods make.
   let into = free;
-  const readAt = (name: string, at: number) => {
+  const readAt = (name: string, at: number, readsLocal = false) => {
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
     if (!unscoped) {
@@ -520,7 +535,15 @@ export function freeVariables(
         for (const upval of sibling.upvals) readAt(upval, at);
         return;
       }
-      if (!isShadowedLocal(name)) {
+      // A read the converter binds to a local of a block around the
+      // function reads that local, never a local of the root frame's own
+      // scope of its name.
+      if (!readsLocal && !isShadowedLocal(name) && !rootSeen.has(name)) {
+        rootSeen.add(name);
+        const answer = rootLocalAnswer(name, at, ctx);
+        if (answer) rootReads?.push({ name, answer });
+      }
+      if (!isShadowedLocal(name) && !readsLocal) {
         if (isGlobalCallable(name)) return;
         if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) {
           if (stdlibReads && name !== "_G" && !stdlibSeen.has(name)) {
@@ -539,7 +562,9 @@ export function freeVariables(
   const readNames = (node: AstNode): boolean => {
     if (node instanceof AstExprGlobal) read(node.name, node.location);
     else if (node instanceof AstExprLocal) {
-      if (!locals.has(node.local)) read(node.local.name, node.location);
+      if (!locals.has(node.local)) {
+        readAt(node.local.name, offsetAt(node.location.begin, ctx), true);
+      }
     } else if (node instanceof AstExprFunction) {
       // A nested function's function statements bind its own reads.
       functionScopes.push(functionStatementNames(node.body, ctx));
@@ -737,6 +762,7 @@ export function buildClosureExpression(
   synthName: string,
   upvals: string[],
   userArity: number,
+  rootSlots?: ReadonlyMap<string, string>,
 ): Expression {
   const fnDivert = new DivertTarget(
     new Divert([new Identifier(synthName)]),
@@ -746,7 +772,7 @@ export function buildClosureExpression(
     (name, i) =>
       new ObjectExpressionEntry(
         String(i),
-        new VariablePointerExpression(name),
+        new VariablePointerExpression(name, rootSlots?.get(name) ?? null),
       ),
   );
   const upvalObject = new ObjectExpression(upvalEntries);
@@ -758,22 +784,66 @@ export function buildClosureExpression(
   ]);
 }
 
+/** A name a function reads from a `local` of the root frame's own scope,
+ *  with the answer that names the declaration (`rootLocalAnswer`). */
+export interface RootRead {
+  name: string;
+  answer: string;
+}
+
+/** The binding at a function's entry of each of `reads` (`RootBinding`):
+ *  through the slot of its declaration when it has one (`rootSlotName`),
+ *  and otherwise by name. */
+export function rootBindingsOf(reads: readonly RootRead[], ctx: LowerContext): RootBinding[] {
+  return reads.map(({ name, answer }) => new RootBinding(name, rootSlotName(name, answer, ctx)));
+}
+
 /**
- * The stdlib names a function's body reads that no function around it
- * declares (`freeVariables`' `stdlibReads`), as `RootBinding`s: a closure
- * cannot capture such a name, since the builtin it names is no variable, so
- * the function binds it to a top-level local of the name, if one exists as
- * it runs (`local count = 0` above a function that counts), and otherwise
- * reads the builtin.
+ * The bindings a function's entry makes to the `local`s of the root frame's
+ * own scope it reads (`freeVariables`' `rootReads`), each the one in scope
+ * where the function is written (I-1374), as Luau's upvalue is: every such
+ * name for a function built before its line runs (`captured` null: a
+ * function or a define's method written at the top level), and for a closure
+ * the names it does not capture (`captured`), which a store, a `const`, a
+ * top-level function or a stdlib entry of the name would otherwise answer
+ * (`local count = 0` above a closure that counts, I-1365). A closure keeps
+ * the parameters it captured, which a save of it passes. A name no such
+ * `local` takes where the function is written reads the global, or the
+ * builtin of a stdlib name.
  */
-export function stdlibRootReads(
+export function rootBindings(
   params: readonly string[],
   body: AstStatBlock | null,
   ctx: LowerContext,
+  captured: readonly string[] | null,
 ): RootBinding[] {
-  const stdlibReads: string[] = [];
-  freeVariables(params, body, ctx, { stdlibReads });
-  return stdlibReads.map((name) => new RootBinding(name));
+  const reads: RootRead[] = [];
+  freeVariables(params, body, ctx, { rootReads: reads });
+  const capturedNames = new Set(captured ?? []);
+  return rootBindingsOf(
+    reads.filter(({ name }) => !capturedNames.has(name)),
+    ctx,
+  );
+}
+
+/** The slot each of `upvals` a closure built in the root frame captures
+ *  through: the slot of the declaration of the root frame's own scope it
+ *  reads, for a name declared there more than once (`rootSlotName`). A
+ *  closure built in a function captures the function's own binding of the
+ *  name, which the function's entry bound (`rootBindings`). */
+export function rootCaptureSlots(
+  reads: readonly RootRead[],
+  upvals: readonly string[],
+  ctx: LowerContext,
+): Map<string, string> | undefined {
+  if (ctx.functionScopeStack && ctx.functionScopeStack.length > 0) return undefined;
+  const slots = new Map<string, string>();
+  const captured = new Set(upvals);
+  for (const { name, answer } of reads) {
+    const slot = captured.has(name) ? rootSlotName(name, answer, ctx) : null;
+    if (slot) slots.set(name, slot);
+  }
+  return slots.size > 0 ? slots : undefined;
 }
 
 /**
@@ -784,12 +854,14 @@ export function stdlibRootReads(
  * and a frame for its variadic nested functions. Returns the body's objects
  * with the hoisted declarations first and the nested functions last, and
  * passes the shape of the body to `close` once the function is built. The
- * hoisted objects begin with the function's `stdlibRootReads`.
+ * hoisted objects begin with the function's `rootBindings`, for the names
+ * it does not capture (`captured`, null for a function that captures none).
  */
 export function lowerFunctionBody(
   func: AstExprFunction,
   node: SyntaxNode,
   ctx: LowerContext,
+  captured: readonly string[] | null,
   skipNames: ReadonlySet<string> = FUNCTION_BODY_SKIP,
 ): {
   hoisted: ParsedObject[];
@@ -799,7 +871,7 @@ export function lowerFunctionBody(
 } {
   const content = getFunctionBodyContent(node);
   // Read in the scopes around the function, before its own are pushed.
-  const rootReads = stdlibRootReads(parameterNames(func), func.body, ctx);
+  const rootReads = rootBindings(parameterNames(func), func.body, ctx, captured);
   const {
     result: { shape, body },
     hoisted,
@@ -902,7 +974,7 @@ export function buildFunction(
       new Argument(new Identifier(upvalName), false, false, false, true),
   );
   const args = [...upvalArgs, ...leading, ...functionArguments(func)];
-  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx);
+  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx, upvals);
   const fn = new Function(
     new Identifier(name),
     [...hoisted, ...body, ...nested],
@@ -1001,7 +1073,8 @@ export function lowerFunctionExpression(
   }
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
-  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
+  const rootReads: RootRead[] = [];
+  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node, rootReads });
   recordCaptureRead(ctx, upvals);
   const userArity = func.args.length;
 
@@ -1027,5 +1100,10 @@ export function lowerFunctionExpression(
   } else if (upvals.length === 0) {
     return new DivertTarget(new Divert([new Identifier(synthName)]), true);
   }
-  return buildClosureExpression(synthName, upvals, userArity);
+  return buildClosureExpression(
+    synthName,
+    upvals,
+    userArity,
+    rootCaptureSlots(rootReads, upvals, ctx),
+  );
 }
