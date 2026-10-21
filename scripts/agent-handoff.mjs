@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import os from "node:os";
+import net from "node:net";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,7 @@ import { validateExecutionShape, executionCommands, startExecutionService, execu
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../.agents/repos.mjs";
+import { sessionDir } from "../.agents/skills/drive-web-editor/session-dir.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -123,11 +125,15 @@ export function readJournalRows(file) {
 // execution service drained, its running and identified rows, a child
 // confirmed absent, a slot reservation, and the launch's last row. Lock
 // recovery and the round accounting below judge a launch's end from these
-// facts, each with its own policy.
+// facts, each with its own policy. A service has drained when the exit row
+// says so, or when confirm-drained recorded an `execution-drained` row after
+// that exit row.
 export function launchEvidence(rows, index) {
   const of = rows.filter((row) => row.index === index);
   const find = (event) => of.find((row) => row.event === event) ?? null;
-  return { exited: find("exited"), service: find("execution-service"), running: find("running"), identified: find("identified"), confirmedAbsent: Boolean(find("confirmed-absent")), reserved: Boolean(find("reserved")), last: of.at(-1) ?? null };
+  const exited = find("exited");
+  const drainConfirmation = exited ? of.slice(of.indexOf(exited) + 1).find((row) => row.event === "execution-drained") ?? null : null;
+  return { exited, service: find("execution-service"), drained: exited?.executionDrained === true || drainConfirmation !== null, drainConfirmation, running: find("running"), identified: find("identified"), confirmedAbsent: Boolean(find("confirmed-absent")), reserved: Boolean(find("reserved")), last: of.at(-1) ?? null };
 }
 
 const TERMINAL_ROWS = new Set(["finished", "blocked", "report-posted"]);
@@ -426,16 +432,428 @@ function blockedReview(rows, blocked) {
   try { done = read(launching.completion); }
   catch (error) { throw new Error(`Launch ${index} completion artifact at ${launching.completion} is unreadable: ${error.message}`); }
   if (done?.head !== launching.head || !Array.isArray(done.commentIds) || done.commentIds.length || typeof done.summary !== "string" || !done.summary.trim() || !(done.next === null || typeof done.next === "string")) throw new Error(`Launch ${index} completion artifact at ${launching.completion} must name head ${launching.head}, no comment IDs, a summary and its transition`);
-  const before = { completedRound: launching.completedRound, reviewedHead: launching.reviewedHead ?? null, completedRoundReviews: launching.completedRoundReviews ?? null, completedRoundReviewers: launching.completedRoundReviewers ?? null, plannedRoundReviewers: launching.plannedRoundReviewers ?? null, finalCorrections: launching.finalCorrections ?? false };
-  const step = { round: launching.round, reviewerId: launching.reviewerId, attempt: launching.attempt, reviewers: launching.plannedReviewers };
-  // The completion is dated at the reviewer's exit, when the launcher would
-  // have written it, so a reviewer that later completed on a corrected head
-  // keeps its place as the round's latest; recordedAt says when the row was
-  // written. The comment is counted from the report-posted row, as for a
+  // The comment is counted from the report-posted row, as for a
   // coordinator-posted report, and named here so a retry after an
   // interrupted record cannot substitute another comment.
-  const completed = { time: exited.time, event: "completed", index, step: launching.step, head: done.head, next: done.next, commentIds: [], summary: done.summary, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1 } : {}), ...completeReviewAccounting(before, step, launching.head), postedBy: "coordinator" };
+  const completed = { ...lateCompletion(launching, exited, { ...done, commentIds: [] }), postedBy: "coordinator" };
   return { pending: { index, step: launching.step, head: launching.head, ...report }, completed };
+}
+
+// The `completed` row the launcher would have written for a review launch
+// whose completion it could not record, from the round accounting its
+// launching row started from. It is dated at the reviewer's exit, when the
+// launcher would have written it, so a reviewer that later completed on a
+// corrected head keeps its place as the round's latest; the caller adds
+// recordedAt, which says when the row was written.
+function lateCompletion(launching, exited, done) {
+  const before = { completedRound: launching.completedRound, reviewedHead: launching.reviewedHead ?? null, completedRoundReviews: launching.completedRoundReviews ?? null, completedRoundReviewers: launching.completedRoundReviewers ?? null, plannedRoundReviewers: launching.plannedRoundReviewers ?? null, finalCorrections: launching.finalCorrections ?? false };
+  const step = { round: launching.round, reviewerId: launching.reviewerId, attempt: launching.attempt, reviewers: launching.plannedReviewers };
+  return { time: exited.time, event: "completed", index: launching.index, step: launching.step, head: done.head, next: done.next, commentIds: done.commentIds, summary: done.summary, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1 } : {}), ...completeReviewAccounting(before, step, launching.head) };
+}
+
+// --- Confirming a delegated service's drain after the fact -------------------
+
+// Every process on this machine, as { pid, ppid, start, commandLine }, for
+// confirm-drained, with its process group and session on Linux, where an
+// orphan is reparented but keeps both. `start` is the Windows creation time
+// in UTC ticks, or null where it is not comparable with a file time (Linux)
+// or not reported. A
+// command line the system withholds (another user's process) reads empty.
+export function processCensus() {
+  if (process.platform === "linux") {
+    return fs.readdirSync("/proc").filter((name) => /^\d+$/.test(name)).flatMap((name) => {
+      try {
+        const stat = fs.readFileSync(`/proc/${name}/stat`, "utf8");
+        const [, ppid, group, sessionId] = stat.slice(stat.lastIndexOf(")") + 2).split(" ").map(Number);
+        return [{ pid: Number(name), ppid, group, sessionId, start: null, commandLine: fs.readFileSync(`/proc/${name}/cmdline`, "utf8").split("\0").join(" ").trim() }];
+      } catch (error) { if (["ENOENT", "ESRCH"].includes(error.code)) return []; throw error; }
+    });
+  }
+  if (process.platform === "win32") {
+    const script = 'Get-CimInstance Win32_Process | ForEach-Object { "{0} {1} {2} {3}" -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().Ticks } else { "-" }), ($_.CommandLine -replace "`r|`n", " ") }';
+    const out = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+    return out.split(/\r?\n/).filter(Boolean).map((line) => {
+      const match = /^(\d+) (\d+) (\d+|-) ?(.*)$/.exec(line);
+      if (!match) throw new Error(`Unreadable process census line: ${line.slice(0, 200)}`);
+      return { pid: Number(match[1]), ppid: Number(match[2]), start: match[3] === "-" ? null : match[3], commandLine: match[4] };
+    });
+  }
+  throw new Error("confirm-drained needs a Windows or Linux process census");
+}
+
+// Whether something accepts connections on a local port: true when it does,
+// false when every address refuses; anything else (a timeout, another error)
+// is unknown and throws. `localhost` is tried as 127.0.0.1 and ::1 one at a
+// time, since a server may listen on either; an IPv6 loopback the machine
+// does not have cannot hold a listener.
+export async function portAnswers(host, port, { timeoutMs = 10000 } = {}) {
+  const addresses = host === "localhost" ? ["127.0.0.1", "::1"] : [host];
+  for (const address of addresses) {
+    const answered = await new Promise((resolve, reject) => {
+      const socket = net.connect({ host: address, port, autoSelectFamily: false });
+      const done = (settle) => { socket.destroy(); settle(); };
+      socket.setTimeout(timeoutMs, () => done(() => reject(new Error(`no answer from ${address} within ${timeoutMs} ms`))));
+      socket.once("connect", () => done(() => resolve(true)));
+      socket.once("error", (error) => done(() => (error.code === "ECONNREFUSED" || (address === "::1" && ["EADDRNOTAVAIL", "ENETUNREACH", "EAFNOSUPPORT"].includes(error.code)) ? resolve(false) : reject(error))));
+    });
+    if (answered) return true;
+  }
+  return false;
+}
+
+// Every file under a directory, without following links.
+function filesUnder(directory) {
+  const found = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) found.push(...filesUnder(file));
+    else if (entry.isFile()) found.push(file);
+  }
+  return found;
+}
+
+// The launcher plan that names a journal, found by its content under any
+// name, as the orchestrate checkpoint finds it: first beside the journal,
+// then anywhere in the PR's job directory (the `pr-<N>` directory holding
+// the journal), skipping Git directories and installs.
+function planNaming(journalFile) {
+  const same = (a, b) => process.platform === "win32" ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
+  const naming = (file) => {
+    try {
+      const stat = fs.lstatSync(file);
+      if (!stat.isFile() || stat.size === 0 || stat.size > 4 * 2 ** 20) return null;
+      const plan = read(file);
+      return typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object" && same(plan.journal, journalFile) ? plan : null;
+    } catch { return null; }
+  };
+  const beside = path.dirname(journalFile);
+  for (const name of fs.readdirSync(beside).sort()) { const plan = naming(path.join(beside, name)); if (plan) return plan; }
+  let jobDir = beside;
+  while (!/^pr-\d+$/.test(path.basename(jobDir)) && path.dirname(jobDir) !== jobDir) jobDir = path.dirname(jobDir);
+  if (!/^pr-\d+$/.test(path.basename(jobDir))) return null;
+  const walk = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) { if (![".git", "node_modules"].includes(entry.name)) { const plan = walk(file); if (plan) return plan; } }
+      else if (entry.isFile()) { const plan = naming(file); if (plan) return plan; }
+    }
+    return null;
+  };
+  return walk(jobDir);
+}
+
+// Windows creation ticks (100 ns since 0001-01-01 UTC) of a time in ms.
+const windowsTicks = (ms) => BigInt(Math.floor(ms)) * 10000n + 621355968000000000n;
+
+// The reason prefix of a journal whose drain was confirmed but whose review
+// completion could not be recorded; confirm-drained retries the completion.
+const COMPLETION_PENDING = "Drain confirmed; the review completion was not recorded: ";
+
+// Records that the delegated execution service of a launch whose exit row
+// carries executionDrained false has in fact stopped, so the checkpoint and
+// recover-lock accept the journal (I-1395). The journal's launcher must be
+// gone and have ended blocked after that exit. Every check below must pass;
+// a live process, a probe or census that fails, a PID it cannot date, or a
+// port it cannot read refuses, and nothing is written. It never signals a
+// process.
+//
+// The service's records name its processes: each command's
+// `<id>.started.json` (the OS identities of the command and of the
+// coordinator that ran it), each `down.log` (the PIDs taskkill named), each
+// editor session's `up.log` (the server launcher's PID and URL) and the
+// driver's own server record for that session (`state.json` under the
+// driver's session directory, which a failed `down` keeps: the launcher PID,
+// its launch time and every port). A recorded identity must be absent or
+// reused; a recorded PID must be absent or held by a process created after
+// the record was last written; the driver record's launcher must not still
+// run; no process may still accept connections on a recorded port, since a
+// server outlives its launcher; and no process may still run as a child of a
+// recorded PID (unless that PID is shown reused, below) or name the execution
+// directory in its command line.
+//
+// The `execution-drained` row names who confirmed it and the evidence. A
+// review launch that exited cleanly then also takes the `completed` row the
+// drain failure kept the launcher from writing, after the launcher's checks
+// that do not need the frozen worktree (its result transport, the completion
+// artifact and each posted report on the review thread), and the journal
+// ends `finished`; when those fail it ends `blocked` with COMPLETION_PENDING
+// and the reason, and running the command again retries the completion alone.
+// One run at a time holds `<journal>.confirm-drained`, naming its process; a
+// marker whose process is gone is replaced.
+export async function confirmExecutionDrained(journalFile, options = {}) {
+  if (!path.isAbsolute(journalFile)) throw new Error("Supply the absolute path of the launch journal");
+  const { identifyProcess = processIdentity } = options;
+  const marker = `${journalFile}.confirm-drained`;
+  const self = identifyProcess(process.pid);
+  const claim = () => {
+    const fd = fs.openSync(marker, "wx");
+    try { fs.writeSync(fd, JSON.stringify({ processIdentity: self, startedAt: new Date().toISOString() })); }
+    finally { fs.closeSync(fd); }
+  };
+  try { claim(); }
+  catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    let owner = null;
+    try { owner = read(marker).processIdentity; } catch {}
+    if (!validIdentity(owner)) throw new Error(`Drain not confirmed for ${journalFile}: its marker ${marker} is unreadable; remove it once no confirm-drained runs on this journal`);
+    if (sameIdentity(owner, identifyProcess(owner.pid))) throw new Error(`Drain not confirmed for ${journalFile}: another confirm-drained (PID ${owner.pid}) is running on it`);
+    fs.unlinkSync(marker);
+    claim();
+  }
+  try { return await confirmDrainedOnce(journalFile, options); }
+  finally { fs.rmSync(marker, { force: true }); }
+}
+
+async function confirmDrainedOnce(journalFile, { identifyProcess = processIdentity, census = processCensus, probePort = portAnswers, readComment, cwd = process.cwd(), host = os.hostname(), env = process.env } = {}) {
+  const rows = readJournalRows(journalFile);
+  const refuse = (why) => new Error(`Drain not confirmed for ${journalFile}: ${why}`);
+  const coordinator = rows.find((row) => row.event === "coordinator");
+  if (!validIdentity(coordinator?.processIdentity)) throw refuse("its coordinator row records no OS start identity");
+  if (sameIdentity(coordinator.processIdentity, identifyProcess(coordinator.processIdentity.pid))) throw refuse(`its launcher (PID ${coordinator.processIdentity.pid}) is still running; await its exit`);
+  const serviceRow = rows.findLast((row) => row.event === "execution-service");
+  if (!serviceRow) throw refuse("it records no delegated execution service");
+  const index = serviceRow.index;
+  const evidence = launchEvidence(rows, index);
+  const { exited } = evidence;
+  if (!exited) throw refuse(`launch ${index}'s exit was never journalled, so its reviewer may still run`);
+  const now = new Date().toISOString();
+  // The launcher's own blocked row after that exit says why it stopped.
+  const blockedReason = rows.find((row, i) => i > rows.indexOf(exited) && row.event === "blocked")?.reason;
+  const complete = async () => settledCompletion(rows, exited, journalFile, { readComment, cwd, blockedReason }).then((completed) => [{ ...completed, recordedAt: now, drainConfirmed: true }, { event: "finished" }], (error) => [{ event: "blocked", reason: COMPLETION_PENDING + error.message }]);
+  const outcome = (ending) => ({ ended: ending.at(-1).event, ...(ending[0].event === "blocked" ? { reason: ending[0].reason } : {}) });
+  if (evidence.drainConfirmation) {
+    if (!rows.at(-1)?.reason?.startsWith(COMPLETION_PENDING) || rows.at(-1).event !== "blocked") throw refuse(`launch ${index}'s drain was already confirmed at ${evidence.drainConfirmation.time}`);
+    const ending = await complete();
+    appendRows(journalFile, ending, now);
+    return { journal: journalFile, index, confirmed: evidence.drainConfirmation, ...outcome(ending) };
+  }
+  if (exited.executionDrained !== false) throw refuse(`launch ${index}'s exit row records executionDrained ${exited.executionDrained ?? "missing"}, not a failed drain`);
+  const exitAt = rows.indexOf(exited);
+  const blockedAt = rows.findIndex((row, i) => i > exitAt && row.event === "blocked");
+  if (blockedAt < 0 || blockedAt !== rows.length - 1) throw refuse("it does not end blocked after that exit, so its launcher may not have finished");
+  if (rows.slice(exitAt + 1, blockedAt).some((row) => !["probe-checkouts-removed", "review-state-checked"].includes(row.event))) throw refuse("rows other than probe cleanup and the review state check follow that exit; inspect it by hand");
+  const directory = serviceRow.directory;
+  if (typeof directory !== "string" || !path.isAbsolute(directory)) throw refuse("its execution-service row names no absolute directory");
+  let files;
+  try { files = filesUnder(directory); }
+  catch (error) { throw refuse(`its execution directory ${directory} cannot be read (${error.message}), so the shutdown evidence is gone`); }
+  const takeCensus = () => {
+    let taken;
+    try { taken = census(); }
+    catch (error) { throw refuse(`the process census failed (${error.message})`); }
+    if (!Array.isArray(taken) || !taken.length) throw refuse("the process census found no process at all, so it cannot be trusted");
+    return taken;
+  };
+  // A first census dates the PIDs the identity probe cannot read; the checks
+  // on what still runs read a second one, taken after every probe, so a
+  // recorded process that starts a child and exits meanwhile is still seen.
+  const firstCensus = takeCensus();
+  const byPid = new Map(firstCensus.map((p) => [p.pid, p]));
+  // A process whose start the identity probe cannot read (another user's)
+  // is dated by the census's creation time, which is reported to the
+  // microsecond rather than the identity's 100 ns, so it is flagged and an
+  // identity compares with it to within a millisecond.
+  const probe = (pid) => {
+    try { return identifyProcess(pid); }
+    catch (error) {
+      const row = byPid.get(pid);
+      if (row && /^\d+$/.test(row.start ?? "")) return { pid, start: row.start, fromCensus: true };
+      throw refuse(`PID ${pid} cannot be probed (${error.message})`);
+    }
+  };
+  const stillRunning = (recorded, live) => {
+    if (!live) return false;
+    if (!live.fromCensus) return sameIdentity(recorded, live);
+    if (!/^\d+$/.test(recorded.start)) return true;
+    const gap = BigInt(live.start) - BigInt(recorded.start);
+    return gap <= 10000n && gap >= -10000n;
+  };
+  const readRecord = (file) => {
+    try { return read(file); } catch (error) { throw refuse(`${file} is unreadable (${error.message})`); }
+  };
+  // For each recorded PID, when the latest record naming it was written. The
+  // original process held that PID then, so a process holding it now that was
+  // created later is another one.
+  const namedAt = new Map();
+  const noteNamed = (pid, file) => { namedAt.set(pid, Math.max(namedAt.get(pid) ?? 0, fs.statSync(file).mtimeMs)); };
+  // A PID with no recorded identity is another process only when that
+  // process was created after the record naming it.
+  const pids = [];
+  const checkPid = (pid, file) => {
+    noteNamed(pid, file);
+    if (pids.some((entry) => entry.pid === pid)) return;
+    const live = probe(pid);
+    if (!live) { pids.push({ pid, file, state: "absent" }); return; }
+    if (!/^\d+$/.test(live.start) || BigInt(live.start) <= windowsTicks(fs.statSync(file).mtimeMs)) throw refuse(`PID ${pid}, named in ${file}, is in use by a process that may predate that record; await its exit or inspect it by hand`);
+    pids.push({ pid, file, state: "reused", start: live.start, ...(live.fromCensus ? { dated: "census" } : {}) });
+  };
+  const identities = [];
+  for (const file of files.filter((file) => file.endsWith(".started.json"))) {
+    const started = readRecord(file);
+    for (const recorded of [started?.identity, started?.coordinator].filter(validIdentity)) {
+      noteNamed(recorded.pid, file);
+      const live = probe(recorded.pid);
+      if (stillRunning(recorded, live)) throw refuse(`PID ${recorded.pid}, recorded in ${file}, is still running`);
+      identities.push({ pid: recorded.pid, start: recorded.start, file, state: live ? "reused" : "absent", ...(live?.fromCensus ? { dated: "census" } : {}) });
+    }
+  }
+  // The PIDs a down.log shows taskkill acting on, every tree member it
+  // reached; a "(child process of PID N)" parent is not shown alive when the
+  // log was written, and the tree's root's parent is the `up` command the
+  // started records already name.
+  const downLogs = files.filter((file) => path.basename(file) === "down.log");
+  for (const file of downLogs) {
+    for (const match of fs.readFileSync(file, "utf8").matchAll(/(?:The process with PID|could not stop pid) (\d+)/gi)) checkPid(Number(match[1]), file);
+  }
+  // Each editor session's server launch and the driver's record of it.
+  const ports = [];
+  const servers = [];
+  for (const sessionFile of files.filter((file) => path.basename(file) === "session.json")) {
+    const session = readRecord(sessionFile);
+    if (typeof session?.root !== "string" || typeof session.session !== "string") throw refuse(`${sessionFile} names no driver root and session`);
+    const upLog = path.join(path.dirname(sessionFile), "up.log");
+    if (fs.existsSync(upLog)) {
+      for (const match of fs.readFileSync(upLog, "utf8").matchAll(/launching dev servers \([^)]*\) pid (\d+) \S+ (\S+)/g)) {
+        checkPid(Number(match[1]), upLog);
+        ports.push({ url: match[2], file: upLog });
+      }
+    }
+    const stateFile = path.join(sessionDir({ root: session.root, session: session.session, env }), "state.json");
+    if (!fs.existsSync(stateFile)) { servers.push({ session: session.session, state: stateFile, record: "absent" }); continue; }
+    const state = readRecord(stateFile);
+    if (!Number.isSafeInteger(state?.pid) || !Number.isFinite(state.startedAt)) throw refuse(`${stateFile} records no launcher PID and launch time`);
+    noteNamed(state.pid, stateFile);
+    const live = probe(state.pid);
+    if (live && (!/^\d+$/.test(live.start) || BigInt(live.start) <= windowsTicks(state.startedAt + 2000))) throw refuse(`PID ${state.pid}, the server launcher ${stateFile} records, may still run`);
+    if (!pids.some((entry) => entry.pid === state.pid)) pids.push({ pid: state.pid, file: stateFile, state: live ? "reused" : "absent", ...(live ? { start: live.start } : {}) });
+    if (typeof state.url === "string") ports.push({ url: state.url, file: stateFile });
+    for (const port of Object.values(state.ports ?? {})) if (Number.isSafeInteger(port)) ports.push({ url: `http://localhost:${port}`, file: stateFile });
+    servers.push({ session: session.session, state: stateFile, record: "kept", pid: state.pid });
+  }
+  if (!identities.length && !pids.length) throw refuse(`${directory} holds no started command identity and no recorded PID to check`);
+  const checkedPorts = [];
+  for (const { url, file } of ports) {
+    let address;
+    try { address = new URL(url); } catch { throw refuse(`${file} records an unreadable server address ${url}`); }
+    const port = Number(address.port || 80);
+    if (checkedPorts.some((entry) => entry.port === port)) continue;
+    let answers;
+    try { answers = await probePort(address.hostname, port); }
+    catch (error) { throw refuse(`port ${port}, recorded in ${file}, cannot be probed (${error.message})`); }
+    if (answers) throw refuse(`port ${port}, recorded in ${file}, still accepts connections, so a server of the service may still run`);
+    checkedPorts.push({ port, file, state: "closed" });
+  }
+  const processes = takeCensus();
+  const current = new Map(processes.map((p) => [p.pid, p]));
+  const plain = (text) => { const slashed = String(text ?? "").split(path.win32.sep).join("/"); return process.platform === "win32" ? slashed.toLowerCase() : slashed; };
+  const named = processes.filter((p) => p.pid !== process.pid && plain(p.commandLine).includes(plain(directory)));
+  if (named.length) throw refuse(`PID${named.length > 1 ? "s" : ""} ${named.map((p) => p.pid).join(", ")} name the execution directory ${directory} and still run`);
+  // A live process whose parent PID (Windows), or process group or session
+  // (Linux), is a recorded PID is taken as the service's: a server orphaned
+  // by its launcher, or a child an original process started after the
+  // records were written and before it exited. A creation time alone cannot
+  // tell those from a child of a reused PID; the one exception is a recorded
+  // PID now held by a process created after the records naming it, with the
+  // child created after that holder.
+  const recorded = new Set([...identities, ...pids].map((entry) => entry.pid));
+  const newer = (id) => { const holder = current.get(id); return Boolean(holder) && holder.start !== null && BigInt(holder.start) > windowsTicks(namedAt.get(id) ?? Date.now()); };
+  // A recorded PID the last census shows held by a process no newer than the
+  // records naming it may be the original, whatever the probes found.
+  const unproven = [...recorded].filter((id) => current.has(id) && !newer(id));
+  if (unproven.length) throw refuse(`recorded PID${unproven.length > 1 ? "s" : ""} ${unproven.join(", ")} ${unproven.length > 1 ? "are" : "is"} held by a process the last census cannot show is newer than the records naming ${unproven.length > 1 ? "them" : "it"}`);
+  // Ancestry is traced by process identity through both censuses, so a
+  // process whose parent, or any process between it and a recorded PID,
+  // exited between them is still found. A process's parent is whichever
+  // process held its parent PID when it was created: the latest one seen
+  // with that PID created no later than it. A process descends from the
+  // service when that chain reaches a recorded PID that no seen process
+  // newer than the records naming it holds, or, on Linux, when its process
+  // group or session is a recorded PID.
+  const seenByPid = new Map();
+  for (const p of new Map([...firstCensus, ...processes].map((p) => [`${p.pid}:${p.start}`, p])).values()) seenByPid.set(p.pid, [...(seenByPid.get(p.pid) ?? []), p]);
+  const notAfter = (a, b) => a.start === null || b.start === null || BigInt(a.start) <= BigInt(b.start);
+  const newerThanRecords = (p) => p.start !== null && BigInt(p.start) > windowsTicks(namedAt.get(p.pid) ?? Date.now());
+  const parentOf = (p) => {
+    let parent = null;
+    for (const other of seenByPid.get(p.ppid) ?? []) {
+      if (other === p || !notAfter(other, p)) continue;
+      if (!parent || (parent.start !== null && other.start !== null && BigInt(other.start) > BigInt(parent.start))) parent = other;
+    }
+    return parent;
+  };
+  const roots = new Map();
+  const serviceRoot = (p, visiting = new Set()) => {
+    const key = `${p.pid}:${p.start}`;
+    if (roots.has(key)) return roots.get(key);
+    if (visiting.has(key)) return null;
+    visiting.add(key);
+    let root = recorded.has(p.pid) && !newerThanRecords(p) ? p.pid : [p.group, p.sessionId].find((id) => id !== p.pid && recorded.has(id)) ?? null;
+    if (root === null) {
+      const parent = parentOf(p);
+      if (parent) root = serviceRoot(parent, visiting);
+      else if (recorded.has(p.ppid)) root = p.ppid;
+    }
+    roots.set(key, root);
+    return root;
+  };
+  const orphans = processes.filter((p) => p.pid !== process.pid && serviceRoot(p) !== null);
+  if (orphans.length) throw refuse(`${orphans.map((p) => `PID ${p.pid} (descended from recorded PID ${serviceRoot(p)})`).join(", ")} still ${orphans.length > 1 ? "run" : "runs"}; only a recorded PID now held by a process newer than the records, and older than its child, shows that child is not the service's`);
+  let confirmer = null;
+  try { confirmer = os.userInfo().username; } catch {}
+  const drained = { event: "execution-drained", index, step: exited.step, directory, confirmedBy: { pid: process.pid, processIdentity: identifyProcess(process.pid), host, user: confirmer }, census: { processes: processes.length, namingDirectory: 0, childrenOfRecorded: 0, identities, downLogs, pids, servers, ports: checkedPorts } };
+  const ending = await complete();
+  appendRows(journalFile, [drained, ...ending], now);
+  return { journal: journalFile, index, confirmed: drained, ...outcome(ending) };
+}
+
+// Whether a blocked reason holds nothing but editor shutdown failures, as
+// the delegated editor session's close reports them; the service's close
+// joins every failure with "; ", a retained operation failure or a changed
+// frozen worktree included, and any of those keeps the review uncompleted.
+const EDITOR_SHUTDOWN = /Editor shutdown unverified; preserve [^;]+ and inspect [^;]+/g;
+export function onlyDrainFailures(reason) {
+  if (typeof reason !== "string" || !reason.match(EDITOR_SHUTDOWN)) return false;
+  return reason.replace(EDITOR_SHUTDOWN, "").split(";").every((part) => part.trim() === "");
+}
+
+// The `completed` row of a review launch whose clean exit was blocked only by
+// its drain failure, after the launcher's checks that do not need the frozen
+// worktree. It throws when the launch is not such a review or a check fails.
+async function settledCompletion(rows, exited, journalFile, { readComment, cwd, blockedReason }) {
+  const launching = rows.find((row) => row.event === "launching" && row.index === exited.index);
+  if (launching?.role !== "review") throw new Error(`launch ${exited.index} is not a review`);
+  if (!onlyDrainFailures(blockedReason)) throw new Error(`its launcher was blocked by more than the drain, which confirming the drain does not answer: ${blockedReason ?? "no reason recorded"}`);
+  if (exited.code !== 0 || exited.signal) throw new Error(`its reviewer exited with code ${exited.code}${exited.signal ? ` (signal ${exited.signal})` : ""}`);
+  if (rows.some((row) => row.event === "completed" && row.index === exited.index)) throw new Error(`launch ${exited.index} already has a completed row`);
+  // The launcher checks a clean review's frozen head, worktree and install
+  // before it gives up on a failed drain; without that record (a launcher
+  // that predates it) the review is not counted, and a retry of the same
+  // reviewer replaces it.
+  const state = rows.find((row) => row.event === "review-state-checked" && row.index === exited.index);
+  if (!state) throw new Error("its launcher recorded no check of the reviewed head, worktree and install at the reviewer's exit (it predates that record), so the review is not counted; relaunch that reviewer with a higher attempt");
+  if (state.error || state.headUnchanged !== true || state.changedPaths !== 0 || !Array.isArray(state.installChanges) || state.installChanges.length) throw new Error(`its reviewer left the reviewed head, worktree or install changed or unchecked (${JSON.stringify({ headUnchanged: state.headUnchanged, changedPaths: state.changedPaths, installChanges: state.installChanges, error: state.error })})`);
+  const thread = rows.find((row) => row.event === "coordinator")?.thread;
+  if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("its coordinator row names no review thread");
+  const plan = planNaming(journalFile);
+  const step = plan && Object.hasOwn(plan.steps, launching.step) ? plan.steps[launching.step] : null;
+  if (!step) throw new Error(`no launcher plan in its job directory names it and step ${launching.step}`);
+  const output = rows.find((row) => row.event === "running" && row.index === exited.index)?.output ?? launching.output;
+  if (step.nativeResult) verifyNativeReviewResult(output, step.nativeResult);
+  let done;
+  try { done = read(launching.completion); }
+  catch (error) { throw new Error(`its completion artifact ${launching.completion} is unreadable (${error.message})`); }
+  if (done?.head !== launching.head || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.length || !done.commentIds.every(Number.isSafeInteger)) throw new Error(`its completion artifact must name head ${launching.head}, a summary and the posted report IDs`);
+  if (!(Array.isArray(step.next) && step.next.includes(done.next))) throw new Error("its completion artifact names an undeclared transition");
+  for (const id of done.commentIds) await verifyReviewComment(id, thread, done.head, cwd, readComment ? { readComment } : {});
+  return lateCompletion(launching, exited, done);
+}
+
+function appendRows(file, rows, time) {
+  const fd = fs.openSync(file, "a");
+  try {
+    for (const row of rows) fs.writeSync(fd, JSON.stringify({ time, ...row }) + "\n");
+    fs.fsyncSync(fd);
+  } finally { fs.closeSync(fd); }
 }
 
 // Where a journal's coordinator-posted report lives: the review thread its
@@ -610,9 +1028,10 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   const evidence = launch ? launchEvidence(rows, launch.index) : null;
   const exited = evidence?.exited;
   // A delegated command may run detached and outlive the coordinator; only an
-  // exit row recording a clean drain of the service shows it has stopped.
+  // exit row recording a clean drain of the service, or a later drain
+  // confirmation, shows it has stopped.
   const service = evidence?.service;
-  if (service && exited?.executionDrained !== true) throw refuse(`step ${launch.step} started a delegated execution service (${service.directory}) ${exited ? "whose shutdown failed or was not recorded" : "and its exit was never journalled"}, so its commands may still run; confirm they have exited by hand`);
+  if (service && !evidence.drained) throw refuse(`step ${launch.step} started a delegated execution service (${service.directory}) ${exited ? "whose shutdown failed or was not recorded" : "and its exit was never journalled"}, so its commands may still run; ${exited ? `once they have exited, record that with node scripts/agent-handoff.mjs confirm-drained ${record.journal}` : "confirm they have exited by hand"}`);
   if (launch && !exited) {
     const running = evidence.running;
     if (!running) {
@@ -1122,6 +1541,19 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         throw error;
       }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run${executionFailure ? `; delegated execution: ${executionFailure.message}` : ""}`);}}
+      // A failed drain stops this launch before the review checks below, so a
+      // review that exited cleanly has its frozen head, worktree and install
+      // checked and journalled first: confirm-drained completes it later only
+      // on that evidence, and damage found here joins the failure.
+      if (executionFailure && step.role === "review" && result.code === 0 && !result.signal) {
+        let state;
+        try { state = { headUnchanged: gitHead(cwd) === head, changedPaths: gitStatus(cwd).split("\n").filter(Boolean).length, installChanges: installChanges(install, installFingerprint(cwd)) }; }
+        catch (error) { state = { error: error.message }; }
+        try { append({ event: "review-state-checked", index, step: current, ...state }); }
+        catch (error) { executionFailure.message += `; review state journal write failed: ${error.message}`; }
+        if (state.headUnchanged === false || state.changedPaths) executionFailure.message += `; Review changed the frozen head or worktree${state.changedPaths ? ` (${state.changedPaths} changed paths; restore them before trusting any evidence)` : ""}`;
+        if (state.installChanges?.length) executionFailure.message += `; Review changed the reviewed install: ${state.installChanges.join("; ")}; restore these before any later step or local test`;
+      }
       if(executionFailure)throw executionFailure;
       if (result.code !== 0) throw exitFailure(current, output, diagnostics);
       if(step.nativeResult){const native=verifyNativeReviewResult(output,step.nativeResult);if(native?.warnings?.length)append({event:"reviewer-warnings",index,step:current,warnings:native.warnings});}
@@ -1195,6 +1627,9 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
       if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs read-back <absolute-journal> <comment-id> <read-back.json>");
       console.log(JSON.stringify(writeReportReadBack(process.argv[3], process.argv[4], process.argv[5])));
     } catch (error) { console.error(error.message); process.exitCode = 1; }
+  } else if (process.argv[2] === "confirm-drained") {
+    if (process.argv.length !== 4) { console.error("Usage: node scripts/agent-handoff.mjs confirm-drained <absolute-journal>"); process.exitCode = 1; }
+    else confirmExecutionDrained(process.argv[3]).then((result) => console.log(JSON.stringify(result)), (error) => { console.error(error.message); process.exitCode = 1; });
   } else if (process.argv[2] === "recover-lock") {
     try {
       if (process.argv.length !== 4) throw new Error("Usage: node scripts/agent-handoff.mjs recover-lock <worktree>");

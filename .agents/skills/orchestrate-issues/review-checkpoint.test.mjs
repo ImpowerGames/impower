@@ -523,7 +523,15 @@ try {
     { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3, reviewerId: "a", plannedReviewers: ["a"] }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "execution-service", index: 0 },
     { time: at(), event: "exited", index: 0, executionDrained: drained }, { time: at(), event: "completed", index: 0, reviewerId: "a", completedRound: 3, reviewedHead: c.round2, commentIds: [21], plannedRoundReviewers: ["a"], pendingReviewers: [], completedRoundReviews: 1 }, { time: at(), event: "finished" }] }]);
   assert.ok(served(false).blockers.some((b) => /delegated execution service whose shutdown is not confirmed \(executionDrained false\)/.test(b)), served(false).blockers.join("; "));
+  assert.ok(served(false).blockers.some((b) => /confirm-drained js/.test(b)), "the blocker names the command that records a confirmed drain");
   assert.deepEqual(served(true).blockers, []);
+  // A drain confirmed after the exit row (confirm-drained, I-1395) ends the
+  // launch; one recorded before the exit row does not.
+  const confirmed = (rows) => rc.roundState([{ file: "js", plan: null, rows: [
+    { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3, reviewerId: "a", plannedReviewers: ["a"] }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "execution-service", index: 0 }, ...rows,
+    { time: at(), event: "completed", index: 0, reviewerId: "a", completedRound: 3, reviewedHead: c.round2, commentIds: [21], plannedRoundReviewers: ["a"], pendingReviewers: [], completedRoundReviews: 1 }, { time: at(), event: "finished" }] }]);
+  assert.deepEqual(confirmed([{ time: at(), event: "exited", index: 0, executionDrained: false }, { time: at(), event: "execution-drained", index: 0 }]).blockers, [], "a confirmed drain ends the launch");
+  assert.ok(confirmed([{ time: at(), event: "execution-drained", index: 0 }, { time: at(), event: "exited", index: 0, executionDrained: false }]).blockers.some((b) => /shutdown is not confirmed/.test(b)), "a confirmation before the exit row confirms nothing");
 
   // A block whose fields are not strings is reported as malformed; it never
   // throws while it is judged.
