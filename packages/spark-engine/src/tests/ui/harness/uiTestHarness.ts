@@ -119,9 +119,10 @@ export function compileUI(
     seedBuiltinsIntoStory?: boolean;
     /** Asset files (images, audio, fonts, video) the fixture references. */
     assets?: File[];
-    /** Scripts `main.sd` includes, by URI. A fixture that needs a second
-     *  file (source offsets start again in every one) names them here and
-     *  writes `include <uri>` in its main source. */
+    /** Other scripts of the project, by URI. A fixture that needs a second
+     *  file (source offsets start again in every one) names it here at a URI
+     *  in `main.sd`'s folder, which makes it part of the program; a script
+     *  other than `main.sd` holds declarations only at its top level. */
     scripts?: Record<string, string>;
   },
 ) {
@@ -232,7 +233,7 @@ export function createHarness(
     holdAssets?: boolean;
     /** Asset files (images, audio, fonts, video) the fixture references. */
     assets?: File[];
-    /** Scripts `main.sd` includes, by URI (see `compileUI`). */
+    /** Other scripts of the project, by URI (see `compileUI`). */
     scripts?: Record<string, string>;
   },
 ): UIHarness {

@@ -456,13 +456,12 @@ describe("a preview compile", () => {
     expect(diverged(fieldSig(incremental), fieldSig(coldProgram({ [URI]: typed.after })))).toEqual([]);
   });
 
-  it("of an included script rolls back that script and leaves the root's parse alone", () => {
+  it("of another script of the project rolls back that script and leaves the root's parse alone", () => {
+    // A script other than main runs no line outside a scene, so the chapter
+    // leaves out the tag line of its constructs.
     const texts = {
-      [URI]: cumulativeScreenplay().replace(
-        "define hero as character with",
-        "include chapter.sd\n\ndefine hero as character with",
-      ),
-      [CHAPTER_URI]: includedChapter(),
+      [URI]: cumulativeScreenplay(),
+      [CHAPTER_URI]: includedChapter().replace("# ch_chapter marker\n\n", ""),
     };
     const c = compilerFor(texts);
     quiet(() => c.compile({ textDocument: { uri: URI } }));
@@ -487,14 +486,14 @@ describe("a preview compile", () => {
     expect(diverged(fieldSig(incremental), fieldSig(coldProgram({ ...texts, [URI]: typed.after })))).toEqual([]);
   });
 
-  it("of the root that makes an included script's served memo stale leaves the next compile equal to a cold one", () => {
-    // The included script's function holds statements served from their
+  it("of the root that makes another script's served memo stale leaves the next compile equal to a cold one", () => {
+    // The other script's function holds statements served from their
     // memos, whose resolution read `helper`. A preview of the root that
     // changes `helper`'s parameters makes those memos stale, so the preview's
-    // compile lowers the included script's block again (`relowerMemos`), in
+    // compile lowers the other script's block again (`relowerMemos`), in
     // a document the preview's snapshot does not cover.
     const texts: Record<string, string> = {
-      [URI]: ["include chapter.sd", "", "store gold = 1", "", "function helper(n):", "  return n + gold", "", "scene start", "  Hello.", "  -> chapter_one", "end", ""].join("\n"),
+      [URI]: ["store gold = 1", "", "function helper(n):", "  return n + gold", "", "scene start", "  Hello.", "  -> chapter_one", "end", ""].join("\n"),
       [CHAPTER_URI]: [
         "scene chapter_one",
         "  Chapter line.",
@@ -537,7 +536,7 @@ describe("a preview compile", () => {
     } finally {
       registry.relowerCompilations = relower;
     }
-    expect(relowered, "the preview lowered the included script again").toContain(CHAPTER_URI);
+    expect(relowered, "the preview lowered the other script again").toContain(CHAPTER_URI);
 
     const typed = change(texts[URI]!, "  Hello.", "  Hello there.");
     quiet(() => c.updateDocument({ textDocument: { uri: URI, version: 2 }, contentChanges: typed.contentChanges } as never));

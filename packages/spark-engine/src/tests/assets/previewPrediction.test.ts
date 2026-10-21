@@ -1782,7 +1782,6 @@ Line one.
   it("finds the beat at or before an address", () => {
     const OTHER_URI = "inmemory:///other.sd";
     const main = [
-      "include other.sd",
       "scene A",
       "  Line one.",
       "  Line two.",
@@ -1795,7 +1794,9 @@ Line one.
       "end",
       "",
     ].join("\n");
-    const { program } = compileUI(main, { scripts: { [OTHER_URI]: "Other line.\n" } });
+    const { program } = compileUI(main, {
+      scripts: { [OTHER_URI]: "scene other\n  Other line.\nend\n" },
+    });
     const locator = programLocator(program);
     const at = (line: number, uri = MAIN_URI): ProgramAddress => {
       const address = locator.addressAt(uri, line);
@@ -1804,13 +1805,13 @@ Line one.
       }
       return address;
     };
-    const beats = [2, 4, 7].map((line) => ({ address: at(line) }));
-    expect(beatIndexIn(beats, locator, at(4))).toBe(1);
-    expect(beatIndexIn(beats, locator, at(6))).toBe(1);
-    expect(beatIndexIn(beats, locator, at(3))).toBe(0);
-    expect(beatIndexIn(beats, locator, at(8))).toBe(2);
+    const beats = [1, 3, 6].map((line) => ({ address: at(line) }));
+    expect(beatIndexIn(beats, locator, at(3))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(5))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(2))).toBe(0);
+    expect(beatIndexIn(beats, locator, at(7))).toBe(2);
     // Only the beats in the address's own script precede it.
-    expect(beatIndexIn(beats, locator, at(0, OTHER_URI))).toBe(-1);
+    expect(beatIndexIn(beats, locator, at(1, OTHER_URI))).toBe(-1);
     // An address no chunk of the program holds.
     expect(beatIndexIn(beats, locator, 2 ** 40)).toBe(-1);
     expect(beatIndexIn(beats, locator, null)).toBe(-1);

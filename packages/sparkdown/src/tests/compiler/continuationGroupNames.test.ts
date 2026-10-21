@@ -1,7 +1,6 @@
 // A continuation's display calls carry a `group` the compiler names by
-// document order. In a script included from two places every continuation
-// keeps a name of its own, and an incremental compile still matches a cold
-// one.
+// document order. Across the scripts of a project every continuation keeps a
+// name of its own, and an incremental compile still matches a cold one.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -70,12 +69,10 @@ function groups(root: ProgramRoot): string[] {
   });
 }
 
-// `shared.sd` is included by `main.sd` and again by `chapter.sd`.
+// `main.sd`, `chapter.sd` and `shared.sd` are the scripts of one project;
+// `main.sd` and `shared.sd` each hold a continuation.
 const project: Project = {
   main: [
-    "include shared.sd",
-    "include chapter.sd",
-    "",
     "scene main_one",
     "  Opening line.",
     "HERO: Main glued line ..",
@@ -83,12 +80,12 @@ const project: Project = {
     "end",
     "",
   ].join("\n"),
-  chapter: ["include shared.sd", "", "scene chapter_one", "  Chapter line.", "end", ""].join("\n"),
-  shared: ["HERO: Shared glued line ..", ".. carried on > and broken.", ""].join("\n"),
+  chapter: ["scene chapter_one", "  Chapter line.", "end", ""].join("\n"),
+  shared: ["scene shared_one", "HERO: Shared glued line ..", ".. carried on > and broken.", "end", ""].join("\n"),
 };
 
 describe("continuation group names", () => {
-  it("a script included twice keeps a name for each continuation", () => {
+  it("a continuation in another script of the project keeps a name of its own", () => {
     const root = quiet(() => {
       const compiler = new SparkdownCompiler();
       configure(compiler, project, 1);
@@ -101,7 +98,7 @@ describe("continuation group names", () => {
     expect(new Set(names).size).toBe(2);
   });
 
-  it("a script included twice compiles incrementally as it does cold", () => {
+  it("a project with a continuation in each of two scripts compiles incrementally as it does cold", () => {
     const find = "  Opening line.";
     const replace = "  Opening line, now a good deal longer.";
     const offset = project.main.indexOf(find);
@@ -125,6 +122,10 @@ describe("continuation group names", () => {
       return [incremental, compiled(fresh)];
     });
     expect(groups(incremental).filter((name) => name === "")).toEqual([]);
+    // Both scripts' continuations are in both programs: main's and the
+    // shared script's.
+    expect(new Set(groups(incremental)).size).toBe(2);
+    expect(new Set(groups(cold)).size).toBe(2);
     expect(describeRoot(incremental)).toEqual(describeRoot(cold));
   });
 });

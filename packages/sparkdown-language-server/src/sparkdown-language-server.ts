@@ -1,4 +1,5 @@
 import {
+  CodeActionKind,
   DiagnosticRefreshRequest,
   SemanticTokensRefreshRequest,
   type InitializeResult,
@@ -17,6 +18,7 @@ import type {
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
+import { getCodeActions } from "./utils/providers/getCodeActions";
 import { getCodeLenses } from "./utils/providers/getCodeLenses";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getAnnotatedScripts } from "./utils/annotations/getAnnotatedScripts";
@@ -132,6 +134,9 @@ try {
       full: true,
     },
     codeLensProvider: {},
+    codeActionProvider: {
+      codeActionKinds: [CodeActionKind.QuickFix],
+    },
   };
 
   connection.onInitialize(async (params): Promise<InitializeResult> => {
@@ -628,6 +633,16 @@ try {
     const annotations = workspace.annotations(uri);
     const result = profiled("lsp: onCodeLens", uri, () =>
       getCodeLenses(document, annotations),
+    );
+    return result;
+  });
+
+  // codeActionProvider
+  connection.onCodeAction((params) => {
+    const uri = params.textDocument.uri;
+    const document = workspace.document(uri);
+    const result = profiled("lsp: onCodeAction", uri, () =>
+      getCodeActions(document, params.context.diagnostics),
     );
     return result;
   });

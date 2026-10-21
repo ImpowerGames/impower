@@ -1,4 +1,4 @@
-include scripts/end.sd
+// scene FINISH is in scripts/end.sd, which is part of this project folder.
 store driver_score = 42
 
 -> START

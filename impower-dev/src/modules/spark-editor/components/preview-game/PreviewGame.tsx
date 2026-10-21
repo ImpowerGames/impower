@@ -257,6 +257,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
               // on-demand `?filters=` route in this host (#299); the player's
               // own compiler doesn't need the inlined SVG source either.
               stripImageData: true,
+              // This host's URIs are `file://` and the OPFS path as written
+              // (`getUriFromPath`), so a `%` in one is part of a file name;
+              // the player orders the scripts as the language server does.
+              uriPathsAsWritten: true,
               uri,
               workspace: projectPath,
               ...getGameConfiguration(),

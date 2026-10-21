@@ -117,8 +117,9 @@ describe("an edit inside one beat of the beats fixture", () => {
     // Every beat of the fixture's scene is a statement with a chunk of its own.
     expect(s.root.flowNamed("MAIN")!.arrays.chunks.length).toBeGreaterThan(100);
     // The first edit after a cold compile, then edits further down, each in
-    // a line of dialogue or action.
-    for (const line of [lines[7]!, lines[20]!, lines[3]!, lines[40]!]) {
+    // a line of dialogue or action. The scene starts on the fixture's first
+    // line, so its first beat is on the second.
+    for (const line of [lines[5]!, lines[18]!, lines[1]!, lines[38]!]) {
       const before = s.root;
       const after = s.edit(line, `${line} Still.`);
       expect(s.store.emittedLastBuild).toBe(1);

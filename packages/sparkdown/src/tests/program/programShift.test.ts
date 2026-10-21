@@ -92,6 +92,13 @@ function expectShiftInvariant(project: Project, name: string, shift: number) {
   const plain = coldCompile(project);
   const shifted = coldCompile({ ...project, [name]: "\n".repeat(shift) + project[name]! });
   const moved = (at: string, line: number) => (at === uri ? line + shift : line);
+  // Every script of the project is part of both programs, so the shift is
+  // compared across all of them.
+  for (const program of [plain, shifted]) {
+    expect(Object.keys(program.scripts).sort(), "the program's scripts").toEqual(
+      Object.keys(project).map(uriOf).sort(),
+    );
+  }
   if (!plain.chunks) {
     // A program the compile cannot build reports its errors on the lines the
     // shift moved them to.

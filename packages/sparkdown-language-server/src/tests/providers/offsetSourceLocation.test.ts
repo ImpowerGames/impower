@@ -18,8 +18,6 @@ const CHAPTER = "file://proj/chapter.sd";
 const NEWLINE = String.fromCharCode(10);
 
 const MAIN_SRC = [
-  "include chapter.sd",
-  "",
   "Raffles waits by the door.",
   "",
   "scene A",
@@ -197,27 +195,25 @@ describe("previous and next beat navigation", () => {
       return out;
     };
     // [line, next, previous], null for nowhere. The stops in the main script
-    // are its first beat (2), the scene's header (4), its beats (5 and 11)
-    // and the dialogue, which starts at its parenthetical (8); the divert at
+    // are its first beat (0), the scene's header (2), its beats (3 and 9)
+    // and the dialogue, which starts at its parenthetical (6); the divert at
     // the scene's own level is none. The chapter's are its header (0) and
     // its two beats (1 and 3).
     expect(await rows(MAIN, MAIN_SRC)).toEqual([
       [0, 2, null],
-      [1, 2, null],
-      [2, 4, null],
-      [3, 4, 2],
-      [4, 5, 2],
-      [5, 8, 4],
-      [6, 8, 5],
-      [7, 8, 5],
-      [8, 11, 5],
-      [9, 11, 8],
-      [10, 11, 8],
-      [11, null, 8],
-      [12, null, 11],
-      [13, null, 11],
-      [14, null, 11],
-      [15, null, 11],
+      [1, 2, 0],
+      [2, 3, 0],
+      [3, 6, 2],
+      [4, 6, 3],
+      [5, 6, 3],
+      [6, 9, 3],
+      [7, 9, 6],
+      [8, 9, 6],
+      [9, null, 6],
+      [10, null, 9],
+      [11, null, 9],
+      [12, null, 9],
+      [13, null, 9],
     ]);
     expect(await rows(CHAPTER, CHAPTER_SRC)).toEqual([
       [0, 1, null],
@@ -232,7 +228,7 @@ describe("previous and next beat navigation", () => {
   });
 
   test("lands around diverts, `done`, `fin`, branches and functions", async () => {
-    const program = compile(["include chapter.sd", ""].join(NEWLINE), FLOWS);
+    const program = compile("", FLOWS);
     const at = (line: number, offset: number) =>
       getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
     // Past a divert at the scene's own level, onto the line below it.
@@ -321,7 +317,7 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
-    const program = compile(["include chapter.sd", ""].join(NEWLINE), CHOOSE);
+    const program = compile("", CHOOSE);
     expect(program.chunks).toBeDefined();
     const beats = ownBeats(program);
     for (const caption of ["Caption.", "Second caption."]) {
@@ -524,7 +520,7 @@ describe("previous and next beat navigation", () => {
   });
 
   test("lands around diverts that pass arguments", async () => {
-    const program = compile(["include chapter.sd", ""].join(NEWLINE), ARGS);
+    const program = compile("", ARGS);
     const at = (line: number, offset: number) =>
       getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
     expect(await at(lineOf(ARGS, "Before."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "After.") });

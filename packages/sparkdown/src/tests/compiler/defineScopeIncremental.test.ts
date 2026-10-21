@@ -9,7 +9,8 @@
 //
 //  - RESULT. Through a sequence of edits across scripts (an `as X` use of a
 //    name another script defines added and removed, a define deleted and
-//    moved between chunks, an include removed and restored, a preview that
+//    moved between chunks, a script removed from the project and restored, a
+//    preview that
 //    renames a define and is rolled back), every global the program holds is
 //    named as a cold compile of the same text names it. And with
 //    `DefineScopeRecord.verify`, every pass is checked against a walk of the
@@ -108,9 +109,6 @@ const chapter = (): string => {
 
 const main = (): string => {
   const L: string[] = [];
-  L.push("include defs.sd");
-  L.push("include chapter.sd");
-  L.push("");
   L.push("define villain as character with");
   L.push('  name = "Villain"');
   L.push("end");
@@ -330,19 +328,24 @@ describe.each<[string, Config]>([
     expect(keys).toContain("$character_villain");
   });
 
-  it("classifies an included script's defines again when the include is removed and restored across a type change", () => {
+  it("classifies a script's defines again when the script is removed from the project and restored across a type change", () => {
     const s = session();
     s.compile();
     // Without defs, nothing uses `lamp`; while it is out, main makes `lamp`
-    // a type, so defs' carried chunks come back under a union they were
-    // never classified under.
-    s.edit(MAIN, "include defs.sd\n", "");
+    // a type, so defs' defines come back under a union they were never
+    // classified under.
+    const [defsFile] = scriptFiles({ [DEFS]: s.texts[DEFS]! });
+    s.compiler.removeFile({ file: defsFile } as never);
+    delete s.texts[DEFS];
+    s.compile();
     s.edit(
       MAIN,
       "function make()",
       'define glow as lamp with\n  hue = "red"\nend\n\nfunction make()',
     );
-    const keys = s.edit(MAIN, "include chapter.sd", "include defs.sd\ninclude chapter.sd");
+    s.compiler.addFile({ file: defsFile } as never);
+    s.texts[DEFS] = defsFile!.text;
+    const keys = s.compile();
     expect(keys).toContain("lamp");
     expect(keys).not.toContain("$object_lamp");
   });
@@ -377,27 +380,31 @@ describe.each<[string, Config]>([
     expect(keys).toContain("lamp");
   });
 
-  // A preview compiles the requested root and then, when that root does not
-  // include the edited script, the edited script on its own, both before the
-  // rollback (`previewCompile`). Two scripts that include one defining script
-  // classify its define under their own unions, so the second compile must
-  // see the key the first left, not the one the last real compile recorded
-  // (PR #1863, round 1).
+  // A preview compiles the requested root and then, when that root's project
+  // does not hold the edited script, the edited script on its own, both
+  // before the rollback (`previewCompile`). Two roots whose projects both hold
+  // one defining script (`side.sd`, whose folder holds `inner/`, and
+  // `inner/story.sd`, which is not named main.sd and so leaves `inner/` in
+  // side's project) classify its define under their own unions, so the second
+  // compile must see the key the first left, not the one the last real
+  // compile recorded (PR #1863, round 1).
   it("scopes a shared define for each root a preview compiles", () => {
+    const ROOT = "inmemory:///inner/story.sd";
+    const SHARED = "inmemory:///inner/defs.sd";
     const SIDE = "inmemory:///side.sd";
     const texts: Record<string, string> = {
-      [MAIN]: 'include defs.sd\n\ndefine glow as lamp with\n  hue = "red"\nend\n',
-      [DEFS]: "define lamp as object with\n  lit = true\nend\n",
-      [SIDE]: "include defs.sd\n\nscene side\n  Side.\nend\n",
+      [ROOT]: "scene inner\n  Inner.\nend\n",
+      [SHARED]: "define lamp as object with\n  lit = true\nend\n",
+      [SIDE]: 'define glow as lamp with\n  hue = "red"\nend\n\nscene side\n  Side.\nend\n',
     };
     const c = compilerOver(texts, config);
-    quiet(() => c.compile({ textDocument: { uri: MAIN } }));
+    quiet(() => c.compile({ textDocument: { uri: ROOT } }));
     quiet(() => c.compile({ textDocument: { uri: SIDE } }));
     const at = texts[SIDE]!.indexOf("Side.");
     verifyFailures();
     const preview = quiet(() =>
       c.previewCompile({
-        root: { uri: MAIN },
+        root: { uri: ROOT },
         textDocument: { uri: SIDE, version: 1 },
         contentChanges: [
           {
@@ -418,11 +425,11 @@ describe.each<[string, Config]>([
     );
     verifyFailures();
     expect(globalKeys(preview.program)).toEqual(coldKeys);
-    expect(globalKeys(preview.program)).toContain("$object_lamp");
+    expect(globalKeys(preview.program)).toContain("lamp");
     // And after the rollback each root compiles as a cold compile does.
     expect(
-      globalKeys(quiet(() => c.compile({ textDocument: { uri: MAIN } })).program),
-    ).toContain("lamp");
+      globalKeys(quiet(() => c.compile({ textDocument: { uri: ROOT } })).program),
+    ).toContain("$object_lamp");
     expect(verifyFailures()).toEqual([]);
     expect(
       globalKeys(quiet(() => c.compile({ textDocument: { uri: SIDE } })).program),

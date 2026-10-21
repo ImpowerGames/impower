@@ -1,16 +1,17 @@
-// An included script's top-level content on the program path (#1681,
-// docs/engine/binary-program.md, What is built, Flows and statements): the
-// lines other than declarations written at the top of a script that `include`
-// pulls in run where the current engine runs them, before the including
-// script's own top-level content, in include order, nested includes first.
-// The content is a flow of its own in its script, so its statements carry
-// line tables and addresses in that script, an edit inside it re-emits one
-// chunk and keeps every other, and a save taken before the edit loads after
-// it.
+// A script other than main on the program path (#1387, Feature #1386): every
+// script under the main script's folder is part of the program with no include
+// line, and a script other than main holds declarations only. Its scenes are
+// flows of their own in its script, so their statements carry line tables and
+// addresses in that script, an edit inside one re-emits one chunk and keeps
+// every other, and a save taken before the edit loads after it. Its top-level
+// lines other than declarations report an error and are dropped, so no
+// `$include:` flow stands for it; a `run` statement's flow is the one left
+// (#1681, docs/engine/binary-program.md, What is built, Flows and statements),
+// which I-1390 retargets the tests left pending here to.
 import { describe, expect, it } from "vitest";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { SymbolKind } from "../../program/ProgramSymbols";
 import { chunkId } from "../../program/ProgramChunk";
 import {
   describeRoot,
@@ -25,6 +26,9 @@ const MAIN = "file://proj/main.sd";
 const FIRST = "file://proj/includes/first.sd";
 const SECOND = "file://proj/includes/second.sd";
 const INNER = "file://proj/includes/inner.sd";
+
+const OUTSIDE_SCENE =
+  "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
 
 const quiet = <T>(run: () => T): T => {
   const { warn, error, log } = console;
@@ -87,30 +91,26 @@ const shows = (
   };
 };
 
-describe("an included script's top-level content", () => {
-  it("compiles to statement chunks and runs at the include, in include order, as on the current engine", () => {
-    const shown = shows({
-      [MAIN]: lines(
-        "include includes/first.sd",
-        "include includes/second.sd",
-        "This is the main file.",
-        "done",
-      ),
-      [FIRST]: lines("This is include 1."),
-      [SECOND]: lines("This is include 2."),
-    });
-    expect(shown.errors).toEqual([]);
-    expect(shown.beats).toEqual([
-      "This is include 1.\n",
-      "This is include 2.\n",
-      "This is the main file.\n",
-    ]);
-  });
+/** Every error of `program`, as the uri and line it is reported at and its
+ *  message, by uri and then line. */
+const reported = (program: SparkProgram): [string, number, string][] =>
+  Object.entries(program.diagnostics ?? {})
+    .flatMap(([uri, diagnostics]) =>
+      diagnostics
+        .filter((d) => d.severity === 1)
+        .map((d): [string, number, string] => [
+          uri,
+          d.range.start.line,
+          typeof d.message === "string" ? d.message : d.message.value,
+        ]),
+    )
+    .sort(([a, x], [b, y]) => (a < b ? -1 : a > b ? 1 : x - y));
 
-  it("runs a nested include's content before the content of the script that includes it", () => {
-    const shown = shows({
-      [MAIN]: lines("include includes/first.sd", "This is the main file", "-> knot"),
-      [FIRST]: lines("include inner.sd", "First's own line."),
+describe("a script other than main", () => {
+  it("is part of the program with no include line: its store and its scene are main's to use, and its top-level content is reported and dropped", () => {
+    const texts = {
+      [MAIN]: lines("This is the main file", "-> knot"),
+      [FIRST]: lines("This is include 1."),
       [INNER]: lines(
         "store t2 = 5",
         "",
@@ -121,87 +121,18 @@ describe("an included script's top-level content", () => {
         "  fin",
         "end",
       ),
-    });
+    };
+    const program = compileProgram(texts);
+    expect(reported(program)).toEqual([
+      [FIRST, 0, OUTSIDE_SCENE],
+      [INNER, 2, OUTSIDE_SCENE],
+    ]);
+    const root = program.chunks!;
+    expect(root.flowNamed(includedFlowName(FIRST))).toBeUndefined();
+    expect(root.flowNamed(includedFlowName(INNER))).toBeUndefined();
+    const shown = shows(texts);
     expect(shown.errors).toEqual([]);
-    expect(shown.beats).toEqual([
-      "The value in the inner file is 5.\n",
-      "First's own line.\n",
-      "This is the main file\n",
-      "From the knot, 5.\n",
-    ]);
-  });
-
-  it("runs a nested include's content when the script that includes it has none of its own", () => {
-    const shown = shows({
-      [MAIN]: lines("include includes/first.sd", "Main."),
-      [FIRST]: lines("include inner.sd", "", "scene unused", "  Unused.", "end"),
-      [INNER]: lines("Inner."),
-    });
-    expect(shown.beats).toEqual(["Inner.\n", "Main.\n"]);
-  });
-
-  // The current engine ends the story where the content of an included
-  // script that holds a label ends, and runs nothing of the including
-  // script's content after it; the program engine runs on, as the content of
-  // an include does everywhere else, and is not compared with it here.
-  it("runs on through the rest of the content and back after a jump to a label of it", () => {
-    const root = rootOf({
-      [MAIN]: lines(
-        "include includes/first.sd",
-        "store passes = 0",
-        "Main {passes}.",
-        "& passes = passes + 1",
-        "if passes < 3 then",
-        "  -> again",
-        "end",
-        "Main done.",
-      ),
-      [FIRST]: lines("Included before.", "label again", "Included after {passes}."),
-    });
-    const shown = storyRun(new ProgramStory(root));
-    expect(shown.errors).toEqual([]);
-    expect(shown.beats.map((beat) => beat.text)).toEqual([
-      "Included before.\n",
-      "Included after 0.\n",
-      "Main 0.\n",
-      "Included after 1.\n",
-      "Main 1.\n",
-      "Included after 2.\n",
-      "Main 2.\n",
-      "Main done.\n",
-    ]);
-  });
-
-  it("runs in the including flow's frame: a local it declares is the including script's, and a tunnel and a thread return into it", () => {
-    expect(
-      shows({
-        [MAIN]: lines("include includes/first.sd", "Main {x}."),
-        [FIRST]: lines(
-          "local x = 3",
-          "Included {x}.",
-          "-> side ->",
-          "Back.",
-          "<- aside",
-          "After the thread.",
-          "",
-          "scene side",
-          "  Side.",
-          "  ->->",
-          "end",
-          "",
-          "scene aside",
-          "  Aside.",
-          "end",
-        ),
-      }).beats,
-    ).toEqual([
-      "Included 3.\n",
-      "Side.\n",
-      "Back.\n",
-      "Aside.\n",
-      "After the thread.\n",
-      "Main 3.\n",
-    ]);
+    expect(shown.beats).toEqual(["This is the main file\n", "From the knot, 5.\n"]);
   });
 
   it("runs a `run` statement's Luau file where the statement stands", () => {
@@ -214,109 +145,53 @@ describe("an included script's top-level content", () => {
     ).toEqual(["Main 7.\n"]);
   });
 
-  it("runs the content before the including script's own content written above the include, and keeps doing so through an edit there", () => {
+  it("holds its scenes as flows of their own in its script, at their lines, and adds nothing to the top level", () => {
     const texts = {
-      [MAIN]: lines("Main first.", "include includes/first.sd", "Main after."),
-      [FIRST]: lines("Included."),
-    };
-    expect(shows(texts).beats).toEqual(["Included.\n", "Main first.\n", "Main after.\n"]);
-    const s = session(texts);
-    s.edit(MAIN, "Main first.", "Main first.\nMain inserted.");
-    matchesCold(s.root, s.texts);
-    expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
-      "Included.\n",
-      "Main first.\n",
-      "Main inserted.\n",
-      "Main after.\n",
-    ]);
-  });
-
-  it("stops the story at a `done` of the content, as the top level's own `done` does", () => {
-    const shown = shows({
-      [MAIN]: lines("include includes/first.sd", "Never shown."),
-      [FIRST]: lines("Included.", "done", "Not shown either."),
-    });
-    expect(shown.beats).toEqual(["Included.\n"]);
-  });
-
-  it("presents a `choose` block of the content, and runs the including script's content after it", () => {
-    const texts = {
-      [MAIN]: lines("include includes/first.sd", "Main after {picked}."),
-      [FIRST]: lines(
-        "store picked = \"none\"",
-        "Pick one.",
-        "choose",
-        "  * Left",
-        "    & picked = \"left\"",
-        "  * Right",
-        "    & picked = \"right\"",
-        "end",
-      ),
-    };
-    expect(shows(texts, [0])).toMatchObject({
-      beats: ["Pick one.\n", "Left\n", "Main after left.\n"],
-      menus: [["Left", "Right"]],
-    });
-    expect(shows(texts, [1]).beats).toEqual([
-      "Pick one.\n",
-      "Right\n",
-      "Main after right.\n",
-    ]);
-  });
-
-  it("is a flow of its own in its script, at its lines, standing in the top level", () => {
-    const texts = {
-      [MAIN]: lines("include includes/first.sd", "include includes/second.sd", "Main."),
-      [FIRST]: lines("", "First one.", "First two.", "", "scene S", "  In S.", "end"),
-      [SECOND]: lines("Second one."),
+      [MAIN]: lines("Main.", "-> S"),
+      [FIRST]: lines("", "scene S", "  First one.", "  First two.", "  -> T", "end"),
+      [SECOND]: lines("scene T", "  Second one.", "end"),
     };
     const root = rootOf(texts);
-    const flow = root.flowNamed(includedFlowName(FIRST))!;
-    expect(flow).toMatchObject({ uri: FIRST, kind: SymbolKind.Root, firstLine: 0, span: 4 });
-    expect(root.flows(FIRST).map((row) => root.table.symbols[row.flow])).toEqual([
-      includedFlowName(FIRST),
-      "S",
-    ]);
-    // Each line of the content has its address in its own script, which the
-    // top level stands in.
-    const two = root.addressAt(FIRST, 2)!;
-    expect(root.locationOf(two)).toMatchObject({ uri: FIRST, startLine: 2 });
-    expect(root.sceneAt(two)).toBe("0");
-    expect(root.locationOf(root.addressAt(FIRST, 0)!)).toMatchObject({
-      uri: FIRST,
-      startLine: 1,
-    });
-    // The including script's lines are its own, and each statement that runs
-    // an included script's content stands on its `include` line, which no
-    // line of a beat maps to.
-    expect(root.locationOf(root.addressAt(MAIN, 0)!)).toMatchObject({
-      uri: MAIN,
-      startLine: 2,
-    });
+    const flows = (uri: string) =>
+      root.flows(uri).map((row) => [root.table.symbols[row.flow], row.uri, root.firstLineOf(row)]);
+    // A scene's first line is the first line of its body.
+    expect(flows(FIRST)).toEqual([["S", FIRST, 2]]);
+    expect(flows(SECOND)).toEqual([["T", SECOND, 1]]);
+    expect(root.flowNamed(includedFlowName(FIRST))).toBeUndefined();
+    expect(root.flowNamed(includedFlowName(SECOND))).toBeUndefined();
+    // Each line of a scene has its address in its own script.
+    const two = root.addressAt(FIRST, 3)!;
+    expect(root.locationOf(two)).toMatchObject({ uri: FIRST, startLine: 3 });
+    expect(root.sceneAt(two)).toBe("S");
+    // The top level holds main's lines alone.
     const top = root.flowNamed("")!;
     expect(
       top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
     ).toMatchObject([
       { uri: MAIN, startLine: 0 },
       { uri: MAIN, startLine: 1 },
-      { uri: MAIN, startLine: 2 },
     ]);
-    // A story started at a line of the content runs the rest of it and the
-    // content after it.
+    // A story started at a line of the scene runs the rest of it and the
+    // scene it diverts to.
     const story = new ProgramStory(root);
     story.ChooseAddress(two);
     expect(storyBeats(story).beats.map((beat) => beat.text)).toEqual([
       "First two.\n",
       "Second one.\n",
-      "Main.\n",
     ]);
   });
 });
 
-describe("the consumers of an included script's top-level content", () => {
+describe("the consumers of a script other than main", () => {
   const texts = {
-    [MAIN]: lines("include includes/first.sd", "[[show backdrop room]] Main."),
-    [FIRST]: lines("local x = 1", "[[show portrait bunny]] Included {x}.", "Still included."),
+    [MAIN]: lines("[[show backdrop room]] Main.", "-> F"),
+    [FIRST]: lines(
+      "scene F",
+      "  local x = 1",
+      "  [[show portrait bunny]] Included {x}.",
+      "  Still included.",
+      "end",
+    ),
   };
   const image = (name: string, ext: string) => ({
     uri: `file://proj/${name}.${ext}`,
@@ -326,7 +201,7 @@ describe("the consumers of an included script's top-level content", () => {
     src: `/file:/proj/${name}.${ext}?v=1`,
   });
 
-  it("records the content's beats and assets under the top level, in the order they run", () => {
+  it("records a scene's beats and assets under that scene, and main's under the top level", () => {
     const program = quiet(() =>
       programCompiler(texts, {
         files: [...scriptFiles(texts), image("room", "png"), image("bunny", "svg")] as never,
@@ -335,34 +210,19 @@ describe("the consumers of an included script's top-level content", () => {
     expect(program.chunks).toBeDefined();
     const root = program.chunks!;
     const assets = program.sceneAssets!;
-    expect(Object.keys(assets)).toEqual(["0"]);
-    expect(assets["0"]!.image).toEqual(["bunny", "room"]);
-    const beats = assets["0"]!.beats.map((beat) => ({
-      at: root.locationOf(beat.address as number),
-      image: beat.image,
-    }));
-    expect(beats).toMatchObject([
-      { at: { uri: FIRST, startLine: 1 }, image: ["bunny"] },
-      { at: { uri: MAIN, startLine: 1 }, image: ["room"] },
-    ]);
-    // The beat a preview of the included line finds is its own.
-    const address = root.addressAt(FIRST, 1)!;
-    expect(root.sceneAt(address)).toBe("0");
-    expect(assets["0"]!.beats.findIndex((beat) => beat.address === address)).toBe(0);
-  });
-
-  it("names the frame it runs in as the top level's, inside the content and after it", () => {
-    const story = new ProgramStory(rootOf(texts));
-    const frameNames = () =>
-      story
-        .debugFrames(story.state.callStack.currentThread.threadIndex)!
-        .map((frame) => frame.name);
-    expect(story.Continue()).toContain("Included 1.");
-    expect(frameNames()).toEqual(["0"]);
-    expect(story.Continue()).toBe("Still included.\n");
-    expect(frameNames()).toEqual(["0"]);
-    expect(story.Continue()).toContain("Main.");
-    expect(frameNames()).toEqual(["0"]);
+    expect(assets["0"]!.image).toEqual(["room"]);
+    expect(assets["F"]!.image).toEqual(["bunny"]);
+    const beatsOf = (flow: string) =>
+      assets[flow]!.beats.map((beat) => ({
+        at: root.locationOf(beat.address as number),
+        image: beat.image,
+      }));
+    expect(beatsOf("0")).toMatchObject([{ at: { uri: MAIN, startLine: 0 }, image: ["room"] }]);
+    expect(beatsOf("F")).toMatchObject([{ at: { uri: FIRST, startLine: 2 }, image: ["bunny"] }]);
+    // The beat a preview of the scene's line finds is its own.
+    const address = root.addressAt(FIRST, 2)!;
+    expect(root.sceneAt(address)).toBe("F");
+    expect(assets["F"]!.beats.findIndex((beat) => beat.address === address)).toBe(0);
   });
 });
 
@@ -377,10 +237,14 @@ function session(initial: Record<string, string>) {
   const texts = { ...initial };
   const c = programCompiler(texts, { seedBuiltinsIntoStory: true });
   let version = 1;
-  let root = quiet(() => c.compile(MAIN).program.chunks!);
+  let program = quiet(() => c.compile(MAIN).program);
+  let root = program.chunks!;
   return {
     get root() {
       return root;
+    },
+    get program() {
+      return program;
     },
     get texts() {
       return { ...texts };
@@ -410,7 +274,6 @@ function session(initial: Record<string, string>) {
       console.warn = console.error = console.log = (...args: unknown[]) => {
         said.push(args.map(String).join(" "));
       };
-      let program;
       try {
         program = c.compile(MAIN).program;
       } finally {
@@ -418,7 +281,6 @@ function session(initial: Record<string, string>) {
         console.error = error;
         console.log = log;
       }
-      expect(program.chunks).toBeDefined();
       expect(program.chunks, said.join("\n").slice(0, 3000)).toBeDefined();
       root = program.chunks!;
       return root;
@@ -452,8 +314,7 @@ const matchesCold = (root: ProgramRoot, texts: Record<string, string>) => {
 
 const PROJECT = {
   [MAIN]: lines(
-    "include includes/first.sd",
-    "include includes/second.sd",
+    "-> F ->",
     "Main one.",
     "Main two.",
     "",
@@ -462,21 +323,24 @@ const PROJECT = {
     "end",
   ),
   [FIRST]: lines(
-    "First one.",
-    "First two.",
-    "First three.",
-    "choose",
-    "  * Pick",
-    "    Picked.",
-    "then",
-    "  After pick.",
+    "scene F",
+    "  First one.",
+    "  First two.",
+    "  First three.",
+    "  choose",
+    "    * Pick",
+    "      Picked.",
+    "  then",
+    "    After pick.",
+    "  end",
+    "  First four.",
+    "  ->->",
     "end",
-    "First four.",
   ),
   [SECOND]: lines("scene T", "  In T.", "end"),
 };
 
-describe("an edit inside an included script", () => {
+describe("an edit inside a script other than main", () => {
   it("re-emits exactly one chunk and keeps every other, for a beat and for a statement inside a `then` clause", () => {
     const s = session(PROJECT);
     for (const [find, replace] of [
@@ -496,22 +360,24 @@ describe("an edit inside an included script", () => {
   });
 
   // The statements of a block's bodies that an edit leaves as they were are
-  // served from their memos (#656) in an included script as in any other.
+  // served from their memos (#656) in a script other than main as in main.
   it("serves the unedited statements of a long `then` clause from their memos, and re-emits only the edited one", () => {
-    const block = lines(
-      "Pick.",
-      "choose",
-      "  * Go",
-      "    Went.",
-      "then",
-      ...Array.from({ length: 300 }, (_, i) => `  Clause line ${i}.`),
+    const scene = [
+      "scene F",
+      "  Pick.",
+      "  choose",
+      "    * Go",
+      "      Went.",
+      "  then",
+      ...Array.from({ length: 300 }, (_, i) => `    Clause line ${i}.`),
+      "  end",
       "end",
-    );
+    ];
     const s = session({
-      [MAIN]: lines("include includes/first.sd", "Main."),
-      [FIRST]: block,
+      [MAIN]: lines("-> F"),
+      [FIRST]: lines(...scene),
     });
-    const alone = session({ [MAIN]: block });
+    const alone = session({ [MAIN]: lines("-> F", "", ...scene) });
     // The first incremental parse after a cold one reparses the whole block
     // (`programStatementMemo.test.ts`, `warmSession`).
     s.edit(FIRST, "Clause line 50.", "Clause line 50, warm.");
@@ -531,20 +397,22 @@ describe("an edit inside an included script", () => {
   it("emits only the inserted statement when a line is inserted, and moves the lines below it", () => {
     const s = session(PROJECT);
     const before = s.root;
-    const after = s.edit(FIRST, "First three.", "First two and a half.\nFirst three.");
+    const after = s.edit(FIRST, "  First three.", "  First two and a half.\n  First three.");
     expect(s.store.emittedLastBuild).toBe(1);
     expect(chunkChanges(before, after)).toMatchObject({ added: [expect.anything()], dropped: [] });
-    expect(after.locationOf(after.addressAt(FIRST, 3)!)).toMatchObject({
+    expect(after.locationOf(after.addressAt(FIRST, 4)!)).toMatchObject({
       uri: FIRST,
-      startLine: 3,
+      startLine: 4,
     });
     matchesCold(after, s.texts);
   });
 
-  it("matches a cold compile when an included script gains top-level content and loses it again", () => {
+  it("matches a cold compile when a script other than main gains top-level content, which it reports and drops, and loses it again", () => {
     const s = session(PROJECT);
     s.edit(SECOND, "scene T", "Second top.\n\nscene T");
     matchesCold(s.root, s.texts);
+    expect(reported(s.program)).toEqual([[SECOND, 0, OUTSIDE_SCENE]]);
+    expect(s.root.flowNamed(includedFlowName(SECOND))).toBeUndefined();
     expect(storyRun(new ProgramStory(s.root), [0]).beats.map((beat) => beat.text)).toEqual([
       "First one.\n",
       "First two.\n",
@@ -553,45 +421,17 @@ describe("an edit inside an included script", () => {
       "Picked.\n",
       "After pick.\n",
       "First four.\n",
-      "Second top.\n",
       "Main one.\n",
       "Main two.\n",
     ]);
     s.edit(SECOND, "Second top.\n\n", "");
     matchesCold(s.root, s.texts);
+    expect(reported(s.program)).toEqual([]);
     expect(s.root.flowNamed(includedFlowName(SECOND))).toBeUndefined();
   });
 
-  it("runs the content of nested includes in their new order after the script that includes them swaps two in the middle", () => {
-    const WRAPPER = "file://proj/includes/wrapper.sd";
-    const child = (name: string) => `file://proj/includes/${name}.sd`;
-    const s = session({
-      [MAIN]: lines("include includes/wrapper.sd", "Main."),
-      [WRAPPER]: lines(
-        "include a.sd",
-        "include b.sd",
-        "include c.sd",
-        "include d.sd",
-        "Wrapper.",
-      ),
-      [child("a")]: lines("A."),
-      [child("b")]: lines("B."),
-      [child("c")]: lines("C."),
-      [child("d")]: lines("D."),
-    });
-    s.edit(WRAPPER, "include b.sd\ninclude c.sd", "include c.sd\ninclude b.sd");
-    matchesCold(s.root, s.texts);
-    expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual([
-      "A.\n",
-      "C.\n",
-      "B.\n",
-      "D.\n",
-      "Wrapper.\n",
-      "Main.\n",
-    ]);
-  });
-
-  it("runs included content in its new order after the starting script swaps two includes in the middle", () => {
+  // Left for I-1390, which retargets it to run: the order of an included script's top-level content is now only the order of `run` lines in main.
+  it.skip("runs included content in its new order after the starting script swaps two includes in the middle", () => {
     const child = (name: string) => `file://proj/includes/${name}.sd`;
     const s = session({
       [MAIN]: lines(
@@ -617,76 +457,14 @@ describe("an edit inside an included script", () => {
     ]);
   });
 
-  // The entries of includes written below content of the script's own stand
-  // on that content's line, since they run before it.
-  for (const nested of [false, true]) {
-    it(`runs included content in its new order after ${nested ? "an included" : "the starting"} script swaps two of four includes written below its own content`, () => {
-      const WRAPPER = "file://proj/includes/wrapper.sd";
-      const child = (name: string) => `file://proj/includes/${name}.sd`;
-      const at = nested ? "" : "includes/";
-      const includerText = lines(
-        "Own first.",
-        `include ${at}a.sd`,
-        `include ${at}b.sd`,
-        `include ${at}c.sd`,
-        `include ${at}d.sd`,
-      );
-      const s = session({
-        ...(nested
-          ? { [MAIN]: lines("include includes/wrapper.sd", "Main."), [WRAPPER]: includerText }
-          : { [MAIN]: includerText }),
-        [child("a")]: lines("A."),
-        [child("b")]: lines("B."),
-        [child("c")]: lines("C."),
-        [child("d")]: lines("D."),
-      });
-      const includer = nested ? WRAPPER : MAIN;
-      const order = (...letters: string[]) => [
-        ...letters.map((letter) => `${letter}.\n`),
-        "Own first.\n",
-        ...(nested ? ["Main.\n"] : []),
-      ];
-      const swapped = `include ${at}c.sd\ninclude ${at}b.sd`;
-      const restored = `include ${at}b.sd\ninclude ${at}c.sd`;
-      // The swap, its undo and its redo, each on the same compiler.
-      for (const [find, replace, expected] of [
-        [restored, swapped, order("A", "C", "B", "D")],
-        [swapped, restored, order("A", "B", "C", "D")],
-        [restored, swapped, order("A", "C", "B", "D")],
-      ] as const) {
-        s.edit(includer, find, replace);
-        matchesCold(s.root, s.texts);
-        expect(storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text)).toEqual(
-          expected,
-        );
-      }
-    });
-  }
-
-  // A script runs where the first include reaches it, so an edit to one
-  // script moves the content of a script another script includes too.
-  it("moves a script included from two places to the include that reaches it first, back and forth, as a cold compile does", () => {
-    const WRAPPER = "file://proj/includes/wrapper.sd";
-    const X = "file://proj/includes/x.sd";
+  // Left for I-1390, which retargets it to run: main gaining and losing an included script's top-level content is now main gaining and losing a `run` line.
+  it.skip("matches a cold compile when the including script gains an include and loses it again", () => {
     const s = session({
-      [MAIN]: lines("include includes/wrapper.sd", "include includes/x.sd", "Main."),
-      [WRAPPER]: lines("include x.sd", "Wrapper."),
-      [X]: lines("X."),
+      [MAIN]: lines("include includes/first.sd", "include includes/second.sd", "Main one."),
+      [FIRST]: lines("First one."),
+      [SECOND]: lines("scene T", "  In T.", "end"),
+      [INNER]: lines("Inner top."),
     });
-    const run = () => storyRun(new ProgramStory(s.root)).beats.map((beat) => beat.text);
-    expect(run()).toEqual(["X.\n", "Wrapper.\n", "Main.\n"]);
-    for (let pass = 0; pass < 2; pass += 1) {
-      s.edit(WRAPPER, "include x.sd\n", "");
-      matchesCold(s.root, s.texts);
-      expect(run()).toEqual(["Wrapper.\n", "X.\n", "Main.\n"]);
-      s.edit(WRAPPER, "Wrapper.", "include x.sd\nWrapper.");
-      matchesCold(s.root, s.texts);
-      expect(run()).toEqual(["X.\n", "Wrapper.\n", "Main.\n"]);
-    }
-  });
-
-  it("matches a cold compile when the including script gains an include and loses it again", () => {
-    const s = session({ ...PROJECT, [INNER]: lines("Inner top.") });
     s.edit(MAIN, "include includes/second.sd", "include includes/second.sd\ninclude includes/inner.sd");
     matchesCold(s.root, s.texts);
     s.edit(MAIN, "\ninclude includes/inner.sd", "");
@@ -702,8 +480,8 @@ const saving = (root: ProgramRoot) => {
   return story;
 };
 
-describe("a save taken inside an included script's content", () => {
-  it("loads after an edit above it at a menu the content raised, and takes a choice there", () => {
+describe("a save taken inside a scene of a script other than main", () => {
+  it("loads after an edit above it at a menu the scene raised, and takes a choice there", () => {
     const s = session(PROJECT);
     const story = saving(s.root);
     while (story.canContinue) {
@@ -711,7 +489,7 @@ describe("a save taken inside an included script's content", () => {
     }
     expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Pick"]);
     const save = story.toSave();
-    const after = s.edit(FIRST, "First three.", "First two and a half.\nFirst three.");
+    const after = s.edit(FIRST, "  First three.", "  First two and a half.\n  First three.");
     const loaded = saving(after);
     loaded.loadSave(save);
     expect(loaded.loadedSaveReport!.exact).toBe(true);
@@ -725,13 +503,16 @@ describe("a save taken inside an included script's content", () => {
     ]);
   });
 
-  it("loads after an edit above it inside a tunnel the content called, and returns into the content", () => {
+  it("loads after an edit above it inside a tunnel the scene called, and returns into the scene", () => {
     const texts = {
-      [MAIN]: lines("include includes/first.sd", "Main."),
+      [MAIN]: lines("-> F ->", "Main."),
       [FIRST]: lines(
-        "Before.",
-        "-> side ->",
-        "Back in the content.",
+        "scene F",
+        "  Before.",
+        "  -> side ->",
+        "  Back in the scene.",
+        "  ->->",
+        "end",
         "",
         "scene side",
         "  Side one.",
@@ -748,17 +529,16 @@ describe("a save taken inside an included script's content", () => {
     }
     expect(shown).toEqual(["Before.", "Side one."]);
     const save = story.toSave();
-    const after = s.edit(FIRST, "Before.", "Before.\nAlso before.");
+    const after = s.edit(FIRST, "  Before.", "  Before.\n  Also before.");
     const loaded = saving(after);
     loaded.loadSave(save);
     expect(loaded.loadedSaveReport!.exact).toBe(true);
     expect(storyRun(loaded).beats.map((beat) => beat.text)).toEqual([
       "Side two.\n",
-      "Back in the content.\n",
+      "Back in the scene.\n",
       "Main.\n",
     ]);
   });
-
 
   it("loads after a line was inserted above its statement, at the same statement", () => {
     const s = session(PROJECT);
@@ -772,9 +552,9 @@ describe("a save taken inside an included script's content", () => {
     expect(shown).toEqual(["First one.", "First two."]);
     const save = story.toSave();
     const saved = JSON.parse(save).beats.at(-1).position.st.levels;
-    expect(saved[0].flow).toBe(includedFlowName(FIRST));
+    expect(saved[0].flow).toBe("F");
 
-    const after = s.edit(FIRST, "First two.", "First one and a half.\nFirst two.");
+    const after = s.edit(FIRST, "  First two.", "  First one and a half.\n  First two.");
     const loaded = new ProgramStory(after);
     loaded.keepBeatImages = true;
     loaded.onError = () => {};
@@ -783,7 +563,7 @@ describe("a save taken inside an included script's content", () => {
     expect(report.exact).toBe(true);
     expect(report.beat).toBe(report.beats - 1);
     const position = loaded.state.position!;
-    expect(after.table.symbols[position.sequence.flow]).toBe(includedFlowName(FIRST));
+    expect(after.table.symbols[position.sequence.flow]).toBe("F");
     // The statement after the saved beat, which the insertion moved down an
     // entry from where the save names it.
     expect(position.entry).toBe(saved.at(-1).at + 1);

@@ -84,17 +84,23 @@ function incrementalAndCold(project: Project, name: string, insert: string): [an
   });
 }
 
-// Edits `pre.sd` so it starts with the same code `shared.sd` holds (both
-// wrapped in a function of a same-length name, so the code sits at the same
-// offset of each file), and checks the incremental program's chunks against
-// a cold one's.
+// Edits `pre.sd`, a script of the project that holds only a scene, so it
+// starts with the same code `shared.sd` holds (both wrapped in a function of a
+// same-length name, so the code sits at the same offset of each file), and
+// checks the incremental program's chunks against a cold one's.
 function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => string) {
   const project: Project = {
-    main: [...main, "include pre.sd", "include shared.sd", ""].join("\n"),
-    pre: ["  Before.", ""].join("\n"),
+    main: [...main, ""].join("\n"),
+    pre: ["scene pre_one", "  Before.", "end", ""].join("\n"),
     shared: body("sf"),
   };
   const [incremental, cold] = incrementalAndCold(project, "pre", body("pf"));
+  // Both other scripts are part of each program, with the functions holding
+  // the copied code.
+  for (const program of [incremental, cold]) {
+    expect(Object.keys(program.scripts)).toEqual([MAIN_URI, uriOf("pre"), uriOf("shared")]);
+    expect(Object.keys(program.functionLocations ?? {})).toEqual(expect.arrayContaining(["pf", "sf"]));
+  }
   expect(errors(incremental)).toEqual([]);
   expect(errors(cold)).toEqual([]);
   expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
@@ -103,7 +109,7 @@ function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => str
 describe("synthetic names in two files", () => {
   it("two anonymous functions at the same offset of their files compile", () => {
     const program = compileOnce({
-      main: ["include fa.sd", "include fb.sd", "store x = fa_f() + fb_f()", ""].join("\n"),
+      main: ["store x = 0", "& x = fa_f() + fb_f()", ""].join("\n"),
       fa: ["store fa_f = function() return 1 end", ""].join("\n"),
       fb: ["store fb_f = function() return 2 end", ""].join("\n"),
     });
@@ -115,7 +121,7 @@ describe("synthetic names in two files", () => {
     const defineIn = (name: string) =>
       [`define ${name} with`, "  function get()", `    return ${name === "ca" ? 1 : 2}`, "  end", "end", ""].join("\n");
     const program = compileOnce({
-      main: ["include fa.sd", "include fb.sd", "store x = ca:get() + cb:get()", ""].join("\n"),
+      main: ["store x = 0", "& x = ca:get() + cb:get()", ""].join("\n"),
       fa: defineIn("ca"),
       fb: defineIn("cb"),
     });

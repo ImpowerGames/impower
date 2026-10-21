@@ -498,23 +498,3 @@ export const computeLayoutMigration = (
   }
   return moves;
 };
-
-/**
- * After {@link computeLayoutMigration} moves every other script under `scripts/`,
- * the root `main.sd` (which stays put) has dangling relative `include` paths —
- * `include intro.sd` now needs to be `include scripts/intro.sd`. Rewrite each
- * `include <path>` directive to prepend `scripts/`.
- *
- * Conservative: only rewrites lines that ARE an include directive, leaves paths
- * already rooted (`scripts/…`, `assets/…`, `/…`, `./…`, `../…`) or schemed
- * (`http:…`) untouched, and is idempotent (re-running prepends nothing more).
- * A `main.sd` with no includes is returned unchanged.
- */
-export const rewriteMainIncludesForMigration = (text: string): string =>
-  text.replace(
-    /^([^\S\r\n]*include[^\S\r\n]+)(.*\S)([^\S\r\n]*)$/gm,
-    (match, lead: string, path: string, trail: string) =>
-      /^(scripts\/|assets\/|\/|\.\.?\/|[a-zA-Z][\w+.-]*:)/.test(path)
-        ? match
-        : `${lead}scripts/${path}${trail}`,
-  );

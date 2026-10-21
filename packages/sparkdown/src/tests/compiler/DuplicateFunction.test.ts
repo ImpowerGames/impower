@@ -104,32 +104,41 @@ describe("DuplicateFunction at a script's top level", () => {
 });
 
 describe("DuplicateFunction across scripts", () => {
-  const sources = (chapter: string) => ({ "main.sd": "include chapter.sd\nstore T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": chapter });
+  const sources = (chapter: string) => ({ "main.sd": "store T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": chapter });
 
   test("a member of a global table defined at two scripts' top levels warns in the later script by URI, naming the other", () => {
-    expect(programDuplicates(sources("Hello.\nfunction T.x() end\n"))).toEqual([`main.sd:2: ${message("T.x", 2)} in 'chapter.sd'`]);
+    expect(programDuplicates(sources("\nfunction T.x() end\n"))).toEqual([`main.sd:1: ${message("T.x", 2)} in 'chapter.sd'`]);
   });
 
   test("each script's later definitions are reported against its own first", () => {
-    expect(programDuplicates(sources("function T.x() end\nfunction T.x() end\n"))).toEqual([`chapter.sd:1: ${message("T.x", 1)}`, `main.sd:2: ${message("T.x", 1)} in 'chapter.sd'`]);
+    expect(programDuplicates(sources("function T.x() end\nfunction T.x() end\n"))).toEqual([`chapter.sd:1: ${message("T.x", 1)}`, `main.sd:1: ${message("T.x", 1)} in 'chapter.sd'`]);
   });
 
   test("a story constant's table is a global table", () => {
-    expect(programDuplicates({ "main.sd": "include chapter.sd\nconst T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": "function T.x() end\n" })).toEqual([`main.sd:2: ${message("T.x", 1)} in 'chapter.sd'`]);
+    expect(programDuplicates({ "main.sd": "const T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": "function T.x() end\n" })).toEqual([`main.sd:1: ${message("T.x", 1)} in 'chapter.sd'`]);
   });
 
   test.each([
-    ["a member of a local table", "& local T = {}\nfunction T.x() end\n& T.x()\n"],
-    ["a definition inside a function", "function setup()\n function T.x() end\nend\n& setup()\n"],
+    ["a definition inside a function", "function setup()\n function T.x() end\nend\n"],
     ["a different member", "function T.y() end\n"],
   ])("is silent for %s", (_label, chapter) => {
+    // The chapter is read: the same member at its top level warns.
+    expect(programDuplicates(sources("function T.x() end\n"))).not.toEqual([]);
     expect(programDuplicates(sources(chapter))).toEqual([]);
+  });
+
+  // Only main holds a top-level local, so the local table is main's.
+  test("is silent for a member of a local table", () => {
+    const main = "& local T = {}\nfunction T.x() end\n& T.x()\n";
+    // The chapter is read: a second definition of its own member warns there.
+    expect(programDuplicates({ "main.sd": main, "chapter.sd": "store T = {}\nfunction T.x() end\nfunction T.x() end\n" })).not.toEqual([]);
+    expect(programDuplicates({ "main.sd": main, "chapter.sd": "store T = {}\nfunction T.x() end\n" })).toEqual([]);
   });
 
   test("an unchanged script gains and loses its warning as another script changes or leaves", () => {
     const compiler = testCompiler();
     const file = (path: string, text: string) => ({ uri: `inmemory:///${path}`, type: "script" as const, name: path.replace(/\.sd$/, ""), ext: "sd", text, version: 1, languageId: "sparkdown" });
-    compiler.configure({ files: [file("main.sd", "include subject.sd\ninclude chapter.sd\nReady.\n"), file("subject.sd", "store T = {}\nfunction T.x() end\n& T.x()\n"), file("chapter.sd", "Nothing.\n")] });
+    compiler.configure({ files: [file("main.sd", "& T.x()\nReady.\n"), file("subject.sd", "store T = {}\nfunction T.x() end\n"), file("chapter.sd", "\n")] });
     const found = () => {
       const program: SparkProgram = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
       return (program.diagnostics?.["inmemory:///subject.sd"] ?? []).filter((d) => d.code === "DuplicateFunction").length;
@@ -143,7 +152,7 @@ describe("DuplicateFunction across scripts", () => {
     expect(found()).toBe(0);
     update("chapter.sd", "function T.x() end\n", 4);
     expect(found()).toBe(1);
-    update("main.sd", "include subject.sd\nReady.\n", 2);
+    compiler.removeFile({ file: { uri: "inmemory:///chapter.sd" } } as never);
     expect(found()).toBe(0);
     expect(compiler.documents.tree("inmemory:///subject.sd")).toBe(tree);
   });

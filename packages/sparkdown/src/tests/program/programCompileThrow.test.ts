@@ -71,19 +71,19 @@ describe("a compile whose statement throws", () => {
     expect(errors[0]![1]).toMatch(/^The compile stopped at this statement, so no program was made: .*bad/);
   });
 
-  it("reports such a store in the included script that holds it", () => {
+  it("reports such a store in the other script of the project that holds it", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const MAIN = "file://proj/main.sd";
-    const INCLUDED = "file://proj/includes/values.sd";
+    const VALUES = "file://proj/includes/values.sd";
     const program = programCompiler({
-      [MAIN]: 'include includes/values.sd\nfunction fail()\n  error("bad")\n  return 0\nend\nHello.\n',
-      [INCLUDED]: "store b = 1\nstore a = fail()\n",
+      [MAIN]: 'function fail()\n  error("bad")\n  return 0\nend\nHello.\n',
+      [VALUES]: "store b = 1\nstore a = fail()\n",
     }).compile(MAIN).program;
     expect(program.chunks).toBeUndefined();
     const errorLines = (uri: string) =>
       (program.diagnostics?.[uri] ?? []).filter((d) => d.severity === 1).map((d) => d.range.start.line);
     expect(errorLines(MAIN)).toEqual([]);
-    expect(errorLines(INCLUDED)).toEqual([1]);
+    expect(errorLines(VALUES)).toEqual([1]);
   });
 
   it("reports the store again when the next compile, after an edit elsewhere, still cannot run it", () => {

@@ -301,7 +301,7 @@ const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "seed-project-"));
 const fixture = path.join(scratch, "project");
 const allBytes = Buffer.from(Array.from({ length: 256 }, (_, i) => i));
 const files = {
-  "main.sd": Buffer.from("include scripts/chars\n\nALICE:\n  Hello from the fixture.\n"),
+  "main.sd": Buffer.from("ALICE:\n  Hello from the fixture.\n"),
   "scripts/chars.sd": Buffer.from("define character ALICE\n"),
   "assets/portraits/alice.webp": allBytes,
   "assets/empty.txt": Buffer.alloc(0),

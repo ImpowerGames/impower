@@ -140,7 +140,7 @@ function beats(rand, indent, count, directives) {
 // (`concerned`) is the one the measurement deletes.
 export function buildPreviewFixture({ beforeLines = 1300, thenLines = 1100 } = {}) {
   const rand = generator(647);
-  const header = ["include scripts/characters", "include scripts/portraits", "", "scene MAIN"];
+  const header = ["scene MAIN"];
   const before = beats(rand, 2, beforeLines, []);
   const choose = ["  choose", "    + [Success!]", "      The bag lands safely on the pile.", "", "    + [Fail...]", "      Everything clatters to the floor.", "  then", ""];
   // The clause ends on a fixed exchange whose directive is the target, shaped
@@ -171,11 +171,11 @@ export function buildPreviewFixture({ beforeLines = 1300, thenLines = 1100 } = {
 // (engine-bench.mjs, #664). The target is its last line of dialogue.
 export function buildBeatsFixture({ lines = 2400 } = {}) {
   const rand = generator(664);
-  const scene = ["include scripts/characters", "", "scene MAIN", ...beats(rand, 2, lines, []), "end", ""];
+  const scene = ["scene MAIN", ...beats(rand, 2, lines, []), "end", ""];
   const files = new Map();
   files.set("main.sd", scene.join("\n"));
   files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
-  return { files, target: { line: scene.length - 3, sceneLines: scene.length - 2 } };
+  return { files, target: { line: scene.length - 3, sceneLines: scene.length } };
 }
 
 // The comparison scene of #693: the beats of the fixture with the other kinds a
@@ -188,7 +188,7 @@ export function buildBeatsFixture({ lines = 2400 } = {}) {
 // projects write it. Nothing here needs a function call, a loop, glue or a tag.
 export function buildChunksFixture({ scenes = 8, linesPerScene = 150, thenLines = 1100 } = {}) {
   const rand = generator(693);
-  const out = ["include scripts/characters", "", "store trust = 0", "store heat = 0", ""];
+  const out = ["store trust = 0", "store heat = 0", ""];
   // A run of beats broken up by the other statement kinds.
   const mixed = (indent, count) => {
     const pad = " ".repeat(indent);

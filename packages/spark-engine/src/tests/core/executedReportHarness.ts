@@ -49,10 +49,7 @@ export const previewFixture = (): Story & { line: number } => {
   const lines = [
     ...files.get("scripts/characters.sd")!.split("\n"),
     ...files.get("scripts/portraits.sd")!.split("\n"),
-    ...files
-      .get("main.sd")!
-      .split("\n")
-      .filter((l) => !l.startsWith("include ")),
+    ...files.get("main.sd")!.split("\n"),
   ];
   const assets: File[] = [...files.keys()]
     .filter((key) => key.endsWith(".svg"))

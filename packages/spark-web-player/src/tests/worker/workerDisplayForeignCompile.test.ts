@@ -11,7 +11,9 @@ import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPrevie
 import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
-const LOOSE_URI = "file:///local/loose.sd";
+// Outside the story's project folder, so the story does not include it
+// (#1387): every script under main's folder is part of the story.
+const LOOSE_URI = "file:///other/loose.sd";
 
 const SOURCE = `define SPRITE_A as image with
   src = "https://example.com/a.png"

@@ -1008,8 +1008,8 @@
       "match": "(.+)"
     },
     "IncludeContent": {
-      "tag": "string",
-      "name": "string.include.sd",
+      "tag": "invalid",
+      "name": "invalid.deprecated.include.sd",
       "match": "(.+?)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
     },
     "Run": {

@@ -15,6 +15,13 @@ const programUnused = (sources: Record<string, string>) =>
     .filter((d) => d.code === "FunctionUnused")
     .map((d) => `${d.file}: ${d.message}`);
 const message = (name: string) => `Function '${name}' is never used; prefix with '_' to silence`;
+// The defining script is part of the project and warns with nothing else
+// beside main, so a case where another script's use silences it is one where
+// the use was read.
+const expectSubjectWarnsAlone = () =>
+  expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n" })).toEqual([`subject.sd: ${message("helper")}`]);
+// Only main runs lines outside a scene, so another script's lines run in one.
+const inScene = (body: string) => `scene uses\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
 
 describe("FunctionUnused for a local function", () => {
   test("warns on the function's name", () => {
@@ -70,21 +77,24 @@ describe("FunctionUnused for a global function", () => {
   });
 
   test.each([
-    ["a logic call", "& helper()\n"],
-    ["a logic write", "& helper = nil\n"],
-    ["a narrative interpolation", "Result: {helper()}.\n"],
-    ["a call shorthand interpolation", "Result: {{helper()}}.\n"],
-    ["a call from another function", "function other()\n  helper()\nend\n& other()\n"],
+    ["a logic call", inScene("& helper()\n")],
+    ["a logic write", inScene("& helper = nil\n")],
+    ["a narrative interpolation", inScene("Result: {helper()}.\n")],
+    ["a call shorthand interpolation", inScene("Result: {{helper()}}.\n")],
+    ["a call from another function", "function other()\n  helper()\nend\n" + inScene("& other()\n")],
     ["a Sparkle handler closure", "layout main with\n button @click={ helper() }\nend\n"],
     ["a Sparkle handler reference", "layout main with\n button @click=helper\nend\n"],
-    ["a choice's interpolation", "+ {helper()} [Pick]\n  Picked.\n"],
-    ["a divert's argument", "-> scene_a(helper)\nscene scene_a(f)\n  Arrived.\nend\n"],
-    ["a divert's target", "-> helper\n"],
+    ["a choice's interpolation", inScene("+ {helper()} [Pick]\n  Picked.\n")],
+    ["a divert's argument", inScene("-> scene_a(helper)\n") + "scene scene_a(f)\n  Arrived.\nend\n"],
+    ["a divert's target", inScene("-> helper\n")],
     ["a define's value", "define item with\n  use = helper\nend\n"],
-    ["a Luau string", "& handlers = { \"helper\" }\n"],
-    ["a narrative if condition", "if helper() then\n  Yes.\nend\n"],
+    ["a Luau string", inScene("& handlers = { \"helper\" }\n")],
+    ["a narrative if condition", inScene("if helper() then\n  Yes.\nend\n")],
   ])("is silent for %s in another script", (_label, use) => {
-    expect(programUnused({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([]);
+    // The defining script is part of the project and warns without the use,
+    // so the use is what silences it.
+    expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n" })).toEqual([`subject.sd: ${message("helper")}`]);
+    expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([]);
   });
 
   test.each([
@@ -99,11 +109,11 @@ describe("FunctionUnused for a global function", () => {
   });
 
   test.each([
-    ["dialogue", "The helper is here.\n"],
-    ["a choice's text", "+ [Ask the helper]\n  Asked.\n"],
-    ["a comment", "// helper\n& x = 1 -- helper\n"],
+    ["dialogue", inScene("The helper is here.\n")],
+    ["a choice's text", inScene("+ [Ask the helper]\n  Asked.\n")],
+    ["a comment", "// helper\n" + inScene("& x = 1 -- helper\n")],
   ])("a mention in %s is not a use", (_label, use) => {
-    expect(programUnused({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([`subject.sd: ${message("helper")}`]);
+    expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([`subject.sd: ${message("helper")}`]);
   });
 
   // Luau's `errors.luau`: the `do` takes `run`'s `end`, and `run` runs on to
@@ -117,24 +127,26 @@ describe("FunctionUnused for a global function", () => {
   });
 
   // The `end` of `class C` (or recovery after `public x`) closes `caller`
-  // early, so the call after it reads as narrative.
+  // early, so the call after it reads as narrative, which only main runs: the
+  // misread caller is main's.
   test.each([
     ["a construct the grammar lacks", " class C\n end\n"],
     ["a statement the reading recovers from", " public x\n end\n"],
   ])("a call another script's misread function loses is still a use (%s)", (_label, broken) => {
-    expect(programUnused({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function helper()\nend\n", "use.sd": `function caller()\n${broken} helper()\nend\n& caller()\n` })).toEqual([]);
+    expectSubjectWarnsAlone();
+    expect(programUnused({ "main.sd": `function caller()\n${broken} helper()\nend\n& caller()\n`, "subject.sd": "function helper()\nend\n" })).toEqual([]);
   });
 
   test("edits to a misread caller change the warning while the defining script stays cached", () => {
     const compiler = testCompiler();
     const file = (path: string, text: string) => ({ uri: `inmemory:///${path}`, type: "script" as const, name: path.replace(/\.sd$/, ""), ext: "sd", text, version: 1, languageId: "sparkdown" });
     const broken = "function caller()\n public x\n end\n print(1)\nend\n& caller()\n";
-    compiler.configure({ files: [file("main.sd", "include subject.sd\ninclude use.sd\nReady.\n"), file("subject.sd", "function helper()\nend\n"), file("use.sd", broken)] });
+    compiler.configure({ files: [file("main.sd", broken), file("subject.sd", "function helper()\nend\n")] });
     const found = () => {
       const program: SparkProgram = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
       return (program.diagnostics?.["inmemory:///subject.sd"] ?? []).filter((d) => d.code === "FunctionUnused").length;
     };
-    const update = (text: string, version: number) => compiler.updateDocument({ textDocument: { uri: "inmemory:///use.sd", version }, contentChanges: [{ text }] });
+    const update = (text: string, version: number) => compiler.updateDocument({ textDocument: { uri: "inmemory:///main.sd", version }, contentChanges: [{ text }] });
     // Nothing mentions `helper`, so even the misread script hides no use of it.
     expect(found()).toBe(1);
     const tree = compiler.documents.tree("inmemory:///subject.sd");
@@ -148,7 +160,8 @@ describe("FunctionUnused for a global function", () => {
   });
 
   test("a name on a line with a syntax error is a use", () => {
-    expect(programUnused({ "main.sd": "include subject.sd\ninclude use.sd\nReady.\n", "subject.sd": "function helper()\nend\n", "use.sd": "& v = 0x10i helper\n" })).toEqual([]);
+    expectSubjectWarnsAlone();
+    expect(programUnused({ "main.sd": "& v = 0x10i helper\n", "subject.sd": "function helper()\nend\n" })).toEqual([]);
   });
 
   test("a function defined inside another function is global", () => {
@@ -167,7 +180,7 @@ describe("FunctionUnused for a global function", () => {
   test("an unchanged script gains and loses its warning as another script changes or leaves", () => {
     const compiler = testCompiler();
     const file = (path: string, text: string) => ({ uri: `inmemory:///${path}`, type: "script" as const, name: path.replace(/\.sd$/, ""), ext: "sd", text, version: 1, languageId: "sparkdown" });
-    compiler.configure({ files: [file("main.sd", "include subject.sd\ninclude use.sd\nReady.\n"), file("subject.sd", "function helper()\nend\n"), file("use.sd", "& helper()\n")] });
+    compiler.configure({ files: [file("main.sd", "Ready.\n"), file("subject.sd", "function helper()\nend\n"), file("use.sd", inScene("& helper()\n"))] });
     const found = () => {
       const program: SparkProgram = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
       return (program.diagnostics?.["inmemory:///subject.sd"] ?? []).filter((d) => d.code === "FunctionUnused").length;
@@ -175,11 +188,11 @@ describe("FunctionUnused for a global function", () => {
     const update = (path: string, text: string, version: number) => compiler.updateDocument({ textDocument: { uri: `inmemory:///${path}`, version }, contentChanges: [{ text }] });
     expect(found()).toBe(0);
     const tree = compiler.documents.tree("inmemory:///subject.sd");
-    update("use.sd", "Nothing.\n", 2);
+    update("use.sd", inScene("Nothing.\n"), 2);
     expect(found()).toBe(1);
-    update("use.sd", "& helper()\n", 3);
+    update("use.sd", inScene("& helper()\n"), 3);
     expect(found()).toBe(0);
-    update("main.sd", "include subject.sd\nReady.\n", 2);
+    compiler.removeFile({ file: { uri: "inmemory:///use.sd" } } as never);
     expect(found()).toBe(1);
     expect(compiler.documents.tree("inmemory:///subject.sd")).toBe(tree);
   });

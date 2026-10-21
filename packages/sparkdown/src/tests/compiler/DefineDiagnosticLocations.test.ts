@@ -75,20 +75,17 @@ describe("define property diagnostic locations", () => {
   });
 
   // The fallback attributed diagnostics to the ENTRY document, so a define
-  // living in an included file reported against main.sd -- wrong file as well
-  // as wrong position.
-  it("attributes the diagnostic to the included file that declares it", () => {
+  // living in another script of the project reported against main.sd -- wrong
+  // file as well as wrong position.
+  it("attributes the diagnostic to the other script of the project that declares it", () => {
     const program = compile(
       [
-        script(
-          MAIN,
-          ["include portraits.sd", "", "First beat.", ""].join("\n"),
-        ),
+        script(MAIN, ["First beat.", ""].join("\n")),
         script(
           PORTRAITS,
           [
-            "-- padding", // 0
-            "-- padding", // 1
+            "// padding", // 0
+            "// padding", // 1
             "define Portrait with", // 2
             "  image = does_not_exist_anywhere", // 3
             "end", // 4
@@ -99,8 +96,7 @@ describe("define property diagnostic locations", () => {
       MAIN,
     );
 
-    const found = undeclaredNameDiagnostics(program);
-    expect(found).toHaveLength(1);
+    const found = undeclaredNameDiagnostics(program);    expect(found).toHaveLength(1);
     expect(found[0]!.uri).toBe(PORTRAITS);
     expect(found[0]!.range.start.line).toBe(3);
   });
