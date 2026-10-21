@@ -138,6 +138,71 @@ export function launchEvidence(rows, index) {
 
 const TERMINAL_ROWS = new Set(["finished", "blocked", "report-posted"]);
 
+// Appends one timestamped row to an open journal and syncs it; the launcher
+// and settle-launch write every row through it.
+export function appendJournalRow(fd, row) {
+  fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n");
+  fs.fsyncSync(fd);
+}
+
+// Settles the last launch of a journal whose launcher died after its child
+// started: once the journal's coordinator and the launch's child are both
+// verified absent by OS start identity and the worktree lock is recovered (a
+// recovered copy beside the journal names this journal and coordinator, and
+// no lock a plan here leads to still names it), it appends a confirmed-absent
+// row and a terminal blocked row, so the round accounting and lock recovery
+// treat the launch as ended. Every other state refuses and leaves the journal
+// unchanged. Rows are only appended and nothing is signalled.
+export function settleLaunch(journal, { identifyProcess = processIdentity, holdingRecovery = false } = {}) {
+  const refuse = (why) => new Error(`Journal ${journal} not settled: ${why}`);
+  if (typeof journal !== "string" || !path.isAbsolute(journal)) throw refuse("give the journal as an absolute path");
+  let rows;
+  try { rows = readJournalRows(journal); } catch (error) { throw refuse(`it is unreadable (${error.message})`); }
+  if (!rows.length) throw refuse("it is empty");
+  const lastRow = rows.at(-1).event;
+  if (TERMINAL_ROWS.has(lastRow)) throw refuse(`it already ends in a terminal ${lastRow} row`);
+  const coordinator = rows.find((row) => row.event === "coordinator")?.processIdentity;
+  if (!validIdentity(coordinator)) throw refuse("its coordinator row records no OS start identity");
+  const launch = rows.findLast((row) => row.event === "launching");
+  if (!launch || !Number.isSafeInteger(launch.index)) throw refuse("it records no launch with a step index");
+  const evidence = launchEvidence(rows, launch.index);
+  if (evidence.exited) throw refuse(`step ${launch.step} has an exited row; its launch ended on record`);
+  if (evidence.service) throw refuse(`step ${launch.step} started a delegated execution service (${evidence.service.directory}) whose drain was never journalled, so its commands may still run; confirm they have exited by hand`);
+  const running = evidence.running;
+  if (!running) throw refuse(`step ${launch.step} records no running row, so there is no started child to settle; inspect it by hand`);
+  if (sameIdentity(coordinator, identifyProcess(coordinator.pid))) throw refuse(`its coordinator (PID ${coordinator.pid}) is still running; await its exit`);
+  const identified = evidence.identified;
+  const child = identified?.childIdentity ?? null;
+  if (identified && (!validIdentity(child) || child.pid !== running.pid)) throw refuse(`it records a malformed OS identity for child PID ${running.pid}; confirm the child's exit by hand`);
+  if (!evidence.confirmedAbsent) {
+    const live = identifyProcess(child ? child.pid : running.pid);
+    if (child ? sameIdentity(child, live) : live) throw refuse(child ? `its child (PID ${child.pid}) is still running; await its exit` : `PID ${running.pid} of its child is in use and the journal records no OS start identity to tell reuse apart; confirm the child's exit by hand`);
+  }
+  // The lock must be recovered first: recover-lock keeps its copy beside the
+  // journal, and a lock that still names this journal means it was not.
+  const dir = path.dirname(journal);
+  const names = fs.readdirSync(dir);
+  const same = (a, b) => typeof a === "string" && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+  const readJson = (file) => { try { return read(file); } catch { return null; } };
+  const copies = names.filter((name) => /^agent-handoff\.lock\.recovered-\d+\.json$/.test(name)).map((name) => readJson(path.join(dir, name)));
+  if (!copies.some((copy) => same(copy?.journal, journal) && sameIdentity(copy?.processIdentity, coordinator))) throw refuse(`no recovered lock copy beside it names this journal and its coordinator (PID ${coordinator.pid}); run node scripts/agent-handoff.mjs recover-lock <worktree> first`);
+  for (const name of names.filter((name) => name.endsWith(".json"))) {
+    const plan = readJson(path.join(dir, name));
+    if (!same(plan?.journal, journal) || typeof plan.worktree !== "string") continue;
+    let lock;
+    try { lock = git(fs.realpathSync.native(plan.worktree), ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"]); } catch { continue; }
+    // recover-lock itself holds the marker while it settles.
+    if (same(readJson(lock)?.journal, journal) || (!holdingRecovery && fs.existsSync(lockRecoveryMarker(lock)))) throw refuse(`the worktree lock ${lock} still names it or is being recovered; run recover-lock first`);
+  }
+  const verifiedAt = new Date().toISOString();
+  const fd = fs.openSync(journal, "a");
+  try {
+    if (!evidence.confirmedAbsent) appendJournalRow(fd, { event: "confirmed-absent", index: launch.index, step: launch.step, childIdentity: child, childPid: running.pid, coordinatorIdentity: coordinator, verifiedAt, settledBy: "settle-launch" });
+    appendJournalRow(fd, { event: "blocked", reason: `The launcher (PID ${coordinator.pid}) died before journalling step ${launch.step}'s exit; its coordinator and child were verified absent by start identity at ${verifiedAt} and the launch was settled by settle-launch`, settledBy: "settle-launch" });
+  } finally { fs.closeSync(fd); }
+  return { settled: journal, index: launch.index, step: launch.step, coordinator, child, verifiedAt };
+}
+
 // Round accounting across the launch journals of one PR's review jobs, by
 // the rules the launcher enforces on a recovery plan. Each review launch
 // carries its round, its reviewer place (reviewerId and attempt), the plan
@@ -1004,9 +1069,16 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   }
   if (failure) throw restore(failure);
   // The lock is released and its copy kept; a leftover claimed file is reported, not fatal.
+  let result = { recovered: lock, copy, coordinator: owner };
   try { fs.unlinkSync(claimed); }
-  catch (error) { return { recovered: lock, copy, coordinator: owner, leftover: claimed, leftoverError: error.message }; }
-  return { recovered: lock, copy, coordinator: owner };
+  catch (error) { result = { ...result, leftover: claimed, leftoverError: error.message }; }
+  // A launch left running with no exit row is settled in the same call, so
+  // the round accounting sees it ended; a failure is reported, not hidden.
+  if (launch && evidence.running && !exited && !TERMINAL_ROWS.has(rows.at(-1)?.event)) {
+    try { result.settled = settleLaunch(record.journal, { identifyProcess, holdingRecovery: true }); }
+    catch (error) { result.settleError = error.message; }
+  }
+  return result;
 }
 
 export function validateNativeReviewArgs(review) {
@@ -1275,7 +1347,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   catch (error) { if (error.code === "ENOENT") recovering = false; else { fs.closeSync(owner); fs.unlinkSync(lock); throw error; } }
   if (recovering) { fs.closeSync(owner); fs.unlinkSync(lock); throw new Error(`A lock recovery is running for this worktree (${lockRecoveryMarker(lock)}); await it, then launch again`); }
   let fd;
-  const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
+  const append = (row) => appendJournalRow(fd, row);
   let current = config.first;
   let completedRound = config.completedReviewRound;
   let reviewedHead = config.reviewedHead ?? null;
@@ -1561,7 +1633,14 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
   } else if (process.argv[2] === "recover-lock") {
     try {
       if (process.argv.length !== 4) throw new Error("Usage: node scripts/agent-handoff.mjs recover-lock <worktree>");
-      console.log(JSON.stringify(recoverHandoffLock(process.argv[3])));
+      const result = recoverHandoffLock(process.argv[3]);
+      console.log(JSON.stringify(result));
+      if (result.settleError) { console.error(`The lock was recovered, but its launch was not settled: ${result.settleError}`); process.exitCode = 1; }
+    } catch (error) { console.error(error.message); process.exitCode = 1; }
+  } else if (process.argv[2] === "settle-launch") {
+    try {
+      if (process.argv.length !== 4) throw new Error("Usage: node scripts/agent-handoff.mjs settle-launch <absolute-journal>");
+      console.log(JSON.stringify(settleLaunch(process.argv[3])));
     } catch (error) { console.error(error.message); process.exitCode = 1; }
   } else runHandoff(process.argv[2]).then(({ journal, pendingReport, thread }) => {
     if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim on review thread ${thread.repo}#${thread.number} after one line saying it is posted on the reviewer's behalf and why, read the comment back with node scripts/agent-handoff.mjs read-back ${journal} <comment-id> <read-back.json> (or, without a gh login, write the comment object your GitHub integration returns, with its id, issue_url and body, to that file), then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back.json>`);
