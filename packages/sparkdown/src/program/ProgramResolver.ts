@@ -1797,6 +1797,12 @@ export class ProgramResolver {
     // The global of a constant or of a struct's property is made anew by
     // every compile, and its initializer is the statement's own.
     const initializer = value.expression!;
+    // The values a store evaluates after its last name and drops (#1333)
+    // are prepared with its initializer.
+    const prepare = () => {
+      initializer.PrepareIntoContainer();
+      for (const discarded of value.discarded) discarded.PrepareIntoContainer();
+    };
     const unit =
       this._declarationUnit.get(value) ?? this._declarationUnit.get(initializer);
     if (!unit || unit.seen !== this._compile) {
@@ -1804,7 +1810,7 @@ export class ProgramResolver {
       // resolve.
       this.passesLastResolve.initialized += 1;
       this.outside(initializer);
-      initializer.PrepareIntoContainer();
+      prepare();
       return;
     }
     if (!unit.fresh) {
@@ -1819,14 +1825,14 @@ export class ProgramResolver {
         // resolved again: written, and nothing recorded.
         this.passesLastResolve.initialized += 1;
         this.outside(initializer);
-        initializer.PrepareIntoContainer();
+        prepare();
       }
       return;
     }
     this.passesLastResolve.initialized += 1;
     const events: ResolutionEvent[] = [];
     unit.next!.init.set(initializer, events);
-    this.record(unit, events, () => initializer.PrepareIntoContainer());
+    this.record(unit, events, prepare);
   }
 
   /** The runtime definition of `struct`, which `DeclareStoryTables` and

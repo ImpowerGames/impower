@@ -180,6 +180,10 @@ export function lowerVariableDefinition(
         stat.values.length,
       );
     }
+    // The values after the last name are evaluated and dropped (#1333).
+    assignments[assignments.length - 1]!.Discard(
+      expressions.slice(targets.length),
+    );
     return wrapInWeave(assignments);
   }
 
@@ -208,6 +212,8 @@ export function lowerVariableDefinition(
     isGlobalDeclaration: scope === "store",
     isTemporaryNewDeclaration: isTemp,
   });
+  // A store evaluates its values after the first and drops them (#1333).
+  if (scope === "store") va.Discard(expressions.slice(1));
   // A local hides a variadic function of its name for the rest of its
   // block, the statements after it on its line included.
   if (isTemp && lastIdentifier.name) {
