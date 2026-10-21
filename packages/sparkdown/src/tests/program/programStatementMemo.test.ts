@@ -669,7 +669,8 @@ const kindsScript = (clause: readonly string[] = [], top: readonly string[] = []
   ].join("\n");
 
 /** What the story's passes over the whole program found of the last
- *  compile's story: the names plain assignments write, and the globals,
+ *  compile's story: the names plain assignments and literal-key stores
+ *  through the globals table write, and the globals,
  *  auto-globals included. */
 const coldFacts = (text: string) => {
   const c = programCompiler({ [MAIN_URI]: text });

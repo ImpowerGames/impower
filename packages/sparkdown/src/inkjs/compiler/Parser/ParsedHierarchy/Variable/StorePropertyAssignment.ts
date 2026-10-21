@@ -1,4 +1,6 @@
 import { Expression } from "../Expression/Expression";
+import { StringExpression } from "../Expression/StringExpression";
+import { VariableReference } from "./VariableReference";
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
@@ -40,6 +42,26 @@ export class StorePropertyAssignment extends ParsedObject {
 
   override get typeName(): string {
     return "StorePropertyAssignment";
+  }
+
+  /** The global a store through the globals table writes (`_G.f = v`,
+   *  `_G['f'] = v`), which the runtime writes as the global `f` itself; null
+   *  for any other store, a key it cannot name before it runs (`_G[k] = v`)
+   *  included. A plain assignment of that name writes the same global, so a
+   *  call of a top-level function `f` calls what it holds (I-1091). */
+  get globalName(): string | null {
+    const base = this.baseExpression;
+    const key = this.keyExpression;
+    if (
+      base instanceof VariableReference &&
+      base.path.length === 1 &&
+      base.name === "_G" &&
+      key instanceof StringExpression &&
+      key.isSingleString
+    ) {
+      return key.toString() || null;
+    }
+    return null;
   }
 
   public override EmitProgram(emitter: ProgramEmitter): void {
