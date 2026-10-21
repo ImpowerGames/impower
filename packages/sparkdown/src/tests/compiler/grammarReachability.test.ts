@@ -57,7 +57,7 @@ const KNOWN_UNREACHABLE_RULES = [
 
 // Variables read directly from `GRAMMAR_DEFINITION.variables` in TypeScript
 // rather than expanded in a pattern.
-const VARIABLES_READ_FROM_TYPESCRIPT = ["FLOW_MODULE_KEYWORDS", "LUAU_LOOP_BLOCK_KEYWORDS"];
+const VARIABLES_READ_FROM_TYPESCRIPT = ["FLOW_MODULE_KEYWORDS", "LUAU_LOCAL_DECLARATION_KEYWORDS", "LUAU_LOOP_BLOCK_KEYWORDS"];
 
 // Variables nothing expands, outside #1277's list. Tracked by the same
 // follow-up Task.
