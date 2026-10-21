@@ -40,6 +40,10 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver";
 
+/** The owner a .luau file's own diagnostics are published under while the
+ *  file is open in an editor, which the stories that run it leave alone. */
+export const LUAU_DOCUMENT_OWNER = "luau-document";
+
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _documents: SparkdownDocumentRegistry;
 
@@ -543,6 +547,14 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ]);
     for (const uri of uris) {
       const last = this._lastPublishedDiagnostics.get(uri);
+      // While a .luau file is open in an editor, its own compile publishes
+      // its diagnostics under LUAU_DOCUMENT_OWNER, and a story that runs it
+      // leaves them alone even when it has diagnostics for the file; once
+      // that publication is cleared on close, the story's compiles publish
+      // the file's again (#1389).
+      if (hasLuauExtension(uri) && last?.owner === LUAU_DOCUMENT_OWNER) {
+        continue;
+      }
       // An unrelated entry point must not clear another program's assets.
       // An explicit asset result transfers ownership even if it is unchanged.
       if (
