@@ -376,6 +376,26 @@ describe("round 2's author-experience probes", () => {
   });
 });
 
+// Round 2's undirected probes: an alternator a value holds after one that
+// lowers to nothing, which lowering never reaches.
+describe("round 2's undirected probes", () => {
+  for (const [text, line, column] of [
+    ["store s = (cycle | 1 | 2 end) .. (cycle | `a {} b` | 3 end)\n", 0, 42],
+    ["store s = if (cycle | 1 | 2 end) then (cycle | `a {} b` | 3 end) else 0\n", 0, 47],
+    ["define Thing with\n  s = (cycle | 1 | 2 end) .. (cycle | `a {} b` | 3 end)\nend\n", 1, 38],
+  ] as const) {
+    test(text.split("\n").find((l) => l.includes("`"))!.trim(), () => {
+      expect(sparkdownErrors(text)).toEqual(officialFirst("local _ = `a {} b`\n", line, column - 10));
+      expectIncrementalEqualsCold(text);
+    });
+  }
+  test("store s = `c {} d` .. (cycle | `a {} b` | 3 end)", () => {
+    const text = "store s = `c {} d` .. (cycle | `a {} b` | 3 end)\n";
+    expect(sparkdownErrors(text)).toEqual([...officialFirst("local _ = `c {} d`\n", 0, 0), ...officialFirst("local _ = `a {} b`\n", 0, 21)].sort());
+    expectIncrementalEqualsCold(text);
+  });
+});
+
 // The probes of I-1419's fourth review round: a string split over lines by
 // an escape, and a statement's error at the string's first lexeme after
 // which Luau reads the string on, in a function the type checker reads and

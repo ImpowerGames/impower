@@ -261,15 +261,13 @@ function armParts(nodes: readonly SyntaxNode[]): { statement: boolean; nodes: Sy
  * and `cycle | (1 2) | 3 end`'s. A statement in the arm is read where it is
  * lowered (`lowerLuauStatementNode`); in an arm nobody lowers
  * (`unlowered`, `reportAlternatorValue`), it is read here for its
- * string's errors, and each alternator the arm holds is read in turn,
- * which lowering it would do.
+ * string's errors. Each alternator a part holds is read in turn by the
+ * part's reading (`readExpressionAst`).
  */
 function reportArmReading(nodes: readonly SyntaxNode[], ctx: LowerContext, unlowered: boolean): void {
   if (nodes.length === 0) return;
   if (nodes.some(containsUnreadToken)) {
-    const reading = readExpressionAst(nodes, ctx);
-    reportSyntaxErrors(reading?.source.errors ?? [], ctx);
-    if (unlowered && reading) reportNestedAlternators(reading.expr, ctx);
+    reportSyntaxErrors(readExpressionAst(nodes, ctx)?.source.errors ?? [], ctx);
     return;
   }
   for (const part of armParts(nodes)) {
@@ -277,24 +275,22 @@ function reportArmReading(nodes: readonly SyntaxNode[], ctx: LowerContext, unlow
     if (part.statement) {
       if (!unlowered) continue;
       const reading = readBlockAst(part.nodes, ctx);
-      if (reading) {
-        reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "string");
-        reportNestedAlternators(reading.unit.root, ctx);
-      }
+      if (reading) reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "string");
       continue;
     }
     const reading = readExpressionAst(part.nodes, ctx);
     if (!reading) continue;
     reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "expression", reading.expr);
-    if (unlowered) reportNestedAlternators(reading.expr, ctx);
   }
 }
 
 /**
- * Reports the errors of each alternator an expression nobody lowers holds
- * (`reportAlternatorValue`), which its reading reads as one opaque value:
- * an alternator in another's head or arm (`cycle | (cycle | ... end) | 2
- * end`), or in a tag's braces.
+ * Reports the errors of each alternator a lowerer's reading holds
+ * (`reportAlternatorValue`), which the reading reads as one opaque value,
+ * whether or not lowering reaches it: `(cycle | 1 | 2 end) .. (cycle | ... end)`
+ * lowers no further than its first alternator, and an alternator in another's
+ * head or arm or in a tag's braces is not lowered at all. The reading funnel
+ * calls it (`readExpressionAst`, `readBlockAst`, `closureBodyAst`).
  */
 export function reportNestedAlternators(expr: AstNode, ctx: LowerContext): void {
   const report = (node: AstExprSparkdownSequentialAlternator | AstExprSparkdownConditionalAlternator) => {
@@ -332,7 +328,6 @@ export function reportAlternatorHead(candidate: SyntaxNode, ctx: LowerContext): 
   const reading = readExpressionAst(nodes, ctx);
   if (!reading) return;
   reportReadingErrors(reading.source.errors, nodes[0]!, ctx, "expression", reading.expr);
-  reportNestedAlternators(reading.expr, ctx);
 }
 
 /**

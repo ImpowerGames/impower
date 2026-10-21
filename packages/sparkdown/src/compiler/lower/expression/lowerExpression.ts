@@ -67,12 +67,10 @@ import {
   AstExprInterpString,
   AstExprLocal,
   AstExprSparkdownCallShorthand,
-  AstExprSparkdownConditionalAlternator,
   AstExprSparkdownDivertTarget,
   AstExprSparkdownInterpString,
   AstExprSparkdownNew,
   AstExprSparkdownRegex,
-  AstExprSparkdownSequentialAlternator,
   AstExprTable,
   AstExprTypeAssertion,
   AstExprUnary,
@@ -99,7 +97,6 @@ import {
   type LuauSource,
 } from "../utils/luauAst";
 import { reportValueInVain } from "../utils/lineContinuation";
-import { reportAlternatorValue } from "../utils/alternatorArms";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
 import {
@@ -317,16 +314,10 @@ export function lowerExpression(
     );
   }
   if (expr instanceof AstExprError) return lowerMalformedString(expr, source, ctx);
-  // An alternator used as a value, which the display lowerers lower
-  // themselves, lowers to nothing here, and no reading reads its head or
-  // arms but its own: their errors are reported (I-1435).
-  if (expr instanceof AstExprSparkdownSequentialAlternator || expr instanceof AstExprSparkdownConditionalAlternator) {
-    const node = expr.source.node as SyntaxNode | undefined;
-    if (node) reportAlternatorValue(node, ctx);
-    return null;
-  }
-  // A syntax error, which the type checker reports, and a branch's
-  // argument, which only the type checker reads.
+  // A syntax error, which the type checker reports, an alternator used as
+  // a value, which the display lowerers lower themselves (its reading reads
+  // its head and arms, `readExpressionAst`), and a branch's argument, which
+  // only the type checker reads.
   return null;
 }
 

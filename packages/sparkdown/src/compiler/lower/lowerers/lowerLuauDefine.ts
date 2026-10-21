@@ -68,7 +68,7 @@ import {
 } from "../expression/lowerFunction";
 import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
-import { findChildByName, reportNestedAlternators } from "../utils/alternatorArms";
+import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -881,7 +881,6 @@ function reportUnreadValueErrors(propNode: SyntaxNode, ctx: LowerContext): void 
   const reading = consumed.length > 0 ? readExpressionAst(consumed, ctx) : null;
   if (!reading) return;
   reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
-  reportNestedAlternators(reading.expr, ctx);
 }
 
 /**
