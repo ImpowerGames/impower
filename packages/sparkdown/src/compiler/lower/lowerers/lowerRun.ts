@@ -5,13 +5,14 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { closeQuoteMessage, quotePathMessage } from "../../utils/runOperand";
 import type { LowerContext } from "../context";
+import { statementBounds } from "../utils/debugMetadata";
 import { statementSource } from "../utils/statementSource";
 
 // `run helpers` or `run "lib/helpers"` — read the `.luau` file, wrap its
-// body in a function, and call it immediately (dofile-style). The lowerer
-// here just extracts the operand; the compiler resolves the file,
-// synthesizes the function wrapper, and emits the call (see
-// SparkdownCompiler's `run` handling in `parseIncrementally`).
+// body in a function, and call it where the line stands (dofile-style). The
+// lowerer here just extracts the operand and the line's range; the compiler
+// resolves the file, synthesizes the function wrapper, and emits the call
+// (see SparkdownCompiler's `run` handling in `parseIncrementally`).
 //
 // The quotes decide the operand's form (#1389): a quoted operand is a path
 // relative to the script, and an unquoted one is a name, the one `.luau`
@@ -81,7 +82,18 @@ export function lowerRun(
   if (!quoted && written.includes("/")) {
     return error(quotePathMessage(written));
   }
+  // The statement without its indentation and trailing whitespace, which
+  // the call is stamped with, as a lowered statement's objects are.
+  const bounds = statementBounds(nodeRef.from, nodeRef.to, ctx);
+  const line: SourceMetadata = {
+    fileName: null,
+    filePath: ctx.filePath ?? null,
+    startLineNumber: ctx.lineNumber(bounds.from) + 1,
+    endLineNumber: ctx.lineNumber(bounds.to) + 1,
+    startCharacterNumber: ctx.characterNumber(bounds.from) + 1,
+    endCharacterNumber: ctx.characterNumber(bounds.to) + 1,
+  };
   return {
-    run: { path, written, quote: quoted ? raw[0]! : "", source },
+    run: { path, written, quote: quoted ? raw[0]! : "", source, line },
   };
 }
