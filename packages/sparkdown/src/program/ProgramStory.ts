@@ -13,7 +13,11 @@ import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
 import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
 import type { ProgramAddress } from "../compiler/types/ProgramAddress";
-import { lookupStateAwareStdLib, luauTypeOf } from "../runtime/StdLib";
+import {
+  firstMissingStdLibArg,
+  lookupStateAwareStdLib,
+  luauTypeOf,
+} from "../runtime/StdLib";
 import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
@@ -3807,6 +3811,17 @@ export class ProgramStory implements StoryEngine {
       args.unshift(this._state.PopEvaluationStack());
     }
     spreadCallArgs(args);
+    // A required argument left absent raises Luau's error, naming the
+    // function without its library (`'rep'`), as the first-class call does;
+    // the engine's own `__` helpers always receive theirs.
+    const missing = name.startsWith("__")
+      ? 0
+      : firstMissingStdLibArg(entry, args);
+    if (missing) {
+      this.Error(
+        `missing argument #${missing} to '${name.slice(name.lastIndexOf(".") + 1)}'`,
+      );
+    }
     const result = entry.fn(this, args);
     if (discard) {
       return;
