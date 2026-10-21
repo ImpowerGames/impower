@@ -310,7 +310,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
 
   /** A declaration statement's chunk: each global's initializer, then its
    *  declaration as a global under the name the object engine's `global
-   *  decl` container assigns it. A store's call that spreads to the names
+   *  decl` container assigns it. The values after a store's last name
+   *  (`discarded`) are evaluated after its own and popped. A store's call that spreads to the names
    *  after it (`spreadTo`) is evaluated once and unpacked, and its values
    *  declare its own global and then each of those names, in order; a name
    *  the statement does not declare (one the story refused as a duplicate)
@@ -324,6 +325,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
         this.unsupported(assignment.typeName);
       }
       this.emitObject(assignment.expression);
+      for (const discarded of assignment.discarded) {
+        this.emitObject(discarded);
+        this.emit(Op.Pop);
+      }
       const spread = assignment.spreadTo;
       if (spread.length > 0) {
         this.emit(Op.Unpack, spread.length + 1);

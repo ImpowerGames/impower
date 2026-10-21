@@ -44,6 +44,16 @@ export class VariableAssignment extends ParsedObject {
    *  chunk evaluates the value once and declares this global and each of
    *  them from its values; their own expressions are never evaluated. */
   public spreadTo: readonly VariableAssignment[] = [];
+  /** For a `store`'s last global, the statement's values after its last
+   *  name: Luau evaluates them, in order, after the global's own value and
+   *  drops them (#1333). The declaration's chunk evaluates each and pops
+   *  its value before it declares the global. */
+  public discarded: readonly Expression[] = [];
+
+  /** Adopts the values the declaration evaluates and drops (`discarded`). */
+  public Discard(expressions: readonly Expression[]): void {
+    this.discarded = expressions.map((e) => this.AddContent(e) as Expression);
+  }
   /** For a plain assignment, whether a `local` or parameter of its name
    *  certainly binds it where it is written (`FlowBase.IsBoundLocallyAt`),
    *  so that it writes that binding and not the global: decided when the
