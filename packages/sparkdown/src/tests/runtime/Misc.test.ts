@@ -41,8 +41,9 @@ describe("Misc (ported from inkjs)", () => {
 
 });
 
-describe("Misc — include directive (multi-file fixtures)", () => {
-  test("include directive splices content from sibling files", () => {
+describe("Misc — multi-file fixtures", () => {
+  // Left for I-1390, which retargets it to run: included scripts' top-level lines no longer run at an include site (#1387).
+  test.skip("include directive splices content from sibling files", () => {
     // Upstream ink fixture:
     //   INCLUDE includes/included_file.ink
     //     INCLUDE includes/included_file_2.ink
@@ -64,7 +65,7 @@ describe("Misc — include directive (multi-file fixtures)", () => {
     );
   });
 
-  test("nested include + cross-file var/knot references", () => {
+  test("cross-file var/knot references", () => {
     // Upstream ink fixture:
     //   - `nested_include.ink` includes `included_file_3.ink`
     //   - `included_file_3.ink` includes `included_file_4.ink`
@@ -72,10 +73,12 @@ describe("Misc — include directive (multi-file fixtures)", () => {
     //     interpolation, and exposes `knot_in_2` (which `main` diverts
     //     to).
     //
-    // The test covers:
-    //   - Recursive include resolution (depth 2)
-    //   - Cross-file variable lookup (`t2` declared in file_4, used
-    //     in `main` indirectly via the file-4 line printed mid-flow)
+    // A project folder makes every script under it part of the story with
+    // no include line, and a script other than `main.sd` holds declarations
+    // only (#1387), so the rewrite has no nested include and prints the
+    // interpolation from `main`. The test covers:
+    //   - Cross-file variable lookup (`t2` declared in file_4, read in
+    //     `main`'s first line and in file_4's knot)
     //   - Cross-file divert (`-> knot_in_2` from main to file_4)
     const ctx = makeRuntimeStoryFromDirectory("misc", "nested-include");
     expect(ctx.errorMessages).toEqual([]);

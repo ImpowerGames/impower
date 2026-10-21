@@ -102,7 +102,6 @@ export function formatLoweredEntry(entry: LoweredEntry): string {
 
 function blockToJson(block: CompiledBlock): unknown {
   const result: { [k: string]: unknown } = {};
-  if (block.include !== undefined) result["include"] = block.include;
   if (block.content !== undefined) {
     result["content"] = block.content.map(parsedObjectToJson);
   }

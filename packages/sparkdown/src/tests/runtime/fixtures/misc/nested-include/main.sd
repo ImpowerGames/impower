@@ -1,3 +1,3 @@
-include includes/included_file_3.sd
+The value of a variable in test file 2 is { t2 }.
 This is the main file
 -> knot_in_2

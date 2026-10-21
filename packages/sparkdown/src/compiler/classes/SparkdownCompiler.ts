@@ -18,7 +18,8 @@ import {
   type LuauScriptLints,
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
-import { isLuauFile } from "../typecheck/LuauUnitNodes";
+import { isLuauDocument, isLuauFile } from "../typecheck/LuauUnitNodes";
+import { storeSyntaxErrors } from "../typecheck/storeReading";
 import { withMessageLines } from "../typecheck/messageLines";
 import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
@@ -38,6 +39,7 @@ import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { ExternalDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
 import { StructDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
+import { StorePropertyAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
 import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
@@ -162,6 +164,16 @@ import {
 } from "../../program/StatementWatch";
 import { debugFileName } from "../utils/debugFileName";
 import {
+  CONTENT_OUTSIDE_SCENE_MESSAGE,
+  topLevelStatements,
+} from "../utils/declarationOnly";
+import {
+  DEFAULT_MAIN_SCRIPT_FILENAME,
+  projectPath,
+  projectRootUri,
+  projectScripts,
+} from "../utils/projectMembership";
+import {
   runCallText,
   runCallUri,
   runDeclarationText,
@@ -265,18 +277,38 @@ function getCompiledPrelude(): {
 }
 
 /** A script's path as a message names it: relative to the main script's
- *  folder, as an `include` line names it, or else its whole URI. */
-function displayScriptPath(scriptUri: string, mainUri: string): string {
-  try {
-    const script = new URL(scriptUri);
-    const root = new URL("./", mainUri);
-    if (script.protocol === root.protocol && script.host === root.host && script.pathname.startsWith(root.pathname)) {
-      return decodeURIComponent(script.pathname.slice(root.pathname.length));
-    }
-  } catch {
-    // An unparsable URI is named whole.
+ *  folder, which is the project's, as the file system names it
+ *  (`projectPath`; a `#` or `?` the web editor keeps in a file name stays
+ *  in it), or else its whole URI. `asWritten` is the host's
+ *  `uriPathsAsWritten`. */
+function displayScriptPath(scriptUri: string, mainUri: string, asWritten = false): string {
+  const root = projectRootUri(mainUri);
+  if (root !== undefined && scriptUri.startsWith(root)) {
+    return projectPath(scriptUri.slice(root.length), asWritten);
   }
   return scriptUri;
+}
+
+/** Whether a top-level object of a script declares something the story
+ *  initializes or registers before any content runs, wherever the object is
+ *  placed: a global, a constant or an external. */
+const isHoistedDeclaration = (obj: ParsedObject): boolean =>
+  (obj instanceof ParsedVariableAssignment && obj.isGlobalDeclaration) ||
+  obj instanceof ConstantDeclaration ||
+  obj instanceof ExternalDeclaration;
+
+/** Whether the objects a top-level statement of a script other than main
+ *  lowered to only declare: flows, globals, constants and externals, and the
+ *  write that defines a member or method function, held directly or in the
+ *  statement's weave. Anything else runs where the statement is placed. */
+function onlyDeclares(content: readonly ParsedObject[] | undefined): boolean {
+  return (content ?? []).every(
+    (obj) =>
+      obj instanceof FlowBase ||
+      isHoistedDeclaration(obj) ||
+      (obj instanceof StorePropertyAssignment && obj.definesFunction) ||
+      (obj instanceof Weave && onlyDeclares(obj.content)),
+  );
 }
 
 let _preludeGlobalNames: Set<string> | undefined;
@@ -763,6 +795,10 @@ export class SparkdownCompiler {
   // the included script, and the line and compiled block of the `include` or
   // `run` statement in the script that includes it (`programFlows`,
   // `includedAt`).
+  // For a script other than main, the part of its top level that runs where
+  // it is placed (a member function's write), as a story of its own, by the
+  // story `parseIncrementally` built for the script's declarations.
+  protected _memberWrites = new WeakMap<Story, Story>();
   protected _includedAt = new WeakMap<
     ParsedObject,
     { uri: string; line: number; block: object }
@@ -875,7 +911,7 @@ export class SparkdownCompiler {
   // flow that might call it, even though the caller's own chunks are
   // untouched.
   protected _prevFlowSignatures?: Map<string, string>;
-  // Per-file ordered ROOT-REGION STRUCTURE descriptors — `include`/`run`
+  // Per-file ordered ROOT-REGION STRUCTURE descriptors — `run`
   // targets and `EXTERNAL` name+arity. A change to this sequence disables all
   // reuse for that compile; ordinary root content (front matter, loose text,
   // globals) is deliberately excluded. See the guard for the full rationale.
@@ -1058,6 +1094,18 @@ export class SparkdownCompiler {
       this._config.workspace = config.workspace;
     }
     if (
+      config.mainScriptFilename !== undefined &&
+      config.mainScriptFilename !== this._config.mainScriptFilename
+    ) {
+      this._config.mainScriptFilename = config.mainScriptFilename;
+    }
+    if (
+      config.uriPathsAsWritten !== undefined &&
+      config.uriPathsAsWritten !== this._config.uriPathsAsWritten
+    ) {
+      this._config.uriPathsAsWritten = config.uriPathsAsWritten;
+    }
+    if (
       config.startFrom !== undefined &&
       config.startFrom !== this._config.startFrom
     ) {
@@ -1106,8 +1154,9 @@ export class SparkdownCompiler {
           file.languageId !== undefined
         ) {
           // Defer parses: the compile that follows pulls the trees it needs
-          // through tree()/annotations(), so scripts the program never
-          // includes are never parsed, and configure itself stays fast.
+          // through tree()/annotations(), so scripts outside the project
+          // (`projectScripts`) are never parsed, and configure itself stays
+          // fast.
           this.documents.add(
             {
               textDocument: {
@@ -1136,7 +1185,7 @@ export class SparkdownCompiler {
       file.languageId !== undefined
     ) {
       // Deferred: the next compile pulls the tree if this script is part of
-      // the program (see configure()).
+      // its project (see configure()).
       this.documents.add(
         {
           textDocument: {
@@ -1591,7 +1640,15 @@ export class SparkdownCompiler {
       filesEpoch: this._filesEpoch,
     };
 
-    const state: SparkdownCompilerState = {};
+    // Every other script of the project is part of the program, read after
+    // the script the compile starts from, in the order `projectScripts`
+    // gives.
+    const state: SparkdownCompilerState = {
+      projectScripts: this.projectScriptsOf(uri),
+    };
+    for (const member of state.projectScripts!) {
+      program.scripts[member] = this.documents.get(member)?.version ?? -1;
+    }
 
     const onDiagnostic = (
       message: string,
@@ -1669,17 +1726,13 @@ export class SparkdownCompiler {
       }
     };
 
-    // `currentParentUri` is the URI of the file whose `include` chunks
-    // are currently being resolved. Mutated by `parseIncrementally`
-    // before each recursive descent and restored after. Without this,
-    // the closure captures the outermost `uri` (main file from
-    // `compile()`) and resolves every `include` against THAT — breaking
-    // any nested include path. E.g. `main.sd` → `includes/a.sd` →
-    // `b.sd` would try to find `b.sd` next to `main.sd` instead of
-    // next to `a.sd` where the import was actually written.
+    // `currentParentUri` is the URI of the file whose `run` chunks are
+    // currently being resolved. Mutated by `parseIncrementally` before each
+    // recursive descent and restored after, so a `run` resolves its path
+    // relative to the script that writes it rather than the script the
+    // compile starts from.
     const fileResolutionState = {
       currentParentUri: uri,
-      includedUris: new Set([uri]),
     };
     const fileHandler: IFileHandler = {
       ResolveInkFilename: (filename: string): string => {
@@ -1760,12 +1813,12 @@ export class SparkdownCompiler {
       this._lastCompileResult.uri === uri &&
       this._lastCompileResult.filesEpoch === this._filesEpoch
     ) {
-      // A change in any NON-entry script (includes / `run` files) refuses
-      // CONSTRUCTION reuse for the whole compile, because that decision is
-      // committed during the parse walk: `tryReuseFlowRun` commits a flow as
-      // the walk reaches it, and the include site can come after flows that
-      // have already committed, so the answer has to be known up front rather
-      // than derived once every file has been seen.
+      // A change in any NON-entry script (the project's other scripts, `run`
+      // files) refuses CONSTRUCTION reuse for the whole compile, because that
+      // decision is committed during the parse walk: `tryReuseFlowRun`
+      // commits a flow as the walk reaches it, and the other scripts are read
+      // after flows that have already committed, so the answer has to be
+      // known up front rather than derived once every file has been seen.
       for (const [scriptUri, scriptVersion] of Object.entries(
         this._lastCompileResult.scripts,
       )) {
@@ -1815,7 +1868,7 @@ export class SparkdownCompiler {
       // use `character` as a type (`as character`). If the user's type set leaked
       // in, `character` would stay bare and the synth-instance view would
       // collapse into the character type table. The user pass then scopes the
-      // rest with the union across all USER files (root + includes), and skips
+      // rest with the union across all USER files (the project's scripts), and skips
       // the prelude VAs the first pass already handled.
       //
       // Each document's own set is maintained by the registry across edits, so
@@ -1855,7 +1908,7 @@ export class SparkdownCompiler {
           this._scopedPrelude = { story: preludeStory, declarations: preludeVAs };
         }
       }
-      // User files: the root + resolved includes (`program.scripts`), excluding
+      // User files: the project's scripts (`program.scripts`), excluding
       // the prelude — its defines were just scoped with the prelude's own types.
       const userUris = new Set<string>(Object.keys(program.scripts));
       userUris.add(uri);
@@ -1883,7 +1936,7 @@ export class SparkdownCompiler {
       this.applyBuiltinOverrides(preludeVAs);
       profile("end", this._profilerId, "scopeDefineInstances", uri);
       // Declared-name census across every file of this compile — see
-      // `_censusEntries`. Compared here (not per file) so includes can't
+      // `_censusEntries`. Compared here (not per file) so scripts can't
       // clobber each other's census.
       const censusKey = (this._censusEntries ?? []).sort().join("");
       if (
@@ -2111,6 +2164,8 @@ export class SparkdownCompiler {
       this.validateMorphs(program);
       this.validateLints(program);
       this.validateTypes(program);
+      // After every other reporter, which a store's own reports defer to.
+      this.validateStores(program);
     }
     // A construct the program has no emit path for, reported after the
     // validators: a statement they report an error at (a malformed loop
@@ -2157,6 +2212,40 @@ export class SparkdownCompiler {
     };
   }
 
+  /** The scripts of the project a compile that starts from `uri` reads besides
+   *  `uri` itself, in the order their declarations register
+   *  (`projectScripts`): every registered `.sd` script under the folder of
+   *  `uri` that is in its project. A script is known by its file name, since
+   *  a host can register another file, such as the `.luau` file a `run` reads,
+   *  as a script. */
+  protected projectScriptsOf(uri: string): string[] {
+    const scripts: string[] = [];
+    for (const file of this.files.all()) {
+      const name = file.uri.slice(file.uri.lastIndexOf("/") + 1);
+      if (
+        file.type === "script" &&
+        FILE_TYPES.some((ext) => name.endsWith(`.${ext}`)) &&
+        this.documents.has(file.uri)
+      ) {
+        scripts.push(file.uri);
+      }
+    }
+    return projectScripts(
+      uri,
+      scripts,
+      this._config.mainScriptFilename ?? DEFAULT_MAIN_SCRIPT_FILENAME,
+      this._config.uriPathsAsWritten,
+    ).slice(1);
+  }
+
+  /**
+   * Parses the script `uri` into the story's objects. The script a compile
+   * starts from is parsed with `isInclude` false, and reads the other scripts
+   * of its project (`SparkdownCompilerState.projectScripts`) after its own
+   * statements, each with `declarationOnly`: a statement of such a script's
+   * top level that declares nothing reports that only main runs it and is
+   * left out of the program.
+   */
   parseIncrementally(
     uri: string,
     fileHandler: IFileHandler,
@@ -2169,6 +2258,7 @@ export class SparkdownCompiler {
       source: SourceMetadata | null,
       tags?: number[],
     ) => void,
+    declarationOnly = false,
   ) {
     const version = this.documents.get(uri)?.version ?? 0;
     // A function whose declaration closes its body with its `end` takes no
@@ -2305,6 +2395,7 @@ export class SparkdownCompiler {
     const document = this.documents.get(uri);
     const annotations = this.documents.annotations(uri);
     const topLevelIncludedFileObjs: IncludedFile[] = [];
+    const projectFileObjs: IncludedFile[] = [];
     let topLevelFlowBaseObjs: FlowBase[] = [];
     const bindingEvaluators = new Map<string, FlowBase>();
     const supersededEvaluators = new Set<FlowBase>();
@@ -2468,7 +2559,7 @@ export class SparkdownCompiler {
     };
 
     // ---- Flow-reuse guards computed from this file's chunk list ----
-    // ROOT-REGION STRUCTURE: the ordered sequence of `include`/`run`
+    // ROOT-REGION STRUCTURE: the ordered sequence of `run`
     // targets and `EXTERNAL` signatures. These change which files contribute
     // flows, and which call sites compile to external calls — neither of
     // which a reused flow can re-derive on its own. Compared by DESCRIPTOR
@@ -2491,9 +2582,6 @@ export class SparkdownCompiler {
       const rootDescriptors: string[] = [];
       for (const rec of chunkRecords) {
         const block = rec.block as any;
-        if (block.include) {
-          rootDescriptors.push(`inc:${block.include}`);
-        }
         if (block.run) {
           rootDescriptors.push(`run:${block.run}`);
         }
@@ -2510,8 +2598,8 @@ export class SparkdownCompiler {
           // Declared-NAME census (see `_censusEntries`). Cached per chunk
           // identity, so unchanged chunks cost a map lookup. Accumulated
           // across the WHOLE compile rather than per file — this function
-          // recurses once per `include`/`run`, so a per-file key would be
-          // overwritten by each included file and then compared against a
+          // recurses once per script and `run`, so a per-file key would be
+          // overwritten by each other file and then compared against a
           // different file's census on the next compile, permanently
           // disabling reuse for any multi-file project.
           //
@@ -2588,7 +2676,7 @@ export class SparkdownCompiler {
 
     // Try to reuse last compile's constructed flow for the run declared by
     // `declBlock`: every content chunk of the recorded run must reappear
-    // identically in order (interleaved content-less chunks — includes,
+    // identically in order (interleaved content-less chunks — include lines,
     // context-only — and closed function declarations are transparent), no
     // run chunk may carry a reuse disqualifier, the flow must not have raised
     // generation-time diagnostics, and, unless the flow is a closed function,
@@ -2643,10 +2731,65 @@ export class SparkdownCompiler {
       return prevRun.flow;
     };
 
+    // A script other than main holds declarations only: the statements of its
+    // top level that run are reported and left out (`topLevelStatements`):
+    // those whose syntax runs, and those whose syntax declares but that also
+    // lowered to something that runs (`onlyDeclares`).
+    const tree = declarationOnly ? this.documents.tree(uri) : undefined;
+    const topLevel =
+      tree && document
+        ? topLevelStatements(tree.topNode, (from, to) =>
+            document.read(from, to),
+          )
+        : undefined;
+    // The first line of the statement that starts at `from`, from its first
+    // character after its indentation to its last, as 1-based source
+    // metadata.
+    const firstLineSource = (from: number): SourceMetadata => {
+      const text = document?.getText() ?? "";
+      const lineEnd = text.indexOf("\n", from);
+      const line = lineEnd < 0 ? text.slice(from) : text.slice(from, lineEnd);
+      const indent = line.length - line.trimStart().length;
+      const start = document?.positionAt(from + indent) ?? {
+        line: 0,
+        character: 0,
+      };
+      const end = line.trim().length;
+      return {
+        fileName,
+        filePath: uri,
+        startLineNumber: start.line + 1,
+        endLineNumber: start.line + 1,
+        startCharacterNumber: start.character + 1,
+        endCharacterNumber: start.character + end + 1,
+      };
+    };
+    const forwardDiagnostics = (
+      diagnostics: CompiledBlock["diagnostics"],
+      lineNumberOffset: number,
+    ) => {
+      for (const diagnostic of diagnostics ?? []) {
+        if (diagnostic.source) {
+          const offsetSource: SourceMetadata = { ...diagnostic.source };
+          offsetSource.startLineNumber += lineNumberOffset;
+          offsetSource.endLineNumber += lineNumberOffset;
+          offsetSource.fileName ??= fileName;
+          offsetSource.filePath ??= uri;
+          onDiagnostic(
+            diagnostic.messageLinesInChunk
+              ? withMessageLines(diagnostic.message, (line) => line + lineNumberOffset)
+              : diagnostic.message,
+            diagnostic.severity,
+            offsetSource,
+            diagnostic.tags,
+          );
+        }
+      }
+    };
+
     for (let chunkIdx = 0; chunkIdx < chunkRecords.length; chunkIdx++) {
       const rec = chunkRecords[chunkIdx]!;
       const {
-        include,
         run,
         diagnostics,
         content,
@@ -2657,6 +2800,34 @@ export class SparkdownCompiler {
         hoistedKnots,
       } = rec.block;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
+      const declares = topLevel?.get(rec.from);
+      if (declares === false || (declares === true && !onlyDeclares(content))) {
+        // Only main runs a line outside a scene. The statement is reported
+        // and left out of the program, as if it were not written; what its
+        // lowering itself reported still stands.
+        onDiagnostic(
+          CONTENT_OUTSIDE_SCENE_MESSAGE,
+          ErrorType.Error,
+          firstLineSource(rec.from),
+        );
+        forwardDiagnostics(diagnostics, lineNumberOffset);
+        continue;
+      }
+      // A layout or component is declared in one script: one a script
+      // other than the first to declare it declares again is reported in
+      // both and left out, and the first declaration stands. Within one
+      // script the later declaration replaces the earlier, as below.
+      const sparkleCollides =
+        !!sparkle &&
+        !this._injectingPrelude &&
+        this.recordSparkleDeclarations(
+          sparkle,
+          uri,
+          program.uri,
+          state,
+          firstLineSource(rec.from),
+          onDiagnostic,
+        );
       // Track chunk identity. A chunk whose CompiledBlock object is carried
       // forward from the previous compile (same identity) is unchanged; a new
       // identity means it was re-lowered. Record the 0-based source line
@@ -2717,6 +2888,11 @@ export class SparkdownCompiler {
             // the earlier ones.
             const name = k.identifier?.name;
             if (name?.startsWith(BINDING_ID_PREFIX)) {
+              if (sparkleCollides) {
+                // The declaration another script made first stands, with
+                // its evaluators.
+                continue;
+              }
               const earlier = bindingEvaluators.get(name);
               if (earlier) {
                 supersededEvaluators.add(earlier);
@@ -2728,69 +2904,12 @@ export class SparkdownCompiler {
           }
         }
       }
-      if (include) {
-        if (include) {
-          // Resolve the include relative to THIS file's URI, not the
-          // outermost compile-entry URI. Stash + restore around the
-          // recursive descent so child includes see this file's URI as
-          // their resolution base.
-          const previousParentUri =
-            state.fileResolutionState?.currentParentUri ?? uri;
-          if (state.fileResolutionState) {
-            state.fileResolutionState.currentParentUri = uri;
-          }
-          let resolvedFilePath: string | null = null;
-          try {
-            resolvedFilePath = fileHandler.ResolveInkFilename(include);
-          } catch {}
-          // A script is included once per compile, where the first `include`
-          // reaches it. Its flows then join the story once, and a script that
-          // includes the script including it ends the descent there.
-          const includedUris = state.fileResolutionState?.includedUris;
-          if (!resolvedFilePath) {
-            // 1-based line/character, as the `run` branch below reports.
-            onDiagnostic(
-              `Could not find '${include}' for 'include' statement.`,
-              ErrorType.Error,
-              {
-                fileName,
-                filePath: uri,
-                startLineNumber: lineNumberOffset + 1,
-                endLineNumber: lineNumberOffset + 1,
-                startCharacterNumber: 1,
-                endCharacterNumber: 1,
-              },
-            );
-            topLevelIncludedFileObjs.push(new IncludedFile(null));
-          } else if (!includedUris?.has(resolvedFilePath)) {
-            includedUris?.add(resolvedFilePath);
-            const includedStory = this.parseIncrementally(
-              resolvedFilePath,
-              fileHandler,
-              true,
-              state,
-              program,
-              onDiagnostic,
-            );
-            this.recordIncludedAt(
-              includedStory,
-              resolvedFilePath,
-              lineNumberOffset,
-              compiledBlock,
-            );
-            topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
-          }
-          if (state.fileResolutionState) {
-            state.fileResolutionState.currentParentUri = previousParentUri;
-          }
-        }
-      }
       if (run) {
         // `run "path"` — load `${path}.luau`, wrap its body in a
         // function, splice a call to the function at this position,
         // and hoist the function declaration to the end of the
-        // parent program. Uses the same `IncludedFile` plumbing as
-        // `include`, which already separates flow declarations
+        // parent program. Uses the same `IncludedFile` plumbing as the
+        // project's other scripts, which already separates flow declarations
         // (knots/functions — appended at end) from non-flow content
         // (top-level statements — spliced inline). See
         // `Story.PreProcessTopLevelObjects` for the split logic.
@@ -2928,25 +3047,7 @@ export class SparkdownCompiler {
           state.fileResolutionState.currentParentUri = previousParentUri;
         }
       }
-      if (diagnostics) {
-        for (const diagnostic of diagnostics) {
-          if (diagnostic.source) {
-            const offsetSource: SourceMetadata = { ...diagnostic.source };
-            offsetSource.startLineNumber += lineNumberOffset;
-            offsetSource.endLineNumber += lineNumberOffset;
-            offsetSource.fileName ??= fileName;
-            offsetSource.filePath ??= uri;
-            onDiagnostic(
-              diagnostic.messageLinesInChunk
-                ? withMessageLines(diagnostic.message, (line) => line + lineNumberOffset)
-                : diagnostic.message,
-              diagnostic.severity,
-              offsetSource,
-              diagnostic.tags,
-            );
-          }
-        }
-      }
+      forwardDiagnostics(diagnostics, lineNumberOffset);
       if (content) {
         // ---- Flow-run reuse decision ----
         if (!reuseSkipBlocks.has(compiledBlock)) {
@@ -3123,8 +3224,13 @@ export class SparkdownCompiler {
         // Record this chunk's pre-built structs for `buildContext`, which
         // applies them over the builtins in walk order. Keeping the merge out
         // of the walk is what lets the assembled result be reused by a compile
-        // whose contributing chunks are the same objects (#654).
-        this._contextContributions?.push(context);
+        // whose contributing chunks are the same objects (#654). A layout or
+        // component another script declared first contributes nothing, as
+        // its reactive tree below contributes nothing, so the static and
+        // the reactive definitions are the first script's alike.
+        if (!sparkleCollides) {
+          this._contextContributions?.push(context);
+        }
         this._contextKeyIds?.push(compiledBlock);
       }
       if (sparkle && !this._injectingPrelude) {
@@ -3151,7 +3257,7 @@ export class SparkdownCompiler {
         // Merge the reactive UI trees consumed by the engine onto program.sparkle.
         for (const kind of ["layouts", "screens", "components"] as const) {
           const trees = sparkle[kind];
-          if (trees) {
+          if (trees && !sparkleCollides) {
             program.sparkle ??= {};
             program.sparkle[kind] ??= {};
             // Later chunks replace earlier trees of the same name; the
@@ -3167,6 +3273,34 @@ export class SparkdownCompiler {
           state.defaultDefinitions ??= {};
           state.defaultDefinitions[type] ??= struct;
         }
+      }
+    }
+
+    // The project's other scripts, after the entry's own statements, so that
+    // their declarations register after main's and in path order: the story
+    // places each one's top level after the entry's
+    // (`Story.PreProcessTopLevelObjects`), where its globals initialize after
+    // main's. A declaration that runs where it is written, a member function
+    // (`function api.f()` writes the function into `api`), is placed before
+    // the entry's own top level instead (`_memberWrites`), so it has run
+    // whatever the entry's top level does first, as it ran when an include
+    // line at the top of main placed it.
+    if (!isInclude) {
+      for (const member of state.projectScripts ?? []) {
+        const memberStory = this.parseIncrementally(
+          member,
+          fileHandler,
+          true,
+          state,
+          program,
+          onDiagnostic,
+          true,
+        );
+        const writes = this._memberWrites.get(memberStory);
+        if (writes) {
+          topLevelIncludedFileObjs.push(new IncludedFile(writes));
+        }
+        projectFileObjs.push(new IncludedFile(memberStory));
       }
     }
 
@@ -3234,10 +3368,30 @@ export class SparkdownCompiler {
       autoTerminate(flow);
     }
 
+    let topLevelObjs = topLevelWeaveObjs.flatMap((w) => w.content);
+    if (declarationOnly) {
+      // A script other than main: what its top level holds besides the
+      // globals, constants and externals it declares runs where it is placed,
+      // which is a member function's write, and goes before the entry's top
+      // level (see the project's scripts above).
+      const writes = topLevelObjs.filter((obj) => !isHoistedDeclaration(obj));
+      if (writes.length > 0) {
+        topLevelObjs = topLevelObjs.filter(isHoistedDeclaration);
+        const writesStory = new Story(writes, true);
+        const combined = new Story(
+          [...topLevelIncludedFileObjs, ...topLevelObjs, ...topLevelFlowBaseObjs],
+          isInclude,
+        );
+        this._memberWrites.set(combined, writesStory);
+        return combined;
+      }
+    }
+
     const combinedParsedStory = new Story(
       [
         ...topLevelIncludedFileObjs,
-        ...topLevelWeaveObjs.flatMap((w) => w.content),
+        ...topLevelObjs,
+        ...projectFileObjs,
         ...topLevelFlowBaseObjs,
       ],
       isInclude,
@@ -3828,6 +3982,49 @@ export class SparkdownCompiler {
     return record;
   }
 
+  /**
+   * Records the layouts and components a statement of the script `uri`
+   * declares (`sparkle`), whose first line is `source`, and reports each one
+   * another script declared first: in both scripts, naming both by their
+   * paths below the folder of `rootUri`. Declarations register main first and
+   * then by path, so the first is the one that stands. Within one script the
+   * later declaration replaces the earlier, as it always has. Returns whether
+   * the statement declares one another script declared first.
+   */
+  protected recordSparkleDeclarations(
+    sparkle: NonNullable<CompiledBlock["sparkle"]>,
+    uri: string,
+    rootUri: string,
+    state: SparkdownCompilerState,
+    source: SourceMetadata,
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+    ) => void,
+  ): boolean {
+    const declared = (state.sparkleDeclaredAt ??= new Map());
+    let collides = false;
+    for (const [kind, label] of [
+      ["layouts", "Layout"],
+      ["components", "Component"],
+    ] as const) {
+      for (const name of Object.keys(sparkle[kind] ?? {})) {
+        const key = `${kind}:${name}`;
+        const first = declared.get(key);
+        if (!first || first.uri === uri) {
+          declared.set(key, { uri, source });
+          continue;
+        }
+        collides = true;
+        const message = `${label} \`${name}\` is declared in ${displayScriptPath(first.uri, rootUri, this._config.uriPathsAsWritten)} and in ${displayScriptPath(uri, rootUri, this._config.uriPathsAsWritten)}. Declare it in one script.`;
+        onDiagnostic(message, ErrorType.Error, first.source);
+        onDiagnostic(message, ErrorType.Error, source);
+      }
+    }
+    return collides;
+  }
+
   /** Records where an included script's top level came from: each object of
    *  `story`'s content that the including story places where the script is
    *  included (all but its flows, `Story.PreProcessTopLevelObjects`), with
@@ -4108,7 +4305,9 @@ export class SparkdownCompiler {
 
   /** Reports the construct that kept the program from being built as an
    *  error over the line of the statement that holds it, unless the compile
-   *  reported an error on that line already. */
+   *  reported an error on that line already. The same per-statement
+   *  ownership rule decides a story store's Luau errors (`validateStores`):
+   *  a statement already in error keeps the report it has. */
   protected reportUnsupportedConstruct(
     unsupported: UnsupportedConstructSite,
     program: SparkProgram,
@@ -5642,13 +5841,13 @@ export class SparkdownCompiler {
       for (const { uri: scriptUri, lint } of lintBuiltinGlobalWrites(names)) report(scriptUri, lint);
       for (const { uri: scriptUri, lint } of lintUnusedGlobalFunctions(names, scripts, builtins)) report(scriptUri, lint);
       const duplicates = lintDuplicateGlobalMembers(names, scripts, (name, original) =>
-        duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri)),
+        duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri, this._config.uriPathsAsWritten)),
       );
       for (const { uri: scriptUri, lint } of duplicates) report(scriptUri, lint);
       if (scripts.some((script) => script.globalShadows.length)) {
         const shadows = lintGlobalShadows(names, scripts, builtins, (name, reference, own) => {
           const line = (this.documents.get(reference.uri)?.positionAt(reference.from).line ?? 0) + 1;
-          return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri)}'`}`;
+          return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri, this._config.uriPathsAsWritten)}'`}`;
         });
         for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
       }
@@ -5685,6 +5884,58 @@ export class SparkdownCompiler {
     }
     profile("end", this._profilerId, "validateLints", uri);
     return names;
+  }
+
+  /**
+   * Reports a story `store` declaration's syntax errors as Luau reads the
+   * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
+   * I-1370), for a store no other reporter reported an error on. The type
+   * checker leaves a store's errors to Sparkdown, which reports what the tree
+   * marks missing or unread, in its own words and ranges; a store's errors
+   * have one owner, as a story statement's do (#931, #1907), and Luau's
+   * reading is theirs where Sparkdown's syntax reads the value token by token
+   * and reports nothing (`store t = {1 2}`).
+   */
+  validateStores(program: SparkProgram) {
+    for (const scriptUri of Object.keys(program.scripts)) {
+      if (scriptUri === BUILTINS_PRELUDE_URI || isLuauDocument(scriptUri)) continue;
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      const errors = storeSyntaxErrors(tree, doc.read(0, doc.length));
+      if (errors.length === 0) continue;
+      const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
+      const reported = new Map<string, boolean>();
+      for (const error of errors) {
+        const key = `${error.store.from}:${error.store.to}`;
+        let inError = reported.get(key);
+        if (inError === undefined) {
+          // The store's lines, as `reportCompileThrow` reads a statement's:
+          // a report at its end of input begins where its line ends. A store
+          // the tree ends with its line break ends on the line before it.
+          const { from, to } = error.store;
+          const last = to > from && doc.read(to - 1, to) === "\n" ? to - 1 : to;
+          const range = doc.range(from, last);
+          inError =
+            !range ||
+            diagnostics.some(
+              (d) =>
+                d.severity === DiagnosticSeverity.Error &&
+                d.range.start.line >= range.start.line &&
+                d.range.start.line <= range.end.line,
+            );
+          reported.set(key, inError);
+        }
+        if (inError) continue;
+        diagnostics.push({
+          range: { start: error.start, end: error.end },
+          code: "SyntaxError",
+          severity: DiagnosticSeverity.Error,
+          message: error.message,
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
   }
 
   /**

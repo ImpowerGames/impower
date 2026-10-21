@@ -364,8 +364,10 @@ describe("a local named like a library", () => {
   });
 });
 
-// An included script's top-level content runs before the top-level content of
-// the script that includes it, wherever the `include` line is.
+// Only main runs lines outside a scene, so a script's top-level local is
+// main's; the other scripts of the project hold declarations, and their lines
+// run in scenes. Main's top level comes first in the program, and the other
+// scripts after it.
 describe("a local named like a library in a project of several scripts", () => {
   const SHADOW = "local table = { nogetn = function() return 1 end }";
   const missing = (sources: Record<string, string>) =>
@@ -373,31 +375,24 @@ describe("a local named like a library in a project of several scripts", () => {
       .filter((d) => d.message.startsWith("Cannot find item or path named"))
       .map((d) => `${d.file}:${d.range!.start.line + 1}`);
 
-  test("is in scope in the including script, which runs after it", () => {
-    expect(
-      missing({
-        "main.sd": `& print(table.nogetn)\ninclude scripts/chapter.sd\nfunction late()\n    print(table.nogetn())\nend\n`,
-        "scripts/chapter.sd": `${SHADOW}\n`,
-      }),
-    ).toEqual([]);
-  });
-
   test("is out of scope before it in its own script", () => {
     expect(
       missing({
-        "main.sd": `include scripts/chapter.sd\n`,
-        "scripts/chapter.sd": `function early()\n    print(table.nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table.nogetn())\n    end\nend\n`,
+        "main.sd": `function early()\n    print(table.nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table.nogetn())\n    end\nend\n`,
+        "scripts/chapter.sd": `scene chap_scene\n    Hello.\nend\n`,
       }),
-    ).toEqual(["scripts/chapter.sd:2"]);
+    ).toEqual(["main.sd:2"]);
   });
 
-  test("is out of scope in an included script, which runs before it", () => {
-    expect(
-      missing({
-        "main.sd": `include scripts/chapter.sd\n${SHADOW}\n`,
-        "scripts/chapter.sd": `& print(table.nogetn)\nfunction chap()\n    print(table.nogetn())\nend\n`,
-      }),
-    ).toEqual(["scripts/chapter.sd:1", "scripts/chapter.sd:3"]);
+  test("is in scope in another script of the project, which comes after main", () => {
+    const chapter = `scene chap_scene\n    & print(table.nogetn)\nend\nfunction chap()\n    print(table.nogetn())\nend\n`;
+    expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
+    // Without main's local the same script names the missing member, so the
+    // script is read and checked as part of the project.
+    expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
+      "scripts/chapter.sd:2",
+      "scripts/chapter.sd:5",
+    ]);
   });
 });
 
@@ -607,30 +602,23 @@ describe("a colon call on a library and a local named like it in a project of se
       .filter((d) => d.message.startsWith("Cannot find item or path named"))
       .map((d) => `${d.file}:${d.range!.start.line + 1}`);
 
-  test("is in scope in the including script, which runs after it", () => {
-    expect(
-      missing({
-        "main.sd": `& print(table:nogetn())\ninclude scripts/chapter.sd\nfunction late()\n    print(table:nogetn())\nend\n`,
-        "scripts/chapter.sd": `${SHADOW}\n`,
-      }),
-    ).toEqual([]);
-  });
-
   test("is out of scope before it in its own script", () => {
     expect(
       missing({
-        "main.sd": `include scripts/chapter.sd\n`,
-        "scripts/chapter.sd": `function early()\n    print(table:nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table:nogetn())\n    end\nend\n`,
+        "main.sd": `function early()\n    print(table:nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table:nogetn())\n    end\nend\n`,
+        "scripts/chapter.sd": `scene chap_scene\n    Hello.\nend\n`,
       }),
-    ).toEqual(["scripts/chapter.sd:2"]);
+    ).toEqual(["main.sd:2"]);
   });
 
-  test("is out of scope in an included script, which runs before it", () => {
-    expect(
-      missing({
-        "main.sd": `include scripts/chapter.sd\n${SHADOW}\n`,
-        "scripts/chapter.sd": `& print(table:nogetn())\nfunction chap()\n    print(table:nogetn())\nend\n`,
-      }),
-    ).toEqual(["scripts/chapter.sd:1", "scripts/chapter.sd:3"]);
+  test("is in scope in another script of the project, which comes after main", () => {
+    const chapter = `scene chap_scene\n    & print(table:nogetn())\nend\nfunction chap()\n    print(table:nogetn())\nend\n`;
+    expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
+    // Without main's local the same script names the missing member, so the
+    // script is read and checked as part of the project.
+    expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
+      "scripts/chapter.sd:2",
+      "scripts/chapter.sd:5",
+    ]);
   });
 });

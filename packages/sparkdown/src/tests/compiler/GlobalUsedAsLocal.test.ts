@@ -110,7 +110,7 @@ describe("GlobalUsedAsLocal is silent for a use outside the function", () => {
   });
 
   test("a read in another script", () => {
-    expect(programFound({ "main.sd": "include other.sd\n" + SCORE, "other.sd": "Score: {score}\n" })).toEqual([]);
+    expect(programFound({ "main.sd": SCORE, "other.sd": "scene other\n  Score: {score}\nend\n" })).toEqual([]);
   });
 });
 
@@ -123,8 +123,9 @@ describe("GlobalUsedAsLocal is silent for a declared or unknown global", () => {
     expect(messages(`${declaration}${SCORE}`)).toEqual([]);
   });
 
+  // Only main holds a top-level local, so the other script's is a scene's.
   test("a local in another script's outermost block", () => {
-    expect(programFound({ "main.sd": "include other.sd\n" + SCORE, "other.sd": "local score = 0\n" })).toEqual([]);
+    expect(programFound({ "main.sd": SCORE, "other.sd": "scene other\n  & local score = 0\nend\n" })).toEqual([]);
   });
 
   test("a built-in", () => {
@@ -153,7 +154,7 @@ describe("GlobalUsedAsLocal is silent for a declared or unknown global", () => {
 describe("GlobalUsedAsLocal for a global every function writes first", () => {
   test("warns once, in the first script by URI", () => {
     expect(messages(SCORE_TWICE)).toEqual([never("score")]);
-    expect(programFound({ "main.sd": "include other.sd\nfunction f()\n  score = 1\n  return score\nend\n& f()\n", "other.sd": "function g()\n  score = 2\n  return score\nend\n& g()\n" })).toEqual([`main.sd: ${never("score")}`]);
+    expect(programFound({ "main.sd": "function f()\n  score = 1\n  return score\nend\n& f()\n& g()\n", "other.sd": "function g()\n  score = 2\n  return score\nend\n" })).toEqual([`main.sd: ${never("score")}`]);
   });
 
   test.each([
@@ -188,7 +189,7 @@ describe("GlobalUsedAsLocal over the program", () => {
   test("an unchanged script gains and loses its warning as another script changes", () => {
     const compiler = testCompiler();
     const file = (path: string, text: string) => ({ uri: `inmemory:///${path}`, type: "script" as const, name: path.replace(/\.sd$/, ""), ext: "sd", text, version: 1, languageId: "sparkdown" });
-    compiler.configure({ files: [file("main.sd", "include subject.sd\ninclude use.sd\nReady.\n"), file("subject.sd", SCORE), file("use.sd", "Score: {score}\n")] });
+    compiler.configure({ files: [file("main.sd", "& f()\nReady.\n"), file("subject.sd", "function f()\n  score = 1\n  return score\nend\n"), file("use.sd", "scene use\n  Score: {score}\nend\n")] });
     const count = () => {
       const program: SparkProgram = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
       return (program.diagnostics?.["inmemory:///subject.sd"] ?? []).filter((d) => d.code === "GlobalUsedAsLocal").length;
@@ -196,9 +197,9 @@ describe("GlobalUsedAsLocal over the program", () => {
     const update = (text: string, version: number) => compiler.updateDocument({ textDocument: { uri: "inmemory:///use.sd", version }, contentChanges: [{ text }] });
     expect(count()).toBe(0);
     const tree = compiler.documents.tree("inmemory:///subject.sd");
-    update("Ready.\n", 2);
+    update("scene use\n  Ready.\nend\n", 2);
     expect(count()).toBe(1);
-    update("Score: {score}\n", 3);
+    update("scene use\n  Score: {score}\nend\n", 3);
     expect(count()).toBe(0);
     expect(compiler.documents.tree("inmemory:///subject.sd")).toBe(tree);
   });

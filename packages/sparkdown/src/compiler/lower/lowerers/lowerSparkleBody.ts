@@ -12,10 +12,12 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
-import { reportBodySyntaxErrors } from "../expression/lowerFunction";
+import {
+  inFunctionScopes,
+  reportBodySyntaxErrors,
+} from "../expression/lowerFunction";
 import { closureBodyAst, closureSyntaxErrors, documentText } from "../utils/luauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
-import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
 import {
@@ -550,23 +552,33 @@ function lowerHandlerClosure(
     const localConsts = ctx.localConsts;
     ctx.localConsts = true;
     const closureBody = body ? closureBodyAst(body, ctx) : null;
-    ctx.functionBindingsStack?.push(
-      functionBindings(loopVars.map((name) => ({ name })), closureBody, ctx),
+    // It opens the scopes a function body opens (`inFunctionScopes`), so
+    // the functions declared or written in it are its own subflows, as a
+    // plain function's are: a named one would otherwise be read as a
+    // top-level function inside the evaluator, and in a function's layout a
+    // function value would land in that function rather than the evaluator.
+    const { result: stmts, hoisted, nested } = inFunctionScopes(
+      loopVars.map((name) => ({ name })),
+      loopVars,
+      closureBody,
+      ctx,
+      () => {
+        const stmts = lowerStatements(body, ctx, undefined, shape);
+        if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
+        return stmts;
+      },
     );
-    const stmts = lowerStatements(body, ctx, undefined, shape);
-    if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
-    ctx.functionBindingsStack?.pop();
     ctx.localConsts = localConsts;
     // An error at the `end` the reading closes the closure with is reported
     // at the closure's `}` (`closureReadingErrors`).
     if (body) reportBodySyntaxErrors(closureReadingErrors(closureSyntaxErrors(body, ctx), closureNode, documentText(ctx)), ctx);
     const fn = new Function(
       new Identifier(exprId),
-      stmts,
+      [...hoisted, ...stmts, ...nested],
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
     stampDebugMetadata([fn], closureNode.from, closureNode.to, ctx);
-    closeFunctionBody(ctx, shape, fn, closureNode, [], true);
+    closeFunctionBody(ctx, shape, fn, closureNode, hoisted, true);
     ctx.hoistedKnots.push(fn);
   }
   return {

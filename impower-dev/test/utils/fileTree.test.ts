@@ -11,7 +11,6 @@ import {
   flattenVisibleRows,
   FOLDER_SENTINEL,
   resolveScopePath,
-  rewriteMainIncludesForMigration,
   subtreeChildren,
 } from "../../src/modules/spark-editor/utils/fileTree";
 
@@ -476,36 +475,5 @@ describe("computeLayoutMigration", () => {
       { from: "assets/sfx/click.url", to: "assets/urls/sfx/click.url" },
       { from: "urls/legacy.url", to: "assets/urls/legacy.url" },
     ]);
-  });
-});
-
-describe("rewriteMainIncludesForMigration", () => {
-  it("prepends scripts/ to bare relative include paths", () => {
-    const src = "include intro.sd\ninclude chapters/act1.sd\n";
-    expect(rewriteMainIncludesForMigration(src)).toBe(
-      "include scripts/intro.sd\ninclude scripts/chapters/act1.sd\n",
-    );
-  });
-
-  it("preserves leading indentation and trailing whitespace", () => {
-    expect(rewriteMainIncludesForMigration("  include intro.sd  ")).toBe(
-      "  include scripts/intro.sd  ",
-    );
-  });
-
-  it("leaves already-rooted, dotted, and schemed paths alone (idempotent)", () => {
-    const src =
-      "include scripts/intro.sd\ninclude ./local.sd\ninclude ../up.sd\ninclude https://x/y.sd";
-    expect(rewriteMainIncludesForMigration(src)).toBe(src);
-  });
-
-  it("does not touch non-include lines or the word inside another token", () => {
-    const src = "title: My Include\nmyinclude foo.sd\n# include heading\n";
-    expect(rewriteMainIncludesForMigration(src)).toBe(src);
-  });
-
-  it("returns a main.sd with no includes unchanged", () => {
-    const src = "= start\nThe quick brown fox.\n-> END\n";
-    expect(rewriteMainIncludesForMigration(src)).toBe(src);
   });
 });

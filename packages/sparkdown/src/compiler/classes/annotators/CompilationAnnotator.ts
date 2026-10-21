@@ -57,7 +57,6 @@ export interface InkDiagnostic {
 export interface CompiledBlock {
   diagnostics?: InkDiagnostic[];
   content?: ParsedObject[];
-  include?: string;
   // Path (without `.luau` extension) for a `run "path"` statement.
   // Compiler resolves the file, wraps its body in a function-call
   // knot, and emits an invocation. See SparkdownCompiler's `run`

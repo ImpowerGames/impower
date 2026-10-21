@@ -459,11 +459,11 @@ describe("shared AST name facts", () => {
     expect(shifted.names.references.find((r: any) => r.name === "target")!.from).toBe(names(original).references.find((r: any) => r.name === "target").from + prefix.length); // not a node name
   });
 
-  test("compiler recombination uses current included scripts and cached untouched trees", () => {
+  test("compiler recombination uses the program's current scripts and cached untouched trees", () => {
     const compiler = testCompiler();
     const files = [
-      { uri: "inmemory:///main.sd", text: "include use.sd\nfunction target() end\nReady.\n", name: "main" },
-      { uri: "inmemory:///use.sd", text: "Hi {target()}.\n", name: "use" },
+      { uri: "inmemory:///main.sd", text: "function target() end\nReady.\n", name: "main" },
+      { uri: "inmemory:///use.sd", text: "scene greeting\n  Hi {target()}.\nend\n", name: "use" },
     ].map(f => ({ ...f, type: "script" as const, ext: "sd", version: 1, languageId: "sparkdown" }));
     compiler.configure({ files });
     const program = compiler.compile({ textDocument: { uri: files[0]!.uri } }).program;

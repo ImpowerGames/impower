@@ -124,11 +124,11 @@ end
     expect(missingType(diagnostics, "card")).toBe(false);
   });
 
-  test.each([true, false])("only accepts a parent from a participating script (included: %s)", (included) => {
+  test.each([true, false])("only accepts a parent from a participating script (in the project's folder: %s)", (included) => {
     const diagnostics = diagnosticsFor(
-      `${included ? "include parents.sd\n" : ""}define O as companion with\n  name = "Orion"\nend\n`,
+      `define O as companion with\n  name = "Orion"\nend\n`,
       [{
-        uri: "file:///project/parents.sd",
+        uri: included ? "file:///project/parents.sd" : "file:///elsewhere/parents.sd",
         type: "script",
         name: "parents",
         ext: "sd",

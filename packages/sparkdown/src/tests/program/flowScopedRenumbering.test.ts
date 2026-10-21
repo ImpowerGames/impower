@@ -156,15 +156,21 @@ describe("names numbered within their flow (#851)", () => {
     expect(s.emitted()).toBeLessThanOrEqual(2);
   });
 
-  it("keeps names unique across scenes, the top-level content and a script included twice", () => {
+  it("keeps names unique across scenes, the top-level content and another script of the project", () => {
+    // The other script's store stands at its top level and its continuation
+    // in a scene of its own, beside main's top-level store and scenes.
     const shared = [
+      "store shared_fn = function() return 3 end",
+      "",
+      "scene shared",
+      "  local h = function() return 3 end",
+      "  Got {h()}.",
       "HERO: Shared glue ..",
       ".. shared tail.",
-      "store shared_fn = function() return 3 end",
+      "end",
       "",
     ].join("\n");
     const main = [
-      "include shared.sd",
       "store top = function() return 1 end",
       "HERO: Top glue ..",
       ".. top tail.",
@@ -177,7 +183,6 @@ describe("names numbered within their flow (#851)", () => {
       "end",
       "",
       "scene second",
-      "  include shared.sd",
       "  local f = function() return 2 end",
       "  Got {f()}.",
       "HERO: Second glue ..",
@@ -192,11 +197,13 @@ describe("names numbered within their flow (#851)", () => {
       expect(numbered.some((name) => name.startsWith("__synth$$"))).toBe(true);
       expect(numbered.some((name) => name.startsWith("__synth$first$"))).toBe(true);
       expect(numbered.some((name) => name.startsWith("__synth$second$"))).toBe(true);
+      expect(numbered.some((name) => name.startsWith("__synth$shared$"))).toBe(true);
       const names = groups(s.root);
       expect(names.filter((name) => name === "")).toEqual([]);
       expect(new Set(names.filter((name) => name.startsWith("__group$$"))).size).toBeGreaterThan(0);
       expect(names.some((name) => name.startsWith("__group$first$"))).toBe(true);
       expect(names.some((name) => name.startsWith("__group$second$"))).toBe(true);
+      expect(names.some((name) => name.startsWith("__group$shared$"))).toBe(true);
     };
     unique();
     // A function and a continuation added above the others of a scene

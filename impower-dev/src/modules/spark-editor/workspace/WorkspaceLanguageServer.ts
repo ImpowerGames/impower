@@ -290,6 +290,9 @@ export default class WorkspaceLanguageServer {
         // the inlined SVG source that dominated its payload. LS previews
         // re-source it lazily from watched files.
         stripImageData: true,
+        // This host's URIs are `file://` and the OPFS path as written
+        // (`getUriFromPath`), so a `%` in one is part of a file name.
+        uriPathsAsWritten: true,
       },
       workspaceFolders: [
         {

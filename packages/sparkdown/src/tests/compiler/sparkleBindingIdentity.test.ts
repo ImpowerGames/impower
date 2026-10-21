@@ -46,7 +46,7 @@ describe("binding ids are unique across files", () => {
   // the same offset — near-inevitable for a copy-and-adapt pair of layouts —
   // both minted `__binding_35` (now `__binding$35`).
   const FILES = {
-    main: `include fa.sd\ninclude fb.sd\n-> END\n`,
+    main: `-> END\n`,
     fa: `store a = 1\nlayout la with\n  text "{a}"\nend\n`,
     fb: `store b = 2\nlayout lb with\n  text "{b}"\nend\n`,
   };

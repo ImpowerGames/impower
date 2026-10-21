@@ -58,7 +58,7 @@ await check("one flat scene of at least 2,000 lines, whose then clause holds the
   const thenAt = lines.indexOf("  then");
   const thenEnd = lines.lastIndexOf("  end");
   assert.ok(thenAt > 0 && thenEnd - thenAt >= 1000, `then clause has ${thenEnd - thenAt} lines`);
-  assert.equal(lines.filter((l) => /^\S/.test(l) && !/^(include|scene|end)\b/.test(l)).length, 0, "nothing outside the scene but includes");
+  assert.equal(lines.filter((l) => /^\S/.test(l) && !/^(scene|end)\b/.test(l)).length, 0, "nothing outside the scene");
 });
 
 await check("the target is the last portrait directive inside the then clause, with an attribute", () => {
