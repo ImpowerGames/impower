@@ -63,6 +63,12 @@ const readings = [[{ pid: 40, ppid: 10, start: "2000" }], [{ pid: 41, ppid: 40, 
 let reading = 0;
 const handedOn = await driver.treeStopped([{ pid: 10, ppid: 1, start: "1000" }], 10, { table: async () => readings[Math.min(reading++, 2)], attempts: 3, waitMs: 1 });
 assert.deepEqual(handedOn, { stopped: false, reason: "pid 41 of its tree still run" }, "a survivor's own child is still found after the survivor exits");
+// Three new generations in one reading, of which only the youngest is left
+// in the next.
+const generations = [[{ pid: 40, ppid: 10, start: "2000" }, { pid: 41, ppid: 40, start: "2100" }, { pid: 42, ppid: 41, start: "2200" }], [{ pid: 42, ppid: 41, start: "2200" }]];
+let generation = 0;
+const nested = await driver.treeStopped([{ pid: 10, ppid: 1, start: "1000" }], 10, { table: async () => generations[Math.min(generation++, 1)], attempts: 3, waitMs: 1 });
+assert.deepEqual(nested, { stopped: false, reason: "pid 42 of its tree still run" }, "every new generation in a reading stays a member");
 if (process.platform === "win32") {
   const table = await driver.windowsProcessTable();
   const self = table.find((row) => row.pid === process.pid);
@@ -251,7 +257,15 @@ console.log("PASS: a detached server outliving its recorded launcher holds the c
 // With nothing left, the CLI records the drain with its evidence. This
 // journal names no review thread, so the completion cannot be recorded and
 // the journal ends blocked, with the drain confirmed.
-const settled = confirm(plain.journal);
+// The real census can briefly show a child of a short-lived process that
+// reused a stand-in's PID (a console host, say); the command refuses that,
+// as it must, and a later run passes, as an operator's would.
+let settled = confirm(plain.journal);
+for (let attempt = 1; settled.status !== 0 && /descended from recorded PID/.test(settled.stderr) && attempt < 10; attempt++) {
+  console.log(`retrying after a transient child of a reused PID: ${settled.stderr.trim()}`);
+  await sleep(2000);
+  settled = confirm(plain.journal);
+}
 assert.equal(settled.status, 0, settled.stderr);
 const drained = journalRows(plain.journal).find((row) => row.event === "execution-drained");
 assert.ok(drained && drained.index === 0 && drained.directory === plain.execution, "the confirmation names the launch and its execution directory");
@@ -267,10 +281,59 @@ assert.ok(!state.blockers.some((b) => /shutdown is not confirmed/.test(b)), `the
 const retried = confirm(plain.journal);
 assert.equal(retried.status, 0, retried.stderr);
 assert.equal(journalRows(plain.journal).filter((row) => row.event === "execution-drained").length, 1, "a retry records no second confirmation");
-// A child created after the records belongs to a reused PID.
+// A creation time alone does not show a recorded parent PID was reused: a
+// child created after the records still holds the confirmation while that
+// PID is absent, or held by a process older than the child; it is let go
+// only when the PID is held by a process newer than the records and older
+// than the child.
+const ticks = (ms) => String(BigInt(Math.floor(ms)) * 10000n + 621355968000000000n);
 const reusedParent = fixture("launch-reused-parent");
-const later = await handoff.confirmExecutionDrained(reusedParent.journal, { census: () => [...quietCensus(), { pid: 999999, ppid: stopped.pid, start: String(BigInt(Date.now() + 3600000) * 10000n + 621355968000000000n), commandLine: "node" }], env });
-assert.equal(later.confirmed.event, "execution-drained", "a child created after the records does not hold the confirmation");
+const childOf = (pid, at) => ({ pid: 999999, ppid: pid, start: ticks(at), commandLine: "node" });
+const heldAt = Date.now();
+const holder = { pid: stopped.pid, ppid: 4, start: ticks(heldAt), commandLine: "svchost" };
+await refusedUnchanged(reusedParent.journal, () => handoff.confirmExecutionDrained(reusedParent.journal, { census: () => [...quietCensus(), childOf(stopped.pid, Date.now())], env }), /PID 999999 \(descended from recorded PID \d+\)/, "a newer child of an absent recorded PID");
+await refusedUnchanged(reusedParent.journal, () => handoff.confirmExecutionDrained(reusedParent.journal, { census: () => [...quietCensus(), holder, childOf(stopped.pid, heldAt - 1000)], env }), /PID 999999 \(descended from recorded PID \d+\)/, "a child older than the PID's new holder");
+const later = await handoff.confirmExecutionDrained(reusedParent.journal, { census: () => [...quietCensus(), holder, childOf(stopped.pid, heldAt + 1000)], env });
+assert.equal(later.confirmed.event, "execution-drained", "a child of a PID held by a newer process does not hold the confirmation");
+// A PID the identity probe cannot read (another user's process) is dated by
+// the census: a creation time within a millisecond of the recorded identity
+// is that process still running, a later one a reuse, and a PID the census
+// does not list either refuses. Only Windows dates processes in ticks; the
+// Linux census reports no creation time, so there the probe's failure stands.
+if (process.platform === "win32") {
+  const unreadable = (pid) => (asked) => { if (asked === pid) throw new Error("Process start identity unavailable"); return processIdentity(asked); };
+  const censusDated = fixture("launch-census-dated");
+  const withRow = (start) => () => [...quietCensus(), { pid: upChild.pid, ppid: 4, start, commandLine: "" }];
+  await refusedUnchanged(censusDated.journal, () => handoff.confirmExecutionDrained(censusDated.journal, { census: withRow(String(BigInt(upChild.start) + 5000n)), identifyProcess: unreadable(upChild.pid), env }), /recorded in .*up\.started\.json, is still running/, "a census creation time matching the recorded identity");
+  await refusedUnchanged(censusDated.journal, () => handoff.confirmExecutionDrained(censusDated.journal, { census: quietCensus, identifyProcess: unreadable(upChild.pid), env }), new RegExp(`PID ${upChild.pid} cannot be probed`), "an unreadable PID the census does not list");
+  const dated = await handoff.confirmExecutionDrained(censusDated.journal, { census: withRow(ticks(Date.now())), identifyProcess: unreadable(upChild.pid), env });
+  assert.deepEqual(dated.confirmed.census.identities.map((entry) => [entry.pid, entry.state, entry.dated]), [[upChild.pid, "reused", "census"]], "a later census creation time is a reuse");
+}
+// The real case behind that rule (Windows, where a child keeps its parent's
+// PID): an original process starts a child after the records were written,
+// then exits.
+if (process.platform === "win32") {
+  const helper = pathToFileURL(fileURLToPath(new URL("./detached-launch.mjs", import.meta.url))).href;
+  const serve = "setInterval(() => {}, 1000)";
+  const late = `const { spawnDetached } = await import(${JSON.stringify(helper)}); setTimeout(() => { const p = spawnDetached(process.execPath, ['-e', ${JSON.stringify(serve)}], { stdio: 'ignore' }); console.log(p.pid); p.unref(); setTimeout(() => process.exit(0), 500); }, 2500);`;
+  const original = spawn(process.execPath, ["--input-type=module", "-e", late], { stdio: ["ignore", "pipe", "inherit"], windowsHide: true });
+  const originalIdentity = processIdentity(original.pid);
+  const lateChild = fixture("launch-late-child", { startedIdentity: originalIdentity, downPids: [originalIdentity.pid], session: false, datedAt: new Date() });
+  let printed = "";
+  original.stdout.on("data", (data) => { printed += data; });
+  await new Promise((resolve) => original.once("exit", resolve));
+  await goneWithin(originalIdentity.pid);
+  const wrapper = Number(printed.trim());
+  try {
+    assert.ok(handoff.processCensus().some((p) => p.pid === wrapper && p.ppid === originalIdentity.pid), "the late child outlives the original that started it");
+    await refusedUnchanged(lateChild.journal, () => confirm(lateChild.journal), new RegExp(`descended from recorded PID ${originalIdentity.pid}`), "a child an original process started after the records");
+  } finally {
+    for (const p of handoff.processCensus().filter((p) => p.pid === wrapper || p.ppid === wrapper)) {
+      console.log(`Stopping fixture process ${p.pid} under ${scratch}`);
+      try { process.kill(p.pid); } catch {}
+    }
+  }
+}
 console.log("PASS: confirm-drained records the drain, who confirmed it and the evidence, and the checkpoint accepts it");
 
 // A review that exited cleanly also takes the completion the drain failure

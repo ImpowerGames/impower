@@ -502,9 +502,9 @@ const COMPLETION_PENDING = "Drain confirmed; the review completion was not recor
 // reused; a recorded PID must be absent or held by a process created after
 // the record was last written; the driver record's launcher must not still
 // run; no process may still accept connections on a recorded port, since a
-// server outlives its launcher; and no process created before those records
-// may still run as a child of a recorded PID or name the execution directory
-// in its command line.
+// server outlives its launcher; and no process may still run as a child of a
+// recorded PID (unless that PID is shown reused, below) or name the execution
+// directory in its command line.
 //
 // The `execution-drained` row names who confirmed it and the evidence. A
 // review launch that exited cleanly then also takes the `completed` row the
@@ -570,9 +570,29 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   let files;
   try { files = filesUnder(directory); }
   catch (error) { throw refuse(`its execution directory ${directory} cannot be read (${error.message}), so the shutdown evidence is gone`); }
+  let processes;
+  try { processes = census(); }
+  catch (error) { throw refuse(`the process census failed (${error.message})`); }
+  if (!Array.isArray(processes) || !processes.length) throw refuse("the process census found no process at all, so it cannot be trusted");
+  const byPid = new Map(processes.map((p) => [p.pid, p]));
+  // A process whose start the identity probe cannot read (another user's)
+  // is dated by the census's creation time, which is reported to the
+  // microsecond rather than the identity's 100 ns, so it is flagged and an
+  // identity compares with it to within a millisecond.
   const probe = (pid) => {
     try { return identifyProcess(pid); }
-    catch (error) { throw refuse(`PID ${pid} cannot be probed (${error.message})`); }
+    catch (error) {
+      const row = byPid.get(pid);
+      if (row && /^\d+$/.test(row.start ?? "")) return { pid, start: row.start, fromCensus: true };
+      throw refuse(`PID ${pid} cannot be probed (${error.message})`);
+    }
+  };
+  const stillRunning = (recorded, live) => {
+    if (!live) return false;
+    if (!live.fromCensus) return sameIdentity(recorded, live);
+    if (!/^\d+$/.test(recorded.start)) return true;
+    const gap = BigInt(live.start) - BigInt(recorded.start);
+    return gap <= 10000n && gap >= -10000n;
   };
   const readRecord = (file) => {
     try { return read(file); } catch (error) { throw refuse(`${file} is unreadable (${error.message})`); }
@@ -589,7 +609,7 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
     const live = probe(pid);
     if (!live) { pids.push({ pid, file, state: "absent" }); return; }
     if (!/^\d+$/.test(live.start) || BigInt(live.start) <= windowsTicks(fs.statSync(file).mtimeMs)) throw refuse(`PID ${pid}, named in ${file}, is in use by a process that may predate that record; await its exit or inspect it by hand`);
-    pids.push({ pid, file, state: "reused", start: live.start });
+    pids.push({ pid, file, state: "reused", start: live.start, ...(live.fromCensus ? { dated: "census" } : {}) });
   };
   const identities = [];
   for (const file of files.filter((file) => file.endsWith(".started.json"))) {
@@ -597,8 +617,8 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
     noteWritten(file);
     for (const recorded of [started?.identity, started?.coordinator].filter(validIdentity)) {
       const live = probe(recorded.pid);
-      if (sameIdentity(recorded, live)) throw refuse(`PID ${recorded.pid}, recorded in ${file}, is still running`);
-      identities.push({ pid: recorded.pid, start: recorded.start, file, state: live ? "reused" : "absent" });
+      if (stillRunning(recorded, live)) throw refuse(`PID ${recorded.pid}, recorded in ${file}, is still running`);
+      identities.push({ pid: recorded.pid, start: recorded.start, file, state: live ? "reused" : "absent", ...(live?.fromCensus ? { dated: "census" } : {}) });
     }
   }
   const downLogs = files.filter((file) => path.basename(file) === "down.log");
@@ -645,21 +665,25 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
     if (answers) throw refuse(`port ${port}, recorded in ${file}, still accepts connections, so a server of the service may still run`);
     checkedPorts.push({ port, file, state: "closed" });
   }
-  let processes;
-  try { processes = census(); }
-  catch (error) { throw refuse(`the process census failed (${error.message})`); }
-  if (!Array.isArray(processes) || !processes.length) throw refuse("the process census found no process at all, so it cannot be trusted");
   const plain = (text) => { const slashed = String(text ?? "").split(path.win32.sep).join("/"); return process.platform === "win32" ? slashed.toLowerCase() : slashed; };
   const named = processes.filter((p) => p.pid !== process.pid && plain(p.commandLine).includes(plain(directory)));
   if (named.length) throw refuse(`PID${named.length > 1 ? "s" : ""} ${named.map((p) => p.pid).join(", ")} name the execution directory ${directory} and still run`);
-  // A server outlives its launcher as an orphan whose parent PID still names
-  // it on Windows, and whose process group or session does on Linux; a child
-  // created after the records belongs to a reused PID.
+  // A live process whose parent PID (Windows), or process group or session
+  // (Linux), is a recorded PID is taken as the service's: a server orphaned
+  // by its launcher, or a child an original process started after the
+  // records were written and before it exited. A creation time alone cannot
+  // tell those from a child of a reused PID; the one exception is a recorded
+  // PID now held by a process created after the records, with the child
+  // created after that holder.
   const recorded = new Set([...identities, ...pids].map((entry) => entry.pid));
   const written = windowsTicks(writtenMs);
-  const owner = (p) => [p.ppid, p.group, p.sessionId].find((id) => recorded.has(id));
-  const orphans = processes.filter((p) => p.pid !== process.pid && !recorded.has(p.pid) && owner(p) !== undefined && (p.start === null || BigInt(p.start) <= written));
-  if (orphans.length) throw refuse(`${orphans.map((p) => `PID ${p.pid} (descended from recorded PID ${owner(p)})`).join(", ")} still ${orphans.length > 1 ? "run" : "runs"}, created before the service's records were written`);
+  const heldByNewer = (id, child) => {
+    const holder = byPid.get(id);
+    return Boolean(holder) && holder.start !== null && child.start !== null && BigInt(holder.start) > written && BigInt(child.start) >= BigInt(holder.start);
+  };
+  const owner = (p) => [p.ppid, p.group, p.sessionId].find((id) => recorded.has(id) && !heldByNewer(id, p));
+  const orphans = processes.filter((p) => p.pid !== process.pid && owner(p) !== undefined);
+  if (orphans.length) throw refuse(`${orphans.map((p) => `PID ${p.pid} (descended from recorded PID ${owner(p)})`).join(", ")} still ${orphans.length > 1 ? "run" : "runs"}; only a recorded PID now held by a process newer than the records, and older than its child, shows that child is not the service's`);
   let confirmer = null;
   try { confirmer = os.userInfo().username; } catch {}
   const drained = { event: "execution-drained", index, step: exited.step, directory, confirmedBy: { pid: process.pid, processIdentity: identifyProcess(process.pid), host, user: confirmer }, census: { processes: processes.length, namingDirectory: 0, childrenOfRecorded: 0, identities, downLogs, pids, servers, ports: checkedPorts } };

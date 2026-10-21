@@ -355,7 +355,8 @@ export function windowsProcessTable() {
 
 // The processes of `root`'s tree in the census `before` that are still there
 // in `after`: a member with its pid and creation time unchanged, or a process
-// created after `before` by a member (a child the stop may have missed). A
+// created after `before` by a member or by another such process, through any
+// number of generations (a child the stop may have missed). A
 // child counts only when it was created after its parent, since Windows keeps
 // a parent pid after that parent exits and the pid can be reused. A creation
 // time the system did not report is treated as unchanged. null means the
@@ -374,11 +375,24 @@ export function treeSurvivors(before, after, root) {
     }
   }
   const known = new Set(before.map((row) => `${row.pid}:${row.start}`));
-  return after.filter((row) => {
+  const survivors = new Map();
+  for (const row of after) {
     const member = members.get(row.pid);
-    if (member && (member.start === null || row.start === null || member.start === row.start)) return true;
-    return members.has(row.ppid) && !known.has(`${row.pid}:${row.start}`) && later(row, members.get(row.ppid));
-  });
+    if (member && (member.start === null || row.start === null || member.start === row.start)) survivors.set(row.pid, row);
+  }
+  // New processes descend from a member, or from another new one, through
+  // any number of generations within this reading.
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const row of after) {
+      if (survivors.has(row.pid) || known.has(`${row.pid}:${row.start}`)) continue;
+      const parent = survivors.get(row.ppid) ?? members.get(row.ppid);
+      if (!parent || !later(row, parent)) continue;
+      survivors.set(row.pid, row);
+      grew = true;
+    }
+  }
+  return after.filter((row) => survivors.get(row.pid) === row);
 }
 
 // Whether the tree `before` recorded for `root` is gone, read a few times
