@@ -114,37 +114,62 @@ export function relativeRunPath(
   ].join("/");
 }
 
-/**
- * The URI of the file a quoted run path `path` names from the script
- * `scriptUri`, the path relative to the script's folder, a leading `/`
- * ignored. A host that spells URIs as file names are written
- * (`asWritten`, the web editor's `uriPathsAsWritten`) has a file
- * `lib space/helpers.luau` under that very URI, so its segments are joined as
- * written, `.` and `..` resolved; otherwise the path is resolved as a URL,
- * which percent-encodes it as a URI names the file (VS Code's
- * `lib%20space/helpers.luau`).
- */
-export function resolveRunPathUri(
+/** `uri` with each path segment as the file system names it (`projectPath`):
+ *  decoded, unless the host spells URIs as file names are written
+ *  (`asWritten`). An author writes a run path in these terms. */
+const fileSystemUri = (uri: string, asWritten: boolean): string =>
+  asWritten
+    ? uri
+    : uri
+        .split("/")
+        .map((segment) => projectPath(segment))
+        .join("/");
+
+/** The file a quoted run path `path` names from the script `scriptUri`, in
+ *  file system terms (`fileSystemUri`): the path's segments joined to the
+ *  script's folder as the author wrote them, a leading `/` ignored and `.`
+ *  and `..` resolved. */
+function runPathTarget(
   scriptUri: string,
   path: string,
-  asWritten = false,
+  asWritten: boolean,
 ): string {
-  const relative = path.trim().replace(/^\/+/, "");
-  if (!asWritten) {
-    return new URL("./" + relative, scriptUri).href;
-  }
-  const scheme = scriptUri.indexOf("://");
-  const rootEnd = scriptUri.indexOf("/", scheme < 0 ? 0 : scheme + 3) + 1;
-  const root = scriptUri.slice(0, rootEnd);
-  const segments = scriptUri.slice(rootEnd).split("/").slice(0, -1);
-  for (const segment of relative.split("/")) {
+  const script = fileSystemUri(scriptUri, asWritten);
+  const scheme = script.indexOf("://");
+  const rootEnd = script.indexOf("/", scheme < 0 ? 0 : scheme + 3) + 1;
+  const segments = script.slice(rootEnd).split("/").slice(0, -1);
+  for (const segment of path.trim().split("/")) {
     if (segment === "..") {
       segments.pop();
     } else if (segment !== "." && segment !== "") {
       segments.push(segment);
     }
   }
-  return root + segments.join("/");
+  return script.slice(0, rootEnd) + segments.join("/");
+}
+
+/**
+ * The file of `luauUris` a quoted run path `path`, written in the script
+ * `scriptUri`, names, case exact, or `undefined` when none does. Each URI is
+ * compared as the file system names it (`fileSystemUri`), the way a name
+ * operand is, so a path the author writes, or a quick fix writes for them,
+ * finds `lib space/helpers.luau` or `lib#one/helpers.luau` whether the host
+ * spells that URI as written (the web editor, `asWritten`) or percent-encoded
+ * (VS Code).
+ */
+export function findRunPath(
+  scriptUri: string,
+  path: string,
+  luauUris: Iterable<string>,
+  asWritten = false,
+): string | undefined {
+  const target = runPathTarget(scriptUri, path, asWritten);
+  for (const uri of luauUris) {
+    if (fileSystemUri(uri, asWritten) === target) {
+      return uri;
+    }
+  }
+  return undefined;
 }
 
 /** The offsets, in a run operand's text as written (`text`, quotes and any
@@ -210,14 +235,14 @@ export function runPathNearMisses(
   asWritten = false,
 ): string[] {
   const resolve = (relative: string) =>
-    resolveRunPathUri(scriptUri, relative, asWritten).toLowerCase();
+    runPathTarget(scriptUri, relative, asWritten).toLowerCase();
   const targets = new Set([resolve(path + LUAU_EXTENSION)]);
   if (endsWithLuauExtension(path)) {
     targets.add(resolve(path));
   }
   const suggestions: string[] = [];
   for (const uri of luauUris) {
-    if (targets.has(uri.toLowerCase())) {
+    if (targets.has(fileSystemUri(uri, asWritten).toLowerCase())) {
       const respelled = respell(path, uri, asWritten);
       if (respelled !== path && !suggestions.includes(respelled)) {
         suggestions.push(respelled);

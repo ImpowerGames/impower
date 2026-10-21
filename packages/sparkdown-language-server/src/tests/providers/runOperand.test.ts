@@ -217,7 +217,12 @@ const workspaceWith = (main: string, scripts: Record<string, string> = {}) => {
   const watched = new Map(
     [MAIN, ...Object.keys(LUAU).map((path) => ROOT + path)].map((uri) => [uri, { uri }]),
   );
-  Object.assign(workspace, { _documents: documents, _watchedFiles: watched });
+  Object.assign(workspace, {
+    _documents: documents,
+    _watchedFiles: watched,
+    _programStates: new Map(),
+    _documentVersions: new Map(),
+  });
   return { workspace, documents, document: documents.get(MAIN)! };
 };
 
@@ -357,6 +362,43 @@ describe("an edit to a Luau file a run reads", () => {
     expect(compiled).toEqual([
       [MAIN, false],
       [`${ROOT}other/main.sd`, true],
+    ]);
+  });
+
+  // Round 2 of PR #2124's review: a quoted path can read a file of another
+  // project, so the entries to compile are those whose programs read the
+  // file, and each that read an older version is forced, since the first
+  // compile leaves the file counting as compiled for the rest.
+  test("compiles every entry whose program read the file", async () => {
+    const { workspace } = workspaceWith(lines('run "other/elsewhere"', "done", ""));
+    const LUAU_URI = `${ROOT}other/elsewhere.luau`;
+    const OTHER = `${ROOT}other/main.sd`;
+    const program = (uri: string, read: number) =>
+      ({ program: { uri, scripts: { [uri]: 1, [LUAU_URI]: read } } }) as never;
+    Object.assign(workspace, {
+      _programStates: new Map([
+        [MAIN, program(MAIN, 1)],
+        [OTHER, program(OTHER, 2)],
+        [`${ROOT}lib/unrelated.sd`, { program: { uri: MAIN, scripts: { [MAIN]: 1 } } }],
+      ]),
+      _documentVersions: new Map([[LUAU_URI, 2]]),
+    });
+    const compiled: [string, boolean][] = [];
+    const base = Object.getPrototypeOf(SparkdownLanguageServerWorkspace.prototype);
+    const spy = vi
+      .spyOn(base, "compile")
+      .mockImplementation(async (uri: unknown, force: unknown) => {
+        compiled.push([uri as string, force as boolean]);
+        return undefined;
+      });
+    try {
+      await workspace.compile(LUAU_URI, false);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(compiled).toEqual([
+      [MAIN, true],
+      [OTHER, false],
     ]);
   });
 });

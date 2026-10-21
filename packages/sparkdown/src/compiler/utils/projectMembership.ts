@@ -126,7 +126,7 @@ export const LUAU_EXTENSION = ".luau";
 
 /** Whether `uri` is a Luau file a `run` statement reads, which is not a
  *  script of the story. */
-export const isLuauFile = (uri: string): boolean =>
+export const hasLuauExtension = (uri: string): boolean =>
   uri.endsWith(LUAU_EXTENSION);
 
 /**
@@ -152,7 +152,7 @@ export function projectLuauFiles(
   return [...new Set(fileUris)]
     .filter(
       (uri) =>
-        isLuauFile(uri) &&
+        hasLuauExtension(uri) &&
         isInProject(root, uri, mainScriptFilename, hasScript),
     )
     .map((uri) => ({

@@ -13,12 +13,12 @@ import {
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
 import {
-  isLuauFile,
+  hasLuauExtension,
   projectLuauFiles,
 } from "@impower/sparkdown/src/compiler/utils/projectMembership";
 import {
   findRunName,
-  resolveRunPathUri,
+  findRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
@@ -80,7 +80,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         file.name = this.getFileName(file.uri);
         file.ext = this.getFileExtension(file.uri);
         file.type = this.getFileType(file.uri);
-        if (file.type === "script" && !isLuauFile(file.uri)) {
+        if (file.type === "script" && !hasLuauExtension(file.uri)) {
           this._documents.add({
             textDocument: {
               uri: file.uri,
@@ -126,12 +126,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       return undefined;
     }
     if (quoted) {
-      const target = resolveRunPathUri(
+      return findRunPath(
         uri,
         `${path}.luau`,
+        [...this._watchedFiles.keys()].filter(hasLuauExtension),
         this.compilerConfig?.uriPathsAsWritten,
       );
-      return this._watchedFiles.has(target) ? target : undefined;
     }
     if (path.includes("/")) {
       return undefined;
@@ -584,7 +584,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (
       file &&
       file.type === "script" &&
-      !isLuauFile(file.uri) &&
+      !hasLuauExtension(file.uri) &&
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
@@ -621,7 +621,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (
       file &&
       file.type === "script" &&
-      !isLuauFile(file.uri) &&
+      !hasLuauExtension(file.uri) &&
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
@@ -666,7 +666,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   private isScriptDocument(uri: string): boolean {
-    if (isLuauFile(uri)) {
+    if (hasLuauExtension(uri)) {
       return false;
     }
     return this.getFileType(uri) === "script" ||
@@ -689,11 +689,33 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     // arrive for assets. An asset is not a compiler entry point: compiling it
     // would also replace the last script URI used by subsequent file updates.
     // A Luau file a `run` reads is not one either, but an edit to it changes
-    // the story that runs it, so it compiles its project's main script, which
-    // sees the edit through the file's own version (#1389).
-    if (isLuauFile(uri)) {
-      const mainUri = this.getMainScriptUri(uri);
-      return mainUri ? super.compile(mainUri, force) : undefined;
+    // every story that runs it (#1389): each entry whose last program read the
+    // file, which a quoted path can do from another project, compiles again
+    // and sees the edit through the file's own version. A file no program has
+    // read yet compiles its project's main script.
+    if (hasLuauExtension(uri)) {
+      // Each entry, and whether its program read an older version of the
+      // file. Once one entry has compiled, the file counts as compiled for
+      // every later one, so a later entry with an older read is forced.
+      const entries = new Map<string, boolean>();
+      const version = this._documentVersions.get(uri);
+      for (const state of this._programStates.values()) {
+        const read = state.program?.scripts?.[uri];
+        if (read !== undefined) {
+          entries.set(state.program!.uri, read !== version);
+        }
+      }
+      if (entries.size === 0) {
+        const mainUri = this.getMainScriptUri(uri);
+        if (mainUri) {
+          entries.set(mainUri, false);
+        }
+      }
+      let compiled: SparkProgram | undefined;
+      for (const [entry, stale] of entries) {
+        compiled = await super.compile(entry, force || stale);
+      }
+      return compiled;
     }
     if (!this.isScriptDocument(uri)) {
       const mainUri = this.getMainScriptUri(uri);

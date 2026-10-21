@@ -169,6 +169,7 @@ import {
 } from "../utils/declarationOnly";
 import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
+  hasLuauExtension,
   luauFileName,
   projectLuauFiles,
   projectPath,
@@ -182,7 +183,7 @@ import {
   missingRunPathMessage,
   quotedRunPath,
   relativeRunPath,
-  resolveRunPathUri,
+  findRunPath,
   runPathNearMisses,
   type RunFix,
   type RunFixData,
@@ -2295,9 +2296,18 @@ export class SparkdownCompiler {
       return { uri };
     };
     if (run.quote) {
-      // As the host spells the file's URI (`resolveRunPathUri`).
-      const uri = resolveRunPathUri(scriptUri, `${run.path}.luau`, asWritten);
-      if (this.documents.has(uri)) {
+      // Any registered Luau file, in the project or not, by its path as
+      // the file system names it (`findRunPath`).
+      const uri = findRunPath(
+        scriptUri,
+        `${run.path}.luau`,
+        this.files
+          .all()
+          .map((file) => file.uri)
+          .filter((file) => hasLuauExtension(file) && this.documents.has(file)),
+        asWritten,
+      );
+      if (uri) {
         return resolved(uri);
       } else {
         const spellings = runPathNearMisses(

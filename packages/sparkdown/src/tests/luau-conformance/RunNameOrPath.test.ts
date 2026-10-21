@@ -219,10 +219,16 @@ describe("run by name", () => {
   // space is offered by its path as the author writes it, and that path
   // runs it, in the web editor, which spells URIs as file names are written,
   // and in VS Code, which percent-encodes them.
+  // Round 2: and a folder whose name holds a character a URI reserves (`#`)
+  // or what reads as an escape (`%20` written as such) comes through too.
   test.each([
-    ["the web editor", "lib space/helpers.luau", true],
-    ["VS Code", "lib%20space/helpers.luau", false],
-  ])("offers and runs a candidate whose folder holds a space in %s", (_, path, asWritten) => {
+    ["the web editor", "lib space/helpers.luau", true, "lib space"],
+    ["VS Code", "lib%20space/helpers.luau", false, "lib space"],
+    ["the web editor", "lib#one/helpers.luau", true, "lib#one"],
+    ["VS Code", "lib%23one/helpers.luau", false, "lib#one"],
+    ["the web editor", "lib%20space/helpers.luau", true, "lib%20space"],
+    ["VS Code", "lib%2520space/helpers.luau", false, "lib%20space"],
+  ])("offers and runs a candidate whose folder is unusual in %s: %s", (_, path, asWritten, folder) => {
     const files = {
       [path]: "harness_record(1)\n",
       "scripts/helpers.luau": "harness_record(2)\n",
@@ -232,17 +238,17 @@ describe("run by name", () => {
       asWritten,
     );
     expect(ambiguous.errors).toEqual([
-      "More than one Luau file in the project is named 'helpers': 'lib space/helpers.luau' and 'scripts/helpers.luau'. Quote the path of the one to run.",
+      `More than one Luau file in the project is named 'helpers': '${folder}/helpers.luau' and 'scripts/helpers.luau'. Quote the path of the one to run.`,
     ]);
     const [error] = (ambiguous.result.program.diagnostics?.[MAIN] ?? []).filter(
       (d) => d.severity === 1,
     );
     expect(error!.data.runFixes[0]).toEqual({
-      title: 'Use "lib space/helpers"',
-      newText: '"lib space/helpers"',
+      title: `Use "${folder}/helpers"`,
+      newText: `"${folder}/helpers"`,
     });
     const { result, errors } = compileProject(
-      { "main.sd": mainRunning('"lib space/helpers"'), ...files },
+      { "main.sd": mainRunning(`"${folder}/helpers"`), ...files },
       asWritten,
     );
     expect(errors).toEqual([]);
