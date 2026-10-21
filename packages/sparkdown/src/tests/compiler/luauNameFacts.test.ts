@@ -50,6 +50,9 @@ describe("shared AST name facts", () => {
     ["style", "function inspect() local style = {}; setStyle(style) end\n"],
     ["layout", "function inspect() local layout = {}; return layout.x end\n"],
     ["match", "function inspect() local match = true; if match then print(1) end end\n"],
+    // A structural word whose rule holds no arms is a call (I-1304, I-1310).
+    ["match", "function inspect() local match = print; match(1) end\n"],
+    ["match", "function inspect() local match = print; match(\"a\") end\n"],
   ])("represents %s used as a name, with no uncertainty", (name, source) => {
     const value = script(source);
     const facts = names(value);
@@ -59,11 +62,11 @@ describe("shared AST name facts", () => {
     expect(value.result.lints).toEqual([]);
   });
 
-  // Where the grammar reads a construct that Luau reads as a name (a `match`
-  // whose subject is in parentheses, Luau's call), the word stays uncertain.
+  // Where the word opens an alternator, which Luau has no syntax for, the
+  // word stays uncertain.
   test.each([
-    ["match", "function inspect() local match = print; match(1) end\n"],
-    ["match", "function inspect() local match = print; match(\"a\") end\n"],
+    ["match", "function inspect() local match = print; return match(1) | a = 1 end end\n"],
+    ["match", "function inspect() local match = print; return match(\"a\") | a = 1 end end\n"],
   ])("retains unrepresented %s keyword occurrences as uncertainty without inventing AST uses", (name, source) => {
     const value = script(source);
     const facts = names(value);
@@ -91,8 +94,8 @@ describe("shared AST name facts", () => {
   });
 
   test("cached uncertainty recombines changed and removed scripts without creating definite global uses", () => {
-    const first = script("function inspect() local match = print; match(1) end\n");
-    const second = script("function other() local match = print; match(\"a\") end\n");
+    const first = script("function inspect() local match = print; return match(1) | a = 1 end end\n");
+    const second = script("function other() local match = print; return match(\"a\") | a = 1 end end\n");
     const cached = names(first);
     expect(lint.collectLuauLints(first.tree, (from, to) => first.text.slice(from, to)).names.uncertainNames === cached.uncertainNames).toBe(true);
     const index = (lint as any).indexProgramNames;

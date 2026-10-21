@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { namesValue } from "../../utils/alternatorDecision";
 import { ChangeDesc, MapMode, Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode, Tree } from "@lezer/common";
@@ -104,6 +105,10 @@ function makeGlobalScope(): ScopeFrame {
     frame.set(n, { kind: "namespace", fromStdlib: true });
   return frame;
 }
+
+// The token of a name no binding is known for, which a structural word that
+// names a value takes over the alternator keyword's scope (I-1310).
+const UNBOUND_NAME: SemanticInfo = { tokenType: "variable", tokenModifiers: [] };
 
 function semanticInfo(binding: Binding, declaration: boolean): SemanticInfo {
   const modifiers: SemanticTokenModifiers[] = [];
@@ -310,6 +315,8 @@ export class SemanticAnnotator extends SparkdownAnnotator<
             SparkdownAnnotation.mark(semanticInfo(binding, site.declaration))
               .range(site.from, site.to),
           );
+        } else if (site.nameFallback) {
+          add.push(SparkdownAnnotation.mark(UNBOUND_NAME).range(site.from, site.to));
         }
       },
     );
@@ -648,6 +655,23 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           ),
         );
       }
+    }
+    // A structural word whose rule holds no arms names a value (`match(1)`
+    // calls `match`, I-1310). The grammar gave it the alternator keyword's
+    // scope, since the arms come later than the word; this token overrides
+    // that with the name's, as a reference. An alternator's word keeps the
+    // keyword's scope, with no token. With no binding the word still takes
+    // a name's token (`nameFallback`), here and when a distant edit's
+    // replay reaches it.
+    if (nodeRef.name === "LuauControlKeyword" && namesValue(nodeRef.node)) {
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      const binding = this.lookupBinding(name);
+      this.dependencies.reference(nodeRef.node, name, false, true);
+      annotations.push(
+        SparkdownAnnotation.mark<SemanticInfo>(
+          binding ? semanticInfo(binding, false) : UNBOUND_NAME,
+        ).range(nodeRef.from, nodeRef.to),
+      );
     }
     // Narrative-scope **beat** declarations: `scene NAME`,
     // `branch NAME`, and `:: NAME` label headings. "Beat" is the
