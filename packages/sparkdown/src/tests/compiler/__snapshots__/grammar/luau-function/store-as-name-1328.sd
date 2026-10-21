@@ -1,0 +1,28 @@
+function a()
+  local store = 1
+  return store
+end
+function b(store)
+  return store
+end
+function c()
+  local function store() return 3 end
+  return store()
+end
+function d()
+  local x, store = 1, 2
+  const y, store = 1, 2
+  return x + store
+end
+function e(x, store)
+  for _, store in ipairs({1, 2}) do
+    x = x + store
+  end
+  return x
+end
+function f()
+  local t = {store = 4}
+  t.store = t.store + 1
+  store = t.store
+  return t.store
+end

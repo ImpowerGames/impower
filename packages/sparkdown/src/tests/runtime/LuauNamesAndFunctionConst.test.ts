@@ -36,11 +36,10 @@ const INK_WORDS = [
   "branch",
 ];
 
-// No longer reserved either, but the grammar still reads them as Sparkdown's
-// `define` and `store` declarations where a value or a statement begins
-// (GRAMMAR_GAP_BUG), so the function loses its `end` or its value.
-const GRAMMAR_GAP = ["define", "store"];
-const GRAMMAR_GAP_BUG = "ImpowerGames/impower-internal#1328";
+// The words that begin Sparkdown's `define` and `store` declarations, which
+// they begin only before a name: anywhere else in a function body they are
+// names, as Luau reads them, and the function ends at its own `end` (#1328).
+const STRUCTURAL_WORDS = ["define", "store"];
 
 const POSITIONS: [string, (word: string) => string, string][] = [
   ["a local", (word) => `Go {f()}.\nfunction f()\n  local ${word} = 1\n  return ${word}\nend\n`, "Go 1.\n"],
@@ -103,14 +102,59 @@ describe("an ink-era word is a valid Luau name (#1292)", () => {
   }
 });
 
-describe.skip(`\`define\` and \`store\` as Luau names (grammar gap, ${GRAMMAR_GAP_BUG})`, () => {
+describe("`define` and `store` as Luau names (#1328)", () => {
   for (const [position, source, expected] of POSITIONS) {
-    test.each(GRAMMAR_GAP)(`\`%s\` as ${position}`, (word) => {
+    test.each(STRUCTURAL_WORDS)(`\`%s\` as ${position}`, (word) => {
       const { errors, text } = run(source(word));
       expect(errors).toEqual([]);
       expect(text).toBe(expected);
     });
   }
+
+  // The ticket's shapes not in `POSITIONS`: a value read alone, a call, an
+  // assignment to the name and a field of a table it names.
+  test.each(STRUCTURAL_WORDS)("`%s` as a value, a call and an assignment target", (word) => {
+    const { errors, text } = run(
+      [
+        "Go {f()}.",
+        "function f()",
+        `  local ${word} = 1`,
+        `  ${word} = ${word} + 1`,
+        "  local function g() return 2 end",
+        `  local t = {${word} = g}`,
+        `  return ${word} + t.${word}()`,
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 4.\n");
+  });
+
+  // The declarations the words begin before a name keep their reading, at
+  // the top level and inside a function.
+  test("a store and a define keep their reading before a name", () => {
+    const { errors, text } = run(
+      [
+        "store count = 1",
+        "define Box with",
+        "  size = 2",
+        "end",
+        "Go {f()}.",
+        "function f()",
+        "  define Inner with",
+        "    size = 3",
+        "  end",
+        "  local b = new Box()",
+        "  local c = new Inner()",
+        "  return count + b.size + c.size",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 6.\n");
+  });
 });
 
 describe("names in a list (#1292)", () => {
@@ -144,18 +188,19 @@ describe("names in a list (#1292)", () => {
     expect(text).toBe("Go 3.\n");
   });
 
-  // The tree begins a `const` declaration at `const` on the next line, and
-  // the reading ends the list before it (`STATEMENT_BREAKS`), so the missing
-  // binding is reported rather than the program silently reading nil. Luau
-  // reads `const` there as the next name: GRAMMAR_GAP_BUG.
-  test("a list continued with `const` on the next line reports its missing name", () => {
-    const ctx = makeRuntimeStoryFromSource(
-      "Go {f()}.\nfunction f()\n  local a,\n    const = 1, 2\n  return 1\nend\n",
-    );
-    expect([...ctx.errorMessages]).toEqual([
-      "Expected identifier when parsing variable name, got 'const'",
-    ]);
-  });
+  // `const`, `store` and `define` begin a declaration only before a name, so
+  // on the next line of a list they are its next name, as Luau reads them
+  // (#1328).
+  test.each(["const", ...STRUCTURAL_WORDS])(
+    "a list continued with `%s` on the next line takes it as the name",
+    (word) => {
+      const { errors, text } = run(
+        `Go {f()}.\nfunction f()\n  local a,\n    ${word} = 1, 2\n  return a + ${word}\nend\n`,
+      );
+      expect(errors).toEqual([]);
+      expect(text).toBe("Go 3.\n");
+    },
+  );
 
   // The lowerer reads these as Luau where the type checker does not, so the
   // name after the comma is the reading's binding there too (round 2).

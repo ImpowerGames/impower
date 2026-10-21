@@ -1,0 +1,18 @@
+store count = 1
+define Box with
+  size = 2
+end
+function f()
+  define Inner with
+    size = 3
+  end
+  store total = 4
+  const k = 5
+  local a,
+    store = 1, 2
+  local b,
+    const = 1, 2
+  local c,
+    define = 1, 2
+  return define + store + const
+end

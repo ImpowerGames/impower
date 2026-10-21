@@ -1,0 +1,28 @@
+function a()
+  local define = 1
+  return define
+end
+function b(define)
+  return define
+end
+function c()
+  local function define() return 3 end
+  return define()
+end
+function d()
+  local x, define = 1, 2
+  const y, define = 1, 2
+  return x + define
+end
+function e(x, define)
+  for _, define in ipairs({1, 2}) do
+    x = x + define
+  end
+  return x
+end
+function f()
+  local t = {define = 4}
+  t.define = t.define + 1
+  define = t.define
+  return t.define
+end
