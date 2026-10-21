@@ -28,6 +28,7 @@ import {
   isPureNumberStdLibOp,
   isStdLibFunctionName,
   isStdLibNamespaceName,
+  luauStringToBytes,
   luauTypeOf,
   lookupAnyStdLib,
   stdLibRequiredArgs,
@@ -145,8 +146,8 @@ function luauIndexTargetError(v: unknown, key: unknown): string | null {
 }
 
 // Luau's message for indexing a value of type `baseType` with `key`
-// (`luaG_indexerror`): a string key of at most 64 characters is quoted,
-// any other key is named by its type.
+// (`luaG_indexerror`): a string key of at most 64 bytes is quoted, any
+// other key is named by its type.
 function luauIndexError(baseType: string, key: unknown): string {
   const keyText =
     typeof key === "string"
@@ -154,7 +155,7 @@ function luauIndexError(baseType: string, key: unknown): string {
       : key instanceof StringValue
         ? key.value
         : null;
-  return keyText != null && keyText.length <= 64
+  return keyText != null && luauStringToBytes(keyText).length <= 64
     ? `attempt to index ${baseType} with '${keyText}'`
     : `attempt to index ${baseType} with ${luauTypeOf(key)}`;
 }

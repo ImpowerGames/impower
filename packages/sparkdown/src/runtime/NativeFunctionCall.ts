@@ -492,6 +492,15 @@ export class NativeFunctionCall extends InkObject {
       );
     }
 
+    // `#` takes a string or a table; any other operand (a number, a
+    // boolean, a function, a userdata) raises Luau's type error.
+    if (parameters.length === 1 && this.name === NativeFunctionCall.Length) {
+      const type = luauTypeOf(parameters[0]);
+      if (type !== "string" && type !== "table") {
+        throw luauRuntimeError(`attempt to get length of a ${type} value`);
+      }
+    }
+
     // (set defined at module scope below the class — see
     // ARITHMETIC_OP_NAMES)
     // Lua arithmetic string coercion: numeric-string operands of the

@@ -43,7 +43,7 @@ it("is reported with the line prefix a binary operator on nil gets", () => {
   const length = run("Before.\n& local n = #x\n").errors;
   const binary = run("Before.\n& local n = x + 1\n").errors;
   expect(binary).toHaveLength(1);
-  const prefix = binary[0]!.slice(0, binary[0]!.indexOf("Attempting"));
+  const prefix = binary[0]!.slice(0, binary[0]!.indexOf("attempt to"));
   expect(prefix).not.toBe("");
   expect(length).toEqual([`${prefix}attempt to get length of a nil value`]);
 });

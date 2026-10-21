@@ -96,6 +96,29 @@ end)
 assert(not ok and err == t)`);
   });
 
+  test("a value raised in a builtin's callback reaches pcall unchanged", () => {
+    passes(`local t = {}
+local ok, err = pcall(table.sort, {2, 1}, function() error(t) end)
+assert(not ok and rawequal(err, t))
+local ok2, err2 = pcall(function()
+  table.sort({2, 1}, function() error(t) end)
+end)
+assert(not ok2 and rawequal(err2, t))
+local ok3, err3 = pcall(string.gsub, "a", "a", function() error(nil) end)
+assert(not ok3 and err3 == nil)
+local ok4, err4 = xpcall(function()
+  table.sort({2, 1}, function() error(t) end)
+end, function(e) return rawequal(e, t) end)
+assert(not ok4 and err4 == true)`);
+  });
+
+  test("a value raised by __tostring under string.format reaches pcall", () => {
+    passes(`local t = {}
+local v = setmetatable({}, { __tostring = function() error(t) end })
+local ok, err = pcall(string.format, "%s", v)
+assert(not ok and rawequal(err, t))`);
+  });
+
   test("an uncaught table error still ends the story with an error", () => {
     const r = runConformanceSource(`error({})`, undefined, "repro.luau");
     expect(r.errorMessages.length).toBe(1);
@@ -164,6 +187,25 @@ return "a" .. x`, "repro.luau:3: attempt to concatenate string with nil");
   test("the length of nil keeps I-1083's text", () => {
     trapped(`local x = nil
 return #x`, "repro.luau:3: attempt to get length of a nil value");
+  });
+
+  test("the length of a number, a boolean or a function", () => {
+    trapped(`local n = 42
+return #n`, "repro.luau:3: attempt to get length of a number value");
+    trapped(`local b = true
+return #b`, "repro.luau:3: attempt to get length of a boolean value");
+    trapped(`local f = function() end
+return #f`, "repro.luau:3: attempt to get length of a function value");
+  });
+
+  test("an index key is quoted up to 64 bytes", () => {
+    // 21 three-byte characters are 63 bytes; 22 are 66.
+    trapped(`local t, k = nil, string.rep("界", 21)
+return t[k]`, `repro.luau:3: attempt to index nil with '${"界".repeat(21)}'`);
+    trapped(`local t, k = nil, string.rep("界", 22)
+return t[k]`, "repro.luau:3: attempt to index nil with string");
+    trapped(`local t, k = nil, string.rep("a", 65)
+return t[k]`, "repro.luau:3: attempt to index nil with string");
   });
 
   test("negating nil keeps I-1083's text", () => {

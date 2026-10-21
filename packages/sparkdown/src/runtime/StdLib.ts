@@ -1869,7 +1869,7 @@ function unpackImpl(story: any, args: any[], fnName: string): any[] {
 // such strings via utf8.char or `\xNN` escapes.
 // ============================================================
 
-function luauStringToBytes(s: string): number[] {
+export function luauStringToBytes(s: string): number[] {
   const out: number[] = [];
   for (const ch of s) {
     const cp = ch.codePointAt(0)!;
@@ -6511,7 +6511,7 @@ export function isStdLibFunctionName(name: string): boolean {
 // `name + "."`. Used by the runtime dotted-read error path to
 // distinguish `math.idontexist` (a valid read of a missing member of
 // an existing table → nil) from `idontexist.a` (indexing nil →
-// "attempt to index a nil value").
+// "attempt to index nil with 'a'").
 const STDLIB_NAMESPACES: Set<string> = (() => {
   const out = new Set<string>();
   for (const key of Object.keys(STDLIB)) {

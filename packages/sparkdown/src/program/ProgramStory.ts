@@ -2124,12 +2124,14 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Raises `message` in place of `cause`, an error a callback raised,
-   *  keeping where the callback raised it (`Story.ErrorFrom`). */
+   *  keeping where the callback raised it (`Story.ErrorFrom`) and the value
+   *  `error` raised there, which `pcall` returns unchanged. */
   ErrorFrom(message: string, cause: unknown): never {
     const e = new StoryException(message);
     if (cause instanceof StoryException) {
       e.raisedPath = cause.raisedPath;
       e.raisedAddress = cause.raisedAddress;
+      e.errorValue = cause.errorValue;
     }
     throw e;
   }
