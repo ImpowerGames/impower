@@ -122,6 +122,13 @@ variables:
   # the `:` and the word (`LuauExpressionKeywordMethodAccessor`, I-1351).
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which is no method's `:`; the variable is read only inside a type's `end:` lookahead and an accessor's begin lookahead (GRAMMAR.md §10.1, the end carrying the load).
   LUAU_COLON_BEFORE_RESERVED_WORD: (?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_NON_TYPE_KEYWORDS}})
+  # The same `:` right after a complete type (`T:end`), where a type and the
+  # operation and cast around it end. Only there does no type begin at it: a
+  # `:` after a type operator begins the stray-colon type it did before
+  # (`T | :end`), which its operation, ending only after a complete type,
+  # still holds.
+  # lookaround: `LuauTypeLiteral`'s begin refuses this `:` only where its own `end:` and its rivals' (`LuauTypeBinaryOperation`, `LuauTypeCastOperation`) would close at it; a begin without the lookbehind refuses a `:` no end stops before, which leaves the operation around it with nothing to read (GRAMMAR.md §17.2).
+  LUAU_TYPE_ENDS_BEFORE_RESERVED_WORD: (?:(?<={{LUAU_TYPE_END}}{{WS}}*){{LUAU_COLON_BEFORE_RESERVED_WORD}})
   # A bracket also ends before a bracket closer it did not open, as Luau's
   # expression parser stops at it and reports the bracket left open
   # (`{ f(1 }` closes the call before the `}`, which the table takes):
@@ -14601,11 +14608,12 @@ repository:
   # opener leaves the name opener needing the same exclusion, and a
   # type-name variable used only here would hold the lookahead without
   # replacing it.
-  # A `:` that a reserved word no type can begin follows begins no type
-  # either: the type ends before one (`LUAU_COLON_BEFORE_RESERVED_WORD`), so
-  # a type opened there would end where it began, again and again.
+  # A `:` right after a complete type that a reserved word no type can begin
+  # follows begins no type either: the type ends before one
+  # (`LUAU_TYPE_ENDS_BEFORE_RESERVED_WORD`), so a type opened there would end
+  # where it began, again and again.
   LuauTypeLiteral:
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_NAME_OR_CONSTANT}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|(?!{{LUAU_COLON_BEFORE_RESERVED_WORD}})[:]|[.][.][.])"
+    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_NAME_OR_CONSTANT}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|(?!{{LUAU_TYPE_ENDS_BEFORE_RESERVED_WORD}})[:]|[.][.][.])"
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }

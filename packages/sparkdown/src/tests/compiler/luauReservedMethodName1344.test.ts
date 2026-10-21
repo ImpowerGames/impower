@@ -148,6 +148,18 @@ const CASES: Record<string, [form: string, first: string][]> = {
   ],
 };
 
+// A `:` after a type operator, where no type has ended, still begins the type
+// that reads it as stray, so the operation around it is never left with
+// nothing to read (round 1, `undirected` finding 1). Where the function ends
+// there is as on the base revision.
+test.each([["local b = t :: T | :end"], ["local b = t :: T & :do"], ["local b = t :: () -> :end"]])(
+  "a reserved method name after a type operator leaves the tree whole: %s",
+  (form) => {
+    const text = `${HEADER}${form}${FOOTER}${STORY}`;
+    expect(stripAnsi(dumpTree(text))).not.toContain("ERROR_INCOMPLETE");
+  },
+);
+
 describe("a reserved word read as a method's name (I-1344, I-1351)", () => {
   for (const [name, forms] of Object.entries(CASES)) {
     describe(name, () => {

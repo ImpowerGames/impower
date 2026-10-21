@@ -67,6 +67,7 @@
     "LUAU_METHOD_TRIVIA": "(?:{{WS}}*{{LUAU_BLOCK_COMMENT_ON_LINE}}*)",
     "LUAU_COLON_BEFORE_HEADER_END": "(?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})",
     "LUAU_COLON_BEFORE_RESERVED_WORD": "(?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_NON_TYPE_KEYWORDS}})",
+    "LUAU_TYPE_ENDS_BEFORE_RESERVED_WORD": "(?:(?<={{LUAU_TYPE_END}}{{WS}}*){{LUAU_COLON_BEFORE_RESERVED_WORD}})",
     "LUAU_NOT_PARENTHESIS_CLOSER": "(?:{{LUAU_CLOSER}}|[\\]}])",
     "LUAU_NOT_SQUARE_BRACKET_CLOSER": "(?:{{LUAU_CLOSER}}|[)}])",
     "LUAU_NOT_BRACE_CLOSER": "(?:{{LUAU_CLOSER}}|[)\\]])",
@@ -19250,7 +19251,7 @@
       "match": "(.+)"
     },
     "LuauTypeLiteral": {
-      "begin": "(?=(?!\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)(?:(?:nil|true|false)(?![a-zA-Z0-9_])|(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|(?!(?:[:](?![:])(?:(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[(?:\\[(?:[^\\]\\n]|\\](?!\\]))*\\]\\]|=\\[(?:[^\\]\\n]|\\](?!=\\]))*\\]=\\]|==\\[(?:[^\\]\\n]|\\](?!==\\]))*\\]==\\]|===\\[(?:[^\\]\\n]|\\](?!===\\]))*\\]===\\])(?:(?:[^\\S\\n\\r])*))*)\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b))[:]|[.][.][.])",
+      "begin": "(?=(?!\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)(?:(?:nil|true|false)(?![a-zA-Z0-9_])|(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|(?!(?:(?<=(?:[\\w)}\\]\"'`?]|[^-]>|^>)(?:[^\\S\\n\\r])*)(?:[:](?![:])(?:(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[(?:\\[(?:[^\\]\\n]|\\](?!\\]))*\\]\\]|=\\[(?:[^\\]\\n]|\\](?!=\\]))*\\]=\\]|==\\[(?:[^\\]\\n]|\\](?!==\\]))*\\]==\\]|===\\[(?:[^\\]\\n]|\\](?!===\\]))*\\]===\\])(?:(?:[^\\S\\n\\r])*))*)\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)))[:]|[.][.][.])",
       "patterns": [
         {
           "include": "#LuauTypeTrailingBlockComment"
