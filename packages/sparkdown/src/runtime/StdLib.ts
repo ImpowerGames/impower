@@ -1869,7 +1869,7 @@ function unpackImpl(story: any, args: any[], fnName: string): any[] {
 // such strings via utf8.char or `\xNN` escapes.
 // ============================================================
 
-function luauStringToBytes(s: string): number[] {
+export function luauStringToBytes(s: string): number[] {
   const out: number[] = [];
   for (const ch of s) {
     const cp = ch.codePointAt(0)!;
@@ -3295,8 +3295,24 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // messages). Force-ends the story like `assert`'s failure path.
   error: {
     arity: 1,
+    // No argument is a nil error value, not a missing argument:
+    // `pcall(error)` returns `false, nil` (tmerror.luau line 65).
+    validatesArgs: true,
     fn: (story, [msg]) => {
-      const raw = coerceString(msg) ?? "error";
+      const raw = coerceString(msg);
+      if (raw === null) {
+        // Any value but a string or a number message (a table, nil, a
+        // boolean, a function) is raised as it is, with no position, and
+        // `pcall` returns it unchanged. An uncaught one reports its type,
+        // as Lua's standalone interpreter does.
+        const value =
+          msg == null ? new NullValue() : oneValue(msg as AbstractValue);
+        const e = new StoryException(
+          `(error object is a ${luauTypeOf(value)} value)`,
+        );
+        e.errorValue = value;
+        throw e;
+      }
       // Hook for hosts that want to inject `<source>:<line>: `
       // prefix into the message (Luau-spec format used by the
       // conformance test suite). Production hosts (LSP) leave the
@@ -3799,7 +3815,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
 
   // `pcall(f, arg1, ...)` — protected call. Runs `f(arg1, ...)` with
   // errors trapped. Returns `(true, ...returns)` on success or
-  // `(false, errorMessage)` on error. The trapped error is removed
+  // `(false, errorMessage)` on error, or `(false, v)` for a value `v`
+  // that `error(v)` raised in place of a message. The trapped error is removed
   // from the story's error list — it doesn't escape the protected
   // block. See `Story.CallLuauFunctionProtected` for the trap impl.
   pcall: {
@@ -3820,7 +3837,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       return new MultiValue([
         new BoolValue(false),
-        new StringValue(result.errorMessage ?? "pcall: unknown error"),
+        result.errorValue ??
+          new StringValue(result.errorMessage ?? "pcall: unknown error"),
       ]);
     },
   },
@@ -3851,15 +3869,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return protectedSuccess(result.values);
       }
       // Run the message handler, whose first value is the error xpcall
-      // returns, nil when it returns none. If it fails, fall back to the
-      // raw error.
-      const errMsg = result.errorMessage ?? "xpcall: unknown error";
-      const handlerResult = story.CallLuauFunctionProtected(msgh, [
-        new StringValue(errMsg),
-      ]);
+      // returns, nil when it returns none. It receives the value `error`
+      // raised, or the message. If it fails, fall back to the raw error.
+      const err =
+        result.errorValue ??
+        new StringValue(result.errorMessage ?? "xpcall: unknown error");
+      const handlerResult = story.CallLuauFunctionProtected(msgh, [err]);
       const handled = handlerResult.ok
         ? oneValue(handlerResult.values[0] ?? new NullValue())
-        : new StringValue(errMsg);
+        : err;
       return new MultiValue([new BoolValue(false), handled]);
     },
   },
@@ -6493,7 +6511,7 @@ export function isStdLibFunctionName(name: string): boolean {
 // `name + "."`. Used by the runtime dotted-read error path to
 // distinguish `math.idontexist` (a valid read of a missing member of
 // an existing table → nil) from `idontexist.a` (indexing nil →
-// "attempt to index a nil value").
+// "attempt to index nil with 'a'").
 const STDLIB_NAMESPACES: Set<string> = (() => {
   const out = new Set<string>();
   for (const key of Object.keys(STDLIB)) {

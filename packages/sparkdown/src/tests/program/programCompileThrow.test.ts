@@ -47,7 +47,7 @@ describe("a compile whose statement throws", () => {
     const errors = errorsOf(program);
     expect(errors.map(([line]) => line)).toEqual([1]);
     expect(errors[0]![1]).toMatch(
-      /^The compile stopped at this statement, so no program was made: .*perform \/\/ on a nil value/,
+      /^The compile stopped at this statement, so no program was made: .*attempt to perform arithmetic \(idiv\) on number and nil/,
     );
   });
 
@@ -168,7 +168,7 @@ describe("a compile whose statement throws", () => {
     const errors = errorsOf(program);
     expect(errors.map(([line]) => line)).toEqual([5]);
     expect(errors[0]![1]).toMatch(
-      /^The compile stopped at this statement, so no program was made: .*perform \/\/ on a nil value/,
+      /^The compile stopped at this statement, so no program was made: .*attempt to perform arithmetic \(idiv\) on number and nil/,
     );
   });
 

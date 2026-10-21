@@ -106,7 +106,12 @@ export interface StoryEngine {
   CallLuauFunctionProtected(
     fnValue: AbstractValue,
     args: AbstractValue[],
-  ): { ok: boolean; values: AbstractValue[]; errorMessage?: string };
+  ): {
+    ok: boolean;
+    values: AbstractValue[];
+    errorMessage?: string;
+    errorValue?: AbstractValue;
+  };
 
   // Errors, and the call stack the standard library's `debug` builtins read.
   Error(message: string, useEndLineNumber?: boolean): never;

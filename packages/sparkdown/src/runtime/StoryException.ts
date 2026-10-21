@@ -12,6 +12,17 @@ export class StoryException extends Error {
    *  instruction as the error unwinds through it. Null while the running
    *  instruction is still the one that raised it. */
   public raisedAddress: number | null = null;
+  /** The value `error(v)` raised when it is no string or number message
+   *  (a table, nil, a boolean, a function), which `pcall` and `xpcall`
+   *  return unchanged in place of `message`. Undefined for a message. */
+  public errorValue: unknown = undefined;
+  /** True for an error the Luau VM raises for an operation
+   *  (`luaG_runerror`: a call, an index, arithmetic, a comparison), which
+   *  takes the position of the instruction raising it from the story's
+   *  `errorMessageFormatter`, as `error` does. The step running that
+   *  instruction adds it and clears this; an error a builtin raises for its
+   *  arguments (`luaL_error`) never sets it. */
+  public positionPending = false;
   public override message: string;
   public override name: string;
 
@@ -21,6 +32,14 @@ export class StoryException extends Error {
     this.message = message;
     this.name = "StoryException";
   }
+}
+
+/** An error the Luau VM raises for an operation, in Luau's wording, which
+ *  the step running the operation positions (`positionPending`). */
+export function luauRuntimeError(message: string): StoryException {
+  const e = new StoryException(message);
+  e.positionPending = true;
+  return e;
 }
 
 /** Thrown by `Story.Step()` when the story passes its `stepLimit`. It is not a
