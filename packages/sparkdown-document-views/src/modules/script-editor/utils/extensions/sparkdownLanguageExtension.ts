@@ -15,7 +15,7 @@ import {
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
-import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { sparkdownGrammarFor } from "@impower/sparkdown/src/compiler/utils/sparkdownGrammarFor";
 import {
   type InitializeParams,
   type InitializeResult,
@@ -50,9 +50,10 @@ export const sparkdownLanguageExtension = (config: {
   const serverInitializeResult = config.serverInitializeResult;
   const serverWorkspace = config.serverWorkspace;
 
+  // A `.luau` document is read from the grammar's Luau root.
   const languageSupport = vscodeLanguage({
     name: "sparkdown",
-    grammar: GRAMMAR_DEFINITION,
+    grammar: sparkdownGrammarFor(textDocument.uri),
     config: CONFIG_DEFINITION,
   });
 

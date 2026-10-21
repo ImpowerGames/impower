@@ -22,10 +22,10 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import type { Position } from "./Location";
 import { isLuauFile } from "./LuauUnitNodes";
 import { Mode, type HotComment, type Module, type SourceModule } from "./Module";
-import { readLuauRunFile, readLuauUnits, type LuauAstUnit, type LuauAstUnits, type LuauSyntaxError } from "./readLuauAst";
+import { readLuauFile, readLuauRunFile, readLuauUnits, type LuauAstUnit, type LuauAstUnits, type LuauSyntaxError } from "./readLuauAst";
 import type { Scope } from "./Scope";
 import { readSparkdownStatements } from "./SparkdownReading";
-import { runWrapperName, runWrapperPrefix, runWrapperText } from "../utils/runWrapper";
+import { runWrapperName } from "../utils/runWrapper";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
 export type TypecheckModeName = "strict" | "nonstrict" | "nocheck";
@@ -105,16 +105,18 @@ export interface SparkdownUnits {
 const documentUnits = new WeakMap<Tree, LuauAstUnits>();
 
 /**
- * A `.sd` file's Luau units as `readLuauUnits` reads them, each in its own
- * lines, read once per syntax tree: the checker and the lints
- * (`collectLuauLints.ts`) read the same units. A unit's Sparkdown statements
+ * A document's Luau units, each in its own lines, read once per syntax tree:
+ * the checker and the lints (`collectLuauLints.ts`) read the same units. A
+ * `.sd` file's are `readLuauUnits`'s; a `.luau` file (`luauFile`), whose
+ * tree the grammar's `.luau` root reads (GRAMMAR.md §1.5), is one unit, its
+ * whole text (`readLuauFile`), with no flows. A unit's Sparkdown statements
  * are read as the Luau they hold (`readSparkdownStatements`), as the checker
  * reads them.
  */
-export function readDocumentUnits(tree: Tree, documentText: string): LuauAstUnits {
+export function readDocumentUnits(tree: Tree, documentText: string, luauFile = false): LuauAstUnits {
   let read = documentUnits.get(tree);
   if (!read) {
-    read = readLuauUnits(tree, documentText, { unitLines: true });
+    read = luauFile ? { prelude: readLuauFile(tree, documentText, { unitLines: true }), flows: [] } : readLuauUnits(tree, documentText, { unitLines: true });
     for (const unit of [read.prelude, ...read.flows]) readSparkdownStatements(unit.root);
     documentUnits.set(tree, read);
   }
@@ -143,18 +145,12 @@ export function runFileUnit(uri: string, documentText: string, tree: Tree): Luau
 }
 
 /**
- * A `.luau` file's Luau, read from its text as a `run` reads it: the grammar
- * reads a `.luau` document on its own as narrative, so the file's text is
- * wrapped as a `run` wraps it, parsed with `parse`, and its wrapper's body
- * read, with the unit's lines the file's own.
+ * A `.luau` file's Luau, read from the document's own tree, which the
+ * grammar's `.luau` root reads as Luau from the first line (GRAMMAR.md
+ * §1.5): the whole document, as one unit, the one the lints read.
  */
-export function luauFileUnit(documentText: string, parse: (text: string) => Tree): LuauUnit | undefined {
-  const wrapper = "__luau_file";
-  const wrapped = runWrapperText(wrapper, documentText);
-  const read = readLuauRunFile(parse(wrapped), wrapped, { unitLines: true });
-  if (!read) return undefined;
-  const offset = runWrapperPrefix(wrapper).split("\n").length - 1;
-  return { ...checkedUnit(read), lines: (read.lines ?? []).map((line) => line - offset) };
+export function luauFileUnit(documentText: string, tree: Tree): LuauUnit {
+  return checkedUnit(readDocumentUnits(tree, documentText, true).prelude);
 }
 
 /** The result of checking one unit. */

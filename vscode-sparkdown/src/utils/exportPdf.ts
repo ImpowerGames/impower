@@ -63,7 +63,11 @@ export const exportPdf = async (
             ),
           );
         if (workspaceScriptFileUris) {
-          scriptFileUris = workspaceScriptFileUris;
+          // The screenplay is the Sparkdown scripts, not the Luau files a
+          // `run` statement reads (#1389).
+          scriptFileUris = workspaceScriptFileUris.filter(
+            (fileUri) => !fileUri.path.endsWith(".luau"),
+          );
         }
         if (workspaceFontFileUrls) {
           fontFileUris = workspaceFontFileUrls;

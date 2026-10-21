@@ -41,10 +41,12 @@ describe("syntax diagnostics", () => {
     expect(checkLuau("--!strict\nlocal x = 1").syntaxDiagnostics).toEqual([]);
   });
 
-  test("a line read as something other than Luau is reported where it starts, in the snippet's own lines and columns", () => {
+  // A snippet is a `.luau` file, which is Luau from its first line (I-1320),
+  // so a line that would be a divert in a script is Luau's error.
+  test("a line Luau cannot read is reported where it starts, in the snippet's own lines and columns", () => {
     const [first] = checkLuau("local x = 1\n-> elsewhere\nlocal y = 2").syntaxDiagnostics;
     expect(first).toMatchObject({ line: 1, column: 0, code: "SyntaxError" });
-    expect(first?.message).toMatch(/^Sparkdown read "->" as DivertMark, not Luau$/);
+    expect(first?.message).toBe("Expected identifier when parsing expression, got '->'");
   });
 
   test("a construct the grammar once could not finish is read whole", () => {

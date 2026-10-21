@@ -175,7 +175,7 @@ end
     // sample writes `inventory.star += 1` directly — DESIGN DECISION:
     // autovivify `inventory` on first nested write, or require a
     // declaration. When resolved, flip this assertion.
-    expect(r.runtimeError).toContain("attempt to index a nil value");
+    expect(r.runtimeError).toContain("attempt to index nil with 'star'");
   });
 
   test("nested table with explicit declaration (inventory = {} then .star += 1)", () => {

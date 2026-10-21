@@ -123,7 +123,7 @@ import {
   type SparkdownSource,
 } from "./Ast";
 import { Location, Position } from "./Location";
-import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
+import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, isSparkdownExpression, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
@@ -187,12 +187,15 @@ export interface LuauSyntaxError {
  * the token found, a member access with no name after its `.` or `:`, a
  * method call with no arguments, or a function value with a name
  * (`expression`); a statement that is a value but not a call
- * (`statement`); and an attribute Luau does not know, repeats, or gives
+ * (`statement`); a local declaration's name list with a name missing
+ * where a token of its line stands (`local = 1`, `local a, = 1`), which the
+ * grammar reads as names and an assignment however few names it holds
+ * (`declaration`); and an attribute Luau does not know, repeats, or gives
  * arguments it does not take, such as a value that is not a literal
  * (`attribute`), where the grammar reads the attribute and its arguments
  * as it reads any.
  */
-export type MalformedConstruct = "type" | "annotation" | "expression" | "statement" | "attribute";
+export type MalformedConstruct = "type" | "annotation" | "expression" | "statement" | "declaration" | "attribute";
 
 /** A node of the syntax tree, by its name and document offsets (a `SyntaxNode` is not kept, since the tree makes a new one on every visit). */
 export interface TreeNodeRef {
@@ -522,6 +525,12 @@ interface Token {
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
   unread?: true;
+  /** A token of the rest of a backtick string Luau's parser gave up on (`stringRest`, I-1406). */
+  abandoned?: true;
+  /** The implicit `function` of a function the author wrote without it (a `define` method, a handler's closure), read as Luau reads the function it stands for. */
+  written?: true;
+  /** A `store` that Luau code's `LuauVariableDefinition` begins, which is a name when no name or `function` follows it (see `parseStat`). */
+  luauCodeStore?: true;
 }
 
 
@@ -598,8 +607,7 @@ const OWN_CLOSERS: Readonly<Record<string, ReadonlySet<string>>> = (() => {
     LuauFunctionTypeDeclaration: end,
     LuauMethodDefinition: end,
     LuauDefine: end,
-    LuauConditionalAlternatorBlock: end,
-    LuauSequentialAlternatorBlock: end,
+    LuauAlternatorArms: end,
     LuauFunctionCallParameters: none,
     LuauFunctionParameters: none,
     LuauParenthetical: none,
@@ -691,7 +699,7 @@ const readsFromTree = (node: SyntaxNode): boolean =>
   node.name === RAW_STRING ||
   node.name === INTERPOLATED_STRING ||
   node.name === "LuauNewExpression" ||
-  SPARKDOWN_EXPRESSIONS.has(node.name) ||
+  isSparkdownExpression(node) ||
   node.name === "LuauAssignmentOperation";
 const isNumber = nameTest(NUMBER);
 const isComment = nameTest(COMMENT);
@@ -835,8 +843,8 @@ class Tokenizer {
   }
 
   /** Writes a token the unit needs that the text does not hold, at an offset, as part of the node being read. */
-  synthetic(kind: TokenKind, text: string, at: number): void {
-    this.tokens.push({ kind, text, from: at, to: at, location: this.location(at, at), source: this.source });
+  synthetic(kind: TokenKind, text: string, at: number, written?: true): void {
+    this.tokens.push({ kind, text, from: at, to: at, location: this.location(at, at), source: this.source, ...(written && { written }) });
   }
 
   /** Reads the tokens of a node and everything under it. */
@@ -913,7 +921,9 @@ class Tokenizer {
       for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;
       return;
     }
-    if (SPARKDOWN_EXPRESSIONS.has(name)) {
+    // A structural word's rule that holds no arms is read as Luau, through
+    // its children: the word is a name (`match(1)` is a call, I-1310).
+    if (isSparkdownExpression(node)) {
       if (to > from) this.push("sparkdown", from, to, node);
       return;
     }
@@ -991,7 +1001,12 @@ class Tokenizer {
     if (name === "LuauScopeModifier") {
       const modifier = this.text.slice(from, to);
       if (LUAU_SCOPE_MODIFIERS.has(modifier)) this.lex(from, to);
-      else if (modifier === "store") this.push("store", from, to);
+      else if (modifier === "store") {
+        this.push("store", from, to);
+        let rule = node.parent;
+        while (rule && rule.name.includes("_")) rule = rule.parent;
+        if (rule?.name === "LuauVariableDefinition") this.tokens[this.tokens.length - 1]!.luauCodeStore = true;
+      }
       return;
     }
     if (!name.startsWith("Luau") && !isNeutral(node)) return;
@@ -1686,6 +1701,12 @@ class Parser {
    */
   storyFunctions = 1;
   readonly statements: { statement: AstStat; first: number; end: number }[] = [];
+  /**
+   * Not part of Luau: for each backtick string Luau's parser gave up on
+   * (`parseInterpString`), by its node's start, the offset of the first
+   * token read after it.
+   */
+  readonly abandonedStrings = new Map<number, number>();
 
   constructor(
     private tokens: Token[],
@@ -2177,7 +2198,9 @@ class Parser {
         semicolon = true;
       }
       // A token no statement begins with is skipped, so the reading goes on.
-      if (this.current() === start && this.pos === first) this.next();
+      // (By its place: a string met there may be split into Luau's lexemes,
+      // the first of them standing in its place, `parsePrefixExpr`.)
+      if (this.pos === first) this.next();
       // A statement whose error Luau keeps only once (at the same token as
       // the error before it) goes on with the cascade all the same.
       unreadErrors = this.markUnreadErrors({ tokens: this.tokens, first, end: this.pos, errorsFrom: errorsBefore, errorsTo: this.errors.length }, unreadRecovery) && this.reports > reportsBefore;
@@ -2276,7 +2299,12 @@ class Parser {
     } else if (token.kind === "mark") {
       return this.parseExplicit();
     } else if (token.kind === "store") {
-      return this.parseStore();
+      // Luau code begins a store before a comment that spans lines, which
+      // hides the token after it from the grammar; with no name or
+      // `function` after the comment (`store --[[ c`, then `]] = 3`) the
+      // word is the name Luau reads (#1328).
+      if (!token.luauCodeStore || this.isName(this.lookahead()) || this.is("function", this.lookahead())) return this.parseStore();
+      this.tokens[this.pos] = { ...token, kind: "name" };
     } else if (token.kind === "choose") {
       return this.parseChoose();
     }
@@ -2763,7 +2791,7 @@ class Parser {
       return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     const names: Binding[] = [];
-    this.parseBindingList(names, false, isConst);
+    this.parseBindingList(names, false, isConst, true);
     const values: AstExpr[] = [];
     let equalsSignLocation: Location | undefined;
     if (this.is("=")) {
@@ -2914,7 +2942,7 @@ class Parser {
     if (localName) funLocal = this.pushLocal({ name: localName, annotation: undefined, isConst });
 
     const localsBegin = this.saveLocals();
-    this.functionStack.push({ vararg, loopDepth: 0, luau: matchFunction.from < matchFunction.to });
+    this.functionStack.push({ vararg, loopDepth: 0, luau: matchFunction.from < matchFunction.to || matchFunction.written === true });
     let self: AstLocal | undefined;
     if (hasself) self = this.pushLocal({ name: { name: "self", location: start }, annotation: undefined, isConst: false });
     const vars = args.map((arg) => this.pushLocal(arg));
@@ -2964,16 +2992,22 @@ class Parser {
     return this.parseExpr();
   }
 
-  private parseBinding(isConst = false): Binding {
-    // Not part of Luau: a `:` with no name before it is an annotation with no name.
-    let name = this.parseNameOpt("variable name", this.is(":") ? "annotation" : undefined);
+  /** `declaration` is whether the binding is a local declaration's (see `MalformedConstruct`). */
+  private parseBinding(isConst = false, declaration = false): Binding {
+    // Not part of Luau: a `:` with no name before it is an annotation with
+    // no name, and a local declaration's name missing before a token of its
+    // line leaves the declaration malformed. One missing at its line's end
+    // is Sparkdown's own syntax's to report.
+    const kind = this.current().kind;
+    const missing = this.is(":") ? "annotation" : declaration && kind !== "eof" && kind !== "break" ? "declaration" : undefined;
+    let name = this.parseNameOpt("variable name", missing);
     if (!name) name = { name: ERROR_NAME, location: this.current().location };
     const annotation = this.parseOptionalType();
     return { name, annotation, isConst };
   }
 
-  /** Returns whether the list ends in `...`, the location of the `...`, and its annotation. */
-  parseBindingList(result: Binding[], allowDot3 = false, isConst = false): [boolean, Location, AstTypePack | undefined] {
+  /** Returns whether the list ends in `...`, the location of the `...`, and its annotation. `declaration` is whether it is a local declaration's names. */
+  parseBindingList(result: Binding[], allowDot3 = false, isConst = false, declaration = false): [boolean, Location, AstTypePack | undefined] {
     for (;;) {
       if (this.is("...") && allowDot3) {
         const varargLocation = this.current().location;
@@ -2985,7 +3019,7 @@ class Parser {
         }
         return [true, varargLocation, tailAnnotation];
       }
-      result.push(this.parseBinding(isConst));
+      result.push(this.parseBinding(isConst, declaration));
       if (!this.is(",")) break;
       this.next();
     }
@@ -3303,7 +3337,7 @@ class Parser {
       if (value !== undefined) return { type: new AstTypeSingletonString(start, value) };
       return { type: this.reportTypeError(start, [], "String literal contains malformed escape sequence") };
     }
-    if (token.kind === "interp") {
+    if (token.kind === "interp" && token.node) {
       this.next();
       return { type: this.reportTypeError(start, [], "Interpolated string literals cannot be used as types") };
     }
@@ -3556,6 +3590,12 @@ class Parser {
       return new AstExprGroup(new Location(start, end), expr);
     }
     if (this.current().kind === "new") return this.parseNew();
+    // Where no expression can begin, Luau's parser meets a backtick string
+    // in the rest of one it gave up on as its lexer reads it, a lexeme at a
+    // time (`` `a { ``, then the interpolation's tokens, then `` } b` ``),
+    // not as one string (I-1406).
+    const lexemes = this.interpLexemes(this.current());
+    if (lexemes) this.tokens.splice(this.pos, 1, ...lexemes);
     return this.parseNameExpr("expression", "expression");
   }
 
@@ -3654,7 +3694,8 @@ class Parser {
     }
     if (token.kind === "number") return this.parseNumber();
     if (token.kind === "string" || token.kind === "rawstring") return this.parseString();
-    if (token.kind === "interp") return this.parseInterpString();
+    // A section of a string after an interpolation Luau gave up on (`stringRest`) is no string's start.
+    if (token.kind === "interp" && token.node) return this.parseInterpString();
     if (this.is("...")) {
       this.next();
       if (this.currentFunction().vararg) return new AstExprVarargs(start);
@@ -3702,10 +3743,15 @@ class Parser {
       const matchParen = this.current();
       this.next();
       const args: AstExpr[] = [];
+      const reports = this.reports;
       if (!this.is(")")) this.parseExprList(args);
       const end = this.current().location;
       this.expectMatchAndConsume(")", matchParen);
-      return new AstExprCall(Location.span(func.location, end), func, args, self, [], new Location(argStart, end.end));
+      // Not part of Luau: whether reading the list to its `)` reported an
+      // error, a missing argument (`f(1,)`) or a token before the closer
+      // (`f(1 'x')`) alike (I-1428).
+      const malformed = this.reports > reports;
+      return new AstExprCall(Location.span(func.location, end), func, args, self, [], new Location(argStart, end.end), malformed);
     }
     if (this.is("{")) {
       const argStart = this.current().location.end;
@@ -3899,7 +3945,7 @@ class Parser {
    * interpolations; `unclosed` when an interpolation is missing its closing
    * brace, after which the string's own end is not where the tree ends it.
    */
-  private stringParts(token: Token, interpolation: string, after?: Token): { strings: string[]; expressions: AstExpr[]; unclosed: boolean; segment: Location } | undefined {
+  private stringParts(token: Token, interpolation: string, after?: Token): { strings: string[]; expressions: AstExpr[]; unclosed: boolean; segment: Location; rest?: Token[] } | undefined {
     const node = token.node!;
     const strings: string[] = [];
     const expressions: AstExpr[] = [];
@@ -3909,14 +3955,22 @@ class Parser {
     // quote, then each interpolation's closing brace.
     let section = token.from;
     const close = token.to - 1;
-    for (const child of stringPartNodes(node, interpolation)) {
+    const children = stringPartNodes(node, interpolation);
+    for (const [i, child] of children.entries()) {
       const isShorthand = CALL_SHORTHANDS.has(child.name);
       const value = quotedValue(text.slice(at, child.from));
       if (value === undefined) return undefined;
       strings.push(value);
       const segment = this.locationOf(section, child.from + (isShorthand ? 2 : 1));
-      const part = this.interpolation(child, isShorthand, segment, after);
+      const part = this.interpolation(child, isShorthand, segment, after, interpolation === BACKTICK_INTERPOLATION);
       expressions.push(part.expr);
+      if (part.stray) {
+        // The grammar read the rest as the string's, so its tokens are ones
+        // it left unread as Luau's, and no rule of it reports the statements
+        // Luau reads from them (`markUnreadErrors`): their errors, and the
+        // string's statement's, are the reading's.
+        return { strings, expressions, unclosed: false, segment, rest: this.stringRest(token, part.stray, children.slice(i)) };
+      }
       if (!part.closed) {
         strings.push("");
         return { strings, expressions, unclosed: true, segment };
@@ -3931,10 +3985,64 @@ class Parser {
   }
 
   /**
-   * The expression of an interpolation (`{x}`), or of a `{{f}}` shorthand,
-   * and whether its closing braces are written.
+   * The tokens Luau's lexer reads in a backtick string after its parser
+   * gave up on the string at an interpolation's stray token: the `stray`
+   * tokens of the first of `parts`, then each interpolation's closing brace
+   * begins a section to the next one's opening brace (`} b {`) or to the
+   * string's end (`` } b` ``), and the interpolations after the first are
+   * read token by token. A string among those tokens is one token until
+   * the reading meets it where no expression can begin (`interpLexemes`).
    */
-  private interpolation(node: SyntaxNode, shorthand: boolean, segment?: Location, after?: Token): { expr: AstExpr; closed: boolean } {
+  private stringRest(token: Token, stray: Token[], parts: SyntaxNode[]): Token[] {
+    // The tokens stand where the string did, in the reading's statements.
+    // The grammar read them as the string's, so they are tokens it left
+    // unread as Luau's, and no rule of it reports the statements Luau reads
+    // from them (`markUnreadErrors`): their errors, and the string's
+    // statement's, are the reading's.
+    const at = (t: Token): Token => ({ ...t, source: token.source, unread: true, abandoned: true, authoredIsland: token.authoredIsland });
+    const rest: Token[] = stray.map(at);
+    for (const [i, part] of parts.entries()) {
+      const shorthand = CALL_SHORTHANDS.has(part.name);
+      const { body, closed } = this.interpolationTokens(part, shorthand);
+      if (i > 0) rest.push(...body.map(at));
+      if (!closed) break;
+      const next = parts[i + 1];
+      const from = part.to - (shorthand ? 2 : 1);
+      const to = next ? next.from + (CALL_SHORTHANDS.has(next.name) ? 2 : 1) : token.to;
+      const text = this.ctx.text.slice(from, to);
+      rest.push(at({ kind: "interp", text, from, to, location: this.locationOf(from, to), source: token.source }));
+    }
+    return rest;
+  }
+
+  /**
+   * A backtick string with interpolations in the rest of a string Luau's
+   * parser gave up on, as Luau's lexer reads it: one lexeme per section
+   * (`` `a { ``, `} b {`, `` } c` ``) with each interpolation's tokens
+   * between them. Undefined for any other token, a string Luau reads as
+   * one lexeme, or one that the reading of a string reports on its own (an
+   * interpolation left open, or no closing backtick, I-1318).
+   */
+  private interpLexemes(token: Token): Token[] | undefined {
+    const node = token.node;
+    if (token.kind !== "interp" || !node || !token.abandoned) return undefined;
+    const parts = stringPartNodes(node, BACKTICK_INTERPOLATION);
+    const end = node.getChild("LuauInterpolatedString_end");
+    if (parts.length === 0 || !end || !/`/.test(this.ctx.text.slice(end.from, end.to))) return undefined;
+    const first = parts[0]!;
+    const shorthand = CALL_SHORTHANDS.has(first.name);
+    const { body, opened, closed } = this.interpolationTokens(first, shorthand);
+    if (!opened || !closed) return undefined;
+    const to = first.from + (shorthand ? 2 : 1);
+    const begin: Token = { ...token, node: undefined, text: this.ctx.text.slice(token.from, to), to, location: this.locationOf(token.from, to) };
+    const rest = this.stringRest(token, body, parts);
+    // A later interpolation left open ends the lexemes before the string's end.
+    if (rest[rest.length - 1]?.to !== token.to) return undefined;
+    return [begin, ...rest];
+  }
+
+  /** An interpolation's tokens between its braces, and whether its opening and closing braces are written. */
+  private interpolationTokens(node: SyntaxNode, shorthand: boolean): { body: Token[]; opened: boolean; closed: boolean; closers: Token[] } {
     const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
     tokenizer.readChildren(node);
     const inner = tokenizer.tokens;
@@ -3945,6 +4053,15 @@ class Parser {
     const closers = inner.length - braces >= braces ? inner.slice(inner.length - braces) : [];
     const closed = closers.length === braces && closers.every((t) => isBrace(t, "}"));
     const body = inner.slice(opened ? braces : 0, closed ? inner.length - braces : inner.length);
+    return { body, opened, closed, closers };
+  }
+
+  /**
+   * The expression of an interpolation (`{x}`), or of a `{{f}}` shorthand,
+   * and whether its closing braces are written.
+   */
+  private interpolation(node: SyntaxNode, shorthand: boolean, segment?: Location, after?: Token, luau = false): { expr: AstExpr; closed: boolean; stray?: Token[] } {
+    const { body, opened, closed, closers } = this.interpolationTokens(node, shorthand);
     const location = new Location(this.ctx.index.position(node.from), this.ctx.index.position(node.to));
     // The reading of the expression ends at its closing braces, or where the interpolation ends.
     const end = closed ? Location.span(closers[0]!.location, closers[closers.length - 1]!.location) : new Location(location.end, location.end);
@@ -3959,6 +4076,7 @@ class Parser {
     if (segment && !closed && broken(body[0])) {
       return { expr: this.reportExprError(segment, [], "Malformed interpolated string; did you forget to add a '`'?"), closed };
     }
+    let stray: Token[] | undefined;
     const expr = this.withTokens(body, end, () => {
       if (body.length === 0) return this.reportExprError(location, [], "Malformed interpolated string, expected expression inside '{}'");
       const e = this.parseExpr();
@@ -3967,9 +4085,18 @@ class Parser {
         const found = this.current().kind === "eof" ? after! : this.current();
         this.report(segment, `Malformed interpolated string, got ${describe(found)}`);
       } else if (!closed) this.report(this.current().location, "Malformed interpolated string; did you forget to add a '}'?");
-      else if (this.current().kind !== "eof") this.report(this.current().location, `Malformed interpolated string, got ${describe(this.current())}`);
+      else if (this.current().kind !== "eof" && luau && segment) {
+        // A backtick string's interpolation with a token after its
+        // expression (`` `a {1 2} b` ``) ends the string where Luau's
+        // parser ends it, at the string's section that opened the
+        // interpolation; the tokens from that one on are read after the
+        // string, as Luau reads them (`parseInterpString`, I-1406).
+        stray = body.slice(this.pos);
+        return this.reportExprError(segment, [], `Malformed interpolated string, got ${describe(this.current())}`);
+      } else if (this.current().kind !== "eof") this.report(this.current().location, `Malformed interpolated string, got ${describe(this.current())}`);
       return e;
     });
+    if (stray) return { expr, closed, stray };
     if (!opened) return { expr: this.reportExprError(location, [expr], "Malformed interpolated string"), closed };
     return { expr: shorthand ? new AstExprSparkdownCallShorthand(location, expr) : expr, closed };
   }
@@ -3996,6 +4123,12 @@ class Parser {
     this.next();
     const parts = this.stringParts(token, BACKTICK_INTERPOLATION, this.current());
     if (!parts) return this.reportExprError(token.location, [], "Interpolated string literal contains malformed escape sequence");
+    if (parts.rest) {
+      // Luau's parser reads the rest of the string's tokens after it.
+      this.tokens.splice(this.pos, 0, ...parts.rest);
+      if (token.node && parts.rest[0]) this.abandonedStrings.set(token.node.from, parts.rest[0].from);
+      return parts.expressions[parts.expressions.length - 1]!;
+    }
     if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
     // The closing backtick is the string node's own end, not a backtick inside it.
     const end = token.node?.getChild("LuauInterpolatedString_end");
@@ -4053,6 +4186,7 @@ function sparkdownExpression(token: Token): AstExpr {
       return new AstExprSparkdownRegex(token.location, match?.[1] ?? token.text.slice(2), match?.[2] ?? "", source);
     }
     case "LuauConditionalAlternatorBlock":
+    case "LuauConditionalAlternatorLineStart":
     case "LuauSparkdownExplicitConditionalAlternatorBlock":
       return new AstExprSparkdownConditionalAlternator(token.location, source);
     default:
@@ -4582,24 +4716,7 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
   const tokenizer = new Tokenizer(documentText, index);
   tokenizer.luauThroughout = true;
   const nodes: TreeNodeRef[] = [];
-  // The body's statements are its children, under the wrapper nodes the grammar puts around a rule's parts.
-  const readStatements = (parent: SyntaxNode) => {
-    let at = parent.from;
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (child.from > at) tokenizer.lex(at, child.from);
-      if (WRAPPER.test(child.name)) {
-        readStatements(child);
-      } else {
-        tokenizer.source = nodes.length;
-        nodes.push(ref(child));
-        tokenizer.read(child);
-        tokenizer.source = -1;
-      }
-      at = Math.max(at, child.to);
-    }
-    if (parent.to > at) tokenizer.lex(at, parent.to);
-  };
-  readStatements(body);
+  readBodyStatements(tokenizer, nodes, body);
   // The file ends where its wrapper's last line begins, as Luau reads the
   // file's own end.
   const fileEnd = documentText.endsWith(RUN_WRAPPER_SUFFIX) ? documentText.length - RUN_WRAPPER_SUFFIX.length : undefined;
@@ -4626,6 +4743,42 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
     appendAll(tokenizer.tokens, inFile);
   }
   return readUnit("file", tokenizer, nodes, 1, new Position(index.lineAt(body.from) + 1, 0), options, fileEnd);
+}
+
+/**
+ * Reads a `.luau` document's Luau from its own tree, which the grammar's
+ * `.luau` root reads as a function's body from the first line (GRAMMAR.md
+ * §1.5): the document's statements, as one unit that ends where the
+ * document does.
+ */
+export function readLuauFile(tree: Tree, documentText: string, options: ReadOptions = {}): LuauAstUnit {
+  const tokenizer = new Tokenizer(documentText, lineIndex(documentText));
+  tokenizer.luauThroughout = true;
+  const nodes: TreeNodeRef[] = [];
+  readBodyStatements(tokenizer, nodes, tree.topNode);
+  return readUnit("file", tokenizer, nodes, 1, new Position(0, 0), options, documentText.length);
+}
+
+/**
+ * Reads a pure-Luau body's statements, which are its children under the
+ * wrapper nodes the grammar puts around a rule's parts, recording each
+ * statement's node, and lexes the text between them.
+ */
+function readBodyStatements(tokenizer: Tokenizer, nodes: TreeNodeRef[], parent: SyntaxNode): void {
+  let at = parent.from;
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    if (child.from > at) tokenizer.lex(at, child.from);
+    if (WRAPPER.test(child.name)) {
+      readBodyStatements(tokenizer, nodes, child);
+    } else {
+      tokenizer.source = nodes.length;
+      nodes.push(ref(child));
+      tokenizer.read(child);
+      tokenizer.source = -1;
+    }
+    at = Math.max(at, child.to);
+  }
+  if (parent.to > at) tokenizer.lex(at, parent.to);
 }
 
 // The nodes the grammar puts around a rule's begin, content and end, and their captures.
@@ -4706,7 +4859,9 @@ export function readLuauStatementCandidate(
   }
   const read = (current: SyntaxNode): void => {
     if (current.to <= from || current.from >= to) return;
-    if (current.from >= from && current.to <= to && !WRAPPER.test(current.name)) {
+    // The tree's top node, which a span to the document's end encloses, is
+    // descended as a clipped node is: it is no Luau node of its own.
+    if (current.parent && current.from >= from && current.to <= to && !WRAPPER.test(current.name)) {
       if (current.name.startsWith("Luau") && !current.type.isError) tokenizer.read(current);
       else tokenizer.lex(current.from, current.to);
       return;
@@ -4747,6 +4902,20 @@ export function readLuauStringErrors(node: SyntaxNode, documentText: string): Lu
   if (next) tokenizer.tokens.push({ ...next, location: tokenizer.location(next.from, next.to) });
   const end = index.position(node.to);
   return parseLoneTokens(tokenizer, documentText, index).errors.filter((error) => end.gt(error.location.begin));
+}
+
+/**
+ * Where Luau's parser gives up on a backtick string, at an interpolation's
+ * token after its expression (`` `a {1 2} b {} c` ``): the offset from
+ * which the string's rest is Luau's tokens, not its interpolations, or
+ * undefined for a string read whole, whatever a string inside it is
+ * (I-1406).
+ */
+export function readLuauStringAbandonedAt(node: SyntaxNode, documentText: string): number | undefined {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  tokenizer.read(node);
+  return parseLoneTokens(tokenizer, documentText, index).abandonedStrings?.get(node.from);
 }
 
 export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
@@ -4949,7 +5118,7 @@ export function readLuauMethod(node: SyntaxNode, documentText: string): ReturnTy
   const tokenizer = new Tokenizer(documentText, index);
   const name = findDescendant(node, "LuauFunctionName");
   const parameters = findDescendant(node, "LuauFunctionParameters");
-  tokenizer.synthetic("keyword", "function", parameters?.from ?? name?.to ?? node.from);
+  tokenizer.synthetic("keyword", "function", parameters?.from ?? name?.to ?? node.from, true);
   // Every node but the name, which a function value does not have.
   const readWithoutName = (around: SyntaxNode): void =>
     tokenizer.readChildren(around, (child) => {
@@ -4973,7 +5142,7 @@ export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: s
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const from = nodes[0]?.from ?? 0;
-  tokenizer.synthetic("keyword", "function", from);
+  tokenizer.synthetic("keyword", "function", from, true);
   tokenizer.synthetic("symbol", "(", from);
   tokenizer.synthetic("symbol", ")", from);
   for (const node of nodes) tokenizer.read(node);
@@ -4986,7 +5155,7 @@ function parseLoneTokens(
   tokenizer: Tokenizer,
   documentText: string,
   index: LineIndex,
-): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[] } {
+): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[]; abandonedStrings?: ReadonlyMap<number, number> } {
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
@@ -4998,5 +5167,5 @@ function parseLoneTokens(
     parser.errors.push(error);
     expr = new AstExprError(error.location, [], parser.errors.length - 1);
   }
-  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements };
+  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements, abandonedStrings: parser.abandonedStrings };
 }

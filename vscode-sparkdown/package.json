@@ -33,6 +33,7 @@
   "activationEvents": [
     "onStartupFinished",
     "onLanguage:sparkdown",
+    "onLanguage:sparkdown-luau",
     "onCommand:sparkdown.exportpdf",
     "onCommand:sparkdown:exporthtml",
     "onCommand:sparkdown:exportcsv",
@@ -386,6 +387,20 @@
           "light": "icon-lang.png",
           "dark": "icon-lang.png"
         }
+      },
+      {
+        "id": "sparkdown-luau",
+        "aliases": [
+          "Sparkdown Luau"
+        ],
+        "extensions": [
+          ".luau"
+        ],
+        "configuration": "./language/sparkdown.language-config.json",
+        "icon": {
+          "light": "icon-lang.png",
+          "dark": "icon-lang.png"
+        }
       }
     ],
     "grammars": [
@@ -393,6 +408,11 @@
         "language": "sparkdown",
         "scopeName": "text.source.sparkdown",
         "path": "./language/sparkdown.language-grammar.json"
+      },
+      {
+        "language": "sparkdown-luau",
+        "scopeName": "source.sparkdown.luau",
+        "path": "./language/sparkdown-luau.language-grammar.json"
       }
     ],
     "snippets": [
@@ -628,7 +648,7 @@
         "properties": {
           "sparkdown.scriptFiles": {
             "type": "string",
-            "default": "*.{sd}",
+            "default": "*.{sd,luau}",
             "description": "Recognized filename patterns for script files"
           },
           "sparkdown.imageFiles": {

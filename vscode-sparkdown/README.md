@@ -27,6 +27,18 @@ This is an extension for Visual Studio Code which allows you to create `spark` g
 > - View the Live Preview, export your Screenplay, and more, using the `COMMANDS` panel.
 > - Quickly lookup sparkdown syntax in the `CHEAT SHEET` panel.
 
+## Luau files
+
+The extension opens `.luau` files as the `Sparkdown Luau` language. A `.luau` file is Luau from its first line, and it is highlighted and checked as the Luau a Sparkdown script reaches with `run`. Every `.luau` file you open is sent to the Sparkdown language server, including one outside a Sparkdown project.
+
+If you use another Luau extension, such as luau-lsp, and want it to own `.luau` files instead, add a `files.associations` entry to your settings:
+
+```json
+"files.associations": {
+  "*.luau": "luau"
+}
+```
+
 Workspace discovery includes scripts and assets below the opened folder, including a nested `project` directory. Dependencies under `node_modules` and hidden subdirectories are skipped. An explicitly opened folder can itself be hidden. Other folders still contribute assets, so opening a repository with research or prototype assets can report name collisions that are absent when opening only its game project.
 
 ## Previewing suggestions in the Game Preview

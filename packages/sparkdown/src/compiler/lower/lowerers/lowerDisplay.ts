@@ -35,6 +35,7 @@ import { lowerTagContent } from "../utils/lowerTagContent";
 import { forwardBlockDiagnostics } from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
+import { opensAlternator } from "../../utils/alternatorDecision";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
 
 // Each display line lowers to `display(<table>)` calls, one per beat. The table
@@ -1695,10 +1696,12 @@ function tryLowerInlineAlternator(
     "LuauInterpolatedStringExpression_content",
   );
   const host = content ?? interpNode;
+  // A structural word that holds no arms is a name, which the expression
+  // path lowers (`{match(x)}` calls `match`, I-1310).
   const seq =
     findFirstDirectChild(host, "LuauSequentialAlternatorBlock") ??
     findFirstDirectChild(host, "LuauSparkdownSequentialAlternatorBlock");
-  if (seq) {
+  if (seq && opensAlternator(seq)) {
     const lowered = lowerSparkdownSequentialAlternatorBlock(
       makeAltNodeRef(seq),
       ctx,
@@ -1709,7 +1712,7 @@ function tryLowerInlineAlternator(
   const cond =
     findFirstDirectChild(host, "LuauConditionalAlternatorBlock") ??
     findFirstDirectChild(host, "LuauSparkdownConditionalAlternatorBlock");
-  if (cond) {
+  if (cond && opensAlternator(cond)) {
     const lowered = lowerSparkdownConditionalAlternatorBlock(
       makeAltNodeRef(cond),
       ctx,

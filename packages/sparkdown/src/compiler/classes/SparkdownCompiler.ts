@@ -170,11 +170,26 @@ import {
 } from "../utils/declarationOnly";
 import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
+  hasLuauExtension,
   isInProject,
+  luauFileName,
+  projectLuauFiles,
   projectPath,
   projectRootUri,
   projectScripts,
 } from "../utils/projectMembership";
+import {
+  ambiguousRunNameMessage,
+  findRunName,
+  missingRunNameMessage,
+  missingRunPathMessage,
+  quotedRunPath,
+  relativeRunPath,
+  findRunPath,
+  runPathNearMisses,
+  type RunFix,
+  type RunFixData,
+} from "../utils/runOperand";
 import {
   runCallText,
   runCallUri,
@@ -189,6 +204,7 @@ import {
 import type {
   CompilationConfig,
   CompiledBlock,
+  RunOperand,
 } from "./annotators/CompilationAnnotator";
 
 // The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
@@ -587,9 +603,8 @@ export class SparkdownCompiler {
    *  walked again. */
   protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
 
-  // Type checks each document's Luau, keeping results between compiles. A
-  // `.luau` file's text is parsed as a `run` wraps it (`luauFileUnit`).
-  protected _typechecker = new SparkdownTypechecker((text) => this.documents.parser.parse(text));
+  // Type checks each document's Luau, keeping results between compiles.
+  protected _typechecker = new SparkdownTypechecker();
 
   protected _files = new SparkdownFileRegistry();
   get files() {
@@ -1660,6 +1675,7 @@ export class SparkdownCompiler {
       type: ErrorType,
       source: SourceMetadata | null,
       tags?: number[],
+      data?: unknown,
     ) => {
       const severity =
         type === ErrorType.Error
@@ -1716,6 +1732,9 @@ export class SparkdownCompiler {
         tags,
       );
       if (docDiagnostic) {
+        if (data !== undefined) {
+          docDiagnostic.data = data;
+        }
         program.diagnostics ??= {};
         program.diagnostics[diagUri] ??= [];
         program.diagnostics[diagUri].push(docDiagnostic);
@@ -2155,6 +2174,7 @@ export class SparkdownCompiler {
     this._memoBlocks = new Set();
 
     this.populateFiles(program);
+    this.warnSharedLuauNames(program);
     this.populateDeclarationLocations(program);
     if (!compileThrew) {
       // Needs `functionLocations` (just populated) to classify divert edges.
@@ -2269,6 +2289,117 @@ export class SparkdownCompiler {
     return files;
   }
 
+  /** The `.luau` files a `run` in the project a compile that starts from
+   *  `uri` finds by name (`projectLuauFiles`): every registered one under
+   *  the folder of `uri` that is in its project. */
+  protected projectLuauFilesOf(uri: string): string[] {
+    const files = this.files.all().map((file) => file.uri);
+    return projectLuauFiles(
+      uri,
+      files.filter((file) => this.documents.has(file)),
+      (script) => this.documents.has(script),
+      this._config.mainScriptFilename ?? DEFAULT_MAIN_SCRIPT_FILENAME,
+      this._config.uriPathsAsWritten,
+    );
+  }
+
+  /**
+   * The `.luau` file the operand of a `run` statement in the script
+   * `scriptUri` names, or the message that says why there is none (#1389).
+   * A quoted operand is a path relative to the script, `.luau` implied; an
+   * unquoted one is a name, the one `.luau` file of that name in the project
+   * of `program`. Both are case exact, and an operand that differs from
+   * files only by case names their spellings (#1334). A message comes with
+   * the operand's quick fixes, each the text that replaces the operand: an
+   * ambiguous name's candidates as paths quoted relative to the script, and
+   * a near miss's spellings in the operand's own form.
+   */
+  protected resolveRunOperand(
+    run: RunOperand,
+    scriptUri: string,
+    program: SparkProgram,
+  ): { uri?: string; message?: string; fixes?: RunFix[] } {
+    const asWritten = this._config.uriPathsAsWritten;
+    const resolved = (uri: string) => {
+      program.scripts[uri] = this.documents.get(uri)?.version ?? -1;
+      return { uri };
+    };
+    if (run.quote) {
+      // Any registered Luau file, in the project or not, by its path as
+      // the file system names it (`findRunPath`); its case-only near misses
+      // come from the same files, in URI order so they are listed alike in
+      // every compile.
+      const registered = [...this.files.all()]
+        .map((file) => file.uri)
+        .filter((file) => hasLuauExtension(file) && this.documents.has(file))
+        .sort();
+      const uri = findRunPath(scriptUri, `${run.path}.luau`, registered, asWritten);
+      if (uri) {
+        return resolved(uri);
+      } else {
+        const spellings = runPathNearMisses(
+          run.written,
+          scriptUri,
+          registered,
+          asWritten,
+        );
+        return {
+          message: missingRunPathMessage(run.written, spellings),
+          fixes: spellings.map((spelling) => ({
+            title: `Change to '${spelling}'`,
+            newText: run.quote + spelling + run.quote,
+          })),
+        };
+      }
+    }
+    const { matches, nearMisses } = findRunName(
+      run.path,
+      this.projectLuauFilesOf(program.uri),
+      asWritten,
+    );
+    if (matches.length === 1) {
+      return resolved(matches[0]!);
+    }
+    if (matches.length > 1) {
+      return {
+        message: ambiguousRunNameMessage(
+          run.path,
+          matches.map((uri) => displayScriptPath(uri, program.uri, asWritten)),
+        ),
+        fixes: matches.map((uri) => {
+          const newText = `"${quotedRunPath(relativeRunPath(scriptUri, uri, asWritten))}"`;
+          return { title: `Use ${newText}`, newText };
+        }),
+      };
+    }
+    return {
+      message: missingRunNameMessage(run.path, nearMisses),
+      fixes: nearMisses.map((name) => ({
+        title: `Change to '${name}'`,
+        newText: name,
+      })),
+    };
+  }
+
+  /** Warns on each `.luau` file of the project of `program` that shares its
+   *  name with another, as an asset that shares its name does, since a
+   *  `run` that names it is ambiguous (#1389). */
+  protected warnSharedLuauNames(program: SparkProgram) {
+    const byName = new Map<string, string[]>();
+    for (const uri of this.projectLuauFilesOf(program.uri)) {
+      const name = luauFileName(uri, this._config.uriPathsAsWritten);
+      byName.set(name, [...(byName.get(name) ?? []), uri]);
+    }
+    for (const [name, uris] of byName) {
+      if (uris.length > 1) {
+        for (const uri of uris) {
+          const other = uris.find((u) => u !== uri)!;
+          this.pushAssetCollisionDiagnostic(program, uri, other, "luau", name);
+        }
+      }
+    }
+  }
+
   /**
    * Parses the script `uri` into the story's objects. The script a compile
    * starts from is parsed with `isInclude` false, and reads the other scripts
@@ -2288,6 +2419,7 @@ export class SparkdownCompiler {
       type: ErrorType,
       source: SourceMetadata | null,
       tags?: number[],
+      data?: unknown,
     ) => void,
     declarationOnly = false,
   ) {
@@ -2614,7 +2746,9 @@ export class SparkdownCompiler {
       for (const rec of chunkRecords) {
         const block = rec.block as any;
         if (block.run) {
-          rootDescriptors.push(`run:${block.run}`);
+          rootDescriptors.push(
+            `run:${block.run.quote ? JSON.stringify(block.run.path) : block.run.path}`,
+          );
         }
         if (chunkFlowKind(block) === "external") {
           const ext = block.content?.[0] as ExternalDeclaration | undefined;
@@ -2936,7 +3070,8 @@ export class SparkdownCompiler {
         }
       }
       if (run) {
-        // `run "path"` — load `${path}.luau`, wrap its body in a
+        // `run helpers` or `run "path"` — load the `.luau` file the
+        // operand names (`resolveRunOperand`), wrap its body in a
         // function, splice a call to the function at this position,
         // and hoist the function declaration to the end of the
         // parent program. Uses the same `IncludedFile` plumbing as the
@@ -2949,27 +3084,29 @@ export class SparkdownCompiler {
         if (state.fileResolutionState) {
           state.fileResolutionState.currentParentUri = uri;
         }
-        const luauFilename = `${run}.luau`;
-        let resolvedFilePath: string | null = null;
-        try {
-          resolvedFilePath = fileHandler.ResolveInkFilename(luauFilename);
-        } catch {}
-        // 1-based line/character — `onDiagnostic` subtracts 1 to
-        // produce 0-based values that pass `getDiagnostic`'s
-        // `startCharacter < 0` filter.
+        const resolution = this.resolveRunOperand(run, uri, program);
+        const resolvedFilePath = resolution.uri ?? null;
+        // The operand's range, 1-based like the lowerer's diagnostics,
+        // moved from the chunk to the script.
         const sourceMetadata: SourceMetadata = {
           fileName,
           filePath: uri,
-          startLineNumber: lineNumberOffset + 1,
-          endLineNumber: lineNumberOffset + 1,
-          startCharacterNumber: 1,
-          endCharacterNumber: 1,
+          startLineNumber: run.source.startLineNumber + lineNumberOffset,
+          endLineNumber: run.source.endLineNumber + lineNumberOffset,
+          startCharacterNumber: run.source.startCharacterNumber,
+          endCharacterNumber: run.source.endCharacterNumber,
         };
         if (!resolvedFilePath) {
+          // The quick fixes travel in the diagnostic's data (`RunFixData`).
+          const fixes = resolution.fixes ?? [];
           onDiagnostic(
-            `Could not find '${luauFilename}' for 'run' statement.`,
+            resolution.message!,
             ErrorType.Error,
             sourceMetadata,
+            undefined,
+            fixes.length > 0
+              ? ({ runFixes: fixes } satisfies RunFixData)
+              : undefined,
           );
         } else if (
           state.fileResolutionState?.runStack?.includes(resolvedFilePath)
@@ -5861,7 +5998,7 @@ export class SparkdownCompiler {
       if (!doc || !tree) continue;
       let script = this._lintsByTree.get(tree);
       if (!script) {
-        script = collectLuauLints(tree, (from, to) => doc.read(from, to));
+        script = collectLuauLints(tree, (from, to) => doc.read(from, to), { luauFile: isLuauFile(scriptUri) });
         this._lintsByTree.set(tree, script);
       }
       scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, mentionsUnplacedVariable: script.mentionsUnplacedVariable, misreadStatements: script.misreadStatements, topLevelMembers: script.topLevelMembers });
@@ -5886,14 +6023,7 @@ export class SparkdownCompiler {
         });
         for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
       }
-      // The pass reads a `.luau` file as a `.sd` script, whose lines outside
-      // a function are narrative, so any mention of a name there may use it.
-      const usesSeen = scripts.map((script) => {
-        if (!isLuauFile(script.uri)) return script;
-        const text = this.documents.get(script.uri)?.getText() ?? "";
-        return { ...script, mentionsUnplacedVariable: (name: string) => new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(text) };
-      });
-      const locals = lintGlobalsUsedAsLocals(names, usesSeen, builtins, (scriptUri, offset) => (this.documents.get(scriptUri)?.positionAt(offset).line ?? 0) + 1);
+      const locals = lintGlobalsUsedAsLocals(names, scripts, builtins, (scriptUri, offset) => (this.documents.get(scriptUri)?.positionAt(offset).line ?? 0) + 1);
       for (const { uri: scriptUri, lint } of locals) report(scriptUri, lint);
     }
     for (const [scriptUri, list] of lints) {

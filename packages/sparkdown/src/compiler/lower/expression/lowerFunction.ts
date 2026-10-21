@@ -49,7 +49,11 @@ import {
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { withMessageLines } from "../../typecheck/messageLines";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { functionBindings } from "../utils/functionBindings";
+import {
+  functionBindings,
+  resolveFunctionBinding,
+  type FunctionBinding,
+} from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { Location, Position } from "../../typecheck/Location";
 import { lineCountOf, syntaxErrorEnd } from "../../typecheck/syntaxErrorRange";
@@ -134,8 +138,8 @@ export function readBodyAst(
  * to this reading (`loweredLuauBodyOf`). An error at a token that is
  * Sparkdown's own (`LuauSyntaxError.sparkdown`) is Sparkdown's syntax's to
  * report, and one past the end of the chunk (`pastChunkEnd`) is none of
- * Luau's. Only errors from `bodyFrom` on are the body's (a method's header
- * is read with it). Called once the body is lowered, it leaves out an error
+ * Luau's. Only errors from `bodyFrom` on are reported (a define's method
+ * passes its own start, so its header's are too, I-1401). Called once the body is lowered, it leaves out an error
  * the lowering already reported at the same place.
  */
 export function reportBodySyntaxErrors(
@@ -232,30 +236,36 @@ function walk(root: AstNode, enter: (node: AstNode) => boolean): void {
   });
 }
 
-// The name a function statement declares, when it is a plain name rather
-// than a field (`function a.f`) or method (`function a:m`).
+// The name a function statement declares: a `local function`'s, or a plain
+// `function NAME`'s that no local binds where it is written. A name the
+// converter binds to a local, of the same function (#415) or of an
+// enclosing one (#1349), or that a function lowering around the statement
+// binds there (`resolveFunctionBinding`), is that local, which the
+// definition assigns (`lowerLuauFunctionDefinition`'s `assignsLocal`); a
+// field (`function a.f`) or method (`function a:m`) declares nothing.
 function declaredFunctionName(
   stat: AstStatFunction | AstStatLocalFunction,
+  ctx: LowerContext,
 ): string | null {
   if (stat instanceof AstStatLocalFunction) return stat.name.name;
-  if (stat.name instanceof AstExprGlobal) return stat.name.name;
-  if (stat.name instanceof AstExprLocal) return stat.name.local.name;
-  return null;
+  if (!(stat.name instanceof AstExprGlobal)) return null;
+  const name = stat.name.name;
+  const at = offsetAt(stat.name.location.begin, ctx);
+  return resolveFunctionBinding(name, at, ctx) === undefined ? name : null;
 }
 
 // The names the function statements (`function f`, not `local function f`)
-// of a function's body declare, in the blocks inside it too but not in the
-// functions nested in it. The lowerer makes each a local of that function,
-// hoisted to its body (`lowerNestedNamedFunction`), or a subflow when it is
-// variadic (`lowerNestedAsSubFlow`), whether the converter binds the name to
-// a global or to an outer local of the same name; so the name refers to that
-// function's own function in every read inside it.
-function functionStatementNames(body: AstStatBlock): Set<string> {
+// of a function's body declare (`declaredFunctionName`), in the blocks
+// inside it too but not in the functions nested in it. The lowerer makes
+// each a local of that function, hoisted to its body
+// (`lowerNestedNamedFunction`); so the name refers to that function's own
+// function in every read inside it.
+function functionStatementNames(body: AstStatBlock, ctx: LowerContext): Set<string> {
   const names = new Set<string>();
   walk(body, (node) => {
     if (node instanceof AstExprFunction) return false;
     if (node instanceof AstStatFunction) {
-      const name = declaredFunctionName(node);
+      const name = declaredFunctionName(node, ctx);
       if (name) names.add(name);
     }
     return true;
@@ -266,8 +276,8 @@ function functionStatementNames(body: AstStatBlock): Set<string> {
 // The names a function's body declares for the whole body rather than from
 // a point in a block: its function statements' (`functionStatementNames`)
 // and its `store`s'.
-function bodyWideDeclarations(body: AstStatBlock): Set<string> {
-  const names = functionStatementNames(body);
+function bodyWideDeclarations(body: AstStatBlock, ctx: LowerContext): Set<string> {
+  const names = functionStatementNames(body, ctx);
   walk(body, (node) => {
     if (node instanceof AstExprFunction) return false;
     const stat =
@@ -317,22 +327,22 @@ function loopNames(node: AstNode): string[] {
  * a function nested in it can tell a local of this one from a global: its
  * parameters, and the locals, `store` and `const` declarations, loop
  * variables and named nested functions of its body, in the blocks inside
- * the body too but not inside the functions nested in it. A variadic nested
- * function is no local: it lowers as a subflow that calls reach by path
- * (`lowerNestedAsSubFlow`), and recording its name would have a sibling
- * closure capture a variable that does not exist.
+ * the body too but not inside the functions nested in it, variadic or not.
+ * A function statement that assigns a local already in scope declares
+ * nothing (`declaredFunctionName`).
  */
 export function immediateBodyDeclarations(
   params: readonly string[],
   body: AstStatBlock | null,
+  ctx: LowerContext,
 ): Set<string> {
   const out = new Set<string>(params);
   if (!body) return out;
   walk(body, (node) => {
     if (node instanceof AstExprFunction) return false;
     if (node instanceof AstStatFunction || node instanceof AstStatLocalFunction) {
-      const name = declaredFunctionName(node);
-      if (name && !node.func.vararg) out.add(name);
+      const name = declaredFunctionName(node, ctx);
+      if (name) out.add(name);
       return false;
     }
     for (const name of declarationNames(node)) out.add(name);
@@ -381,7 +391,9 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * converter binds each read to the local it reads, so a same-named local of
  * a nested function or a later block does not bind it), a `store` the body
  * declares, or a name a function statement declares in the function or in a
- * function between it and the read (`functionStatementNames`). A name that
+ * function between it and the read (`functionStatementNames`). A function
+ * statement whose name is a local of an enclosing function assigns that
+ * local, which the function captures as it captures a read. A name that
  * is a variadic function of an enclosing scope is reached by path and not
  * captured, but the locals it captures are, since a call to it passes them.
  * Any other name is captured, unless no enclosing function
@@ -406,7 +418,7 @@ export function freeVariables(
   const bound = new Set<string>(params);
   // The names the function statements of the function, and of each function
   // nested in it that encloses the read being scanned, declare.
-  const functionScopes: ReadonlySet<string>[] = [functionStatementNames(body)];
+  const functionScopes: ReadonlySet<string>[] = [functionStatementNames(body, ctx)];
   const declaredByFunctionStatement = (name: string) =>
     functionScopes.some((names) => names.has(name));
   // The locals the body declares (`local`, `const`, `local function`, loop
@@ -497,14 +509,14 @@ export function freeVariables(
       if (!locals.has(node.local)) read(node.local.name, node.location);
     } else if (node instanceof AstExprFunction) {
       // A nested function's function statements bind its own reads.
-      functionScopes.push(functionStatementNames(node.body));
+      functionScopes.push(functionStatementNames(node.body, ctx));
       walk(node.body, readNames);
       functionScopes.pop();
       return false;
     } else if (node instanceof AstStatFunction) {
-      // A function statement's plain name is declared, not read
-      // (`function a.f` reads `a`).
-      if (!declaredFunctionName(node)) walk(node.name, readNames);
+      // A function statement's declared name is not read; a name it
+      // assigns is, as `function a.f` reads `a`.
+      if (!declaredFunctionName(node, ctx)) walk(node.name, readNames);
       walk(node.func, readNames);
       return false;
     } else if (node instanceof AstStatSparkdownStore) {
@@ -678,6 +690,26 @@ export function lowerFunctionBody(
 }
 
 /**
+ * A function's frame on the declared-locals stack: `declaredParams` and the
+ * names its body declares (`immediateBodyDeclarations`), scoped by the
+ * function's `bindings` (`scopeDeclaredLocals`). Its `bindings` frame must be
+ * on `functionBindingsStack` already, since a function statement that assigns
+ * one of its locals declares nothing (`declaredFunctionName`).
+ */
+export function declaredLocalsFrame(
+  declaredParams: readonly string[],
+  body: AstStatBlock | null,
+  bindings: readonly FunctionBinding[],
+  ctx: LowerContext,
+): Set<string> {
+  const declared = immediateBodyDeclarations(declaredParams, body, ctx);
+  if (body) {
+    scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(body, ctx));
+  }
+  return declared;
+}
+
+/**
  * Runs `lower`, which lowers a function's body, inside the scopes the body
  * opens: a buffer for the functions nested in it, its bindings (`params`
  * and the locals `body` declares), its own locals on the declared-locals
@@ -699,11 +731,9 @@ export function inFunctionScopes<T>(
   ctx.functionScopeStack?.push(nested);
   const bindings = functionBindings(params, body, ctx);
   ctx.functionBindingsStack?.push(bindings);
-  const declared = immediateBodyDeclarations(declaredParams, body);
-  if (body) {
-    scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(body));
-  }
-  ctx.declaredLocalsStack?.push(declared);
+  ctx.declaredLocalsStack?.push(
+    declaredLocalsFrame(declaredParams, body, bindings, ctx),
+  );
   const hoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoisted);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();

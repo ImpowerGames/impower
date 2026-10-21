@@ -102,9 +102,9 @@ export function roundState(journals) {
     if (j.unconfirmedChild) blockers.push(`${j.file}: its launcher reported a child whose exit is unconfirmed`);
   }
   for (const l of accounting.launches) {
-    const { exited, service, running, confirmedAbsent, reserved } = l.evidence;
+    const { exited, service, drained, running, confirmedAbsent, reserved } = l.evidence;
     const where = `${l.file}: reviewer launch ${l.index} of round ${l.round}`;
-    if (service && exited?.executionDrained !== true) blockers.push(`${where} started a delegated execution service whose shutdown is not confirmed (executionDrained ${exited?.executionDrained ?? "missing"}), so its commands may still run`);
+    if (service && !drained) blockers.push(`${where} started a delegated execution service whose shutdown is not confirmed (executionDrained ${exited?.executionDrained ?? "missing"}), so its commands may still run${exited ? `; once they have exited, record that with node scripts/agent-handoff.mjs confirm-drained ${l.file}` : ""}`);
     else if (!exited && running && !confirmedAbsent) blockers.push(`${where} has no exited row`);
     else if (!exited && !running && reserved && l.terminal) blockers.push(`${where} reserved a slot but recorded neither its start nor its exit, so a reviewer may still run`);
     l.exitedAt = exited?.time ?? null;

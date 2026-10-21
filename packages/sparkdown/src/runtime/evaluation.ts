@@ -25,9 +25,11 @@ import { NativeFunctionCall } from "./NativeFunctionCall";
 import {
   BUILTIN_ITER_TAG,
   GLOBALS_PROXY_TAG,
+  firstMissingStdLibArg,
   isPureNumberStdLibOp,
   isStdLibFunctionName,
   isStdLibNamespaceName,
+  luauStringToBytes,
   luauTypeOf,
   lookupAnyStdLib,
   stdLibRequiredArgs,
@@ -37,7 +39,7 @@ import {
 } from "./StdLib";
 import { callBuiltinMethod, METHOD_PREFIX } from "./MethodDispatch";
 import { drawStoryRandom } from "./StoryRandom";
-import { StoryException } from "./StoryException";
+import { luauRuntimeError } from "./StoryException";
 import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
@@ -121,30 +123,43 @@ export function extractClosureTarget(
 }
 
 // Lua's index-type rule: only tables (and strings, via their library
-// metatable) are indexable. Returns the "attempt to index a X value"
-// message for non-indexable values, or `null` when `v` may be indexed.
-// Function values include symbol values, closure-shaped
+// metatable) are indexable. Returns Luau's error for indexing a
+// non-indexable `v` with `key` (`luauIndexError`), or `null` when `v` may
+// be indexed. Function values include symbol values, closure-shaped
 // ObjectValues, and `__stdlib_fn` markers (`math.pow.a` indexes a
 // builtin).
-function luauIndexTargetError(v: unknown): string | null {
+function luauIndexTargetError(v: unknown, key: unknown): string | null {
   if (v == null || v instanceof NullValue || v instanceof Void) {
-    return "attempt to index a nil value";
-  }
-  if (v instanceof BoolValue) return "attempt to index a boolean value";
-  if (v instanceof IntValue || v instanceof FloatValue) {
-    return "attempt to index a number value";
-  }
-  if (isFunctionReference(v)) {
-    return "attempt to index a function value";
+    return luauIndexError("nil", key);
   }
   if (
-    v instanceof ObjectValue &&
-    ((v.value as Map<string, unknown>)?.has("__closure_fn") ||
-      (v.value as Map<string, unknown>)?.has("__stdlib_fn"))
+    v instanceof BoolValue ||
+    v instanceof IntValue ||
+    v instanceof FloatValue ||
+    isFunctionReference(v) ||
+    (v instanceof ObjectValue &&
+      ((v.value as Map<string, unknown>)?.has("__closure_fn") ||
+        (v.value as Map<string, unknown>)?.has("__stdlib_fn")))
   ) {
-    return "attempt to index a function value";
+    return luauIndexError(luauTypeOf(v), key);
   }
   return null;
+}
+
+// Luau's message for indexing a value of type `baseType` with `key`
+// (`luaG_indexerror`): a string key of at most 64 bytes is quoted, any
+// other key is named by its type. Luau prints the quoted key through C's
+// `%s`, so it shows only the bytes before a NUL.
+function luauIndexError(baseType: string, key: unknown): string {
+  const keyText =
+    typeof key === "string"
+      ? key
+      : key instanceof StringValue
+        ? key.value
+        : null;
+  return keyText != null && luauStringToBytes(keyText).length <= 64
+    ? `attempt to index ${baseType} with '${keyText.split("\0", 1)[0]}'`
+    : `attempt to index ${baseType} with ${luauTypeOf(key)}`;
 }
 
 // Derive the string map-key for a Lua table index. Sparkdown tables
@@ -231,8 +246,8 @@ function indexThroughMetatable(
   }
   // Any other handler is indexed in turn, as Luau's `luaV_gettable` does,
   // which raises for a number or a boolean (`__index = 42`).
-  const indexError = luauIndexTargetError(indexFn);
-  if (indexError) throw new StoryException(indexError);
+  const indexError = luauIndexTargetError(indexFn, key ?? keyStr);
+  if (indexError) throw luauRuntimeError(indexError);
   return null;
 }
 
@@ -602,7 +617,7 @@ function tryUnaryMetamethod(
   const result = oneValue((results && results[0]) || new NullValue());
   // Luau's `luaV_dolen` takes only a number from `__len`.
   if (metaName === "__len" && typeof (result as any)?.value !== "number") {
-    throw new StoryException("'__len' must return a number");
+    throw luauRuntimeError("'__len' must return a number");
   }
   return result;
 }
@@ -937,6 +952,15 @@ function runBuiltinCall(
   spreadCallArgs(args);
   if (entry.arity >= 0 && args.length > entry.arity) {
     args.length = entry.arity;
+  }
+  // A state-aware builtin raises what its direct call (`callStd`) raises for
+  // a required argument left absent.
+  if (!entry.pure) {
+    const missing = firstMissingStdLibArg(entry, args);
+    if (missing) {
+      const short = name.slice(name.lastIndexOf(".") + 1);
+      story.Error(`missing argument #${missing} to '${short}'`);
+    }
   }
   const values = unwrapArgsForPureStdLibFn(entry, args, story, name);
   // A builtin of numbers given fewer arguments than it takes raises what its
@@ -1310,12 +1334,9 @@ export function callValueAsFunction(
       // below reports with the stack intact.
       for (const a of nmArgs) story.state.PushEvaluationStack(a);
     }
-    // Lua's exact message shape — iter.luau line 174 matches
+    // Lua's exact message (`luaG_callerror`) — iter.luau line 174 matches
     // `attempt to call a nil value` through pcall.
-    throw new StoryException(
-      `attempt to call a ${luauTypeOf(callTarget)} value` +
-        (callTarget ? " (got " + callTarget + ")" : ""),
-    );
+    throw luauRuntimeError(`attempt to call a ${luauTypeOf(callTarget)} value`);
   }
   // The arguments arranged for the function: a variadic function reached
   // as a bare symbol value (e.g. a sibling variadic subflow passed
@@ -1402,8 +1423,8 @@ function newindexThroughMetatable(
   }
   // Any other handler is stored into in turn, as Luau's `luaV_settable`
   // does, which raises for a number or a boolean (`__newindex = 42`).
-  const indexError = luauIndexTargetError(newindexFn);
-  if (indexError) throw new StoryException(indexError);
+  const indexError = luauIndexTargetError(newindexFn, key ?? keyStr);
+  if (indexError) throw luauRuntimeError(indexError);
   return false;
 }
 
@@ -1429,10 +1450,10 @@ function rawStore(
   val: AbstractValue,
 ): void {
   if (base.isFrozen) {
-    throw new StoryException("attempt to modify a readonly table");
+    throw luauRuntimeError("attempt to modify a readonly table");
   }
   if (keyStr === null) {
-    throw new StoryException(invalidKeyMessage(key) ?? "table index is nil");
+    throw luauRuntimeError(invalidKeyMessage(key) ?? "table index is nil");
   }
   story.state.variablesState.WriteBarrier(base);
   if (val instanceof NullValue) {
@@ -1574,9 +1595,9 @@ export function indexValue(
   // number / a function raises (trappable via pcall) —
   // `idontexist.a` must NOT silently produce nil.
   {
-    const idxErr = luauIndexTargetError(indexBase);
+    const idxErr = luauIndexTargetError(indexBase, indexKey);
     if (idxErr) {
-      story.Error(idxErr);
+      throw luauRuntimeError(idxErr);
     }
   }
   if (indexBase instanceof ObjectValue) {
@@ -1667,10 +1688,12 @@ export function storeIndex(
       }
       rawStore(story, storeBase, storeKey, keyStr, val);
     } else if (invalidKey !== null) {
-      throw new StoryException(invalidKey);
+      throw luauRuntimeError(invalidKey);
     }
   } else {
-    throw new StoryException("Cannot assign to a property of a non-object value");
+    // Storing into a value that is no table indexes it, as Luau's
+    // `luaV_settable` does.
+    throw luauRuntimeError(luauIndexError(luauTypeOf(storeBase), storeKey));
   }
 }
 
@@ -1736,7 +1759,7 @@ export function readVariable(story: any, name: string | null): InkObject {
         // table simply has no member) — but `_G.x.y` indexes
         // that nil and raises.
         if (segs.length > 2) {
-          dottedIndexError = "attempt to index a nil value";
+          dottedIndexError = luauIndexError("nil", segs[2]);
         } else {
           dottedResolvedToNil = true;
         }
@@ -1753,7 +1776,7 @@ export function readVariable(story: any, name: string | null): InkObject {
         // trap under pcall). Recorded, not thrown, so the
         // knot / stdlib-marker fallbacks below keep their shot
         // at resolving the full dotted name first.
-        const idxErr = luauIndexTargetError(cur);
+        const idxErr = luauIndexTargetError(cur, seg);
         if (idxErr) {
           dottedIndexError = idxErr;
           cur = null;
@@ -1783,7 +1806,7 @@ export function readVariable(story: any, name: string | null): InkObject {
           // Raw miss: nil when this is the last segment;
           // indexing that nil (more segments remain) raises.
           if (i < segs.length - 1) {
-            dottedIndexError = "attempt to index a nil value";
+            dottedIndexError = luauIndexError("nil", segs[i + 1]);
           }
           cur = null;
           break;
@@ -1793,7 +1816,7 @@ export function readVariable(story: any, name: string | null): InkObject {
           cur = obj.get(seg) ?? null;
           if (cur == null) {
             if (i < segs.length - 1) {
-              dottedIndexError = "attempt to index a nil value";
+              dottedIndexError = luauIndexError("nil", segs[i + 1]);
             }
             break;
           }
@@ -1841,43 +1864,38 @@ export function readVariable(story: any, name: string | null): InkObject {
   if (foundValue == null) {
     // A dotted read that dead-ended on a non-indexable hop
     // raises now that the knot / stdlib fallbacks have also
-    // missed (`local t = nil; t.a` → "attempt to index a nil
-    // value", trappable via pcall).
+    // missed (`local t = nil; t.a` → "attempt to index nil with
+    // 'a'", trappable via pcall).
     if (dottedIndexError) {
-      story.Error(dottedIndexError);
+      throw luauRuntimeError(dottedIndexError);
     }
     // Dotted reads whose ROOT never resolved: classify per
     // Lua's index rule rather than silently producing nil.
     //   - `math.pow.a`  → a stdlib FUNCTION prefix is being
-    //     indexed → "attempt to index a function value"
+    //     indexed → "attempt to index function with 'a'"
     //   - `math.a.b`    → `math` is a real namespace, `math.a`
     //     is a nil member, indexing it raises; but plain
     //     `math.idontexist` (one unknown segment) stays nil
     //   - `double.a`    → `double` names a knot (a function
-    //     value) → "attempt to index a function value"
+    //     value) → "attempt to index function with 'a'"
     //   - `idontexist.a` → indexing nil
     // (Skipped when the walk's root DID resolve and the chain
     // legitimately read a missing last member — that's nil.)
     if (!dottedResolvedToNil && name && name.includes(".")) {
       const segs = name.split(".");
-      let prefixIsStdLibFn = false;
       for (let cut = segs.length - 1; cut >= 1; cut--) {
         if (isStdLibFunctionName(segs.slice(0, cut).join("."))) {
-          prefixIsStdLibFn = true;
-          break;
+          throw luauRuntimeError(luauIndexError("function", segs[cut]));
         }
-      }
-      if (prefixIsStdLibFn) {
-        story.Error("attempt to index a function value");
       }
       if (isStdLibNamespaceName(segs[0]!)) {
         if (segs.length > 2) {
-          story.Error("attempt to index a nil value");
+          throw luauRuntimeError(luauIndexError("nil", segs[2]));
         }
       } else if (story.FlowValueNamed(segs[0]!)) {
-        story.Error("attempt to index a function value");
+        throw luauRuntimeError(luauIndexError("function", segs[1]));
       } else {
-        story.Error("attempt to index a nil value");
+        throw luauRuntimeError(luauIndexError("nil", segs[1]));
       }
     }
     // Luau-superset semantics: undefined names resolve to `nil`

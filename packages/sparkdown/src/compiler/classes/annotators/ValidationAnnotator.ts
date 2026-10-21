@@ -20,7 +20,7 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
-import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringErrors } from "../../typecheck/readLuauAst";
+import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringAbandonedAt, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
@@ -138,6 +138,7 @@ const BACKTICK_INTERPOLATIONS = nodeNameSet([
   "LuauBacktickStringInterpolation",
   "LuauBacktickFunctionCallShorthand",
 ]);
+const BACKTICK_STRINGS = nodeNameSet(["LuauInterpolatedString"]);
 const BACKTICK_INTERPOLATION_ENDS = nodeNameSet([
   "LuauBacktickStringInterpolation_end",
   "LuauBacktickFunctionCallShorthand_end",
@@ -498,18 +499,14 @@ const PURE_LUAU_BODY_CONTENT = nodeNameSet([
   "LuauIfBlock_content",
   "LuauElseifBlock_content",
   "LuauElseBlock_content",
-  "LuauConditionalAlternatorBlock_content",
-  "LuauSequentialAlternatorBlock_content",
+  "LuauAlternatorArms_content",
   "LuauFunctionTypeDeclaration_content",
 ]);
 
 // The alternator bodies among them. The type checker reads an alternator as
 // a value of any type, not its arms, so an arm that holds an unread token is
 // the alternator lowerer's to report (`lowerArms`).
-const ALTERNATOR_CONTENT = nodeNameSet([
-  "LuauConditionalAlternatorBlock_content",
-  "LuauSequentialAlternatorBlock_content",
-]);
+const ALTERNATOR_CONTENT = nodeNameSet(["LuauAlternatorArms_content"]);
 // The bodies whose statements are read one member or one closure at a time:
 // a define's (its members, each a method, a function or a property) and a
 // sparkle handler's closure's (read whole, as `lowerSparkleBody.ts` reads it).
@@ -1855,6 +1852,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // without the diagnostic it would vanish from the string. Use `'...'`
       // or `[[...]]` for a string that should hold literal braces.
       if (/^\{\s*\}$/.test(raw.trim())) {
+        // After an interpolation Luau's parser gave up on the string at
+        // (`` `a {1 2} b {} c` ``), the `{}` is no interpolation to Luau:
+        // the converter's reading reports the tokens there (I-1406).
+        // So is one in a string inside such a string's rest.
+        if (BACKTICK_INTERPOLATIONS.has(nodeRef.name)) {
+          for (let string = ancestorMatching(nodeRef.node, BACKTICK_STRINGS); string; string = ancestorMatching(string, BACKTICK_STRINGS)) {
+            const abandonedAt = readLuauStringAbandonedAt(string, this.statementDocumentText());
+            if (abandonedAt !== undefined && nodeRef.from >= abandonedAt) return annotations;
+          }
+        }
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message:

@@ -54,14 +54,26 @@ export interface InkDiagnostic {
   messageLinesInChunk?: true;
 }
 
+/** A `run` statement's operand (#1389): a quoted operand is a path relative to
+ *  the script, an unquoted one the name of a `.luau` file in the project. */
+export interface RunOperand {
+  /** The operand without its quotes and a trailing `.luau`. */
+  path: string;
+  /** The operand without its quotes, as written. */
+  written: string;
+  /** The quote character of a quoted operand, or empty for a name. */
+  quote: string;
+  /** The operand's range, quotes included, in the chunk. */
+  source: SourceMetadata;
+}
+
 export interface CompiledBlock {
   diagnostics?: InkDiagnostic[];
   content?: ParsedObject[];
-  // Path (without `.luau` extension) for a `run "path"` statement.
-  // Compiler resolves the file, wraps its body in a function-call
-  // knot, and emits an invocation. See SparkdownCompiler's `run`
-  // handling.
-  run?: string;
+  // The operand of a `run` statement. Compiler resolves the file, wraps its
+  // body in a function-call knot, and emits an invocation. See
+  // SparkdownCompiler's `run` handling.
+  run?: RunOperand;
   context?: {
     [type: string]: { [name: string]: any };
   };
@@ -624,11 +636,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // any do/while/for/if block scopes that wrap the in-place
       // assignment.
       const hoistedNestedFnDeclsStack: ParsedObject[][] = [];
-      // Per-chunk stack of "sibling subflow" names — nested function
-      // declarations that route through `lowerNestedAsSubFlow` (variadic
-      // fns) rather than emitting a local-binding closure. References to
-      // these names from inner closures skip upval capture, as the names
-      // are no variables: the call site reaches the subflow by path.
+      // Per-chunk stack of "sibling subflow" names, which records the
+      // names an assignment rebinds (`LowerContext.siblingSubFlowNamesStack`).
       const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
       // Per-chunk stack of the blocks being lowered, each with what its end
       // undoes (`LowerContext.blockEndStack`).

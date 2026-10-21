@@ -54,7 +54,9 @@ export const activateLanguageClient = async (
     return null;
   };
   const client = await createSparkdownLanguageClient(context, {
-    documentSelector: [{ language: "sparkdown" }],
+    // A `.luau` file is the `sparkdown-luau` language, which the server
+    // reads from the grammar's Luau root.
+    documentSelector: [{ language: "sparkdown" }, { language: "sparkdown-luau" }],
     synchronize: {
       fileEvents: fileWatchers,
     },

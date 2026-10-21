@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
+import { ALTERNATOR_CANDIDATES } from "../utils/alternatorDecision";
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { documentString } from "../utils/documentString";
 import {
@@ -143,6 +144,29 @@ function extendToValueListEnd(
     }
   }
   return end;
+}
+
+/**
+ * `from`, moved back to the word of each structural word's rule (a candidate
+ * alternator) the window starts inside or right after. Whether that word is a
+ * name or an alternator's depends on the arms the rule holds after it
+ * (`opensAlternator`, I-1310), so an edit that adds or removes the arms
+ * changes the word's annotations before the reparsed range. A line-start
+ * candidate whose arms an edit removes ends where they began, so the window
+ * also reaches back into a rule that ends at `from`.
+ */
+function extendToAlternatorWord(tree: Tree, from: number): number {
+  let start = from;
+  for (
+    let node: SyntaxNode | null = tree.resolveInner(from, -1);
+    node;
+    node = node.parent
+  ) {
+    if (ALTERNATOR_CANDIDATES.has(node.name) && node.from < start) {
+      start = node.from;
+    }
+  }
+  return start;
 }
 
 export type SparkdownAnnotationRanges = {
@@ -529,6 +553,7 @@ export class SparkdownCombinedAnnotator {
         editStart = fromB;
       }
     });
+    editStart = extendToAlternatorWord(tree, editStart);
     // Carry the define-type-name set through the edit over the parser's
     // window. The annotators' window below can run further, to the last name
     // of a `local`/`store`/`const` list, which holds no define type. It has to

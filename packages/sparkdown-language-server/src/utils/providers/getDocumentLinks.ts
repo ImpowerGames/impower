@@ -17,13 +17,14 @@ export const getDocumentLinks = (
   const result: DocumentLink[] = [];
 
   if (document && annotations) {
+    // Each link is a `run` operand, opening the `.luau` file it names.
     const cur = annotations.links.iter();
     while (cur.value) {
       const range = document.range(cur.from, cur.to);
       const text = document.getText(range);
       result.push({
         range,
-        target: workspace.resolve(document.uri, text),
+        target: workspace.resolveRun(document.uri, text),
       });
       cur.next();
     }

@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
+import { ALTERNATOR_CANDIDATES, opensAlternator } from "@impower/sparkdown/src/compiler/utils/alternatorDecision";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
 import { ancestorMatching } from "@impower/sparkdown/src/compiler/utils/ancestorMatching";
@@ -60,6 +61,8 @@ const LUAU_BLOCKS = nodeNameSet([
   "LuauRepeatLoop",
   "LuauConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorLineStart",
+  "LuauSequentialAlternatorLineStart",
   "LuauSparkdownDoBlock",
   "LuauSparkdownIfBlock",
   "LuauSparkdownElseifBlock",
@@ -276,7 +279,13 @@ const getLocalScope = (
   // enclosing block, so the next conditional branch still ends its scope.
   let block: Node | null = definition;
   for (; block; block = block.parent as Node | null) {
-    if (LUAU_BLOCKS.has(block.name) && !(type === "function" && block === definition)) {
+    // A structural word's rule that holds no arms is the call it reads as
+    // (I-1310), not a block, however much of its line it holds.
+    if (
+      LUAU_BLOCKS.has(block.name) &&
+      !(type === "function" && block === definition) &&
+      !(ALTERNATOR_CANDIDATES.has(block.name) && !opensAlternator(block))
+    ) {
       break;
     }
     // Branches and alternator arms never sit at the root, so a root-level

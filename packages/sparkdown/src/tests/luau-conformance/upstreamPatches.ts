@@ -666,19 +666,6 @@ end`,
   ],
   "events.luau": [
     {
-      // I-1336: `error(t)` with a table raises a cast error
-      // instead of the table, so `pcall` never returns it. That ticket's
-      // writer removes this patch.
-      find: `  setmetatable(t, { __len = error })
-  local ok, err = pcall(function() return #t end)
-  assert(not ok and err == t)`,
-      replace: `  setmetatable(t, { __len = error })
-  local ok, err = pcall(function() return #t end)
-  assert(not ok) -- [sparkdown] I-1336: was assert(not ok and err == t)`,
-      reason:
-        "error() with a table value is I-1336; the error is still checked, not its value",
-    },
-    {
       // Luau feature sparkdown lacks: function environments. `testfenv`
       // replaces its own environment with `setfenv(1, ...)` and checks
       // global reads and writes through it; sparkdown's globals are one
@@ -688,25 +675,6 @@ end`,
       replace: `-- [sparkdown] no function environments (setfenv); was: testfenv() -- DONT MOVE THIS LINE`,
       reason:
         "function environments (setfenv) are a Luau feature sparkdown does not have",
-    },
-  ],
-  // I-1337: an error the VM raises (here calling the nil an
-  // `__index` returned) carries no `<file>:<line>:` prefix, which only
-  // `error()` and `assert` add. The message is still checked without
-  // its position; that ticket's writer removes these patches.
-  "tmerror.luau": [
-    ...[37, 54, 73].map((line) => ({
-      find: `assert(string.find(result, ":${line}: attempt to call a nil value") ~= nil)`,
-      replace: `assert(string.find(result, "attempt to call a nil value") ~= nil) -- [sparkdown] I-1337: was ":${line}: attempt to call a nil value"`,
-      reason:
-        "a VM error has no position prefix (I-1337); the message is checked without it",
-    })),
-    {
-      // I-1336: `error()` with no message raises the string "error"
-      // instead of nil. That ticket's writer removes this patch.
-      find: `        assert(result == nil)`,
-      replace: `        -- [sparkdown] I-1336: was assert(result == nil)`,
-      reason: "error() with a non-string value (here nil) is I-1336",
     },
   ],
 };

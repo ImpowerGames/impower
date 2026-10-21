@@ -1,0 +1,17 @@
+{
+  "_generated_": [
+    "Generated from ../../../definitions/yaml/sparkdown.language-grammar.yaml by @impower/definitions.",
+    "Do NOT edit this JSON file directly — your changes will be lost on the next build.",
+    "Edit the YAML source instead, then run `npm run language` from definitions/."
+  ],
+  "name": "Sparkdown Luau",
+  "scopeName": "source.sparkdown.luau",
+  "fileTypes": [
+    "luau"
+  ],
+  "patterns": [
+    {
+      "include": "text.source.sparkdown#LuauFile"
+    }
+  ]
+}

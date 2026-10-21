@@ -32,6 +32,7 @@ const SOURCE = YAML.parse(
   ),
 ) as {
   patterns: unknown[];
+  luauFile: { rule: string };
   repository: Record<string, unknown>;
   variables: Record<string, unknown>;
 };
@@ -56,7 +57,7 @@ const KNOWN_UNREACHABLE_RULES = [
 
 // Variables read directly from `GRAMMAR_DEFINITION.variables` in TypeScript
 // rather than expanded in a pattern.
-const VARIABLES_READ_FROM_TYPESCRIPT = ["FLOW_MODULE_KEYWORDS", "LUAU_LOOP_BLOCK_KEYWORDS"];
+const VARIABLES_READ_FROM_TYPESCRIPT = ["FLOW_MODULE_KEYWORDS", "LUAU_LOCAL_DECLARATION_KEYWORDS", "LUAU_LOOP_BLOCK_KEYWORDS"];
 
 // Variables nothing expands, outside #1277's list. Tracked by the same
 // follow-up Task.
@@ -93,7 +94,9 @@ function includesOf(node: unknown): string[] {
 
 function reachableRules(): Set<string> {
   const reached = new Set<string>();
-  const queue = includesOf(SOURCE.patterns);
+  // The grammar's two roots: a `.sd` script's top-level patterns, and the
+  // rule a `.luau` document is read from.
+  const queue = [...includesOf(SOURCE.patterns), SOURCE.luauFile.rule];
   while (queue.length) {
     const name = queue.pop()!;
     if (reached.has(name)) continue;

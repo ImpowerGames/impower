@@ -20,10 +20,11 @@ import type { LowerContext, LoweringRead } from "./context";
  *
  * - The document. `read`, `lineNumber` and `characterNumber` answer for
  *   positions; a read of the statement's own source is its syntax, which the
- *   memo's key holds, and a read outside it is recorded relative to the
- *   statement's start, so that the statement keeps its memo when an edit
- *   above it moves it. `documentText` and `chunkFrom` are where the
- *   statement's own nodes are read from and where its offsets count from.
+ *   memo's key holds, and a read outside it, like the offset a method marked
+ *   `takesOffset` is asked at, is recorded relative to the statement's
+ *   start, so that the statement keeps its memo when an edit above it moves
+ *   it. `documentText` and `chunkFrom` are where the statement's own nodes
+ *   are read from and where its offsets count from.
  * - The diagnostics a lowering reports (`diagnostics`), which are recorded
  *   and reported again by the memo, and the statement shape its own lowering
  *   writes (`statementStack`).
@@ -52,8 +53,30 @@ export type ContextValue = Primitive | { readonly kind: "object" | "function" };
 
 /** One step of a path through the context: a property, or a call of a
  *  method with primitive arguments (`#all` stands for every entry of a map
- *  or a set, read whole). */
-export type ContextStep = string | number | { readonly call: string; readonly args: readonly Primitive[] };
+ *  or a set, read whole). `at` marks a call of a method whose last argument
+ *  is an offset in the document (`takesOffset`), recorded relative to the
+ *  statement's start. */
+export type ContextStep =
+  | string
+  | number
+  | { readonly call: string; readonly args: readonly Primitive[]; readonly at?: true };
+
+// The methods of the context whose last argument is an offset in the
+// document (`takesOffset`).
+const offsetMethods = new WeakSet<object>();
+
+/**
+ * Marks `method`, a method the context holds, as one whose last argument is
+ * an offset in the document: a call of it is recorded with that offset
+ * counted from the statement's start, as a read of the document outside the
+ * statement is, so that the statement keeps its memo when an edit above it
+ * moves it with whatever the method reads (`localInScope`), and a read
+ * asks it again from where the statement now starts.
+ */
+export const takesOffset = <F extends (...args: never[]) => unknown>(method: F): F => {
+  offsetMethods.add(method);
+  return method;
+};
 
 export type ContextRead =
   | { readonly kind: "path"; readonly path: readonly ContextStep[]; readonly value: ContextValue }
@@ -196,6 +219,14 @@ export function recordLowering(
   const refuse = (why: string) => {
     recording.unkeyable ??= why;
   };
+  // The step a call of `method` with `args` records: its offset counted from
+  // the statement's start when it takes one (`takesOffset`).
+  const callStep = (method: unknown, call: string, args: readonly Primitive[]): ContextStep => {
+    const at = args[args.length - 1];
+    return typeof method === "function" && offsetMethods.has(method) && typeof at === "number"
+      ? { call, args: [...args.slice(0, -1), at - from], at: true }
+      : { call, args };
+  };
   // Each path once, with the value it first read: a later read of the same
   // path reads what the lowering itself wrote there.
   const recorded = new Set<string>();
@@ -254,7 +285,7 @@ export function recordLowering(
             refuse(`${describe(path)} asked about an object`);
             return (value as (...a: unknown[]) => unknown)(...args);
           }
-          const step: ContextStep = { call: "()", args: args as Primitive[] };
+          const step = callStep(value, "()", args as Primitive[]);
           const answer = (value as (...a: unknown[]) => unknown)(...args);
           return wrap(answer, [...path, step]);
         };
@@ -347,7 +378,7 @@ export function recordLowering(
               return method.apply(t, args.map(unwrap));
             }
             const answer = method.apply(t, args);
-            return wrap(answer, [...path, { call: prop, args: args as Primitive[] }]);
+            return wrap(answer, [...path, callStep(method, prop, args as Primitive[])]);
           };
         }
         const value = (t as any)[prop];
@@ -360,7 +391,7 @@ export function recordLowering(
               return value.apply(t, args.map(unwrap));
             }
             const answer = value.apply(t, args);
-            return wrap(answer, [...path, { call: prop, args: args as Primitive[] }]);
+            return wrap(answer, [...path, callStep(value, prop, args as Primitive[])]);
           };
         }
         return wrap(value, [...path, prop]);
@@ -490,7 +521,7 @@ export function recordLowering(
             return (value as (...a: unknown[]) => unknown).apply(t, args);
           }
           const answer = (value as (...a: unknown[]) => unknown).apply(t, args);
-          return wrap(answer, [{ call: prop, args: args as Primitive[] }]);
+          return wrap(answer, [callStep(value, prop, args as Primitive[])]);
         };
       }
       return wrap(value, [prop]);
@@ -623,11 +654,18 @@ export function readsHold(
           if (typeof step === "object") {
             if (step.call === "#all") {
               value = wholeOf(value);
-            } else if (step.call === "()") {
-              value = typeof value === "function" ? (value as (...a: unknown[]) => unknown)(...step.args) : undefined;
             } else {
-              const method = (value as any)[step.call];
-              value = typeof method === "function" ? method.apply(value, step.args) : undefined;
+              // An offset counted from the statement's start is asked from
+              // where the statement starts now (`takesOffset`).
+              const args = step.at
+                ? [...step.args.slice(0, -1), (step.args[step.args.length - 1] as number) + from]
+                : step.args;
+              if (step.call === "()") {
+                value = typeof value === "function" ? (value as (...a: unknown[]) => unknown)(...args) : undefined;
+              } else {
+                const method = (value as any)[step.call];
+                value = typeof method === "function" ? method.apply(value, args) : undefined;
+              }
             }
           } else {
             value = (value as any)[step];

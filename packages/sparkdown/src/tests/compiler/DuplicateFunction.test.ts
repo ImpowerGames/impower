@@ -75,8 +75,16 @@ describe("DuplicateFunction in one block", () => {
     expect(inFunction(" do\n  public y\n  local function f() end\n  local function f() end\n  f()\n end")).toEqual([]);
   });
 
-  test("a name the grammar reads as a keyword is left alone", () => {
-    expect(inFunction(" local function match() end\n local function match() end\n match(1)")).toEqual([]);
+  // A structural word with no arms is a name (I-1310), so its call is one
+  // like any other.
+  test("a structural word's call is a name's", () => {
+    const body = (name: string) => ` local function ${name}() end\n local function ${name}() end\n ${name}(1)`;
+    expect(inFunction(body("match"))).toEqual([message("match", 3)]);
+    expect(inFunction(body("match"))).toEqual(inFunction(body("hp")).map((m) => m.replace("'hp'", "'match'")));
+  });
+
+  test("a name the grammar reads as an alternator's keyword is left alone", () => {
+    expect(inFunction(" local function match() end\n local function match() end\n return match(1) | a = 1 end")).toEqual([]);
   });
 
   test("a narrative if's arms are separate blocks, and one arm is a block", () => {

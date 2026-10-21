@@ -13,11 +13,16 @@ import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
 import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
 import type { ProgramAddress } from "../compiler/types/ProgramAddress";
-import { lookupStateAwareStdLib, luauTypeOf } from "../runtime/StdLib";
+import {
+  firstMissingStdLibArg,
+  lookupStateAwareStdLib,
+  luauTypeOf,
+} from "../runtime/StdLib";
 import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, rootVariablePointer, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
+  luauRuntimeError,
 } from "../runtime/StoryException";
 import { StringBuilder } from "../runtime/StringBuilder";
 import { Tag } from "../runtime/Tag";
@@ -1688,7 +1693,7 @@ export class ProgramStory implements StoryEngine {
           if (callHandler != null && !(callHandler instanceof NullValue)) {
             return this.CallLuauFunction(callHandler, [fnValue, ...args]);
           }
-          throw new StoryException(`attempt to call a ${luauTypeOf(fnValue)} value`);
+          throw luauRuntimeError(`attempt to call a ${luauTypeOf(fnValue)} value`);
         }
       } else if (isFunctionReference(fnValue)) {
         for (const a of callArgs) state.PushEvaluationStack(a);
@@ -1696,7 +1701,7 @@ export class ProgramStory implements StoryEngine {
       } else {
         // Luau's message for a value that is no function, as a metamethod
         // that is a number (`__len = 42`) raises it.
-        throw new StoryException(`attempt to call a ${luauTypeOf(fnValue)} value`);
+        throw luauRuntimeError(`attempt to call a ${luauTypeOf(fnValue)} value`);
       }
       if (target == null) {
         throw new StoryException(
@@ -1742,12 +1747,18 @@ export class ProgramStory implements StoryEngine {
    * The protected form of `CallLuauFunction`, which `pcall` and `xpcall`
    * call, as the object engine's `Story.CallLuauFunctionProtected` did: an
    * error the function raises, thrown or added, is trapped and taken off the
-   * story's errors, and returned as the call's error message.
+   * story's errors, and returned as the call's error message, with the value
+   * `error` raised when it raised no message (`StoryException.errorValue`).
    */
   CallLuauFunctionProtected(
     fnValue: AbstractValue,
     args: AbstractValue[],
-  ): { ok: boolean; values: AbstractValue[]; errorMessage?: string } {
+  ): {
+    ok: boolean;
+    values: AbstractValue[];
+    errorMessage?: string;
+    errorValue?: AbstractValue;
+  } {
     if (fnValue instanceof VariablePointerValue) {
       const resolved = this._state.variablesState.GetVariableWithName(
         fnValue.variableName,
@@ -1795,7 +1806,7 @@ export class ProgramStory implements StoryEngine {
           if (errsNow && errsNow.length > errCountBefore) {
             errsNow.length = errCountBefore;
           }
-          return { ok: false, values: [], errorMessage: e.message };
+          return trappedFailure(e);
         }
         throw e;
       } finally {
@@ -1806,6 +1817,7 @@ export class ProgramStory implements StoryEngine {
     const savedErrorCount = state.currentErrors?.length ?? 0;
     const suspended = this.suspendStep();
     let trappedError: string | null = null;
+    let trappedValue: AbstractValue | undefined;
     try {
       const callArgs = normalizeLuauCallArgs(this, fnValue, args);
       let target: FunctionTarget | null;
@@ -1856,6 +1868,7 @@ export class ProgramStory implements StoryEngine {
         } catch (e) {
           if (e instanceof StoryException) {
             trappedError = e.message;
+            trappedValue = e.errorValue as AbstractValue | undefined;
             break;
           }
           throw e;
@@ -1881,7 +1894,12 @@ export class ProgramStory implements StoryEngine {
       }
 
       if (trappedError != null) {
-        return { ok: false, values: [], errorMessage: trappedError };
+        return {
+          ok: false,
+          values: [],
+          errorMessage: trappedError,
+          errorValue: trappedValue,
+        };
       }
 
       const results: AbstractValue[] = [];
@@ -2110,12 +2128,14 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Raises `message` in place of `cause`, an error a callback raised,
-   *  keeping where the callback raised it (`Story.ErrorFrom`). */
+   *  keeping where the callback raised it (`Story.ErrorFrom`) and the value
+   *  `error` raised there, which `pcall` returns unchanged. */
   ErrorFrom(message: string, cause: unknown): never {
     const e = new StoryException(message);
     if (cause instanceof StoryException) {
       e.raisedPath = cause.raisedPath;
       e.raisedAddress = cause.raisedAddress;
+      e.errorValue = cause.errorValue;
     }
     throw e;
   }
@@ -2469,7 +2489,20 @@ export class ProgramStory implements StoryEngine {
       this.beatLog.push(address);
     }
     state.lineEndJoined = false;
-    this.execute(position, chunk);
+    try {
+      this.execute(position, chunk);
+    } catch (e) {
+      // An error the VM raised for this instruction's operation takes its
+      // position, as `error` called here would. One a callback nested in
+      // this instruction raised was positioned by the step that ran it.
+      if (e instanceof StoryException && e.positionPending) {
+        e.positionPending = false;
+        if (this.errorMessageFormatter) {
+          e.message = this.errorMessageFormatter(this, e.message);
+        }
+      }
+      throw e;
+    }
     // A line end that stopped waiting with nothing cut, as a join that
     // continues the line does, keeps what it held in this beat, the joining
     // instruction's own address with it, even when the joining line leaves
@@ -3778,6 +3811,17 @@ export class ProgramStory implements StoryEngine {
       args.unshift(this._state.PopEvaluationStack());
     }
     spreadCallArgs(args);
+    // A required argument left absent raises Luau's error, naming the
+    // function without its library (`'rep'`), as the first-class call does;
+    // the engine's own `__` helpers always receive theirs.
+    const missing = name.startsWith("__")
+      ? 0
+      : firstMissingStdLibArg(entry, args);
+    if (missing) {
+      this.Error(
+        `missing argument #${missing} to '${name.slice(name.lastIndexOf(".") + 1)}'`,
+      );
+    }
     const result = entry.fn(this, args);
     if (discard) {
       return;
@@ -3844,6 +3888,22 @@ export class ProgramStory implements StoryEngine {
     return undefined;
   }
 }
+
+/** A protected call's failure for the error `e` it trapped: its message, and
+ *  the value `error` raised in place of one. */
+const trappedFailure = (
+  e: StoryException,
+): {
+  ok: false;
+  values: AbstractValue[];
+  errorMessage: string;
+  errorValue?: AbstractValue;
+} => ({
+  ok: false,
+  values: [],
+  errorMessage: e.message,
+  errorValue: e.errorValue as AbstractValue | undefined,
+});
 
 /** Whether `chunk` is a `label` statement's: its code the one `Visit` of the
  *  symbol it exports. */

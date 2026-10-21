@@ -84,126 +84,129 @@ sparkdown [0..189]
  │   │       │       │   │   │       │       └─ LuauConditionalAlternatorBlock_begin_c3 65
  │   │       │       │   │   │       │           └─ OptionalWhitespace 65
  │   │       │       │   │   │       ├─ LuauConditionalAlternatorBlock_content [65..108]
- │   │       │       │   │   │       │   └─ LuauConditionalAlternatorCondition [65..108]
- │   │       │       │   │   │       │       ├─ LuauConditionalAlternatorCondition_begin 65
- │   │       │       │   │   │       │       ├─ LuauConditionalAlternatorCondition_content [65..108]
- │   │       │       │   │   │       │       │   ├─ LuauParenthetical [65..82]
- │   │       │       │   │   │       │       │   │   ├─ LuauParenthetical_begin [65..66]
- │   │       │       │   │   │       │       │   │   │   └─ LuauParenthetical_begin_c1 [65..66]
- │   │       │       │   │   │       │       │   │   │       └─ PunctuationParenOpen [65..66]: "("
- │   │       │       │   │   │       │       │   │   ├─ LuauParenthetical_content [66..81]
- │   │       │       │   │   │       │       │   │   │   └─ LuauAccessPath [66..81]
- │   │       │       │   │   │       │       │   │   │       ├─ LuauAccessPath_begin 66
- │   │       │       │   │   │       │       │   │   │       ├─ LuauAccessPath_content [66..81]
- │   │       │       │   │   │       │       │   │   │       │   ├─ LuauAccessPart [66..75]
- │   │       │       │   │   │       │       │   │   │       │   │   └─ LuauVariable [66..75]
- │   │       │       │   │   │       │       │   │   │       │   │       └─ LuauVariable_c1 [66..75]
- │   │       │       │   │   │       │       │   │   │       │   │           └─ LuauVariableName [66..75]: "inventory"
- │   │       │       │   │   │       │       │   │   │       │   └─ LuauAccessPart [75..81]
- │   │       │       │   │   │       │       │   │   │       │       └─ LuauPropertyAccessor [75..81]
- │   │       │       │   │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c1 75
- │   │       │       │   │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [75..76]
- │   │       │       │   │   │       │       │   │   │       │           │   └─ LuauAccessorOperator [75..76]: "."
- │   │       │       │   │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c3 76
- │   │       │       │   │   │       │       │   │   │       │           └─ LuauPropertyAccessor_c4 [76..81]
- │   │       │       │   │   │       │       │   │   │       │               └─ LuauPropertyName [76..81]: "stars"
- │   │       │       │   │   │       │       │   │   │       └─ LuauAccessPath_end 81
- │   │       │       │   │   │       │       │   │   │           └─ LuauAccessPath_end_c1 81
- │   │       │       │   │   │       │       │   │   └─ LuauParenthetical_end [81..82]
- │   │       │       │   │   │       │       │   │       ├─ LuauParenthetical_end_c1 [81..82]
- │   │       │       │   │   │       │       │   │       │   └─ PunctuationParenClose [81..82]: ")"
- │   │       │       │   │   │       │       │   │       └─ LuauParenthetical_end_c2 82
- │   │       │       │   │   │       │       │   └─ LuauTable [82..108]
- │   │       │       │   │   │       │       │       ├─ LuauTable_begin [82..83]
- │   │       │       │   │   │       │       │       │   └─ LuauTable_begin_c1 [82..83]
- │   │       │       │   │   │       │       │       │       └─ PunctuationBraceOpen [82..83]: "{"
- │   │       │       │   │   │       │       │       ├─ LuauTable_content [83..107]
- │   │       │       │   │   │       │       │       │   ├─ LuauAccessPath [83..86]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_begin 83
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_content [83..86]
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAccessPart [83..86]
- │   │       │       │   │   │       │       │       │   │   │       └─ LuauVariable [83..86]
- │   │       │       │   │   │       │       │       │   │   │           └─ LuauVariable_c1 [83..86]
- │   │       │       │   │   │       │       │       │   │   │               └─ LuauVariableName [83..86]: "one"
- │   │       │       │   │   │       │       │       │   │   └─ LuauAccessPath_end 86
- │   │       │       │   │   │       │       │       │   │       └─ LuauAccessPath_end_c1 86
- │   │       │       │   │   │       │       │       │   │           └─ LuauAccessPath_end_c1 86
- │   │       │       │   │   │       │       │       │   │               └─ OptionalWhitespace 86
- │   │       │       │   │   │       │       │       │   ├─ LuauAssignmentOperation [86..93]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAssignmentOperation_begin 86
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 86
- │   │       │       │   │   │       │       │       │   │   │       └─ OptionalWhitespace 86
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAssignmentOperation_content [86..93]
- │   │       │       │   │   │       │       │       │   │   │   ├─ LuauAssignmentOperator [86..87]
- │   │       │       │   │   │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [86..87]
- │   │       │       │   │   │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c1 86
- │   │       │       │   │   │       │       │       │   │   │   │   │   │   └─ OptionalWhitespace 86
- │   │       │       │   │   │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c2 [86..87]: "="
- │   │       │       │   │   │       │       │       │   │   │   │   │   └─ LuauAssignmentOperator_begin_c3 87
- │   │       │       │   │   │       │       │       │   │   │   │   │       └─ LuauAssignmentOperator_begin_c3 87
- │   │       │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 87
- │   │       │       │   │   │       │       │       │   │   │   │   └─ LuauAssignmentOperator_end 87
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauDoubleQuotedString [87..93]
- │   │       │       │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_begin [87..88]
- │   │       │       │   │   │       │       │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [87..88]
- │   │       │       │   │   │       │       │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [87..88]: "\""
- │   │       │       │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_content [88..92]
- │   │       │       │   │   │       │       │       │   │   │       │   └─ Word [88..92]: "star"
- │   │       │       │   │   │       │       │       │   │   │       └─ LuauDoubleQuotedString_end [92..93]
- │   │       │       │   │   │       │       │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [92..93]
- │   │       │       │   │   │       │       │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [92..93]: "\""
- │   │       │       │   │   │       │       │       │   │   │           └─ LuauDoubleQuotedString_end_c2 93
- │   │       │       │   │   │       │       │       │   │   └─ LuauAssignmentOperation_end 93
- │   │       │       │   │   │       │       │       │   ├─ LuauCommaSeparator [93..94]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauCommaSeparator_c1 93
- │   │       │       │   │   │       │       │       │   │   ├─ LuauCommaSeparator_c2 [93..94]: ","
- │   │       │       │   │   │       │       │       │   │   └─ LuauCommaSeparator_c3 94
- │   │       │       │   │   │       │       │       │   │       └─ LuauCommaSeparator_c3 94
- │   │       │       │   │   │       │       │       │   │           └─ OptionalWhitespace 94
- │   │       │       │   │   │       │       │       │   ├─ LuauAccessPath [94..99]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_begin 94
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_content [94..99]
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAccessPart [94..99]
- │   │       │       │   │   │       │       │       │   │   │       └─ LuauVariable [94..99]
- │   │       │       │   │   │       │       │       │   │   │           └─ LuauVariable_c1 [94..99]
- │   │       │       │   │   │       │       │       │   │   │               └─ LuauVariableName [94..99]: "other"
- │   │       │       │   │   │       │       │       │   │   └─ LuauAccessPath_end 99
- │   │       │       │   │   │       │       │       │   │       └─ LuauAccessPath_end_c1 99
- │   │       │       │   │   │       │       │       │   │           └─ LuauAccessPath_end_c1 99
- │   │       │       │   │   │       │       │       │   │               └─ OptionalWhitespace 99
- │   │       │       │   │   │       │       │       │   └─ LuauAssignmentOperation [99..107]
- │   │       │       │   │   │       │       │       │       ├─ LuauAssignmentOperation_begin 99
- │   │       │       │   │   │       │       │       │       │   └─ LuauAssignmentOperation_begin_c1 99
- │   │       │       │   │   │       │       │       │       │       └─ OptionalWhitespace 99
- │   │       │       │   │   │       │       │       │       ├─ LuauAssignmentOperation_content [99..107]
- │   │       │       │   │   │       │       │       │       │   ├─ LuauAssignmentOperator [99..100]
- │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAssignmentOperator_begin [99..100]
- │   │       │       │   │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 99
- │   │       │       │   │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 99
- │   │       │       │   │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [99..100]: "="
- │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 100
- │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 100
- │   │       │       │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace 100
- │   │       │       │   │   │       │       │       │       │   │   └─ LuauAssignmentOperator_end 100
- │   │       │       │   │   │       │       │       │       │   └─ LuauDoubleQuotedString [100..107]
- │   │       │       │   │   │       │       │       │       │       ├─ LuauDoubleQuotedString_begin [100..101]
- │   │       │       │   │   │       │       │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [100..101]
- │   │       │       │   │   │       │       │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [100..101]: "\""
- │   │       │       │   │   │       │       │       │       │       ├─ LuauDoubleQuotedString_content [101..106]
- │   │       │       │   │   │       │       │       │       │       │   └─ Word [101..106]: "stars"
- │   │       │       │   │   │       │       │       │       │       └─ LuauDoubleQuotedString_end [106..107]
- │   │       │       │   │   │       │       │       │       │           ├─ LuauDoubleQuotedString_end_c1 [106..107]
- │   │       │       │   │   │       │       │       │       │           │   └─ PunctuationStringDoubleQuoteClose [106..107]: "\""
- │   │       │       │   │   │       │       │       │       │           └─ LuauDoubleQuotedString_end_c2 107
- │   │       │       │   │   │       │       │       │       └─ LuauAssignmentOperation_end 107
- │   │       │       │   │   │       │       │       └─ LuauTable_end [107..108]
- │   │       │       │   │   │       │       │           ├─ LuauTable_end_c1 [107..108]
- │   │       │       │   │   │       │       │           │   └─ PunctuationBraceClose [107..108]: "}"
- │   │       │       │   │   │       │       │           └─ LuauTable_end_c2 108
- │   │       │       │   │   │       │       └─ LuauConditionalAlternatorCondition_end 108
+ │   │       │       │   │   │       │   └─ LuauAlternatorHead [65..108]
+ │   │       │       │   │   │       │       ├─ LuauAlternatorHead_begin 65
+ │   │       │       │   │   │       │       ├─ LuauAlternatorHead_content [65..108]
+ │   │       │       │   │   │       │       │   └─ LuauConditionalAlternatorCondition [65..108]
+ │   │       │       │   │   │       │       │       ├─ LuauConditionalAlternatorCondition_begin 65
+ │   │       │       │   │   │       │       │       ├─ LuauConditionalAlternatorCondition_content [65..108]
+ │   │       │       │   │   │       │       │       │   ├─ LuauParenthetical [65..82]
+ │   │       │       │   │   │       │       │       │   │   ├─ LuauParenthetical_begin [65..66]
+ │   │       │       │   │   │       │       │       │   │   │   └─ LuauParenthetical_begin_c1 [65..66]
+ │   │       │       │   │   │       │       │       │   │   │       └─ PunctuationParenOpen [65..66]: "("
+ │   │       │       │   │   │       │       │       │   │   ├─ LuauParenthetical_content [66..81]
+ │   │       │       │   │   │       │       │       │   │   │   └─ LuauAccessPath [66..81]
+ │   │       │       │   │   │       │       │       │   │   │       ├─ LuauAccessPath_begin 66
+ │   │       │       │   │   │       │       │       │   │   │       ├─ LuauAccessPath_content [66..81]
+ │   │       │       │   │   │       │       │       │   │   │       │   ├─ LuauAccessPart [66..75]
+ │   │       │       │   │   │       │       │       │   │   │       │   │   └─ LuauVariable [66..75]
+ │   │       │       │   │   │       │       │       │   │   │       │   │       └─ LuauVariable_c1 [66..75]
+ │   │       │       │   │   │       │       │       │   │   │       │   │           └─ LuauVariableName [66..75]: "inventory"
+ │   │       │       │   │   │       │       │       │   │   │       │   └─ LuauAccessPart [75..81]
+ │   │       │       │   │   │       │       │       │   │   │       │       └─ LuauPropertyAccessor [75..81]
+ │   │       │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyAccessor_c1 75
+ │   │       │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [75..76]
+ │   │       │       │   │   │       │       │       │   │   │       │           │   └─ LuauAccessorOperator [75..76]: "."
+ │   │       │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyAccessor_c3 76
+ │   │       │       │   │   │       │       │       │   │   │       │           └─ LuauPropertyAccessor_c4 [76..81]
+ │   │       │       │   │   │       │       │       │   │   │       │               └─ LuauPropertyName [76..81]: "stars"
+ │   │       │       │   │   │       │       │       │   │   │       └─ LuauAccessPath_end 81
+ │   │       │       │   │   │       │       │       │   │   │           └─ LuauAccessPath_end_c1 81
+ │   │       │       │   │   │       │       │       │   │   └─ LuauParenthetical_end [81..82]
+ │   │       │       │   │   │       │       │       │   │       ├─ LuauParenthetical_end_c1 [81..82]
+ │   │       │       │   │   │       │       │       │   │       │   └─ PunctuationParenClose [81..82]: ")"
+ │   │       │       │   │   │       │       │       │   │       └─ LuauParenthetical_end_c2 82
+ │   │       │       │   │   │       │       │       │   └─ LuauTable [82..108]
+ │   │       │       │   │   │       │       │       │       ├─ LuauTable_begin [82..83]
+ │   │       │       │   │   │       │       │       │       │   └─ LuauTable_begin_c1 [82..83]
+ │   │       │       │   │   │       │       │       │       │       └─ PunctuationBraceOpen [82..83]: "{"
+ │   │       │       │   │   │       │       │       │       ├─ LuauTable_content [83..107]
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauAccessPath [83..86]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_begin 83
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_content [83..86]
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAccessPart [83..86]
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauVariable [83..86]
+ │   │       │       │   │   │       │       │       │       │   │   │           └─ LuauVariable_c1 [83..86]
+ │   │       │       │   │   │       │       │       │       │   │   │               └─ LuauVariableName [83..86]: "one"
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauAccessPath_end 86
+ │   │       │       │   │   │       │       │       │       │   │       └─ LuauAccessPath_end_c1 86
+ │   │       │       │   │   │       │       │       │       │   │           └─ LuauAccessPath_end_c1 86
+ │   │       │       │   │   │       │       │       │       │   │               └─ OptionalWhitespace 86
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauAssignmentOperation [86..93]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAssignmentOperation_begin 86
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 86
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ OptionalWhitespace 86
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAssignmentOperation_content [86..93]
+ │   │       │       │   │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator [86..87]
+ │   │       │       │   │   │       │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [86..87]
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c1 86
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   │   └─ OptionalWhitespace 86
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c2 [86..87]: "="
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   └─ LuauAssignmentOperator_begin_c3 87
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │       └─ LuauAssignmentOperator_begin_c3 87
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │           └─ OptionalWhitespace 87
+ │   │       │       │   │   │       │       │       │       │   │   │   │   └─ LuauAssignmentOperator_end 87
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauDoubleQuotedString [87..93]
+ │   │       │       │   │   │       │       │       │       │   │   │       ├─ LuauDoubleQuotedString_begin [87..88]
+ │   │       │       │   │   │       │       │       │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [87..88]
+ │   │       │       │   │   │       │       │       │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [87..88]: "\""
+ │   │       │       │   │   │       │       │       │       │   │   │       ├─ LuauDoubleQuotedString_content [88..92]
+ │   │       │       │   │   │       │       │       │       │   │   │       │   └─ Word [88..92]: "star"
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauDoubleQuotedString_end [92..93]
+ │   │       │       │   │   │       │       │       │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [92..93]
+ │   │       │       │   │   │       │       │       │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [92..93]: "\""
+ │   │       │       │   │   │       │       │       │       │   │   │           └─ LuauDoubleQuotedString_end_c2 93
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauAssignmentOperation_end 93
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauCommaSeparator [93..94]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauCommaSeparator_c1 93
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauCommaSeparator_c2 [93..94]: ","
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauCommaSeparator_c3 94
+ │   │       │       │   │   │       │       │       │       │   │       └─ LuauCommaSeparator_c3 94
+ │   │       │       │   │   │       │       │       │       │   │           └─ OptionalWhitespace 94
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauAccessPath [94..99]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_begin 94
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_content [94..99]
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAccessPart [94..99]
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauVariable [94..99]
+ │   │       │       │   │   │       │       │       │       │   │   │           └─ LuauVariable_c1 [94..99]
+ │   │       │       │   │   │       │       │       │       │   │   │               └─ LuauVariableName [94..99]: "other"
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauAccessPath_end 99
+ │   │       │       │   │   │       │       │       │       │   │       └─ LuauAccessPath_end_c1 99
+ │   │       │       │   │   │       │       │       │       │   │           └─ LuauAccessPath_end_c1 99
+ │   │       │       │   │   │       │       │       │       │   │               └─ OptionalWhitespace 99
+ │   │       │       │   │   │       │       │       │       │   └─ LuauAssignmentOperation [99..107]
+ │   │       │       │   │   │       │       │       │       │       ├─ LuauAssignmentOperation_begin 99
+ │   │       │       │   │   │       │       │       │       │       │   └─ LuauAssignmentOperation_begin_c1 99
+ │   │       │       │   │   │       │       │       │       │       │       └─ OptionalWhitespace 99
+ │   │       │       │   │   │       │       │       │       │       ├─ LuauAssignmentOperation_content [99..107]
+ │   │       │       │   │   │       │       │       │       │       │   ├─ LuauAssignmentOperator [99..100]
+ │   │       │       │   │   │       │       │       │       │       │   │   ├─ LuauAssignmentOperator_begin [99..100]
+ │   │       │       │   │   │       │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 99
+ │   │       │       │   │   │       │       │       │       │       │   │   │   │   └─ OptionalWhitespace 99
+ │   │       │       │   │   │       │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [99..100]: "="
+ │   │       │       │   │   │       │       │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 100
+ │   │       │       │   │   │       │       │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 100
+ │   │       │       │   │   │       │       │       │       │       │   │   │           └─ OptionalWhitespace 100
+ │   │       │       │   │   │       │       │       │       │       │   │   └─ LuauAssignmentOperator_end 100
+ │   │       │       │   │   │       │       │       │       │       │   └─ LuauDoubleQuotedString [100..107]
+ │   │       │       │   │   │       │       │       │       │       │       ├─ LuauDoubleQuotedString_begin [100..101]
+ │   │       │       │   │   │       │       │       │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [100..101]
+ │   │       │       │   │   │       │       │       │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [100..101]: "\""
+ │   │       │       │   │   │       │       │       │       │       │       ├─ LuauDoubleQuotedString_content [101..106]
+ │   │       │       │   │   │       │       │       │       │       │       │   └─ Word [101..106]: "stars"
+ │   │       │       │   │   │       │       │       │       │       │       └─ LuauDoubleQuotedString_end [106..107]
+ │   │       │       │   │   │       │       │       │       │       │           ├─ LuauDoubleQuotedString_end_c1 [106..107]
+ │   │       │       │   │   │       │       │       │       │       │           │   └─ PunctuationStringDoubleQuoteClose [106..107]: "\""
+ │   │       │       │   │   │       │       │       │       │       │           └─ LuauDoubleQuotedString_end_c2 107
+ │   │       │       │   │   │       │       │       │       │       └─ LuauAssignmentOperation_end 107
+ │   │       │       │   │   │       │       │       │       └─ LuauTable_end [107..108]
+ │   │       │       │   │   │       │       │       │           ├─ LuauTable_end_c1 [107..108]
+ │   │       │       │   │   │       │       │       │           │   └─ PunctuationBraceClose [107..108]: "}"
+ │   │       │       │   │   │       │       │       │           └─ LuauTable_end_c2 108
+ │   │       │       │   │   │       │       │       └─ LuauConditionalAlternatorCondition_end 108
+ │   │       │       │   │   │       │       └─ LuauAlternatorHead_end 108
+ │   │       │       │   │   │       │           └─ LuauAlternatorHead_end_c1 108
  │   │       │       │   │   │       └─ LuauConditionalAlternatorBlock_end 108
- │   │       │       │   │   │           ├─ LuauConditionalAlternatorBlock_end_c1 108
- │   │       │       │   │   │           └─ LuauConditionalAlternatorBlock_end_c2 108
  │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [108..109]
  │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [108..109]
  │   │       │       │   │           └─ PunctuationBraceClose [108..109]: "}"
@@ -251,126 +254,129 @@ sparkdown [0..189]
  │   │       │       │   │   │       │       └─ LuauConditionalAlternatorBlock_begin_c3 139
  │   │       │       │   │   │       │           └─ OptionalWhitespace 139
  │   │       │       │   │   │       ├─ LuauConditionalAlternatorBlock_content [139..182]
- │   │       │       │   │   │       │   └─ LuauConditionalAlternatorCondition [139..182]
- │   │       │       │   │   │       │       ├─ LuauConditionalAlternatorCondition_begin 139
- │   │       │       │   │   │       │       ├─ LuauConditionalAlternatorCondition_content [139..182]
- │   │       │       │   │   │       │       │   ├─ LuauParenthetical [139..156]
- │   │       │       │   │   │       │       │   │   ├─ LuauParenthetical_begin [139..140]
- │   │       │       │   │   │       │       │   │   │   └─ LuauParenthetical_begin_c1 [139..140]
- │   │       │       │   │   │       │       │   │   │       └─ PunctuationParenOpen [139..140]: "("
- │   │       │       │   │   │       │       │   │   ├─ LuauParenthetical_content [140..155]
- │   │       │       │   │   │       │       │   │   │   └─ LuauAccessPath [140..155]
- │   │       │       │   │   │       │       │   │   │       ├─ LuauAccessPath_begin 140
- │   │       │       │   │   │       │       │   │   │       ├─ LuauAccessPath_content [140..155]
- │   │       │       │   │   │       │       │   │   │       │   ├─ LuauAccessPart [140..149]
- │   │       │       │   │   │       │       │   │   │       │   │   └─ LuauVariable [140..149]
- │   │       │       │   │   │       │       │   │   │       │   │       └─ LuauVariable_c1 [140..149]
- │   │       │       │   │   │       │       │   │   │       │   │           └─ LuauVariableName [140..149]: "inventory"
- │   │       │       │   │   │       │       │   │   │       │   └─ LuauAccessPart [149..155]
- │   │       │       │   │   │       │       │   │   │       │       └─ LuauPropertyAccessor [149..155]
- │   │       │       │   │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c1 149
- │   │       │       │   │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [149..150]
- │   │       │       │   │   │       │       │   │   │       │           │   └─ LuauAccessorOperator [149..150]: "."
- │   │       │       │   │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c3 150
- │   │       │       │   │   │       │       │   │   │       │           └─ LuauPropertyAccessor_c4 [150..155]
- │   │       │       │   │   │       │       │   │   │       │               └─ LuauPropertyName [150..155]: "coins"
- │   │       │       │   │   │       │       │   │   │       └─ LuauAccessPath_end 155
- │   │       │       │   │   │       │       │   │   │           └─ LuauAccessPath_end_c1 155
- │   │       │       │   │   │       │       │   │   └─ LuauParenthetical_end [155..156]
- │   │       │       │   │   │       │       │   │       ├─ LuauParenthetical_end_c1 [155..156]
- │   │       │       │   │   │       │       │   │       │   └─ PunctuationParenClose [155..156]: ")"
- │   │       │       │   │   │       │       │   │       └─ LuauParenthetical_end_c2 156
- │   │       │       │   │   │       │       │   └─ LuauTable [156..182]
- │   │       │       │   │   │       │       │       ├─ LuauTable_begin [156..157]
- │   │       │       │   │   │       │       │       │   └─ LuauTable_begin_c1 [156..157]
- │   │       │       │   │   │       │       │       │       └─ PunctuationBraceOpen [156..157]: "{"
- │   │       │       │   │   │       │       │       ├─ LuauTable_content [157..181]
- │   │       │       │   │   │       │       │       │   ├─ LuauAccessPath [157..160]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_begin 157
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_content [157..160]
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAccessPart [157..160]
- │   │       │       │   │   │       │       │       │   │   │       └─ LuauVariable [157..160]
- │   │       │       │   │   │       │       │       │   │   │           └─ LuauVariable_c1 [157..160]
- │   │       │       │   │   │       │       │       │   │   │               └─ LuauVariableName [157..160]: "one"
- │   │       │       │   │   │       │       │       │   │   └─ LuauAccessPath_end 160
- │   │       │       │   │   │       │       │       │   │       └─ LuauAccessPath_end_c1 160
- │   │       │       │   │   │       │       │       │   │           └─ LuauAccessPath_end_c1 160
- │   │       │       │   │   │       │       │       │   │               └─ OptionalWhitespace 160
- │   │       │       │   │   │       │       │       │   ├─ LuauAssignmentOperation [160..167]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAssignmentOperation_begin 160
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 160
- │   │       │       │   │   │       │       │       │   │   │       └─ OptionalWhitespace 160
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAssignmentOperation_content [160..167]
- │   │       │       │   │   │       │       │       │   │   │   ├─ LuauAssignmentOperator [160..161]
- │   │       │       │   │   │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [160..161]
- │   │       │       │   │   │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c1 160
- │   │       │       │   │   │       │       │       │   │   │   │   │   │   └─ OptionalWhitespace 160
- │   │       │       │   │   │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c2 [160..161]: "="
- │   │       │       │   │   │       │       │       │   │   │   │   │   └─ LuauAssignmentOperator_begin_c3 161
- │   │       │       │   │   │       │       │       │   │   │   │   │       └─ LuauAssignmentOperator_begin_c3 161
- │   │       │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 161
- │   │       │       │   │   │       │       │       │   │   │   │   └─ LuauAssignmentOperator_end 161
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauDoubleQuotedString [161..167]
- │   │       │       │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_begin [161..162]
- │   │       │       │   │   │       │       │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [161..162]
- │   │       │       │   │   │       │       │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [161..162]: "\""
- │   │       │       │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_content [162..166]
- │   │       │       │   │   │       │       │       │   │   │       │   └─ Word [162..166]: "coin"
- │   │       │       │   │   │       │       │       │   │   │       └─ LuauDoubleQuotedString_end [166..167]
- │   │       │       │   │   │       │       │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [166..167]
- │   │       │       │   │   │       │       │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [166..167]: "\""
- │   │       │       │   │   │       │       │       │   │   │           └─ LuauDoubleQuotedString_end_c2 167
- │   │       │       │   │   │       │       │       │   │   └─ LuauAssignmentOperation_end 167
- │   │       │       │   │   │       │       │       │   ├─ LuauCommaSeparator [167..168]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauCommaSeparator_c1 167
- │   │       │       │   │   │       │       │       │   │   ├─ LuauCommaSeparator_c2 [167..168]: ","
- │   │       │       │   │   │       │       │       │   │   └─ LuauCommaSeparator_c3 168
- │   │       │       │   │   │       │       │       │   │       └─ LuauCommaSeparator_c3 168
- │   │       │       │   │   │       │       │       │   │           └─ OptionalWhitespace 168
- │   │       │       │   │   │       │       │       │   ├─ LuauAccessPath [168..173]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_begin 168
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAccessPath_content [168..173]
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAccessPart [168..173]
- │   │       │       │   │   │       │       │       │   │   │       └─ LuauVariable [168..173]
- │   │       │       │   │   │       │       │       │   │   │           └─ LuauVariable_c1 [168..173]
- │   │       │       │   │   │       │       │       │   │   │               └─ LuauVariableName [168..173]: "other"
- │   │       │       │   │   │       │       │       │   │   └─ LuauAccessPath_end 173
- │   │       │       │   │   │       │       │       │   │       └─ LuauAccessPath_end_c1 173
- │   │       │       │   │   │       │       │       │   │           └─ LuauAccessPath_end_c1 173
- │   │       │       │   │   │       │       │       │   │               └─ OptionalWhitespace 173
- │   │       │       │   │   │       │       │       │   └─ LuauAssignmentOperation [173..181]
- │   │       │       │   │   │       │       │       │       ├─ LuauAssignmentOperation_begin 173
- │   │       │       │   │   │       │       │       │       │   └─ LuauAssignmentOperation_begin_c1 173
- │   │       │       │   │   │       │       │       │       │       └─ OptionalWhitespace 173
- │   │       │       │   │   │       │       │       │       ├─ LuauAssignmentOperation_content [173..181]
- │   │       │       │   │   │       │       │       │       │   ├─ LuauAssignmentOperator [173..174]
- │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAssignmentOperator_begin [173..174]
- │   │       │       │   │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 173
- │   │       │       │   │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 173
- │   │       │       │   │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [173..174]: "="
- │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 174
- │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 174
- │   │       │       │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace 174
- │   │       │       │   │   │       │       │       │       │   │   └─ LuauAssignmentOperator_end 174
- │   │       │       │   │   │       │       │       │       │   └─ LuauDoubleQuotedString [174..181]
- │   │       │       │   │   │       │       │       │       │       ├─ LuauDoubleQuotedString_begin [174..175]
- │   │       │       │   │   │       │       │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [174..175]
- │   │       │       │   │   │       │       │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [174..175]: "\""
- │   │       │       │   │   │       │       │       │       │       ├─ LuauDoubleQuotedString_content [175..180]
- │   │       │       │   │   │       │       │       │       │       │   └─ Word [175..180]: "coins"
- │   │       │       │   │   │       │       │       │       │       └─ LuauDoubleQuotedString_end [180..181]
- │   │       │       │   │   │       │       │       │       │           ├─ LuauDoubleQuotedString_end_c1 [180..181]
- │   │       │       │   │   │       │       │       │       │           │   └─ PunctuationStringDoubleQuoteClose [180..181]: "\""
- │   │       │       │   │   │       │       │       │       │           └─ LuauDoubleQuotedString_end_c2 181
- │   │       │       │   │   │       │       │       │       └─ LuauAssignmentOperation_end 181
- │   │       │       │   │   │       │       │       └─ LuauTable_end [181..182]
- │   │       │       │   │   │       │       │           ├─ LuauTable_end_c1 [181..182]
- │   │       │       │   │   │       │       │           │   └─ PunctuationBraceClose [181..182]: "}"
- │   │       │       │   │   │       │       │           └─ LuauTable_end_c2 182
- │   │       │       │   │   │       │       └─ LuauConditionalAlternatorCondition_end 182
+ │   │       │       │   │   │       │   └─ LuauAlternatorHead [139..182]
+ │   │       │       │   │   │       │       ├─ LuauAlternatorHead_begin 139
+ │   │       │       │   │   │       │       ├─ LuauAlternatorHead_content [139..182]
+ │   │       │       │   │   │       │       │   └─ LuauConditionalAlternatorCondition [139..182]
+ │   │       │       │   │   │       │       │       ├─ LuauConditionalAlternatorCondition_begin 139
+ │   │       │       │   │   │       │       │       ├─ LuauConditionalAlternatorCondition_content [139..182]
+ │   │       │       │   │   │       │       │       │   ├─ LuauParenthetical [139..156]
+ │   │       │       │   │   │       │       │       │   │   ├─ LuauParenthetical_begin [139..140]
+ │   │       │       │   │   │       │       │       │   │   │   └─ LuauParenthetical_begin_c1 [139..140]
+ │   │       │       │   │   │       │       │       │   │   │       └─ PunctuationParenOpen [139..140]: "("
+ │   │       │       │   │   │       │       │       │   │   ├─ LuauParenthetical_content [140..155]
+ │   │       │       │   │   │       │       │       │   │   │   └─ LuauAccessPath [140..155]
+ │   │       │       │   │   │       │       │       │   │   │       ├─ LuauAccessPath_begin 140
+ │   │       │       │   │   │       │       │       │   │   │       ├─ LuauAccessPath_content [140..155]
+ │   │       │       │   │   │       │       │       │   │   │       │   ├─ LuauAccessPart [140..149]
+ │   │       │       │   │   │       │       │       │   │   │       │   │   └─ LuauVariable [140..149]
+ │   │       │       │   │   │       │       │       │   │   │       │   │       └─ LuauVariable_c1 [140..149]
+ │   │       │       │   │   │       │       │       │   │   │       │   │           └─ LuauVariableName [140..149]: "inventory"
+ │   │       │       │   │   │       │       │       │   │   │       │   └─ LuauAccessPart [149..155]
+ │   │       │       │   │   │       │       │       │   │   │       │       └─ LuauPropertyAccessor [149..155]
+ │   │       │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyAccessor_c1 149
+ │   │       │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [149..150]
+ │   │       │       │   │   │       │       │       │   │   │       │           │   └─ LuauAccessorOperator [149..150]: "."
+ │   │       │       │   │   │       │       │       │   │   │       │           ├─ LuauPropertyAccessor_c3 150
+ │   │       │       │   │   │       │       │       │   │   │       │           └─ LuauPropertyAccessor_c4 [150..155]
+ │   │       │       │   │   │       │       │       │   │   │       │               └─ LuauPropertyName [150..155]: "coins"
+ │   │       │       │   │   │       │       │       │   │   │       └─ LuauAccessPath_end 155
+ │   │       │       │   │   │       │       │       │   │   │           └─ LuauAccessPath_end_c1 155
+ │   │       │       │   │   │       │       │       │   │   └─ LuauParenthetical_end [155..156]
+ │   │       │       │   │   │       │       │       │   │       ├─ LuauParenthetical_end_c1 [155..156]
+ │   │       │       │   │   │       │       │       │   │       │   └─ PunctuationParenClose [155..156]: ")"
+ │   │       │       │   │   │       │       │       │   │       └─ LuauParenthetical_end_c2 156
+ │   │       │       │   │   │       │       │       │   └─ LuauTable [156..182]
+ │   │       │       │   │   │       │       │       │       ├─ LuauTable_begin [156..157]
+ │   │       │       │   │   │       │       │       │       │   └─ LuauTable_begin_c1 [156..157]
+ │   │       │       │   │   │       │       │       │       │       └─ PunctuationBraceOpen [156..157]: "{"
+ │   │       │       │   │   │       │       │       │       ├─ LuauTable_content [157..181]
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauAccessPath [157..160]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_begin 157
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_content [157..160]
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAccessPart [157..160]
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauVariable [157..160]
+ │   │       │       │   │   │       │       │       │       │   │   │           └─ LuauVariable_c1 [157..160]
+ │   │       │       │   │   │       │       │       │       │   │   │               └─ LuauVariableName [157..160]: "one"
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauAccessPath_end 160
+ │   │       │       │   │   │       │       │       │       │   │       └─ LuauAccessPath_end_c1 160
+ │   │       │       │   │   │       │       │       │       │   │           └─ LuauAccessPath_end_c1 160
+ │   │       │       │   │   │       │       │       │       │   │               └─ OptionalWhitespace 160
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauAssignmentOperation [160..167]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAssignmentOperation_begin 160
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 160
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ OptionalWhitespace 160
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAssignmentOperation_content [160..167]
+ │   │       │       │   │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator [160..161]
+ │   │       │       │   │   │       │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [160..161]
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c1 160
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   │   └─ OptionalWhitespace 160
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c2 [160..161]: "="
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │   └─ LuauAssignmentOperator_begin_c3 161
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │       └─ LuauAssignmentOperator_begin_c3 161
+ │   │       │       │   │   │       │       │       │       │   │   │   │   │           └─ OptionalWhitespace 161
+ │   │       │       │   │   │       │       │       │       │   │   │   │   └─ LuauAssignmentOperator_end 161
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauDoubleQuotedString [161..167]
+ │   │       │       │   │   │       │       │       │       │   │   │       ├─ LuauDoubleQuotedString_begin [161..162]
+ │   │       │       │   │   │       │       │       │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [161..162]
+ │   │       │       │   │   │       │       │       │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [161..162]: "\""
+ │   │       │       │   │   │       │       │       │       │   │   │       ├─ LuauDoubleQuotedString_content [162..166]
+ │   │       │       │   │   │       │       │       │       │   │   │       │   └─ Word [162..166]: "coin"
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauDoubleQuotedString_end [166..167]
+ │   │       │       │   │   │       │       │       │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [166..167]
+ │   │       │       │   │   │       │       │       │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [166..167]: "\""
+ │   │       │       │   │   │       │       │       │       │   │   │           └─ LuauDoubleQuotedString_end_c2 167
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauAssignmentOperation_end 167
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauCommaSeparator [167..168]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauCommaSeparator_c1 167
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauCommaSeparator_c2 [167..168]: ","
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauCommaSeparator_c3 168
+ │   │       │       │   │   │       │       │       │       │   │       └─ LuauCommaSeparator_c3 168
+ │   │       │       │   │   │       │       │       │       │   │           └─ OptionalWhitespace 168
+ │   │       │       │   │   │       │       │       │       │   ├─ LuauAccessPath [168..173]
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_begin 168
+ │   │       │       │   │   │       │       │       │       │   │   ├─ LuauAccessPath_content [168..173]
+ │   │       │       │   │   │       │       │       │       │   │   │   └─ LuauAccessPart [168..173]
+ │   │       │       │   │   │       │       │       │       │   │   │       └─ LuauVariable [168..173]
+ │   │       │       │   │   │       │       │       │       │   │   │           └─ LuauVariable_c1 [168..173]
+ │   │       │       │   │   │       │       │       │       │   │   │               └─ LuauVariableName [168..173]: "other"
+ │   │       │       │   │   │       │       │       │       │   │   └─ LuauAccessPath_end 173
+ │   │       │       │   │   │       │       │       │       │   │       └─ LuauAccessPath_end_c1 173
+ │   │       │       │   │   │       │       │       │       │   │           └─ LuauAccessPath_end_c1 173
+ │   │       │       │   │   │       │       │       │       │   │               └─ OptionalWhitespace 173
+ │   │       │       │   │   │       │       │       │       │   └─ LuauAssignmentOperation [173..181]
+ │   │       │       │   │   │       │       │       │       │       ├─ LuauAssignmentOperation_begin 173
+ │   │       │       │   │   │       │       │       │       │       │   └─ LuauAssignmentOperation_begin_c1 173
+ │   │       │       │   │   │       │       │       │       │       │       └─ OptionalWhitespace 173
+ │   │       │       │   │   │       │       │       │       │       ├─ LuauAssignmentOperation_content [173..181]
+ │   │       │       │   │   │       │       │       │       │       │   ├─ LuauAssignmentOperator [173..174]
+ │   │       │       │   │   │       │       │       │       │       │   │   ├─ LuauAssignmentOperator_begin [173..174]
+ │   │       │       │   │   │       │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 173
+ │   │       │       │   │   │       │       │       │       │       │   │   │   │   └─ OptionalWhitespace 173
+ │   │       │       │   │   │       │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [173..174]: "="
+ │   │       │       │   │   │       │       │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 174
+ │   │       │       │   │   │       │       │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 174
+ │   │       │       │   │   │       │       │       │       │       │   │   │           └─ OptionalWhitespace 174
+ │   │       │       │   │   │       │       │       │       │       │   │   └─ LuauAssignmentOperator_end 174
+ │   │       │       │   │   │       │       │       │       │       │   └─ LuauDoubleQuotedString [174..181]
+ │   │       │       │   │   │       │       │       │       │       │       ├─ LuauDoubleQuotedString_begin [174..175]
+ │   │       │       │   │   │       │       │       │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [174..175]
+ │   │       │       │   │   │       │       │       │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [174..175]: "\""
+ │   │       │       │   │   │       │       │       │       │       │       ├─ LuauDoubleQuotedString_content [175..180]
+ │   │       │       │   │   │       │       │       │       │       │       │   └─ Word [175..180]: "coins"
+ │   │       │       │   │   │       │       │       │       │       │       └─ LuauDoubleQuotedString_end [180..181]
+ │   │       │       │   │   │       │       │       │       │       │           ├─ LuauDoubleQuotedString_end_c1 [180..181]
+ │   │       │       │   │   │       │       │       │       │       │           │   └─ PunctuationStringDoubleQuoteClose [180..181]: "\""
+ │   │       │       │   │   │       │       │       │       │       │           └─ LuauDoubleQuotedString_end_c2 181
+ │   │       │       │   │   │       │       │       │       │       └─ LuauAssignmentOperation_end 181
+ │   │       │       │   │   │       │       │       │       └─ LuauTable_end [181..182]
+ │   │       │       │   │   │       │       │       │           ├─ LuauTable_end_c1 [181..182]
+ │   │       │       │   │   │       │       │       │           │   └─ PunctuationBraceClose [181..182]: "}"
+ │   │       │       │   │   │       │       │       │           └─ LuauTable_end_c2 182
+ │   │       │       │   │   │       │       │       └─ LuauConditionalAlternatorCondition_end 182
+ │   │       │       │   │   │       │       └─ LuauAlternatorHead_end 182
+ │   │       │       │   │   │       │           └─ LuauAlternatorHead_end_c1 182
  │   │       │       │   │   │       └─ LuauConditionalAlternatorBlock_end 182
- │   │       │       │   │   │           ├─ LuauConditionalAlternatorBlock_end_c1 182
- │   │       │       │   │   │           └─ LuauConditionalAlternatorBlock_end_c2 182
  │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [182..183]
  │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [182..183]
  │   │       │       │   │           └─ PunctuationBraceClose [182..183]: "}"

@@ -417,7 +417,7 @@ describe("a bad initializer", () => {
     const result = compiled();
     expect(result.program.chunks).toBeUndefined();
     expect(result.logged).toEqual([
-      "StoryException: Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: RUNTIME ERROR: 'main' line 2: attempt to perform arithmetic (+) on a string value",
+      "StoryException: Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: RUNTIME ERROR: 'main' line 2: attempt to perform arithmetic (add) on number and string",
     ]);
   });
 });

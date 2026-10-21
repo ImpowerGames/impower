@@ -1092,7 +1092,7 @@ describe("the engine", () => {
     const actual = storyBeats(new ProgramStory(chunked(text)));
     expect(actual.beats.map((beat) => beat.text)).toEqual(["Before.\n"]);
     expect(actual.errors).toEqual([
-      "1: RUNTIME ERROR: 'main' line 3: Attempting to perform + on a nil value.",
+      "1: RUNTIME ERROR: 'main' line 3: attempt to perform arithmetic (add) on nil and number",
     ]);
   });
 });

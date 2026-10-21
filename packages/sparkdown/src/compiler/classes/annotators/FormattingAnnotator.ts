@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { namesValue } from "../../utils/alternatorDecision";
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { CALL_LIKE_OPENERS } from "../../utils/callLikeOpeners";
 import { nodeNameSet } from "../../utils/nodeNameSet";
@@ -554,11 +555,14 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         // Any inline alternator (display-text variants AND
         // Luau-expression variants like `{plural(n)|one=...}`)
         // should stay tight — never `plural (n)`.
+        // A structural word that names a value is a call's name
+        // (`match(1)`, I-1310), which stays tight too.
         const insideInline =
           nodeRef.name === "LuauControlKeyword" &&
-          isInsideAnyInlineAlternator(nodeRef, (from, to) =>
-            this.read(from, to),
-          );
+          (namesValue(nodeRef.node) ||
+            isInsideAnyInlineAlternator(nodeRef, (from, to) =>
+              this.read(from, to),
+            ));
         if (!insideInline) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
