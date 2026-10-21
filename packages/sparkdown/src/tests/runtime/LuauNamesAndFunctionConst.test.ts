@@ -9,7 +9,7 @@
 //   top-level `const` stays the story's published constant.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function run(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
@@ -108,6 +108,7 @@ describe("`define` and `store` as Luau names (#1328)", () => {
       const { errors, text } = run(source(word));
       expect(errors).toEqual([]);
       expect(text).toBe(expected);
+      expect(collectDiagnostics(source(word))).toEqual({ errorMessages: [], warningMessages: [] });
     });
   }
 
@@ -129,6 +130,50 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     );
     expect(errors).toEqual([]);
     expect(text).toBe("Go 4.\n");
+  });
+
+  // At the start of a line a token that carries a name on keeps the word a
+  // name: a field, an index and a call, with or without a space before `(`.
+  test.each(STRUCTURAL_WORDS)("`%s` beginning a line as a table and a function", (word) => {
+    const { errors, text } = run(
+      [
+        "Go {f()} {g()}.",
+        "function f()",
+        `  local ${word} = {n = 1}`,
+        `  ${word}.n = ${word}.n + 1`,
+        `  ${word}["n"] = ${word}["n"] + 1`,
+        `  return ${word}.n`,
+        "end",
+        "function g()",
+        "  local n = 0",
+        `  local function ${word}(k) n = n + k end`,
+        `  ${word}(2)`,
+        `  ${word} (3)`,
+        "  return n",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 3 5.\n");
+  });
+
+  // A block comment that closes on a later line hides the name from the
+  // grammar's lookahead, so the word still begins its declaration there.
+  test("a store and a const whose name follows a comment spanning lines", () => {
+    const source = [
+      "function f()",
+      "  store --[[ declaration name",
+      "  ]] tally = 2",
+      "  const --[[ declaration name",
+      "  ]] bonus = 3",
+      "  return tally + bonus",
+      "end",
+      "Go {f()}.",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({ errorMessages: [], warningMessages: [] });
+    expect(run(source)).toEqual({ errors: [], text: "Go 5.\n" });
   });
 
   // The declarations the words begin before a name keep their reading, at
