@@ -59,6 +59,7 @@ import { Location, Position } from "../../typecheck/Location";
 import { lineCountOf, syntaxErrorEnd } from "../../typecheck/syntaxErrorRange";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
+import { defineMethodReads } from "../lowerers/lowerLuauDefine";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
@@ -405,12 +406,37 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * way (`_G` aside), in the order they are first read, which the function
  * binds to a top-level local of the name, if one exists as it runs
  * (`stdlibRootReads`).
+ *
+ * `node`, the syntax node the function is written at, adds what the methods
+ * of each `define` written in the function read from around the define
+ * (`defineMethodReads`), which the converter's reading of the body leaves
+ * out (I-1373), after the body's own reads: each is read at the define, and
+ * is bound there by a local in scope of this function or of a function
+ * nested in it around the define (`definesBindings`). A define inside
+ * another's method is read with that method, so each is read once.
+ * `defineReads`, when given, takes the names only those methods read
+ * instead of the list returned, for a function whose captured parameters
+ * must stay what its own body reads (a top-level define's method, whose
+ * closure a save can hold). `unscoped` leaves out what the scopes around
+ * the function decide (their locals, variadic functions, global callables
+ * and stdlib names), for a scan read in another function's scopes than
+ * its own (`defineMethodReads`).
  */
 export function freeVariables(
   params: readonly string[],
   body: AstStatBlock | null,
   ctx: LowerContext,
-  { stdlibReads }: { stdlibReads?: string[] } = {},
+  {
+    stdlibReads,
+    node,
+    defineReads,
+    unscoped = false,
+  }: {
+    stdlibReads?: string[];
+    node?: SyntaxNode | null;
+    defineReads?: string[];
+    unscoped?: boolean;
+  } = {},
 ): string[] {
   if (!body) return [];
   // Names bound inside the function: its parameters, and the `store`s its
@@ -477,32 +503,39 @@ export function freeVariables(
   const free: string[] = [];
   const seen = new Set<string>();
   const stdlibSeen = new Set<string>();
-  const read = (name: string, location: Location) => {
+  // Where a read lands: the list returned, or `defineReads` for the reads
+  // only a define's methods make.
+  let into = free;
+  const readAt = (name: string, at: number) => {
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
-    // A variadic sibling is the innermost binding and wins over a
-    // same-named local of an outer scope (`resolveCallableBinding`). A call
-    // to it, or its value, passes a pointer to each local it captures
-    // (`withSiblingSubFlowUpvalArgs`), which this function captures in
-    // turn so the pointer reaches the enclosing scope's cell.
-    const sibling = siblingSubFlowAt(name, offsetAt(location.begin, ctx));
-    if (sibling) {
-      for (const upval of sibling.upvals) read(upval, location);
-      return;
-    }
-    if (!isShadowedLocal(name)) {
-      if (isGlobalCallable(name)) return;
-      if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) {
-        if (stdlibReads && name !== "_G" && !stdlibSeen.has(name)) {
-          stdlibSeen.add(name);
-          stdlibReads.push(name);
-        }
+    if (!unscoped) {
+      // A variadic sibling is the innermost binding and wins over a
+      // same-named local of an outer scope (`resolveCallableBinding`). A
+      // call to it, or its value, passes a pointer to each local it
+      // captures (`withSiblingSubFlowUpvalArgs`), which this function
+      // captures in turn so the pointer reaches the enclosing scope's cell.
+      const sibling = siblingSubFlowAt(name, at);
+      if (sibling) {
+        for (const upval of sibling.upvals) readAt(upval, at);
         return;
+      }
+      if (!isShadowedLocal(name)) {
+        if (isGlobalCallable(name)) return;
+        if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) {
+          if (stdlibReads && name !== "_G" && !stdlibSeen.has(name)) {
+            stdlibSeen.add(name);
+            stdlibReads.push(name);
+          }
+          return;
+        }
       }
     }
     seen.add(name);
-    free.push(name);
+    into.push(name);
   };
+  const read = (name: string, location: Location) =>
+    readAt(name, offsetAt(location.begin, ctx));
   const readNames = (node: AstNode): boolean => {
     if (node instanceof AstExprGlobal) read(node.name, node.location);
     else if (node instanceof AstExprLocal) {
@@ -527,7 +560,111 @@ export function freeVariables(
     return true;
   };
   walk(body, readNames);
+  if (node) {
+    const defines = outermostDefines(node);
+    if (defines.length > 0) {
+      const bindsAt = definesBindings(body, ctx);
+      into = defineReads ?? free;
+      for (const define of defines) {
+        for (const name of defineMethodReads(define, ctx)) {
+          if (!bindsAt(name, define.from)) readAt(name, define.from);
+        }
+      }
+    }
+  }
   return free;
+}
+
+/**
+ * The `define`s written under a syntax node, each define inside another
+ * left out, since the other's methods read it (`defineMethodReads`).
+ */
+function outermostDefines(node: SyntaxNode): SyntaxNode[] {
+  const out: SyntaxNode[] = [];
+  const cursor = node.cursor();
+  let depth = 0;
+  // Steps past the node at the cursor: to its next sibling, or the next
+  // sibling of the nearest node above it, never leaving `node`.
+  const next = (): boolean => {
+    while (!cursor.nextSibling()) {
+      if (depth === 0) return false;
+      cursor.parent();
+      depth -= 1;
+      if (depth === 0) return false;
+    }
+    return true;
+  };
+  if (!cursor.firstChild()) return out;
+  depth = 1;
+  for (;;) {
+    if (cursor.name === "LuauDefine") {
+      out.push(cursor.node);
+      if (!next()) break;
+    } else if (cursor.firstChild()) {
+      depth += 1;
+    } else if (!next()) {
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Whether a name is bound, at an offset in a function's body, by something
+ * the body declares there: a local of the function, or a parameter, local
+ * or function statement of a function nested in the body around the offset,
+ * each from where it is declared to the end of its block (`functionBindings`).
+ * A method of a `define` reads its body on its own, so the scopes it is
+ * written in are asked by position (`freeVariables`' `node`). The
+ * function's parameters, `store`s and function statements are the scan's
+ * own.
+ */
+function definesBindings(
+  body: AstStatBlock,
+  ctx: LowerContext,
+): (name: string, at: number) => boolean {
+  const scopes: {
+    from: number;
+    to: number;
+    bindings: readonly FunctionBinding[];
+    names: ReadonlySet<string>;
+  }[] = [
+    {
+      from: -Infinity,
+      to: Infinity,
+      bindings: functionBindings([], body, ctx),
+      names: new Set(),
+    },
+  ];
+  walk(body, (node) => {
+    if (node instanceof AstExprFunction) {
+      scopes.push({
+        from: offsetAt(node.location.begin, ctx),
+        to: offsetAt(node.location.end, ctx),
+        bindings: functionBindings([], node.body, ctx),
+        names: new Set([
+          ...(node.self ? [node.self.name] : []),
+          ...parameterNames(node),
+          ...functionStatementNames(node.body, ctx),
+        ]),
+      });
+    }
+    return true;
+  });
+  return (name, at) =>
+    scopes.some(
+      (scope) =>
+        scope.from <= at &&
+        at <= scope.to &&
+        (scope.names.has(name) ||
+          scope.bindings.some(
+            (b) =>
+              b.name === name &&
+              b.from <= at &&
+              at >= b.blockFrom &&
+              at <= b.blockTo,
+          )),
+    );
 }
 
 /**
@@ -864,7 +1001,7 @@ export function lowerFunctionExpression(
   }
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
-  const upvals = freeVariables(parameterNames(func), func.body, ctx);
+  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
   recordCaptureRead(ctx, upvals);
   const userArity = func.args.length;
 
