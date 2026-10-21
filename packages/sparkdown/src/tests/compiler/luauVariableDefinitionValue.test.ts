@@ -43,12 +43,20 @@ const bounded = (p: { include: string }) => {
 // where a block comment stands (#1200, #1207): the narrative begin also
 // takes the block comments after the scope modifier, and the narrative rule
 // reads a comment after a target, type or value and what follows it on the
-// line, where the Luau rule ends before the comment.
+// line, where the Luau rule ends before the comment. In Luau code `store`
+// and `const` begin a declaration only before a name (#1328), so the Luau
+// begin names its modifier with `LUAU_CODE_SCOPE_MODIFIER`.
 describe("the two declaration rules", () => {
-  test("share their begin but for the comments after the modifier, their captures but for the comment, and their end but for the comment's", () => {
+  test("share their begin but for the modifier's shape and the comments after it, their captures but for the comment, and their end but for the comment's", () => {
     const luau = repository["LuauVariableDefinition"]!;
     const narrative = repository["LuauSparkdownVariableDefinition"]!;
-    expect(narrative.begin!.startsWith(luau.begin!.slice(0, -1))).toBe(true);
+    // Each begin is the whitespace, the modifier and what follows it: the
+    // Luau one's `store` or `const` only before a name, the narrative one's
+    // any of the three words.
+    const ws = "((?:[^\\S\\n\\r])*)";
+    expect(luau.begin!.startsWith(`${ws}((?:local\\b|(?:(?:(?:store|const)\\b)(?:(?=`)).toBe(true);
+    expect(luau.begin!.endsWith(`)${ws}`)).toBe(true);
+    expect(narrative.begin!.startsWith(`${ws}(\\b(?:store|local|const)\\b)\\b${ws.slice(0, -1)}`)).toBe(true);
     expect(narrative.begin!.endsWith(")*)")).toBe(true);
     const captures = (rule: typeof luau) => rule.beginCaptures as Record<string, { patterns: Patterns }>;
     expect({ ...captures(narrative), 3: { ...captures(narrative)[3], patterns: captures(narrative)[3]!.patterns.slice(1) } }).toEqual(

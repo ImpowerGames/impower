@@ -9,7 +9,8 @@
 //   top-level `const` stays the story's published constant.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
+import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function run(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
@@ -36,11 +37,10 @@ const INK_WORDS = [
   "branch",
 ];
 
-// No longer reserved either, but the grammar still reads them as Sparkdown's
-// `define` and `store` declarations where a value or a statement begins
-// (GRAMMAR_GAP_BUG), so the function loses its `end` or its value.
-const GRAMMAR_GAP = ["define", "store"];
-const GRAMMAR_GAP_BUG = "ImpowerGames/impower-internal#1328";
+// The words that begin Sparkdown's `define` and `store` declarations, which
+// they begin only before a name: anywhere else in a function body they are
+// names, as Luau reads them, and the function ends at its own `end` (#1328).
+const STRUCTURAL_WORDS = ["define", "store"];
 
 const POSITIONS: [string, (word: string) => string, string][] = [
   ["a local", (word) => `Go {f()}.\nfunction f()\n  local ${word} = 1\n  return ${word}\nend\n`, "Go 1.\n"],
@@ -103,14 +103,313 @@ describe("an ink-era word is a valid Luau name (#1292)", () => {
   }
 });
 
-describe.skip(`\`define\` and \`store\` as Luau names (grammar gap, ${GRAMMAR_GAP_BUG})`, () => {
+describe("`define` and `store` as Luau names (#1328)", () => {
   for (const [position, source, expected] of POSITIONS) {
-    test.each(GRAMMAR_GAP)(`\`%s\` as ${position}`, (word) => {
+    test.each(STRUCTURAL_WORDS)(`\`%s\` as ${position}`, (word) => {
       const { errors, text } = run(source(word));
       expect(errors).toEqual([]);
       expect(text).toBe(expected);
+      expect(collectDiagnostics(source(word))).toEqual({ errorMessages: [], warningMessages: [] });
     });
   }
+
+  // The ticket's shapes not in `POSITIONS`: a value read alone, a call, an
+  // assignment to the name and a field of a table it names.
+  test.each(STRUCTURAL_WORDS)("`%s` as a value, a call and an assignment target", (word) => {
+    const { errors, text } = run(
+      [
+        "Go {f()}.",
+        "function f()",
+        `  local ${word} = 1`,
+        `  ${word} = ${word} + 1`,
+        "  local function g() return 2 end",
+        `  local t = {${word} = g}`,
+        `  return ${word} + t.${word}()`,
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 4.\n");
+  });
+
+  // At the start of a line a token that carries a name on keeps the word a
+  // name: a field, an index and a call, with or without a space before `(`.
+  test.each(STRUCTURAL_WORDS)("`%s` beginning a line as a table and a function", (word) => {
+    const { errors, text } = run(
+      [
+        "Go {f()} {g()}.",
+        "function f()",
+        `  local ${word} = {n = 1}`,
+        `  ${word}.n = ${word}.n + 1`,
+        `  ${word}["n"] = ${word}["n"] + 1`,
+        `  return ${word}.n`,
+        "end",
+        "function g()",
+        "  local n = 0",
+        `  local function ${word}(k) n = n + k end`,
+        `  ${word}(2)`,
+        `  ${word} (3)`,
+        "  return n",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 3 5.\n");
+  });
+
+  // Before anything but a name, the word is a name wherever it stands in a
+  // function: before a string or a table (call sugar), before a comment and
+  // a call, on the line after `return`, and before a comment spanning lines
+  // where it does not begin its line.
+  test.each(STRUCTURAL_WORDS)("`%s` as a name before a string, a table or a comment", (word) => {
+    const source = [
+      "Go {f()} {g()} {h()} {k()}.",
+      "function f()",
+      "  local n = 0",
+      `  local function ${word}(x) n = n + #x end`,
+      `  ${word} "abc"`,
+      `  ${word} {1, 2}`,
+      `  ${word} --[[ note ]] ("de")`,
+      "  return n",
+      "end",
+      "function g()",
+      `  local ${word} = 3`,
+      "  return",
+      `    ${word}`,
+      "end",
+      "function h()",
+      `  local ${word} = 4`,
+      `  return ${word} --[[ note`,
+      "  ]]",
+      "end",
+      "function k()",
+      `  local ${word} --[[ note`,
+      "  ]] = 5",
+      `  return ${word}`,
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({ errorMessages: [], warningMessages: [] });
+    expect(run(source)).toEqual({ errors: [], text: "Go 7 3 4 5.\n" });
+  });
+
+  // A function body's line at column 0 is Luau too: the word is a name
+  // there before anything but a name. The one warning is Luau's lint on the
+  // `return` whose value is the unindented next line, which it reads.
+  test.each(STRUCTURAL_WORDS)("`%s` as a name at column 0 in a function", (word) => {
+    const source = [
+      "Go {f()} {g()}.",
+      "function f()",
+      `  local ${word} = 1`,
+      "  return",
+      `${word}`,
+      "end",
+      "function g()",
+      "  local n = 0",
+      `  local function ${word}(x) n = n + #x end`,
+      `${word} "abc"`,
+      `${word} {1, 2}`,
+      "  return n",
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({
+      errorMessages: [],
+      warningMessages: ["Statement spans multiple lines; use indentation to silence"],
+    });
+    expect(run(source)).toEqual({ errors: [], text: "Go 1 5.\n" });
+  });
+
+  // After a keyword a block's statements follow, the word begins a
+  // statement, so before a comment spanning lines it still begins its
+  // declaration.
+  test("a store and a const after `do` and `then` whose name follows a comment spanning lines", () => {
+    const source = [
+      "function f()",
+      "  local r = 0",
+      "  do store --[[ note",
+      "      ]] tally = 2",
+      "    if tally then const --[[ note",
+      "        ]] bonus = 3",
+      "      r = tally + bonus",
+      "    end",
+      "  end",
+      "  return r",
+      "end",
+      "Go {f()}.",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({ errorMessages: [], warningMessages: [] });
+    expect(run(source)).toEqual({ errors: [], text: "Go 5.\n" });
+  });
+
+  // Wherever a statement begins, after a function's header, after another
+  // statement on its line or after a comment, the word before a comment
+  // spanning lines still begins its declaration.
+  test.each([
+    ["after a function's header", "function f() store --[[ note\n  ]] tally = 2\n  return tally\nend\n"],
+    ["after a statement on its line", "function f()\n  local a = 0 store --[[ note\n    ]] tally = 2\n  return a + tally\nend\n"],
+    ["after a comment", "function f()\n  --[[ first ]] store --[[ note\n    ]] tally = 2\n  return tally\nend\n"],
+  ])("a store whose name follows a comment spanning lines %s", (_label, body) => {
+    const source = `${body}Go {f()}.\n`;
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 2.\n" });
+  });
+
+  // The grammar cannot see past a comment that spans lines, so a statement
+  // that begins with the word before one begins a declaration there; with
+  // no name after the comment, the reading takes the word as the name Luau
+  // reads, here an assignment's target.
+  test.each(["const", "store"])("`%s` assigned after a comment spanning lines", (word) => {
+    const source = [
+      "function f()",
+      `  local ${word} = 1`,
+      `  ${word} --[[ explain the update`,
+      "  ]] = 3",
+      `  return ${word}`,
+      "end",
+      "Go {f()}.",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3.\n" });
+  });
+
+  // A store or const whose name follows on the next line, after the line's
+  // end or a line comment, still declares it.
+  test.each([
+    ["store", ""],
+    ["store", " -- note"],
+    ["const", ""],
+    ["const", " -- note"],
+  ])("a `%s` whose name follows on the next line%s", (word, trailing) => {
+    const source = `function f()\n  ${word}${trailing}\n    tally = 2\n  return tally\nend\nGo {f()}.\n`;
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 2.\n" });
+  });
+
+  // A define opens in a function only before its name, so before a comment
+  // spanning lines it is the name, here an assignment's target and a
+  // table's, and the function keeps its `end`.
+  test("`define` assigned after a comment spanning lines", () => {
+    const source = [
+      "Go {f()} {g()}.",
+      "function f()",
+      "  local define = 1",
+      "  define --[[ note",
+      "  ]] = 3",
+      "  return define",
+      "end",
+      "function g()",
+      "  local define = {x = 1}",
+      "  define --[[ note",
+      "  ]] .x = 4",
+      "  return define.x",
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3 4.\n" });
+  });
+
+  // `const` is a keyword to an access path only before the name it
+  // declares, as `define` is, so a table named `const` takes a spaced
+  // field or index assignment as base did (round 4 of #1328).
+  test.each([
+    ["a spaced field", "const .x = 3"],
+    ["a spaced index", 'const ["x"] = 3'],
+  ])("a table named `const` assigned through %s", (_label, assignment) => {
+    const source = `function f()\n  local const = {x=1}\n  ${assignment}\n  return const.x\nend\nGo {f()}.\n`;
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3.\n" });
+  });
+
+  // `const` used as a name in a function is scoped as a name, not as the
+  // scope modifier's keyword (ImpowerGames/impower-internal#1432).
+  test.each(["a + const", "a + const + 1", "(const)", "const"])(
+    "`const` as a declared name and as a value in `return %s` is a name in the tree",
+    (body) => {
+      const tree = stripAnsi(dumpTree(`function f()\n  local a, const = 1, 2\n  return ${body}\nend\n`));
+      const constLines = tree.split("\n").filter((line) => line.endsWith(': "const"'));
+      expect(constLines).toHaveLength(2);
+      for (const line of constLines) expect(line).toMatch(/LuauVariableName \[\d+\.\.\d+\]: "const"$/);
+    },
+  );
+
+  // Where an expression goes on, on a later line, the word before a comment
+  // spanning lines is its value or a list's next name, as Luau reads it.
+  test.each(["const", ...STRUCTURAL_WORDS])("`%s` continuing an expression before a comment spanning lines", (word) => {
+    const source = [
+      "Go {f()} {g()} {h()}.",
+      "function f()",
+      `  local ${word} = 3`,
+      "  return",
+      `    ${word} --[[ note`,
+      "    ]]",
+      "end",
+      "function g()",
+      `  local ${word} = 3`,
+      "  return 1 +",
+      `    ${word} --[[ note`,
+      "    ]]",
+      "end",
+      "function h()",
+      "  local a,",
+      `    ${word} --[[ note`,
+      "    ]] = 1, 2",
+      `  return a + ${word}`,
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3 4 3.\n" });
+  });
+
+  // A block comment that closes on a later line hides the name from the
+  // grammar's lookahead, so a word that begins its line still begins its
+  // declaration there.
+  test("a store and a const whose name follows a comment spanning lines", () => {
+    const source = [
+      "function f()",
+      "  store --[[ declaration name",
+      "  ]] tally = 2",
+      "  const --[[ declaration name",
+      "  ]] bonus = 3",
+      "  return tally + bonus",
+      "end",
+      "Go {f()}.",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({ errorMessages: [], warningMessages: [] });
+    expect(run(source)).toEqual({ errors: [], text: "Go 5.\n" });
+  });
+
+  // The declarations the words begin before a name keep their reading, at
+  // the top level and inside a function.
+  test("a store and a define keep their reading before a name", () => {
+    const { errors, text } = run(
+      [
+        "store count = 1",
+        "define Box with",
+        "  size = 2",
+        "end",
+        "Go {f()}.",
+        "function f()",
+        "  define Inner with",
+        "    size = 3",
+        "  end",
+        "  local b = new Box()",
+        "  local c = new Inner()",
+        "  return count + b.size + c.size",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Go 6.\n");
+  });
 });
 
 describe("names in a list (#1292)", () => {
@@ -144,18 +443,19 @@ describe("names in a list (#1292)", () => {
     expect(text).toBe("Go 3.\n");
   });
 
-  // The tree begins a `const` declaration at `const` on the next line, and
-  // the reading ends the list before it (`STATEMENT_BREAKS`), so the missing
-  // binding is reported rather than the program silently reading nil. Luau
-  // reads `const` there as the next name: GRAMMAR_GAP_BUG.
-  test("a list continued with `const` on the next line reports its missing name", () => {
-    const ctx = makeRuntimeStoryFromSource(
-      "Go {f()}.\nfunction f()\n  local a,\n    const = 1, 2\n  return 1\nend\n",
-    );
-    expect([...ctx.errorMessages]).toEqual([
-      "Expected identifier when parsing variable name, got 'const'",
-    ]);
-  });
+  // `const`, `store` and `define` begin a declaration only before a name, so
+  // on the next line of a list they are its next name, as Luau reads them
+  // (#1328).
+  test.each(["const", ...STRUCTURAL_WORDS])(
+    "a list continued with `%s` on the next line takes it as the name",
+    (word) => {
+      const { errors, text } = run(
+        `Go {f()}.\nfunction f()\n  local a,\n    ${word} = 1, 2\n  return a + ${word}\nend\n`,
+      );
+      expect(errors).toEqual([]);
+      expect(text).toBe("Go 3.\n");
+    },
+  );
 
   // The lowerer reads these as Luau where the type checker does not, so the
   // name after the comma is the reading's binding there too (round 2).

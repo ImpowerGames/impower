@@ -61,11 +61,17 @@ describe("a `:` or `::` with no name before it (#1167)", () => {
   test.each([
     ["local :: number", [0, 6, 0, 8, "Expected identifier when parsing variable name, got '::'"]],
     ["local : number", [0, 6, 0, 7, "Expected identifier when parsing variable name, got ':'"]],
-    // Sparkdown's own modifiers, which Luau does not know, read the same way.
+    // `const` reads the same way.
     ["const :: number", [0, 6, 0, 8, "Expected identifier when parsing variable name, got '::'"]],
-    ["store : number", [0, 6, 0, 7, "Expected identifier when parsing variable name, got ':'"]],
   ] as [string, Fields][])("%j is worded as Luau words it", (statement, expected) => {
     expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(fields)).toContainEqual(expected);
+  });
+
+  // In Luau code `store` begins a declaration only before a name (#1328):
+  // here it is a name, as Luau reads it, and the colon a method's. In a
+  // narrative body it still begins one (below).
+  test("\"store : number\" in Luau code reports what Luau reports", () => {
+    expectLuausErrors("store : number\n");
   });
 });
 
