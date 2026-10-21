@@ -6,6 +6,17 @@ scopeName: text.source.sparkdown
 uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
+# The second root: a `.luau` document is read from the `LuauFile` rule
+# instead of the root `patterns:` below (GRAMMAR.md §1.5). The parser
+# factories start on `rule` (`sparkdownGrammarFor`), and the build writes a
+# TextMate grammar of this name and scope beside this one whose root
+# includes it (`sparkdown-luau.language-grammar.json`), for VS Code.
+luauFile:
+  name: Sparkdown Luau
+  scopeName: source.sparkdown.luau
+  fileTypes: ["luau"]
+  rule: LuauFile
+
 variables:
   LUAU_SHARED_UNTIL_ACCESS_SUFFIX: "(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\\[[^\\]\\n]*\\]))"
   LUAU_SHARED_TYPE_DECLARATION_END: "(?:$|{{LUAU_SHARED_TYPE_DECLARATION_END_GUARD}})"
@@ -193,6 +204,10 @@ variables:
   # (`LUAU_STANDARD_LIB_FUNCTIONS`), so a path may begin with it (#879).
   LUAU_MODULE_KEYWORDS: ["export"]
   LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
+  # The words that begin a statement of Sparkdown's own in a Luau body,
+  # which a `.luau` file's top level reads as Luau names
+  # (`LuauFileSparkdownWord`).
+  LUAU_FILE_SPARKDOWN_WORDS: ["define", "store", "layout", "style", "screen", "component", "animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
   # The keywords an expression can follow, so an `if` right after one begins
   # an if expression whether or not its `else` is on the same line: an
@@ -1661,6 +1676,43 @@ patterns:
   - { include: "#Whitespace" }
 
 repository:
+  ########## Luau File ##########
+
+  # The root of a `.luau` document, which is Luau from its first line to its
+  # last (GRAMMAR.md §1.5): a parser for one starts on these patterns
+  # instead of the root `patterns:` above, which read a `.sd` script's top
+  # level as story. It is the body of a function (`LuauFunctionBody`), so a
+  # `local` list continues after a trailing comma and a call is a statement,
+  # with the top level's own `@attribute` lines, and a closer no block takes
+  # (`end`, `else`, `until`) read as unread tokens, which Luau's reading
+  # reports. Nothing of the `.sd` root is reachable from here but what a
+  # function body reaches.
+  LuauFile:
+    patterns:
+      - { include: "#LuauFileSparkdownWord" }
+      - { include: "#LuauFunctionAttributes" }
+      - { include: "#LuauBlockBody" }
+      - { include: "#LuauStrayCloser" }
+      - { include: "#LuauUnreadToken" }
+
+  # A word that begins a statement of Sparkdown's own (`define`, `store`,
+  # `layout` and the other structures) or a divert's `->`, at the top level
+  # of a `.luau` file, where Luau reads it as a name or a symbol. It is taken
+  # as an unread token, before `LuauBlockBody` would read the Sparkdown
+  # construct, so Luau's reading reports the statement in Luau's words.
+  LuauFileSparkdownWord:
+    match: ({{WS}}*)(?:({{LUAU_FILE_SPARKDOWN_WORDS}})|(->))
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauUnreadName" }
+      3:
+        patterns:
+          - { include: "#LuauUnreadCharacter" }
+
   ########## Sparkdown Statements ##########
 
   SparkdownStatement:

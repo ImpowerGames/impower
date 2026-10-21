@@ -33,6 +33,9 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver";
 
+/** The language ids of the documents the server compiles: a `.sd` script's, and a `.luau` file's in VS Code. */
+const SCRIPT_LANGUAGE_IDS: ReadonlySet<string> = new Set(["sparkdown", "sparkdown-luau"]);
+
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _documents: SparkdownDocumentRegistry;
 
@@ -617,8 +620,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   private isScriptDocument(uri: string): boolean {
+    const languageId = this._documents.get(uri)?.languageId;
     return this.getFileType(uri) === "script" ||
-      this._documents.get(uri)?.languageId === "sparkdown";
+      (languageId !== undefined && SCRIPT_LANGUAGE_IDS.has(languageId));
   }
 
   private getFileDiagnostics(uri: string) {

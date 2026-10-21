@@ -9,6 +9,7 @@ import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/t
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type ChangedRange, Tree, TreeFragment } from "@lezer/common";
+import { isLuauFile } from "../typecheck/LuauUnitNodes";
 import { noteLuauDocumentEdit } from "../typecheck/readLuauAst";
 import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
 import { createSparkdownParser } from "../utils/createSparkdownParser";
@@ -76,8 +77,20 @@ export interface SparkdownDocumentSnapshot {
 
 export class SparkdownDocumentRegistry {
   protected _parser: TextmateGrammarParser = createSparkdownParser();
+  /** The parser of a `.sd` script's grammar root. */
   get parser() {
     return this._parser;
+  }
+
+  protected _luauFileParser?: TextmateGrammarParser;
+
+  /** The parser a document is read with: the `.luau` root for a `.luau` file, the `.sd` root for every other (`createSparkdownParser`). */
+  parserFor(uri: string): TextmateGrammarParser {
+    if (!isLuauFile(uri)) {
+      return this._parser;
+    }
+    this._luauFileParser ??= createSparkdownParser(uri);
+    return this._luauFileParser;
   }
 
   protected _profilerId?: string;
@@ -200,7 +213,7 @@ export class SparkdownDocumentRegistry {
           noteLuauDocumentEdit(documentString(state.text), documentString(text), fromA, toA, toB);
         }
         state.text = text;
-        state.tree = this._parser.parse(changeDocument, state.treeFragments);
+        state.tree = this.parserFor(afterDocument.uri).parse(changeDocument, state.treeFragments);
         state.treeFragments = TreeFragment.addTree(
           state.tree,
           state.treeFragments,
@@ -231,7 +244,7 @@ export class SparkdownDocumentRegistry {
       this.noteSnapshotEdit(afterDocument.uri, 0, 0);
       const text = documentText(afterDocument.getText());
       state.text = text;
-      state.tree = this._parser.parse(afterDocument);
+      state.tree = this.parserFor(afterDocument.uri).parse(afterDocument);
       state.treeFragments = TreeFragment.addTree(state.tree);
       state.annotators.create(state.tree, text, this._annotate, afterDocument.uri);
       state.treeVersion = afterDocument.version;
@@ -583,7 +596,7 @@ export class SparkdownDocumentRegistry {
       return;
     }
     profile("start", this._profilerId, "mintSplitPoints", uri);
-    const minted = this._parser.parse(
+    const minted = this.parserFor(uri).parse(
       document,
       TreeFragment.applyChanges(state.treeFragments, [
         { fromA: from, toA: from + 1, fromB: from, toB: from + 1 },

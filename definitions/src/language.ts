@@ -611,6 +611,15 @@ const transformGrammarRule = (
   }
 };
 
+const generatedWarning = (inYamlPath: string, outJsonPath: string) => {
+  const yamlRel = path.relative(path.dirname(outJsonPath), inYamlPath);
+  return [
+    `Generated from ${yamlRel.replace(/\\/g, "/")} by @impower/definitions.`,
+    `Do NOT edit this JSON file directly — your changes will be lost on the next build.`,
+    `Edit the YAML source instead, then run \`npm run language\` from definitions/.`,
+  ];
+};
+
 const buildJson = async (inYamlPath: string, outJsonPath: string) => {
   const text = await fs.promises.readFile(inYamlPath, "utf8");
   const parsed = YAML.parse(text);
@@ -620,15 +629,45 @@ const buildJson = async (inYamlPath: string, outJsonPath: string) => {
   // grammar consumers ignore unknown top-level keys, so this is safe
   // to embed alongside `name` / `repository` / etc. — and it shows up
   // at the very top of the file in any editor.
-  const yamlRel = path.relative(path.dirname(outJsonPath), inYamlPath);
-  const warning = [
-    `Generated from ${yamlRel.replace(/\\/g, "/")} by @impower/definitions.`,
-    `Do NOT edit this JSON file directly — your changes will be lost on the next build.`,
-    `Edit the YAML source instead, then run \`npm run language\` from definitions/.`,
-  ];
-  const stamped = { _generated_: warning, ...resolved };
+  const stamped = {
+    _generated_: generatedWarning(inYamlPath, outJsonPath),
+    ...resolved,
+  };
   const json = JSON.stringify(stamped, null, 2);
   await fs.promises.writeFile(outJsonPath, json);
+};
+
+const LUAU_FILE_GRAMMAR_NAME = "sparkdown-luau.language-grammar";
+
+/**
+ * Writes the TextMate grammar of the grammar's second root (its `luauFile`
+ * block) beside the grammar: its own name and scope, and a root that
+ * includes the root rule from the Sparkdown grammar, so every rule it
+ * reaches is that grammar's own and nothing is copied.
+ */
+const buildLuauFileGrammarJson = async (
+  inYamlPath: string,
+  outGrammarPath: string,
+) => {
+  const parsed = YAML.parse(await fs.promises.readFile(inYamlPath, "utf8"));
+  const root = parsed.luauFile;
+  if (!root?.rule || !parsed.repository?.[root.rule]) {
+    throw new Error(
+      `Grammar build: the grammar's \`luauFile.rule\` must name a rule of its repository (got ${JSON.stringify(root?.rule)})`,
+    );
+  }
+  const outJsonPath = path.join(
+    path.dirname(outGrammarPath),
+    `${LUAU_FILE_GRAMMAR_NAME}.json`,
+  );
+  const grammar = {
+    _generated_: generatedWarning(inYamlPath, outJsonPath),
+    name: root.name,
+    scopeName: root.scopeName,
+    fileTypes: root.fileTypes,
+    patterns: [{ include: `${parsed.scopeName}#${root.rule}` }],
+  };
+  await fs.promises.writeFile(outJsonPath, JSON.stringify(grammar, null, 2));
 };
 
 const build = async () => {
@@ -638,6 +677,11 @@ const build = async () => {
   );
   await Promise.all(
     OUT_GRAMMAR_PATHS.map((outPath) => buildJson(IN_GRAMMAR_PATH, outPath)),
+  );
+  await Promise.all(
+    OUT_GRAMMAR_PATHS.map((outPath) =>
+      buildLuauFileGrammarJson(IN_GRAMMAR_PATH, outPath),
+    ),
   );
   await Promise.all(
     OUT_SNIPPETS_PATHS.map((outPath) => buildJson(IN_SNIPPETS_PATH, outPath)),
