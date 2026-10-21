@@ -651,32 +651,23 @@ export function lowerFunctionBody(
   const content = getFunctionBodyContent(node);
   // Read in the scopes around the function, before its own are pushed.
   const rootReads = stdlibRootReads(parameterNames(func), func.body, ctx);
-  const nested: ParsedObject[] = [];
-  ctx.functionScopeStack?.push(nested);
-  const bindings = functionBindings(
+  const {
+    result: { shape, body },
+    hoisted,
+    nested,
+  } = inFunctionScopes(
     [...(func.self ? [func.self] : []), ...func.args],
+    parameterNames(func),
     func.body,
     ctx,
+    () => {
+      const shape = openFunctionBody(ctx, node);
+      const body = lowerStatements(content, ctx, skipNames, shape);
+      // The function bodies its types hold lower no code; check them here.
+      reportErasedConstErrors(func, node, ctx);
+      return { shape, body };
+    },
   );
-  ctx.functionBindingsStack?.push(bindings);
-  const declared = immediateBodyDeclarations(parameterNames(func), func.body);
-  if (func.body) {
-    scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(func.body));
-  }
-  ctx.declaredLocalsStack?.push(declared);
-  const hoisted: ParsedObject[] = [];
-  ctx.hoistedNestedFnDeclsStack?.push(hoisted);
-  const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
-  ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
-  const shape = openFunctionBody(ctx, node);
-  const body = lowerStatements(content, ctx, skipNames, shape);
-  // The function bodies its types hold lower no code; check them here.
-  reportErasedConstErrors(func, node, ctx);
-  ctx.siblingSubFlowNamesStack?.pop();
-  ctx.hoistedNestedFnDeclsStack?.pop();
-  ctx.declaredLocalsStack?.pop();
-  ctx.functionBindingsStack?.pop();
-  ctx.functionScopeStack?.pop();
   hoisted.unshift(...rootReads);
   return {
     hoisted,
@@ -684,6 +675,46 @@ export function lowerFunctionBody(
     nested,
     close: (flow) => closeFunctionBody(ctx, shape, flow, node, hoisted),
   };
+}
+
+/**
+ * Runs `lower`, which lowers a function's body, inside the scopes the body
+ * opens: a buffer for the functions nested in it, its bindings (`params`
+ * and the locals `body` declares), its own locals on the declared-locals
+ * stack (`declaredParams` and the body's declarations), a buffer for the
+ * `local NAME = nil` declarations its bare nested `function NAME`s hoist,
+ * and a frame for its variadic nested functions. Returns what `lower`
+ * returned with the hoisted declarations and the nested functions the body
+ * collected. The stacks are read together (`freeVariables`,
+ * `resolveCallableBinding`), so a body that is a function opens them here.
+ */
+export function inFunctionScopes<T>(
+  params: readonly { name: string }[],
+  declaredParams: readonly string[],
+  body: AstStatBlock | null,
+  ctx: LowerContext,
+  lower: () => T,
+): { result: T; hoisted: ParsedObject[]; nested: ParsedObject[] } {
+  const nested: ParsedObject[] = [];
+  ctx.functionScopeStack?.push(nested);
+  const bindings = functionBindings(params, body, ctx);
+  ctx.functionBindingsStack?.push(bindings);
+  const declared = immediateBodyDeclarations(declaredParams, body);
+  if (body) {
+    scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(body));
+  }
+  ctx.declaredLocalsStack?.push(declared);
+  const hoisted: ParsedObject[] = [];
+  ctx.hoistedNestedFnDeclsStack?.push(hoisted);
+  const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
+  ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
+  const result = lower();
+  ctx.siblingSubFlowNamesStack?.pop();
+  ctx.hoistedNestedFnDeclsStack?.pop();
+  ctx.declaredLocalsStack?.pop();
+  ctx.functionBindingsStack?.pop();
+  ctx.functionScopeStack?.pop();
+  return { result, hoisted, nested };
 }
 
 // A function written as a value, as a `Function` flow of its own named
