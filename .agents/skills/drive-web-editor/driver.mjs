@@ -382,12 +382,16 @@ export function treeSurvivors(before, after, root) {
 }
 
 // Whether the tree `before` recorded for `root` is gone, read a few times
-// since a member taskkill could not terminate may still be exiting.
+// since a member taskkill could not terminate may still be exiting. A
+// survivor seen in one reading stays a member in the next, so a child it
+// starts before it exits is still found.
 export async function treeStopped(before, root, { table = windowsProcessTable, attempts = 6, waitMs = 500 } = {}) {
   let survivors = [];
+  const known = [...before];
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    survivors = treeSurvivors(before, await table(), root);
+    survivors = treeSurvivors(known, await table(), root);
     if (survivors === null) return { stopped: false, reason: `pid ${root} was not in the process census taken before the stop, so its tree is unknown` };
+    for (const row of survivors) if (!known.some((seen) => seen.pid === row.pid && seen.start === row.start)) known.push(row);
     if (!survivors.length) return { stopped: true };
     if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
