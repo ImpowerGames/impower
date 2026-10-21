@@ -101,8 +101,10 @@ variables:
   LUAU_UNTIL: (?:until{{LUAU_NAME_END}})
   LUAU_END_OR_BRANCH: (?:(?:end|else|elseif){{LUAU_NAME_END}})
   # What may stand between a method's `:` and its name on the `:`'s line:
-  # spaces and block comments, as Luau reads trivia there.
-  LUAU_METHOD_TRIVIA: (?:{{WS}}*{{LUAU_BLOCK_COMMENT_ON_LINE}}*)
+  # spaces and block comments of any level that close on the line
+  # (`LUAU_ANY_LEVEL_BLOCK_COMMENT`, `(t): --[====[c]====] end`), as Luau
+  # reads trivia there.
+  LUAU_METHOD_TRIVIA: (?:{{WS}}*{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}*)
   # A `:` that `do` or `then` follows on its line, with no name between
   # (`while t: do`, `local b = a:  then`), where an access path ends. Either
   # keyword may end a header, so the rule around the path decides, as no
