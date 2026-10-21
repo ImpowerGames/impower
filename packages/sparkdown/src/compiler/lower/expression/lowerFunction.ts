@@ -59,6 +59,7 @@ import { Location, Position } from "../../typecheck/Location";
 import { lineCountOf, syntaxErrorEnd } from "../../typecheck/syntaxErrorRange";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
+import { rawContext } from "../recordingContext";
 import { defineMethodReads } from "../lowerers/lowerLuauDefine";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
@@ -564,11 +565,14 @@ export function freeVariables(
     else if (node instanceof AstExprLocal) {
       if (!locals.has(node.local)) {
         const at = offsetAt(node.location.begin, ctx);
-        const declared = rootDeclarationAnswer(
-          node.local.name,
-          offsetAt(node.local.location.begin, ctx),
-          ctx,
-        );
+        // The local is written in the statement being read, so whether it
+        // is a declaration of the root frame's own scope changes only with
+        // that statement; its ordinal among the declarations of its name is
+        // recorded when it is one.
+        const declaredAt = offsetAt(node.local.location.begin, ctx);
+        const declared = rawContext(ctx).rootLocals?.declared(node.local.name, declaredAt)
+          ? rootDeclarationAnswer(node.local.name, declaredAt, ctx)
+          : "";
         if (declared) readAt(node.local.name, at, false, declared);
         else readAt(node.local.name, at, true);
       }
