@@ -152,6 +152,48 @@ describe("an empty interpolation reports Luau's error at the string's opening se
   });
 });
 
+// Each edit that makes a statement reject its string, or read it again,
+// reports what a cold compile of the edited text does: the validator's
+// error for the string gives way to the reading's only while the
+// statement rejects it (round 3).
+test("an incremental compile reports what a cold one does", () => {
+  let text = "store s = `a {} b`\n\nscene start\n  local t = `a {x} b\n  Hello.\nend\n";
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  compiler.compile({ textDocument: { uri: URI } } as never);
+  const positionAt = (offset: number) => {
+    const lines = text.slice(0, offset).split("\n");
+    return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
+  };
+  // Where each edit goes in the text as the edits before it left it, and how much it removes.
+  const steps: [() => number, string, number][] = [
+    [() => text.indexOf("`a {} b`"), "(1 ", 0],
+    [() => text.indexOf("`a {} b`") + 8, ")", 0],
+    [() => text.indexOf("`a {x} b"), "(1 ", 0],
+    [() => text.indexOf("(1 `a {} b`)"), "", 3],
+    [() => text.indexOf("`a {} b`)") + 8, "", 1],
+    [() => text.indexOf("(1 `a {x} b"), "", 3],
+  ];
+  let version = 1;
+  for (const [at, insert, removed] of steps) {
+    const offset = at();
+    version += 1;
+    compiler.updateDocument({
+      textDocument: { uri: URI, version },
+      contentChanges: [{ range: { start: positionAt(offset), end: positionAt(offset + removed) }, text: insert }],
+    } as never);
+    text = text.slice(0, offset) + insert + text.slice(offset + removed);
+    const incremental = (compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [])
+      .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+      .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
+      .sort();
+    expect(incremental, `after version ${version}`).toEqual(sparkdownErrors(text));
+  }
+  expect(text).toBe("store s = `a {} b`\n\nscene start\n  local t = `a {x} b\n  Hello.\nend\n");
+});
+
 describe("an unfinished string's last section after a stray token is a malformed string (I-1421)", () => {
   test("store s = `a {1 2} b", () => {
     const expected = official("local s = `a {1 2} b\n");
