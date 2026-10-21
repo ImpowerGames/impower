@@ -44,6 +44,7 @@ import { StorePropertyAssignment } from "../../inkjs/compiler/Parser/ParsedHiera
 import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
@@ -191,8 +192,6 @@ import {
   type RunFixData,
 } from "../utils/runOperand";
 import {
-  runCallText,
-  runCallUri,
   runDeclarationText,
   runWrapperFunctionName,
   runWrapperUri,
@@ -807,25 +806,12 @@ export class SparkdownCompiler {
   // whose objects this compile's assembly does not place again, still
   // answers.
   protected _placedBy = new WeakMap<ParsedObject, object>();
-  // Where each top-level object of a `run` statement's call document (its top
-  // level's weave), which the story places for the statement, came from: the
-  // call document, and the line and compiled block of the `run` statement
-  // (`programFlows`, `includedAt`).
   // For a script other than main, the part of its top level that runs where
   // it is placed (a member function's write), as a story of its own, by the
   // story `parseIncrementally` built for the script's declarations.
   protected _memberWrites = new WeakMap<Story, Story>();
-  protected _includedAt = new WeakMap<
-    ParsedObject,
-    { uri: string; line: number; block: object }
-  >();
-  // The number each `run` statement's compiled block gives its call
-  // document, kept while a compile carries the block, so the statement
-  // compiles the same call document in every compile.
-  protected _runSites = new WeakMap<object, number>();
-  protected _lastRunSite = 0;
-  // The keys the program listing gives the statements that end included
-  // scripts' content, by their syntax, so they keep their chunks from one
+  // The keys the program listing gives the statements that enter and end
+  // included scripts' content, by their syntax, so they keep their chunks from one
   // compile to the next for as long as this compiler lives
   // (`ProgramFlowsInput.includeKeys`).
   protected _includeKeys = new Map<string, object>();
@@ -2847,6 +2833,9 @@ export class SparkdownCompiler {
     // generation-time diagnostics, and, unless the flow is a closed function,
     // the chunk FOLLOWING the run (past any closed function declarations)
     // must not be one that would attach new body content into this flow.
+    // A `run` statement among those chunks, or following them, refuses the
+    // reuse: its content, the call of its file's wrapper, is made by each
+    // compile once it resolves the file, so the chunk's block holds none.
     const tryReuseFlowRun = (
       declBlock: object,
       startIdx: number,
@@ -2866,6 +2855,9 @@ export class SparkdownCompiler {
           return undefined;
         }
         const cb = chunkRecords[j]!.block as any;
+        if (cb.run) {
+          return undefined;
+        }
         if (!cb.content || (k > 0 && isClosedFunctionChunk(cb))) {
           j++;
           continue;
@@ -2879,6 +2871,9 @@ export class SparkdownCompiler {
       const takesFollowingChunks = !isClosedFunctionChunk(declBlock);
       for (let m = j; takesFollowingChunks && m < chunkRecords.length; m++) {
         const cb = chunkRecords[m]!.block as any;
+        if (cb.run) {
+          return undefined;
+        }
         if (!cb.content || isClosedFunctionChunk(cb)) {
           continue;
         }
@@ -2957,13 +2952,15 @@ export class SparkdownCompiler {
       const {
         run,
         diagnostics,
-        content,
         context,
         sparkle,
         defaultDefinitions,
         uuid,
         hoistedKnots,
       } = rec.block;
+      // A `run` statement's content is the call of its file's wrapper, which
+      // the compiler makes once it has resolved the file (below).
+      let content = rec.block.content;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       const declares = topLevel?.get(rec.from);
       if (declares === false || (declares === true && !onlyDeclares(content))) {
@@ -3072,13 +3069,9 @@ export class SparkdownCompiler {
       if (run) {
         // `run helpers` or `run "path"` — load the `.luau` file the
         // operand names (`resolveRunOperand`), wrap its body in a
-        // function, splice a call to the function at this position,
-        // and hoist the function declaration to the end of the
-        // parent program. Uses the same `IncludedFile` plumbing as the
-        // project's other scripts, which already separates flow declarations
-        // (knots/functions — appended at end) from non-flow content
-        // (top-level statements — spliced inline). See
-        // `Story.PreProcessTopLevelObjects` for the split logic.
+        // function, place a call of the function where the statement
+        // stands, at the top level or in a scene's body, and hoist the
+        // function declaration to the end of the parent program.
         const previousParentUri =
           state.fileResolutionState?.currentParentUri ?? uri;
         if (state.fileResolutionState) {
@@ -3121,53 +3114,30 @@ export class SparkdownCompiler {
           );
         } else {
           // The file's wrapper function is named after the file alone
-          // (`runWrapperFunctionName`). It is compiled in two kinds of
-          // document, each stashed under a virtual URI derived from
-          // the .luau file's URI (the `?run` query suffix keeps it
-          // distinct from any raw .luau document registered separately;
-          // the compiler treats it as a normal `.sd` source):
-          //   the declaration, `function <wrapper>() <content> end`,
-          //   once per compile, at the first `run` of the file the
-          //   compile reaches. As a flow it is hoisted to the end of the
-          //   parent program, wherever the `run` stands.
-          //   the call, `& <wrapper>()`, in a document of this statement
-          //   alone, spliced inline here by IncludedFile processing. It
-          //   is numbered by the statement's compiled block
-          //   (`_runSites`): a document's chunks are the same objects
-          //   however often it is parsed, so two statements never share
-          //   a call document, and a statement compiles the same one in
-          //   every compile, so a flow a later compile keeps never
-          //   reaches objects another statement now holds.
+          // (`runWrapperFunctionName`). Its declaration,
+          // `function <wrapper>() <content> end`, is compiled as a document
+          // of its own under a virtual URI derived from the .luau file's URI
+          // (the `?run` query suffix keeps it distinct from any raw .luau
+          // document registered separately; the compiler treats it as a
+          // normal `.sd` source), once per compile, at the first `run` of
+          // the file the compile reaches. As a flow it is hoisted to the end
+          // of the parent program, wherever the `run` stands. Each `run`
+          // statement is a call of the wrapper, placed as the statement's
+          // content where its line stands (I-1439).
           const wrapperName = runWrapperFunctionName(resolvedFilePath);
-          let site = this._runSites.get(compiledBlock);
-          if (site === undefined) {
-            site = ++this._lastRunSite;
-            this._runSites.set(compiledBlock, site);
-          }
           const declared = state.fileResolutionState
             ? (state.fileResolutionState.runDeclared ??= new Set())
             : undefined;
-          const runDocuments: [string, () => string][] = [];
           if (!declared?.has(resolvedFilePath)) {
             declared?.add(resolvedFilePath);
-            runDocuments.push([
-              runWrapperUri(resolvedFilePath, wrapperName),
-              () =>
-                runDeclarationText(
-                  wrapperName,
-                  fileHandler.LoadInkFileContents(resolvedFilePath!),
-                ),
-            ]);
-          }
-          runDocuments.push([
-            runCallUri(resolvedFilePath, wrapperName, site),
-            () => runCallText(wrapperName),
-          ]);
-          for (const [virtualUri, text] of runDocuments) {
+            const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
             // A document is set again only when its text changed, under the
             // next version, so the registry parses the new text (the .luau
             // file was edited) and an unchanged one keeps its tree (#316).
-            const documentText = text().replace(/\r\n|\r/g, "\n");
+            const documentText = runDeclarationText(
+              wrapperName,
+              fileHandler.LoadInkFileContents(resolvedFilePath),
+            ).replace(/\r\n|\r/g, "\n");
             const registered = this.documents.get(virtualUri);
             if (registered?.getText() !== documentText) {
               this.documents.add({
@@ -3198,14 +3168,21 @@ export class SparkdownCompiler {
                 state.fileResolutionState.runStack.pop();
               }
             }
-            this.recordIncludedAt(
-              runStory,
-              virtualUri,
-              lineNumberOffset,
-              compiledBlock,
-            );
             topLevelIncludedFileObjs.push(new IncludedFile(runStory));
           }
+          // The call, made anew each compile, as the statement's content: the
+          // assembly below places it where the line stands, as it places a
+          // call statement's (`lowerCallStatement`), and stamps it with the
+          // line's range moved from the chunk to the script.
+          const call = new FunctionCall(new Identifier(wrapperName), []);
+          call.shouldPopReturnedValue = true;
+          const line = new DebugMetadata();
+          line.startLineNumber = run.line.startLineNumber;
+          line.endLineNumber = run.line.endLineNumber;
+          line.startCharacterNumber = run.line.startCharacterNumber;
+          line.endCharacterNumber = run.line.endCharacterNumber;
+          call.debugMetadata = line;
+          content = [new Weave([call])];
         }
         if (state.fileResolutionState) {
           state.fileResolutionState.currentParentUri = previousParentUri;
@@ -4189,24 +4166,6 @@ export class SparkdownCompiler {
     return collides;
   }
 
-  /** Records where a `run` statement's call document's top level came from:
-   *  each object of `story`'s content that the including story places for
-   *  the statement (all but its flows, `Story.PreProcessTopLevelObjects`),
-   *  with the document's `uri`, and the `line` and compiled `block` of the
-   *  `run` statement. */
-  protected recordIncludedAt(
-    story: Story,
-    uri: string,
-    line: number,
-    block: object,
-  ): void {
-    for (const obj of story.content ?? []) {
-      if (!(obj instanceof FlowBase)) {
-        this._includedAt.set(obj, { uri, line, block });
-      }
-    }
-  }
-
   /** Notes what the compile in progress has to do with the statement memos
    *  of `block` (`_memoBlocks`, `_memoCandidates`): a block lowered anew
    *  since the last compile holds the statements whose memos the compile
@@ -4410,7 +4369,6 @@ export class SparkdownCompiler {
       record: (block) =>
         this._statementRecords.get(block) ??
         this._preludeStatementRecords.get(block),
-      includedAt: (obj) => this._includedAt.get(obj),
       includeKeys: this._includeKeys,
       lineCount,
     });

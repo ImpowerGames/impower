@@ -222,9 +222,9 @@ describe("a Luau file that main runs twice", () => {
     expect(play(program)).toBe("Scene 2.\n");
   });
 
-  // I-1439: every run runs at the start of the story, before main's first
-  // line, wherever its line stands.
-  it.fails("runs where each of its lines stands", () => {
+  // I-1439: a run runs where its line stands, so the text between two runs
+  // sees the first alone.
+  it("runs where each of its lines stands", () => {
     const program = compileWithLuau(
       {
         main: ["store n = 0", "run bump", "After one {n}.", "run bump", "After two {n}.", ""].join("\n"),
@@ -235,8 +235,9 @@ describe("a Luau file that main runs twice", () => {
     expect(play(program)).toBe("After one 1.\nAfter two 2.\n");
   });
 
-  // I-1439.
-  it.fails("runs where its line stands in main's top level and where it stands in a scene of main", () => {
+  // I-1439: a run inside a scene runs when the scene does, after main's top
+  // level has shown what stands before the divert.
+  it("runs where its line stands in main's top level and where it stands in a scene of main", () => {
     const program = compileWithLuau(
       {
         main: [
