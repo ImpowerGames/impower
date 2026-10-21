@@ -335,11 +335,12 @@ variables:
   # keyword for `type X = ...` type aliases (handled by the
   # `LuauDataTypeDeclaration` rule with a `(?!{{WS}}*[(])` lookahead),
   # but it's ALSO a Luau stdlib function (`type(x)` returns the
-  # type-name string). Including it in `LUAU_LOCAL_DECLARATION_KEYWORDS`
-  # would let `LUAU_TERMINATOR_KEYWORDS` reject `type` from
-  # `LuauAccessPath`, killing the function-call path in expressions.
+  # type-name string), which the completions would offer as a keyword.
   # The disambiguation lives in `LuauDataTypeDeclaration`'s lookahead,
-  # not here.
+  # not here. `LUAU_TERMINATOR_KEYWORDS` spells these words out itself,
+  # `const` only before the name it declares (#1328).
+  # referenced-from: packages/sparkdown-language-server/src/utils/providers/getCompletions.ts
+  # (keyword completions; no pattern expands it).
   LUAU_LOCAL_DECLARATION_KEYWORDS: ["local", "const", "function"]
   LUAU_PRIMITIVE_TYPES:
     [
@@ -668,8 +669,11 @@ variables:
   LUAU_REASSIGNMENT_INDEX_TEXT: (?:[^\[\]\n"'`]|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\\n]|\\.)*`)
 
   # `define` is one only where it opens a define, before its name
-  # (`LuauDefine`): anywhere else an access path reads it as a name (#1328).
-  LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_BREAK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
+  # (`LuauDefine`), and `const` only before the name it declares: anywhere
+  # else an access path reads either as a name (`const .x = 3`,
+  # `const["x"] = 3`, `a + const`, #1328, #1432). `local` and `function`
+  # are Luau's keywords.
+  LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_BREAK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}{{LUAU_DECLARATION_NAME_AHEAD}}|(?:local|function)\b|const\b{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
   # The end of the line, or the start of a comment.
   LUAU_LINE_END_OR_COMMENT: (?:$|{{LUAU_COMMENT_START}})
@@ -12324,10 +12328,14 @@ repository:
     name: storage.modifier.local.luau
     match: (local)\b
 
+  # `const` is a keyword only before the name it declares (#1328, #1432).
+  # lookaround: anywhere else `LuauAccessPath`, which `LuauExpression` tries
+  # after `LuauKeyword`, reads it as a name (`a + const + 1`, `(const)`);
+  # reordering them would let the path take every keyword's word.
   LuauConstKeyword:
     tag: modifier
     name: storage.modifier.const.luau
-    match: (const)\b
+    match: (const)\b{{LUAU_DECLARATION_NAME_AHEAD}}
 
   LuauFunctionKeyword:
     tag: controlKeyword

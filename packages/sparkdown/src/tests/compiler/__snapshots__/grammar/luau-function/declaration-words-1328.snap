@@ -751,9 +751,15 @@ sparkdown [0..345]
  │   │       │   │   │       │       ├─ LuauDeclarationWordAsName_c1 335
  │   │       │   │   │       │       │   └─ OptionalWhitespace 335
  │   │       │   │   │       │       └─ LuauDeclarationWordAsName_c2 [335..340]
- │   │       │   │   │       │           └─ LuauVariable [335..340]
- │   │       │   │   │       │               └─ LuauVariable_c1 [335..340]
- │   │       │   │   │       │                   └─ LuauVariableName [335..340]: "const"
+ │   │       │   │   │       │           └─ LuauAccessPath [335..340]
+ │   │       │   │   │       │               ├─ LuauAccessPath_begin 335
+ │   │       │   │   │       │               ├─ LuauAccessPath_content [335..340]
+ │   │       │   │   │       │               │   └─ LuauAccessPart [335..340]
+ │   │       │   │   │       │               │       └─ LuauVariable [335..340]
+ │   │       │   │   │       │               │           └─ LuauVariable_c1 [335..340]
+ │   │       │   │   │       │               │               └─ LuauVariableName [335..340]: "const"
+ │   │       │   │   │       │               └─ LuauAccessPath_end 340
+ │   │       │   │   │       │                   └─ LuauAccessPath_end_c1 340
  │   │       │   │   │       └─ LuauArithmeticOperation_end 340
  │   │       │   │   └─ LuauReturnStatement_end 340
  │   │       │   └─ Newline [340..341]: "\n"

@@ -9,6 +9,7 @@
 //   top-level `const` stays the story's published constant.
 
 import { describe, expect, test } from "vitest";
+import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function run(source: string) {
@@ -312,6 +313,30 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(collectDiagnostics(source).errorMessages).toEqual([]);
     expect(run(source)).toEqual({ errors: [], text: "Go 3 4.\n" });
   });
+
+  // `const` is a keyword to an access path only before the name it
+  // declares, as `define` is, so a table named `const` takes a spaced
+  // field or index assignment as base did (round 4 of #1328).
+  test.each([
+    ["a spaced field", "const .x = 3"],
+    ["a spaced index", 'const ["x"] = 3'],
+  ])("a table named `const` assigned through %s", (_label, assignment) => {
+    const source = `function f()\n  local const = {x=1}\n  ${assignment}\n  return const.x\nend\nGo {f()}.\n`;
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3.\n" });
+  });
+
+  // `const` used as a name in a function is scoped as a name, not as the
+  // scope modifier's keyword (ImpowerGames/impower-internal#1432).
+  test.each(["a + const", "a + const + 1", "(const)", "const"])(
+    "`const` as a declared name and as a value in `return %s` is a name in the tree",
+    (body) => {
+      const tree = stripAnsi(dumpTree(`function f()\n  local a, const = 1, 2\n  return ${body}\nend\n`));
+      const constLines = tree.split("\n").filter((line) => line.endsWith(': "const"'));
+      expect(constLines).toHaveLength(2);
+      for (const line of constLines) expect(line).toMatch(/LuauVariableName \[\d+\.\.\d+\]: "const"$/);
+    },
+  );
 
   // Where an expression goes on, on a later line, the word before a comment
   // spanning lines is its value or a list's next name, as Luau reads it.
