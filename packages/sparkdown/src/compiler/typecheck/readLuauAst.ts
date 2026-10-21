@@ -525,8 +525,6 @@ interface Token {
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
   unread?: true;
-  /** A token of the rest of a backtick string Luau's parser gave up on (`stringRest`, I-1406). */
-  abandoned?: true;
   /** The first of a backtick string's lexemes (`interpLexemes`): the string, and how many lexemes it is. */
   lexemesOf?: { token: Token; count: number };
   /** A string section Luau's lexer could not finish on its line, which it reads as a malformed string (I-1421). */
@@ -4010,7 +4008,7 @@ class Parser {
     // unread as Luau's, and no rule of it reports the statements Luau reads
     // from them (`markUnreadErrors`): their errors, and the string's
     // statement's, are the reading's.
-    const at = (t: Token): Token => ({ ...t, source: token.source, unread: true, abandoned: true, authoredIsland: token.authoredIsland });
+    const at = (t: Token): Token => ({ ...t, source: token.source, unread: true, authoredIsland: token.authoredIsland });
     const rest: Token[] = stray.map(at);
     for (const [i, part] of parts.entries()) {
       const shorthand = CALL_SHORTHANDS.has(part.name);
