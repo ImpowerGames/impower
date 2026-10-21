@@ -43,6 +43,10 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
     // The sections and interpolations after the one Luau gives up on.
     "s = `a {1 2} b {c} d`",
     "s = `{c} a {1 2} b {d 3} e`",
+    // A later string is Luau's lexemes, and a later `{}` no interpolation (round 1).
+    "s = `a {1 2} b {`c {3 4} d`} e`",
+    "s = `a {1 2} b {} c`",
+    "s = `a {1 2} b {`c {} d`} e`",
   ];
   for (const rest of values) {
     test(`store ${rest}`, () => {

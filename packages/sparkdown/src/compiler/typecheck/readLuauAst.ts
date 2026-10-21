@@ -522,6 +522,8 @@ interface Token {
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
   unread?: true;
+  /** A token of the rest of a backtick string Luau's parser gave up on (`stringRest`, I-1406). */
+  abandoned?: true;
   /** The implicit `function` of a function the author wrote without it (a `define` method, a handler's closure), read as Luau reads the function it stands for. */
   written?: true;
 }
@@ -1689,6 +1691,8 @@ class Parser {
    */
   storyFunctions = 1;
   readonly statements: { statement: AstStat; first: number; end: number }[] = [];
+  /** Not part of Luau: the offset of the first token read after a backtick string Luau's parser gave up on (`parseInterpString`). */
+  abandonedStringAt: number | undefined;
 
   constructor(
     private tokens: Token[],
@@ -2180,7 +2184,9 @@ class Parser {
         semicolon = true;
       }
       // A token no statement begins with is skipped, so the reading goes on.
-      if (this.current() === start && this.pos === first) this.next();
+      // (By its place: a string met there may be split into Luau's lexemes,
+      // the first of them standing in its place, `parsePrefixExpr`.)
+      if (this.pos === first) this.next();
       // A statement whose error Luau keeps only once (at the same token as
       // the error before it) goes on with the cascade all the same.
       unreadErrors = this.markUnreadErrors({ tokens: this.tokens, first, end: this.pos, errorsFrom: errorsBefore, errorsTo: this.errors.length }, unreadRecovery) && this.reports > reportsBefore;
@@ -3559,6 +3565,12 @@ class Parser {
       return new AstExprGroup(new Location(start, end), expr);
     }
     if (this.current().kind === "new") return this.parseNew();
+    // Where no expression can begin, Luau's parser meets a backtick string
+    // in the rest of one it gave up on as its lexer reads it, a lexeme at a
+    // time (`` `a { ``, then the interpolation's tokens, then `` } b` ``),
+    // not as one string (I-1406).
+    const lexemes = this.interpLexemes(this.current());
+    if (lexemes) this.tokens.splice(this.pos, 1, ...lexemes);
     return this.parseNameExpr("expression", "expression");
   }
 
@@ -3923,6 +3935,10 @@ class Parser {
       const part = this.interpolation(child, isShorthand, segment, after, interpolation === BACKTICK_INTERPOLATION);
       expressions.push(part.expr);
       if (part.stray) {
+        // The grammar read the rest as the string's, so its tokens are ones
+        // it left unread as Luau's, and no rule of it reports the statements
+        // Luau reads from them (`markUnreadErrors`): their errors, and the
+        // string's statement's, are the reading's.
         return { strings, expressions, unclosed: false, segment, rest: this.stringRest(token, part.stray, children.slice(i)) };
       }
       if (!part.closed) {
@@ -3942,9 +3958,10 @@ class Parser {
    * The tokens Luau's lexer reads in a backtick string after its parser
    * gave up on the string at an interpolation's stray token: the `stray`
    * tokens of the first of `parts`, then each interpolation's closing brace
-   * begins a section to the
-   * next one's opening brace (`} b {`) or to the string's end (`` } b` ``),
-   * and the interpolations after the first are read token by token.
+   * begins a section to the next one's opening brace (`} b {`) or to the
+   * string's end (`` } b` ``), and the interpolations after the first are
+   * read token by token. A string among those tokens is one token until
+   * the reading meets it where no expression can begin (`interpLexemes`).
    */
   private stringRest(token: Token, stray: Token[], parts: SyntaxNode[]): Token[] {
     // The tokens stand where the string did, in the reading's statements.
@@ -3952,7 +3969,7 @@ class Parser {
     // unread as Luau's, and no rule of it reports the statements Luau reads
     // from them (`markUnreadErrors`): their errors, and the string's
     // statement's, are the reading's.
-    const at = (t: Token): Token => ({ ...t, source: token.source, unread: true, authoredIsland: token.authoredIsland });
+    const at = (t: Token): Token => ({ ...t, source: token.source, unread: true, abandoned: true, authoredIsland: token.authoredIsland });
     const rest: Token[] = stray.map(at);
     for (const [i, part] of parts.entries()) {
       const shorthand = CALL_SHORTHANDS.has(part.name);
@@ -3966,6 +3983,32 @@ class Parser {
       rest.push(at({ kind: "interp", text, from, to, location: this.locationOf(from, to), source: token.source }));
     }
     return rest;
+  }
+
+  /**
+   * A backtick string with interpolations in the rest of a string Luau's
+   * parser gave up on, as Luau's lexer reads it: one lexeme per section
+   * (`` `a { ``, `} b {`, `` } c` ``) with each interpolation's tokens
+   * between them. Undefined for any other token, a string Luau reads as
+   * one lexeme, or one that the reading of a string reports on its own (an
+   * interpolation left open, or no closing backtick, I-1318).
+   */
+  private interpLexemes(token: Token): Token[] | undefined {
+    const node = token.node;
+    if (token.kind !== "interp" || !node || !token.abandoned) return undefined;
+    const parts = stringPartNodes(node, BACKTICK_INTERPOLATION);
+    const end = node.getChild("LuauInterpolatedString_end");
+    if (parts.length === 0 || !end || !/`/.test(this.ctx.text.slice(end.from, end.to))) return undefined;
+    const first = parts[0]!;
+    const shorthand = CALL_SHORTHANDS.has(first.name);
+    const { body, opened, closed } = this.interpolationTokens(first, shorthand);
+    if (!opened || !closed) return undefined;
+    const to = first.from + (shorthand ? 2 : 1);
+    const begin: Token = { ...token, node: undefined, text: this.ctx.text.slice(token.from, to), to, location: this.locationOf(token.from, to) };
+    const rest = this.stringRest(token, body, parts);
+    // A later interpolation left open ends the lexemes before the string's end.
+    if (rest[rest.length - 1]?.to !== token.to) return undefined;
+    return [begin, ...rest];
   }
 
   /** An interpolation's tokens between its braces, and whether its opening and closing braces are written. */
@@ -4053,6 +4096,7 @@ class Parser {
     if (parts.rest) {
       // Luau's parser reads the rest of the string's tokens after it.
       this.tokens.splice(this.pos, 0, ...parts.rest);
+      this.abandonedStringAt ??= parts.rest[0]?.from;
       return parts.expressions[parts.expressions.length - 1]!;
     }
     if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
@@ -4809,6 +4853,19 @@ export function readLuauStringErrors(node: SyntaxNode, documentText: string): Lu
   return parseLoneTokens(tokenizer, documentText, index).errors.filter((error) => end.gt(error.location.begin));
 }
 
+/**
+ * Where Luau's parser gives up on a backtick string, at an interpolation's
+ * token after its expression (`` `a {1 2} b {} c` ``): the offset from
+ * which the string's rest is Luau's tokens, not its interpolations, or
+ * undefined for a string read whole (I-1406).
+ */
+export function readLuauStringAbandonedAt(node: SyntaxNode, documentText: string): number | undefined {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  tokenizer.read(node);
+  return parseLoneTokens(tokenizer, documentText, index).abandonedStringAt;
+}
+
 export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
@@ -5046,7 +5103,7 @@ function parseLoneTokens(
   tokenizer: Tokenizer,
   documentText: string,
   index: LineIndex,
-): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[] } {
+): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[]; abandonedStringAt?: number } {
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
@@ -5058,5 +5115,5 @@ function parseLoneTokens(
     parser.errors.push(error);
     expr = new AstExprError(error.location, [], parser.errors.length - 1);
   }
-  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements };
+  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements, abandonedStringAt: parser.abandonedStringAt };
 }
