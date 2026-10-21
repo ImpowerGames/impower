@@ -152,6 +152,60 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([42, 42]);
   });
 
+  // I-1439: a run line calls the wrapper where it stands, between the
+  // statements around it, and one in a scene each time the scene plays.
+  test("runs where its line stands, at the top level and each time a scene that holds it plays", () => {
+    const { result, errs } = compileWithFiles([
+      {
+        uri: "inmemory:///main.sd",
+        text: [
+          "external harness_record(v)",
+          '& harness_record("before")',
+          'run "helper"',
+          '& harness_record("after")',
+          "-> s ->",
+          "-> s ->",
+          '& harness_record("done")',
+          "done",
+          "",
+          "scene s",
+          '  & harness_record("in s")',
+          '  run "helper"',
+          "  ->->",
+          "end",
+          "",
+        ].join("\n"),
+      },
+      { uri: "inmemory:///helper.luau", text: `harness_record("helper")\n` },
+    ]);
+    expect(errs).toEqual([]);
+    expect(recordedRun(result.program.chunks)).toEqual([
+      "before",
+      "helper",
+      "after",
+      "in s",
+      "helper",
+      "in s",
+      "helper",
+      "done",
+    ]);
+  });
+
+  // I-1415: a run line in a scene of a script other than main is a statement
+  // of the scene, and runs when the scene plays.
+  test("runs a run line in a scene of a script other than main", () => {
+    const { result, errs } = compileWithFiles([
+      { uri: "inmemory:///main.sd", text: "external harness_record(v)\n-> s\n" },
+      {
+        uri: "inmemory:///chapters/chapter.sd",
+        text: 'scene s\n  run "../helpers"\n  done\nend\n',
+      },
+      { uri: "inmemory:///helpers.luau", text: "harness_record(7)\n" },
+    ]);
+    expect(errs).toEqual([]);
+    expect(recordedRun(result.program.chunks)).toEqual([7]);
+  });
+
   // A script other than main holds declarations only (#1387): a run line
   // there is reported and dropped, and main's run line runs the file once.
   test("reports a run line in a script other than main, and runs main's alone", () => {
