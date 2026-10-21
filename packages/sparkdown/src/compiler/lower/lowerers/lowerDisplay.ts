@@ -644,7 +644,7 @@ function processDisplayBody(
         if (inlineAlt) {
           for (const obj of inlineAlt) out.push(obj);
         } else {
-          const expr = lowerExpressionFromContainer(seg.node, ctx);
+          const expr = lowerExpressionFromContainer(seg.node, ctx, "expression");
           if (expr) {
             expr.outputWhenComplete = true;
             out.push(expr);
@@ -1422,7 +1422,7 @@ export function lowerLuauInterpolatedStringExpression(
       body.push(...alt);
       continue;
     }
-    const expr = lowerExpressionFromContainer(node, ctx);
+    const expr = lowerExpressionFromContainer(node, ctx, "expression");
     if (expr) {
       expr.outputWhenComplete = true;
       body.push(expr);

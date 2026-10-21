@@ -31,6 +31,7 @@ import {
   AstExprCall,
   AstExprFunction,
   AstExprGlobal,
+  AstExprIfElse,
   AstExprLocal,
   AstStatBlock,
   AstStatFor,
@@ -220,6 +221,18 @@ export function reportSyntaxErrors(
  */
 export type ReadingErrorScope = "string" | "expression";
 
+/** Whether an expression holds an if expression. */
+function holdsIfExpression(expr: AstNode): boolean {
+  let found = false;
+  visitAst(expr, {
+    visit: (node) => {
+      if (node instanceof AstExprIfElse) found = true;
+      return !found;
+    },
+  });
+  return found;
+}
+
 /**
  * Reports the errors of a lowerer's reading of an expression that `node`
  * begins, where no other reading reads the expression: not the type
@@ -242,20 +255,25 @@ export type ReadingErrorScope = "string" | "expression";
  * (`{1 `a {} b`}`) and a bracket left open (`{(1}`), each reported as
  * `Expected the end of the expression, got …` or Luau's words for the
  * bracket. A call left open (`{f(}`), which the reading marks `malformed`
- * and no tree check names, reports nothing (a follow-up of I-1435).
+ * and no tree check names, reports nothing (I-1445). An if expression
+ * (`{if c then a}`, whose `else` story text may leave out) is the tree
+ * checks' form whole (`expr`, the reading's expression).
  */
 export function reportReadingErrors(
   errors: readonly LuauSyntaxError[],
   node: SyntaxNode,
   ctx: LowerContext,
   scope: ReadingErrorScope,
+  expr?: AstNode,
 ): void {
   let root = node;
   while (root.parent) root = root.parent;
   const read = (from: number, to: number) => ctx.read(from, to);
   // Whether the reading has met a form the tree checks name: the rest of
-  // its errors are that form's recovery.
-  let treeForm = false;
+  // its errors are that form's recovery. An if expression is one whole
+  // (`IF_EXPRESSION_WITHOUT_*` in `ValidationAnnotator`, which know where
+  // story text may leave out its `else`).
+  let treeForm = expr !== undefined && holdsIfExpression(expr);
   const owned = errors.filter((error) => {
     if (error.sparkdown || error.pastChunkEnd) return false;
     if (!error.ofString) {

@@ -200,6 +200,10 @@ describe("a backtick string where no lowerer lowers the expression it stands in"
     ["an alternator in another's arm, used as a value", "store n = cycle | cycle | `a {} b` | 'ok' end | 'last' end\n", 0, 26],
     ["an alternator in a sequential alternator's head, used as a value", "store n = cycle (cycle | `a {} b` | 'ok' end) | 'last' end\n", 0, 25],
     ["a define's computed key", "define Thing with\n  [`a {} b`] = 1\nend\n", 1, 3],
+    // A statement in an arm, in a story alternator's block and in one Luau
+    // code uses as a value (round 1).
+    ["a statement in a story alternator's arm", "scene start\n  cycle\n    |\n      local s = `a {} b`\n    |\n      Hi.\n  end\nend\n", 3, 16],
+    ["a statement in the arm of an alternator used as a value", "function f()\n  local c = cycle |\n    local s = `a {} b`\n  | 2 end\nend\n", 2, 14],
     ["an alternator in a tag's braces", "scene start\n  Hello # tag {cycle | `a {} b` | 2 end}\nend\n", 1, 23],
   ];
   for (const [place, text, line, column] of places) {
@@ -241,9 +245,12 @@ describe("a string the statement rejects reports the statement's error, none of 
     expect(sparkdownErrors(text)).toEqual(["1:11-1:15 Expected the end of the expression, got `a {"]);
     expectIncrementalEqualsCold(text);
   });
+  // An arm is a sequence of values, each lowered on its own (`lowerArms`):
+  // `1` and the string are two values, so the string is read as one and
+  // its own error stands.
   test("an alternator's arm cycle | 1 `a {} b` | 'c' end", () => {
     const text = "store s = cycle | 1 `a {} b` | 'c' end\n";
-    expect(sparkdownErrors(text)).toEqual(["0:20-0:24 Expected the end of the expression, got `a {"]);
+    expect(sparkdownErrors(text)).toEqual(officialFirst("local _ = `a {} b`\n", 0, 10));
     expectIncrementalEqualsCold(text);
   });
   // A define's value reports a statement's first error from the tree
@@ -279,9 +286,15 @@ describe("story braces and alternator arms: one owner per form", () => {
       expectIncrementalEqualsCold(text);
     });
   }
+  // In an arm, values side by side are a sequence (`| second visit |`); the
+  // forms are those within one value, and an operation continues the value
+  // before it.
   const arms: [string, string[]][] = [
-    ["1 2", ["0:20-0:21 Expected the end of the expression, got '2'"]],
-    ["x y", ["0:20-0:21 Expected the end of the expression, got 'y'"]],
+    ["1 2", []],
+    ["x y", []],
+    ["(1 2)", ["0:21-0:22 Expected ')' (to close '(' at column 19), got '2'"]],
+    ["(x y)", ["0:21-0:22 Expected ')' (to close '(' at column 19), got 'y'"]],
+    ["x .. `a {} b`", officialFirst("local _ = `a {} b`\n", 0, 13)],
   ];
   for (const [form, expected] of arms) {
     test(`an alternator's arm cycle | ${form} | 3 end`, () => {

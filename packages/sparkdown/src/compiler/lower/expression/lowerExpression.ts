@@ -16,7 +16,6 @@
 // its expressions with `lowerExpression`.
 
 import { lineBreakValues } from "../utils/assignmentLineBreak";
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
@@ -164,15 +163,15 @@ export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {
 
 /**
  * Lowers the value a container node holds (an interpolation, a condition,
- * the operation after `=`): the expression its content reads as.
+ * the operation after `=`): the expression its content reads as, reporting
+ * the errors of its reading in `scope` (`reportReadingErrors`): story
+ * braces (`Hello {1 2}.`) pass `"expression"`.
  */
 export function lowerExpressionFromContainer(
   parent: SyntaxNode,
   ctx: LowerContext,
+  scope: ReadingErrorScope = "string",
 ): Expression | null {
-  // Story braces (`Hello {1 2}.`) report their reading's errors by form
-  // (`reportReadingErrors`).
-  const scope = isExplicitRuleName(parent.name, "LuauInterpolatedStringExpression") ? "expression" : "string";
   const expr = lowerExpressionFromNodes(containerValueNodes(parent), ctx, scope);
   if (FUNCTION_CALL_SHORTHAND_NODES.has(parent.name)) {
     return coerceFunctionCallShorthand(expr, parent, ctx);
@@ -192,7 +191,7 @@ export function lowerExpressionFromNodes(
   scope: ReadingErrorScope | null = "string",
 ): Expression | null {
   const reading = readExpressionAst(nodes, ctx);
-  if (reading && scope) reportReadingErrors(reading.source.errors, nodes[0]!, ctx, scope);
+  if (reading && scope) reportReadingErrors(reading.source.errors, nodes[0]!, ctx, scope, reading.expr);
   return reading ? lowerExpression(reading.expr, reading.source, ctx) : null;
 }
 
