@@ -753,15 +753,6 @@ variables:
   # stays open and the arms open inside it, as its last child.
   # lookaround: `LuauAlternatorArms` reads the `|`.
   _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+)(?=[|]))
-  # Right after the `end` of arms a head holds (the compact nested form),
-  # before more of its line: the head ends with them, and the candidate after
-  # it (`LUAU_AFTER_ALTERNATOR_ARMS`), so a statement after them on the line
-  # is the body's (`... end| b = 2 end local after = 7`). Not before a `|`,
-  # where an `end` in the condition leaves the arms to open, and not at the
-  # line's end, where a comment's last word may stand (`match n -- end`);
-  # an expression's head ends there anyway.
-  # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
-  LUAU_AFTER_HEAD_ARMS: (?<=\bend)(?!{{WS}}*(?:[|]|$))
   # The start of a line that does not go on with a line-start candidate's
   # head: one that is neither blank nor a comment line.
   # lookaround: `LuauAlternatorArms` and the next statement read the line.
@@ -9364,7 +9355,7 @@ repository:
       - { include: "#LuauSparkdownExplicitConditionalAlternatorCondition" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|{{LUAU_AFTER_HEAD_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
     endCaptures:
       1:
         patterns:
@@ -11512,7 +11503,7 @@ repository:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|{{LUAU_AFTER_HEAD_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
     endCaptures:
       1:
         patterns:
@@ -11532,7 +11523,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|{{LUAU_AFTER_HEAD_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_AFTER_ALTERNATOR_HEAD}}
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_AFTER_ALTERNATOR_HEAD}}
     endCaptures:
       1:
         patterns:
