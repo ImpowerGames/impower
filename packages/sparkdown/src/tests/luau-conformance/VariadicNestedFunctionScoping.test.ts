@@ -118,7 +118,25 @@ describe("a variadic function statement in a function (I-1360)", () => {
   });
 
   test.each([
-    ["a do block", ["do", "  function foo(...)", "    return base + select(\"#\", ...)", "  end", "end"]],
+    ["with `...`", "(n, ...)"],
+    ["without `...`", "(n)"],
+  ])("a local function %s reads itself as a value", (_, params) => {
+    const source = lines(
+      "function run()",
+      `  local function foo${params}`,
+      "    if n == 0 then return type(foo) end",
+      "    local again = foo",
+      "    return again(n - 1)",
+      "  end",
+      "  return foo(2)",
+      "end",
+      "Got {run()}.",
+    );
+    expect(run(source)).toEqual({ text: "Got function.\n", errors: [] });
+  });
+
+  test.each([
+    ["a do block",["do", "  function foo(...)", "    return base + select(\"#\", ...)", "  end", "end"]],
     ["an if block", ["if base > 0 then", "  function foo(...)", "    return base + select(\"#\", ...)", "  end", "end"]],
   ])("written in %s, is called after the block", (_, block) => {
     const source = lines(

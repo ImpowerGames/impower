@@ -49,8 +49,8 @@ import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 // preserves this rootWeave when it sees a Knot with one already set.
 //
 // A function written in another function's body is a value of that
-// function's scope (`lowerNestedNamedFunction`, or a subflow when it takes
-// `...`), and `function a.f` / `function a:m` stores a function in a table
+// function's scope (`lowerNestedNamedFunction`), with `...` or without,
+// and `function a.f` / `function a:m` stores a function in a table
 // (`lowerPropertyTargetFunctionDefinition`). A function expression is
 // lowered by the expression lowerer (`lowerFunctionExpression`).
 //
@@ -206,13 +206,15 @@ function lowerNestedNamedFunction(
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   const upvals = freeVariables(parameterNames(func), func.body, ctx);
 
-  // Detect self-recursion: if the body calls the declared name, add
-  // it to upvals so the closure captures a live pointer to the local
-  // (declared as nil first, then assigned the closure value). Lua's
-  // `local function f() ... f() ... end` sugar enables this.
+  // Detect self-reference: if the body calls the declared name, or reads
+  // it as a value (`type(f)`, `local again = f`), which the scan captures,
+  // the closure captures a live pointer to the local (declared as nil
+  // first, then assigned the closure value). Lua's `local function f()
+  // ... f ... end` sugar enables this.
   const selfName = identifier.name ?? "";
   const isSelfReferential =
-    !!selfName && bodyReferencesNameAsCall(func.body, selfName);
+    !!selfName &&
+    (upvals.includes(selfName) || bodyReferencesNameAsCall(func.body, selfName));
   if (isSelfReferential && !upvals.includes(selfName)) {
     upvals.push(selfName);
   }

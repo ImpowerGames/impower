@@ -146,9 +146,10 @@ describe("a closure that calls a variadic function of the same function", () => 
 });
 
 // An edit to the function's body alone that changes the locals it captures
-// changes the locals the closure that calls it captures: an incremental
-// compile gives the closure's call what a cold compile of the edited script
-// does. `other` is declared before the function, so the function's body
+// changes the function's statement, while the closure that calls it captures
+// only the function's local and keeps its own: an incremental compile gives
+// the closure's call what a cold compile of the edited script does. `other`
+// is declared before the function, so the function's body
 // reads it as Luau scopes it: these cases expected the same results with
 // `other` declared after the function, which a call reached only because
 // it looked the captured names up where the call was written (I-1361).
