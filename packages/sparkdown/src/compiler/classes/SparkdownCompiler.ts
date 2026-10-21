@@ -5693,14 +5693,6 @@ export class SparkdownCompiler {
   }
 
   /**
-   * Type checks the Luau of every script in the program and reports what the
-   * checker finds as warnings, and a type Luau's parser cannot read as an
-   * error. The project's mode is `config.typecheck.mode` ("nonstrict" unless
-   * a define changes it); a `.sd` file's `typecheck:` front matter field
-   * overrides it for that file, and a `.luau` file's own `--!` first line does
-   * for that file.
-   */
-  /**
    * Reports a story `store` declaration's syntax errors as Luau reads the
    * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
    * I-1370), for a store no other reporter reported an error on. The type
@@ -5752,6 +5744,14 @@ export class SparkdownCompiler {
     }
   }
 
+  /**
+   * Type checks the Luau of every script in the program and reports what the
+   * checker finds as warnings, and a type Luau's parser cannot read as an
+   * error. The project's mode is `config.typecheck.mode` ("nonstrict" unless
+   * a define changes it); a `.sd` file's `typecheck:` front matter field
+   * overrides it for that file, and a `.luau` file's own `--!` first line does
+   * for that file.
+   */
   validateTypes(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateTypes", uri);
