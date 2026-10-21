@@ -522,6 +522,8 @@ interface Token {
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
   unread?: true;
+  /** The implicit `function` of a function the author wrote without it (a `define` method, a handler's closure), read as Luau reads the function it stands for. */
+  written?: true;
 }
 
 
@@ -834,8 +836,8 @@ class Tokenizer {
   }
 
   /** Writes a token the unit needs that the text does not hold, at an offset, as part of the node being read. */
-  synthetic(kind: TokenKind, text: string, at: number): void {
-    this.tokens.push({ kind, text, from: at, to: at, location: this.location(at, at), source: this.source });
+  synthetic(kind: TokenKind, text: string, at: number, written?: true): void {
+    this.tokens.push({ kind, text, from: at, to: at, location: this.location(at, at), source: this.source, ...(written && { written }) });
   }
 
   /** Reads the tokens of a node and everything under it. */
@@ -2915,7 +2917,7 @@ class Parser {
     if (localName) funLocal = this.pushLocal({ name: localName, annotation: undefined, isConst });
 
     const localsBegin = this.saveLocals();
-    this.functionStack.push({ vararg, loopDepth: 0, luau: matchFunction.from < matchFunction.to });
+    this.functionStack.push({ vararg, loopDepth: 0, luau: matchFunction.from < matchFunction.to || matchFunction.written === true });
     let self: AstLocal | undefined;
     if (hasself) self = this.pushLocal({ name: { name: "self", location: start }, annotation: undefined, isConst: false });
     const vars = args.map((arg) => this.pushLocal(arg));
@@ -4951,7 +4953,7 @@ export function readLuauMethod(node: SyntaxNode, documentText: string): ReturnTy
   const tokenizer = new Tokenizer(documentText, index);
   const name = findDescendant(node, "LuauFunctionName");
   const parameters = findDescendant(node, "LuauFunctionParameters");
-  tokenizer.synthetic("keyword", "function", parameters?.from ?? name?.to ?? node.from);
+  tokenizer.synthetic("keyword", "function", parameters?.from ?? name?.to ?? node.from, true);
   // Every node but the name, which a function value does not have.
   const readWithoutName = (around: SyntaxNode): void =>
     tokenizer.readChildren(around, (child) => {
@@ -4975,7 +4977,7 @@ export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: s
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const from = nodes[0]?.from ?? 0;
-  tokenizer.synthetic("keyword", "function", from);
+  tokenizer.synthetic("keyword", "function", from, true);
   tokenizer.synthetic("symbol", "(", from);
   tokenizer.synthetic("symbol", ")", from);
   for (const node of nodes) tokenizer.read(node);
