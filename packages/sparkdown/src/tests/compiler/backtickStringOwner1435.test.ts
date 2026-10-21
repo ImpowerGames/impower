@@ -189,6 +189,18 @@ describe("a backtick string's own errors, from the lowerer's reading where no ot
   }
 });
 
+// A tag's braces hold an expression the tag shows as its text unless it is
+// one name, so only the string's own error is reported there.
+describe("a backtick string's own error in a tag's braces", () => {
+  for (const string of OWN) {
+    test(`Hello # tag {${string}}`, () => {
+      const text = `scene start\n  Hello # tag {${string}}\nend\n`;
+      expect(sparkdownErrors(text)).toEqual(officialFirst(`local _ = ${string}\n`, 1, 5));
+      expectIncrementalEqualsCold(text);
+    });
+  }
+});
+
 describe("a string the statement rejects reports the statement's error, none of the string's own", () => {
   for (const rest of ["s = (1 `a {} b`)", "s = 1 `a {} b`", "s = (1 `a\\x {y} b`)", "s = x.`a {} b`"]) {
     test(`a function's local ${rest}`, () => {
