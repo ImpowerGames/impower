@@ -1,5 +1,11 @@
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
+  closeQuoteMessage,
+  quotePathMessage,
+  runFixesOf,
+  type RunFix,
+} from "@impower/sparkdown/src/compiler/utils/runOperand";
+import {
   CodeAction,
   CodeActionKind,
   type Diagnostic,
@@ -43,7 +49,8 @@ export const getCodeActions = (
   }
   return diagnostics.flatMap(
     (diagnostic) =>
-      QUICK_FIXES.get(messageOf(diagnostic))?.(document, diagnostic) ?? [],
+      QUICK_FIXES.get(messageOf(diagnostic))?.(document, diagnostic) ??
+      runQuickFixes(document, diagnostic),
   );
 };
 
@@ -75,13 +82,49 @@ const quickFix = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
   edits: TextEdit[],
+  isPreferred = true,
 ): CodeAction => ({
   title,
   kind: CodeActionKind.QuickFix,
   diagnostics: [diagnostic as Diagnostic],
-  isPreferred: true,
+  isPreferred,
   edit: { changes: { [document.uri]: edits } },
 });
+
+/**
+ * The quick fixes of a diagnostic on a `run` statement's operand, which is
+ * the diagnostic's range (#1389): an unquoted path takes its quotes, an
+ * operand whose quote is never closed takes its closing quote, and the fixes
+ * the compiler computed travel in the diagnostic's data (`RunFixData`): the
+ * quoted path of each file a shared name names, relative to the script, and
+ * the spelling of each file an operand differs from only by case (#1334).
+ * When there is more than one fix none is preferred, since which file is
+ * meant is the author's call.
+ */
+const runQuickFixes = (
+  document: TextDocument,
+  diagnostic: ActionableDiagnostic,
+): CodeAction[] => {
+  const message = messageOf(diagnostic);
+  const operand = document.getText(diagnostic.range);
+  const fixes = (choices: RunFix[]) =>
+    choices.map(({ title, newText }) =>
+      quickFix(
+        title,
+        document,
+        diagnostic,
+        [{ range: diagnostic.range, newText }],
+        choices.length === 1,
+      ),
+    );
+  if (message === quotePathMessage(operand)) {
+    return fixes([{ title: "Quote the path", newText: `"${operand}"` }]);
+  }
+  if (operand && message === closeQuoteMessage(operand)) {
+    return fixes([{ title: "Close the quote", newText: operand + operand[0] }]);
+  }
+  return fixes(runFixesOf(diagnostic.data));
+};
 
 /** The edit that deletes `line` with its line break; the last line, which
  *  has none, takes the break before it. */

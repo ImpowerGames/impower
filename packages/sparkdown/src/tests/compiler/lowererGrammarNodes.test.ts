@@ -7,9 +7,24 @@ describe("lowerer grammar distinctions", () => {
   test("run paths distinguish quoted and unquoted content", () => {
     expect(stripAnsi(dumpTree('run "scripts/start.luau"\n'))).toContain("RunQuotedPath");
     expect(stripAnsi(dumpTree("run scripts/start\n"))).toContain("RunUnquotedPath");
-    for (const source of ['run "scripts/start.luau"\n', "run 'scripts/start'\n", "run scripts/start\n"]) {
-      expect(compileSource(source).find((e) => e.block?.run)?.block?.run).toBe("scripts/start");
+    for (const [source, quote] of [['run "scripts/start.luau"\n', '"'], ["run 'scripts/start'\n", "'"]]) {
+      expect(compileSource(source!).find((e) => e.block?.run)?.block?.run).toMatchObject({
+        path: "scripts/start",
+        quote,
+      });
     }
+    // An unquoted operand is a name (#1389): one with a slash is a path to
+    // quote, and runs nothing.
+    expect(compileSource("run start.luau\n").find((e) => e.block?.run)?.block?.run).toMatchObject({
+      path: "start",
+      written: "start.luau",
+      quote: "",
+    });
+    const unquotedPath = compileSource("run scripts/start\n");
+    expect(unquotedPath.find((e) => e.block?.run)).toBeUndefined();
+    expect(unquotedPath.flatMap((e) => e.block?.diagnostics ?? []).map((d) => d.message)).toEqual([
+      'Quote a path: run "scripts/start"',
+    ]);
   });
 
   test("unquoted props distinguish whole numeric, boolean and word values", () => {
@@ -33,7 +48,7 @@ describe("lowerer grammar distinctions", () => {
     "run 'scripts/start.luau'\t",
     'run "scripts/start.luau"  # tag',
   ])("%s retains its quoted path with trailing whitespace", (line) => {
-    expect(compileSource(`${line}\n`).find((e) => e.block?.run)?.block?.run).toBe("scripts/start");
+    expect(compileSource(`${line}\n`).find((e) => e.block?.run)?.block?.run?.path).toBe("scripts/start");
   });
 
   test.each([
