@@ -427,6 +427,8 @@ interface OutsideReading {
   errors: readonly { location: Location }[];
   /** Whether `expr` is the function written around statements, not one the author wrote. */
   statements: boolean;
+  /** Whether it is a method of a `define`, whose reads of the locals around the define a function holding it counts (`lintUnusedLocals`). */
+  method?: boolean;
 }
 
 /**
@@ -466,8 +468,9 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       const above = opaqueAbove(node);
       if (above === null) continue;
       const context = above ? above.from : -1;
+      const method = node.parent?.name === "LuauDefine_content";
       if (node.name === "LuauMethodDefinition") {
-        readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauMethod(node, text), statements: false }) });
+        readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauMethod(node, text), statements: false, method }) });
       } else if (node.name === "LuauSparkleHandlerClosure") {
         const content = node.getChild("LuauSparkleHandlerClosure_content");
         if (content) readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([content], text), statements: true }) });
@@ -477,7 +480,7 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
         const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauCompareOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || isExplicitRuleName(node.name, "LuauChainedFunctionCall") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
-        readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false }) });
+        readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false, method }) });
       }
   }
   // Outermost first; a reading inside another is part of it, unless a node
@@ -630,57 +633,85 @@ function lintImplicitReturns(fn: AstExprFunction, offsets: Offsets, out: LuauLin
 // (`keywordWords`, #984), and a use is never missed. A type name or such a
 // word names the local of that name whose scope it stands in, the one
 // declared last, as Luau binds a name.
-function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], broken: boolean): void {
+//
+// A method of a `define` written in the function is read on its own
+// (`OutsideReading.method`), so a name it reads from around the define is a
+// global there: it names the local of that name in scope where it is
+// written, of the function or of a method around it, as Luau binds a name
+// (I-1371). A plain write to it is a write, as to a local, and its `self`
+// is the method's implicit receiver. The methods' own locals are linted
+// with the methods.
+function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], broken: boolean, methods: readonly { expr: AstExpr; offsets: Offsets }[] = []): void {
   const declared: AstLocal[] = [];
   const localFunctions: AstLocal[] = [];
   const used = new Set<AstLocal>();
   const typeNames: { name: string; at: number }[] = [];
+  // The names the methods of the defines in the function read as globals (document offsets).
+  const methodReads: { name: string; at: number }[] = [];
   // Every name the function and the functions in it declare, where it can be named (document offsets).
   const bindings: { local: AstLocal; from: number; to: number }[] = [];
   const blocks: { block: AstStatBlock; from: number; to: number }[] = [];
   // A `repeat` body's locals stay in scope through its `until` condition, after the block ends.
   const repeatEnds = new Map<AstStatBlock, number>();
-  const declaredStatements: { stat: AstStat; locals: AstLocal[]; from: number }[] = [];
-  const bindBody = (locals: AstLocal[], body: AstStatBlock) => {
-    for (const local of locals) bindings.push({ local, from: offsets.of(body.location.begin), to: offsets.of(body.location.end) });
+  const declaredStatements: { stat: AstStat; locals: AstLocal[]; from: number; offsets: Offsets }[] = [];
+  // Reads the function (`own`), or a method of a define in it, whose locals only bind its reads.
+  const read = (root: AstNode, offsets: Offsets, own: boolean) => {
+    const bindBody = (locals: AstLocal[], body: AstStatBlock) => {
+      for (const local of locals) bindings.push({ local, from: offsets.of(body.location.begin), to: offsets.of(body.location.end) });
+    };
+    visitAst(root, {
+      visit(node) {
+        if (node instanceof AstStatBlock) blocks.push({ block: node, from: offsets.of(node.location.begin), to: offsets.of(node.location.end) });
+        if (node instanceof AstStatRepeat) repeatEnds.set(node.body, offsets.of(node.location.end));
+        if (node instanceof AstExprFunction) bindBody([...(node.self ? [node.self] : []), ...node.args], node.body);
+        else if (node instanceof AstStatFor) bindBody([node.variable], node.body);
+        else if (node instanceof AstStatForIn) bindBody(node.vars, node.body);
+        // A local function's name is in scope from its body, after its signature, as Luau binds it.
+        else if (node instanceof AstStatLocalFunction) {
+          if (own) localFunctions.push(node.name);
+          declaredStatements.push({ stat: node, locals: [node.name], from: offsets.of(node.func.body.location.begin), offsets });
+        }
+        // A `const` in a function is Luau's, a local like any other
+        // (`lower/utils/publishesConst.ts`).
+        if (node instanceof AstStatLocal) {
+          if (own) declared.push(...node.vars);
+          declaredStatements.push({ stat: node, locals: node.vars, from: offsets.of(node.location.end), offsets });
+        } else if (node instanceof AstStatAssign) {
+          // The targets themselves are written, not read; what they index is read.
+          // A write to a name a `const` declares is read as an error wrapping the
+          // constant (`Variable 'n' is constant`), and is still a plain write.
+          // A method reads a local around its define as a global, which it writes the same way.
+          for (const target of node.vars) if (!isLocalWrite(target) && !(target instanceof AstExprGlobal)) visitAst(target, this);
+          for (const value of node.values) visitAst(value, this);
+          return false;
+        } else if (node instanceof AstExprLocal) {
+          used.add(node.local);
+        } else if (node instanceof AstExprGlobal) {
+          // A method's `self` is its implicit receiver, which its reading leaves out.
+          if (!own && node.name !== "self") methodReads.push({ name: node.name, at: offsets.of(node.location.begin) }); // not a node name
+        }
+        else if (node instanceof AstTypeReference) {
+          if (own) typeNames.push({ name: node.prefix ?? node.name, at: offsets.of(node.location.begin) });
+        }
+        return true;
+      },
+    });
   };
-  visitAst(fn, {
-    visit(node) {
-      if (node instanceof AstStatBlock) blocks.push({ block: node, from: offsets.of(node.location.begin), to: offsets.of(node.location.end) });
-      if (node instanceof AstStatRepeat) repeatEnds.set(node.body, offsets.of(node.location.end));
-      if (node instanceof AstExprFunction) bindBody([...(node.self ? [node.self] : []), ...node.args], node.body);
-      else if (node instanceof AstStatFor) bindBody([node.variable], node.body);
-      else if (node instanceof AstStatForIn) bindBody(node.vars, node.body);
-      // A local function's name is in scope from its body, after its signature, as Luau binds it.
-      else if (node instanceof AstStatLocalFunction) {
-        localFunctions.push(node.name);
-        declaredStatements.push({ stat: node, locals: [node.name], from: offsets.of(node.func.body.location.begin) });
-      }
-      // A `const` in a function is Luau's, a local like any other
-      // (`lower/utils/publishesConst.ts`).
-      if (node instanceof AstStatLocal) {
-        declared.push(...node.vars);
-        declaredStatements.push({ stat: node, locals: node.vars, from: offsets.of(node.location.end) });
-      } else if (node instanceof AstStatAssign) {
-        // The targets themselves are written, not read; what they index is read.
-        // A write to a name a `const` declares is read as an error wrapping the
-        // constant (`Variable 'n' is constant`), and is still a plain write.
-        for (const target of node.vars) if (!isLocalWrite(target)) visitAst(target, this);
-        for (const value of node.values) visitAst(value, this);
-        return false;
-      } else if (node instanceof AstExprLocal) {
-        used.add(node.local);
-      }
-      else if (node instanceof AstTypeReference) {
-        typeNames.push({ name: node.prefix ?? node.name, at: offsets.of(node.location.begin) });
-      }
-      return true;
-    },
-  });
+  read(fn, offsets, true);
+  const fnFrom = offsets.of(fn.location.begin);
+  const fnTo = offsets.of(fn.location.end);
+  const methodRanges: { from: number; to: number }[] = [];
+  for (const method of methods) {
+    const range = method.offsets.range(method.expr.location);
+    if (fnFrom <= range.from && range.to <= fnTo) {
+      methodRanges.push(range);
+      read(method.expr, method.offsets, false);
+    }
+  }
   // A local statement's names can be named to the end of the innermost block that holds it.
-  for (const { stat, locals, from } of declaredStatements) {
+  for (const { stat, locals, from, offsets } of declaredStatements) {
     const at = offsets.of(stat.location.begin);
-    let to = offsets.of(fn.location.end);
+    let to = fnTo;
     let innermost = -1;
     for (const block of blocks) {
       if (block.from <= at && offsets.of(stat.location.end) <= block.to && block.from >= innermost) {
@@ -699,12 +730,18 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
     }
     return found?.local;
   };
+  for (const { name, at } of methodReads) {
+    const local = resolve(name, at);
+    if (local) used.add(local);
+  }
   const names = new Set([...declared, ...localFunctions].map((local) => local.name));
   for (const { name, at } of typeNames) {
     const local = names.has(name) ? resolve(name, at) : undefined;
     if (local) used.add(local);
   }
   for (const { name, at } of keywordWords(tree, text, offsets.of(fn.location.begin), offsets.of(fn.location.end), names)) {
+    // The grammar reads `self` as a keyword; in a method it is the method's receiver.
+    if (name === "self" && methodRanges.some((range) => range.from <= at && at <= range.to)) continue;
     const local = resolve(name, at);
     if (local) used.add(local);
   }
@@ -2015,10 +2052,13 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   const published = (local: AstLocal) => local.isConst && !declaredLocals.has(local);
   // A scene's or branch's parameter, which the reading declares in its flow's checking wrapper or as a `local`.
   const flowParameter = (offsets: Offsets, local: AstLocal) => facts.parameterStarts.has(offsets.of(local.location.begin));
+  // The methods of the script's defines, whose reads count for the functions they are written in.
+  const methodOffsets = new Offsets(starts, undefined);
+  const methods = facts.outside.filter((reading) => reading.method).map(({ expr }) => ({ expr, offsets: methodOffsets }));
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets, errors: readonly { location: Location }[]) => {
     for (const fn of functions) {
       const broken = errors.some((error) => fn.location.overlaps(error.location));
-      lintUnusedLocals(fn, tree, text, offsets, out, broken);
+      lintUnusedLocals(fn, tree, text, offsets, out, broken, methods.filter((method) => method.expr !== fn));
       lintLocalShadows(fn, tree, text, offsets, out, globalShadows, published);
       lintPlaceholderReads(fn, offsets, out);
       if (!typeOnly.has(fn)) lintUninitializedLocals(fn, tree, text, offsets, out, broken);

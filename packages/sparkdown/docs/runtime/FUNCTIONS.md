@@ -156,12 +156,19 @@ while it holds. A `define` written in a function has its methods read
 that function's locals through a global cell for each
 (`DefineCellBinding`), which the define's line points at the running
 call's local, so they read the locals of the last call that ran it,
-and a save keeps the cell. The local must be one the function the
-define is written in binds itself (its own, or one it captures or
-binds because its own body reads it): the converter's reading of a
-function's body leaves a define out, so a method's read of a local of
-a function further out, or of a top-level local the function does not
-read, finds nothing there and reads nil. A direct call of a stdlib
+and a save keeps the cell. The converter's reading of a function's
+body leaves a define out, so each function's capture scan reads the
+methods of the defines written in it too (`defineMethodReads`), at
+the define, where a local of the function or of a function between
+it and the define binds a name as Luau scopes it: the functions
+between a method and a local of a function further out capture that
+local, and a function written at the top level binds a top-level
+local only its defines' methods read (I-1373). A define written in
+another define's method is read with that method, so each scan reads
+each define once. A top-level define's method binds the names only
+the defines written in it read without capturing them, so its
+captured parameters, which a save of its closure passes, stay what
+its own body reads. A direct call of a stdlib
 name or a member of a stdlib namespace (`type(x)`, `math.abs(x)`)
 still calls the builtin whatever local takes its name, in a function
 as at the top level.

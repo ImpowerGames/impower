@@ -144,7 +144,7 @@ export function lowerLuauFunctionDefinition(
   // entry binds to the top-level locals of those names (`RootBinding`): a
   // function written at the top level reads and writes a top-level local as
   // Luau's upvalue, though it is built before the local exists.
-  const rootNames = freeVariables(parameterNames(func), func.body, ctx);
+  const rootNames = freeVariables(parameterNames(func), func.body, ctx, { node });
   // The body opens a per-function buffer for any nested callables
   // (function values, nested named functions), so they live as subFlows of
   // this function rather than at the chunk's top level, and stacks this
@@ -204,7 +204,7 @@ function lowerNestedNamedFunction(
   assignsLocal = false,
 ): CompiledBlock {
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
-  const upvals = freeVariables(parameterNames(func), func.body, ctx);
+  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
 
   // Detect self-reference: if the body calls the declared name, or reads
   // it as a value (`type(f)`, `local again = f`), which the scan captures,
@@ -339,7 +339,7 @@ function lowerPropertyTargetFunctionDefinition(
   // `Class` itself, the canonical Lua OOP pattern at basic.luau
   // lines 419-438). The colon form's implicit `self` is a
   // PARAMETER, not a free variable — exclude it from capture.
-  const upvals = freeVariables(parameterNames(func), func.body, ctx).filter(
+  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node }).filter(
     (n) => !(isColonForm && n === "self"),
   );
   recordCaptureRead(ctx, upvals);
