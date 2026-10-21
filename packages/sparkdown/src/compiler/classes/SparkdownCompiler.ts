@@ -25,6 +25,7 @@ import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../runtime/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
+import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 // The builtins prelude is the raw `builtins.sd` text, imported directly via
@@ -168,6 +169,7 @@ import {
 } from "../utils/declarationOnly";
 import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
+  isInProject,
   projectPath,
   projectRootUri,
   projectScripts,
@@ -969,6 +971,9 @@ export class SparkdownCompiler {
   // document versions alone can't see asset changes, but populateAssets and
   // include resolution can be affected by them.
   protected _filesEpoch = 0;
+  // The registered files of the project the last compile started in
+  // (`projectFilesOf`), kept while the registry is unchanged.
+  protected _projectFiles?: { uri: string; filesEpoch: number; files: File[] };
   // The previous successful compile, reusable verbatim when nothing that
   // feeds a compile has changed since. PLAY / init paths re-request compiles
   // without any edit having happened, and a compile with every incremental
@@ -2233,6 +2238,32 @@ export class SparkdownCompiler {
       this._config.mainScriptFilename ?? DEFAULT_MAIN_SCRIPT_FILENAME,
       this._config.uriPathsAsWritten,
     ).slice(1);
+  }
+
+  /** The registered files of the project a compile that starts from `uri`
+   *  belongs to (`isInProject`): its assets and its scripts, under the folder
+   *  of `uri`, outside every folder that holds a main script of its own and
+   *  every skipped name. An entry with no folder is a project of its own
+   *  script alone, with no assets. */
+  protected projectFilesOf(uri: string): File[] {
+    const cached = this._projectFiles;
+    if (cached?.uri === uri && cached.filesEpoch === this._filesEpoch) {
+      return cached.files;
+    }
+    const root = projectRootUri(uri);
+    const mainScriptFilename =
+      this._config.mainScriptFilename ?? DEFAULT_MAIN_SCRIPT_FILENAME;
+    const hasScript = (scriptUri: string) =>
+      this.files.get(scriptUri)?.type === "script" &&
+      this.documents.has(scriptUri);
+    const files =
+      root === undefined
+        ? []
+        : [...this.files.all()].filter((file) =>
+            isInProject(root, file.uri, mainScriptFilename, hasScript),
+          );
+    this._projectFiles = { uri, filesEpoch: this._filesEpoch, files };
+    return files;
   }
 
   /**
@@ -4533,7 +4564,7 @@ export class SparkdownCompiler {
   populateFiles(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateFiles", uri);
-    for (const file of this.files.all()) {
+    for (const file of this.projectFilesOf(uri)) {
       if (file.src) {
         const f = { ...file };
         delete f.src;
@@ -5143,7 +5174,10 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "populateAssets", uri);
     program.context ??= {};
-    const files = [...this.files.all()];
+    // Only the project's files: the same name in another project, or in a
+    // folder the project leaves out, is neither in its context nor a
+    // collision.
+    const files = this.projectFilesOf(uri);
     const rasterAliases = new Map<string, number>();
     for (const file of files) {
       if (isRasterLayerFile(file))
@@ -5151,10 +5185,11 @@ export class SparkdownCompiler {
     }
     if (files) {
       // Track the first file to claim each (type, name) so we can flag basename
-      // collisions among non-script assets. Asset names are a FLAT namespace —
-      // scripts reference an asset by its bare name (`[[show image forest]]` ->
-      // context["image"].forest) — so two assets sharing a (type, name) in
-      // different folders are ambiguous and one would silently win. Scripts are
+      // collisions among non-script assets. Asset names are a FLAT namespace
+      // within a project — scripts reference an asset by its bare name
+      // (`[[show image forest]]` -> context["image"].forest) — so two assets
+      // of one project sharing a (type, name) in different folders are
+      // ambiguous and one would silently win. Scripts are
       // exempt: they're keyed/bundled by full path, not by a flat basename.
       const claimedBy = new Map<string, string>();
       const flaggedCollision = new Set<string>();
@@ -5294,7 +5329,7 @@ export class SparkdownCompiler {
         }
       }
     }
-    const raster = createRasterImageDefinitions([...this.files.all()]);
+    const raster = createRasterImageDefinitions(files);
     Object.assign(program.context["image"] ??= {}, raster.images);
     for (const diagnostic of raster.diagnostics) {
       if (getContextEntry(state.structDefinitions, "layered_image", diagnostic.folder)) continue;
@@ -5364,7 +5399,7 @@ export class SparkdownCompiler {
       range,
       severity: DiagnosticSeverity.Warning,
       message: {
-        value: `Asset name collision: \`${name}\` (${type}) is provided by more than one file. Asset names are global, so a script that references \`${name}\` is ambiguous — rename or remove one of the files.`,
+        value: `Asset name collision: \`${name}\` (${type}) is provided by more than one file. Asset names are shared across the project, so a script that references \`${name}\` is ambiguous — rename or remove one of the files.`,
         kind: "markdown",
       },
       relatedInformation: [
