@@ -60,6 +60,8 @@ export interface StoreSyntaxError {
   message: string;
   /** The range of the store it is reported for. */
   store: { from: number; to: number };
+  /** Whether it is one of a backtick string's own errors (`LuauSyntaxError.ofString`), which no other reporter reports. */
+  ofString?: true;
   start: { line: number; character: number };
   end: { line: number; character: number };
 }
@@ -86,6 +88,7 @@ export function storeSyntaxErrors(tree: Tree, documentText: string): StoreSyntax
           store: { from: store.from, to: store.to },
           start,
           end: syntaxErrorEnd(start, { line: end.line, character: end.column }, error.message, () => lineCountOf(documentText)),
+          ...(error.ofString ? { ofString: true as const } : {}),
         });
       }
       return false;

@@ -64,6 +64,7 @@ import {
   freeVariables,
   readBodyAst,
   reportBodySyntaxErrors,
+  reportReadingErrors,
 } from "../expression/lowerFunction";
 import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
@@ -936,6 +937,7 @@ function readPropertyDefinition(
   const end = continued ? rangeOf(continued.expr.location, ctx).to : propNode.to;
   const consumed = end <= propNode.to ? valueNodes : candidates.filter((node) => node.from < end);
   const reading = readExpressionAst(consumed, ctx);
+  if (reading) reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
   if (opNode && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
   const expr = reading
     ? lowerExpression(reading.expr, reading.source, ctx)

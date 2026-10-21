@@ -173,9 +173,8 @@ describe("a rejected backtick string in a body a lowerer reads is read as Luau's
 });
 
 // Each edit that makes a statement reject its string, or read it again,
-// reports what a cold compile of the edited text does: the validator's
-// error for the string gives way to the reading's only while the
-// statement rejects it (round 3).
+// reports what a cold compile of the edited text does: the string's own
+// error stands only while the statement reads the string (round 3, I-1435).
 test("an incremental compile reports what a cold one does", () => {
   let text = "store s = `a {} b`\n\nscene start\n  local t = `a {x} b\n  Hello.\nend\n";
   const compiler = new SparkdownCompiler();
@@ -232,9 +231,9 @@ describe("an unfinished string's last section after a stray token is a malformed
       expect(sparkdownErrors(luau)).toEqual(official(luau));
     });
   }
-  // An alternator's arm is read by its own lowerer, which reports none of
-  // Luau's errors for the string: the validator's reading of the string
-  // reports the one Luau reports, at the string's opening section (round 2).
+  // What a sequential alternator holds before its first `|` is read by the
+  // alternator's own reading, which reports the string's own error, the
+  // one Luau reports, at the string's opening section (round 2, I-1435).
   for (const [text, error] of [
     ["store s = cycle `a {} b` | 'c' end\n", "0:16-0:20"],
     ["store s = shuffle `a {} b` | 'c' end\n", "0:18-0:22"],

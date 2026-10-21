@@ -16,15 +16,15 @@ import { Tag as RuntimeTag } from "../../../runtime/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromNodes } from "../expression/lowerExpression";
+import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lower } from "../lower";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
-import { reportSyntaxErrors } from "../expression/lowerFunction";
+import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
 import { readExpressionAst } from "./luauAst";
 import { containsUnreadToken } from "../../utils/unreadTokens";
-import { ALTERNATOR_CANDIDATES, alternatorArms } from "../../utils/alternatorDecision";
+import { ALTERNATOR_CANDIDATES, alternatorArms, alternatorHeadNodes } from "../../utils/alternatorDecision";
 
 // The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
 // a literal, a name or path, a parenthesized value, a table, a divert
@@ -102,23 +102,21 @@ export function lowerArms(
   const armsNode = candidate && ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
   if (armsNode) content = armsNode.getChild(`${armsNode.name}_content`) ?? armsNode;
   let current: AlternatorArm | null = null;
-  // The nodes of the current arm. The type checker reads an alternator as a
-  // value of any type, not its arms, so an arm holding a token no rule read
-  // (`cycle "a" | ! end`, `cycle "a" | (!b) end`) has the errors of its
-  // reading as an expression.
+  // The nodes of the current arm, and whether one is a statement or a line
+  // of story rather than a value (`reportArmReading`).
   let armNodes: SyntaxNode[] = [];
-  const reportUnreadArm = () => {
-    if (armNodes.some(containsUnreadToken)) {
-      reportSyntaxErrors(readExpressionAst(armNodes, ctx)?.source.errors ?? [], ctx);
-    }
+  let armIsValue = true;
+  const reportArm = () => {
+    reportArmReading(armNodes, armIsValue, ctx);
     armNodes = [];
+    armIsValue = true;
   };
 
   let child = content.firstChild;
   while (child) {
     if (current && child.name !== "LuauAlternatorSeparator" && !isTrivia(child)) armNodes.push(child);
     if (child.name === "LuauAlternatorSeparator") {
-      reportUnreadArm();
+      reportArm();
       const keyNode = getDescendent("LuauAlternatorAssignmentName", child);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : null;
       current = { key, body: [] };
@@ -143,6 +141,7 @@ export function lowerArms(
       // multi-line block-form arm shape (which routes through
       // `ImplicitAction`). The inline-glued form is spliced into
       // surrounding text; the caller's display lowerer handles line breaks.
+      armIsValue = false;
       const armContent = findChildByName(child, `${child.name}_content`);
       if (armContent) {
         if (child.name !== "LuauSparkdownAlternatorArm") {
@@ -173,6 +172,7 @@ export function lowerArms(
       if (divertLiteral) {
         const divert = buildDivertFromTargetLiteral(divertLiteral, ctx);
         if (divert) {
+          armIsValue = false;
           current.body.push(divert);
           child = child.nextSibling;
           continue;
@@ -184,12 +184,14 @@ export function lowerArms(
       // alternator forms report, and the arm stays empty.
       const emptyDivert = emptyDivertRange(child, ctx);
       if (emptyDivert) {
+        armIsValue = false;
         ctx.diagnostics?.push(emptyDivertDiagnostic(emptyDivert, ctx));
         child = child.nextSibling;
         continue;
       }
 
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+      if (block && !isArmAssignment(child)) armIsValue = false;
       // A statement can lower to diagnostics alone, such as an empty divert.
       forwardBlockDiagnostics(block, ctx);
       if (block?.content) {
@@ -202,9 +204,10 @@ export function lowerArms(
         // expression and mark `outputWhenComplete` so its result emits
         // into the surrounding output stream — same behavior as a normal
         // `{expr}` interpolation, just nested inside the alternator's
-        // chosen arm.
+        // chosen arm. The arm's errors are its whole reading's
+        // (`reportArmReading`), not one of its nodes' alone.
         const expr = ARM_VALUES.has(child.name)
-          ? lowerExpressionFromNodes([child], ctx)
+          ? lowerExpressionFromNodes([child], ctx, null)
           : null;
         if (expr) {
           expr.outputWhenComplete = true;
@@ -214,8 +217,76 @@ export function lowerArms(
     }
     child = child.nextSibling;
   }
-  reportUnreadArm();
+  reportArm();
   return arms;
+}
+
+/**
+ * Reports the errors of an alternator's arm, read whole as an expression.
+ * The type checker reads an alternator as a value of any type, not its
+ * arms, so an arm holding a token no rule read (`cycle "a" | ! end`,
+ * `cycle "a" | (!b) end`) has every error of its reading (I-1310). Any
+ * other arm that is a value, not a statement or a line of story, has its
+ * reading's errors by form (`reportReadingErrors` "expression"): a
+ * backtick string's own (I-1435), and `cycle | 1 2 | 3 end`'s.
+ */
+function reportArmReading(nodes: readonly SyntaxNode[], isValue: boolean, ctx: LowerContext): void {
+  if (nodes.length === 0) return;
+  if (nodes.some(containsUnreadToken)) {
+    reportSyntaxErrors(readExpressionAst(nodes, ctx)?.source.errors ?? [], ctx);
+  } else if (isValue) {
+    // A `match` arm (`| 1 = "one"`) is its pattern and its value, each
+    // an expression of its own.
+    const at = nodes.findIndex(isArmAssignment);
+    const parts = at < 0 ? [nodes] : [nodes.slice(0, at), containerValueNodes(nodes[at]!)];
+    for (const part of parts) {
+      const reading = part.length > 0 ? readExpressionAst(part, ctx) : null;
+      if (reading) reportReadingErrors(reading.source.errors, part[0]!, ctx, "expression");
+    }
+  }
+}
+
+/** Whether a node of an arm is a `match` arm's `= value`. */
+function isArmAssignment(node: SyntaxNode): boolean {
+  return /AssignmentOperation$/.test(node.name);
+}
+
+/**
+ * Reports the errors of a sequential alternator's head, what stands between
+ * its word and its first `|` (`cycle `a {} b` | 1 end`), read as an
+ * expression by form (`reportReadingErrors` "expression"). No arm holds
+ * it and it is not lowered, but a backtick string's errors in it are the
+ * reading's to report, as everywhere (I-1435).
+ */
+export function reportAlternatorHead(candidate: SyntaxNode, ctx: LowerContext): void {
+  const nodes = alternatorHeadNodes(candidate).filter((node) => !isTrivia(node));
+  if (nodes.length === 0) return;
+  const reading = readExpressionAst(nodes, ctx);
+  if (reading) reportReadingErrors(reading.source.errors, nodes[0]!, ctx, "expression");
+}
+
+/**
+ * Reports the errors of an alternator that Luau code uses as a value
+ * (`store s = cycle | `a {} b` | 2 end`), which no lowerer lowers: its
+ * head's, a sequential one's, and each arm's, as `lowerArms` reports
+ * them for one it lowers.
+ */
+export function reportAlternatorValue(candidate: SyntaxNode, ctx: LowerContext): void {
+  if (/SequentialAlternator/.test(candidate.name)) reportAlternatorHead(candidate, ctx);
+  const armsNode = ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
+  const content = armsNode ? (armsNode.getChild(`${armsNode.name}_content`) ?? armsNode) : findChildByName(candidate, `${candidate.name}_content`);
+  let nodes: SyntaxNode[] = [];
+  let inArm = false;
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (child.name === "LuauAlternatorSeparator") {
+      reportArmReading(nodes, true, ctx);
+      nodes = [];
+      inArm = true;
+    } else if (inArm && !isTrivia(child)) {
+      nodes.push(child);
+    }
+  }
+  reportArmReading(nodes, true, ctx);
 }
 
 // A single-line block arm is a display line of its own: a `display({ text })`

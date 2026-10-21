@@ -20,7 +20,7 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
-import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringAbandonedAt, readLuauStringErrors } from "../../typecheck/readLuauAst";
+import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
@@ -138,7 +138,6 @@ const BACKTICK_INTERPOLATIONS = nodeNameSet([
   "LuauBacktickStringInterpolation",
   "LuauBacktickFunctionCallShorthand",
 ]);
-const BACKTICK_STRINGS = nodeNameSet(["LuauInterpolatedString"]);
 
 /**
  * The first lexeme Luau's lexer reads of a backtick string that `text`
@@ -576,13 +575,6 @@ function outermostStatementOf(statement: SyntaxNode): SyntaxNode {
 export interface Diagnostic {
   message?: string;
   severity?: "info" | "warning" | "error";
-  /**
-   * Luau's error for a backtick string, from a reading of the string alone
-   * (`luauStringError`), which an error the reading of its statement
-   * reports at its token, or at the string's first lexeme (these offsets),
-   * replaces.
-   */
-  luauString?: { from: number; to: number };
 }
 
 export class ValidationAnnotator extends SparkdownAnnotator<
@@ -784,34 +776,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * Luau's error for a backtick string, as a reading of the string alone
-   * gives it (`readLuauStringErrors`). That reading cannot tell where the
-   * statement around the string rejects it before reading it
-   * (`` `a {} b` `` as a statement, `(1 `a {} b`)`, I-1419). Luau then
-   * reports the string's first lexeme (`stringFrom` to its end) instead,
-   * and none of the string's own errors: the error gives way to any the
-   * statement's reading reports at its token or at that lexeme, the type
-   * checker's in its merge (`SparkdownCompiler.validateTypes`), a
-   * lowerer's here.
-   */
-  protected luauStringError(
-    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
-    message: string,
-    from: number,
-    to: number,
-    stringFrom: number,
-  ) {
-    if (this.loweredReadingReports(message, from, to)) return;
-    const lexeme = { from: stringFrom, to: stringFrom + backtickLexeme(this.read(stringFrom, this.text?.lineAt(stringFrom).to ?? stringFrom)).length };
-    const at = (start: number, end: number) => (position: number) => start <= position && position < end;
-    const owned = (position: number) => at(from, to)(position) || at(lexeme.from, lexeme.to)(position);
-    if (this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null)?.some((error) => owned(Math.max(error.to - 1, error.from)))) return;
-    annotations.push(
-      SparkdownAnnotation.mark<Diagnostic>({ message, severity: "error", luauString: lexeme }).range(from, to),
-    );
-  }
-
-  /**
    * Brace blocks in `style`, `animation`, `theme` and `morph` bodies. A `{`
    * with no `}` is reported on that brace: the grammar ends the block where
    * the declaration's `end` starts a line, so everything up to it is read into
@@ -859,15 +823,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
-  /** Whether a backtick string holds an interpolation or a `{{f}}` shorthand. */
-  protected hasBacktickInterpolation(stringNode: any): boolean {
-    const content = childNamed(stringNode, `${stringNode.name}_content`);
-    for (let c = content?.firstChild; c; c = c.nextSibling) {
-      if (BACKTICK_INTERPOLATIONS.has(c.name)) return true;
-    }
-    return false;
-  }
-
   /** Whether an interpolation ends with its closing braces. */
   protected isClosedInterpolation(node: any): boolean {
     const end = childNamed(node, `${node.name}_end`);
@@ -889,6 +844,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   ): boolean {
     const name = nodeRef.name as string;
     if (LUAU_STRING.has(name)) {
+      // A backtick string's errors, its sections' and interpolations', its
+      // escapes' and an unfinished one's, have one owner, the reading of the
+      // statement it stands in (`LuauSyntaxError.ofString`, I-1435), which
+      // gives none where the statement rejects the string before reading it.
+      if (name === "LuauInterpolatedString") return false;
       const node = nodeRef.node as any;
       // `[[...]]` holds raw text: no escapes, and newlines are content.
       if (!LUAU_QUOTED_STRING.has(name)) {
@@ -898,10 +858,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
         return false;
       }
-      const escapeMessage =
-        name === "LuauInterpolatedString"
-          ? "Interpolated string literal contains malformed escape sequence"
-          : "String literal contains malformed escape sequence";
+      const escapeMessage = "String literal contains malformed escape sequence";
       const content = childNamed(node, `${name}_content`);
       // A quoted string's line break is either the line it is not finished
       // on, where the grammar ends it (see below), or one a `\` or a `\z`
@@ -934,24 +891,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         // (`` `a {b`) ``) is the interpolation's error, reported at it.
         if (ancestorMatching(nodeRef.node, BACKTICK_INTERPOLATION_ENDS)) {
           return true;
-        }
-        // A backtick string with an interpolation is Luau's to word and
-        // place, by which of its sections is unfinished and what ends an
-        // interpolation left open (I-1318): the converter's reading of it
-        // gives that error, so the editor and the type checker agree.
-        if (name === "LuauInterpolatedString" && this.hasBacktickInterpolation(node)) {
-          const text = this.statementDocumentText();
-          const [error] = readLuauStringErrors(node, text);
-          if (error) {
-            this.luauStringError(
-              annotations,
-              error.message,
-              luauPositionOffset(error.location.begin, text),
-              luauPositionOffset(error.location.end, text),
-              node.from,
-            );
-            return true;
-          }
         }
         this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
         return true;
@@ -1047,6 +986,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * Whether the type checker reports what a node's construct is missing, at
    * the token Luau finds instead (`checkerReadsOnTo`). A Luau file is Luau
    * throughout, however this document's tree reads it.
+   *
+   * Where no such reading reads the construct, in story braces
+   * (`Hello {x.}.`) and an alternator's head and arms, these tree checks
+   * report the forms they name, a name or value missing after a `.`, a
+   * `:`, an operator or `not`, naming the closing brace (`{x.}`, `{x +}`,
+   * `{not}`, `{x:}`). The lowerer's reading of the expression reports its
+   * other forms (`{1 2}`, `{x y}`, a backtick string it rejects, `{(1}`) and
+   * a backtick string's own errors: one owner per form (I-1435,
+   * `reportReadingErrors`).
    */
   /**
    * The end of a missing type's range, from where the type should stand
@@ -1905,30 +1853,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // without the diagnostic it would vanish from the string. Use `'...'`
       // or `[[...]]` for a string that should hold literal braces.
       if (/^\{\s*\}$/.test(raw.trim())) {
-        // After an interpolation Luau's parser gave up on the string at
-        // (`` `a {1 2} b {} c` ``), the `{}` is no interpolation to Luau:
-        // the converter's reading reports the tokens there (I-1406).
-        // So is one in a string inside such a string's rest.
-        if (BACKTICK_INTERPOLATIONS.has(nodeRef.name)) {
-          for (let string = ancestorMatching(nodeRef.node, BACKTICK_STRINGS); string; string = ancestorMatching(string, BACKTICK_STRINGS)) {
-            const abandonedAt = readLuauStringAbandonedAt(string, this.statementDocumentText());
-            if (abandonedAt !== undefined && nodeRef.from >= abandonedAt) return annotations;
-          }
-          // Otherwise it is Luau's error, in Luau's words at the string's
-          // section that opened it (I-1420), as the converter's reading of
-          // the string gives it, so the editor and the type checker agree
-          // (`luauStringError`). Luau reports none where an unfinished
-          // section follows the `{}` (`` `a {} b `` with no closing
-          // backtick): the string's own error is that one (I-1318).
-          const string = ancestorMatching(nodeRef.node, BACKTICK_STRINGS);
-          if (!string) return annotations;
-          const text = this.statementDocumentText();
-          const error = readLuauStringErrors(string, text).find(
-            (e) => /expected expression inside/.test(e.message) && luauPositionOffset(e.location.end, text) === nodeRef.from + 1,
-          );
-          if (error) this.luauStringError(annotations, error.message, luauPositionOffset(error.location.begin, text), nodeRef.from + 1, string.from);
-          return annotations;
-        }
+        // A backtick string's empty interpolation is the reading's to
+        // report, the one owner of the string's errors (I-1420, I-1435).
+        if (BACKTICK_INTERPOLATIONS.has(nodeRef.name)) return annotations;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message:
@@ -1939,8 +1866,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
       // A backtick string's interpolation may go on over lines, and one left
-      // open leaves its string unfinished, which reports Luau's error for
-      // both (I-1318). Whether it closed is its `_end`'s: the text can end in
+      // open leaves its string unfinished, both the reading's to report
+      // (I-1318, I-1435). Whether it closed is its `_end`'s: the text can end in
       // a `}` that a string its end took holds (`` `a {"y}``).
       const backtick = BACKTICK_INTERPOLATIONS.has(nodeRef.name);
       const closed = backtick

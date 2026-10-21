@@ -224,11 +224,6 @@ const BINARY_TABLE_RESEED_RATIO = 1.5;
 const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
-
-// The validator's diagnostics that are Luau's errors for a backtick string,
-// from a reading of the string alone (`ValidationAnnotator.luauStringError`),
-// with the range of the string's first lexeme.
-const LUAU_STRING_DIAGNOSTICS = new WeakMap<SparkDiagnostic, Range>();
 // Synthetic URI for the bundled builtins prelude (used as the file URI when the
 // prelude is compiled once to seed the builtins cache; see getCompiledPrelude).
 const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
@@ -5813,7 +5808,7 @@ export class SparkdownCompiler {
                       : DiagnosticSeverity.Warning;
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];
-              const reported: SparkDiagnostic = {
+              program.diagnostics[uri].push({
                 range,
                 severity,
                 message: diagnosticMarkup(diagnostic.message),
@@ -5824,10 +5819,7 @@ export class SparkdownCompiler {
                   },
                 ],
                 source: LANGUAGE_NAME,
-              };
-              const lexeme = diagnostic.luauString && doc.range(diagnostic.luauString.from, diagnostic.luauString.to);
-              if (lexeme) LUAU_STRING_DIAGNOSTICS.set(reported, lexeme);
-              program.diagnostics[uri].push(reported);
+              });
             }
           }
           cur.next();
@@ -6063,7 +6055,9 @@ export class SparkdownCompiler {
    * marks missing or unread, in its own words and ranges; a store's errors
    * have one owner, as a story statement's do (#931, #1907), and Luau's
    * reading is theirs where Sparkdown's syntax reads the value token by token
-   * and reports nothing (`store t = {1 2}`).
+   * and reports nothing (`store t = {1 2}`). A backtick string's own
+   * errors (`LuauSyntaxError.ofString`) are reported whatever else is: the
+   * store's reading is their one owner (I-1435).
    */
   validateStores(program: SparkProgram) {
     for (const scriptUri of Object.keys(program.scripts)) {
@@ -6095,7 +6089,8 @@ export class SparkdownCompiler {
             );
           reported.set(key, inError);
         }
-        if (inError) continue;
+        // A backtick string's own error has no other reporter (I-1435).
+        if (inError && !error.ofString) continue;
         diagnostics.push({
           range: { start: error.start, end: error.end },
           code: "SyntaxError",
@@ -6200,13 +6195,7 @@ export class SparkdownCompiler {
       for (const d of checked) {
         if (!d.syntax) continue;
         for (const e of errors) {
-          // Luau's error for a backtick string, which the validator gives
-          // from a reading of the string alone, gives way to any the
-          // reading of its statement reports at its token, or at the
-          // string's first lexeme, where the statement rejects the string
-          // before reading it and reports none of its errors (I-1419).
-          const lexeme = LUAU_STRING_DIAGNOSTICS.get(e);
-          if ((messageOf(e) === d.message && meets(e.range, d)) || (lexeme && (rangeContains(e.range, tokenOf(d)) || rangeContains(lexeme, tokenOf(d))))) {
+          if (messageOf(e) === d.message && meets(e.range, d)) {
             replaced.add(e);
             replacing.add(d);
           }
@@ -6214,7 +6203,9 @@ export class SparkdownCompiler {
       }
       for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
-        if (d.syntax && !replacing.has(d) && errors.some((e) => !replaced.has(e) && rangeContains(e.range, tokenOf(d)))) continue;
+        // A backtick string's own error has no other reporter, whatever
+        // Sparkdown reports over its token (I-1435).
+        if (d.syntax && !d.ofString && !replacing.has(d) && errors.some((e) => !replaced.has(e) && rangeContains(e.range, tokenOf(d)))) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
       if (replaced.size > 0) program.diagnostics![scriptUri] = program.diagnostics![scriptUri]!.filter((d) => !replaced.has(d));
