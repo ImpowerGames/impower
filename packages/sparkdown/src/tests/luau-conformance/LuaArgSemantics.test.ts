@@ -135,7 +135,10 @@ end
     expect(recorded).toEqual([5]);
   });
 
-  test("sibling subflow wins over a same-named outer local", () => {
+  // A variadic `function foo` naming an outer local assigns it (#1349), so a
+  // sibling's call and the outer function's later call both reach it: Lua
+  // records 7, then 1 (`foo(1, 2)` returns 1, 2).
+  test("a variadic definition over a same-named outer local assigns it", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -147,7 +150,7 @@ host_record(foo(1, 2))
 end
 `);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual([7, 2]);
+    expect(recorded).toEqual([7, 1]);
   });
 });
 
