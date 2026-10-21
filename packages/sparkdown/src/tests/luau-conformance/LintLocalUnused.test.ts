@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  diagnoseDetailed,
   diagnoseWithLints,
   lintInFunction as lintAllInFunction,
   lintMessagesInFunction as lintAllMessagesInFunction,
@@ -174,5 +175,171 @@ describe("names the rule does not report", () => {
         m.includes("never used"),
       ),
     ).toEqual([]);
+  });
+});
+
+// Sparkdown (I-1371): a define written in a function reads the function's
+// locals from its methods, which the converter's reading of the function's
+// body leaves out.
+describe("a local read only by a method of a define in its function", () => {
+  const localUnused = (source: string) =>
+    diagnoseDetailed(source)
+      .filter((d) => d.code === "LocalUnused")
+      .map((d) => ({ line: d.range?.start.line, message: d.message }));
+
+  test("is used", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  define other with",
+          "    function get()",
+          "      return b",
+          "    end",
+          "  end",
+          "  return other.get()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("is used when the define is in a function further in", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  local function inner()",
+          "    define other with",
+          "      function get()",
+          "        return b",
+          "      end",
+          "    end",
+          "    return other.get()",
+          "  end",
+          "  return inner()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("is used when the define is in another define's method", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  define thing with",
+          "    function get()",
+          "      define other with",
+          "        function get()",
+          "          return b",
+          "        end",
+          "      end",
+          "      return other.get()",
+          "    end",
+          "  end",
+          "  return thing.get()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("leaves a local beside the define that nothing reads unused", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  local c = 8",
+          "  define other with",
+          "    function get()",
+          "      return b",
+          "    end",
+          "  end",
+          "  return other.get()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([{ line: 2, message: "Variable 'c' is never used; prefix with '_' to silence" }]);
+  });
+
+  // The method's read is of the method's own local, not the function's.
+  test("leaves a local unused that the method's own local of its name hides", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  define other with",
+          "    function get()",
+          "      local b = 1",
+          "      return b",
+          "    end",
+          "  end",
+          "  return other.get()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([{ line: 1, message: "Variable 'b' is never used; prefix with '_' to silence" }]);
+  });
+
+  // The inner define's method reads the outer method's local, not the function's.
+  test("leaves a local unused that a method around the define hides", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  define thing with",
+          "    function get()",
+          "      local b = 1",
+          "      define other with",
+          "        function get()",
+          "          return b",
+          "        end",
+          "      end",
+          "      return other.get()",
+          "    end",
+          "  end",
+          "  return thing.get()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([{ line: 1, message: "Variable 'b' is never used; prefix with '_' to silence" }]);
+  });
+
+  // A local whose block ended before the define is not the one its method
+  // reads.
+  test("leaves an ended block's local unused", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  do",
+          "    local b = 1",
+          "  end",
+          "  define other with",
+          "    function get()",
+          "      return b",
+          "    end",
+          "  end",
+          "  return other.get()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([{ line: 3, message: "Variable 'b' is never used; prefix with '_' to silence" }]);
   });
 });
