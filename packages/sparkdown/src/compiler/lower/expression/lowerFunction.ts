@@ -258,8 +258,7 @@ function declaredFunctionName(
 // of a function's body declare (`declaredFunctionName`), in the blocks
 // inside it too but not in the functions nested in it. The lowerer makes
 // each a local of that function, hoisted to its body
-// (`lowerNestedNamedFunction`), or a subflow when it is variadic
-// (`lowerNestedAsSubFlow`); so the name refers to that function's own
+// (`lowerNestedNamedFunction`); so the name refers to that function's own
 // function in every read inside it.
 function functionStatementNames(body: AstStatBlock, ctx: LowerContext): Set<string> {
   const names = new Set<string>();
@@ -328,11 +327,9 @@ function loopNames(node: AstNode): string[] {
  * a function nested in it can tell a local of this one from a global: its
  * parameters, and the locals, `store` and `const` declarations, loop
  * variables and named nested functions of its body, in the blocks inside
- * the body too but not inside the functions nested in it. A variadic nested
- * function is no local: it lowers as a subflow that calls reach by path
- * (`lowerNestedAsSubFlow`), and recording its name would have a sibling
- * closure capture a variable that does not exist. Nor is a function
- * statement that assigns a local already in scope (`declaredFunctionName`).
+ * the body too but not inside the functions nested in it, variadic or not.
+ * A function statement that assigns a local already in scope declares
+ * nothing (`declaredFunctionName`).
  */
 export function immediateBodyDeclarations(
   params: readonly string[],
@@ -345,7 +342,7 @@ export function immediateBodyDeclarations(
     if (node instanceof AstExprFunction) return false;
     if (node instanceof AstStatFunction || node instanceof AstStatLocalFunction) {
       const name = declaredFunctionName(node, ctx);
-      if (name && !node.func.vararg) out.add(name);
+      if (name) out.add(name);
       return false;
     }
     for (const name of declarationNames(node)) out.add(name);

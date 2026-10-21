@@ -103,25 +103,23 @@ export function lowerLuauFunctionDefinition(
     // function-body level so a `do ... function NAME end end` followed by
     // `NAME(...)` outside the block still resolves.
     const isLocal = stat instanceof AstStatLocalFunction;
-    // Variadic functions (`function f(a, ...) ... end`) keep the
-    // subFlow-knot form rather than converting to a local closure: a
-    // call reaches them by path, passing the upvalues they capture
-    // before its own arguments (`lowerNestedAsSubFlow`), and packs
-    // their `...` when it runs, as every call arranges its arguments
-    // (`arrangeArgsFor`). A `local` of the name hides the subflow for
-    // the rest of its block (`shadowSiblingSubFlow`).
+    // A variadic function (`function f(a, ...) ... end`) is a closure
+    // too, which packs its `...` when a call runs it, as every call
+    // arranges its arguments (`arrangeArgsFor`). Its closure captures the
+    // locals it reads where it is defined, as Luau's does, so a call from
+    // a scope with a local of one of their names still reads the one it
+    // closes over (I-1361); a closure written before the statement calls
+    // it through the variable, nil until the statement runs (I-1360); and
+    // any assignment to the name rebinds that variable (I-1355).
     //
     // A name that is already a variable here keeps one binding: the
-    // variadic definition assigns that variable a closure, as a
-    // non-variadic one does, so a closure that captured it, a call inside
-    // either body and a later `NAME = <expr>` all see the same value. A
-    // subflow of the name beside the variable would be a second binding
-    // that diverts reach instead. The variable is a local in scope where
-    // the definition is written (a parameter, a `local`, a local function,
-    // an enclosing function's local: `assignsLocal`), or the local a
-    // non-variadic `function NAME` in this body declares. A statement
-    // read on its own can see a parameter's name as a global, so the
-    // scope is asked by position as well (`resolveFunctionBinding`).
+    // definition assigns that variable its closure, so a closure that
+    // captured it, a call inside either body and a later `NAME = <expr>`
+    // all see the same value. The variable is a local in scope where the
+    // definition is written (a parameter, a `local`, a local function, an
+    // enclosing function's local: `assignsLocal`). A statement read on its
+    // own can see a parameter's name as a global, so the scope is asked by
+    // position as well (`resolveFunctionBinding`).
     const assignsLocal =
       stat instanceof AstStatFunction &&
       (stat.name instanceof AstExprLocal ||
@@ -130,22 +128,15 @@ export function lowerLuauFunctionDefinition(
           offsetAt(stat.name.location.begin, ctx),
           ctx,
         ) !== undefined);
-    if (
-      !func.vararg ||
-      assignsLocal ||
-      namesVariable(identifier.name ?? "", ctx)
-    ) {
-      return lowerNestedNamedFunction(
-        func,
-        node,
-        identifier,
-        ctx,
-        enclosingScope,
-        isLocal,
-        assignsLocal,
-      );
-    }
-    return lowerNestedAsSubFlow(func, node, identifier, ctx, enclosingScope);
+    return lowerNestedNamedFunction(
+      func,
+      node,
+      identifier,
+      ctx,
+      enclosingScope,
+      isLocal,
+      assignsLocal,
+    );
   }
 
   const args = functionArguments(func);
@@ -316,114 +307,6 @@ function lowerNestedNamedFunction(
       isTemporaryNewDeclaration: true,
     }),
   ]);
-}
-
-// Variadic nested fns keep the "subFlow `Function` attached to the
-// enclosing flow" shape, which their call sites reach by path; the call
-// packs the `...` slot when it runs (`arrangeArgsFor`).
-// Upvalue capture works by prepending the body's free variables as
-// PARAMETERS (the same shape closures use): every call site prepends
-// matching `VariablePointerExpression`s (see the sibling-subflow
-// lookup in `lowerExpression`'s call dispatch), so reads and writes
-// go through the shared cell — `local abs = math.abs function foo(...)
-// return abs(...) end` must read the enclosing local. Self-recursion
-// still works via in-flow name resolution since the function lives at
-// its own name — the self-call's prepended pointers reference the
-// subflow's OWN upval parameters, threading the same cells through
-// each recursion level.
-function lowerNestedAsSubFlow(
-  func: AstExprFunction,
-  node: SyntaxNode,
-  identifier: Identifier,
-  ctx: LowerContext,
-  enclosingScope: ParsedObject[],
-): CompiledBlock {
-  const args = functionArguments(func);
-  // Register the NAME on the ENCLOSING scope's sibling-subFlow frame
-  // BEFORE the free-variable scan: a self-recursive body reference
-  // (`function concat(...) ... concat(...) end`) must resolve via
-  // in-flow name dispatch, NOT be captured as an upval of itself
-  // (the call site would then emit a pointer to a variable that
-  // doesn't exist). The placeholder empty upval list is replaced
-  // with the real list right after the scan — before the body
-  // lowers — so self-recursive call sites prepend the same upval
-  // pointers as external callers (threading this fn's own upval
-  // params down each level).
-  const enclosingSiblingFrame = ctx.siblingSubFlowNamesStack?.at(-1);
-  const fixedArity = args.filter((a) => !a.isVararg).length;
-  // REDEFINITION (`function f(...)` twice in one function body —
-  // vararg.luau lines 9/64): both bodies must survive as distinct
-  // containers (`_subFlowsByName` is name-keyed, so a second
-  // same-named Function would silently replace the first and calls
-  // BEFORE the redefinition would jump into the wrong body). Mangle
-  // the second+ definition's container name; the registry entry maps
-  // the source name to it, and since registration happens in lexical
-  // order, call sites before the redefinition bound the first
-  // container and sites after bind this one — matching Lua's
-  // assign-a-global semantics.
-  const knotName = enclosingSiblingFrame?.has(identifier.name ?? "")
-    ? `${identifier.name}__redef_${syntheticId(node.from, ctx)}`
-    : (identifier.name ?? "");
-  const knotIdentifier =
-    knotName === identifier.name ? identifier : new Identifier(knotName);
-  if (enclosingSiblingFrame && identifier.name) {
-    enclosingSiblingFrame.set(identifier.name, {
-      upvals: [],
-      arity: fixedArity,
-      knotName,
-    });
-  }
-  // Free-variable scan BEFORE pushing this fn's own scope frames —
-  // the scan binds the fn's params/locals internally and consults the
-  // ENCLOSING declared-locals stack for what needs capturing.
-  const upvals = freeVariables(parameterNames(func), func.body, ctx);
-  recordCaptureRead(ctx, upvals);
-  const upvalArgs = upvals.map(
-    (n) => new Argument(new Identifier(n), false, false, false, true),
-  );
-  if (enclosingSiblingFrame && identifier.name) {
-    enclosingSiblingFrame.set(identifier.name, {
-      upvals,
-      arity: fixedArity,
-      knotName,
-    });
-  }
-  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx);
-  const fn = new Function(
-    knotIdentifier,
-    [...hoisted, ...body, ...nested],
-    [...upvalArgs, ...args],
-  );
-  close(fn);
-  fn._outsideBlocks = isWrittenInFunctionBody(node);
-  enclosingScope.push(fn);
-  return {};
-}
-
-const FUNCTION_BODY_CONTENT: ReadonlySet<string> = nodeNameSet([
-  "LuauFunctionBody_content",
-  "LuauFunctionDefinition_content",
-  "LuauMethodDefinition_content",
-]);
-
-// Whether a function definition is written directly in the body of the
-// function around it, outside every block of it: the nearest content node
-// above it is that function's body, not a block's.
-function isWrittenInFunctionBody(node: SyntaxNode): boolean {
-  for (let p = node.parent; p; p = p.parent) {
-    if (p.name.endsWith("_content")) {
-      return FUNCTION_BODY_CONTENT.has(p.name);
-    }
-  }
-  return false;
-}
-
-// Whether `name` is a variable where the function being lowered is: a
-// local of it or of a function around it, which includes the local a
-// non-variadic `function name` anywhere in its body declares
-// (`immediateBodyDeclarations`).
-function namesVariable(name: string, ctx: LowerContext): boolean {
-  return ctx.declaredLocalsStack?.some((frame) => frame.has(name)) ?? false;
 }
 
 // `function a.f(p) BODY end` and `function a:m(p) BODY end`. Lua

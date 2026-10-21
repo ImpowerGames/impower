@@ -1,8 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Variadic nested functions route through `lowerNestedAsSubFlow`, which
-// only registers the SubFlow — there's no `local NAME = closureValue`
+// Since I-1360 a variadic nested function lowers as a closure assigned to
+// a local, as a non-variadic one does, and an inner closure captures that
+// local; these cases keep the behaviour the history below fixed.
+//
+// History: variadic nested functions routed through a lowerer that
+// only registered the SubFlow — there's no `local NAME = closureValue`
 // binding emitted (the variadic call site needs static dispatch for
 // `PackTuple`, which CallValueAsFunction doesn't pack). Before this
 // fix, inner closures referencing such a NAME captured it as an upval
@@ -60,8 +64,8 @@ describe("inner closure references a variadic sibling SubFlow", () => {
   });
 
   test("regression: local-bound closure still captures locals", () => {
-    // The variadic-skip is gated on it being a nested-fn DECLARATION
-    // (which routes through `lowerNestedAsSubFlow`). A `local NAME =
+    // The variadic-skip was gated on it being a nested-fn DECLARATION
+    // (which routed through the subflow lowering). A `local NAME =
     // function(...) ... end` assignment uses lowerVariableDefinition,
     // not the nested-fn path, so NAME is a real local and should
     // still be captured normally.

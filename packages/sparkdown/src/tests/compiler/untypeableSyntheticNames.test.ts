@@ -131,8 +131,8 @@ describe("names the compiler generates", () => {
     const { program, compiler } = compileWith(EVERY_FAMILY);
     expect(errors(program)).toEqual([]);
     // The names the compile numbers by document order within each flow
-    // (`__synth$<flow>$<n>`, #851): those of a function
-    // a statement writes, a `define`'s method, a redefined function, and
+    // (`__synth$<flow>$<n>`, #851): those of a function a statement writes
+    // (a redefined variadic one too, since I-1360), a `define`'s method, and
     // the temporaries and labels of a method call, a property assignment, a
     // multiple assignment and each kind of loop. The program names none of
     // them (a function by its anonymous symbol, a temporary by the chunk's
@@ -153,7 +153,6 @@ describe("names the compiler generates", () => {
       "__forIn_",
       "__while_",
       "__repeat_",
-      "inner__redef_",
     ]) {
       expect(
         lowered.some((name) => name.startsWith(family) && name.includes("$")),
