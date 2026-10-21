@@ -822,8 +822,10 @@ variables:
   # Where an expression stands, `LuauDeclarationWordAsName` reads the word
   # first, as the name (`return define --[[ note`, `return` then
   # `store --[[ note`), so the context decides, not the word's place on its
-  # line. The cost: a name that begins a statement before such a comment
-  # (`store --[[ c`, then `]] = 3`) is read as a declaration.
+  # line. A statement's `store` or `const` with no name after the comment
+  # (`store --[[ c`, then `]] = 3`) is decided by the converter, which reads
+  # the next token (`luauCodeStore` in `readLuauAst.ts`); a `define` there
+  # opens a define without a name, which its validation reports.
   # lookaround: as for `LUAU_DECLARATION_NAME_AHEAD`; `LuauComment` reads
   # the comment.
   LUAU_DECLARATION_COMMENT_AHEAD: (?={{WS}}*{{LUAU_HEADER_COMMENTS}}?{{LUAU_LINE_SPANNING_BLOCK_COMMENT_START}})
