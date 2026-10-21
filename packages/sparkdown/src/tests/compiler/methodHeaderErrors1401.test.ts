@@ -61,6 +61,22 @@ describe("a define's method reports the errors Luau reports in its header (I-140
     });
   }
 
+  // A call the grammar reads as a method taking the define's `end` is no
+  // method: the define reports its missing `end`, and the call's arguments
+  // are no parameter list to report.
+  for (const call of ['print("x")', "print(1)"]) {
+    test(`${JSON.stringify(call)} that takes the define's end reports only the missing end`, () => {
+      expect(sparkdownErrors(`define X with\n  x = 1\n  ${call}\nend\n`).map((e) => e.replace(/^\S+ /, ""))).toEqual([
+        expect.stringMatching(/^Define is missing its closing `end` keyword/),
+      ]);
+    });
+  }
+  test("a method before the one that takes the define's end still reports its header", () => {
+    expect(sparkdownErrors("define X with\n  f(a b)\n    x = 1\n  end\n  print(1)\nend\n")).toContain(
+      "1:6-1:7 Expected ')' (to close '(' at column 4), got 'b'",
+    );
+  });
+
   test("the ticket's top-level function reports the same error", () => {
     expect(sparkdownErrors("function f(a b)\n  x = 1\nend\n")).toEqual(officialErrorList("function f(a b)\n  x = 1\nend\n").sort());
   });

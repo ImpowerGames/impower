@@ -465,8 +465,15 @@ export function lowerLuauDefine(
   // Where a define is written in a function, the bindings of the cells its
   // methods read that function's locals through (`DefineCellBinding`).
   const cellBindings: DefineCellBinding[] = [];
+  // A define with no `end` of its own lent it to its last method, which is
+  // then a line the grammar read as a method's header for that `end` (a
+  // call, `print("x")`): the define reports its missing `end`, and that
+  // method's header is no header to report (I-1401).
+  const defineEnd = findChildByName(nodeRef.node, "LuauDefine_end");
+  const lentEnd = !(defineEnd && getDescendent("LuauEndKeyword", defineEnd));
   for (const method of methodNodes) {
-    const lowered = lowerDefineMethod(method.name, method.node, ctx, (local) =>
+    const headerIsRead = !lentEnd || method !== methodNodes[methodNodes.length - 1];
+    const lowered = lowerDefineMethod(method.name, method.node, ctx, headerIsRead, (local) =>
       defineCellName(
         parentIdentifier?.name ?? "",
         nameIdentifier.name ?? "",
@@ -668,6 +675,7 @@ function lowerDefineMethod(
   _methodName: string,
   node: SyntaxNode,
   ctx: LowerContext,
+  headerIsRead: boolean,
   cellName: (local: string) => string,
 ): { closure: Expression; cells: { cell: string; local: string }[] } | null {
   const content = getFunctionBodyContent(node);
@@ -726,9 +734,15 @@ function lowerDefineMethod(
   if (reading) reportErasedConstErrors(reading.unit.root, node, ctx);
   // Its errors, as Luau reports them for the function the method stands
   // for (or is, in the `function name() … end` form) read whole: its
-  // header's parameter list, its body and its `end` (I-1401).
-  const errors = node.name === "LuauMethodDefinition" ? methodSyntaxErrors(node, ctx) : readBlockAst([node], ctx)?.unit.errors ?? [];
-  reportBodySyntaxErrors(errors, ctx, node.from);
+  // header's parameter list, its body and its `end` (I-1401); only its
+  // body's, when its header is no header (`headerIsRead`).
+  let bodyStart = content.firstChild;
+  while (bodyStart && METHOD_BODY_SKIP.has(bodyStart.name)) bodyStart = bodyStart.nextSibling;
+  const reportFrom = headerIsRead ? node.from : bodyStart?.from;
+  if (reportFrom !== undefined) {
+    const errors = node.name === "LuauMethodDefinition" ? methodSyntaxErrors(node, ctx) : readBlockAst([node], ctx)?.unit.errors ?? [];
+    reportBodySyntaxErrors(errors, ctx, reportFrom);
+  }
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.functionBindingsStack?.pop();
