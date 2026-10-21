@@ -231,6 +231,16 @@ describe("a script other than main", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Silver 2.\n"]);
   });
 
+  it("declares with a & line that ends in a comment", () => {
+    const program = compileProject({
+      [MAIN]: lines("Gold {gold} {f()}."),
+      [LIB]: lines("& store gold = 4; -- the gold", "& function f() return 4 end; --[[ four ]]"),
+    });
+    expect(errorsOf(program)).toEqual([]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Gold 4 4.\n"]);
+  });
+
   it("declares a member or method function, marked or not, for main to call", () => {
     const program = compileProject({
       [MAIN]: lines("store api = {}", "-> s", "scene s", "  Answer {api.f()} {api.g()} {api:h()} {api.k()}.", "end"),
@@ -397,6 +407,36 @@ describe("declaration order", () => {
       const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
       expect(shown.beats.map((beat) => beat.text), name).toEqual(["Main 1 2.\n"]);
     }
+  });
+
+  it("orders a web editor file whose name holds an escape by that name as written", () => {
+    // The web editor's `scripts/%7A.sd` is a file named `%7A.sd`, which comes
+    // before `scripts/a.sd`; VS Code registers the same file as
+    // `scripts/%257A.sd`.
+    for (const name of ["%7A", "%257A"]) {
+      const program = compileProject({
+        [MAIN]: lines("Main {first} {second}."),
+        [`${ROOT}scripts/${name}.sd`]: lines("store first = 1"),
+        [`${ROOT}scripts/a.sd`]: lines("store second = first + 1"),
+      });
+      expect(errorsOf(program), name).toEqual([]);
+      expect(Object.keys(program.scripts), name).toEqual([MAIN, `${ROOT}scripts/${name}.sd`, `${ROOT}scripts/a.sd`]);
+      const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+      expect(shown.beats.map((beat) => beat.text), name).toEqual(["Main 1 2.\n"]);
+    }
+  });
+
+  it("names each colliding script by its file name as written", () => {
+    const program = compileProject({
+      [MAIN]: lines("Main."),
+      [`${ROOT}scripts/act#1.sd`]: lines("layout hud with", '  text "One"', "end"),
+      [`${ROOT}scripts/act#2.sd`]: lines("layout hud with", '  text "Two"', "end"),
+    });
+    const message = "Layout `hud` is declared in scripts/act#1.sd and in scripts/act#2.sd. Declare it in one script.";
+    expect(reported(program, message)).toEqual([
+      [`${ROOT}scripts/act#1.sd`, 0],
+      [`${ROOT}scripts/act#2.sd`, 0],
+    ]);
   });
 
   it("registers main's declarations first and then each script's by path", () => {

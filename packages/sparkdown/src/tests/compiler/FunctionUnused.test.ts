@@ -86,6 +86,9 @@ describe("FunctionUnused for a global function", () => {
     ["a Luau string", inScene("& handlers = { \"helper\" }\n")],
     ["a narrative if condition", inScene("if helper() then\n  Yes.\nend\n")],
   ])("is silent for %s in another script", (_label, use) => {
+    // The defining script is part of the project and warns without the use,
+    // so the use is what silences it.
+    expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n" })).toEqual([`subject.sd: ${message("helper")}`]);
     expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([]);
   });
 

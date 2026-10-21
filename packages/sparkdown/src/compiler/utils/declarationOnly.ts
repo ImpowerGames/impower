@@ -122,13 +122,17 @@ const childEndingWith = (
   return undefined;
 };
 
-/** The statements a marked line's content holds, without the separators and
- *  the whitespace between them. An assignment is read as its target and its
- *  operation, each a child of its own, and neither declares. */
+/** The statements a marked line's content holds, without the separators,
+ *  the comments and the whitespace between them. An assignment is read as its
+ *  target and its operation, each a child of its own, and neither declares. */
 const statementsOf = (content: SyntaxNode): SyntaxNode[] => {
   const statements: SyntaxNode[] = [];
   for (let child = content.firstChild; child; child = child.nextSibling) {
-    if (!SEPARATORS.has(child.name) && !child.name.endsWith("Whitespace")) {
+    if (
+      !SEPARATORS.has(child.name) &&
+      !child.name.endsWith("Whitespace") &&
+      !child.name.endsWith("Comment")
+    ) {
       statements.push(child);
     }
   }

@@ -54,6 +54,8 @@ type Compiled = {
   sparkle: any;
   // The `span` of each binding handle from `main.sd`, in serialization order.
   spans: { line: number; from: number; to: number }[];
+  // The scripts the program was compiled from.
+  scripts: string[];
 };
 
 function compiled(compiler: SparkdownCompiler): Compiled {
@@ -71,7 +73,7 @@ function compiled(compiler: SparkdownCompiler): Compiled {
       return value;
     },
   );
-  return { text, sparkle: program.sparkle, spans };
+  return { text, sparkle: program.sparkle, spans, scripts: Object.keys(program.scripts) };
 }
 
 // Compiles `project`, inserts `insert` into the file `name` at `offset`, and
@@ -142,6 +144,11 @@ describe("synthetic names after an edit", () => {
     // so its offsets differ from the shared temps' offsets.
     const pre = project["pre"]!;
     const [, incremental, cold] = incrementalAndCold(project, "pre", pre.lastIndexOf("end"), "& r = a:add(5):add(6)\n");
+    // Every script is part of both programs, so the temps compared include
+    // the ones of `pre.sd` and `shared.sd`.
+    for (const program of [incremental, cold]) {
+      expect(program.scripts).toEqual(["main", "chapter", "pre", "shared"].map(uriOf));
+    }
     expect(incremental.text).toBe(cold.text);
   });
 

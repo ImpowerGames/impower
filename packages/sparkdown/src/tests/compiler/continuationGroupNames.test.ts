@@ -122,6 +122,10 @@ describe("continuation group names", () => {
       return [incremental, compiled(fresh)];
     });
     expect(groups(incremental).filter((name) => name === "")).toEqual([]);
+    // Both scripts' continuations are in both programs: main's and the
+    // shared script's.
+    expect(new Set(groups(incremental)).size).toBe(2);
+    expect(new Set(groups(cold)).size).toBe(2);
     expect(describeRoot(incremental)).toEqual(describeRoot(cold));
   });
 });

@@ -114,6 +114,9 @@ function cold(main: string, chapter: string) {
  *  compile's for the same beat. */
 function outcome(program: SparkProgram) {
   expect(program.chunks, "the compile built statement chunks").toBeDefined();
+  // Both scripts are part of every program compared, so an edit in one is
+  // compared with the other's flows present.
+  expect(Object.keys(program.scripts), "the program's scripts").toEqual([MAIN_URI, CHAPTER_URI]);
   return {
     chunks: describeRoot(program.chunks!),
     sceneAssets: JSON.parse(

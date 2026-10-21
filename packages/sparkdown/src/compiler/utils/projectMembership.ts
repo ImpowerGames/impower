@@ -58,8 +58,8 @@ export function isInProject(
  * The scripts of the project a compile that starts from `entryUri` reads, in
  * the order their declarations register: the entry first, then every other
  * script of `scriptUris` in the project (`isInProject`) by its path below the
- * root, decoded, in byte order (`pathOf`). A URI with no folder is a project
- * of itself alone.
+ * root as written, in byte order (`projectPath`). A URI with no folder is a
+ * project of itself alone.
  */
 export function projectScripts(
   entryUri: string,
@@ -77,19 +77,31 @@ export function projectScripts(
       (uri) =>
         uri !== entryUri && isInProject(root, uri, mainScriptFilename, has),
     )
-    .map((uri) => ({ uri, path: pathOf(uri.slice(root.length)) }))
+    .map((uri) => ({ uri, path: projectPath(uri.slice(root.length)) }))
     .sort((a, b) => compareCodePoints(a.path, b.path))
     .map(({ uri }) => uri);
   return [entryUri, ...members];
 }
 
 /**
- * A script's path below the root, for ordering. VS Code registers a URI with
- * its path percent-encoded (`%C3%A9` for `é`) and the web editor its path as
- * written, so the path is decoded for both to order a file alike. A path that
- * does not decode (a raw `%` the web editor kept) is its own.
+ * A script's path below the root as written. VS Code registers a URI with its
+ * path percent-encoded (`%C3%A9` for `é`, `%25` for `%`) and the web editor
+ * registers the path as written, where `%7A.sd` is a file of that name. A path
+ * is decoded only when it reads as an encoder's output: every `%` begins an
+ * escape, and no escape spells a character an encoder leaves as it is (a
+ * letter, a digit, `-`, `.`, `_` or `~`).
  */
-const pathOf = (relative: string): string => {
+export const projectPath = (relative: string): string => {
+  const escapes = relative.match(/%[0-9A-Fa-f]{2}/g) ?? [];
+  if (
+    escapes.length === 0 ||
+    escapes.length !== (relative.match(/%/g) ?? []).length ||
+    escapes.some((escape) =>
+      /[A-Za-z0-9._~-]/.test(String.fromCharCode(parseInt(escape.slice(1), 16))),
+    )
+  ) {
+    return relative;
+  }
   try {
     return decodeURIComponent(relative);
   } catch {

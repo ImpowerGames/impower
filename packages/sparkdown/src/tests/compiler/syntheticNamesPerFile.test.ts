@@ -95,6 +95,12 @@ function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => str
     shared: body("sf"),
   };
   const [incremental, cold] = incrementalAndCold(project, "pre", body("pf"));
+  // Both other scripts are part of each program, with the functions holding
+  // the copied code.
+  for (const program of [incremental, cold]) {
+    expect(Object.keys(program.scripts)).toEqual([MAIN_URI, uriOf("pre"), uriOf("shared")]);
+    expect(Object.keys(program.functionLocations ?? {})).toEqual(expect.arrayContaining(["pf", "sf"]));
+  }
   expect(errors(incremental)).toEqual([]);
   expect(errors(cold)).toEqual([]);
   expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));

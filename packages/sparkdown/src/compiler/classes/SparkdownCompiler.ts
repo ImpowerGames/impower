@@ -166,6 +166,8 @@ import {
 } from "../utils/declarationOnly";
 import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
+  projectPath,
+  projectRootUri,
   projectScripts,
 } from "../utils/projectMembership";
 import {
@@ -272,16 +274,12 @@ function getCompiledPrelude(): {
 }
 
 /** A script's path as a message names it: relative to the main script's
- *  folder, which is the project's, or else its whole URI. */
+ *  folder, which is the project's, as written (`projectPath`, so a `#` or `?`
+ *  the web editor keeps in a file name stays in it), or else its whole URI. */
 function displayScriptPath(scriptUri: string, mainUri: string): string {
-  try {
-    const script = new URL(scriptUri);
-    const root = new URL("./", mainUri);
-    if (script.protocol === root.protocol && script.host === root.host && script.pathname.startsWith(root.pathname)) {
-      return decodeURIComponent(script.pathname.slice(root.pathname.length));
-    }
-  } catch {
-    // An unparsable URI is named whole.
+  const root = projectRootUri(mainUri);
+  if (root !== undefined && scriptUri.startsWith(root)) {
+    return projectPath(scriptUri.slice(root.length));
   }
   return scriptUri;
 }
