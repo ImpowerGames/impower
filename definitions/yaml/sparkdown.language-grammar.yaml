@@ -1209,7 +1209,15 @@ variables:
   # would take that quote as the opening of a string of their own, and
   # only what follows it tells it is the closing quote
   # (`LuauDoubleQuotedInterpolationBeforeClose`).
-  LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE: (?:{{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}+(?=["]{{LUAU_DOUBLE_QUOTED_INTERPOLATION_AFTER_CLOSE}}))
+  LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE: (?:(?!{{LUAU_DOUBLE_QUOTED_INTERPOLATION_BODY_AHEAD}}){{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}+(?=["]{{LUAU_DOUBLE_QUOTED_INTERPOLATION_AFTER_CLOSE}}))
+  # An anonymous function before the quote: its body's statements may
+  # follow a string with any word (`{function() return "x" end}`), so the
+  # token after the string decides nothing there and the rule does not
+  # apply (round 3, `undirected` finding 1).
+  # lookaround: `LuauFunctionDefinition` reads the function's body, whose
+  # statements no token list after a string can tell from the closing quote.
+  LUAU_DOUBLE_QUOTED_INTERPOLATION_BODY_AHEAD: (?:{{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}*?{{LUAU_INTERPOLATION_BODY_KEYWORDS}})
+  LUAU_INTERPOLATION_BODY_KEYWORDS: ["function"]
   # What follows the closing quote: no `"` to the line's end, or a string
   # that closes on the line, with no token after it that goes on with the
   # expression (round 2, `undirected` finding 2; round 3, `ax` findings 1
@@ -1220,10 +1228,14 @@ variables:
   # `LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE`.
   LUAU_DOUBLE_QUOTED_INTERPOLATION_AFTER_CLOSE: (?:{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}$|{{LUAU_INTERPOLATED_DOUBLE_QUOTED_TEXT}}["](?!{{WS}}*{{LUAU_INTERPOLATION_EXPRESSION_GOES_ON}}))
   # A `"` string's text on its line, with its interpolations read one level
-  # deep, the strings in them whole. A backtick, or a brace the reading
-  # cannot match, stops it.
+  # deep, the strings in them whole. A backtick, a comment or long bracket
+  # in an interpolation (round 3, `undirected` finding 2), or a brace the
+  # reading cannot match, stops it.
   LUAU_INTERPOLATED_DOUBLE_QUOTED_TEXT: (?:(?:\\.|[^"\\{`\r\n]|{{LUAU_INTERPOLATION_IN_STRING_ON_LINE}})*)
-  LUAU_INTERPOLATION_IN_STRING_ON_LINE: (?:[{](?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|[^{}"'`\r\n])*[}])
+  LUAU_INTERPOLATION_IN_STRING_ON_LINE: (?:[{]{{LUAU_INTERPOLATION_IN_STRING_TEXT}}*[}])
+  # lookaround: `LuauComment` and `LuauMultilineString` own a `--`, `[[` or
+  # `[=`, whose text a brace or quote in it does not end.
+  LUAU_INTERPOLATION_IN_STRING_TEXT: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|[^{}`"'\[\r\n-]|\[(?![\[=])|-(?!-))
   # A token that goes on with an expression a string ends, or closes the
   # interpolation: a binary operator (or a comment, which the scan does not
   # read through), an access, a call or its string or table argument, an

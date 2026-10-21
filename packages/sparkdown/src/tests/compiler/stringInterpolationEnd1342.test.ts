@@ -124,6 +124,13 @@ describe("a double-quoted string's interpolation left open ends at the string's 
       'local f = function(s) return function(t) return s end end\n  local s = "a {f"x"{}} z"',
       'local f = function(s) return function(t) return s end end\n  local s = "a {f"x"\'y\'} z"',
       'local s = "a {tostring"x {tostring"y"}"} z"',
+      // An anonymous function's body, and a block comment holding a brace
+      // and a quote in a nested string's interpolation (round 3,
+      // `undirected` findings 1 and 2).
+      'local s = "a {function() return "x" end} z"',
+      'local s = "a {function() local x = "x" return x end} z"',
+      'local s = "a {function() local x = "x"; return x end} z"',
+      'local s = "a {tostring"x {1 --[[ } "q" ]] } y"} z"',
     ]) {
       expect(sparkdownErrors(documentOf(form).text), form).toEqual([]);
     }
