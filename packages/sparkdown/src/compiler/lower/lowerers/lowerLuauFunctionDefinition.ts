@@ -480,7 +480,7 @@ function lowerPropertyTargetFunctionDefinition(
   const userArity = (isColonForm ? 1 : 0) + func.args.length;
   const closureValue = buildClosureExpression(synthName, upvals, userArity);
   const keyExpr = new StringExpression([new Text(name.index)]);
-  return wrapInWeave([
-    new StorePropertyAssignment(baseExpr, keyExpr, closureValue),
-  ]);
+  const definition = new StorePropertyAssignment(baseExpr, keyExpr, closureValue);
+  definition.definesFunction = true;
+  return wrapInWeave([definition]);
 }

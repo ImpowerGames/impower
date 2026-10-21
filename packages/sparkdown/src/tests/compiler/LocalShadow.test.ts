@@ -119,6 +119,8 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a constant with no use is not a use", () => {
+    // The other script is read: a write there is a use, which warns.
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": inScene("& state = 1\n") })).not.toEqual([]);
     expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": "const state = 1\n" })).toEqual([]);
   });
 
@@ -129,6 +131,8 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a local declared outside every function anywhere in the program silences the name", () => {
+    // The other script is read: a write there is a use, which warns.
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": inScene("& state = 1\n") })).not.toEqual([]);
     expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": inScene("& local state = 1\nState: {state}.\n") })).toEqual([]);
   });
 

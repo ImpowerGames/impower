@@ -235,6 +235,21 @@ describe("a script other than main", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Silver 2.\n"]);
   });
 
+  it("reports a declaration that runs a call Luau reads after a block comment on its line", () => {
+    // Luau reads `bump()` as the next statement, which the declaration's own
+    // node holds.
+    const program = compileProject({
+      [MAIN]: lines("store gold = 0", "Gold {gold}."),
+      [LIB]: lines("function bump() gold = 9 end", "store silver = 4 --[[x]] bump()", "& store copper = 4 --[[x]]bump()"),
+    });
+    expect(reported(program, OUTSIDE_SCENE)).toEqual([
+      [LIB, 1],
+      [LIB, 2],
+    ]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Gold 0.\n"]);
+  });
+
   it("declares with a & line that ends in a comment", () => {
     const program = compileProject({
       [MAIN]: lines("Gold {gold} {f()}."),

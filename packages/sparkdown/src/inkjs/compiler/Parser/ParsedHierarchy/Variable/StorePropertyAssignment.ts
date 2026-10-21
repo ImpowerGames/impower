@@ -26,6 +26,10 @@ export class StorePropertyAssignment extends ParsedObject {
   public readonly baseExpression: Expression;
   public readonly keyExpression: Expression;
   public readonly valueExpression: Expression;
+  /** The assignment is a member or method function's definition
+   *  (`function api.f()`, `function api:f()`), which writes the function
+   *  into its table. */
+  public definesFunction = false;
 
   constructor(base: Expression, key: Expression, value: Expression) {
     super();

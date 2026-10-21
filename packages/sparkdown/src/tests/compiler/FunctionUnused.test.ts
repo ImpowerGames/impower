@@ -15,6 +15,11 @@ const programUnused = (sources: Record<string, string>) =>
     .filter((d) => d.code === "FunctionUnused")
     .map((d) => `${d.file}: ${d.message}`);
 const message = (name: string) => `Function '${name}' is never used; prefix with '_' to silence`;
+// The defining script is part of the project and warns with nothing else
+// beside main, so a case where another script's use silences it is one where
+// the use was read.
+const expectSubjectWarnsAlone = () =>
+  expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n" })).toEqual([`subject.sd: ${message("helper")}`]);
 // Only main runs lines outside a scene, so another script's lines run in one.
 const inScene = (body: string) => `scene uses\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
 
@@ -128,6 +133,7 @@ describe("FunctionUnused for a global function", () => {
     ["a construct the grammar lacks", " class C\n end\n"],
     ["a statement the reading recovers from", " public x\n end\n"],
   ])("a call another script's misread function loses is still a use (%s)", (_label, broken) => {
+    expectSubjectWarnsAlone();
     expect(programUnused({ "main.sd": `function caller()\n${broken} helper()\nend\n& caller()\n`, "subject.sd": "function helper()\nend\n" })).toEqual([]);
   });
 
@@ -154,6 +160,7 @@ describe("FunctionUnused for a global function", () => {
   });
 
   test("a name on a line with a syntax error is a use", () => {
+    expectSubjectWarnsAlone();
     expect(programUnused({ "main.sd": "& v = 0x10i helper\n", "subject.sd": "function helper()\nend\n" })).toEqual([]);
   });
 

@@ -132,7 +132,16 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
     expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "b", names: facts([], [uncertain]) }]))).toEqual([]);
     expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "a", names: facts([write], []) }])).map((f) => f.uri)).toEqual(["a"]);
   });
+  // The other script is read: its local of the library's name silences main's
+  // unmarked write.
+  const expectHelperLocalRead = () =>
+    expect(diagnoseFilesDetailed({
+      "main.sd": "& math = {}\nReady.\n",
+      "helper.sd": HELPER_LOCAL,
+    }).filter((d) => d.code === "BuiltinGlobalWrite")).toEqual([]);
   test("a genuinely global write in main still warns beside another script's local", () => {
+    expect(diagnoseFilesDetailed({ "main.sd": "& math = {}\nReady.\n" }).filter((d) => d.code === "BuiltinGlobalWrite")).not.toEqual([]);
+    expectHelperLocalRead();
     const ds = diagnoseFilesDetailed({
       "main.sd": "& math = {}\nReady.\n",
       "helper.sd": "scene helper_setup\n  & local ordinary = {}\nend\n",
@@ -146,6 +155,7 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
     }).filter((d) => d.code === "BuiltinGlobalWrite")).toEqual([]);
   });
   test.each(["store", "const"])("explicit %s remains global despite another script's local", (keyword) => {
+    expectHelperLocalRead();
     const ds = diagnoseFilesDetailed({
       "main.sd": `& ${keyword} math = {}\nReady.\n`,
       "helper.sd": HELPER_LOCAL,

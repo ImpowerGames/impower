@@ -122,12 +122,17 @@ describe("DuplicateFunction across scripts", () => {
     ["a definition inside a function", "function setup()\n function T.x() end\nend\n"],
     ["a different member", "function T.y() end\n"],
   ])("is silent for %s", (_label, chapter) => {
+    // The chapter is read: the same member at its top level warns.
+    expect(programDuplicates(sources("function T.x() end\n"))).not.toEqual([]);
     expect(programDuplicates(sources(chapter))).toEqual([]);
   });
 
   // Only main holds a top-level local, so the local table is main's.
   test("is silent for a member of a local table", () => {
-    expect(programDuplicates({ "main.sd": "& local T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": "store T = {}\nfunction T.x() end\n" })).toEqual([]);
+    const main = "& local T = {}\nfunction T.x() end\n& T.x()\n";
+    // The chapter is read: a second definition of its own member warns there.
+    expect(programDuplicates({ "main.sd": main, "chapter.sd": "store T = {}\nfunction T.x() end\nfunction T.x() end\n" })).not.toEqual([]);
+    expect(programDuplicates({ "main.sd": main, "chapter.sd": "store T = {}\nfunction T.x() end\n" })).toEqual([]);
   });
 
   test("an unchanged script gains and loses its warning as another script changes or leaves", () => {

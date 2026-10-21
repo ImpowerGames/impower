@@ -1,5 +1,6 @@
 import type { SyntaxNode } from "@lezer/common";
 import { nodeNameSet } from "./nodeNameSet";
+import { VARIABLE_DEFINITION_NAMES } from "./variableDefinitionNames";
 
 /** What a script other than main reports at each line of its top level that
  *  is not a declaration. */
@@ -29,13 +30,6 @@ const FUNCTIONS = nodeNameSet([
   "LuauFunctionAttributes",
 ]);
 
-// The statements a `store` or a `const` declares with, which also write a
-// top-level `local`.
-const VARIABLES = nodeNameSet([
-  "LuauVariableDefinition",
-  "LuauSparkdownVariableDefinition",
-]);
-
 // A statement marked with `&`, which declares when the statement it marks
 // does.
 const EXPLICIT = nodeNameSet(["LuauSparkdownExplicitStatement"]);
@@ -51,20 +45,23 @@ const FLOWS = nodeNameSet(["Scene", "Branch"]);
 const STRUCTURE = nodeNameSet(["LuauEndKeyword", "Include"]);
 
 /**
- * The top-level statements of a script other than main that are neither
- * declarations nor inside a flow, by where each starts: the lines only main
- * runs (a display line, a choice, a divert, a top-level `local`, an
+ * The statements of a script's top level outside every flow, by where each
+ * starts, each with whether its syntax declares: false for the lines only
+ * main runs (a display line, a choice, a divert, a top-level `local`, an
  * assignment, a call, a control block, a `run`, and a marked line that holds
  * one of those beside a declaration). A scene's or a branch's body is written
  * at the top level up to its `end`, so the flows are followed as
  * `validateSceneStructure` follows them, and everything up to the matching
- * `end` is inside one.
+ * `end` is inside one. A statement whose syntax declares can still hold a
+ * statement Luau reads after its declaration on the same line, past a block
+ * comment (`store x = 1 --[[c]] f()`), which only what it lowered to shows
+ * (`SparkdownCompiler`'s `onlyDeclares`).
  */
-export function contentOutsideScenes(
+export function topLevelStatements(
   top: SyntaxNode,
   read: (from: number, to: number) => string,
-): Set<number> {
-  const found = new Set<number>();
+): Map<number, boolean> {
+  const found = new Map<number, boolean>();
   let depth = 0;
   for (let node = top.firstChild; node; node = node.nextSibling) {
     if (FLOWS.has(node.name)) {
@@ -74,10 +71,9 @@ export function contentOutsideScenes(
     } else if (
       depth === 0 &&
       !STRUCTURE.has(node.name) &&
-      !node.name.endsWith("Comment") &&
-      !declares(node, read)
+      !node.name.endsWith("Comment")
     ) {
-      found.add(node.from);
+      found.set(node.from, declares(node, read));
     }
   }
   return found;
@@ -102,7 +98,7 @@ const declares = (
   if (FUNCTIONS.has(node.name)) {
     return scopeOf(node, read) !== "local";
   }
-  if (VARIABLES.has(node.name)) {
+  if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
     const scope = scopeOf(node, read);
     return scope === "store" || scope === "const";
   }
