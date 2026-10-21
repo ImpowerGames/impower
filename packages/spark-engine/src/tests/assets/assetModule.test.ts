@@ -15,7 +15,7 @@ import {
 // waits, and what it lets go of (docs/engine/asset-preloading-spec.md).
 
 const asset = (type: string, name: string, ext: string): File => ({
-  uri: `file://proj/${name}.${ext}`,
+  uri: `inmemory:///${name}.${ext}`,
   type,
   name,
   ext,

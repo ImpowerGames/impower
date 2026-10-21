@@ -56,7 +56,7 @@ export const previewFixture = (): Story & { line: number } => {
     .map((key) => {
       const name = key.split("/").pop()!.replace(/\.svg$/, "");
       return {
-        uri: `file://proj/${name}.svg`,
+        uri: `inmemory:///${name}.svg`,
         type: "image",
         name,
         ext: "svg",
