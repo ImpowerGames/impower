@@ -101,22 +101,6 @@ function asTable(
   return v.value ?? new Map();
 }
 
-function asNumber(
-  v: InkObject | undefined,
-  method: string,
-  position: string,
-): number {
-  if (v instanceof IntValue || v instanceof FloatValue) {
-    return Number(v.value);
-  }
-  if (v instanceof BoolValue) {
-    return v.value ? 1 : 0;
-  }
-  throw new StoryException(
-    `:${method} expected ${position} to be a number`,
-  );
-}
-
 /**
  * Luau `luaL_checknumber` / `luaL_optnumber` for argument #`index` of the
  * builtin `name` (the short name, `'sub'`). A number or numeric string is
@@ -296,7 +280,7 @@ function methodEndswith(params: InkObject[]): InkObject {
 
 function methodPadstart(params: InkObject[]): InkObject {
   const s = asString(params[0], "padstart", "receiver");
-  const len = asNumber(params[1], "padstart", "length");
+  const len = checkNumberArg(params[1], 1, "padstart");
   const ch =
     params[2] instanceof StringValue && params[2].value
       ? params[2].value
@@ -306,7 +290,7 @@ function methodPadstart(params: InkObject[]): InkObject {
 
 function methodPadend(params: InkObject[]): InkObject {
   const s = asString(params[0], "padend", "receiver");
-  const len = asNumber(params[1], "padend", "length");
+  const len = checkNumberArg(params[1], 1, "padend");
   const ch =
     params[2] instanceof StringValue && params[2].value
       ? params[2].value
@@ -316,7 +300,7 @@ function methodPadend(params: InkObject[]): InkObject {
 
 function methodRep(params: InkObject[]): InkObject {
   const s = asString(params[0], "rep", "receiver");
-  const n = asNumber(params[1], "rep", "repeat count");
+  const n = checkNumberArg(params[1], 1, "rep");
   if (n <= 0) return new StringValue("");
   const sep = params[2] instanceof StringValue ? params[2].value ?? "" : "";
   if (sep === "") return new StringValue(s.repeat(n));
@@ -404,7 +388,7 @@ function methodReverse(params: InkObject[]): InkObject {
 
 function methodAt(params: InkObject[]): InkObject {
   const r = params[0];
-  const i = asNumber(params[1], "at", "index");
+  const i = checkNumberArg(params[1], 1, "at");
   if (r instanceof StringValue) {
     const s = r.value ?? "";
     const idx = i < 0 ? s.length + i : i - 1;
@@ -518,7 +502,7 @@ function methodInsert(params: InkObject[]): InkObject {
   if (params.length === 2) {
     arr.push(params[1] as AbstractValue);
   } else if (params.length === 3) {
-    const pos = asNumber(params[1], "insert", "position");
+    const pos = checkNumberArg(params[1], 1, "insert");
     const val = params[2] as AbstractValue;
     const idx = Math.max(0, Math.min(pos - 1, arr.length));
     arr.splice(idx, 0, val);
@@ -531,14 +515,12 @@ function methodInsert(params: InkObject[]): InkObject {
 function methodRemove(params: InkObject[]): InkObject {
   const t = asTable(params[0], "remove", "receiver");
   const arr = arrayPortion(t);
+  const given = checkNumberArg(params[1], 1, "remove", true);
   if (arr.length === 0) {
     // Remove from empty array — return the same shape (no-op).
     return new ObjectValue(new Map(t));
   }
-  const pos =
-    params[1] !== undefined
-      ? asNumber(params[1], "remove", "index")
-      : arr.length;
+  const pos = given ?? arr.length;
   if (pos < 1 || pos > arr.length) {
     throw new StoryException(`:remove index ${pos} out of range`);
   }
@@ -550,12 +532,8 @@ function methodConcat(params: InkObject[]): InkObject {
   const t = asTable(params[0], "concat", "receiver");
   const arr = arrayPortion(t);
   const sep = params[1] instanceof StringValue ? params[1].value ?? "" : "";
-  const i =
-    params[2] !== undefined ? asNumber(params[2], "concat", "start index") : 1;
-  const j =
-    params[3] !== undefined
-      ? asNumber(params[3], "concat", "end index")
-      : arr.length;
+  const i = checkNumberArg(params[2], 2, "concat", true) ?? 1;
+  const j = checkNumberArg(params[3], 3, "concat", true) ?? arr.length;
   const [start, end] = normalizeRange(i, j, arr.length);
   const slice = arr.slice(start, end);
   return new StringValue(
