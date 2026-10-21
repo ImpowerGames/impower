@@ -310,4 +310,53 @@ describe("the run operand's rename and link", () => {
       },
     ]);
   });
+
+  // Round 1 of PR #2124's review: the web editor spells a URI as the file
+  // name is written, so a quoted path through a folder whose name holds a
+  // space resolves to that very URI there, and to its encoding elsewhere.
+  test.each([
+    [true, `${ROOT}lib space/helpers.luau`],
+    [false, `${ROOT}lib%20space/helpers.luau`],
+  ])("links a quoted path through a folder with a space (as written: %s)", (asWritten, target) => {
+    const text = lines('run "lib space/helpers"', "done", "");
+    const { workspace, documents, document } = workspaceWith(text);
+    Object.assign(workspace, {
+      _compilerConfig: { uriPathsAsWritten: asWritten },
+      _watchedFiles: new Map([[MAIN, { uri: MAIN }], [target, { uri: target }]]),
+    });
+    const links = getDocumentLinks(
+      document,
+      documents.tree(MAIN),
+      documents.annotations(MAIN),
+      workspace,
+    );
+    expect(links?.map((link) => link.target)).toEqual([target]);
+  });
+});
+
+// Round 1 of PR #2124's review: an edit to an open Luau file recompiles the
+// story that runs it, rather than answering with the program compiled before
+// the edit, and never compiles the Luau file as a story of its own.
+describe("an edit to a Luau file a run reads", () => {
+  test("compiles its project's main script", async () => {
+    const { workspace } = workspaceWith(lines("run helpers", "done", ""));
+    const compiled: [string, boolean][] = [];
+    const base = Object.getPrototypeOf(SparkdownLanguageServerWorkspace.prototype);
+    const spy = vi
+      .spyOn(base, "compile")
+      .mockImplementation(async (uri: unknown, force: unknown) => {
+        compiled.push([uri as string, force as boolean]);
+        return undefined;
+      });
+    try {
+      await workspace.compile(`${ROOT}lib/helpers.luau`, false);
+      await workspace.compile(`${ROOT}other/elsewhere.luau`, true);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(compiled).toEqual([
+      [MAIN, false],
+      [`${ROOT}other/main.sd`, true],
+    ]);
+  });
 });

@@ -182,6 +182,7 @@ import {
   missingRunPathMessage,
   quotedRunPath,
   relativeRunPath,
+  resolveRunPathUri,
   runPathNearMisses,
   type RunFix,
   type RunFixData,
@@ -2286,14 +2287,19 @@ export class SparkdownCompiler {
     run: RunOperand,
     scriptUri: string,
     program: SparkProgram,
-    fileHandler: IFileHandler,
   ): { uri?: string; message?: string; fixes?: RunFix[] } {
     const asWritten = this._config.uriPathsAsWritten;
     const luauFiles = this.projectLuauFilesOf(program.uri);
+    const resolved = (uri: string) => {
+      program.scripts[uri] = this.documents.get(uri)?.version ?? -1;
+      return { uri };
+    };
     if (run.quote) {
-      try {
-        return { uri: fileHandler.ResolveInkFilename(`${run.path}.luau`) };
-      } catch {
+      // As the host spells the file's URI (`resolveRunPathUri`).
+      const uri = resolveRunPathUri(scriptUri, `${run.path}.luau`, asWritten);
+      if (this.documents.has(uri)) {
+        return resolved(uri);
+      } else {
         const spellings = runPathNearMisses(
           run.written,
           scriptUri,
@@ -2311,9 +2317,7 @@ export class SparkdownCompiler {
     }
     const { matches, nearMisses } = findRunName(run.path, luauFiles, asWritten);
     if (matches.length === 1) {
-      const uri = matches[0]!;
-      program.scripts[uri] = this.documents.get(uri)?.version ?? -1;
-      return { uri };
+      return resolved(matches[0]!);
     }
     if (matches.length > 1) {
       return {
@@ -3039,12 +3043,7 @@ export class SparkdownCompiler {
         if (state.fileResolutionState) {
           state.fileResolutionState.currentParentUri = uri;
         }
-        const resolution = this.resolveRunOperand(
-          run,
-          uri,
-          program,
-          fileHandler,
-        );
+        const resolution = this.resolveRunOperand(run, uri, program);
         const resolvedFilePath = resolution.uri ?? null;
         // The operand's range, 1-based like the lowerer's diagnostics,
         // moved from the chunk to the script.

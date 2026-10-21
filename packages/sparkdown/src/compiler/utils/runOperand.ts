@@ -1,5 +1,4 @@
 import { LUAU_EXTENSION, luauFileName, projectPath } from "./projectMembership";
-import { resolveFileUsingImpliedExtension } from "./resolveFileUsingImpliedExtension";
 
 // A `run` statement's operand has two forms, told apart by its quotes: an
 // unquoted operand is a name, the one `.luau` file of that name in the
@@ -115,6 +114,39 @@ export function relativeRunPath(
   ].join("/");
 }
 
+/**
+ * The URI of the file a quoted run path `path` names from the script
+ * `scriptUri`, the path relative to the script's folder, a leading `/`
+ * ignored. A host that spells URIs as file names are written
+ * (`asWritten`, the web editor's `uriPathsAsWritten`) has a file
+ * `lib space/helpers.luau` under that very URI, so its segments are joined as
+ * written, `.` and `..` resolved; otherwise the path is resolved as a URL,
+ * which percent-encodes it as a URI names the file (VS Code's
+ * `lib%20space/helpers.luau`).
+ */
+export function resolveRunPathUri(
+  scriptUri: string,
+  path: string,
+  asWritten = false,
+): string {
+  const relative = path.trim().replace(/^\/+/, "");
+  if (!asWritten) {
+    return new URL("./" + relative, scriptUri).href;
+  }
+  const scheme = scriptUri.indexOf("://");
+  const rootEnd = scriptUri.indexOf("/", scheme < 0 ? 0 : scheme + 3) + 1;
+  const root = scriptUri.slice(0, rootEnd);
+  const segments = scriptUri.slice(rootEnd).split("/").slice(0, -1);
+  for (const segment of relative.split("/")) {
+    if (segment === "..") {
+      segments.pop();
+    } else if (segment !== "." && segment !== "") {
+      segments.push(segment);
+    }
+  }
+  return root + segments.join("/");
+}
+
 /** The offsets, in a run operand's text as written (`text`, quotes and any
  *  whitespace after them included), of the name of the file it names: the
  *  last path segment, before its first dot, inside the quotes. Renaming the
@@ -178,7 +210,7 @@ export function runPathNearMisses(
   asWritten = false,
 ): string[] {
   const resolve = (relative: string) =>
-    resolveFileUsingImpliedExtension(scriptUri, relative, "luau").toLowerCase();
+    resolveRunPathUri(scriptUri, relative, asWritten).toLowerCase();
   const targets = new Set([resolve(path + LUAU_EXTENSION)]);
   if (endsWithLuauExtension(path)) {
     targets.add(resolve(path));

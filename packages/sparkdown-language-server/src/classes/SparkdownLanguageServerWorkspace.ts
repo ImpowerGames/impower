@@ -16,8 +16,10 @@ import {
   isLuauFile,
   projectLuauFiles,
 } from "@impower/sparkdown/src/compiler/utils/projectMembership";
-import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
-import { findRunName } from "@impower/sparkdown/src/compiler/utils/runOperand";
+import {
+  findRunName,
+  resolveRunPathUri,
+} from "@impower/sparkdown/src/compiler/utils/runOperand";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getDiagnosticActions } from "../utils/providers/getCodeActions";
@@ -124,7 +126,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       return undefined;
     }
     if (quoted) {
-      const target = resolveFileUsingImpliedExtension(uri, `${path}.luau`, "luau");
+      const target = resolveRunPathUri(
+        uri,
+        `${path}.luau`,
+        this.compilerConfig?.uriPathsAsWritten,
+      );
       return this._watchedFiles.has(target) ? target : undefined;
     }
     if (path.includes("/")) {
@@ -682,6 +688,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     // Diagnostics, semantic-token pulls and explicit program requests can all
     // arrive for assets. An asset is not a compiler entry point: compiling it
     // would also replace the last script URI used by subsequent file updates.
+    // A Luau file a `run` reads is not one either, but an edit to it changes
+    // the story that runs it, so it compiles its project's main script, which
+    // sees the edit through the file's own version (#1389).
+    if (isLuauFile(uri)) {
+      const mainUri = this.getMainScriptUri(uri);
+      return mainUri ? super.compile(mainUri, force) : undefined;
+    }
     if (!this.isScriptDocument(uri)) {
       const mainUri = this.getMainScriptUri(uri);
       return mainUri ? this.program(mainUri) : undefined;

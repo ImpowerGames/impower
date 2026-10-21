@@ -9,9 +9,13 @@ import { testCompiler, testStory } from "../engineUnderTest";
 
 const MAIN = "inmemory:///main.sd";
 
-function compileProject(files: Record<string, string>) {
+/** Compiles main.sd with `files` by their paths in the project: URIs spelled
+ *  as the web editor writes file names when `uriPathsAsWritten`, and
+ *  otherwise as the paths are given. */
+function compileProject(files: Record<string, string>, uriPathsAsWritten?: boolean) {
   const compiler = testCompiler();
   compiler.configure({
+    uriPathsAsWritten,
     files: Object.entries(files).map(([path, text]) => {
       const uri = `inmemory:///${path}`;
       const file = uri.split("/").pop()!;
@@ -209,6 +213,40 @@ describe("run by name", () => {
       });
       expect(fixed.errors).toEqual([]);
     }
+  });
+
+  // Round 1 of PR #2124's review: a candidate in a folder whose name holds a
+  // space is offered by its path as the author writes it, and that path
+  // runs it, in the web editor, which spells URIs as file names are written,
+  // and in VS Code, which percent-encodes them.
+  test.each([
+    ["the web editor", "lib space/helpers.luau", true],
+    ["VS Code", "lib%20space/helpers.luau", false],
+  ])("offers and runs a candidate whose folder holds a space in %s", (_, path, asWritten) => {
+    const files = {
+      [path]: "harness_record(1)\n",
+      "scripts/helpers.luau": "harness_record(2)\n",
+    };
+    const ambiguous = compileProject(
+      { "main.sd": mainRunning("helpers"), ...files },
+      asWritten,
+    );
+    expect(ambiguous.errors).toEqual([
+      "More than one Luau file in the project is named 'helpers': 'lib space/helpers.luau' and 'scripts/helpers.luau'. Quote the path of the one to run.",
+    ]);
+    const [error] = (ambiguous.result.program.diagnostics?.[MAIN] ?? []).filter(
+      (d) => d.severity === 1,
+    );
+    expect(error!.data.runFixes[0]).toEqual({
+      title: 'Use "lib space/helpers"',
+      newText: '"lib space/helpers"',
+    });
+    const { result, errors } = compileProject(
+      { "main.sd": mainRunning('"lib space/helpers"'), ...files },
+      asWritten,
+    );
+    expect(errors).toEqual([]);
+    expect(recorded(result.program.chunks)).toEqual([1]);
   });
 
   // Round 1 of PR #2124's review: a quote the line never closes is read as
