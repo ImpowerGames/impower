@@ -1691,8 +1691,12 @@ class Parser {
    */
   storyFunctions = 1;
   readonly statements: { statement: AstStat; first: number; end: number }[] = [];
-  /** Not part of Luau: the offset of the first token read after a backtick string Luau's parser gave up on (`parseInterpString`). */
-  abandonedStringAt: number | undefined;
+  /**
+   * Not part of Luau: for each backtick string Luau's parser gave up on
+   * (`parseInterpString`), by its node's start, the offset of the first
+   * token read after it.
+   */
+  readonly abandonedStrings = new Map<number, number>();
 
   constructor(
     private tokens: Token[],
@@ -4096,7 +4100,7 @@ class Parser {
     if (parts.rest) {
       // Luau's parser reads the rest of the string's tokens after it.
       this.tokens.splice(this.pos, 0, ...parts.rest);
-      this.abandonedStringAt ??= parts.rest[0]?.from;
+      if (token.node && parts.rest[0]) this.abandonedStrings.set(token.node.from, parts.rest[0].from);
       return parts.expressions[parts.expressions.length - 1]!;
     }
     if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
@@ -4857,13 +4861,14 @@ export function readLuauStringErrors(node: SyntaxNode, documentText: string): Lu
  * Where Luau's parser gives up on a backtick string, at an interpolation's
  * token after its expression (`` `a {1 2} b {} c` ``): the offset from
  * which the string's rest is Luau's tokens, not its interpolations, or
- * undefined for a string read whole (I-1406).
+ * undefined for a string read whole, whatever a string inside it is
+ * (I-1406).
  */
 export function readLuauStringAbandonedAt(node: SyntaxNode, documentText: string): number | undefined {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   tokenizer.read(node);
-  return parseLoneTokens(tokenizer, documentText, index).abandonedStringAt;
+  return parseLoneTokens(tokenizer, documentText, index).abandonedStrings?.get(node.from);
 }
 
 export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
@@ -5103,7 +5108,7 @@ function parseLoneTokens(
   tokenizer: Tokenizer,
   documentText: string,
   index: LineIndex,
-): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[]; abandonedStringAt?: number } {
+): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[]; abandonedStrings?: ReadonlyMap<number, number> } {
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
@@ -5115,5 +5120,5 @@ function parseLoneTokens(
     parser.errors.push(error);
     expr = new AstExprError(error.location, [], parser.errors.length - 1);
   }
-  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements, abandonedStringAt: parser.abandonedStringAt };
+  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements, abandonedStrings: parser.abandonedStrings };
 }

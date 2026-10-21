@@ -76,6 +76,26 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
     });
   }
 
+  // A string Luau gives up on inside an interpolation of a string it reads
+  // whole leaves that string's own `{}` an interpolation (round 2). Its
+  // wording and range are the validator's (I-1420), so only its presence
+  // is pinned beside Luau's errors for the inner string.
+  const nested = "s = `a {(function() local x = `b {1 2} c` return x end)()} d {} e`";
+  for (const [form, text, line, shift] of [
+    ["store", `store ${nested}\n${SCENE}`, 0, 0],
+    ["a scene-level local", `scene start\n  local ${nested}\n  Hello.\nend\n`, 1, 2],
+    ["a function's local", `function f()\nlocal ${nested}\nreturn s\nend\n`, 1, 0],
+  ] as const) {
+    test(`${form}: an inner string's recovery leaves the outer string's {}`, () => {
+      const luau = official(nested, line, shift);
+      const empty = luau.filter((error) => /expected expression inside/.test(error));
+      expect(empty.length, "the official parser reports the outer {}").toBe(1);
+      const errors = sparkdownErrors(text);
+      expect(errors.filter((error) => !/expected expression inside/.test(error))).toEqual(luau.filter((error) => !empty.includes(error)));
+      expect(errors.filter((error) => /expected expression inside/.test(error))).toHaveLength(1);
+    });
+  }
+
   // Each edit's compile reports what a cold compile of the edited text does.
   test("an incremental compile reports what a cold one does", () => {
     let text = `store s = \`a {1} b\`\n\nscene start\n  local t = \`a {1} b\`\n  Hello.\nend\n`;
