@@ -356,43 +356,46 @@ export function windowsProcessTable() {
 // The processes of `root`'s tree in the census `before` that are still there
 // in `after`: a member with its pid and creation time unchanged, or a process
 // created after `before` by a member or by another such process, through any
-// number of generations (a child the stop may have missed). A
-// child counts only when it was created after its parent, since Windows keeps
-// a parent pid after that parent exits and the pid can be reused. A creation
+// number of generations (a child the stop may have missed). A process's
+// parent is the one that held its parent pid when it was created, the latest
+// known process with that pid created no later than it, since Windows keeps a
+// parent pid after that parent exits and the pid can be reused. A creation
 // time the system did not report is treated as unchanged. null means the
 // root was not in `before`, so the tree is unknown.
 export function treeSurvivors(before, after, root) {
   const rootRow = before.find((row) => row.pid === root);
   if (!rootRow) return null;
-  const later = (child, parent) => child.start === null || parent.start === null || BigInt(child.start) >= BigInt(parent.start);
-  const members = new Map([[root, rootRow]]);
+  // Membership is by process identity, pid and creation time, since a
+  // member's pid can pass to another process, a member's own new child
+  // included.
+  const key = (row) => `${row.pid}:${row.start}`;
+  const notAfter = (a, b) => a.start === null || b.start === null || BigInt(a.start) <= BigInt(b.start);
+  const rows = [...before, ...after];
+  const byPid = new Map();
+  for (const row of rows) byPid.set(row.pid, [...(byPid.get(row.pid) ?? []), row]);
+  // The process that held `row`'s parent pid when `row` was created: the
+  // latest known process with that pid created no later than `row`.
+  const parentOf = (row) => {
+    let parent = null;
+    for (const other of byPid.get(row.ppid) ?? []) {
+      if (key(other) === key(row) || !notAfter(other, row)) continue;
+      if (!parent || (parent.start !== null && other.start !== null && BigInt(other.start) > BigInt(parent.start))) parent = other;
+    }
+    return parent;
+  };
+  const tree = new Set([key(rootRow)]);
   for (let grew = true; grew; ) {
     grew = false;
-    for (const row of before) {
-      if (members.has(row.pid) || !members.has(row.ppid) || !later(row, members.get(row.ppid))) continue;
-      members.set(row.pid, row);
+    for (const row of rows) {
+      if (tree.has(key(row))) continue;
+      const parent = parentOf(row);
+      if (!parent || !tree.has(key(parent))) continue;
+      tree.add(key(row));
       grew = true;
     }
   }
-  const known = new Set(before.map((row) => `${row.pid}:${row.start}`));
-  const survivors = new Map();
-  for (const row of after) {
-    const member = members.get(row.pid);
-    if (member && (member.start === null || row.start === null || member.start === row.start)) survivors.set(row.pid, row);
-  }
-  // New processes descend from a member, or from another new one, through
-  // any number of generations within this reading.
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const row of after) {
-      if (survivors.has(row.pid) || known.has(`${row.pid}:${row.start}`)) continue;
-      const parent = survivors.get(row.ppid) ?? members.get(row.ppid);
-      if (!parent || !later(row, parent)) continue;
-      survivors.set(row.pid, row);
-      grew = true;
-    }
-  }
-  return after.filter((row) => survivors.get(row.pid) === row);
+  const memberPids = new Set([...tree].map((member) => Number(member.split(":")[0])));
+  return after.filter((row) => tree.has(key(row)) || (memberPids.has(row.pid) && (row.start === null || tree.has(`${row.pid}:null`))));
 }
 
 // Whether the tree `before` recorded for `root` is gone, read a few times

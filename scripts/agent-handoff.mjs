@@ -552,7 +552,9 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   const { exited } = evidence;
   if (!exited) throw refuse(`launch ${index}'s exit was never journalled, so its reviewer may still run`);
   const now = new Date().toISOString();
-  const complete = async () => settledCompletion(rows, exited, journalFile, { readComment, cwd }).then((completed) => [{ ...completed, recordedAt: now, drainConfirmed: true }, { event: "finished" }], (error) => [{ event: "blocked", reason: COMPLETION_PENDING + error.message }]);
+  // The launcher's own blocked row after that exit says why it stopped.
+  const blockedReason = rows.find((row, i) => i > rows.indexOf(exited) && row.event === "blocked")?.reason;
+  const complete = async () => settledCompletion(rows, exited, journalFile, { readComment, cwd, blockedReason }).then((completed) => [{ ...completed, recordedAt: now, drainConfirmed: true }, { event: "finished" }], (error) => [{ event: "blocked", reason: COMPLETION_PENDING + error.message }]);
   const outcome = (ending) => ({ ended: ending.at(-1).event, ...(ending[0].event === "blocked" ? { reason: ending[0].reason } : {}) });
   if (evidence.drainConfirmation) {
     if (!rows.at(-1)?.reason?.startsWith(COMPLETION_PENDING) || rows.at(-1).event !== "blocked") throw refuse(`launch ${index}'s drain was already confirmed at ${evidence.drainConfirmation.time}`);
@@ -570,11 +572,18 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   let files;
   try { files = filesUnder(directory); }
   catch (error) { throw refuse(`its execution directory ${directory} cannot be read (${error.message}), so the shutdown evidence is gone`); }
-  let processes;
-  try { processes = census(); }
-  catch (error) { throw refuse(`the process census failed (${error.message})`); }
-  if (!Array.isArray(processes) || !processes.length) throw refuse("the process census found no process at all, so it cannot be trusted");
-  const byPid = new Map(processes.map((p) => [p.pid, p]));
+  const takeCensus = () => {
+    let taken;
+    try { taken = census(); }
+    catch (error) { throw refuse(`the process census failed (${error.message})`); }
+    if (!Array.isArray(taken) || !taken.length) throw refuse("the process census found no process at all, so it cannot be trusted");
+    return taken;
+  };
+  // A first census dates the PIDs the identity probe cannot read; the checks
+  // on what still runs read a second one, taken after every probe, so a
+  // recorded process that starts a child and exits meanwhile is still seen.
+  const firstCensus = takeCensus();
+  const byPid = new Map(firstCensus.map((p) => [p.pid, p]));
   // A process whose start the identity probe cannot read (another user's)
   // is dated by the census's creation time, which is reported to the
   // microsecond rather than the identity's 100 ns, so it is flagged and an
@@ -597,14 +606,16 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   const readRecord = (file) => {
     try { return read(file); } catch (error) { throw refuse(`${file} is unreadable (${error.message})`); }
   };
-  // The latest time any record was written: every original process of the
-  // service was created before it.
-  let writtenMs = 0;
-  const noteWritten = (file) => { writtenMs = Math.max(writtenMs, fs.statSync(file).mtimeMs); };
+  // For each recorded PID, when the latest record naming it was written. The
+  // original process held that PID then, so a process holding it now that was
+  // created later is another one.
+  const namedAt = new Map();
+  const noteNamed = (pid, file) => { namedAt.set(pid, Math.max(namedAt.get(pid) ?? 0, fs.statSync(file).mtimeMs)); };
   // A PID with no recorded identity is another process only when that
   // process was created after the record naming it.
   const pids = [];
   const checkPid = (pid, file) => {
+    noteNamed(pid, file);
     if (pids.some((entry) => entry.pid === pid)) return;
     const live = probe(pid);
     if (!live) { pids.push({ pid, file, state: "absent" }); return; }
@@ -614,17 +625,20 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   const identities = [];
   for (const file of files.filter((file) => file.endsWith(".started.json"))) {
     const started = readRecord(file);
-    noteWritten(file);
     for (const recorded of [started?.identity, started?.coordinator].filter(validIdentity)) {
+      noteNamed(recorded.pid, file);
       const live = probe(recorded.pid);
       if (stillRunning(recorded, live)) throw refuse(`PID ${recorded.pid}, recorded in ${file}, is still running`);
       identities.push({ pid: recorded.pid, start: recorded.start, file, state: live ? "reused" : "absent", ...(live?.fromCensus ? { dated: "census" } : {}) });
     }
   }
+  // The PIDs a down.log shows taskkill acting on, every tree member it
+  // reached; a "(child process of PID N)" parent is not shown alive when the
+  // log was written, and the tree's root's parent is the `up` command the
+  // started records already name.
   const downLogs = files.filter((file) => path.basename(file) === "down.log");
   for (const file of downLogs) {
-    noteWritten(file);
-    for (const match of fs.readFileSync(file, "utf8").matchAll(/\bPID (\d+)/gi)) checkPid(Number(match[1]), file);
+    for (const match of fs.readFileSync(file, "utf8").matchAll(/(?:The process with PID|could not stop pid) (\d+)/gi)) checkPid(Number(match[1]), file);
   }
   // Each editor session's server launch and the driver's record of it.
   const ports = [];
@@ -634,7 +648,6 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
     if (typeof session?.root !== "string" || typeof session.session !== "string") throw refuse(`${sessionFile} names no driver root and session`);
     const upLog = path.join(path.dirname(sessionFile), "up.log");
     if (fs.existsSync(upLog)) {
-      noteWritten(upLog);
       for (const match of fs.readFileSync(upLog, "utf8").matchAll(/launching dev servers \([^)]*\) pid (\d+) \S+ (\S+)/g)) {
         checkPid(Number(match[1]), upLog);
         ports.push({ url: match[2], file: upLog });
@@ -643,8 +656,8 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
     const stateFile = path.join(sessionDir({ root: session.root, session: session.session, env }), "state.json");
     if (!fs.existsSync(stateFile)) { servers.push({ session: session.session, state: stateFile, record: "absent" }); continue; }
     const state = readRecord(stateFile);
-    noteWritten(stateFile);
     if (!Number.isSafeInteger(state?.pid) || !Number.isFinite(state.startedAt)) throw refuse(`${stateFile} records no launcher PID and launch time`);
+    noteNamed(state.pid, stateFile);
     const live = probe(state.pid);
     if (live && (!/^\d+$/.test(live.start) || BigInt(live.start) <= windowsTicks(state.startedAt + 2000))) throw refuse(`PID ${state.pid}, the server launcher ${stateFile} records, may still run`);
     if (!pids.some((entry) => entry.pid === state.pid)) pids.push({ pid: state.pid, file: stateFile, state: live ? "reused" : "absent", ...(live ? { start: live.start } : {}) });
@@ -665,6 +678,8 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
     if (answers) throw refuse(`port ${port}, recorded in ${file}, still accepts connections, so a server of the service may still run`);
     checkedPorts.push({ port, file, state: "closed" });
   }
+  const processes = takeCensus();
+  const current = new Map(processes.map((p) => [p.pid, p]));
   const plain = (text) => { const slashed = String(text ?? "").split(path.win32.sep).join("/"); return process.platform === "win32" ? slashed.toLowerCase() : slashed; };
   const named = processes.filter((p) => p.pid !== process.pid && plain(p.commandLine).includes(plain(directory)));
   if (named.length) throw refuse(`PID${named.length > 1 ? "s" : ""} ${named.map((p) => p.pid).join(", ")} name the execution directory ${directory} and still run`);
@@ -673,14 +688,15 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   // by its launcher, or a child an original process started after the
   // records were written and before it exited. A creation time alone cannot
   // tell those from a child of a reused PID; the one exception is a recorded
-  // PID now held by a process created after the records, with the child
-  // created after that holder.
+  // PID now held by a process created after the records naming it, with the
+  // child created after that holder.
   const recorded = new Set([...identities, ...pids].map((entry) => entry.pid));
-  const written = windowsTicks(writtenMs);
-  const heldByNewer = (id, child) => {
-    const holder = byPid.get(id);
-    return Boolean(holder) && holder.start !== null && child.start !== null && BigInt(holder.start) > written && BigInt(child.start) >= BigInt(holder.start);
-  };
+  const newer = (id) => { const holder = current.get(id); return Boolean(holder) && holder.start !== null && BigInt(holder.start) > windowsTicks(namedAt.get(id) ?? Date.now()); };
+  // A recorded PID the last census shows held by a process no newer than the
+  // records naming it may be the original, whatever the probes found.
+  const unproven = [...recorded].filter((id) => current.has(id) && !newer(id));
+  if (unproven.length) throw refuse(`recorded PID${unproven.length > 1 ? "s" : ""} ${unproven.join(", ")} ${unproven.length > 1 ? "are" : "is"} held by a process the last census cannot show is newer than the records naming ${unproven.length > 1 ? "them" : "it"}`);
+  const heldByNewer = (id, child) => newer(id) && child.start !== null && BigInt(child.start) >= BigInt(current.get(id).start);
   const owner = (p) => [p.ppid, p.group, p.sessionId].find((id) => recorded.has(id) && !heldByNewer(id, p));
   const orphans = processes.filter((p) => p.pid !== process.pid && owner(p) !== undefined);
   if (orphans.length) throw refuse(`${orphans.map((p) => `PID ${p.pid} (descended from recorded PID ${owner(p)})`).join(", ")} still ${orphans.length > 1 ? "run" : "runs"}; only a recorded PID now held by a process newer than the records, and older than its child, shows that child is not the service's`);
@@ -692,12 +708,23 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   return { journal: journalFile, index, confirmed: drained, ...outcome(ending) };
 }
 
+// Whether a blocked reason holds nothing but editor shutdown failures, as
+// the delegated editor session's close reports them; the service's close
+// joins every failure with "; ", a retained operation failure or a changed
+// frozen worktree included, and any of those keeps the review uncompleted.
+const EDITOR_SHUTDOWN = /Editor shutdown unverified; preserve [^;]+ and inspect [^;]+/g;
+export function onlyDrainFailures(reason) {
+  if (typeof reason !== "string" || !reason.match(EDITOR_SHUTDOWN)) return false;
+  return reason.replace(EDITOR_SHUTDOWN, "").split(";").every((part) => part.trim() === "");
+}
+
 // The `completed` row of a review launch whose clean exit was blocked only by
 // its drain failure, after the launcher's checks that do not need the frozen
 // worktree. It throws when the launch is not such a review or a check fails.
-async function settledCompletion(rows, exited, journalFile, { readComment, cwd }) {
+async function settledCompletion(rows, exited, journalFile, { readComment, cwd, blockedReason }) {
   const launching = rows.find((row) => row.event === "launching" && row.index === exited.index);
   if (launching?.role !== "review") throw new Error(`launch ${exited.index} is not a review`);
+  if (!onlyDrainFailures(blockedReason)) throw new Error(`its launcher was blocked by more than the drain, which confirming the drain does not answer: ${blockedReason ?? "no reason recorded"}`);
   if (exited.code !== 0 || exited.signal) throw new Error(`its reviewer exited with code ${exited.code}${exited.signal ? ` (signal ${exited.signal})` : ""}`);
   if (rows.some((row) => row.event === "completed" && row.index === exited.index)) throw new Error(`launch ${exited.index} already has a completed row`);
   const thread = rows.find((row) => row.event === "coordinator")?.thread;
