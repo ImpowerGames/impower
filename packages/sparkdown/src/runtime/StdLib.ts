@@ -3052,30 +3052,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `math.randomseed([seed])` — set the PRNG seed and reset
-  // `previousRandom` to 0. With no arg (Luau form), seeds from the
-  // current system time (non-deterministic; runs won't reproduce
-  // across saves). Used to make RNG-dependent scripts deterministic
-  // across runs when an explicit seed is given.
+  // `math.randomseed(seed)` — set the PRNG seed and reset
+  // `previousRandom` to 0. The seed is required, as Luau's
+  // `luaL_checkinteger(L, 1)` requires it. Used to make RNG-dependent
+  // scripts deterministic across runs.
   "math.randomseed": {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => {
-      let seed: number;
-      if (args.length === 0) {
-        // System-derived seed. Lua's behavior is platform-dependent;
-        // Luau uses `os.time()`-equivalent. Mirroring that here —
-        // sparkdown's narrative-fiction runtime doesn't promise
-        // determinism across saves when this form is used.
-        ambientReads.count += 1;
-        seed = Math.floor(Date.now());
-      } else {
-        const n = coerceNumber(args[0]);
-        if (n === null) {
-          story.Error("Invalid value passed to math.randomseed");
-          return;
-        }
-        seed = n;
+      const seed = coerceNumber(args[0]);
+      if (seed === null) {
+        story.Error("Invalid value passed to math.randomseed");
+        return;
       }
       story.state.storySeed = seed;
       story.state.previousRandom = 0;
@@ -6348,9 +6336,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // Lua truthiness: only `nil` and `false` are falsy — `assert(0)`
   // and `assert("")` pass. Zero args raises "missing argument #1"
   // (Luau's exact message — no `to 'assert'` suffix).
+  // No `minArgs`: a call with no argument raises Luau's `luaL_checkany`
+  // message below, which names no function.
   assert: {
     arity: -1,
-    minArgs: 1,
     fn: (story, args) => {
       // Luau's assert raises through `luaL_error`, which prepends
       // the `chunkname:line: ` position prefix — unlike PUC Lua,

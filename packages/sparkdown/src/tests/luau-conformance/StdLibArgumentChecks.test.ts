@@ -43,6 +43,34 @@ assert(string.find(e2, "${message}", 1, true), e2)
       expect(result.returnedOK).toBe(true);
     },
   );
+
+  test("a builtin called through a value raises it too", () => {
+    const result = runConformanceSource(`
+local rep = string.rep
+local ok, e = pcall(function() return rep() end)
+assert(not ok, "rep() succeeded")
+assert(string.find(e, "missing argument #1 to 'rep'", 1, true), e)
+local len = string.len
+local ok2, e2 = pcall(function() return len() end)
+assert(not ok2, "len() succeeded")
+assert(string.find(e2, "missing argument #1 to 'len'", 1, true), e2)
+local v = rep()
+`);
+    expect(result.returnedOK).toBe(false);
+    expect(result.errorMessages.join("\n")).toContain(
+      "missing argument #1 to 'rep'",
+    );
+  });
+
+  test("assert keeps Luau's message, which names no function", () => {
+    const result = runConformanceSource(`
+local ok, e = pcall(function() assert() end)
+assert(not ok)
+assert(e:sub(e:find(": ") + 2, #e) == "missing argument #1", e)
+`);
+    expect(result.errorMessages).toEqual([]);
+    expect(result.returnedOK).toBe(true);
+  });
 });
 
 const invalid: [line: string, message: string][] = [
