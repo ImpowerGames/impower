@@ -1861,6 +1861,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             const abandonedAt = readLuauStringAbandonedAt(string, this.statementDocumentText());
             if (abandonedAt !== undefined && nodeRef.from >= abandonedAt) return annotations;
           }
+          // Otherwise it is Luau's error, in Luau's words at the string's
+          // section that opened it (I-1420), as the converter's reading of
+          // the string gives it, so the editor and the type checker agree.
+          const string = ancestorMatching(nodeRef.node, BACKTICK_STRINGS);
+          if (string) {
+            const text = this.statementDocumentText();
+            const error = readLuauStringErrors(string, text).find(
+              (e) => /expected expression inside/.test(e.message) && luauPositionOffset(e.location.end, text) === nodeRef.from + 1,
+            );
+            if (error) {
+              this.error(annotations, error.message, luauPositionOffset(error.location.begin, text), nodeRef.from + 1);
+              return annotations;
+            }
+          }
         }
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
