@@ -14897,7 +14897,10 @@ repository:
     # complete union, intersection or function return type. The nested type
     # has ended, but reordering its patterns or ending the enclosing cast
     # cannot close this intervening scope. Generic openers/arrows stay types.
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # It ends, as its operand type does, before a `:` that a reserved word no
+    # type can begin follows (`t :: T | U:end`,
+    # `LUAU_COLON_BEFORE_RESERVED_WORD`), for the same reason (I-1344).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
 
   # A `|`, `&` or `->` with no type before the `;`, `,` or `=` after it
   # (`local m: number | = 1`), read as one token as

@@ -122,6 +122,15 @@ const CASES: Record<string, [form: string, first: string][]> = {
     ["local b = t :: T:function", "Expected identifier when parsing expression, got ':'"],
     ["local b = t :: {number}:end", "Expected identifier when parsing expression, got ':'"],
     ["local b = f(t :: T:end)", "Expected ')' (to close '(' at column 14), got ':'"],
+    // A type an operation or a suffix holds ends there too (round 1, `ax`
+    // finding 1).
+    ["local b = t :: T | U:end", "Expected identifier when parsing expression, got ':'"],
+    ["local b = t :: T & U:do", "Expected identifier when parsing expression, got ':'"],
+    ["local b = t :: () -> T:end", "Expected identifier when parsing expression, got ':'"],
+    ["local b = t :: T?:end", "Expected identifier when parsing expression, got ':'"],
+    ["local b = t :: Array<T>:end", "Expected identifier when parsing expression, got ':'"],
+    ["local b = t :: M.T:function", "Expected identifier when parsing expression, got ':'"],
+    ["while t :: T | U:do end", "Expected 'do' when parsing while loop, got ':'"],
     ["local b = if t then a else b:end", METHOD_NAME("end")],
   ],
   // The readings these rules share keep their meaning.
