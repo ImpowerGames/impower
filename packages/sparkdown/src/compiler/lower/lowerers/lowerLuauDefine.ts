@@ -60,6 +60,7 @@ import {
 } from "../../utils/stringLiteralValue";
 import {
   buildClosureExpression,
+  declaredLocalsFrame,
   freeVariables,
   readBodyAst,
   reportBodySyntaxErrors,
@@ -721,10 +722,12 @@ function lowerDefineMethod(
 
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
-  ctx.declaredLocalsStack?.push(new Set(["self"]));
-  ctx.functionBindingsStack?.push(
-    functionBindings([{ name: "self" }, ...params.map((name) => ({ name }))], reading?.unit.root ?? null, ctx, content.from),
-  );
+  const bodyAst = reading?.unit.root ?? null;
+  const bindings = functionBindings([{ name: "self" }, ...params.map((name) => ({ name }))], bodyAst, ctx, content.from);
+  ctx.functionBindingsStack?.push(bindings);
+  // Its parameters and locals, as a function's, so a function nested in it
+  // captures one whatever its name (a stdlib name too, `freeVariables`).
+  ctx.declaredLocalsStack?.push(declaredLocalsFrame(["self", ...params], bodyAst, bindings, ctx));
   const hoistedDecls: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();

@@ -49,7 +49,11 @@ import {
 import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { withMessageLines } from "../../typecheck/messageLines";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { functionBindings, resolveFunctionBinding } from "../utils/functionBindings";
+import {
+  functionBindings,
+  resolveFunctionBinding,
+  type FunctionBinding,
+} from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { Location, Position } from "../../typecheck/Location";
 import { lineCountOf, syntaxErrorEnd } from "../../typecheck/syntaxErrorRange";
@@ -689,6 +693,26 @@ export function lowerFunctionBody(
 }
 
 /**
+ * A function's frame on the declared-locals stack: `declaredParams` and the
+ * names its body declares (`immediateBodyDeclarations`), scoped by the
+ * function's `bindings` (`scopeDeclaredLocals`). Its `bindings` frame must be
+ * on `functionBindingsStack` already, since a function statement that assigns
+ * one of its locals declares nothing (`declaredFunctionName`).
+ */
+export function declaredLocalsFrame(
+  declaredParams: readonly string[],
+  body: AstStatBlock | null,
+  bindings: readonly FunctionBinding[],
+  ctx: LowerContext,
+): Set<string> {
+  const declared = immediateBodyDeclarations(declaredParams, body, ctx);
+  if (body) {
+    scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(body, ctx));
+  }
+  return declared;
+}
+
+/**
  * Runs `lower`, which lowers a function's body, inside the scopes the body
  * opens: a buffer for the functions nested in it, its bindings (`params`
  * and the locals `body` declares), its own locals on the declared-locals
@@ -710,11 +734,9 @@ export function inFunctionScopes<T>(
   ctx.functionScopeStack?.push(nested);
   const bindings = functionBindings(params, body, ctx);
   ctx.functionBindingsStack?.push(bindings);
-  const declared = immediateBodyDeclarations(declaredParams, body, ctx);
-  if (body) {
-    scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(body, ctx));
-  }
-  ctx.declaredLocalsStack?.push(declared);
+  ctx.declaredLocalsStack?.push(
+    declaredLocalsFrame(declaredParams, body, bindings, ctx),
+  );
   const hoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoisted);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();

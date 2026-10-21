@@ -85,3 +85,57 @@ assert(f() == 5, tostring(f()))`);
     expect(r.returnedOK).toBe(true);
   });
 });
+
+// A define's method is a function like any other: a function nested in it
+// captures the method's parameters and locals, even one named like a stdlib
+// namespace, which is otherwise read as the builtin.
+describe("a function nested in a define's method", () => {
+  test("a function statement assigns the method's parameter", () => {
+    const r = runConformanceSource(`define thing with
+  function change(math)
+    local function inner()
+      function math() return 3 end
+    end
+    inner()
+    return math()
+  end
+end
+assert(thing.change(nil) == 3)`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("a function statement assigns the method's local", () => {
+    const r = runConformanceSource(`define thing with
+  function change()
+    local math = nil
+    local function inner()
+      function math() return 3 end
+    end
+    inner()
+    return math()
+  end
+end
+assert(thing.change() == 3)`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("reads and writes the method's local", () => {
+    const r = runConformanceSource(`define thing with
+  function get()
+    local math = 5
+    local function read() return math end
+    local function write() math = 6 end
+    local before = read()
+    write()
+    return before, math
+  end
+end
+local before, after = thing.get()
+assert(before == 5, tostring(before))
+assert(after == 6, tostring(after))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+});
