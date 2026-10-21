@@ -136,7 +136,29 @@ describe("a variadic function statement in a function (I-1360)", () => {
   });
 
   test.each([
-    ["a do block",["do", "  function foo(...)", "    return base + select(\"#\", ...)", "  end", "end"]],
+    ["function foo(...)"],
+    ["function foo()"],
+    ["local function foo(...)"],
+    ["local function foo()"],
+  ])("`%s` is named foo in debug.info and a traceback", (header) => {
+    // upstream/conformance/debug.luau line 63 names a variadic function.
+    const source = lines(
+      "function run()",
+      `  ${header}`,
+      "    return debug.info(1, \"n\") .. \"|\" .. debug.traceback()",
+      "  end",
+      "  return foo()",
+      "end",
+      "Got {run()}.",
+    );
+    const { text, errors } = run(source);
+    expect(errors).toEqual([]);
+    expect(text).toMatch(/^Got foo\|stack traceback:/);
+    expect(text).toContain("[FUNCTION] <SOMEWHERE IN run.foo>");
+  });
+
+  test.each([
+    ["a do block", ["do", "  function foo(...)", "    return base + select(\"#\", ...)", "  end", "end"]],
     ["an if block", ["if base > 0 then", "  function foo(...)", "    return base + select(\"#\", ...)", "  end", "end"]],
   ])("written in %s, is called after the block", (_, block) => {
     const source = lines(

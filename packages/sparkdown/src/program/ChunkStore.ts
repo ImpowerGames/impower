@@ -4591,7 +4591,8 @@ const qualifiedFlowName = (flow: FlowBase): string | null => {
 
 /** The name a function a statement writes is labelled by, as the object
  *  engine named its container: the names of the flows that hold it and its
- *  own, which the compiler gives it. The label is the function's identity
+ *  own, which the compiler gives it, or the name a nested function statement
+ *  is written with (`_authoredName`). The label is the function's identity
  *  for data breakpoints; an author reads it through `readableSymbolLabel`,
  *  where a generated part shows as anonymous. */
 const functionLabel = (fn: ParsedObject): string => {
@@ -4599,7 +4600,7 @@ const functionLabel = (fn: ParsedObject): string => {
   let at: ParsedObject | null = fn;
   while (at && !(at instanceof ParsedStory)) {
     if (at instanceof FlowBase) {
-      names.unshift(at.identifier?.name ?? "");
+      names.unshift(at._authoredName ?? at.identifier?.name ?? "");
     }
     at = at.parent;
   }

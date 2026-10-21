@@ -220,9 +220,11 @@ function lowerNestedNamedFunction(
   }
   recordCaptureRead(ctx, upvals);
 
-  enclosingScope.push(
-    buildFunction(func, node, synthName, ctx, upvals),
-  );
+  // Its frames and its value are labelled by the name it is written with,
+  // not the generated one (`functionLabel`).
+  const fn = buildFunction(func, node, synthName, ctx, upvals);
+  fn._authoredName = selfName || null;
+  enclosingScope.push(fn);
 
   // Always emit the closure-shaped ObjectValue (even when there are
   // no upvals) so the runtime CallValueAsFunction dispatch has the
