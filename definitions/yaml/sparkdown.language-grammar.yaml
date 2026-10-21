@@ -726,6 +726,13 @@ variables:
   # lookaround: a token that carries a name on leaves the word to
   # `LuauAccessPath` (`queue = 5`, `match.x = 1`).
   LUAU_ALTERNATOR_LINE_START_AHEAD: (?!{{WS}}*{{LUAU_EXPRESSION_GOES_ON}})
+  # Where `match` or `plural` that begins its line opens a candidate: as
+  # any line-start word does, or before any expression its condition can
+  # begin with, a constant, `not`, a unary `-` or `#` included
+  # (`match true`, `match not x`, `match -1`, `match #t`).
+  # lookaround: as for `LUAU_ALTERNATOR_LINE_START_AHEAD`; an operator that
+  # only goes on from a name (`match + 1`, `match = 1`) leaves it a name.
+  LUAU_CONDITIONAL_LINE_START_AHEAD: (?:{{LUAU_ALTERNATOR_LINE_START_AHEAD}}|(?={{WS}}*{{LUAU_EXPRESSION_START}}))
   # Right after the `end` a candidate's arms took: the candidate ends with
   # them. A candidate takes no `end` of its own, and its only children are
   # its head (`LuauAlternatorHead`) and its arms. The head never ends right
@@ -746,6 +753,15 @@ variables:
   # stays open and the arms open inside it, as its last child.
   # lookaround: `LuauAlternatorArms` reads the `|`.
   _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+)(?=[|]))
+  # Right after the `end` of arms a head holds (the compact nested form),
+  # before more of its line: the head ends with them, and the candidate after
+  # it (`LUAU_AFTER_ALTERNATOR_ARMS`), so a statement after them on the line
+  # is the body's (`... end| b = 2 end local after = 7`). Not before a `|`,
+  # where an `end` in the condition leaves the arms to open, and not at the
+  # line's end, where a comment's last word may stand (`match n -- end`);
+  # an expression's head ends there anyway.
+  # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
+  LUAU_AFTER_HEAD_ARMS: (?<=\bend)(?!{{WS}}*(?:[|]|$))
   # The start of a line that does not go on with a line-start candidate's
   # head: one that is neither blank nor a comment line.
   # lookaround: `LuauAlternatorArms` and the next statement read the line.
@@ -9348,7 +9364,7 @@ repository:
       - { include: "#LuauSparkdownExplicitConditionalAlternatorCondition" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|{{LUAU_AFTER_HEAD_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
     endCaptures:
       1:
         patterns:
@@ -11496,7 +11512,7 @@ repository:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|{{LUAU_AFTER_HEAD_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
     endCaptures:
       1:
         patterns:
@@ -11516,7 +11532,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_AFTER_ALTERNATOR_HEAD}}
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|{{LUAU_AFTER_HEAD_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_AFTER_ALTERNATOR_HEAD}}
     endCaptures:
       1:
         patterns:
@@ -11653,7 +11669,7 @@ repository:
   # `| 1 = print(1)` lines and `end`), so it goes on past its line, to the
   # first line that does not begin with a `|`, a comment or nothing.
   LuauConditionalAlternatorLineStart:
-    begin: "^({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_ALTERNATOR_LINE_START_AHEAD}}"
+    begin: "^({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_CONDITIONAL_LINE_START_AHEAD}}"
     beginCaptures:
       1:
         patterns:

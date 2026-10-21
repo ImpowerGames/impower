@@ -199,6 +199,19 @@ describe("where a candidate ends", () => {
     expect(owners).toEqual(["arms", "arms"]);
   });
 
+  test("a statement after the compact nested form on its line is the function's", () => {
+    const source = 'function f()\n  local v = match match("x") | x = "mage" end| mage = "yes" end local after = 7\n  return after\nend\nValue {f()}.\n';
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 7.\n" });
+    expect(run(source).warnings.join("\n")).not.toContain("after");
+  });
+
+  test.each(["true", "false", "nil", "-1", "not false", '#"x"'])("a block-form match on `%s` opens its arms", (condition) => {
+    const source = `function f()\n  match ${condition}\n    | other = print(1)\n  end\n  return 3\nend\nValue {f()}.\nAfter.\n`;
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\nAfter.\n" });
+    expect(tree(source)).toMatch(/─ LuauConditionalAlternatorLineStart \[/);
+    expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
+  });
+
   test.each([["\r\n"], ["\r"]])("a head comment ending in `end` reads the line break %j whole", (eol) => {
     const source = ["function f(n)", "  queue -- end", "    | print(1)", "  end", "  match n -- end", "    | a = print(1)", "  end", "  return 3", "end", "Value {f(1)}.", "After.", ""].join(eol);
     expect(tree(source)).not.toMatch(/ERROR_INCOMPLETE/);
