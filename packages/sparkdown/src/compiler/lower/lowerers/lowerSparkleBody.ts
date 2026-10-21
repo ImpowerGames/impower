@@ -1,12 +1,11 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
-import type { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { LowerContext } from "../context";
 import { ErrorType } from "../../../runtime/Error";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import {
@@ -14,14 +13,11 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import {
-  bodyWideDeclarations,
-  immediateBodyDeclarations,
+  inFunctionScopes,
   reportBodySyntaxErrors,
 } from "../expression/lowerFunction";
-import { scopeDeclaredLocals } from "../expression/bindings";
 import { closureBodyAst, closureSyntaxErrors, documentText } from "../utils/luauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
-import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { lowerStatements } from "../lower";
 import {
@@ -556,30 +552,22 @@ function lowerHandlerClosure(
     const localConsts = ctx.localConsts;
     ctx.localConsts = true;
     const closureBody = body ? closureBodyAst(body, ctx) : null;
-    // It opens the scopes a function body opens (`lowerFunctionBody`), so
+    // It opens the scopes a function body opens (`inFunctionScopes`), so
     // the functions declared or written in it are its own subflows, as a
     // plain function's are: a named one would otherwise be read as a
     // top-level function inside the evaluator, and in a function's layout a
     // function value would land in that function rather than the evaluator.
-    const nested: ParsedObject[] = [];
-    ctx.functionScopeStack?.push(nested);
-    const bindings = functionBindings(loopVars.map((name) => ({ name })), closureBody, ctx);
-    ctx.functionBindingsStack?.push(bindings);
-    const declared = immediateBodyDeclarations(loopVars, closureBody);
-    if (closureBody) {
-      scopeDeclaredLocals(declared, bindings, bodyWideDeclarations(closureBody));
-    }
-    ctx.declaredLocalsStack?.push(declared);
-    const hoisted: ParsedObject[] = [];
-    ctx.hoistedNestedFnDeclsStack?.push(hoisted);
-    ctx.siblingSubFlowNamesStack?.push(new Map<string, SiblingSubFlowInfo>());
-    const stmts = lowerStatements(body, ctx, undefined, shape);
-    if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
-    ctx.siblingSubFlowNamesStack?.pop();
-    ctx.hoistedNestedFnDeclsStack?.pop();
-    ctx.declaredLocalsStack?.pop();
-    ctx.functionBindingsStack?.pop();
-    ctx.functionScopeStack?.pop();
+    const { result: stmts, hoisted, nested } = inFunctionScopes(
+      loopVars.map((name) => ({ name })),
+      loopVars,
+      closureBody,
+      ctx,
+      () => {
+        const stmts = lowerStatements(body, ctx, undefined, shape);
+        if (closureBody) reportErasedConstErrors(closureBody, closureNode, ctx);
+        return stmts;
+      },
+    );
     ctx.localConsts = localConsts;
     // An error at the `end` the reading closes the closure with is reported
     // at the closure's `}` (`closureReadingErrors`).
