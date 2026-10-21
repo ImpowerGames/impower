@@ -111,17 +111,27 @@ export const getSymbol = (
         n.name === "AssetCommandFileName" ||
         n.name === "AssetCommandTarget" ||
         n.name === "NameValue" ||
-        n.name === "IncludeContent",
+        n.name === "RunContent",
     );
     if (symbol) {
       const symbolRange = document.range(symbol.from, symbol.to);
-      if (symbol.name === "IncludeContent") {
+      if (symbol.name === "RunContent") {
+        // A `run` operand renames the `.luau` file it names (#1389): its
+        // name is the file name the operand ends with, before the first
+        // dot, inside any quotes.
         const range = document.range(symbol.from, symbol.to);
-        const text = document.getText(range);
-        const nameStartOffset = text.lastIndexOf("/") + 1;
+        // value-level: the operand's own text, measuring its parts
+        const text = document.getText(range).trimEnd();
+        const quoted = /^["']/.test(text);
+        const innerStart = quoted ? 1 : 0;
+        const innerEnd = quoted ? Math.max(innerStart, text.length - 1) : text.length;
+        const nameStartOffset = Math.max(
+          innerStart,
+          text.lastIndexOf("/", innerEnd - 1) + 1,
+        );
         let nameEndOffset = text.indexOf(".", nameStartOffset);
-        if (nameEndOffset < 0) {
-          nameEndOffset = text.length;
+        if (nameEndOffset < 0 || nameEndOffset > innerEnd) {
+          nameEndOffset = innerEnd;
         }
         const nameRange = {
           start: {

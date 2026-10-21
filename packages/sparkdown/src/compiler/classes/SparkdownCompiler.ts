@@ -168,10 +168,19 @@ import {
 } from "../utils/declarationOnly";
 import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
+  luauFileName,
+  projectLuauFiles,
   projectPath,
   projectRootUri,
   projectScripts,
 } from "../utils/projectMembership";
+import {
+  ambiguousRunNameMessage,
+  findRunName,
+  missingRunNameMessage,
+  missingRunPathMessage,
+  runPathNearMisses,
+} from "../utils/runOperand";
 import {
   runCallText,
   runCallUri,
@@ -186,6 +195,7 @@ import {
 import type {
   CompilationConfig,
   CompiledBlock,
+  RunOperand,
 } from "./annotators/CompilationAnnotator";
 
 // The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
@@ -2149,6 +2159,7 @@ export class SparkdownCompiler {
     this._memoBlocks = new Set();
 
     this.populateFiles(program);
+    this.warnSharedLuauNames(program);
     this.populateDeclarationLocations(program);
     if (!compileThrew) {
       // Needs `functionLocations` (just populated) to classify divert edges.
@@ -2233,6 +2244,84 @@ export class SparkdownCompiler {
       this._config.mainScriptFilename ?? DEFAULT_MAIN_SCRIPT_FILENAME,
       this._config.uriPathsAsWritten,
     ).slice(1);
+  }
+
+  /** The `.luau` files a `run` in the project a compile that starts from
+   *  `uri` finds by name (`projectLuauFiles`): every registered one under
+   *  the folder of `uri` that is in its project. */
+  protected projectLuauFilesOf(uri: string): string[] {
+    const files = this.files.all().map((file) => file.uri);
+    return projectLuauFiles(
+      uri,
+      files.filter((file) => this.documents.has(file)),
+      (script) => this.documents.has(script),
+      this._config.mainScriptFilename ?? DEFAULT_MAIN_SCRIPT_FILENAME,
+      this._config.uriPathsAsWritten,
+    );
+  }
+
+  /**
+   * The `.luau` file the operand of a `run` statement in the script
+   * `scriptUri` names, or the message that says why there is none (#1389).
+   * A quoted operand is a path relative to the script, `.luau` implied; an
+   * unquoted one is a name, the one `.luau` file of that name in the project
+   * of `program`. Both are case exact, and an operand that differs from
+   * files only by case names their spellings (#1334).
+   */
+  protected resolveRunOperand(
+    run: RunOperand,
+    scriptUri: string,
+    program: SparkProgram,
+    fileHandler: IFileHandler,
+  ): { uri?: string; message?: string } {
+    const asWritten = this._config.uriPathsAsWritten;
+    const luauFiles = this.projectLuauFilesOf(program.uri);
+    if (run.quoted) {
+      try {
+        return { uri: fileHandler.ResolveInkFilename(`${run.path}.luau`) };
+      } catch {
+        return {
+          message: missingRunPathMessage(
+            run.written,
+            runPathNearMisses(run.written, scriptUri, luauFiles, asWritten),
+          ),
+        };
+      }
+    }
+    const { matches, nearMisses } = findRunName(run.path, luauFiles, asWritten);
+    if (matches.length === 1) {
+      const uri = matches[0]!;
+      program.scripts[uri] = this.documents.get(uri)?.version ?? -1;
+      return { uri };
+    }
+    if (matches.length > 1) {
+      return {
+        message: ambiguousRunNameMessage(
+          run.path,
+          matches.map((uri) => displayScriptPath(uri, program.uri, asWritten)),
+        ),
+      };
+    }
+    return { message: missingRunNameMessage(run.path, nearMisses) };
+  }
+
+  /** Warns on each `.luau` file of the project of `program` that shares its
+   *  name with another, as an asset that shares its name does, since a
+   *  `run` that names it is ambiguous (#1389). */
+  protected warnSharedLuauNames(program: SparkProgram) {
+    const byName = new Map<string, string[]>();
+    for (const uri of this.projectLuauFilesOf(program.uri)) {
+      const name = luauFileName(uri, this._config.uriPathsAsWritten);
+      byName.set(name, [...(byName.get(name) ?? []), uri]);
+    }
+    for (const [name, uris] of byName) {
+      if (uris.length > 1) {
+        for (const uri of uris) {
+          const other = uris.find((u) => u !== uri)!;
+          this.pushAssetCollisionDiagnostic(program, uri, other, "luau", name);
+        }
+      }
+    }
   }
 
   /**
@@ -2580,7 +2669,9 @@ export class SparkdownCompiler {
       for (const rec of chunkRecords) {
         const block = rec.block as any;
         if (block.run) {
-          rootDescriptors.push(`run:${block.run}`);
+          rootDescriptors.push(
+            `run:${block.run.quoted ? JSON.stringify(block.run.path) : block.run.path}`,
+          );
         }
         if (chunkFlowKind(block) === "external") {
           const ext = block.content?.[0] as ExternalDeclaration | undefined;
@@ -2902,7 +2993,8 @@ export class SparkdownCompiler {
         }
       }
       if (run) {
-        // `run "path"` — load `${path}.luau`, wrap its body in a
+        // `run helpers` or `run "path"` — load the `.luau` file the
+        // operand names (`resolveRunOperand`), wrap its body in a
         // function, splice a call to the function at this position,
         // and hoist the function declaration to the end of the
         // parent program. Uses the same `IncludedFile` plumbing as the
@@ -2915,25 +3007,26 @@ export class SparkdownCompiler {
         if (state.fileResolutionState) {
           state.fileResolutionState.currentParentUri = uri;
         }
-        const luauFilename = `${run}.luau`;
-        let resolvedFilePath: string | null = null;
-        try {
-          resolvedFilePath = fileHandler.ResolveInkFilename(luauFilename);
-        } catch {}
-        // 1-based line/character — `onDiagnostic` subtracts 1 to
-        // produce 0-based values that pass `getDiagnostic`'s
-        // `startCharacter < 0` filter.
+        const resolution = this.resolveRunOperand(
+          run,
+          uri,
+          program,
+          fileHandler,
+        );
+        const resolvedFilePath = resolution.uri ?? null;
+        // The operand's range, 1-based like the lowerer's diagnostics,
+        // moved from the chunk to the script.
         const sourceMetadata: SourceMetadata = {
           fileName,
           filePath: uri,
-          startLineNumber: lineNumberOffset + 1,
-          endLineNumber: lineNumberOffset + 1,
-          startCharacterNumber: 1,
-          endCharacterNumber: 1,
+          startLineNumber: run.source.startLineNumber + lineNumberOffset,
+          endLineNumber: run.source.endLineNumber + lineNumberOffset,
+          startCharacterNumber: run.source.startCharacterNumber,
+          endCharacterNumber: run.source.endCharacterNumber,
         };
         if (!resolvedFilePath) {
           onDiagnostic(
-            `Could not find '${luauFilename}' for 'run' statement.`,
+            resolution.message!,
             ErrorType.Error,
             sourceMetadata,
           );

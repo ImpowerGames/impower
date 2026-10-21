@@ -1,5 +1,10 @@
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
+  endsWithLuauExtension,
+  parseRunMessage,
+  quotedRunPath,
+} from "@impower/sparkdown/src/compiler/utils/runOperand";
+import {
   CodeAction,
   CodeActionKind,
   type Diagnostic,
@@ -43,7 +48,8 @@ export const getCodeActions = (
   }
   return diagnostics.flatMap(
     (diagnostic) =>
-      QUICK_FIXES.get(messageOf(diagnostic))?.(document, diagnostic) ?? [],
+      QUICK_FIXES.get(messageOf(diagnostic))?.(document, diagnostic) ??
+      runQuickFixes(document, diagnostic),
   );
 };
 
@@ -75,13 +81,72 @@ const quickFix = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
   edits: TextEdit[],
+  isPreferred = true,
 ): CodeAction => ({
   title,
   kind: CodeActionKind.QuickFix,
   diagnostics: [diagnostic as Diagnostic],
-  isPreferred: true,
+  isPreferred,
   edit: { changes: { [document.uri]: edits } },
 });
+
+/**
+ * The quick fixes of a diagnostic on a `run` statement's operand, which is
+ * the diagnostic's range (#1389): an unquoted path takes its quotes, a name
+ * several Luau files have takes the quoted path of one of them, and an
+ * operand that differs from files only by case takes one's spelling in its
+ * own form, a name or a quoted path with its extension written or left out
+ * (#1334). When there is more than one fix none is preferred, since which
+ * file is meant is the author's call.
+ */
+const runQuickFixes = (
+  document: TextDocument,
+  diagnostic: ActionableDiagnostic,
+): CodeAction[] => {
+  const run = parseRunMessage(messageOf(diagnostic));
+  if (!run) {
+    return [];
+  }
+  const operand = document.getText(diagnostic.range);
+  const quote = operand[0] === '"' || operand[0] === "'" ? operand[0] : "";
+  const fixes = (choices: { title: string; text: string }[]) =>
+    choices.map(({ title, text }) =>
+      quickFix(
+        title,
+        document,
+        diagnostic,
+        [{ range: diagnostic.range, newText: text }],
+        choices.length === 1,
+      ),
+    );
+  switch (run.kind) {
+    case "quotePath":
+      return quote ? [] : fixes([{ title: "Quote the path", text: `"${operand}"` }]);
+    case "ambiguousName":
+      return fixes(
+        run.paths.map((path) => {
+          const text = `"${quotedRunPath(path)}"`;
+          return { title: `Use ${text}`, text };
+        }),
+      );
+    case "missingName":
+      return fixes(
+        run.suggestions.map((name) => ({ title: `Change to '${name}'`, text: name })),
+      );
+    case "missingPath": {
+      if (!quote) {
+        return [];
+      }
+      const keepsExtension = endsWithLuauExtension(operand.slice(1, -1));
+      return fixes(
+        run.suggestions.map((path) => {
+          const spelled = keepsExtension ? path : quotedRunPath(path);
+          return { title: `Change to '${spelled}'`, text: quote + spelled + quote };
+        }),
+      );
+    }
+  }
+};
 
 /** The edit that deletes `line` with its line break; the last line, which
  *  has none, takes the break before it. */

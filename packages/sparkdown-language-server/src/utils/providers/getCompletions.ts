@@ -14,6 +14,12 @@ import {
   insideElementValue,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
+import {
+  luauFileName,
+  projectLuauFiles,
+  projectPath,
+} from "@impower/sparkdown/src/compiler/utils/projectMembership";
+import { quotedRunPath } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -637,39 +643,82 @@ const addScreenElementReferenceCompletions = (
   }
 };
 
-const addScriptCompletions = (
+/**
+ * The completions of a `run` statement's operand, `typed` being the operand
+ * up to the cursor at `position` in the script `scriptUri` (#1389): after
+ * `run ` the name of each `.luau` file of the program's project that no other
+ * file there shares, and after `run "` the path of each relative to the
+ * script, `.luau` left out, as the compiler resolves them. Each replaces what
+ * is typed.
+ */
+const addRunCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  exclude?: string[],
-  insertTextPrefix = "",
-  insertTextSuffix = "",
+  config: SparkdownCompilerConfig | undefined,
+  scriptUri: string,
+  typed: string,
+  position: Position,
 ) => {
-  if (program?.files) {
-    for (const file of Object.values(program.files)) {
-      if (file.type === "script") {
-        const uri = file.uri;
-        if (!exclude || !exclude.includes(uri)) {
-          const workspace = program.workspace;
-          const relativePath =
-            workspace && uri.startsWith(workspace)
-              ? uri.slice(workspace.length + 1)
-              : uri;
-          const extIndex = relativePath.lastIndexOf(".");
-          const name =
-            extIndex < 0 ? relativePath : relativePath.slice(0, extIndex);
-          const completion: CompletionItem = {
-            label: name,
-            insertText: insertTextPrefix + name + insertTextSuffix,
-            labelDetails: { description: "script" },
-            kind: CompletionItemKind.File,
-          };
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
-          }
-        }
-      }
+  if (!program?.files) {
+    return;
+  }
+  const quote = typed[0] === '"' || typed[0] === "'" ? typed[0] : "";
+  const written = quote ? typed.slice(1) : typed;
+  if (quote && written.includes(quote)) {
+    return;
+  }
+  const asWritten = config?.uriPathsAsWritten;
+  const uris = new Set(Object.values(program.files).map((file) => file.uri));
+  const luauFiles = projectLuauFiles(
+    program.uri,
+    uris,
+    (uri) => uris.has(uri),
+    config?.mainScriptFilename,
+    asWritten,
+  );
+  const range = {
+    start: { line: position.line, character: position.character - written.length },
+    end: position,
+  };
+  const add = (label: string, description: string) => {
+    if (label && !completions.has(label)) {
+      completions.set(label, {
+        label,
+        labelDetails: { description },
+        kind: CompletionItemKind.File,
+        filterText: label,
+        textEdit: { newText: label, range },
+      });
+    }
+  };
+  if (quote) {
+    const folder = scriptUri.slice(0, scriptUri.lastIndexOf("/") + 1);
+    for (const uri of luauFiles) {
+      add(quotedRunPath(projectPath(relativeUri(folder, uri), asWritten)), "Luau file");
+    }
+    return;
+  }
+  const counts = new Map<string, number>();
+  for (const uri of luauFiles) {
+    const name = luauFileName(uri, asWritten);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  for (const [name, count] of counts) {
+    if (count === 1) {
+      add(name, "Luau file");
     }
   }
+};
+
+/** The path of `uri` relative to the folder `folder`, a URI ending in `/`. */
+const relativeUri = (folder: string, uri: string): string => {
+  const from = folder.split("/").slice(0, -1);
+  const to = uri.split("/");
+  let shared = 0;
+  while (shared < from.length && shared < to.length - 1 && from[shared] === to[shared]) {
+    shared += 1;
+  }
+  return [...from.slice(shared).map(() => ".."), ...to.slice(shared)].join("/");
 };
 
 const getTypeDescription = (v: unknown): string | undefined => {
@@ -1513,21 +1562,41 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Include
+  // Run
   if (
     (isWhitespaceNode(leftStack[0]?.name) &&
-      prevNode?.name === "IncludeKeyword") ||
+      prevNode?.name === "RunKeyword") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n?.name === "Include_begin")) ||
-    leftStack.some((n) => n?.name === "IncludeContent")
+      leftStack.some((n) => n?.name === "Run_begin")) ||
+    leftStack.some((n) => n?.name === "RunContent")
   ) {
-    const includeContentNode = getDescendentInsideParent(
-      "IncludeContent",
-      "Include",
+    const runContentNode = getDescendentInsideParent(
+      "RunContent",
+      "Run",
       leftStack,
     );
-    if (isCursorAfterNodeText(includeContentNode)) {
-      addScriptCompletions(completions, program, [document.uri]);
+    const runKeywordNode = getDescendentInsideParent(
+      "RunKeyword",
+      "Run",
+      leftStack,
+    );
+    // The operand up to the cursor, and after it nothing but the closing
+    // quote an editor types with the opening one.
+    const typed = runKeywordNode
+      ? read(runKeywordNode.to, documentCursorOffset).trimStart()
+      : "";
+    const after = runContentNode
+      ? getNodeText(runContentNode).slice(getCursorOffset(runContentNode)).trim()
+      : "";
+    if (!after || (after.length === 1 && after === typed[0])) {
+      addRunCompletions(
+        completions,
+        program,
+        config,
+        document.uri,
+        typed,
+        position,
+      );
     }
     return buildCompletions();
   }

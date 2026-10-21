@@ -117,11 +117,23 @@ export const getRenameEdits = (
     }
   }
 
-  if (symbol.name === "IncludeContent") {
-    const path = document.read(symbol.from, symbol.to);
-    const oldUri = workspace.resolve(document.uri, path);
+  // A `run` operand renames the `.luau` file it names with it (#1389): the
+  // file's name before its first dot, which is the part of the operand
+  // renamed, so `lib/helpers.v2.luau` becomes `lib/tools.v2.luau`.
+  if (symbol.name === "RunContent") {
+    const operand = document.read(symbol.from, symbol.to);
+    const oldUri = workspace.resolveRun(document.uri, operand);
     if (oldUri) {
-      const newUri = workspace.getRenamedUri(oldUri, newName);
+      const folder = oldUri.slice(0, oldUri.lastIndexOf("/") + 1);
+      const file = oldUri.slice(folder.length);
+      const newUri = folder + newName + file.slice(file.indexOf("."));
+      // The references above can already hold the operand's name.
+      const edits = changes[document.uri] ?? [];
+      const at = document.offsetAt(nameRange.start);
+      changes[document.uri] = edits.filter(
+        (edit) => document.offsetAt(edit.range.end) <= at ||
+          document.offsetAt(edit.range.start) >= document.offsetAt(nameRange.end),
+      );
       renameSymbol(document.uri, nameRange);
       renameFile(oldUri, newUri);
     }

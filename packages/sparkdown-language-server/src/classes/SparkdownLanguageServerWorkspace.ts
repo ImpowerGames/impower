@@ -12,7 +12,12 @@ import {
 } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
+import {
+  isLuauFile,
+  projectLuauFiles,
+} from "@impower/sparkdown/src/compiler/utils/projectMembership";
 import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
+import { findRunName } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getDiagnosticActions } from "../utils/providers/getCodeActions";
@@ -73,7 +78,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         file.name = this.getFileName(file.uri);
         file.ext = this.getFileExtension(file.uri);
         file.type = this.getFileType(file.uri);
-        if (file.type === "script") {
+        if (file.type === "script" && !isLuauFile(file.uri)) {
           this._documents.add({
             textDocument: {
               uri: file.uri,
@@ -91,16 +96,46 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     this._workspaceFolders = workspaceFolders;
   }
 
-  resolve(rootUri: string, path: string): string | undefined {
-    for (const ext of this._documents.parser.grammar.definition.fileTypes || [
-      "",
-    ]) {
-      const uri = resolveFileUsingImpliedExtension(rootUri, path, ext);
-      if (this._documents.has(uri)) {
-        return uri;
-      }
+  /** The `.luau` files a `run` in the script `uri` finds by name: those of
+   *  the project of its nearest main script (`projectLuauFiles`). */
+  runLuauFiles(uri: string): string[] {
+    return projectLuauFiles(
+      this.getMainScriptUri(uri) ?? uri,
+      this._watchedFiles.keys(),
+      (script) => this._watchedFiles.has(script),
+      this.mainScriptFilename,
+      this.compilerConfig?.uriPathsAsWritten,
+    );
+  }
+
+  /**
+   * The `.luau` file the operand of a `run` statement in the script `uri`
+   * names, as the compiler resolves it (#1389): a quoted operand is a path
+   * relative to the script, `.luau` implied, and an unquoted one the name of
+   * the one `.luau` file of that name in the project. `undefined` when no
+   * file, or more than one, answers.
+   */
+  resolveRun(uri: string, operand: string): string | undefined {
+    const text = operand.trim();
+    const quoted = /^(["']).*\1$/.test(text) && text.length > 1;
+    const written = quoted ? text.slice(1, -1) : text;
+    const path = written.endsWith(".luau") ? written.slice(0, -".luau".length) : written;
+    if (!path.trim()) {
+      return undefined;
     }
-    return undefined;
+    if (quoted) {
+      const target = resolveFileUsingImpliedExtension(uri, `${path}.luau`, "luau");
+      return this._watchedFiles.has(target) ? target : undefined;
+    }
+    if (path.includes("/")) {
+      return undefined;
+    }
+    const { matches } = findRunName(
+      path,
+      this.runLuauFiles(uri),
+      this.compilerConfig?.uriPathsAsWritten,
+    );
+    return matches.length === 1 ? matches[0] : undefined;
   }
 
   uris() {
@@ -537,6 +572,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (
       file &&
       file.type === "script" &&
+      !isLuauFile(file.uri) &&
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
@@ -573,6 +609,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (
       file &&
       file.type === "script" &&
+      !isLuauFile(file.uri) &&
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
@@ -617,6 +654,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   private isScriptDocument(uri: string): boolean {
+    if (isLuauFile(uri)) {
+      return false;
+    }
     return this.getFileType(uri) === "script" ||
       this._documents.get(uri)?.languageId === "sparkdown";
   }
