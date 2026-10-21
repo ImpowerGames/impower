@@ -64,9 +64,80 @@ describe("a function value written into a line", () => {
     ).toEqual(["Value function: h, function: h."]);
   });
 
+  // Round 1 of the review of #2116 (report 6305108271): a multiple value, a
+  // closure and a builtin printed their table text in a line.
+  it("prints the first of several returned values as a function", () => {
+    expect(
+      texts(
+        [
+          "function f()",
+          "  return 1",
+          "end",
+          "",
+          "function pair()",
+          "  return f, 2",
+          "end",
+          "",
+          "Value {pair()}.",
+          "done",
+        ].join("\n"),
+      ),
+    ).toEqual(["Value function: f."]);
+  });
+
+  it("prints a closure and a builtin as tostring does", () => {
+    expect(
+      texts(
+        [
+          "function make(n)",
+          "  return function() return n end",
+          "end",
+          "",
+          "local h = make(1)",
+          "local p = print",
+          "Values {h} and {p}.",
+          "Strings {tostring(h)} and {tostring(p)}.",
+          "done",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "Values function: make.<anonymous> and function: builtin: print.",
+      "Strings function: make.<anonymous> and function: builtin: print.",
+    ]);
+  });
+
+  it("prints a function value in a choice's text", () => {
+    const { program } = compileScript(
+      [
+        "function f()",
+        "  return 1",
+        "end",
+        "",
+        "function pair()",
+        "  return f, 2",
+        "end",
+        "",
+        "choose",
+        "  + Use {f}",
+        "    ok",
+        "  + Use {pair()}",
+        "    ok",
+        "end",
+        "done",
+      ].join("\n"),
+    );
+    const story = new ProgramStory(program.chunks!);
+    story.ContinueMaximally();
+    expect(story.currentChoices.map((c) => c.text)).toEqual([
+      "Use function: f",
+      "Use function: f",
+    ]);
+  });
+
   // `program-save-function-key.json` is the state main's engine (9c826c4b1)
   // saved after the first line of this script: it holds `t[f]` under the key
-  // text saves have always held a function under, `DivertTargetValue(f)`.
+  // text saves have always held a function under, the class name of the
+  // deleted object engine around the label.
   it("still finds t[f] in a save that holds it under the old key text", () => {
     const { program } = compileScript(
       [
@@ -91,7 +162,7 @@ describe("a function value written into a line", () => {
       "utf-8",
     );
     expect(Object.keys(JSON.parse(saved).variablesState.t.obj)).toContain(
-      "DivertTargetValue(f)",
+      "DivertTargetValue(" + "f)",
     );
     const story = new ProgramStory(program.chunks!);
     story.state.LoadJson(saved);

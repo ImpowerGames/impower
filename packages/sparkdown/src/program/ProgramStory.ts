@@ -35,6 +35,7 @@ import {
   Value,
   ValueType,
   VariablePointerValue,
+  functionText,
 } from "../runtime/Value";
 import { VariableAssignment } from "../runtime/VariableAssignment";
 import {
@@ -2668,11 +2669,9 @@ export class ProgramStory implements StoryEngine {
         if (state.evaluationStack.length > 0) {
           const output = state.PopEvaluationStack();
           if (!(output instanceof Void)) {
-            // A function value's `toString` is its table key, not its text.
-            const text =
-              output instanceof SymbolValue
-                ? output.displayText
-                : output.toString();
+            // A function value's `toString` is its table key, not its text;
+            // a multiple value prints its first.
+            const text = functionText(oneValue(output)) ?? output.toString();
             state.PushToOutputStream(new StringValue(text));
           }
         }

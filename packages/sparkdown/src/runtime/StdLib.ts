@@ -17,6 +17,7 @@ import {
   SymbolValue,
   Value,
   VariablePointerValue,
+  functionText,
 } from "./Value";
 import {
   luaPatternToJs,
@@ -3214,33 +3215,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
           return;
         }
       }
-      // Function values stringify as Lua's `function: <id>` form,
-      // not as the underlying JS class name. Sparkdown represents
-      // functions as either:
-      //   - `SymbolValue` (named functions, flows and function
-      //     literals without captured upvalues)
-      //   - `ObjectValue` with `__closure_fn` (closures that captured
-      //     upvalues)
-      // Both should serialize to a stable opaque token so authors
-      // can use tostring(fn) in interpolations without leaking
-      // internal representation.
-      if (v instanceof SymbolValue) {
-        return v.displayText;
-      }
+      // Function values (a `SymbolValue`, a closure or a builtin) print
+      // Luau's `function: <id>` form, as a line prints them, not their
+      // table key text.
+      const fnText = functionText(v);
+      if (fnText !== null) return fnText;
       if (typeof v === "object" && "value" in v) {
         const map = (v as any).value;
-        if (map instanceof Map && map.has("__closure_fn")) {
-          const fnTarget = map.get("__closure_fn");
-          const path = (fnTarget as any)?.value;
-          return `function: ${path?.toString?.() ?? "<closure>"}`;
-        }
-        // First-class stdlib builtins (`tostring(print)`) are
-        // functions, not tables.
-        if (map instanceof Map && map.has("__stdlib_fn")) {
-          return `function: builtin: ${
-            (map.get("__stdlib_fn") as any)?.value ?? "?"
-          }`;
-        }
         // Plain tables stringify Lua-style as an opaque identity
         // token — `string.find(tostring{}, 'table:')` must match.
         if (map instanceof Map) {

@@ -423,15 +423,10 @@ export class SymbolValue extends Value<SymbolRef> {
   }
   // The text is the value's key in a table (`luauMapKeyString`), and a save
   // holds table keys as they are, so it keeps the form the object engine
-  // printed its divert targets in, its class name around the label. It is
-  // never shown: a line and `tostring` print `displayText`.
+  // printed its divert targets in, its class name around the label. A line
+  // and `tostring` print `functionText` instead.
   public override toString() {
     return "DivertTargetValue(" + this.ref.label + ")";
-  }
-  /** Luau's text for a function, `function: <label>`: what a line prints
-   *  for the value and what `tostring` returns. */
-  public get displayText(): string {
-    return "function: " + this.ref.label;
   }
   public override Copy() {
     return new SymbolValue(this.ref);
@@ -616,6 +611,27 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
     out._metatable = this._metatable;
     return out;
   }
+}
+
+/** Luau's text for a function value, what a line prints for it and what
+ *  `tostring` returns: `function: <label>` for a function or flow (a
+ *  `SymbolValue`) and for a closure (a table holding its function at
+ *  `__closure_fn`), `function: builtin: <name>` for a builtin (a table
+ *  marked `__stdlib_fn`). `null` when the value is no function. The value's
+ *  `toString` is its table key instead, which saves hold. */
+export function functionText(value: unknown): string | null {
+  if (value instanceof SymbolValue) return "function: " + value.ref.label;
+  if (!(value instanceof ObjectValue) || value.value === null) return null;
+  const closure = value.value.get("__closure_fn");
+  if (closure !== undefined) {
+    const label = closure instanceof SymbolValue ? closure.ref.label : null;
+    return `function: ${label ?? "<closure>"}`;
+  }
+  const builtin = value.value.get("__stdlib_fn");
+  if (builtin !== undefined) {
+    return `function: builtin: ${builtin?.valueObject ?? "?"}`;
+  }
+  return null;
 }
 
 export enum ValueType {
