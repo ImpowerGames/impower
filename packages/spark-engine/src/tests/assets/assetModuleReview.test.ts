@@ -13,9 +13,9 @@ import { BEAT_LEAD_MS } from "../../game/core/utils/sharedClock";
 import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";
 
 const ASSETS: File[] = [
-  { uri: "file://proj/room.png", type: "image", name: "room", ext: "png", src: "/file:/proj/room.png?v=1" },
-  { uri: "file://proj/room2.png", type: "image", name: "room2", ext: "png", src: "/file:/proj/room2.png?v=1" },
-  { uri: "file://proj/fancy.ttf", type: "font", name: "Fancy", ext: "ttf", src: "/file:/proj/fancy.ttf?v=1" },
+  { uri: "inmemory:///room.png", type: "image", name: "room", ext: "png", src: "/file:/proj/room.png?v=1" },
+  { uri: "inmemory:///room2.png", type: "image", name: "room2", ext: "png", src: "/file:/proj/room2.png?v=1" },
+  { uri: "inmemory:///fancy.ttf", type: "font", name: "Fancy", ext: "ttf", src: "/file:/proj/fancy.ttf?v=1" },
 ];
 
 const byMethod = (messages: any[], method: string) =>

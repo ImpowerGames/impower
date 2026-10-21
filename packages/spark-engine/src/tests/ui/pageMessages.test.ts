@@ -94,7 +94,7 @@ describe("page messages", () => {
     // part of it, so it must send nothing.
     const fonts: File[] = [
       {
-        uri: "file://proj/fancy.ttf",
+        uri: "inmemory:///fancy.ttf",
         type: "font",
         name: "Fancy",
         ext: "ttf",
@@ -147,7 +147,7 @@ describe("page messages", () => {
     // newer connect begins meanwhile. That connect restores its own layouts.
     const fonts: File[] = [
       {
-        uri: "file://proj/fancy.ttf",
+        uri: "inmemory:///fancy.ttf",
         type: "font",
         name: "Fancy",
         ext: "ttf",

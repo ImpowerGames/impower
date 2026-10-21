@@ -26,7 +26,7 @@ import {
 // follows the cursor without being sent for every beat.
 
 const asset = (type: string, name: string, ext: string): File => ({
-  uri: `file://proj/${name}.${ext}`,
+  uri: `inmemory:///${name}.${ext}`,
   type,
   name,
   ext,
