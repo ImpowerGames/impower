@@ -63,8 +63,8 @@ export interface ResolutionTap {
   /** Every assignment the story's statements hold, which the resolver
    *  knows from each statement's syntax (`Story.globalAssignmentNames`). */
   assignments(): Iterable<ParsedObject>;
-  /** Whether a plain assignment the story's statements hold writes the
-   *  global \`name\` (\`Story.assignsGlobally\`), from what the resolver
+  /** Whether a plain assignment or a literal-key store through the globals table the
+   *  story's statements hold writes the global \`name\` (\`Story.assignsGlobally\`), from what the resolver
    *  decided for each as it shaped its statement
    *  (\`VariableAssignment.boundLocally\`). Every assignment of the name
    *  declares the name, with whether it writes the global, so the caller's

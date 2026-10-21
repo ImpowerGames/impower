@@ -564,7 +564,8 @@ describe("a statement resolved anew", () => {
   });
 
   // A call of a top-level function calls the global of its name when a plain
-  // assignment anywhere writes that global (#1591,
+  // assignment or a literal-key store through the globals table (`_G.f = g`,
+  // I-1091) anywhere writes that global (#1591,
   // `Story.assignsGlobally`). Each assignment declares its name with whether
   // it writes the global, decided when its statement is shaped
   // (`ProgramResolver.decideWrites`), so the call reads only the name.
