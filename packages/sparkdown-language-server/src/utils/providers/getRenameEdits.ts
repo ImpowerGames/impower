@@ -1,5 +1,6 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { runOperandNameSpan } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { type Tree } from "@lezer/common";
 import {
   AnnotatedTextEdit,
@@ -118,23 +119,34 @@ export const getRenameEdits = (
   }
 
   // A `run` operand renames the `.luau` file it names with it (#1389): the
-  // file's name before its first dot, which is the part of the operand
-  // renamed, so `lib/helpers.v2.luau` becomes `lib/tools.v2.luau`.
+  // file's name before its first dot, which is the part of each operand
+  // renamed, so `lib/helpers.v2.luau` becomes `lib/tools.v2.luau`. Every run
+  // operand of every script that names the same file, by name or by path,
+  // is renamed with it, so none of them is left naming a missing file.
   if (symbol.name === "RunContent") {
     const operand = document.read(symbol.from, symbol.to);
     const oldUri = workspace.resolveRun(document.uri, operand);
+    // A run operand has no reference symbols: the references above are the
+    // whole operand, which the operands' own edits below replace.
+    for (const uri of Object.keys(changes)) {
+      delete changes[uri];
+    }
     if (oldUri) {
       const folder = oldUri.slice(0, oldUri.lastIndexOf("/") + 1);
       const file = oldUri.slice(folder.length);
       const newUri = folder + newName + file.slice(file.indexOf("."));
-      // The references above can already hold the operand's name.
-      const edits = changes[document.uri] ?? [];
-      const at = document.offsetAt(nameRange.start);
-      changes[document.uri] = edits.filter(
-        (edit) => document.offsetAt(edit.range.end) <= at ||
-          document.offsetAt(edit.range.start) >= document.offsetAt(nameRange.end),
-      );
-      renameSymbol(document.uri, nameRange);
+      for (const uri of workspace.uris()) {
+        const script = workspace.document(uri);
+        const links = workspace.annotations(uri)?.links.iter();
+        while (script && links?.value) {
+          const text = script.read(links.from, links.to);
+          if (workspace.resolveRun(uri, text) === oldUri) {
+            const [start, end] = runOperandNameSpan(text);
+            renameSymbol(uri, script.range(links.from + start, links.from + end));
+          }
+          links.next();
+        }
+      }
       renameFile(oldUri, newUri);
     }
   }

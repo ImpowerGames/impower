@@ -61,7 +61,8 @@ export interface RunOperand {
   path: string;
   /** The operand without its quotes, as written. */
   written: string;
-  quoted: boolean;
+  /** The quote character of a quoted operand, or empty for a name. */
+  quote: string;
   /** The operand's range, quotes included, in the chunk. */
   source: SourceMetadata;
 }

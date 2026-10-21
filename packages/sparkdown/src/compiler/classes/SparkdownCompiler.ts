@@ -180,7 +180,11 @@ import {
   findRunName,
   missingRunNameMessage,
   missingRunPathMessage,
+  quotedRunPath,
+  relativeRunPath,
   runPathNearMisses,
+  type RunFix,
+  type RunFixData,
 } from "../utils/runOperand";
 import {
   runCallText,
@@ -1665,6 +1669,7 @@ export class SparkdownCompiler {
       type: ErrorType,
       source: SourceMetadata | null,
       tags?: number[],
+      data?: unknown,
     ) => {
       const severity =
         type === ErrorType.Error
@@ -1721,6 +1726,9 @@ export class SparkdownCompiler {
         tags,
       );
       if (docDiagnostic) {
+        if (data !== undefined) {
+          docDiagnostic.data = data;
+        }
         program.diagnostics ??= {};
         program.diagnostics[diagUri] ??= [];
         program.diagnostics[diagUri].push(docDiagnostic);
@@ -2269,25 +2277,35 @@ export class SparkdownCompiler {
    * A quoted operand is a path relative to the script, `.luau` implied; an
    * unquoted one is a name, the one `.luau` file of that name in the project
    * of `program`. Both are case exact, and an operand that differs from
-   * files only by case names their spellings (#1334).
+   * files only by case names their spellings (#1334). A message comes with
+   * the operand's quick fixes, each the text that replaces the operand: an
+   * ambiguous name's candidates as paths quoted relative to the script, and
+   * a near miss's spellings in the operand's own form.
    */
   protected resolveRunOperand(
     run: RunOperand,
     scriptUri: string,
     program: SparkProgram,
     fileHandler: IFileHandler,
-  ): { uri?: string; message?: string } {
+  ): { uri?: string; message?: string; fixes?: RunFix[] } {
     const asWritten = this._config.uriPathsAsWritten;
     const luauFiles = this.projectLuauFilesOf(program.uri);
-    if (run.quoted) {
+    if (run.quote) {
       try {
         return { uri: fileHandler.ResolveInkFilename(`${run.path}.luau`) };
       } catch {
+        const spellings = runPathNearMisses(
+          run.written,
+          scriptUri,
+          luauFiles,
+          asWritten,
+        );
         return {
-          message: missingRunPathMessage(
-            run.written,
-            runPathNearMisses(run.written, scriptUri, luauFiles, asWritten),
-          ),
+          message: missingRunPathMessage(run.written, spellings),
+          fixes: spellings.map((spelling) => ({
+            title: `Change to '${spelling}'`,
+            newText: run.quote + spelling + run.quote,
+          })),
         };
       }
     }
@@ -2303,9 +2321,19 @@ export class SparkdownCompiler {
           run.path,
           matches.map((uri) => displayScriptPath(uri, program.uri, asWritten)),
         ),
+        fixes: matches.map((uri) => {
+          const newText = `"${quotedRunPath(relativeRunPath(scriptUri, uri, asWritten))}"`;
+          return { title: `Use ${newText}`, newText };
+        }),
       };
     }
-    return { message: missingRunNameMessage(run.path, nearMisses) };
+    return {
+      message: missingRunNameMessage(run.path, nearMisses),
+      fixes: nearMisses.map((name) => ({
+        title: `Change to '${name}'`,
+        newText: name,
+      })),
+    };
   }
 
   /** Warns on each `.luau` file of the project of `program` that shares its
@@ -2346,6 +2374,7 @@ export class SparkdownCompiler {
       type: ErrorType,
       source: SourceMetadata | null,
       tags?: number[],
+      data?: unknown,
     ) => void,
     declarationOnly = false,
   ) {
@@ -2673,7 +2702,7 @@ export class SparkdownCompiler {
         const block = rec.block as any;
         if (block.run) {
           rootDescriptors.push(
-            `run:${block.run.quoted ? JSON.stringify(block.run.path) : block.run.path}`,
+            `run:${block.run.quote ? JSON.stringify(block.run.path) : block.run.path}`,
           );
         }
         if (chunkFlowKind(block) === "external") {
@@ -3028,10 +3057,16 @@ export class SparkdownCompiler {
           endCharacterNumber: run.source.endCharacterNumber,
         };
         if (!resolvedFilePath) {
+          // The quick fixes travel in the diagnostic's data (`RunFixData`).
+          const fixes = resolution.fixes ?? [];
           onDiagnostic(
             resolution.message!,
             ErrorType.Error,
             sourceMetadata,
+            undefined,
+            fixes.length > 0
+              ? ({ runFixes: fixes } satisfies RunFixData)
+              : undefined,
           );
         } else if (
           state.fileResolutionState?.runStack?.includes(resolvedFilePath)

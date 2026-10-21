@@ -478,7 +478,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
     return diagnostics.map((diagnostic) => {
       const actions = getDiagnosticActions(document, diagnostic);
-      return actions.length > 0 ? { ...diagnostic, data: actions } : diagnostic;
+      if (actions.length > 0) {
+        return { ...diagnostic, data: actions };
+      }
+      // That client reads `data` as actions alone, so the compiler's own
+      // (a run operand's `RunFixData`) does not reach it.
+      const { data: _data, ...rest } = diagnostic;
+      return rest as T;
     });
   }
 

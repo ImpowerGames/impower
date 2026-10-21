@@ -171,6 +171,66 @@ describe("run by name", () => {
     ]);
   });
 
+  // Round 1 of PR #2124's review: an ambiguous name's fixes are the
+  // candidates' paths relative to the script the run is in, which is not
+  // main.sd's folder when the run is in a scene of another script, and they
+  // travel as data, so a path with an apostrophe in it comes through whole.
+  test("offers each candidate's path relative to the script the run is in", () => {
+    const CHAPTER = "inmemory:///chapters/chapter.sd";
+    const { result, errors } = compileProject({
+      "main.sd": "-> chapter\n",
+      "chapters/chapter.sd": "scene chapter\n  run util\n  done\nend\n",
+      "lib/O'Brien/util.luau": "harness_record(1)\n",
+      "scripts/util.luau": "harness_record(2)\n",
+    });
+    expect(errors).toEqual([
+      "More than one Luau file in the project is named 'util': 'lib/O'Brien/util.luau' and 'scripts/util.luau'. Quote the path of the one to run.",
+    ]);
+    const [diagnostic] = (result.program.diagnostics?.[CHAPTER] ?? []).filter(
+      (d) => d.severity === 1,
+    );
+    expect(diagnostic!.range).toEqual({
+      start: { line: 1, character: 6 },
+      end: { line: 1, character: 10 },
+    });
+    expect(diagnostic!.data).toEqual({
+      runFixes: [
+        { title: `Use "../lib/O'Brien/util"`, newText: `"../lib/O'Brien/util"` },
+        { title: 'Use "../scripts/util"', newText: '"../scripts/util"' },
+      ],
+    });
+    // Each fix's path resolves from the chapter.
+    for (const fix of diagnostic!.data.runFixes) {
+      const fixed = compileProject({
+        "main.sd": "-> chapter\n",
+        "chapters/chapter.sd": `scene chapter\n  run ${fix.newText}\n  done\nend\n`,
+        "lib/O'Brien/util.luau": "harness_record(1)\n",
+        "scripts/util.luau": "harness_record(2)\n",
+      });
+      expect(fixed.errors).toEqual([]);
+    }
+  });
+
+  // Round 1 of PR #2124's review: a quote the line never closes is read as
+  // part of an unquoted operand, and is reported as the missing quote it is.
+  test.each([`"./lib/helpers`, `'helpers`])(
+    "reports a quote the line never closes: run %s",
+    (operand) => {
+      const { result, diagnostics } = compileProject({
+        "main.sd": mainRunning(operand),
+        "lib/helpers.luau": "harness_record(1)\n",
+      });
+      expect(diagnostics(MAIN)).toEqual([
+        {
+          message: `Close the quote: run ${operand}${operand[0]}`,
+          severity: 1,
+          range: operandRange(operand),
+        },
+      ]);
+      expect(recorded(result.program.chunks)).toEqual([]);
+    },
+  );
+
   test("reports an unquoted path and asks for its quotes", () => {
     const { result, diagnostics } = compileProject({
       "main.sd": mainRunning("scripts/start"),

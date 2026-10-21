@@ -6,8 +6,8 @@ import { resolveFileUsingImpliedExtension } from "./resolveFileUsingImpliedExten
 // project, and a quoted one is a path relative to the script, `.luau`
 // implied (#1389). Both are case exact; an operand that differs from a file
 // only by case reports the file's spelling instead of resolving (#1334). The
-// compiler reports these messages and the language server's quick fixes read
-// them back.
+// compiler reports these messages, with the quick fixes the language server
+// offers for them (`RunFixData`).
 
 /** Whether `text` ends in `.luau`, in any case. */
 export const endsWithLuauExtension = (text: string): boolean =>
@@ -58,45 +58,79 @@ export const missingRunPathMessage = (
 export const ambiguousRunNameMessage = (name: string, paths: string[]): string =>
   `More than one Luau file in the project is named '${name}': ${quotedList(paths, "and")}. Quote the path of the one to run.`;
 
-/** A run message the language server has quick fixes for. */
-export type RunMessage =
-  | { kind: "quotePath" }
-  | { kind: "ambiguousName"; paths: string[] }
-  | { kind: "missingName"; suggestions: string[] }
-  | { kind: "missingPath"; suggestions: string[] };
+/** An operand that opens a quote and never closes it. */
+export const closeQuoteMessage = (operand: string): string =>
+  `Close the quote: run ${operand}${operand[0]}`;
 
-const QUOTED_ITEM = /'([^']*)'/g;
+/** A quick fix of a diagnostic on a run operand: the text that replaces the
+ *  operand, which is the diagnostic's range. The compiler computes them,
+ *  since it knows the files and the script the operand is in, and carries
+ *  them in the diagnostic's `data` (`RunFixData`); the language server offers
+ *  them as they are. */
+export interface RunFix {
+  title: string;
+  newText: string;
+}
 
-const quotedItems = (text: string): string[] =>
-  [...text.matchAll(QUOTED_ITEM)].map((match) => match[1]!);
+/** The `data` of a diagnostic on a run operand that has quick fixes. */
+export interface RunFixData {
+  runFixes: RunFix[];
+}
 
-/** What a diagnostic's message says about a run operand, or `undefined` for
- *  any other message. */
-export const parseRunMessage = (message: string): RunMessage | undefined => {
-  if (message.startsWith('Quote a path: run "')) {
-    return { kind: "quotePath" };
-  }
-  const ambiguous = /^More than one Luau file in the project is named '[^']*': (.*)\. Quote the path of the one to run\.$/.exec(
-    message,
-  );
-  if (ambiguous) {
-    return { kind: "ambiguousName", paths: quotedItems(ambiguous[1]!) };
-  }
-  const suggestions = /^Could not find .*? Did you mean (.*)\?$/.exec(message);
-  if (message.startsWith("Could not find a Luau file named '")) {
-    return {
-      kind: "missingName",
-      suggestions: suggestions ? quotedItems(suggestions[1]!) : [],
-    };
-  }
-  if (/^Could not find '.*' for 'run' statement\./.test(message)) {
-    return {
-      kind: "missingPath",
-      suggestions: suggestions ? quotedItems(suggestions[1]!) : [],
-    };
-  }
-  return undefined;
+/** The quick fixes `data` carries, if it is a run diagnostic's. */
+export const runFixesOf = (data: unknown): RunFix[] => {
+  const fixes = (data as Partial<RunFixData> | undefined)?.runFixes;
+  return Array.isArray(fixes)
+    ? fixes.filter(
+        (fix): fix is RunFix =>
+          typeof fix?.title === "string" && typeof fix?.newText === "string",
+      )
+    : [];
 };
+
+/**
+ * The path of the file `fileUri` relative to the folder of the script
+ * `scriptUri`, as the file system names it (`projectPath`; `asWritten` is the
+ * host's `uriPathsAsWritten`): `lib/helpers.luau` from main.sd at the root,
+ * `../lib/helpers.luau` from `chapters/act1.sd`.
+ */
+export function relativeRunPath(
+  scriptUri: string,
+  fileUri: string,
+  asWritten = false,
+): string {
+  const from = scriptUri.split("/").slice(0, -1);
+  const to = fileUri.split("/");
+  let shared = 0;
+  while (
+    shared < from.length &&
+    shared < to.length - 1 &&
+    from[shared] === to[shared]
+  ) {
+    shared += 1;
+  }
+  return [
+    ...from.slice(shared).map(() => ".."),
+    ...to.slice(shared).map((segment) => projectPath(segment, asWritten)),
+  ].join("/");
+}
+
+/** The offsets, in a run operand's text as written (`text`, quotes and any
+ *  whitespace after them included), of the name of the file it names: the
+ *  last path segment, before its first dot, inside the quotes. Renaming the
+ *  file renames this part. */
+export function runOperandNameSpan(text: string): [number, number] {
+  const trimmed = text.trimEnd();
+  const quoted = /^["']/.test(trimmed);
+  const innerStart = quoted ? 1 : 0;
+  const innerEnd =
+    quoted && trimmed.length > 1 && trimmed.endsWith(trimmed[0]!)
+      ? trimmed.length - 1
+      : trimmed.length;
+  const start = Math.max(innerStart, trimmed.lastIndexOf("/", innerEnd - 1) + 1);
+  const dot = trimmed.indexOf(".", start);
+  return [start, dot < 0 || dot > innerEnd ? innerEnd : dot];
+}
 
 /** The operand a quoted path resolves to written as `path`, `.luau` implied:
  *  `./lib/helpers` for the file `lib/helpers.luau` below the project's

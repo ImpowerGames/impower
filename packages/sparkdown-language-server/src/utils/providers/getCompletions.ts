@@ -17,9 +17,11 @@ import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import {
   luauFileName,
   projectLuauFiles,
-  projectPath,
 } from "@impower/sparkdown/src/compiler/utils/projectMembership";
-import { quotedRunPath } from "@impower/sparkdown/src/compiler/utils/runOperand";
+import {
+  quotedRunPath,
+  relativeRunPath,
+} from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -692,9 +694,8 @@ const addRunCompletions = (
     }
   };
   if (quote) {
-    const folder = scriptUri.slice(0, scriptUri.lastIndexOf("/") + 1);
     for (const uri of luauFiles) {
-      add(quotedRunPath(projectPath(relativeUri(folder, uri), asWritten)), "Luau file");
+      add(quotedRunPath(relativeRunPath(scriptUri, uri, asWritten)), "Luau file");
     }
     return;
   }
@@ -708,17 +709,6 @@ const addRunCompletions = (
       add(name, "Luau file");
     }
   }
-};
-
-/** The path of `uri` relative to the folder `folder`, a URI ending in `/`. */
-const relativeUri = (folder: string, uri: string): string => {
-  const from = folder.split("/").slice(0, -1);
-  const to = uri.split("/");
-  let shared = 0;
-  while (shared < from.length && shared < to.length - 1 && from[shared] === to[shared]) {
-    shared += 1;
-  }
-  return [...from.slice(shared).map(() => ".."), ...to.slice(shared)].join("/");
 };
 
 const getTypeDescription = (v: unknown): string | undefined => {

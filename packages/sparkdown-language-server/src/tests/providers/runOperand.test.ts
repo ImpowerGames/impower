@@ -62,17 +62,21 @@ const compile = (main: string, files: Record<string, string> = LUAU): SparkProgr
   }
 };
 
-const errorsOf = (program: SparkProgram) =>
-  (program.diagnostics?.[MAIN] ?? []).filter((d) => d.severity === 1);
+const errorsOf = (program: SparkProgram, uri = MAIN) =>
+  (program.diagnostics?.[uri] ?? []).filter((d) => d.severity === 1);
 
 /** The quick fixes main's errors offer, each with main's text after it. */
-const fixesOf = (text: string, files?: Record<string, string>) => {
-  const program = compile(text, files);
-  const document = TextDocument.create(MAIN, "sparkdown", 1, text);
-  return getCodeActions(document, errorsOf(program)).map((action) => ({
+const fixesOf = (text: string, files?: Record<string, string>) =>
+  fixesIn(MAIN, text, compile(text, files));
+
+/** The quick fixes the errors of the script `uri`, holding `text`, offer in
+ *  `program`, each with the script's text after it. */
+const fixesIn = (uri: string, text: string, program: SparkProgram) => {
+  const document = TextDocument.create(uri, "sparkdown", 1, text);
+  return getCodeActions(document, errorsOf(program, uri)).map((action) => ({
     title: action.title,
     preferred: action.isPreferred,
-    text: TextDocument.applyEdits(document, action.edit!.changes![MAIN]!),
+    text: TextDocument.applyEdits(document, action.edit!.changes![uri]!),
   }));
 };
 
@@ -105,6 +109,44 @@ describe("the run operand's quick fixes", () => {
     const fixes = fixesOf(lines(`run ${operand}`, "done", ""));
     expect(fixes).toEqual([{ title, preferred: true, text: lines(fixed, "done", "") }]);
     expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
+  });
+
+  test.each([
+    ['run "./lib/helpers', 'run "./lib/helpers"'],
+    ["run 'lib/helpers", "run 'lib/helpers'"],
+  ])("closes a quote the line never closes: %s", (line, fixed) => {
+    const fixes = fixesOf(lines(line, "done", ""));
+    expect(fixes).toEqual([
+      { title: "Close the quote", preferred: true, text: lines(fixed, "done", "") },
+    ]);
+    expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
+  });
+
+  // Round 1 of PR #2124's review: the fixes of a run in another script's
+  // scene are paths relative to that script, and a path holding an
+  // apostrophe comes through whole.
+  test("offers paths relative to the script the run is in, apostrophes and all", () => {
+    const CHAPTER = `${ROOT}chapters/chapter.sd`;
+    const chapter = (operand: string) =>
+      lines("scene chapter", `  run ${operand}`, "  done", "end", "");
+    const files = {
+      "chapters/chapter.sd": chapter("util"),
+      "lib/O'Brien/util.luau": "local a = 1",
+      "scripts/util.luau": "local b = 2",
+    };
+    const fixes = fixesIn(CHAPTER, chapter("util"), compile("-> chapter", files));
+    expect(fixes).toEqual([
+      {
+        title: `Use "../lib/O'Brien/util"`,
+        preferred: false,
+        text: chapter(`"../lib/O'Brien/util"`),
+      },
+      { title: 'Use "../scripts/util"', preferred: false, text: chapter('"../scripts/util"') },
+    ]);
+    for (const fix of fixes) {
+      const program = compile("-> chapter", { ...files, "chapters/chapter.sd": fix.text });
+      expect(errorsOf(program, CHAPTER)).toEqual([]);
+    }
   });
 
   test("offers nothing for an operand no file is near", () => {
@@ -159,13 +201,16 @@ describe("the run operand's completions", () => {
   });
 });
 
-/** A language server workspace holding main.sd and knowing the project's
- *  files, as the language server registers them. */
-const workspaceWith = (main: string) => {
+/** A language server workspace holding main.sd and the `scripts` given by
+ *  URI, and knowing the project's files, as the language server registers
+ *  them. */
+const workspaceWith = (main: string, scripts: Record<string, string> = {}) => {
   const documents = new SparkdownDocumentRegistry(["links", "references", "declarations"]);
-  documents.add({
-    textDocument: { uri: MAIN, languageId: "sparkdown", version: 1, text: main },
-  });
+  for (const [uri, text] of Object.entries({ [MAIN]: main, ...scripts })) {
+    documents.add({
+      textDocument: { uri, languageId: "sparkdown", version: 1, text },
+    });
+  }
   const workspace = Object.create(
     SparkdownLanguageServerWorkspace.prototype,
   ) as SparkdownLanguageServerWorkspace;
@@ -204,6 +249,40 @@ describe("the run operand's rename and link", () => {
         edit!.changes![MAIN]!,
       ),
     ).toBe(lines(renamed, "done", ""));
+  });
+
+  // Round 1 of PR #2124's review: every run operand that names the file, in
+  // any script and in either form, is renamed with it.
+  test("renames every run operand that names the file, and none that does not", () => {
+    const CHAPTER = `${ROOT}chapters/chapter.sd`;
+    const main = lines("run helpers", 'run "./lib/helpers.luau"', "run util", "done", "");
+    const chapter = lines("scene chapter", '  run "../lib/helpers"', "  run helpers", "end", "");
+    const { workspace, documents, document } = workspaceWith(main, { [CHAPTER]: chapter });
+    const edit = getRenameEdits(
+      undefined,
+      document,
+      documents.tree(MAIN),
+      undefined,
+      workspace,
+      "tools",
+      document.positionAt(main.indexOf("helpers")),
+    );
+    const applied = (uri: string, text: string) =>
+      TextDocument.applyEdits(
+        TextDocument.create(uri, "sparkdown", 1, text),
+        edit!.changes![uri] ?? [],
+      );
+    expect(applied(MAIN, main)).toBe(
+      lines("run tools", 'run "./lib/tools.luau"', "run util", "done", ""),
+    );
+    expect(applied(CHAPTER, chapter)).toBe(
+      lines("scene chapter", '  run "../lib/tools"', "  run tools", "end", ""),
+    );
+    expect(
+      edit?.documentChanges?.filter((change) => "kind" in change),
+    ).toEqual([
+      { kind: "rename", oldUri: `${ROOT}lib/helpers.luau`, newUri: `${ROOT}lib/tools.luau` },
+    ]);
   });
 
   test.each([

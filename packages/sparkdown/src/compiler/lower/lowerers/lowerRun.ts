@@ -3,7 +3,7 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { SourceMetadata } from "../../../runtime/Error";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { quotePathMessage } from "../../utils/runOperand";
+import { closeQuoteMessage, quotePathMessage } from "../../utils/runOperand";
 import type { LowerContext } from "../context";
 import { statementSource } from "../utils/statementSource";
 
@@ -16,9 +16,12 @@ import { statementSource } from "../utils/statementSource";
 // The quotes decide the operand's form (#1389): a quoted operand is a path
 // relative to the script, and an unquoted one is a name, the one `.luau`
 // file of that name in the project, so an unquoted operand holding a slash
-// is a path the author meant to quote. The `.luau` extension is implicit in
-// both, so `run "basic"` and `run "basic.luau"` resolve to the same file;
-// the lowerer strips it so the compiler only has to deal with one form.
+// is a path the author meant to quote, and one that starts with a quote is a
+// quoted path whose closing quote is missing (the grammar reads a quote it
+// cannot close as part of an unquoted operand). The `.luau` extension is
+// implicit in both, so `run "basic"` and `run "basic.luau"` resolve to the
+// same file; the lowerer strips it so the compiler only has to deal with one
+// form.
 export function lowerRun(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -66,17 +69,19 @@ export function lowerRun(
       ],
     };
   }
+  const error = (message: string): CompiledBlock => ({
+    diagnostics: [{ message, severity: ErrorType.Error, source }],
+  });
+  // value-level: the isolated unquoted operand, whose first character opens
+  // a quote the line never closes
+  if (!quoted && /^["']/.test(written)) {
+    return error(closeQuoteMessage(written));
+  }
   // value-level: the isolated operand, whose slash makes it a path
   if (!quoted && written.includes("/")) {
-    return {
-      diagnostics: [
-        {
-          message: quotePathMessage(written),
-          severity: ErrorType.Error,
-          source,
-        },
-      ],
-    };
+    return error(quotePathMessage(written));
   }
-  return { run: { path, written, quoted: !!quoted, source } };
+  return {
+    run: { path, written, quote: quoted ? raw[0]! : "", source },
+  };
 }

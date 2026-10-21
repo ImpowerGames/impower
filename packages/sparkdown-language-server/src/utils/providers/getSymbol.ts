@@ -1,5 +1,6 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { runOperandNameSpan } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
@@ -119,30 +120,10 @@ export const getSymbol = (
         // A `run` operand renames the `.luau` file it names (#1389): its
         // name is the file name the operand ends with, before the first
         // dot, inside any quotes.
-        const range = document.range(symbol.from, symbol.to);
-        // value-level: the operand's own text, measuring its parts
-        const text = document.getText(range).trimEnd();
-        const quoted = /^["']/.test(text);
-        const innerStart = quoted ? 1 : 0;
-        const innerEnd = quoted ? Math.max(innerStart, text.length - 1) : text.length;
-        const nameStartOffset = Math.max(
-          innerStart,
-          text.lastIndexOf("/", innerEnd - 1) + 1,
+        const [start, end] = runOperandNameSpan(
+          document.read(symbol.from, symbol.to),
         );
-        let nameEndOffset = text.indexOf(".", nameStartOffset);
-        if (nameEndOffset < 0 || nameEndOffset > innerEnd) {
-          nameEndOffset = innerEnd;
-        }
-        const nameRange = {
-          start: {
-            line: range.start.line,
-            character: range.start.character + nameStartOffset,
-          },
-          end: {
-            line: range.start.line,
-            character: range.start.character + nameEndOffset,
-          },
-        };
+        const nameRange = document.range(symbol.from + start, symbol.from + end);
         return { symbol, nameRange, canRename: true };
       }
       return { symbol, nameRange: symbolRange, canRename: true };
