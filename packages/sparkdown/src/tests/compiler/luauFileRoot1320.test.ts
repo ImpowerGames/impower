@@ -56,6 +56,20 @@ describe("a .luau file's top level is Luau (I-732)", () => {
     expect(warningMessages.filter((m) => m.includes("A new statement is on the same line"))).toEqual([]);
   });
 
+  // A `.luau` file is a Luau chunk, whose top level may return; a script's
+  // top level is story, where a return is an error.
+  test("a return at a .luau file's top level is no error", () => {
+    for (const source of ["local x = 1\nreturn x\n", "return\n"]) {
+      expect(collectDiagnostics(source, "inmemory:///util.luau").errorMessages, JSON.stringify(source)).toEqual([]);
+    }
+  });
+
+  test("a marked return at a .sd script's top level is still reported", () => {
+    expect(collectDiagnostics("& return 1\n", "inmemory:///main.sd").errorMessages).toEqual([
+      "Return statements can only be used inside a function body — found one at file scope.",
+    ]);
+  });
+
   test("the same text in a .sd script is still read as story after the declaration", () => {
     expect(nodeNames("inmemory:///main.sd", CONTINUED)).toContain("ImplicitAction");
   });
@@ -107,6 +121,7 @@ describe("a .luau file's Sparkdown-looking lines get the official parser's error
       const official = officialErrorList(snippet, { luauFile: true }).sort();
       expect(official.length).toBeGreaterThan(0);
       expect(errorsIn({ "snippet.luau": snippet })).toEqual(official);
+      expect(errorsIn({ "main.sd": 'run "snippet"\n', "snippet.luau": snippet }), "through a `run`").toEqual(official);
     });
   }
 });

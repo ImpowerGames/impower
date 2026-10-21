@@ -22,6 +22,7 @@ import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
 import { RecordingMap, recordRead, resolutionTap } from "../ResolutionTap";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { isLuauFile } from "../../../../../compiler/typecheck/LuauUnitNodes";
 
 // Where the enclosing code creates the value of `flow`, a function the
 // lowering names itself (an anonymous function, a `local function`, a
@@ -940,6 +941,12 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
    *  resolver the first one its statements recorded. */
   public ReportReturnOutsideFunction(foundReturn: ParsedObject): void {
     if (this.flowLevel === FlowLevel.Story) {
+      // A `.luau` file is a Luau chunk from its first line (I-1320), whose
+      // top level may return, as Luau's own parser accepts.
+      const filePath = foundReturn.debugMetadata?.filePath;
+      if (filePath && isLuauFile(filePath)) {
+        return;
+      }
       this.Error(
         `Return statements can only be used inside a function body — found one at file scope.`,
         foundReturn,

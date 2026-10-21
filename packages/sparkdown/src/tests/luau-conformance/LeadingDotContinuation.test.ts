@@ -333,9 +333,11 @@ test.each([
   ]);
 });
 
-test("a divert line in a function body is still read as a divert", () => {
+// A snippet is a `.luau` file, which is Luau from its first line (I-1320):
+// a line that begins with `->` is no divert there, and Luau reports it.
+test("a divert line in a .luau file is Luau's to report", () => {
   const [first] = checkLuau("local x = 1\n-> elsewhere\nreturn x").syntaxDiagnostics;
-  expect(first?.message).toMatch(/^Sparkdown read "->" as DivertMark, not Luau$/);
+  expect(first?.message).toBe("Expected identifier when parsing expression, got '->'");
 });
 
 // Outside a table constructor no value begins with `[`, so a line that begins

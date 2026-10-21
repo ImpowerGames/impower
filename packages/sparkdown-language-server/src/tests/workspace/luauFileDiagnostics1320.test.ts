@@ -50,12 +50,48 @@ describe("a .luau file in the language server (I-1320)", () => {
     expect(served).toEqual(compiled);
     expect(served.length).toBeGreaterThan(0);
     expect(served.filter((m) => m.includes("got '2'"))).toEqual([]);
-  });
+  }, 60_000);
 
-  it("compiles a document of the sparkdown-luau language", async () => {
+  // A story that runs the file reads it; while an editor has it open, the
+  // document's own compile owns its diagnostics ("luau-document"), and the
+  // story's compile, which reports the file's diagnostics under its uri too,
+  // leaves them alone. Closing the document clears them.
+  it("publishes an open .luau document's own diagnostics, which no story entry takes over", async () => {
+    const MAIN = "file:///project/main.sd";
+    // The workspace's compile debounce runs on a worker's global scope.
+    vi.stubGlobal("self", globalThis);
     const workspace = new TestWorkspace(silentConnection);
-    await quietly(() => workspace.loadCompiler(hostConfig(TEXT) as never));
-    (workspace as any)._documents.add({ textDocument: { uri: UTIL, languageId: "sparkdown-luau", version: 1, text: TEXT } });
-    expect((workspace as any).isScriptDocument(UTIL)).toBe(true);
-  });
+    const sent = vi.spyOn(workspace, "sendNotification").mockImplementation(() => undefined as never);
+    await quietly(() =>
+      workspace.loadCompiler({
+        files: [
+          { uri: MAIN, type: "script", name: "main", ext: "sd", text: 'run "util"\n', version: 1, languageId: "sparkdown" },
+          { uri: UTIL, type: "script", name: "util", ext: "luau", text: TEXT, version: 1, languageId: "sparkdown-luau" },
+        ],
+        workspace: "file:///project",
+      } as never),
+    );
+    expect((workspace as any).isScriptDocument(UTIL)).toBe(false);
+    const published = () =>
+      sent.mock.calls
+        .filter(([method, params]) => method === "textDocument/publishDiagnostics" && (params as { uri: string }).uri === UTIL)
+        .map(([, params]) => messages((params as { diagnostics: { message: unknown }[] }).diagnostics));
+    const own = messages(coldCompile(TEXT).diagnostics?.[UTIL]);
+
+    await quietly(() => workspace.openTextDocument({ textDocument: { uri: UTIL, languageId: "sparkdown-luau", version: 1, text: TEXT } }));
+    await vi.waitFor(() => expect(published().at(-1)).toEqual(own), { timeout: 10000 });
+    expect((workspace as any)._lastPublishedDiagnostics.get(UTIL).owner).toBe("luau-document");
+
+    // The story's compile, which reports the file's errors under its uri
+    // too, does not replace them.
+    const { program: story } = await quietly<{ program: SparkProgram }>(() => (workspace as any).compileDocument(MAIN));
+    expect(Object.keys(story.diagnostics ?? {})).toContain(UTIL);
+    workspace.onCompiledTextDocument({ textDocument: { uri: MAIN }, program: story });
+    expect((workspace as any)._lastPublishedDiagnostics.get(UTIL).owner).toBe("luau-document");
+    expect(published().at(-1)).toEqual(own);
+
+    await workspace.closeTextDocument({ textDocument: { uri: UTIL } });
+    expect(published().at(-1)).toEqual([]);
+    expect((workspace as any)._lastPublishedDiagnostics.has(UTIL)).toBe(false);
+  }, 60_000);
 });

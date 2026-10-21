@@ -11,6 +11,7 @@ import {
   SparkdownDocumentRegistry,
 } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { isLuauFile } from "@impower/sparkdown/src/compiler/typecheck/LuauUnitNodes";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
 import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
@@ -33,8 +34,13 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver";
 
-/** The language ids of the documents the server compiles: a `.sd` script's, and a `.luau` file's in VS Code. */
-const SCRIPT_LANGUAGE_IDS: ReadonlySet<string> = new Set(["sparkdown", "sparkdown-luau"]);
+/** The owner of a `.luau` document's diagnostics while an editor has it
+ *  open: its own compile (`publishLuauDocument`), which the story entries'
+ *  compiles leave alone. */
+const LUAU_DOCUMENT_OWNER = "luau-document";
+
+/** How long an open `.luau` document's own compile waits for typing to pause. */
+const LUAU_DOCUMENT_DELAY = 300;
 
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _documents: SparkdownDocumentRegistry;
@@ -76,7 +82,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         file.name = this.getFileName(file.uri);
         file.ext = this.getFileExtension(file.uri);
         file.type = this.getFileType(file.uri);
-        if (file.type === "script") {
+        if (file.type === "script" && !isLuauFile(file.uri)) {
           this._documents.add({
             textDocument: {
               uri: file.uri,
@@ -251,6 +257,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     };
   }) {
     this._documents.add(params);
+    this.scheduleLuauDocument(params.textDocument.uri);
   }
 
   override async onChangeTextDocument(params: {
@@ -261,6 +268,73 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     contentChanges: SparkdownDocumentContentChangeEvent[];
   }) {
     this._documents.update(params);
+    this.scheduleLuauDocument(params.textDocument.uri);
+  }
+
+  override onCloseTextDocument(params: { textDocument: { uri: string } }) {
+    const uri = params.textDocument.uri;
+    if (!isLuauFile(uri)) {
+      return;
+    }
+    clearTimeout(this._luauDocumentCompiles.get(uri));
+    this._luauDocumentCompiles.delete(uri);
+    // The editor no longer shows the file: its own diagnostics go, and the
+    // story entries that read it own its diagnostics again.
+    if (this._lastPublishedDiagnostics.get(uri)?.owner === LUAU_DOCUMENT_OWNER) {
+      this._lastPublishedDiagnostics.delete(uri);
+      this.sendNotification(PublishDiagnosticsNotification.method, {
+        uri,
+        diagnostics: [],
+      });
+    }
+  }
+
+  /** The pending compile of each open `.luau` document, by its uri. */
+  protected _luauDocumentCompiles = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** Compile an open `.luau` document on its own once typing pauses
+   *  (`publishLuauDocument`). Every other document is left to the entries. */
+  protected scheduleLuauDocument(uri: string) {
+    if (!isLuauFile(uri)) {
+      return;
+    }
+    clearTimeout(this._luauDocumentCompiles.get(uri));
+    this._luauDocumentCompiles.set(
+      uri,
+      setTimeout(() => {
+        this._luauDocumentCompiles.delete(uri);
+        this.publishLuauDocument(uri).catch((e) => console.error(e));
+      }, LUAU_DOCUMENT_DELAY),
+    );
+  }
+
+  /**
+   * A `.luau` document an editor has open is not a story entry (a `run`
+   * reads it), but the editor shows its own diagnostics: the document is
+   * compiled on its own, read from the grammar's Luau root (I-1320), and its
+   * diagnostics are published under `LUAU_DOCUMENT_OWNER` while it stays
+   * open. The compile is posted after the document's updates, as an entry's
+   * is, and is neither recorded as the last compiled entry nor published as
+   * a program.
+   */
+  async publishLuauDocument(uri: string) {
+    await this.compilerReady();
+    await this._documentUpdatesPosted;
+    const result = await this._compilerChannelConnection.sendRequest(
+      CompileProgramMessage.type,
+      { textDocument: { uri } },
+    );
+    if (!result.program?.summary) {
+      this._programTransport.decode(result.program);
+    }
+    if (!this.textDocumentIsOpen(uri)) {
+      return;
+    }
+    this.publishDiagnostics(
+      uri,
+      this.getDiagnostics(result.program, uri),
+      LUAU_DOCUMENT_OWNER,
+    );
   }
 
   // Fingerprint + published-at version of the last diagnostics publish per
@@ -499,6 +573,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ]);
     for (const uri of uris) {
       const last = this._lastPublishedDiagnostics.get(uri);
+      // An open `.luau` document's own compile owns its diagnostics, which a
+      // story that runs it also reports under its uri.
+      if (last?.owner === LUAU_DOCUMENT_OWNER && this.textDocumentIsOpen(uri)) {
+        continue;
+      }
       // An unrelated entry point must not clear another program's assets.
       // An explicit asset result transfers ownership even if it is unchanged.
       if (
@@ -540,6 +619,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (
       file &&
       file.type === "script" &&
+      !isLuauFile(file.uri) &&
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
@@ -576,6 +656,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (
       file &&
       file.type === "script" &&
+      !isLuauFile(file.uri) &&
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
@@ -620,9 +701,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   private isScriptDocument(uri: string): boolean {
-    const languageId = this._documents.get(uri)?.languageId;
+    if (isLuauFile(uri)) {
+      return false;
+    }
     return this.getFileType(uri) === "script" ||
-      (languageId !== undefined && SCRIPT_LANGUAGE_IDS.has(languageId));
+      this._documents.get(uri)?.languageId === "sparkdown";
   }
 
   private getFileDiagnostics(uri: string) {
