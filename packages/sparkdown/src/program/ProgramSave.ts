@@ -1381,10 +1381,39 @@ class FormPlacer {
         : symbol;
     }
     const statement = this.placeStatement(form.st);
-    const chunk = statement
+    let chunk = statement
       ? statement.placed.sequence.arrays.chunks[statement.placed.entry]
       : undefined;
-    const parts = chunk ? chunkPartsOf(chunk)?.[form.k] : undefined;
+    let parts = chunk ? chunkPartsOf(chunk)?.[form.k] : undefined;
+    if (statement && chunk && !parts?.length) {
+      // A statement placed in a run of statements of its fingerprint that
+      // has no part of the kind: the nearest of the run that has one. One
+      // statement that declares a global and writes a member function is
+      // two such chunks of its script's declaration sequence, the global's
+      // first, and a save taken before I-1438 names the write alone (`topOf`).
+      const { sequence, entry } = statement.placed;
+      const chunks = sequence.arrays.chunks;
+      const print = fingerprintOf(chunk);
+      const inRun = (at: number) =>
+        chunks[at] !== undefined && fingerprintOf(chunks[at]!) === print;
+      let lo = entry;
+      let hi = entry;
+      while (inRun(lo - 1)) {
+        lo -= 1;
+      }
+      while (inRun(hi + 1)) {
+        hi += 1;
+      }
+      let best = Infinity;
+      for (let at = lo; at <= hi; at += 1) {
+        const own = chunkPartsOf(chunks[at]!)?.[form.k];
+        if (own?.length && Math.abs(at - entry) < best) {
+          best = Math.abs(at - entry);
+          chunk = chunks[at]!;
+          parts = own;
+        }
+      }
+    }
     if (!chunk || !parts) {
       return undefined;
     }

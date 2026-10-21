@@ -228,7 +228,11 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       return;
     }
     for (const statement of statementsOf(weave.content, uri, 0)) {
-      writes.push({ ...statement, uri, globals: [] });
+      // Known by a key of its own, kept for as long as the statement's block
+      // is: a statement that declares a global and writes a member function
+      // (`& store api = {}; function api.f() end`) is a declaration of that
+      // global under its block too, in the same declaration sequence.
+      writes.push({ ...statement, block: writeKey(statement.block), uri, globals: [] });
     }
   };
 
@@ -687,6 +691,19 @@ const holdsDivertTarget = (obj: ParsedObject): boolean => {
 const divertTargetHolders = new WeakMap<ParsedObject, boolean>();
 
 // The keys of the runs after the first of a statement's declarations.
+// The key of a member function's write, by its statement's block
+// (`memberWrites`).
+const writeKeys = new WeakMap<object, object>();
+
+const writeKey = (block: object): object => {
+  let key = writeKeys.get(block);
+  if (!key) {
+    key = {};
+    writeKeys.set(block, key);
+  }
+  return key;
+};
+
 const runKeys = new WeakMap<object, object[]>();
 
 const runKey = (block: object, run: number): object => {

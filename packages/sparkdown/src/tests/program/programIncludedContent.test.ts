@@ -582,6 +582,25 @@ describe("an edit inside a script other than main", () => {
     expect(run()).toEqual(["Main 9 4.\n"]);
   });
 
+  // The line is a declaration chunk of the global and one of the write, in
+  // one declaration sequence, each keeping its own chunk.
+  it("keeps both chunks of a line that declares a table and writes its member function when another line is edited", () => {
+    const s = session({
+      [MAIN]: lines("Main {api.f()}."),
+      [FIRST]: lines("& store api = {}; function api.f() return 7 end"),
+    });
+    const before = s.root;
+    const after = s.edit(MAIN, "Main", "Main, edited,");
+    expect(s.store.emittedLastBuild).toBe(1);
+    expect(after.declarations(FIRST)!.arrays.chunks).toEqual(
+      before.declarations(FIRST)!.arrays.chunks,
+    );
+    matchesCold(after, s.texts);
+    expect(quiet(() => storyRun(new ProgramStory(after))).beats.map((beat) => beat.text)).toEqual([
+      "Main, edited, 7.\n",
+    ]);
+  });
+
   it("matches a cold compile when a script other than main gains top-level content, which it reports and drops, and loses it again", () => {
     const s = session(PROJECT);
     s.edit(SECOND, "scene T", "Second top.\n\nscene T");
@@ -796,36 +815,59 @@ describe("a save taken inside a scene of a script other than main", () => {
   });
 });
 
-// A save taken before I-1438 names a member function's write of a script
-// other than main by the `$include:` flow its script's top level then had.
-// It was written by `toSave` at ae10deabd, at the menu, for this project.
+// Saves taken before I-1438, which name a member function's write of a
+// script other than main by the `$include:` flow its script's top level then
+// had. Each was written by `toSave` at ae10deabd, at the menu of `OLD_MAIN`,
+// for a project of `OLD_MAIN` and the script beside it in its test.
 const SAVE_BEFORE_MEMBER_WRITES_DECLARE = String.raw`{"engine":"program","format":2,"engineVersion":"2","gameVersion":"","beats":[{"flags":0,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":0,"flow":""}]},"a":"start"},"evalStack":[],"output":[],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":47,"previousRandom":0,"didSafeExit":false,"variablesState":{"api":{"objid":1,"anchor":"[\"api\"]","obj":{}}},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[]},{"flags":1,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":2,"flow":""}]},"a":"start"},"evalStack":[],"output":[{"objid":2,"obj":{"target":"^action","text":"^Before."}},"\n"],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":47,"previousRandom":0,"previousFlow":"","didSafeExit":false,"globals":{},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[[{"n":""},1,-1],[{"n":"$include:file://proj/scripts/defs%2Esd"},1,-1],[{"n":"$include:file://proj/scripts/defs%2Esd$end"},1,-1]],"tables":[{"objid":1,"anchor":"[\"api\"]","obj":{"f":{"objid":3,"obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":1,\"at\":0,\"flow\":\"$include:file://proj/scripts/defs%2Esd\"}]},\"k\":\"functions\",\"i\":0,\"pl\":0}"},"__closure_upvals":{"objid":4,"obj":{}},"__closure_user_arity":0}}}}],"cells":[]}],"listings":[{"n":3,"windows":[[0,"3b9659ece42a4ea8","f042dbd371746f58","686aa7d57a09b025"]]},{"n":2,"windows":[[0,"5aec392f3f41f221","92497f75959fab38"]]}],"parts":[{"k":"functions","l":["633a3a7e8e13afea"]}]}`;
+const SAVE_BEFORE_MEMBER_WRITES_DECLARE_SHARED_LINE = String.raw`{"engine":"program","format":2,"engineVersion":"2","gameVersion":"","beats":[{"flags":0,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":0,"flow":""}]},"a":"start"},"evalStack":[],"output":[],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":16,"previousRandom":0,"didSafeExit":false,"variablesState":{"api":{"objid":1,"anchor":"[\"api\"]","obj":{}}},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[]},{"flags":1,"decisions":[],"position":{"st":{"levels":[{"s":0,"at":2,"flow":""}]},"a":"start"},"evalStack":[],"output":[{"objid":2,"obj":{"target":"^action","text":"^Before."}},"\n"],"lineEndPending":false,"lineJoinable":false,"turnIdx":-1,"storySeed":16,"previousRandom":0,"previousFlow":"","didSafeExit":false,"globals":{},"frames":[{"type":0,"start":0,"height":0,"temps":[{}]}],"counts":[[{"n":""},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd"},1,-1],[{"n":"$include:file://proj/scripts/a%2Esd$end"},1,-1]],"tables":[{"objid":1,"anchor":"[\"api\"]","obj":{"f":{"objid":3,"obj":{"__closure_fn":{"^symsave":"{\"st\":{\"levels\":[{\"s\":1,\"at\":0,\"flow\":\"$include:file://proj/scripts/a%2Esd\"}]},\"k\":\"functions\",\"i\":0,\"pl\":0}"},"__closure_upvals":{"objid":4,"obj":{}},"__closure_user_arity":0}}}}],"cells":[]}],"listings":[{"n":3,"windows":[[0,"c550fbd2442caaf7","f042dbd371746f58","686aa7d57a09b025"]]},{"n":2,"windows":[[0,"993f97c9bd606ce5","ba3d361f1da8713f"]]}],"parts":[{"k":"functions","l":["3da10608bddb8eb6"]}]}`;
+
+const OLD_MAIN = lines("Before.", "choose", "  * Go", "    Result {api.f()}.", "end");
+
+/** Loads `save` into the program of main and `script`, the script other
+ *  than main at `uri`, and takes the save's menu: the member function the
+ *  save holds runs. */
+const loadsOldSave = (save: string, uri: string, script: string) => {
+  const program = quiet(() =>
+    programCompiler({ [MAIN]: OLD_MAIN, [uri]: script }, { seedBuiltinsIntoStory: true }).compile(
+      MAIN,
+    ),
+  ).program;
+  expect(reported(program)).toEqual([]);
+  expect(save).toContain(`$include:${uri.replace(/\./g, "%2E")}`);
+  const loaded = new ProgramStory(program.chunks!);
+  loaded.keepBeatImages = true;
+  const errors: string[] = [];
+  loaded.onError = (message: string) => {
+    errors.push(message);
+  };
+  loaded.loadSave(save);
+  const report = loaded.loadedSaveReport!;
+  expect(report.exact).toBe(true);
+  expect(report.warnings).toEqual([]);
+  const run = storyRun(loaded, [0]);
+  expect(run.menus.map((menu) => menu.choices.map((choice) => choice.text))).toEqual([["Go"]]);
+  expect(run.beats.map((beat) => beat.text)).toEqual(["Go\n", "Result 7.\n"]);
+  expect(run.errors).toEqual([]);
+  expect(errors).toEqual([]);
+};
 
 describe("a save taken before a member function's write ran with the declarations", () => {
   it("loads, and the member function it holds still calls the write's function", () => {
-    const texts = {
-      [MAIN]: lines("Before.", "choose", "  * Go", "    Result {api.f()}.", "end"),
-      "file://proj/scripts/defs.sd": lines("store api = {}", "function api.f()", "  return 7", "end"),
-    };
-    const program = quiet(() =>
-      programCompiler(texts, { seedBuiltinsIntoStory: true }).compile(MAIN),
-    ).program;
-    expect(reported(program)).toEqual([]);
-    expect(SAVE_BEFORE_MEMBER_WRITES_DECLARE).toContain("$include:file://proj/scripts/defs%2Esd");
-    const loaded = new ProgramStory(program.chunks!);
-    loaded.keepBeatImages = true;
-    const errors: string[] = [];
-    loaded.onError = (message: string) => {
-      errors.push(message);
-    };
-    loaded.loadSave(SAVE_BEFORE_MEMBER_WRITES_DECLARE);
-    const report = loaded.loadedSaveReport!;
-    expect(report.exact).toBe(true);
-    expect(report.warnings).toEqual([]);
-    const run = storyRun(loaded, [0]);
-    expect(run.menus.map((menu) => menu.choices.map((choice) => choice.text))).toEqual([["Go"]]);
-    expect(run.beats.map((beat) => beat.text)).toEqual(["Go\n", "Result 7.\n"]);
-    expect(run.errors).toEqual([]);
-    expect(errors).toEqual([]);
+    loadsOldSave(
+      SAVE_BEFORE_MEMBER_WRITES_DECLARE,
+      "file://proj/scripts/defs.sd",
+      lines("store api = {}", "function api.f()", "  return 7", "end"),
+    );
+  });
+
+  // The line is two declaration chunks of one fingerprint, the global's
+  // first and then the write's, and the save names the write.
+  it("loads when one line declares the table and writes the member function", () => {
+    loadsOldSave(
+      SAVE_BEFORE_MEMBER_WRITES_DECLARE_SHARED_LINE,
+      "file://proj/scripts/a.sd",
+      lines("& store api = {}; function api.f() return 7 end"),
+    );
   });
 });
