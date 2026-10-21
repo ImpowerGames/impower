@@ -221,10 +221,11 @@ export class Story extends FlowBase {
   private _globalAssignmentNames: Set<string> | null = null;
 
   /** The names written to the global scope by a plain assignment
-   *  (`game = -> there`) anywhere in the story, callables included: a global
+   *  (`game = -> there`) or a store through the globals table
+   *  (`_G.game = v`) anywhere in the story, callables included: a global
    *  write is visible from every flow. An assignment that a `local` or
    *  parameter of its name certainly binds writes that binding, not the
-   *  global, and is left out (`writesGlobal`). Built once per export, on
+   *  global, and is left out (`globalWriteName`). Built once per export, on
    *  first use, for {@link builtinGlobalDiverts}'s severity, which reads every
    *  assignment of the story. */
   public globalAssignmentNames(): ReadonlySet<string> {
@@ -234,8 +235,8 @@ export class Story extends FlowBase {
     return this.globalWriteNames(resolutionTap()?.assignments());
   }
 
-  /** Whether a plain assignment anywhere in the story writes the global
-   *  `name` (`writesGlobal`), for a call of a top-level function of that
+  /** Whether a plain assignment or a store through the globals table
+   *  anywhere in the story writes the global `name` (`globalWriteName`), for a call of a top-level function of that
    *  name, which calls what the global holds when it does (`Divert`). Only
    *  the name is read: every assignment of it declares it, with how
    *  (`ProgramResolver.shapeOf`, `decideWrites`), so a statement that adds,
@@ -281,7 +282,7 @@ export class Story extends FlowBase {
     return obj instanceof StorePropertyAssignment ? obj.globalName : null;
   }
 
-  /** The names `writesGlobal` finds written, of `known` assignments or,
+  /** The names `globalWriteName` finds written, of `known` assignments or,
    *  with none known, of every assignment the story holds. */
   private globalWriteNames(known: Iterable<ParsedObject> | undefined): ReadonlySet<string> {
     if (this._globalAssignmentNames) {

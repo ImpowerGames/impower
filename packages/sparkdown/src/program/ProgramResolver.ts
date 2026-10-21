@@ -548,8 +548,8 @@ export class ProgramResolver {
   /** The first function value naming each flow this compile, made on first
    *  use (`ResolutionTap.functionValue`). */
   protected _functionValues: Map<string, ParsedObject> | null = null;
-  /** The names a plain assignment of the story writes to the global scope
-   *  this compile, made on first use (`ResolutionTap.globalWrite`). */
+  /** The names a plain assignment or a store through the globals table of
+   *  the story writes to the global scope this compile, made on first use (`ResolutionTap.globalWrite`). */
   protected _globalWrites: Set<string> | null = null;
   protected _occurrences = new WeakMap<object, object[]>();
   // Each struct's runtime definition, built when its statement was last
