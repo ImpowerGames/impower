@@ -275,12 +275,14 @@ function getCompiledPrelude(): {
 }
 
 /** A script's path as a message names it: relative to the main script's
- *  folder, which is the project's, as written (`projectPath`, so a `#` or `?`
- *  the web editor keeps in a file name stays in it), or else its whole URI. */
-function displayScriptPath(scriptUri: string, mainUri: string): string {
+ *  folder, which is the project's, as the file system names it
+ *  (`projectPath`; a `#` or `?` the web editor keeps in a file name stays
+ *  in it), or else its whole URI. `asWritten` is the host's
+ *  `uriPathsAsWritten`. */
+function displayScriptPath(scriptUri: string, mainUri: string, asWritten = false): string {
   const root = projectRootUri(mainUri);
   if (root !== undefined && scriptUri.startsWith(root)) {
-    return projectPath(scriptUri.slice(root.length));
+    return projectPath(scriptUri.slice(root.length), asWritten);
   }
   return scriptUri;
 }
@@ -1080,6 +1082,12 @@ export class SparkdownCompiler {
       config.mainScriptFilename !== this._config.mainScriptFilename
     ) {
       this._config.mainScriptFilename = config.mainScriptFilename;
+    }
+    if (
+      config.uriPathsAsWritten !== undefined &&
+      config.uriPathsAsWritten !== this._config.uriPathsAsWritten
+    ) {
+      this._config.uriPathsAsWritten = config.uriPathsAsWritten;
     }
     if (
       config.startFrom !== undefined &&
@@ -2208,6 +2216,7 @@ export class SparkdownCompiler {
       uri,
       scripts,
       this._config.mainScriptFilename ?? DEFAULT_MAIN_SCRIPT_FILENAME,
+      this._config.uriPathsAsWritten,
     ).slice(1);
   }
 
@@ -3987,7 +3996,7 @@ export class SparkdownCompiler {
           continue;
         }
         collides = true;
-        const message = `${label} \`${name}\` is declared in ${displayScriptPath(first.uri, rootUri)} and in ${displayScriptPath(uri, rootUri)}. Declare it in one script.`;
+        const message = `${label} \`${name}\` is declared in ${displayScriptPath(first.uri, rootUri, this._config.uriPathsAsWritten)} and in ${displayScriptPath(uri, rootUri, this._config.uriPathsAsWritten)}. Declare it in one script.`;
         onDiagnostic(message, ErrorType.Error, first.source);
         onDiagnostic(message, ErrorType.Error, source);
       }
@@ -5809,13 +5818,13 @@ export class SparkdownCompiler {
       for (const { uri: scriptUri, lint } of lintBuiltinGlobalWrites(names)) report(scriptUri, lint);
       for (const { uri: scriptUri, lint } of lintUnusedGlobalFunctions(names, scripts, builtins)) report(scriptUri, lint);
       const duplicates = lintDuplicateGlobalMembers(names, scripts, (name, original) =>
-        duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri)),
+        duplicateGlobalMemberMessage(name, (this.documents.get(original.uri)?.positionAt(original.from).line ?? 0) + 1, displayScriptPath(original.uri, uri, this._config.uriPathsAsWritten)),
       );
       for (const { uri: scriptUri, lint } of duplicates) report(scriptUri, lint);
       if (scripts.some((script) => script.globalShadows.length)) {
         const shadows = lintGlobalShadows(names, scripts, builtins, (name, reference, own) => {
           const line = (this.documents.get(reference.uri)?.positionAt(reference.from).line ?? 0) + 1;
-          return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri)}'`}`;
+          return `Variable '${name}' shadows a global variable used at line ${line}${own ? "" : ` in '${displayScriptPath(reference.uri, uri, this._config.uriPathsAsWritten)}'`}`;
         });
         for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
       }

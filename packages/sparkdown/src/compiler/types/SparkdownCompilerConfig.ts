@@ -41,6 +41,15 @@ export interface SparkdownCompilerConfig {
    * (`projectScripts`).
    */
   mainScriptFilename?: string;
+  /**
+   * The host writes each file's URI with its path as it is, not
+   * percent-encoded: the web editor's `file://` plus the OPFS path, where
+   * `scripts/%C3%A9.sd` is a file of that name. The compiler then orders the
+   * project's scripts and names them in messages by their paths as written,
+   * where it otherwise decodes a URI's path as VS Code encodes it
+   * (`projectPath`).
+   */
+  uriPathsAsWritten?: boolean;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<
     string,

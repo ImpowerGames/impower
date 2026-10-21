@@ -7,6 +7,7 @@
 // then by path.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
+import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import { errorsOf, programCompiler, storyRun } from "./programHarness";
 
 const ROOT = "file://proj/";
@@ -33,8 +34,11 @@ const quiet = <T>(run: () => T): T => {
 
 const lines = (...text: string[]) => [...text, ""].join("\n");
 
-const compileProject = (texts: Record<string, string>, entry = MAIN) =>
-  quiet(() => programCompiler(texts).compile(entry)).program;
+const compileProject = (
+  texts: Record<string, string>,
+  entry = MAIN,
+  config: SparkdownCompilerConfig = {},
+) => quiet(() => programCompiler(texts, config).compile(entry)).program;
 
 const beatsOf = (texts: Record<string, string>) => {
   const program = compileProject(texts);
@@ -101,7 +105,7 @@ describe("a project folder", () => {
       [HASH]: lines("scene act1", "  First.", "  -> act2", "end"),
       [PERCENT]: lines("scene act2", "  Second.", "  done", "end"),
     };
-    const program = compileProject(project);
+    const program = compileProject(project, MAIN, { uriPathsAsWritten: true });
     expect(errorsOf(program)).toEqual([]);
     expect(Object.keys(program.scripts)).toEqual([MAIN, PERCENT, HASH]);
     const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
@@ -392,50 +396,62 @@ describe("declaration order", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Main 1 2 3.\n", "Pick\n", "Picked 2.\n"]);
   });
 
-  it("orders a script by its path whether a host registers it encoded or as written", () => {
-    // VS Code registers `scripts/é.sd` as `scripts/%C3%A9.sd`, the web editor
-    // as written; either way it comes after `scripts/a.sd`, whose store it
-    // reads.
-    for (const name of ["%C3%A9", "é"]) {
-      const program = compileProject({
-        [MAIN]: lines("Main {a} {b}."),
-        [`${ROOT}scripts/a.sd`]: lines("store a = 1"),
-        [`${ROOT}scripts/${name}.sd`]: lines("store b = a + 1"),
-      });
-      expect(errorsOf(program), name).toEqual([]);
-      expect(Object.keys(program.scripts), name).toEqual([MAIN, `${ROOT}scripts/a.sd`, `${ROOT}scripts/${name}.sd`]);
-      const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
-      expect(shown.beats.map((beat) => beat.text), name).toEqual(["Main 1 2.\n"]);
-    }
-  });
+  // How each host spells the URI of the same file: VS Code percent-encodes a
+  // URI's path, and the web editor writes the path as it is
+  // (`uriPathsAsWritten`). Each file is ordered by its name, as the file
+  // system names it, either way.
+  const hosts = {
+    "VS Code": {},
+    "the web editor": { uriPathsAsWritten: true },
+  } as const;
+  const spellings: { file: string; host: keyof typeof hosts; spelled: string; before: boolean }[] = [
+    { file: "é.sd", host: "VS Code", spelled: "%C3%A9.sd", before: false },
+    { file: "é.sd", host: "the web editor", spelled: "é.sd", before: false },
+    { file: "%C3%A9.sd", host: "VS Code", spelled: "%25C3%25A9.sd", before: true },
+    { file: "%C3%A9.sd", host: "the web editor", spelled: "%C3%A9.sd", before: true },
+    { file: "%7A.sd", host: "VS Code", spelled: "%257A.sd", before: true },
+    { file: "%7A.sd", host: "the web editor", spelled: "%7A.sd", before: true },
+  ];
 
-  it("orders a web editor file whose name holds an escape by that name as written", () => {
-    // The web editor's `scripts/%7A.sd` is a file named `%7A.sd`, which comes
-    // before `scripts/a.sd`; VS Code registers the same file as
-    // `scripts/%257A.sd`.
-    for (const name of ["%7A", "%257A"]) {
-      const program = compileProject({
+  it.each(spellings)("orders $file, as $host spells it, by its name beside scripts/a.sd", ({ host, spelled, before }) => {
+    // `scripts/a.sd` and the other file each declare a store that reads the
+    // store of whichever comes first.
+    const other = `${ROOT}scripts/${spelled}`;
+    const A = `${ROOT}scripts/a.sd`;
+    const program = compileProject(
+      {
         [MAIN]: lines("Main {first} {second}."),
-        [`${ROOT}scripts/${name}.sd`]: lines("store first = 1"),
-        [`${ROOT}scripts/a.sd`]: lines("store second = first + 1"),
-      });
-      expect(errorsOf(program), name).toEqual([]);
-      expect(Object.keys(program.scripts), name).toEqual([MAIN, `${ROOT}scripts/${name}.sd`, `${ROOT}scripts/a.sd`]);
-      const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
-      expect(shown.beats.map((beat) => beat.text), name).toEqual(["Main 1 2.\n"]);
-    }
+        [before ? other : A]: lines("store first = 1"),
+        [before ? A : other]: lines("store second = first + 1"),
+      },
+      MAIN,
+      hosts[host],
+    );
+    expect(errorsOf(program)).toEqual([]);
+    expect(Object.keys(program.scripts)).toEqual(before ? [MAIN, other, A] : [MAIN, A, other]);
+    const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+    expect(shown.beats.map((beat) => beat.text)).toEqual(["Main 1 2.\n"]);
   });
 
-  it("names each colliding script by its file name as written", () => {
-    const program = compileProject({
-      [MAIN]: lines("Main."),
-      [`${ROOT}scripts/act#1.sd`]: lines("layout hud with", '  text "One"', "end"),
-      [`${ROOT}scripts/act#2.sd`]: lines("layout hud with", '  text "Two"', "end"),
-    });
-    const message = "Layout `hud` is declared in scripts/act#1.sd and in scripts/act#2.sd. Declare it in one script.";
+  it.each([
+    { file: "act#1.sd", host: "the web editor" as const, spelled: "act#1.sd" },
+    { file: "act#1.sd", host: "VS Code" as const, spelled: "act%231.sd" },
+    { file: "%23.sd", host: "the web editor" as const, spelled: "%23.sd" },
+    { file: "%23.sd", host: "VS Code" as const, spelled: "%2523.sd" },
+  ])("names a colliding $file, as $host spells it, by its name", ({ file, host, spelled }) => {
+    const other = `${ROOT}scripts/${spelled}`;
+    const program = compileProject(
+      {
+        [MAIN]: lines("layout hud with", '  text "Main"', "end", "Main."),
+        [other]: lines("layout hud with", '  text "Other"', "end"),
+      },
+      MAIN,
+      hosts[host],
+    );
+    const message = `Layout \`hud\` is declared in main.sd and in scripts/${file}. Declare it in one script.`;
     expect(reported(program, message)).toEqual([
-      [`${ROOT}scripts/act#1.sd`, 0],
-      [`${ROOT}scripts/act#2.sd`, 0],
+      [MAIN, 0],
+      [other, 0],
     ]);
   });
 

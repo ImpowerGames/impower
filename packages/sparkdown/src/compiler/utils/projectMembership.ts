@@ -58,13 +58,14 @@ export function isInProject(
  * The scripts of the project a compile that starts from `entryUri` reads, in
  * the order their declarations register: the entry first, then every other
  * script of `scriptUris` in the project (`isInProject`) by its path below the
- * root as written, in byte order (`projectPath`). A URI with no folder is a
- * project of itself alone.
+ * root, in byte order (`projectPath`). A URI with no folder is a project of
+ * itself alone.
  */
 export function projectScripts(
   entryUri: string,
   scriptUris: Iterable<string>,
   mainScriptFilename: string = DEFAULT_MAIN_SCRIPT_FILENAME,
+  pathsAsWritten = false,
 ): string[] {
   const root = projectRootUri(entryUri);
   if (root === undefined) {
@@ -77,29 +78,25 @@ export function projectScripts(
       (uri) =>
         uri !== entryUri && isInProject(root, uri, mainScriptFilename, has),
     )
-    .map((uri) => ({ uri, path: projectPath(uri.slice(root.length)) }))
+    .map((uri) => ({
+      uri,
+      path: projectPath(uri.slice(root.length), pathsAsWritten),
+    }))
     .sort((a, b) => compareCodePoints(a.path, b.path))
     .map(({ uri }) => uri);
   return [entryUri, ...members];
 }
 
 /**
- * A script's path below the root as written. VS Code registers a URI with its
- * path percent-encoded (`%C3%A9` for `é`, `%25` for `%`) and the web editor
- * registers the path as written, where `%7A.sd` is a file of that name. A path
- * is decoded only when it reads as an encoder's output: every `%` begins an
- * escape, and no escape spells a character an encoder leaves as it is (a
- * letter, a digit, `-`, `.`, `_` or `~`).
+ * A script's path below the root, as the file system names it. A URI's path
+ * is percent-encoded (VS Code registers `scripts/é.sd` as `scripts/%C3%A9.sd`),
+ * so it is decoded; a host that writes each path as it is instead
+ * (`SparkdownCompilerConfig.uriPathsAsWritten`, the web editor, where
+ * `scripts/%C3%A9.sd` is a file of that name) gives it as it is. Text alone
+ * cannot tell the two apart. A path that does not decode is its own.
  */
-export const projectPath = (relative: string): string => {
-  const escapes = relative.match(/%[0-9A-Fa-f]{2}/g) ?? [];
-  if (
-    escapes.length === 0 ||
-    escapes.length !== (relative.match(/%/g) ?? []).length ||
-    escapes.some((escape) =>
-      /[A-Za-z0-9._~-]/.test(String.fromCharCode(parseInt(escape.slice(1), 16))),
-    )
-  ) {
+export const projectPath = (relative: string, asWritten = false): string => {
+  if (asWritten) {
     return relative;
   }
   try {
