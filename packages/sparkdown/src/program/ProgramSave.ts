@@ -1025,6 +1025,42 @@ class FormPlacer {
     return undefined;
   }
 
+  /** The other entries of the run of statements of one fingerprint that
+   *  `placed` stands in, the nearest first. A line of a script other than
+   *  main that declares a global and writes a member function is two such
+   *  chunks of the script's declaration sequence, the global's first, and a
+   *  save taken before I-1438 names the write alone (`topOf`), which the
+   *  alignment places on the first of the run (`decodeSymbol`). A level
+   *  below such a statement whose body the placed chunk lacks is found by
+   *  the search of step 3, in every sequence. */
+  protected sameRun(placed: StatementPlacement): number[] {
+    const chunks = placed.sequence.arrays.chunks;
+    const own = chunks[placed.entry];
+    if (!own) {
+      return [];
+    }
+    const print = fingerprintOf(own);
+    const inRun = (at: number) =>
+      chunks[at] !== undefined && fingerprintOf(chunks[at]!) === print;
+    let lo = placed.entry;
+    let hi = placed.entry;
+    while (inRun(lo - 1)) {
+      lo -= 1;
+    }
+    while (inRun(hi + 1)) {
+      hi += 1;
+    }
+    const entries: number[] = [];
+    for (let at = lo; at <= hi; at += 1) {
+      if (at !== placed.entry) {
+        entries.push(at);
+      }
+    }
+    return entries.sort(
+      (a, b) => Math.abs(a - placed.entry) - Math.abs(b - placed.entry) || a - b,
+    );
+  }
+
   /** Places each level of a saved statement, from the flow down: the
    *  statement of each level, or nothing for one that cannot be placed. */
   placeLevels(levels: readonly SavedLevel[]): (StatementPlacement | undefined)[] {
@@ -1385,33 +1421,16 @@ class FormPlacer {
       ? statement.placed.sequence.arrays.chunks[statement.placed.entry]
       : undefined;
     let parts = chunk ? chunkPartsOf(chunk)?.[form.k] : undefined;
-    if (statement && chunk && !parts?.length) {
-      // A statement placed in a run of statements of its fingerprint that
-      // has no part of the kind: the nearest of the run that has one. One
-      // statement that declares a global and writes a member function is
-      // two such chunks of its script's declaration sequence, the global's
-      // first, and a save taken before I-1438 names the write alone (`topOf`).
-      const { sequence, entry } = statement.placed;
-      const chunks = sequence.arrays.chunks;
-      const print = fingerprintOf(chunk);
-      const inRun = (at: number) =>
-        chunks[at] !== undefined && fingerprintOf(chunks[at]!) === print;
-      let lo = entry;
-      let hi = entry;
-      while (inRun(lo - 1)) {
-        lo -= 1;
-      }
-      while (inRun(hi + 1)) {
-        hi += 1;
-      }
-      let best = Infinity;
-      for (let at = lo; at <= hi; at += 1) {
-        const own = chunkPartsOf(chunks[at]!)?.[form.k];
-        if (own?.length && Math.abs(at - entry) < best) {
-          best = Math.abs(at - entry);
-          chunk = chunks[at]!;
-          parts = own;
-        }
+    // A statement placed in a run of statements of its fingerprint whose
+    // chunk has no part of the kind: the nearest of the run that has one
+    // (`sameRun`).
+    for (const entry of statement && chunk && !parts?.length ? this.sameRun(statement.placed) : []) {
+      const other = statement!.placed.sequence.arrays.chunks[entry]!;
+      const own = chunkPartsOf(other)?.[form.k];
+      if (own?.length) {
+        chunk = other;
+        parts = own;
+        break;
       }
     }
     if (!chunk || !parts) {
