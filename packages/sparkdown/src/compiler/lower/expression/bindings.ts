@@ -11,6 +11,7 @@ import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Fun
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { lookupGlobalStdLibBuiltin } from "../../../runtime/StdLib";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
+import { takesOffset } from "../recordingContext";
 import type { FunctionBinding } from "../utils/functionBindings";
 import { currentStatement } from "../utils/statementShape";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
@@ -105,12 +106,11 @@ export function isLocalAt(name: string, ctx: LowerContext, at: number): boolean 
 /**
  * Whether a variadic sibling subflow of `name`, not rebound, is registered
  * in any function lowering around the name: only then does where a local's
- * block ends decide what the name refers to. The scope is read only then,
- * since its ranges are document offsets, and a statement's memo records
- * every value its lowering reads from the context (`recordLowering`), so a
- * statement that read them would be emitted again by an edit above it.
- * The reads here and in `localInScope` index the context's arrays rather
- * than pass a callback to their methods, which no memo can record.
+ * block ends decide what the name refers to. The scope is asked only then,
+ * since a statement's memo records every answer its lowering reads from the
+ * context (`recordLowering`), and a name with nothing to hide needs none.
+ * The reads here index the context's arrays rather than pass a callback to
+ * their methods, which no memo can record.
  */
 export function siblingRegistered(name: string, ctx: LowerContext): boolean {
   const siblings = ctx.siblingSubFlowNamesStack ?? [];
@@ -125,8 +125,7 @@ export function siblingRegistered(name: string, ctx: LowerContext): boolean {
 // scope (`scopeDeclaredLocals`).
 interface ScopedDeclaredLocals extends ReadonlySet<string> {
   scope?: {
-    bindings: readonly FunctionBinding[];
-    bodyWide: ReadonlySet<string>;
+    inScope(name: string, at: number): boolean;
   };
 }
 
@@ -138,36 +137,48 @@ interface ScopedDeclaredLocals extends ReadonlySet<string> {
  * body (a `function NAME`, hoisted to the body, and a `store`). A frame
  * without a record, and a name `bindings` does not hold, is in scope
  * everywhere in the body.
+ *
+ * The record answers for a name and an offset rather than holding the
+ * ranges: the ranges count from the start of the document, and a
+ * statement's memo records every value its lowering reads from the context
+ * (`recordLowering`), so a statement that read them would be lowered and
+ * emitted again by any edit above it. The answer is recorded with the offset
+ * it was asked at counted from the statement's start (`takesOffset`).
  */
 export function scopeDeclaredLocals(
   frame: ReadonlySet<string>,
   bindings: readonly FunctionBinding[],
   bodyWide: ReadonlySet<string>,
 ): void {
-  (frame as ScopedDeclaredLocals).scope = { bindings, bodyWide };
+  (frame as ScopedDeclaredLocals).scope = {
+    inScope: takesOffset((name: string, at: number): boolean => {
+      if (bodyWide.has(name)) return true;
+      // A name the bindings do not hold keeps the frame's answer.
+      let bound = false;
+      for (const b of bindings) {
+        if (b.name !== name) continue;
+        if (b.from <= at && at >= b.blockFrom && at <= b.blockTo) return true;
+        bound = true;
+      }
+      return !bound;
+    }),
+  };
 }
 
 /**
  * Whether the local `name` of a `declaredLocalsStack` frame is in scope at
  * the offset `at`: always with no offset, no record of the frame's scope
- * (`scopeDeclaredLocals`), or a name declared for the whole body.
+ * (`scopeDeclaredLocals`), or a name declared for the whole body. With no
+ * offset, nothing of the frame's scope is read.
  */
 export function localInScope(
   frame: ReadonlySet<string>,
   name: string,
   at: number | undefined,
 ): boolean {
+  if (at === undefined) return true;
   const scope = (frame as ScopedDeclaredLocals).scope;
-  if (at === undefined || !scope || scope.bodyWide.has(name)) return true;
-  // A name the bindings do not hold keeps the frame's answer.
-  let bound = false;
-  for (let i = 0; i < scope.bindings.length; i++) {
-    const b = scope.bindings[i]!;
-    if (b.name !== name) continue;
-    if (b.from <= at && at >= b.blockFrom && at <= b.blockTo) return true;
-    bound = true;
-  }
-  return !bound;
+  return !scope || scope.inScope(name, at);
 }
 
 /**
