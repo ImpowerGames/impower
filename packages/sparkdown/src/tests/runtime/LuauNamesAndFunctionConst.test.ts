@@ -194,6 +194,56 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 7 3 4 5.\n" });
   });
 
+  // A function body's line at column 0 is Luau too: the word is a name
+  // there before anything but a name. The one warning is Luau's lint on the
+  // `return` whose value is the unindented next line, which it reads.
+  test.each(STRUCTURAL_WORDS)("`%s` as a name at column 0 in a function", (word) => {
+    const source = [
+      "Go {f()} {g()}.",
+      "function f()",
+      `  local ${word} = 1`,
+      "  return",
+      `${word}`,
+      "end",
+      "function g()",
+      "  local n = 0",
+      `  local function ${word}(x) n = n + #x end`,
+      `${word} "abc"`,
+      `${word} {1, 2}`,
+      "  return n",
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({
+      errorMessages: [],
+      warningMessages: ["Statement spans multiple lines; use indentation to silence"],
+    });
+    expect(run(source)).toEqual({ errors: [], text: "Go 1 5.\n" });
+  });
+
+  // After a keyword a block's statements follow, the word begins a
+  // statement, so before a comment spanning lines it still begins its
+  // declaration.
+  test("a store and a const after `do` and `then` whose name follows a comment spanning lines", () => {
+    const source = [
+      "function f()",
+      "  local r = 0",
+      "  do store --[[ note",
+      "      ]] tally = 2",
+      "    if tally then const --[[ note",
+      "        ]] bonus = 3",
+      "      r = tally + bonus",
+      "    end",
+      "  end",
+      "  return r",
+      "end",
+      "Go {f()}.",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source)).toEqual({ errorMessages: [], warningMessages: [] });
+    expect(run(source)).toEqual({ errors: [], text: "Go 5.\n" });
+  });
+
   // A block comment that closes on a later line hides the name from the
   // grammar's lookahead, so a word that begins its line still begins its
   // declaration there.
