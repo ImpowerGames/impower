@@ -52,6 +52,13 @@ describe("a rejected backtick string is read as Luau's lexemes (I-1419)", () => 
     "local x: `a {x} b` = 1",
     "g `a {x} b`",
     "local t = (`a {x} b` `c {y} d`)",
+    // An empty interpolation, or no closing backtick, in a string the
+    // statement rejects before reading it (round 1).
+    "`a {} b`",
+    "local t = (1 `a {} b`)",
+    "`a {x} b",
+    "`a {x} b {y} c",
+    "local t = (1 `a {x} b)",
   ];
   for (const body of bodies) {
     test(`a function's ${body}`, () => {
@@ -94,7 +101,7 @@ function placements(rest: string): [string, string, string[]][] {
 }
 
 describe("a rejected backtick string in a story statement is read as Luau's lexemes (I-1419)", () => {
-  for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}"]) {
+  for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}", "s = (1 `a {} b`)"]) {
     for (const [form, text, expected] of placements(rest)) {
       test(`${form} ${rest}`, () => {
         expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
@@ -105,7 +112,7 @@ describe("a rejected backtick string in a story statement is read as Luau's lexe
 });
 
 describe("an empty interpolation reports Luau's error at the string's opening section (I-1420)", () => {
-  for (const rest of ["s = `a {} b`", "s = `{}`", "s = `a {x} b {} c`", "s = `a {} b {} c`", "s = `a {} b {c} d`", "s = `a {} b {1 2} c`"]) {
+  for (const rest of ["s = `a {} b`", "s = `{}`", "s = `a {x} b {} c`", "s = `a {} b {} c`", "s = `a {} b {c} d`", "s = `a {} b {1 2} c`", "s = `a {} b", "s = `a {} b {c} d"]) {
     for (const [form, text, expected] of placements(rest)) {
       test(`${form} ${rest}`, () => {
         expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);

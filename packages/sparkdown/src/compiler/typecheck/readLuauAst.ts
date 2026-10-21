@@ -3963,7 +3963,11 @@ class Parser {
       if (value === undefined) return undefined;
       strings.push(value);
       const segment = this.locationOf(section, child.from + (isShorthand ? 2 : 1));
-      const part = this.interpolation(child, isShorthand, segment, after, interpolation === BACKTICK_INTERPOLATION);
+      const luau = interpolation === BACKTICK_INTERPOLATION;
+      // The section after the last interpolation of a string with no closing
+      // backtick is one Luau's lexer could not finish.
+      const brokenNext = luau && i === children.length - 1 && !hasClosingBacktick(text, node);
+      const part = this.interpolation(child, isShorthand, segment, after, luau, brokenNext);
       expressions.push(part.expr);
       if (part.stray) {
         // The grammar read the rest as the string's, so its tokens are ones
@@ -4032,15 +4036,16 @@ class Parser {
    * A backtick string with interpolations, as Luau's lexer reads it where
    * its parser does not read it as a string: one lexeme per section
    * (`` `a { ``, `} b {`, `` } c` ``) with each interpolation's tokens
-   * between them. Undefined for any other token, a string Luau reads as
-   * one lexeme, or one that the reading of a string reports on its own (an
-   * interpolation left open, or no closing backtick, I-1318).
+   * between them; with no closing backtick, the last section is one Luau's
+   * lexer could not finish (`stringRest`). Undefined for any other token, a
+   * string Luau reads as one lexeme, or one that the reading of a string
+   * reports on its own (an interpolation left open, I-1318).
    */
   private interpLexemes(token: Token): Token[] | undefined {
     const node = token.node;
     if (token.kind !== "interp" || !node) return undefined;
     const parts = stringPartNodes(node, BACKTICK_INTERPOLATION);
-    if (parts.length === 0 || !hasClosingBacktick(this.ctx.text, node)) return undefined;
+    if (parts.length === 0) return undefined;
     const first = parts[0]!;
     const shorthand = CALL_SHORTHANDS.has(first.name);
     const { body, opened, closed } = this.interpolationTokens(first, shorthand);
@@ -4082,7 +4087,7 @@ class Parser {
    * The expression of an interpolation (`{x}`), or of a `{{f}}` shorthand,
    * and whether its closing braces are written.
    */
-  private interpolation(node: SyntaxNode, shorthand: boolean, segment?: Location, after?: Token, luau = false): { expr: AstExpr; closed: boolean; stray?: Token[]; empty?: true } {
+  private interpolation(node: SyntaxNode, shorthand: boolean, segment?: Location, after?: Token, luau = false, brokenNext = false): { expr: AstExpr; closed: boolean; stray?: Token[]; empty?: true } {
     const { body, opened, closed, closers } = this.interpolationTokens(node, shorthand);
     const location = new Location(this.ctx.index.position(node.from), this.ctx.index.position(node.to));
     // The reading of the expression ends at its closing braces, or where the interpolation ends.
@@ -4099,9 +4104,13 @@ class Parser {
       return { expr: this.reportExprError(segment, [], "Malformed interpolated string; did you forget to add a '`'?"), closed };
     }
     // A backtick string's empty interpolation is Luau's error at the
-    // string's section that opened it (I-1420).
+    // string's section that opened it (I-1420), unless the section after it
+    // is one Luau's lexer could not finish, which Luau's parser reports
+    // first. Not part of Luau: the error is the reading's to report, as the
+    // validator leaves it, in a story statement too.
     if (body.length === 0 && opened && closed && !shorthand && luau && segment) {
-      return { expr: this.reportExprError(segment, [], "Malformed interpolated string, expected expression inside '{}'"), closed, empty: true };
+      const message = brokenNext ? "Malformed interpolated string; did you forget to add a '`'?" : "Malformed interpolated string, expected expression inside '{}'";
+      return { expr: this.reportExprError(segment, [], message, "expression"), closed, empty: true };
     }
     let stray: Token[] | undefined;
     const expr = this.withTokens(body, end, () => {
@@ -5098,6 +5107,32 @@ export function nextLuauToken(from: number, documentText: string, to = documentT
   if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
   return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
+}
+
+/**
+ * Whether the token Luau's lexer reads before `from`, on its line, ends an
+ * expression (a name, a literal, a closing bracket, `end`), after which
+ * Luau's parser reads no expression, so a backtick string there is not read
+ * as a string but rejected as its first lexeme (I-1419).
+ */
+export function luauEndsExpressionBefore(from: number, documentText: string): boolean {
+  const tokens = lexAhead(documentText, from);
+  const before = tokens[firstFrom(tokens, from) - 1];
+  if (!before || before.to > from || /\n/.test(documentText.slice(before.to, from))) return false;
+  switch (before.kind) {
+    case "name":
+    case "number":
+    case "string":
+    case "rawstring":
+    case "interp":
+      return true;
+    case "keyword":
+      return before.text === "end" || before.text === "true" || before.text === "false" || before.text === "nil";
+    case "symbol":
+      return before.text === ")" || before.text === "]" || before.text === "}" || before.text === "...";
+    default:
+      return false;
+  }
 }
 
 /** Whether Luau's lexer reads the token that begins at `from` as a name, rather than a keyword or a symbol. */

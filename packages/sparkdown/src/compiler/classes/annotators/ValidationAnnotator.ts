@@ -20,7 +20,7 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
-import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringAbandonedAt, readLuauStringErrors } from "../../typecheck/readLuauAst";
+import { luauEndsExpressionBefore, luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements, readLuauStringAbandonedAt, readLuauStringErrors } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
@@ -895,6 +895,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         // interpolation left open (I-1318): the converter's reading of it
         // gives that error, so the editor and the type checker agree.
         if (name === "LuauInterpolatedString" && this.hasBacktickInterpolation(node)) {
+          // In a pure-Luau body the reading of the statement reports it,
+          // and reports Luau's lexemes instead where the statement rejects
+          // the string before reading it (`` `a {x} b `` as a statement,
+          // I-1419), which the string's reading alone cannot tell.
+          if (this.inPureLuau(node)) return true;
           const text = this.statementDocumentText();
           const [error] = readLuauStringErrors(node, text);
           if (error) {
@@ -1864,17 +1869,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           // Otherwise it is Luau's error, in Luau's words at the string's
           // section that opened it (I-1420), as the converter's reading of
           // the string gives it, so the editor and the type checker agree.
+          // Luau's parser reads no string, and reports its first lexeme
+          // instead, where the string stands after a token that ends an
+          // expression (`(1 `a {} b`)`, I-1419), and the reading of a
+          // pure-Luau body reports every error itself (`inPureLuau`): the
+          // statement's reading reports those.
           const string = ancestorMatching(nodeRef.node, BACKTICK_STRINGS);
-          if (string) {
-            const text = this.statementDocumentText();
-            const error = readLuauStringErrors(string, text).find(
-              (e) => /expected expression inside/.test(e.message) && luauPositionOffset(e.location.end, text) === nodeRef.from + 1,
-            );
-            if (error) {
-              this.error(annotations, error.message, luauPositionOffset(error.location.begin, text), nodeRef.from + 1);
-              return annotations;
-            }
-          }
+          const text = this.statementDocumentText();
+          if (!string || this.inPureLuau(string) || luauEndsExpressionBefore(string.from, text)) return annotations;
+          const error = readLuauStringErrors(string, text).find(
+            (e) => /expected expression inside/.test(e.message) && luauPositionOffset(e.location.end, text) === nodeRef.from + 1,
+          );
+          // Luau reports none where an unfinished section follows the `{}`
+          // (`` `a {} b `` with no closing backtick): the string's own
+          // error is that one (I-1318).
+          if (error) this.error(annotations, error.message, luauPositionOffset(error.location.begin, text), nodeRef.from + 1);
+          return annotations;
         }
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
