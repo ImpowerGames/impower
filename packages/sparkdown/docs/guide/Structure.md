@@ -350,8 +350,8 @@ A display line, a choice, a divert, a top-level `local`, an assignment, a call o
 **`run` calls a Luau file** where its line stands, as often as the line is written. It takes either form:
 
 ```sparkdown
-run helpers            -- the one helpers.luau anywhere in the project
-run "./lib/helpers"    -- a path relative to this script, extension implied
+run helpers -- the one helpers.luau anywhere in the project
+run "./lib/helpers" -- a path relative to this script, extension implied
 ```
 
 An unquoted name is the file's name before its first dot, and it must name one `.luau` file in the project: two candidates are an error listing both, and an unquoted name with a slash in it asks you to quote it as a path.
