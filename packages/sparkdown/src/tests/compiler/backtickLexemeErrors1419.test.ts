@@ -95,13 +95,16 @@ function placements(rest: string): [string, string, string[]][] {
     ["store", `store ${rest}\n${SCENE}`, official(luau)],
     ["store alone", `store ${rest}\n`, official(luau)],
     // Indented as written, since an error naming a bracket gives its column.
-    ["a scene-level local", `scene start\n  local ${rest}\n  Hello.\nend\n`, official(`  ${luau}`, 1)],
+    // A blank line stands for the scene's header, so a message naming a line names the document's.
+    ["a scene-level local", `scene start\n  local ${rest}\n  Hello.\nend\n`, official(`\n  ${luau}`)],
     ["a function's local", `function f()\n  local ${rest}\n  return s\nend\n`, official(`function f()\n  ${luau}  return s\nend\n`)],
   ];
 }
 
 describe("a rejected backtick string in a story statement is read as Luau's lexemes (I-1419)", () => {
-  for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}", "s = (1 `a {} b`)"]) {
+  // On a line of its own, the string still follows the expression it
+  // cannot continue (round 2).
+  for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}", "s = (1 `a {} b`)", "s = (1\n  `a {} b`)", "s = {1,\n  2 `a {} b`}", "s = (\n  `a {} b`)"]) {
     for (const [form, text, expected] of placements(rest)) {
       test(`${form} ${rest}`, () => {
         expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);

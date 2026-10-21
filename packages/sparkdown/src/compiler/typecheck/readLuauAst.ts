@@ -5110,15 +5110,18 @@ export function nextLuauToken(from: number, documentText: string, to = documentT
 }
 
 /**
- * Whether the token Luau's lexer reads before `from`, on its line, ends an
- * expression (a name, a literal, a closing bracket, `end`), after which
- * Luau's parser reads no expression, so a backtick string there is not read
- * as a string but rejected as its first lexeme (I-1419).
+ * Whether the token Luau's lexer reads before `from` ends an expression (a
+ * name, a literal, a closing bracket, `end`), after which Luau's parser
+ * reads no expression, so a backtick string there is not read as a string
+ * but rejected as its first lexeme (I-1419). A line break between them
+ * changes nothing: the string either continues the expression (`(1` and
+ * then `` `a {} b`) `` on the next line) or begins a statement, and Luau
+ * rejects it at either.
  */
 export function luauEndsExpressionBefore(from: number, documentText: string): boolean {
   const tokens = lexAhead(documentText, from);
   const before = tokens[firstFrom(tokens, from) - 1];
-  if (!before || before.to > from || /\n/.test(documentText.slice(before.to, from))) return false;
+  if (!before || before.to > from) return false;
   switch (before.kind) {
     case "name":
     case "number":
