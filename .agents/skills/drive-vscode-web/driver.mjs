@@ -49,6 +49,8 @@ import {
   removeState as removeStateFile,
   removeStoppedState,
   stopExitHandler,
+  treeStopped,
+  windowsProcessTable,
   resolveChromiumExecutablePath,
 } from "../drive-web-editor/driver.mjs";
 
@@ -1295,7 +1297,9 @@ export async function status(deps = liveDeps) {
 
 // Only a record that still names its own server is acted on; a stale record
 // is removed and nothing is signalled, because its pid may be any process by
-// now. The record goes only with a kill that reported success.
+// now. The record goes only with a kill that reported success, or on Windows
+// one whose tree a census shows gone (taskkill exits 255 when one member,
+// already exiting, refuses termination although the rest were killed).
 async function down() {
   const s = readState();
   if (s?.pid == null) {
@@ -1312,6 +1316,11 @@ async function down() {
     log(`removed ${STATE_FILE}: pid ${s.pid} is no longer the server it recorded, so nothing was stopped`);
     return;
   }
+  let tree = null;
+  if (process.platform === "win32") {
+    try { tree = await windowsProcessTable(); }
+    catch (error) { log(`the process tree could not be listed before the stop (${error.message}); a nonzero taskkill exit will not be checked`); }
+  }
   const killer =
     process.platform === "win32"
       ? spawn("taskkill", ["/pid", String(s.pid), "/T", "/F"], { stdio: "inherit", windowsHide: true })
@@ -1321,7 +1330,7 @@ async function down() {
     process.exitCode = 1;
   };
   killer.on("error", (err) => failed(err.message));
-  killer.on("exit", stopExitHandler(STATE_FILE, s.pid, { remove: removeState, log }));
+  killer.on("exit", stopExitHandler(STATE_FILE, s.pid, { remove: removeState, log, verifyStopped: tree ? () => treeStopped(tree, s.pid) : undefined }));
 }
 
 // ----------------------------------------------------------------- verify ---
