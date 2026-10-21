@@ -68,7 +68,7 @@ import {
 } from "../expression/lowerFunction";
 import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
-import { findChildByName } from "../utils/alternatorArms";
+import { findChildByName, reportNestedAlternators } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -871,6 +871,20 @@ function findAssignmentValueNode(
   return null;
 }
 
+/**
+ * Reports the errors of a property's value that is dropped with its key
+ * (one that does not lower), which nothing else reads: a backtick string's
+ * own (I-1435), and those of each alternator it holds.
+ */
+function reportUnreadValueErrors(propNode: SyntaxNode, ctx: LowerContext): void {
+  const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
+  const valueNodes = opNode ? containerValueNodes(opNode) : [];
+  const reading = valueNodes.length > 0 ? readExpressionAst(valueNodes, ctx) : null;
+  if (!reading) return;
+  reportReadingErrors(reading.source.errors, valueNodes[0]!, ctx, "string");
+  reportNestedAlternators(reading.expr, ctx);
+}
+
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
@@ -907,7 +921,10 @@ function readPropertyDefinition(
         name = "";
       }
     }
-    if (name == null) return null;
+    if (name == null) {
+      reportUnreadValueErrors(propNode, ctx);
+      return null;
+    }
   } else {
     // A key spelled as a reserved word is in the property's own begin,
     // before its `LuauAssignmentOperation`, whose value may hold
@@ -920,7 +937,10 @@ function readPropertyDefinition(
     const nameNode = keywordKey ?? (variableAssignment
       ? getDescendent("LuauVariableName", variableAssignment)
       : null);
-    if (!nameNode) return null;
+    if (!nameNode) {
+      reportUnreadValueErrors(propNode, ctx);
+      return null;
+    }
     name = ctx.read(nameNode.from, nameNode.to);
   }
 

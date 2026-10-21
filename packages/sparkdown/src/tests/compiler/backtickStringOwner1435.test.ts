@@ -305,6 +305,47 @@ describe("story braces and alternator arms: one owner per form", () => {
   }
 });
 
+// The undirected review of round 1: a string whose first interpolation is
+// left open where a statement rejects it, a define's value dropped with its
+// key, and errors beside a whole if expression in story braces.
+describe("round 1's undirected probes", () => {
+  for (const line of [
+    "local s = (1 `a {x)",
+    "local s = (1 `a {x`)",
+    "local s = x.`a {x",
+    "local s = `a {x",
+    "local s = `a",
+    "local s = (1 `a`",
+    "local s = `a\\x`",
+    "local s = `a {x} b\\x {y} c`",
+    "local s = (1 `a\\x {x)",
+  ]) {
+    test(`a function's ${line}`, () => {
+      const luau = `function f()\n${line}\nend\n`;
+      expect(sparkdownErrors(luau)).toEqual(official(luau));
+    });
+  }
+  test("a define's value whose key does not lower", () => {
+    const text = "define Thing with\n  [`a {} b`] = `c {} d`\nend\n";
+    expect(sparkdownErrors(text)).toEqual(
+      [...officialFirst("local _ = `a {} b`\n", 1, -7), ...officialFirst("local _ = `c {} d`\n", 1, 5)].sort(),
+    );
+    expectIncrementalEqualsCold(text);
+  });
+  for (const [expr, expected] of [
+    ["(if true then 1 else 2) 3", ["1:33-1:34 Expected the end of the expression, got '3'"]],
+    ["(if true then 1 else 2) `a {} b`", ["1:33-1:37 Expected the end of the expression, got `a {"]],
+    ["(if true then 1 else 2", ["1:31-2:0 Expected ')' (to close '(' at column 10), got <eof>"]],
+    ["if true then `a {} b` else 'ok'", officialFirst("local _ = `a {} b`\n", 1, 12)],
+  ] as const) {
+    test(`story braces Hello {${expr}}.`, () => {
+      const text = `scene start\n  Hello {${expr}}.\nend\n`;
+      expect(sparkdownErrors(text)).toEqual(expected);
+      expectIncrementalEqualsCold(text);
+    });
+  }
+});
+
 // The probes of I-1419's fourth review round: a string split over lines by
 // an escape, and a statement's error at the string's first lexeme after
 // which Luau reads the string on, in a function the type checker reads and

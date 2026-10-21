@@ -1307,7 +1307,10 @@ function describe(token: Token): string {
     case "rawstring":
       return `"${token.text.replace(/^\[=*\[|^["']|["']$|\]=*\]$/g, "")}"`;
     case "interp":
-      return token.broken ? "malformed string" : token.text;
+      // A section Luau's lexer could not finish, or a whole string it could
+      // not (`(1 `a {x`)`'s ```)``, I-1435), not a split string's first
+      // lexeme, is Luau's malformed string.
+      return token.broken || (!token.lexemesOf && token.text.startsWith("`") && !isFinished(token)) ? "malformed string" : token.text;
     default:
       return `'${token.text}'`;
   }
@@ -4110,9 +4113,9 @@ class Parser {
    * (`` `a { ``, `} b {`, `` } c` ``) with each interpolation's tokens
    * between them; with no closing backtick, the last section is one Luau's
    * lexer could not finish (`stringRest`), and after an interpolation left
-   * open, its tokens end them. Undefined for any other token, a string Luau
-   * reads as one lexeme, or one whose first interpolation is left open,
-   * which the reading of a string reports on its own (I-1318).
+   * open, the first included (`(1 `a {x)`, I-1435), its tokens and the code
+   * Luau's lexer reads on through end them. Undefined for any other token
+   * or a string Luau reads as one lexeme.
    */
   private interpLexemes(token: Token): Token[] | undefined {
     const node = token.node;
@@ -4121,8 +4124,8 @@ class Parser {
     if (parts.length === 0) return undefined;
     const first = parts[0]!;
     const shorthand = CALL_SHORTHANDS.has(first.name);
-    const { body, opened, closed } = this.interpolationTokens(first, shorthand);
-    if (!opened || !closed) return undefined;
+    const { body, opened } = this.interpolationTokens(first, shorthand);
+    if (!opened) return undefined;
     const to = first.from + (shorthand ? 2 : 1);
     const rest = this.stringRest(token, body, parts);
     // After a later interpolation left open, Luau's lexer reads on as code
