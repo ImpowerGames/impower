@@ -244,6 +244,48 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 5.\n" });
   });
 
+  // Wherever a statement begins, after a function's header, after another
+  // statement on its line or after a comment, the word before a comment
+  // spanning lines still begins its declaration.
+  test.each([
+    ["after a function's header", "function f() store --[[ note\n  ]] tally = 2\n  return tally\nend\n"],
+    ["after a statement on its line", "function f()\n  local a = 0 store --[[ note\n    ]] tally = 2\n  return a + tally\nend\n"],
+    ["after a comment", "function f()\n  --[[ first ]] store --[[ note\n    ]] tally = 2\n  return tally\nend\n"],
+  ])("a store whose name follows a comment spanning lines %s", (_label, body) => {
+    const source = `${body}Go {f()}.\n`;
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 2.\n" });
+  });
+
+  // Where an expression goes on, on a later line, the word before a comment
+  // spanning lines is its value or a list's next name, as Luau reads it.
+  test.each(["const", ...STRUCTURAL_WORDS])("`%s` continuing an expression before a comment spanning lines", (word) => {
+    const source = [
+      "Go {f()} {g()} {h()}.",
+      "function f()",
+      `  local ${word} = 3`,
+      "  return",
+      `    ${word} --[[ note`,
+      "    ]]",
+      "end",
+      "function g()",
+      `  local ${word} = 3`,
+      "  return 1 +",
+      `    ${word} --[[ note`,
+      "    ]]",
+      "end",
+      "function h()",
+      "  local a,",
+      `    ${word} --[[ note`,
+      "    ]] = 1, 2",
+      `  return a + ${word}`,
+      "end",
+      "",
+    ].join("\n");
+    expect(collectDiagnostics(source).errorMessages).toEqual([]);
+    expect(run(source)).toEqual({ errors: [], text: "Go 3 4 3.\n" });
+  });
+
   // A block comment that closes on a later line hides the name from the
   // grammar's lookahead, so a word that begins its line still begins its
   // declaration there.

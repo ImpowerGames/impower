@@ -54,7 +54,7 @@ describe("the two declaration rules", () => {
     // Luau one's `store` or `const` only before a name, the narrative one's
     // any of the three words.
     const ws = "((?:[^\\S\\n\\r])*)";
-    expect(luau.begin!.startsWith(`${ws}((?:local\\b|(?:(?:store|const)\\b(?:(?=`)).toBe(true);
+    expect(luau.begin!.startsWith(`${ws}((?:local\\b|(?:(?:(?:store|const)\\b)(?:(?=`)).toBe(true);
     expect(luau.begin!.endsWith(`)${ws}`)).toBe(true);
     expect(narrative.begin!.startsWith(`${ws}(\\b(?:store|local|const)\\b)\\b${ws.slice(0, -1)}`)).toBe(true);
     expect(narrative.begin!.endsWith(")*)")).toBe(true);
