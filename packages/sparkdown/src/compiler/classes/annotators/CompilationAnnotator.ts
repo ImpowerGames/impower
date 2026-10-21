@@ -21,6 +21,7 @@ import type {
   SiblingSubFlowInfo,
 } from "../../lower/context";
 import { lower } from "../../lower/lower";
+import { takesOffset } from "../../lower/recordingContext";
 import { continuationRoutingRead } from "../../lower/lowerers/lowerDisplay";
 import { unreachableRead } from "../../lower/lowerers/lowerDoneOrFin";
 import {
@@ -427,6 +428,19 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   private _rootLocals?: RootLocals;
   private _rootLocalsTree?: unknown;
 
+  /** The document's `RootLocals` as a lowering asks it: each question names
+   *  the offset it is asked at (`takesOffset`), which a statement's memo
+   *  records from the statement's start, so that the statement keeps its
+   *  memo when an edit above it moves it (`recordingContext.ts`). */
+  private rootLocalsForLowering(): LowerContext["rootLocals"] {
+    const locals = this.rootLocals();
+    if (!locals) return undefined;
+    return {
+      answer: takesOffset((name: string, at: number) => locals.answer(name, at)),
+      declared: takesOffset((name: string, at: number) => locals.declared(name, at)),
+    };
+  }
+
   private collectGlobalNameAt(
     node: import("@lezer/common").SyntaxNode,
     set: Set<string>,
@@ -712,7 +726,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         functionScopeStack,
         loopStack,
         diagnostics: chunkDiagnostics,
-        rootLocals: this.rootLocals(),
+        rootLocals: this.rootLocalsForLowering(),
         globalCallableNames: {
           has: (name) => {
             const found = callableNames.has(name);

@@ -9,6 +9,7 @@ import {
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { isExplicitRuleName } from "./explicitRuleNames";
+import { nodeNameSet } from "./nodeNameSet";
 import {
   VARIABLE_DEFINITION_CONTENT_NAMES,
   VARIABLE_DEFINITION_NAMES,
@@ -16,30 +17,29 @@ import {
   valueListAssignmentName,
 } from "./variableDefinitionNames";
 
-/** The answer for a name declared once in the root frame's own scope: its
- *  binding there is the only one the document makes, which a function binds
- *  by name (`RootBinding`). */
-export const ROOT_ONLY = "only";
-
 /** The answer for a name the root frame's own scope declares, none of whose
  *  declarations is in scope where code is written (a scene's `local` read in
  *  another scene, or one declared below the code): the name reads the global,
  *  whatever binding of it the scope holds as the code runs. */
 export const ROOT_NONE = "none";
 
-/** The answer for a scene's or a branch's parameter, which its entry binds
- *  in the root frame's own scope with no slot: a function reads it by name. */
-export const ROOT_PARAM = "param";
+// The statements that hold statements of the root frame's own scope without
+// opening a scope of their own: a `choose` block, whose choices' bodies and
+// `then` clause declare in the scope around it.
+const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
+const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
+const CHOICES = nodeNameSet(["Choice"]);
 
-/** A `local` of the root frame's own scope: where its name is written, from
- *  where code reads it (the end of its statement), and the flow whose body
- *  declares it, -1 for the top level. A scene's or a branch's parameter is
- *  one of its flow, from its name on. */
+/** A binding of the root frame's own scope: where its name is written, from
+ *  where code reads it (the end of its statement, or a parameter's name) and
+ *  up to where (the end of the choice whose body declares it), and the flow
+ *  whose body declares it, -1 for the top level. A scene's or a branch's
+ *  parameter is one of its flow. */
 interface RootDeclaration {
   at: number;
   visibleFrom: number;
+  visibleTo: number;
   flow: number;
-  param?: boolean;
 }
 
 /** A scene or a branch: where its header starts and its `end` ends, and the
@@ -51,21 +51,23 @@ interface Flow {
 }
 
 /**
- * The `local`s a document declares in the root frame's own scope, which a
- * function written at the top level or in a scene reads as Luau reads an
- * upvalue (I-1374, I-1365). The top level and the bodies of its scenes and
- * branches share that scope: a scene opens no scope of its own, so its
- * `local` declares in the same scope as the top level's, and replaces a
- * binding of its name there while it runs. A block's local (an `if`, a
- * loop, a `do`) is in a scope of its own and is not one of them.
+ * The bindings a document makes in the root frame's own scope, which a
+ * function or a closure reads as Luau reads an upvalue (I-1374, I-1365). The
+ * top level and the bodies of its scenes and branches share that scope: a
+ * scene opens no scope of its own, so its `local` declares in the same scope
+ * as the top level's, and replaces a binding of its name there while it runs.
+ * A scene's or a branch's parameters are bound there as it is entered, and a
+ * `choose` block's choices declare there too. A block's local (an `if`, a
+ * loop, a `do`) is in a scope of its own and is not one of them; nor is a
+ * local of a function.
  *
  * A scene's body is written at the top level up to its `end`, so the flows
  * are followed as `topLevelStatements` follows them.
  *
  * Each declaration is known by its ordinal among the document's declarations
- * of its name: a name declared once is `ROOT_ONLY`, and the binding of each
- * declaration of a name declared more than once is kept under a slot of its
- * own (`rootSlotName`), which the declarations after it leave in place.
+ * of its name, and keeps the binding it makes in a slot of its own
+ * (`rootSlotName`), which the declarations after it, in this script or any
+ * other, leave in place.
  */
 export class RootLocals {
   protected readonly declarations = new Map<string, RootDeclaration[]>();
@@ -86,15 +88,15 @@ export class RootLocals {
           this.add(read(param.from, param.to).trim(), {
             at: param.from,
             visibleFrom: param.to,
+            visibleTo: Number.POSITIVE_INFINITY,
             flow: this.flows.length - 1,
-            param: true,
           });
         }
       } else if (node.name === "LuauEndKeyword") {
         const flow = open.pop();
         if (flow !== undefined) this.flows[flow]!.to = node.to;
       } else {
-        this.collect(node, open[open.length - 1] ?? -1, read);
+        this.collect(node, open[open.length - 1] ?? -1, Number.POSITIVE_INFINITY, read);
       }
     }
   }
@@ -102,13 +104,10 @@ export class RootLocals {
   /**
    * The declaration of `name` a function reads where code at `at` is
    * written: the last one before it at the top level or in a flow whose body
-   * holds it. `ROOT_ONLY` for the document's only declaration of the name,
-   * `ROOT_PARAM` for a parameter of a flow around it, its ordinal (from 1)
-   * for one of several, and `ROOT_NONE` for none, where the name reads the
-   * global, or the builtin of a stdlib name. "" for a name the document
-   * declares nowhere in that scope, as far as this index reads it (a local of
-   * a choice's body, whose statements it does not read, is a binding of the
-   * scope too).
+   * holds it, and in the body of a choice only within that body. Its ordinal
+   * (from 1) among the document's declarations of the name, or `ROOT_NONE`
+   * for none, where the name reads the global, or the builtin of a stdlib
+   * name. "" for a name the document declares nowhere in that scope.
    */
   answer(name: string, at: number): string {
     const list = this.declarations.get(name);
@@ -118,10 +117,10 @@ export class RootLocals {
       const declaration = list[i]!;
       if (
         declaration.visibleFrom <= at &&
+        at <= declaration.visibleTo &&
         (declaration.flow < 0 || around.has(declaration.flow))
       ) {
-        if (declaration.param) return ROOT_PARAM;
-        return list.length === 1 ? ROOT_ONLY : String(i + 1);
+        return String(i + 1);
       }
     }
     return ROOT_NONE;
@@ -134,8 +133,7 @@ export class RootLocals {
     const list = this.declarations.get(name);
     if (!list) return "";
     const i = list.findIndex((declaration) => declaration.at === at);
-    if (i < 0) return "";
-    return list.length === 1 ? ROOT_ONLY : String(i + 1);
+    return i < 0 ? "" : String(i + 1);
   }
 
   /** The flows whose bodies hold `at`, innermost first. */
@@ -168,20 +166,26 @@ export class RootLocals {
     }
   }
 
-  /** The `local`s a statement of the top level or of a flow's body declares:
-   *  a `local` declaration's names, and those of the statements a `&` line
-   *  marks. A `local function` there is a function of the story, as a
-   *  `function` is, and binds no local. */
+  /** The bindings a statement of the top level, of a flow's body or of a
+   *  choice's body declares, read up to `visibleTo`: a `local` declaration's
+   *  names, those of the statements a `&` line marks, and those of the
+   *  choices of a `choose` block. A `local function` there is a function of
+   *  the story, as a `function` is, and binds no local. */
   protected collect(
     node: SyntaxNode,
     flow: number,
+    visibleTo: number,
     read: (from: number, to: number) => string,
   ): void {
     if (EXPLICIT.has(node.name)) {
       const content = childEndingWith(node, "_content");
       for (const statement of content ? statementsOf(content) : []) {
-        this.collect(statement, flow, read);
+        this.collect(statement, flow, visibleTo, read);
       }
+      return;
+    }
+    if (CHOOSE_BLOCKS.has(node.name) || THEN_CLAUSES.has(node.name)) {
+      this.collectBodies(node, flow, read);
       return;
     }
     if (!VARIABLE_DEFINITION_NAMES.has(node.name)) return;
@@ -201,10 +205,34 @@ export class RootLocals {
           this.add(read(nameNode.from, nameNode.to).trim(), {
             at: nameNode.from,
             visibleFrom: node.to,
+            visibleTo,
             flow,
           });
         }
       }
+    }
+  }
+
+  /** The bindings the statements of a `choose` block or its `then` clause
+   *  declare, each read up to the next choice of the block or the block's
+   *  end: a choice's body is the statements after it, up to the next. */
+  protected collectBodies(
+    node: SyntaxNode,
+    flow: number,
+    read: (from: number, to: number) => string,
+  ): void {
+    const content = childEndingWith(node, "_content");
+    if (!content) return;
+    for (let child = content.firstChild; child; child = child.nextSibling) {
+      if (CHOICES.has(child.name)) continue;
+      let visibleTo = content.to;
+      for (let next = child.nextSibling; next; next = next.nextSibling) {
+        if (CHOICES.has(next.name)) {
+          visibleTo = next.from;
+          break;
+        }
+      }
+      this.collect(child, flow, visibleTo, read);
     }
   }
 }

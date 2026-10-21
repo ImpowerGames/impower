@@ -36,7 +36,9 @@ export interface ProgramEmitter {
    *  arguments were pushed: a `SetVar` with the declare flag each, the
    *  `...` with the varargs flag, as a function's entry and a scene's or a
    *  branch's (`FlowEntry`) bind them. */
-  bindParameters(params: readonly { name: string; vararg: boolean }[]): void;
+  bindParameters(
+    params: readonly { name: string; vararg: boolean; rootSlot?: string | null }[],
+  ): void;
   /** Emits a `choose` block (a `Weave` that is one) as one chunk: the code
    *  that raises its choices, the `Done` that ends their presentation, each
    *  choice's entry code with its body entered as a block, and its `then`

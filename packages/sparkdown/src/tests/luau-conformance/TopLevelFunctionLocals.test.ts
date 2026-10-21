@@ -331,11 +331,15 @@ describe("the entry of a function written at the top level", () => {
         "end",
       ]),
     ).get("g")!;
-    expect(listing.slice(0, 2)).toEqual(["SetVar p flags 1", "BindRoot a"]);
+    // It binds the slot that keeps the binding of the declaration it reads
+    // (I-1374).
+    expect(listing.slice(0, 2)).toEqual(["SetVar p flags 1", expect.stringMatching(/^BindRoot a\$1\$\S+ flags 1$/)]);
     // A stdlib name is bound only where a top-level local above the function
     // takes it (as `local math = 7` does); with none, `math` reads the
     // builtin (I-1374).
-    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual(["BindRoot a"]);
+    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([
+      expect.stringMatching(/^BindRoot a\$1\$\S+ flags 1$/),
+    ]);
   });
 
   // The define's table still captures what the method reads, as it did
@@ -343,9 +347,12 @@ describe("the entry of a function written at the top level", () => {
   // save holds passes the parameters the method binds before `BindRoot`.
   test("of a define's method binds them too, after the parameter its table's capture passes", () => {
     const listing = programListing(rootOf(methodReads("local a = 1")));
-    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual(["BindRoot a"]);
-    expect(listing.filter((line) => line.startsWith("VarPtr"))).toEqual(["VarPtr a"]);
-    const entry = listing.indexOf("BindRoot a");
+    const bound = listing.filter((line) => line.startsWith("BindRoot"));
+    expect(bound).toEqual([expect.stringMatching(/^BindRoot a\$1\$\S+ flags 1$/)]);
+    // The table's capture of the global, and the declaration's cell that its
+    // slot keeps (I-1374).
+    expect(listing.filter((line) => line.startsWith("VarPtr"))).toEqual(["VarPtr a", "VarPtr a"]);
+    const entry = listing.indexOf(bound[0]!);
     expect(listing.slice(entry - 2, entry)).toEqual(["SetVar self flags 1", "SetVar a flags 1"]);
   });
 });

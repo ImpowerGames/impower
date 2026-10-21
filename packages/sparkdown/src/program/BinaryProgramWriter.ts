@@ -50,6 +50,7 @@ import {
   SET_DECLARE,
   SET_GLOBAL,
   SET_VARARGS,
+  SET_ROOT_SLOTTED,
   auxOf,
   encodeWord0,
   flagsOf,
@@ -117,7 +118,7 @@ export interface FunctionInput {
   symbol: number;
   /** Its parameters, first to last, the captured variables a closure's
    *  lowering prepends to them included. */
-  params: readonly { name: string; vararg: boolean }[];
+  params: readonly { name: string; vararg: boolean; rootSlot?: string | null }[];
   /** What its entry runs after binding its parameters: the root bindings of
    *  a function written at the top level (`RootBinding`), then the
    *  `local NAME = nil` declarations the lowering hoisted to the top of its
@@ -656,8 +657,21 @@ export class BinaryProgramWriter implements ProgramEmitter {
         Op.SetVar,
         this.variable(param.name),
         0,
-        SET_DECLARE | (param.vararg ? SET_VARARGS : 0),
+        SET_DECLARE |
+          (param.vararg ? SET_VARARGS : 0) |
+          (param.rootSlot ? SET_ROOT_SLOTTED : 0),
       );
+    }
+    // A scene's or a branch's parameter keeps the cell of its binding in the
+    // root frame's slot for it, as a `local` there does
+    // (`VariableAssignment.EmitRootSlot`), after every parameter's
+    // `SetVar`: the entry's run of them is what reads its parameters back
+    // (`entryParameters`, `entryBindings`).
+    for (const param of params) {
+      if (param.rootSlot) {
+        this.emit(Op.VarPtr, this.variable(param.name));
+        this.emit(Op.SetVar, this.variable(param.rootSlot), 0, SET_DECLARE);
+      }
     }
   }
 

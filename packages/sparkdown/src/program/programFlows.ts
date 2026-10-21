@@ -559,6 +559,7 @@ export class FlowEntry extends ParsedObject {
       (this.flow.args ?? []).map((arg) => ({
         name: arg.identifier?.name ?? "",
         vararg: !!arg.isVararg,
+        rootSlot: arg.rootSlot,
       })),
     );
     if (this.start) {

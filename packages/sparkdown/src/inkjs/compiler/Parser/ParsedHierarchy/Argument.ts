@@ -20,6 +20,11 @@ export class Argument {
     public isUpvalue: boolean = false,
   ) {}
 
+  /** For a scene's or a branch's parameter, the root frame's slot that keeps
+   *  the cell of the binding its flow's entry makes (`rootSlotName`), which
+   *  a later `local` of its name leaves to the code written between them. */
+  public rootSlot: string | null = null;
+
   get typeName(): string {
     return "Argument";
   }

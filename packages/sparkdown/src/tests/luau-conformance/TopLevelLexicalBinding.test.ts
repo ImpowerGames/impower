@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
-import { compileScript, errorsOf, programSession, storyBeats } from "../program/programHarness";
+import { compileScript, errorsOf, programCompiler, programSession, storyBeats } from "../program/programHarness";
 import { programListing } from "../programListing";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -146,6 +146,50 @@ describe("a function written at the top level", () => {
     ).toEqual(got("Got 1."));
   });
 
+  test.each([
+    ["scene", ["-> S(5)", "scene S(x)", "  function g()", "    return x", "  end", "  local x = 7", "  Got {g()} {x}.", "end"]],
+    [
+      "branch",
+      ["-> S", "scene S", "  -> B(5)", "  branch B(x)", "    function g()", "      return x", "    end", "    local x = 7", "    Got {g()} {x}.", "  end", "end"],
+    ],
+  ])("written in a %s, keeps its parameter when a later local of the name is declared", (_, lines) => {
+    expect(run(lines)).toEqual(got("Got 5 7."));
+  });
+
+  test("keeps the top-level local where a choice's body declares the name", () => {
+    const story = new ProgramStory(
+      rootOf([
+        "local x = 1",
+        "function g()",
+        "  return x",
+        "end",
+        "-> S",
+        "scene S",
+        "  choose",
+        "    + Go",
+        "      local x = 3",
+        "      Got {g()} {x}.",
+        "  end",
+        "end",
+      ]),
+    );
+    quiet(() => storyBeats(story));
+    story.ChooseChoiceIndex(0);
+    const { beats, errors } = quiet(() => storyBeats(story));
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Go", "Got 1 3."));
+  });
+
+  test("keeps the top-level local where a scene of another script declares the name", () => {
+    const { program } = quiet(() =>
+      programCompiler({
+        "inmemory:///main.sd": ["local x = 1", "function g()", "  return x", "end", "-> S", ""].join("\n"),
+        "inmemory:///other.sd": ["scene S", "  local x = 5", "  Got {g()} {x}.", "end", ""].join("\n"),
+      }).compile(),
+    );
+    expect(errorsOf(program)).toEqual([]);
+    expect(quiet(() => shown(program.chunks!))).toEqual(got("Got 1 5."));
+  });
+
   test("written in a scene, reads the scene's parameter", () => {
     expect(
       run(["-> S(5)", "scene S(x)", "  function g()", "    return x", "  end", "  Got {tostring(g())}.", "end"]),
@@ -226,8 +270,31 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got nil."));
   });
 
-  // A choice's body declares in the root frame's own scope too; the index
-  // reads no statement of it, so a name it alone declares is captured by name.
+  // A choice's body declares in the root frame's own scope too, whatever
+  // another scene declares there.
+  test("reads a local of the choice body it is written in, though another scene declares the name", () => {
+    const story = new ProgramStory(
+      rootOf([
+        "-> S",
+        "scene Other",
+        "  local x = 9",
+        "end",
+        "scene S",
+        "  choose",
+        "    + Go",
+        "      local x = 3",
+        "      local f = function() return x end",
+        "      Got {tostring(f())}.",
+        "  end",
+        "end",
+      ]),
+    );
+    quiet(() => storyBeats(story));
+    story.ChooseChoiceIndex(0);
+    const { beats, errors } = quiet(() => storyBeats(story));
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Go", "Got 3."));
+  });
+
   test("reads a local of the choice body it is written in", () => {
     const story = new ProgramStory(
       rootOf([
@@ -337,12 +404,12 @@ describe("a top-level local beside a store of its name", () => {
 });
 
 describe("the entry of a function", () => {
-  test("binds a name declared once by name, and one of several by the declaration's slot", () => {
+  test("binds the slot of the declaration it reads, a name declared once or several times", () => {
     const listing = programListing(
       rootOf(["local a = 1", "local b = 1", "function g()", "  return a + b", "end", "local b = 2", "Got {g()}."]),
     );
     expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([
-      "BindRoot a",
+      expect.stringMatching(/^BindRoot a\$1\$\S+ flags 1$/),
       expect.stringMatching(/^BindRoot b\$1\$\S+ flags 1$/),
     ]);
   });
@@ -463,6 +530,18 @@ describe("an incremental compile", () => {
       [["local a = 3\n", ""], ["  Hi.", "  local a = 9"]],
       ["Got 1 1 9."],
     );
+  });
+
+  test("shows what a cold compile shows with a parameter of the name added to the reader's scene", () => {
+    const session = programSession(
+      ["-> S", "scene S", "  local f = function() return a end", "  Got {tostring(f())}.", "end", ""].join("\n"),
+    );
+    session.edit("-> S", "-> S(9)");
+    const root = session.edit("scene S", "scene S(a)");
+    const cold = run([session.text]);
+    expect(quiet(() => shown(root))).toEqual(cold);
+    expect(programListing(root)).toEqual(programListing(rootOf([session.text])));
+    expect(cold.texts).toEqual(["Got 9."]);
   });
 
   test("shows what a cold compile shows with a scene's local of the name removed", () => {

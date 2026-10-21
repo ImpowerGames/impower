@@ -814,16 +814,19 @@ export function rootBindingsOf(reads: readonly RootRead[], ctx: LowerContext): R
  * (`local count = 0` above a closure that counts, I-1365). A closure keeps
  * the parameters it captured, which a save of it passes. A name no such
  * `local` takes where the function is written reads the global, or the
- * builtin of a stdlib name.
+ * builtin of a stdlib name. The names the methods of the defines written in
+ * the function read count, as `node`, the function's syntax node, gives them
+ * (`freeVariables`, I-1373).
  */
 export function rootBindings(
   params: readonly string[],
   body: AstStatBlock | null,
   ctx: LowerContext,
   captured: readonly string[] | null,
+  node: SyntaxNode,
 ): RootBinding[] {
   const reads: RootRead[] = [];
-  freeVariables(params, body, ctx, { rootReads: reads });
+  freeVariables(params, body, ctx, { rootReads: reads, node });
   const capturedNames = new Set(captured ?? []);
   return rootBindingsOf(
     reads.filter(({ name }) => !capturedNames.has(name)),
@@ -838,13 +841,11 @@ export type RootCapture = { slot: string } | "global";
 
 /** How each of `upvals` a closure built in the root frame captures, where
  *  not by name: through the slot of the declaration of the root frame's own
- *  scope it reads, for a name declared there more than once
- *  (`rootSlotName`), and at the global for a name it reads as a global that
- *  the scope declares where no such declaration is in scope (`ROOT_NONE`), so
- *  that a scene's `local` of the name, which the scope may bind as the
- *  closure is built, is not captured (I-1374). A name the index finds no
- *  declaration of at all is captured by name, since a local of a choice's
- *  body, which the index does not read, is a binding of that scope too. A
+ *  scope it reads (`rootSlotName`), and at the global for a name it reads as
+ *  a global that the scope declares where no such declaration is in scope
+ *  (`ROOT_NONE`), so that a scene's `local` of the name, which the scope may
+ *  bind as the closure is built, is not captured (I-1374). A name the scope
+ *  declares nowhere in the document is captured by name, as before. A
  *  closure built in a function captures the
  *  function's own binding of the name, which the function's entry bound
  *  (`rootBindings`). */
@@ -890,7 +891,7 @@ export function lowerFunctionBody(
 } {
   const content = getFunctionBodyContent(node);
   // Read in the scopes around the function, before its own are pushed.
-  const rootReads = rootBindings(parameterNames(func), func.body, ctx, captured);
+  const rootReads = rootBindings(parameterNames(func), func.body, ctx, captured, node);
   const {
     result: { shape, body },
     hoisted,
