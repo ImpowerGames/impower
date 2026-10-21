@@ -293,6 +293,73 @@ describe("a local read only by a method of a define in its function", () => {
     ).toEqual([{ line: 1, message: "Variable 'b' is never used; prefix with '_' to silence" }]);
   });
 
+  // A plain write is no use, in a method as in the function.
+  test.each([
+    ["the implicit form", "    get()"],
+    ["the function form", "    function get()"],
+  ])("leaves a local unused that a method only writes, in %s", (_, header) => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = 7",
+          "  define thing with",
+          header,
+          "      b = 9",
+          "    end",
+          "  end",
+          "  thing.get()",
+          "  return 0",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([{ line: 1, message: "Variable 'b' is never used; prefix with '_' to silence" }]);
+  });
+
+  test("is used by a method that writes a field of it", () => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local b = {}",
+          "  define thing with",
+          "    function set()",
+          "      b.x = 9",
+          "    end",
+          "  end",
+          "  thing.set()",
+          "  return 0",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  // A method's `self` is its own receiver, never a local around the define.
+  test.each([
+    ["the implicit form", "    get()"],
+    ["the function form", "    function get()"],
+  ])("leaves a local named self unused that a method's self hides, in %s", (_, header) => {
+    expect(
+      localUnused(
+        [
+          "function outer()",
+          "  local self = 7",
+          "  define thing with",
+          header,
+          "      return self",
+          "    end",
+          "  end",
+          "  return thing:get()",
+          "end",
+          "Got {outer()}.",
+        ].join("\n"),
+      ),
+    ).toEqual([{ line: 1, message: "Variable 'self' is never used; prefix with '_' to silence" }]);
+  });
+
   // The inner define's method reads the outer method's local, not the function's.
   test("leaves a local unused that a method around the define hides", () => {
     expect(

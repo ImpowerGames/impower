@@ -638,7 +638,9 @@ function lintImplicitReturns(fn: AstExprFunction, offsets: Offsets, out: LuauLin
 // (`OutsideReading.method`), so a name it reads from around the define is a
 // global there: it names the local of that name in scope where it is
 // written, of the function or of a method around it, as Luau binds a name
-// (I-1371). The methods' own locals are linted with the methods.
+// (I-1371). A plain write to it is a write, as to a local, and its `self`
+// is the method's implicit receiver. The methods' own locals are linted
+// with the methods.
 function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets: Offsets, out: LuauLint[], broken: boolean, methods: readonly { expr: AstExpr; offsets: Offsets }[] = []): void {
   const declared: AstLocal[] = [];
   const localFunctions: AstLocal[] = [];
@@ -678,13 +680,15 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
           // The targets themselves are written, not read; what they index is read.
           // A write to a name a `const` declares is read as an error wrapping the
           // constant (`Variable 'n' is constant`), and is still a plain write.
-          for (const target of node.vars) if (!isLocalWrite(target)) visitAst(target, this);
+          // A method reads a local around its define as a global, which it writes the same way.
+          for (const target of node.vars) if (!isLocalWrite(target) && !(target instanceof AstExprGlobal)) visitAst(target, this);
           for (const value of node.values) visitAst(value, this);
           return false;
         } else if (node instanceof AstExprLocal) {
           used.add(node.local);
         } else if (node instanceof AstExprGlobal) {
-          if (!own) methodReads.push({ name: node.name, at: offsets.of(node.location.begin) });
+          // A method's `self` is its implicit receiver, which its reading leaves out.
+          if (!own && node.name !== "self") methodReads.push({ name: node.name, at: offsets.of(node.location.begin) });
         }
         else if (node instanceof AstTypeReference) {
           if (own) typeNames.push({ name: node.prefix ?? node.name, at: offsets.of(node.location.begin) });
@@ -696,9 +700,13 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
   read(fn, offsets, true);
   const fnFrom = offsets.of(fn.location.begin);
   const fnTo = offsets.of(fn.location.end);
+  const methodRanges: { from: number; to: number }[] = [];
   for (const method of methods) {
     const range = method.offsets.range(method.expr.location);
-    if (fnFrom <= range.from && range.to <= fnTo) read(method.expr, method.offsets, false);
+    if (fnFrom <= range.from && range.to <= fnTo) {
+      methodRanges.push(range);
+      read(method.expr, method.offsets, false);
+    }
   }
   // A local statement's names can be named to the end of the innermost block that holds it.
   for (const { stat, locals, from, offsets } of declaredStatements) {
@@ -732,6 +740,8 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
     if (local) used.add(local);
   }
   for (const { name, at } of keywordWords(tree, text, offsets.of(fn.location.begin), offsets.of(fn.location.end), names)) {
+    // The grammar reads `self` as a keyword; in a method it is the method's receiver.
+    if (name === "self" && methodRanges.some((range) => range.from <= at && at <= range.to)) continue;
     const local = resolve(name, at);
     if (local) used.add(local);
   }
