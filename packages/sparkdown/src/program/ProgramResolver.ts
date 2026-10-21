@@ -41,6 +41,7 @@ import {
 } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
 import { MultiVariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { memoGatherOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
+import { StorePropertyAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { DebugMetadata } from "../runtime/DebugMetadata";
@@ -247,6 +248,13 @@ const standsIn = (obj: ParsedObject): boolean => {
 const standsAsAssignment = (obj: ParsedObject): boolean =>
   (obj instanceof VariableAssignment && memoAssignmentOf(obj) !== null) ||
   (obj instanceof MultiVariableAssignment && memoMultiOf(obj) !== null);
+
+/** Whether `obj` is an assignment the story's walks for its global writes
+ *  read: a plain assignment or local declaration, or a store through the
+ *  globals table that names its global (`_G.f = v`, I-1091). */
+const isAssignmentFact = (obj: ParsedObject): boolean =>
+  obj instanceof VariableAssignment ||
+  (obj instanceof StorePropertyAssignment && obj.globalName !== null);
 
 /** The assignments a stand-in, or a block statement's stand-in, holds that
  *  made auto-globals or declared locals, each with what its memo recorded
@@ -540,8 +548,8 @@ export class ProgramResolver {
   /** The first function value naming each flow this compile, made on first
    *  use (`ResolutionTap.functionValue`). */
   protected _functionValues: Map<string, ParsedObject> | null = null;
-  /** The names a plain assignment of the story writes to the global scope
-   *  this compile, made on first use (`ResolutionTap.globalWrite`). */
+  /** The names a plain assignment or a literal-key store through the globals table of
+   *  the story writes to the global scope this compile, made on first use (`ResolutionTap.globalWrite`). */
   protected _globalWrites: Set<string> | null = null;
   protected _occurrences = new WeakMap<object, object[]>();
   // Each struct's runtime definition, built when its statement was last
@@ -1078,7 +1086,7 @@ export class ProgramResolver {
     for (const member of unit.members) {
       for (const obj of this.alongContent(member)) {
         this._locals.delete(obj);
-        if (obj instanceof VariableAssignment) {
+        if (isAssignmentFact(obj)) {
           shape.assignments.push(obj);
         } else if (obj instanceof DivertTarget && obj.isFunctionValue) {
           shape.functionValues.push(obj);
@@ -1131,6 +1139,18 @@ export class ProgramResolver {
     shapes: Map<Unit, UnitShape> | null,
   ): void {
     const deciding = new Set(units);
+    // Declares, with the name `unit` writes, whether the write is local.
+    const declareWrite = (unit: Unit, name: string, bound: boolean) => {
+      const shape = shapes?.get(unit);
+      if (shape) {
+        const how = `write:${bound ? "local" : "global"}:${unit.context}@${unit.index}`;
+        for (const key of [name, "*vars"]) {
+          const list = shape.defs.get(key) ?? [];
+          list.push(key === "*vars" ? `${name}|${how}` : how);
+          shape.defs.set(key, list);
+        }
+      }
+    };
     let storyValues: Map<string, ParsedObject[]> | null = null;
     const topLevelValues = (): Map<string, ParsedObject[]> => {
       if (!storyValues) {
@@ -1167,6 +1187,14 @@ export class ProgramResolver {
     for (const unit of units) {
       for (const member of unit.members) {
         for (const obj of this.alongContent(member)) {
+          // A store through the globals table always writes the global it
+          // names, which no local binds (I-1091).
+          if (obj instanceof StorePropertyAssignment) {
+            if (obj.globalName !== null) {
+              declareWrite(unit, obj.globalName, false);
+            }
+            continue;
+          }
           if (!(obj instanceof VariableAssignment) || obj.isDeclaration) {
             continue;
           }
@@ -1181,15 +1209,7 @@ export class ProgramResolver {
             return sitesNaming(flow, candidates);
           });
           obj.boundLocally = bound;
-          const shape = shapes?.get(unit);
-          if (shape) {
-            const how = `write:${bound ? "local" : "global"}:${unit.context}@${unit.index}`;
-            for (const key of [obj.variableName, "*vars"]) {
-              const list = shape.defs.get(key) ?? [];
-              list.push(key === "*vars" ? `${obj.variableName}|${how}` : how);
-              shape.defs.set(key, list);
-            }
-          }
+          declareWrite(unit, obj.variableName, bound);
         }
       }
     }
@@ -1259,7 +1279,7 @@ export class ProgramResolver {
         yield* item.shape.assignments;
       } else {
         for (const obj of this.alongContent(item.loose)) {
-          if (obj instanceof VariableAssignment) {
+          if (isAssignmentFact(obj)) {
             yield obj;
           }
         }
@@ -1297,7 +1317,7 @@ export class ProgramResolver {
     const functionValues: ParsedObject[] = [];
     const walk = (obj: ParsedObject) => {
       for (const child of obj.content ?? []) {
-        if (child instanceof VariableAssignment) {
+        if (isAssignmentFact(child)) {
           assignments.push(child);
         } else if (child instanceof DivertTarget && child.isFunctionValue) {
           functionValues.push(child);
@@ -2472,8 +2492,9 @@ export class ProgramResolver {
       if (!this._globalWrites) {
         this._globalWrites = new Set();
         for (const obj of this.storyAssignments()) {
-          if (obj instanceof VariableAssignment && obj.story.writesGlobal(obj)) {
-            this._globalWrites.add(obj.variableName);
+          const written = obj.story.globalWriteName(obj);
+          if (written !== null) {
+            this._globalWrites.add(written);
           }
         }
       }

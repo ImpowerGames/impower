@@ -165,6 +165,11 @@ export class VariableReference extends Expression {
       return;
     }
 
+    // `_G`, Luau's globals table, is always there: the runtime makes it
+    // where it is read (I-1091).
+    if (this.name === "_G" && this.unresolvedMember === null) {
+      return;
+    }
     if (!this.IsResolvedVariable(context)) {
       if (this.unresolvedMember) {
         this.ReportUnresolvedPath(
