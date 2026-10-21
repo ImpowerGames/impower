@@ -87,6 +87,23 @@ describe("a store's value list and a story local's name list report Luau's error
     expect(sparkdownErrors(text)).toEqual(expected);
   });
 
+  // A scene's `end` right after a store on its line closes the scene, and
+  // the store's reading stops before it (round 1).
+  test.each(["scene start\n  store a = 1 end\n", "scene start\n  store a = 1 end", "scene start\n  store a, b = 1, 2 end\n"])(
+    "%j reports nothing at the scene's end",
+    (text) => {
+      expect(sparkdownErrors(text)).toEqual([]);
+    },
+  );
+
+  // After story on the store's line, the tree reads an `end` as story too,
+  // and the line reports what Luau reports for it.
+  test.each(["store a = 1 2 end", "store a, b = 1 Hello end"])("%j in a scene reads its end as story", (line) => {
+    const expected = official(line.replace(/^store/, "local"), 1, 2);
+    expect(expected.some((e) => e.includes("got 'end'")), "the official parser reports the end").toBe(true);
+    expect(sparkdownErrors(`scene start\n  ${line}\n`)).toEqual(expected);
+  });
+
   test.each([
     `store a, b = 1, 2\n${SCENE}`,
     `store a = 1\n${SCENE}`,
