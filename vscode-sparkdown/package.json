@@ -648,7 +648,7 @@
         "properties": {
           "sparkdown.scriptFiles": {
             "type": "string",
-            "default": "*.{sd}",
+            "default": "*.{sd,luau}",
             "description": "Recognized filename patterns for script files"
           },
           "sparkdown.imageFiles": {

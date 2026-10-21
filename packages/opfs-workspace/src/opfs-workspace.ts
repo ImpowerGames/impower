@@ -63,6 +63,12 @@ const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 const LANGUAGE_ID = "sparkdown";
 
+/** The language of a script file: a `.luau` file a `run` statement reads is
+ *  Luau, registered as a text document so the compiler can resolve it
+ *  (#1389), and every other script is Sparkdown. */
+const languageIdOf = (uri: string): string =>
+  uri.endsWith(".luau") ? "luau" : LANGUAGE_ID;
+
 // Recycle-bin: a user delete MOVES files here (reversible) instead of hard
 // removeEntry. Lives at `<project>/.trash/<batchId>/<originalRelPath>` with a
 // per-batch `__manifest.json`. Excluded from the normal file pipeline by
@@ -763,7 +769,7 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
       ) {
         syncedDocument = TextDocument.create(
           td.uri,
-          LANGUAGE_ID,
+          languageIdOf(td.uri),
           syncedDocument.version,
           latestText.replace(NEWLINE_REGEX, "\n"),
         );
@@ -1359,7 +1365,7 @@ const updateFileMetaCache = (
     version: version ?? existingFile?.version ?? 0,
     size,
     modified: resolvedModified,
-    languageId: type === "script" ? LANGUAGE_ID : null,
+    languageId: type === "script" ? languageIdOf(uri) : null,
     text: existingFile?.text,
   };
   State.files.set(uri, file);
@@ -1444,7 +1450,7 @@ const updateFileCache = (
     // or the write time on a fresh write (falls back to the cached value).
     size: buffer.byteLength,
     modified: resolvedModified,
-    languageId: type === "script" ? LANGUAGE_ID : null,
+    languageId: type === "script" ? languageIdOf(uri) : null,
     text,
   };
   State.files.set(uri, file);
@@ -1454,7 +1460,7 @@ const updateFileCache = (
     if (!State.documents.get(uri)) {
       State.documents.set(
         uri,
-        TextDocument.create(uri, LANGUAGE_ID, version ?? 0, content),
+        TextDocument.create(uri, languageIdOf(uri), version ?? 0, content),
       );
     }
   }

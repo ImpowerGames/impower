@@ -120,3 +120,53 @@ function compareCodePoints(a: string, b: string): number {
   }
   return left.length - right.length;
 }
+
+/** The extension of the Luau files a `run` statement reads. */
+export const LUAU_EXTENSION = ".luau";
+
+/** Whether `uri` is a Luau file a `run` statement reads, which is not a
+ *  script of the story. */
+export const hasLuauExtension = (uri: string): boolean =>
+  uri.endsWith(LUAU_EXTENSION);
+
+/**
+ * The Luau files of the project a compile that starts from `entryUri` reads,
+ * which a `run` statement finds by name (`luauFileName`): every file of
+ * `fileUris` whose name ends in `.luau` and that is in the project
+ * (`isInProject`), by its path below the root in byte order (`projectPath`).
+ * They are not scripts of the story. `hasScript` says whether a script is
+ * registered, which is how a folder holding a main script of its own is
+ * known. A URI with no folder has no project, and so no Luau files.
+ */
+export function projectLuauFiles(
+  entryUri: string,
+  fileUris: Iterable<string>,
+  hasScript: (uri: string) => boolean,
+  mainScriptFilename: string = DEFAULT_MAIN_SCRIPT_FILENAME,
+  pathsAsWritten = false,
+): string[] {
+  const root = projectRootUri(entryUri);
+  if (root === undefined) {
+    return [];
+  }
+  return [...new Set(fileUris)]
+    .filter(
+      (uri) =>
+        hasLuauExtension(uri) &&
+        isInProject(root, uri, mainScriptFilename, hasScript),
+    )
+    .map((uri) => ({
+      uri,
+      path: projectPath(uri.slice(root.length), pathsAsWritten),
+    }))
+    .sort((a, b) => compareCodePoints(a.path, b.path))
+    .map(({ uri }) => uri);
+}
+
+/** The name a `run` statement finds a Luau file by: its file name, as the
+ *  file system names it (`projectPath`), before the first dot. */
+export const luauFileName = (uri: string, asWritten = false): string => {
+  const file = projectPath(uri.slice(uri.lastIndexOf("/") + 1), asWritten);
+  const dot = file.indexOf(".");
+  return dot < 0 ? file : file.slice(0, dot);
+};

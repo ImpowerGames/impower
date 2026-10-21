@@ -66,7 +66,9 @@ const documentLinksState = StateField.define<DecorationSet>({
     decorations = decorations.map(tr.changes);
     for (const effect of tr.effects) {
       if (effect.is(updateDocumentLinksEffect)) {
-        const marks = effect.value.map((link) => {
+        // A link whose text an edit since the request deleted maps to an
+        // empty range, which no mark may have.
+        const marks = effect.value.filter((link) => link.from < link.to).map((link) => {
           return Decoration.mark({
             class: "cm-lsp-link",
             range: link.range,

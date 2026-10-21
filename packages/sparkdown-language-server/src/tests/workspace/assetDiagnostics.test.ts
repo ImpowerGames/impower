@@ -2,7 +2,10 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
-import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
+import {
+  LUAU_DOCUMENT_OWNER,
+  SparkdownLanguageServerWorkspace,
+} from "../../classes/SparkdownLanguageServerWorkspace";
 
 const main = "file:///project/main.sd";
 const story = "file:///project/story.sd";
@@ -174,4 +177,21 @@ describe("asset diagnostic delivery", () => {
     expect(workerCompile).toHaveBeenCalledTimes(2);
   });
 
+  // #1389: while a .luau file is open, its own compile publishes its
+  // diagnostics under LUAU_DOCUMENT_OWNER and the story that runs it leaves
+  // them alone; once that publication is cleared, the story publishes them.
+  it("leaves an open Luau file's own diagnostics to it, and publishes the story's once they are cleared", () => {
+    const { workspace, publishes } = setup();
+    const luau = "file:///project/lib/helpers.luau";
+    const own = { ...warning, message: "Luau's own diagnostic" };
+    const story = { ...warning, message: "The story's diagnostic" };
+    (workspace as any).publishDiagnostics(luau, [own], LUAU_DOCUMENT_OWNER);
+    workspace.onCompiledTextDocument({ program: { uri: main, diagnostics: { [luau]: [story] } } });
+    expect(publishes().filter((p) => p.uri === luau).map((p) => p.diagnostics)).toEqual([[own]]);
+    // The file is closed: its owner clears its publication.
+    (workspace as any)._lastPublishedDiagnostics.delete(luau);
+    workspace.onCompiledTextDocument({ program: { uri: main, diagnostics: { [luau]: [story] } } });
+    expect(publishes().filter((p) => p.uri === luau).map((p) => p.diagnostics)).toEqual([[own], [story]]);
+    expect((workspace as any)._lastPublishedDiagnostics.get(luau)?.owner).toBe(main);
+  });
 });

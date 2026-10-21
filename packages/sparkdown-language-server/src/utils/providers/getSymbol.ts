@@ -1,5 +1,6 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { runOperandNameSpan } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
@@ -111,28 +112,18 @@ export const getSymbol = (
         n.name === "AssetCommandFileName" ||
         n.name === "AssetCommandTarget" ||
         n.name === "NameValue" ||
-        n.name === "IncludeContent",
+        n.name === "RunContent",
     );
     if (symbol) {
       const symbolRange = document.range(symbol.from, symbol.to);
-      if (symbol.name === "IncludeContent") {
-        const range = document.range(symbol.from, symbol.to);
-        const text = document.getText(range);
-        const nameStartOffset = text.lastIndexOf("/") + 1;
-        let nameEndOffset = text.indexOf(".", nameStartOffset);
-        if (nameEndOffset < 0) {
-          nameEndOffset = text.length;
-        }
-        const nameRange = {
-          start: {
-            line: range.start.line,
-            character: range.start.character + nameStartOffset,
-          },
-          end: {
-            line: range.start.line,
-            character: range.start.character + nameEndOffset,
-          },
-        };
+      if (symbol.name === "RunContent") {
+        // A `run` operand renames the `.luau` file it names (#1389): its
+        // name is the file name the operand ends with, before the first
+        // dot, inside any quotes.
+        const [start, end] = runOperandNameSpan(
+          document.read(symbol.from, symbol.to),
+        );
+        const nameRange = document.range(symbol.from + start, symbol.from + end);
         return { symbol, nameRange, canRename: true };
       }
       return { symbol, nameRange: symbolRange, canRename: true };
