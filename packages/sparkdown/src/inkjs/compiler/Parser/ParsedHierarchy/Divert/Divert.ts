@@ -569,7 +569,7 @@ export class Divert extends ParsedObject {
   }
 
   // Whether this is a call of a function written at the top level whose name
-  // a plain assignment or a store through the globals table anywhere in the
+  // a plain assignment or a literal-key store through the globals table anywhere in the
   // story writes to the global scope (`Story.assignsGlobally`, which reads only the name). A function nested
   // in another is a value of that function's scope, which its lowering
   // rebinds itself.

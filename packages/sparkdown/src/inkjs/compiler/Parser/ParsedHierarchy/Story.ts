@@ -221,7 +221,7 @@ export class Story extends FlowBase {
   private _globalAssignmentNames: Set<string> | null = null;
 
   /** The names written to the global scope by a plain assignment
-   *  (`game = -> there`) or a store through the globals table
+   *  (`game = -> there`) or a literal-key store through the globals table
    *  (`_G.game = v`) anywhere in the story, callables included: a global
    *  write is visible from every flow. An assignment that a `local` or
    *  parameter of its name certainly binds writes that binding, not the
@@ -235,7 +235,7 @@ export class Story extends FlowBase {
     return this.globalWriteNames(resolutionTap()?.assignments());
   }
 
-  /** Whether a plain assignment or a store through the globals table
+  /** Whether a plain assignment or a literal-key store through the globals table
    *  anywhere in the story writes the global `name` (`globalWriteName`), for a call of a top-level function of that
    *  name, which calls what the global holds when it does (`Divert`). Only
    *  the name is read: every assignment of it declares it, with how
@@ -273,7 +273,7 @@ export class Story extends FlowBase {
   }
 
   /** The global `obj` writes: a plain assignment's name where it writes the
-   *  global (`writesGlobal`), or the name a store through the globals table
+   *  global (`writesGlobal`), or the name a literal-key store through the globals table
    *  writes (`StorePropertyAssignment.globalName`); null for anything else. */
   public globalWriteName(obj: ParsedObject): string | null {
     if (obj instanceof VariableAssignment) {
