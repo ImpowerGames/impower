@@ -82,12 +82,7 @@ export class SparkdownTypechecker {
   private documentChecks = new Map<string, LuauUnitCheck[]>();
   private nextPreludeId = 0;
   private previousPreludes = new Map<string, { environmentKey: string; mode: Mode; exports: { scope: Scope; id: number } }>();
-  // Each `.luau` file's last text and the tree of its `run` wrapping (`luauFileUnit`).
-  private luauFileTrees = new Map<string, { text: string; tree: Tree }>();
   stats: TypecheckStats = { checked: 0, reused: 0 };
-
-  /** `parse` reads a document's text with Sparkdown's grammar, for a `.luau` file's text. */
-  constructor(private readonly parse?: (text: string) => Tree) {}
 
   /** Luau's builtin globals, loaded on first use. */
   get frontend(): Frontend {
@@ -130,7 +125,6 @@ export class SparkdownTypechecker {
   /** Ends a compile's checks, dropping the results no document used. */
   endCompile(): void {
     for (const key of [...this.cache.keys()]) if (!this.used.has(key)) this.cache.delete(key);
-    for (const uri of [...this.luauFileTrees.keys()]) if (!this.documentChecks.has(uri)) this.luauFileTrees.delete(uri);
     for (const uri of [...this.previousPreludes.keys()]) if (!this.documentChecks.has(uri)) this.previousPreludes.delete(uri);
   }
 
@@ -229,7 +223,7 @@ export class SparkdownTypechecker {
       }
     };
 
-    const fileUnit = isLuauFile(uri) ? this.luauFile(uri, text) : runFileUnit(uri, text, tree);
+    const fileUnit = isLuauFile(uri) ? luauFileUnit(text, tree) : runFileUnit(uri, text, tree);
     if (fileUnit) {
       const entry = this.checkUnit(uri, fileUnit, mode, program.scope, program.key, false);
       report(entry, fileUnit, true);
@@ -253,17 +247,6 @@ export class SparkdownTypechecker {
       report(this.checkUnit(uri, flow, mode, exports.scope, `prelude ${exports.id}`, false), flow, false);
     }
     return diagnostics;
-  }
-
-  /** A `.luau` file's unit, reading its text again only when it changed. */
-  private luauFile(uri: string, text: string): LuauUnit | undefined {
-    const parse = this.parse;
-    if (!parse) return undefined;
-    let cached = this.luauFileTrees.get(uri);
-    return luauFileUnit(text, (wrapped) => {
-      if (cached?.text !== wrapped) this.luauFileTrees.set(uri, (cached = { text: wrapped, tree: parse(wrapped) }));
-      return cached.tree;
-    });
   }
 
   private checkUnit(uri: string, unit: LuauUnit, mode: Mode, environment: Scope, environmentKey: string, isPrelude: boolean): CachedUnit {

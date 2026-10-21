@@ -11,6 +11,7 @@ import {
   SparkdownDocumentRegistry,
 } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { isLuauFile } from "@impower/sparkdown/src/compiler/typecheck/LuauUnitNodes";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
 import {
   hasLuauExtension,
@@ -43,6 +44,9 @@ import {
 /** The owner a .luau file's own diagnostics are published under while the
  *  file is open in an editor, which the stories that run it leave alone. */
 export const LUAU_DOCUMENT_OWNER = "luau-document";
+
+/** How long an open `.luau` document's own compile waits for typing to pause. */
+const LUAU_DOCUMENT_DELAY = 300;
 
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _documents: SparkdownDocumentRegistry;
@@ -293,6 +297,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     };
   }) {
     this._documents.add(params);
+    this.scheduleLuauDocument(params.textDocument.uri);
   }
 
   override async onChangeTextDocument(params: {
@@ -303,6 +308,73 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     contentChanges: SparkdownDocumentContentChangeEvent[];
   }) {
     this._documents.update(params);
+    this.scheduleLuauDocument(params.textDocument.uri);
+  }
+
+  override onCloseTextDocument(params: { textDocument: { uri: string } }) {
+    const uri = params.textDocument.uri;
+    if (!isLuauFile(uri)) {
+      return;
+    }
+    clearTimeout(this._luauDocumentCompiles.get(uri));
+    this._luauDocumentCompiles.delete(uri);
+    // The editor no longer shows the file: its own diagnostics go, and the
+    // story entries that read it own its diagnostics again.
+    if (this._lastPublishedDiagnostics.get(uri)?.owner === LUAU_DOCUMENT_OWNER) {
+      this._lastPublishedDiagnostics.delete(uri);
+      this.sendNotification(PublishDiagnosticsNotification.method, {
+        uri,
+        diagnostics: [],
+      });
+    }
+  }
+
+  /** The pending compile of each open `.luau` document, by its uri. */
+  protected _luauDocumentCompiles = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** Compile an open `.luau` document on its own once typing pauses
+   *  (`publishLuauDocument`). Every other document is left to the entries. */
+  protected scheduleLuauDocument(uri: string) {
+    if (!isLuauFile(uri)) {
+      return;
+    }
+    clearTimeout(this._luauDocumentCompiles.get(uri));
+    this._luauDocumentCompiles.set(
+      uri,
+      setTimeout(() => {
+        this._luauDocumentCompiles.delete(uri);
+        this.publishLuauDocument(uri).catch((e) => console.error(e));
+      }, LUAU_DOCUMENT_DELAY),
+    );
+  }
+
+  /**
+   * A `.luau` document an editor has open is not a story entry (a `run`
+   * reads it), but the editor shows its own diagnostics: the document is
+   * compiled on its own, read from the grammar's Luau root (I-1320), and its
+   * diagnostics are published under `LUAU_DOCUMENT_OWNER` while it stays
+   * open. The compile is posted after the document's updates, as an entry's
+   * is, and is neither recorded as the last compiled entry nor published as
+   * a program.
+   */
+  async publishLuauDocument(uri: string) {
+    await this.compilerReady();
+    await this._documentUpdatesPosted;
+    const result = await this._compilerChannelConnection.sendRequest(
+      CompileProgramMessage.type,
+      { textDocument: { uri } },
+    );
+    if (!result.program?.summary) {
+      this._programTransport.decode(result.program);
+    }
+    if (!this.textDocumentIsOpen(uri)) {
+      return;
+    }
+    this.publishDiagnostics(
+      uri,
+      this.getDiagnostics(result.program, uri),
+      LUAU_DOCUMENT_OWNER,
+    );
   }
 
   // Fingerprint + published-at version of the last diagnostics publish per
@@ -376,6 +448,16 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     owner: string | undefined,
   ) {
     const last = this._lastPublishedDiagnostics.get(uri);
+    // An open `.luau` document's own compile owns its diagnostics
+    // (`publishLuauDocument`): no other publisher replaces them while an
+    // editor has it open, though a story that runs it reports under its uri.
+    if (
+      last?.owner === LUAU_DOCUMENT_OWNER &&
+      owner !== LUAU_DOCUMENT_OWNER &&
+      this.textDocumentIsOpen(uri)
+    ) {
+      return;
+    }
     const version = this._documentVersions.get(uri);
     const fingerprint = JSON.stringify(diagnostics);
     this._lastPublishedDiagnostics.set(uri, { fingerprint, version, diagnostics, owner });
@@ -417,7 +499,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ]);
     this._runtimeDiagnostics = { params, files: this._fileChanges };
     for (const uri of uris) {
-      const owner = this._lastPublishedDiagnostics.get(uri)?.owner;
+      // An open `.luau` document's own compile is no story entry: the run's
+      // report is published as its story's, which leaves the document's own
+      // diagnostics in place while it stays open (`publishDiagnostics`).
+      const published = this._lastPublishedDiagnostics.get(uri)?.owner;
+      const owner = published === LUAU_DOCUMENT_OWNER ? undefined : published;
       const entryUri = [
         params.program.uri,
         owner,

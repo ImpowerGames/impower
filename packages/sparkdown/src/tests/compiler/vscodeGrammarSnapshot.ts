@@ -31,9 +31,23 @@ const GRAMMAR_PATH = join(
   "sparkdown.language-grammar.json",
 );
 
+// The TextMate grammar of the `.luau` root, which the build writes beside the
+// grammar and which includes its root rule from it (GRAMMAR.md §1.5).
+const LUAU_FILE_GRAMMAR_PATH = join(
+  __dirname,
+  "..",
+  "..",
+  "..",
+  "language",
+  "sparkdown-luau.language-grammar.json",
+);
+
 let registry: InstanceType<typeof Registry> | null = null;
 let scopeName: string | null = null;
 let wasmLoaded: Promise<void> | null = null;
+
+/** The scope of the `.luau` root's TextMate grammar. */
+export const LUAU_FILE_SCOPE_NAME: string = JSON.parse(readFileSync(LUAU_FILE_GRAMMAR_PATH, "utf8")).scopeName;
 
 function loadOnig(): Promise<void> {
   if (wasmLoaded) return wasmLoaded;
@@ -53,6 +67,7 @@ async function getRegistry(): Promise<{
   if (registry && scopeName) return { registry, scopeName };
 
   const grammarText = readFileSync(GRAMMAR_PATH, "utf8");
+  const luauFileGrammarText = readFileSync(LUAU_FILE_GRAMMAR_PATH, "utf8");
   scopeName = JSON.parse(grammarText).scopeName;
   if (!scopeName) {
     throw new Error(`No scopeName in ${GRAMMAR_PATH}`);
@@ -66,6 +81,9 @@ async function getRegistry(): Promise<{
     loadGrammar: async (requested: string) => {
       if (requested === scopeName) {
         return parseRawGrammar(grammarText, GRAMMAR_PATH);
+      }
+      if (requested === LUAU_FILE_SCOPE_NAME) {
+        return parseRawGrammar(luauFileGrammarText, LUAU_FILE_GRAMMAR_PATH);
       }
       return null;
     },
@@ -84,11 +102,13 @@ export interface VsTokenDump {
   }[];
 }
 
-export async function tokenize(source: string): Promise<VsTokenDump[]> {
+/** Tokenizes `source` as VS Code does: as a `.sd` script, or with `luauFile` as a `.luau` document, from the `sparkdown-luau` language's grammar. */
+export async function tokenize(source: string, { luauFile = false }: { luauFile?: boolean } = {}): Promise<VsTokenDump[]> {
   const { registry, scopeName } = await getRegistry();
-  const grammar = await registry.loadGrammar(scopeName);
+  const rootScope = luauFile ? LUAU_FILE_SCOPE_NAME : scopeName;
+  const grammar = await registry.loadGrammar(rootScope);
   if (!grammar) {
-    throw new Error(`Could not load grammar for ${scopeName}`);
+    throw new Error(`Could not load grammar for ${rootScope}`);
   }
 
   const out: VsTokenDump[] = [];

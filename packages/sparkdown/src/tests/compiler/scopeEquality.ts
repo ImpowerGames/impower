@@ -18,11 +18,28 @@
 // scope-stack comparison. See packages/sparkdown/docs/compiler/GRAMMAR.md §17.
 
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
+import { createSparkdownParser } from "../../compiler/utils/createSparkdownParser";
 import { getParser, parseSource } from "./grammarSnapshot";
-import { tokenize } from "./vscodeGrammarSnapshot";
+import { LUAU_FILE_SCOPE_NAME, tokenize } from "./vscodeGrammarSnapshot";
 
 const GRAMMAR = GRAMMAR_DEFINITION as any;
 const SCOPE_NAME: string = GRAMMAR.scopeName;
+
+/** Which root a source is read from: a `.sd` script's, or with `luauFile` a `.luau` document's (GRAMMAR.md §1.5). */
+export interface EngineOptions {
+  luauFile?: boolean;
+}
+
+let luauFileParser: ReturnType<typeof createSparkdownParser> | undefined;
+
+/** The tree of `source` as the document it is read as. */
+function parseAs(source: string, { luauFile = false }: EngineOptions) {
+  if (!luauFile) return parseSource(source);
+  luauFileParser ??= createSparkdownParser("inmemory:///scope-equality.luau");
+  return luauFileParser.parse(source);
+}
+
+const rootScopeOf = ({ luauFile = false }: EngineOptions) => (luauFile ? LUAU_FILE_SCOPE_NAME : SCOPE_NAME);
 
 // Build maps from every tree node type id -> the TextMate scope it
 // contributes. The tree's lezer node `name` is the grammar rule's *typeId*
@@ -72,7 +89,7 @@ export function treeNodeScope(nodeName: string): string | undefined {
 }
 
 /** The TextMate scope stack the tree assigns to the character at `offset`. */
-export function treeScopeStackAt(tree: any, offset: number): string[] {
+export function treeScopeStackAt(tree: any, offset: number, options: EngineOptions = {}): string[] {
   // `resolveInner(offset, 1)` resolves at the boundary leaning right, i.e. the
   // deepest node covering the character that STARTS at `offset`.
   const node = tree.resolveInner(offset, 1);
@@ -82,7 +99,7 @@ export function treeScopeStackAt(tree: any, offset: number): string[] {
     chain.unshift(n.name);
     n = n.parent;
   }
-  const scopes: string[] = [SCOPE_NAME];
+  const scopes: string[] = [rootScopeOf(options)];
   for (const name of chain) {
     const sc = treeNodeScope(name);
     // A TextMate `name` may list several space-separated scopes; vscode-textmate
@@ -103,13 +120,14 @@ export function treeScopeStackAt(tree: any, offset: number): string[] {
  */
 export async function vscodeScopeStacksPerChar(
   source: string,
+  options: EngineOptions = {},
 ): Promise<string[][]> {
   // `source` is expected to already be newline-normalized (see compareEngines).
-  const dumps = await tokenize(source);
+  const dumps = await tokenize(source, options);
   const perChar: string[][] = new Array(source.length);
   // Pre-fill with the bare root scope (covers newlines / blank lines / any
   // gap vscode-textmate doesn't emit a token for).
-  for (let i = 0; i < source.length; i++) perChar[i] = [SCOPE_NAME];
+  for (let i = 0; i < source.length; i++) perChar[i] = [rootScopeOf(options)];
 
   // `tokenize` splits on \n; reconstruct absolute offsets the same way.
   const lines = source.split("\n");
@@ -157,14 +175,15 @@ export interface EngineComparison {
  */
 export async function compareEnginesFull(
   rawSource: string,
+  options: EngineOptions = {},
 ): Promise<EngineComparison> {
   // Feed the byte-identical, newline-normalized string to BOTH engines so
   // character offsets line up. (vscode-textmate's snapshot helper normalizes
   // CRLF internally; the tree parses whatever it is handed — so we normalize
   // up front and compare on the normalized string.)
   const source = rawSource.replace(/\r\n?/g, "\n");
-  const tree = parseSource(source);
-  const vscodePerChar = await vscodeScopeStacksPerChar(source);
+  const tree = parseAs(source, options);
+  const vscodePerChar = await vscodeScopeStacksPerChar(source, options);
 
   const divergences: CharDivergence[] = [];
   let line = 1;
@@ -177,7 +196,7 @@ export async function compareEnginesFull(
       continue;
     }
     const vscode = vscodePerChar[i]!;
-    const treeScopes = treeScopeStackAt(tree, i);
+    const treeScopes = treeScopeStackAt(tree, i, options);
     if (!scopeStacksEqual(vscode, treeScopes)) {
       divergences.push({
         offset: i,
@@ -195,8 +214,9 @@ export async function compareEnginesFull(
 /** Convenience wrapper returning just the divergence list. */
 export async function compareEngines(
   rawSource: string,
+  options: EngineOptions = {},
 ): Promise<CharDivergence[]> {
-  return (await compareEnginesFull(rawSource)).divergences;
+  return (await compareEnginesFull(rawSource, options)).divergences;
 }
 
 function scopeStacksEqual(a: string[], b: string[]): boolean {

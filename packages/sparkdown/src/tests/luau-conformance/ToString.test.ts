@@ -29,7 +29,7 @@ import { describe, expect, test } from "vitest";
 import { errorToString } from "../../compiler/typecheck/Error";
 import { Frontend } from "../../compiler/typecheck/Frontend";
 import { Location } from "../../compiler/typecheck/Location";
-import { parseSource } from "../compiler/grammarSnapshot";
+import { createSparkdownParser } from "../../compiler/utils/createSparkdownParser";
 import checkedAbsDefinition from "../compiler/definition-fixtures/checked-abs.json";
 import { checkLuauUnit, luauFileUnit, type LuauUnit } from "../../compiler/typecheck/LuauDocumentChecker";
 import { Mode } from "../../compiler/typecheck/Module";
@@ -107,11 +107,11 @@ function ignoreMissingAnnotations(diagnostics: readonly LuauDiagnostic[]): LuauD
   return diagnostics.filter((d) => d.code !== "TypeAnnotationRequired");
 }
 
-/** A snippet as one unit, through the same syntax-tree converter as a run file. */
+const luauFileParser = createSparkdownParser("inmemory:///snippet.luau");
+
+/** A snippet as one unit, read as a `.luau` file through the same syntax-tree converter as one. */
 function luauTextUnit(source: string): LuauUnit {
-  const unit = luauFileUnit(source, parseSource);
-  if (!unit) throw new Error("The converter did not read the Luau snippet");
-  return unit;
+  return luauFileUnit(source, luauFileParser.parse(source));
 }
 
 interface CheckedModule {

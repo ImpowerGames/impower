@@ -44,6 +44,19 @@ Helper:
   assert.deepEqual(names(source), []);
 });
 
+test("the rule a `.luau` document is read from (`luauFile.rule`) is a root, with what it includes", () => {
+  const source = `luauFile:\n  rule: FileRoot\n${grammar({
+    repository: `FileRoot:
+  patterns:
+    - include: "#FileChild"
+FileChild:
+  match: f
+Dead:
+  match: d`,
+  })}`;
+  assert.deepEqual(names(source), ["Dead"]);
+});
+
 // The reachability test pins the grammar's unreachable rules and unused
 // variables; this rule and no-unreferenced-variable must find the same.
 test("findings on the grammar agree with grammarReachability.test.ts", () => {

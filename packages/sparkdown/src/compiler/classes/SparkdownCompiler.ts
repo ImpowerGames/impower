@@ -601,9 +601,8 @@ export class SparkdownCompiler {
    *  walked again. */
   protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
 
-  // Type checks each document's Luau, keeping results between compiles. A
-  // `.luau` file's text is parsed as a `run` wraps it (`luauFileUnit`).
-  protected _typechecker = new SparkdownTypechecker((text) => this.documents.parser.parse(text));
+  // Type checks each document's Luau, keeping results between compiles.
+  protected _typechecker = new SparkdownTypechecker();
 
   protected _files = new SparkdownFileRegistry();
   get files() {
@@ -5964,7 +5963,7 @@ export class SparkdownCompiler {
       if (!doc || !tree) continue;
       let script = this._lintsByTree.get(tree);
       if (!script) {
-        script = collectLuauLints(tree, (from, to) => doc.read(from, to));
+        script = collectLuauLints(tree, (from, to) => doc.read(from, to), { luauFile: isLuauFile(scriptUri) });
         this._lintsByTree.set(tree, script);
       }
       scripts.push({ uri: scriptUri, names: script.names, globalShadows: script.globalShadows, uncertainGlobalUses: script.uncertainGlobalUses, outermostLocals: script.outermostLocals, mentionsUnplaced: script.mentionsUnplaced, mentionsUnplacedVariable: script.mentionsUnplacedVariable, misreadStatements: script.misreadStatements, topLevelMembers: script.topLevelMembers });
@@ -5989,14 +5988,7 @@ export class SparkdownCompiler {
         });
         for (const { uri: scriptUri, lint } of shadows) report(scriptUri, lint);
       }
-      // The pass reads a `.luau` file as a `.sd` script, whose lines outside
-      // a function are narrative, so any mention of a name there may use it.
-      const usesSeen = scripts.map((script) => {
-        if (!isLuauFile(script.uri)) return script;
-        const text = this.documents.get(script.uri)?.getText() ?? "";
-        return { ...script, mentionsUnplacedVariable: (name: string) => new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(text) };
-      });
-      const locals = lintGlobalsUsedAsLocals(names, usesSeen, builtins, (scriptUri, offset) => (this.documents.get(scriptUri)?.positionAt(offset).line ?? 0) + 1);
+      const locals = lintGlobalsUsedAsLocals(names, scripts, builtins, (scriptUri, offset) => (this.documents.get(scriptUri)?.positionAt(offset).line ?? 0) + 1);
       for (const { uri: scriptUri, lint } of locals) report(scriptUri, lint);
     }
     for (const [scriptUri, list] of lints) {

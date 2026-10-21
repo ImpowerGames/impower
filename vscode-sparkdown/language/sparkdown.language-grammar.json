@@ -13,6 +13,14 @@
   "scopeName": "text.source.sparkdown",
   "uuid": "E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F",
   "flags": "mu",
+  "luauFile": {
+    "name": "Sparkdown Luau",
+    "scopeName": "source.sparkdown.luau",
+    "fileTypes": [
+      "luau"
+    ],
+    "rule": "LuauFile"
+  },
   "variables": {
     "LUAU_SHARED_UNTIL_ACCESS_SUFFIX": "(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\\[[^\\]\\n]*\\]))",
     "LUAU_SHARED_TYPE_DECLARATION_END": "(?:$|{{LUAU_SHARED_TYPE_DECLARATION_END_GUARD}})",
@@ -183,6 +191,17 @@
       "export"
     ],
     "LUAU_PRESENTATION_DEFINITION_KEYWORDS": [
+      "animation",
+      "theme",
+      "morph"
+    ],
+    "LUAU_FILE_SPARKDOWN_WORDS": [
+      "define",
+      "store",
+      "layout",
+      "style",
+      "screen",
+      "component",
       "animation",
       "theme",
       "morph"
@@ -769,6 +788,51 @@
     }
   ],
   "repository": {
+    "LuauFile": {
+      "patterns": [
+        {
+          "include": "#LuauFileSparkdownWord"
+        },
+        {
+          "include": "#LuauFunctionAttributes"
+        },
+        {
+          "include": "#LuauBlockBody"
+        },
+        {
+          "include": "#LuauStrayCloser"
+        },
+        {
+          "include": "#LuauUnreadToken"
+        }
+      ]
+    },
+    "LuauFileSparkdownWord": {
+      "match": "((?:[^\\S\\n\\r])*)(?:(\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b)|(->))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauUnreadName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauUnreadCharacter"
+            }
+          ]
+        }
+      }
+    },
     "SparkdownStatement": {
       "patterns": [
         {

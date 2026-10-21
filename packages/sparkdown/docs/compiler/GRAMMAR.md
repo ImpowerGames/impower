@@ -78,6 +78,10 @@ scopeName: text.source.sparkdown
 uuid: ...
 flags: mu                    # documentary only — see note below
 
+luauFile:                    # the second root, a `.luau` document's (§1.5)
+  rule: LuauFile
+  ...
+
 variables:                   # shared regex fragments and keyword lists (§7)
   WS: (?:[^\S\n\r])
   NL: (?:\r\n|\r|\n)
@@ -108,6 +112,19 @@ Three sections to know:
 - **`repository:`** — every named rule lives here. References use `#Name`. New rules go here.
 
 > **About `flags: mu`.** This field is documentary only. Neither parser actually reads it. It tells human authors what regex flags every pattern is implicitly run under: `u` for Unicode-aware matching, `m` for multiline `^`/`$`. Changing it doesn't change parse behavior.
+
+### 1.5 Two roots: `.sd` scripts and `.luau` files
+
+The grammar has two roots, one per kind of document. The rules and node names are the same for both.
+
+- **A `.sd` script** starts on the top-level `patterns:`. Its top level is story: a line is a scene, a branch, a declaration that ends at its line, or display text.
+- **A `.luau` file** starts on the rule its `luauFile:` block names, `LuauFile`. A `.luau` file is Luau from its first line to its last, so that root holds what a function body holds: `LuauBlockBody`, `LuauStrayCloser` and the `LuauUnreadToken` catch-all (§13.2), plus the top level's `@attribute` lines. A `local` list therefore continues after a trailing comma, and `print(b)` is a call statement, not an action line. Before those, `LuauFileSparkdownWord` takes a word that would begin a Sparkdown construct in a Luau body (`define`, `store`, `layout`, `style`, `screen`, `component`, `animation`, `theme`, `morph`) or a divert's `->` as an unread token, so Luau's reading reports that line in Luau's words (I-1385).
+- **The document's uri selects the root.** `isLuauFile` in `LuauUnitNodes.ts` is the one decider, the same one the type checker uses. A `run` wrapper's document (`?run…`) is not a `.luau` file: `run "util"` still wraps the file's text in a function, which the `.sd` root reads.
+- **Each host selects it the same way:**
+  - `sparkdownGrammarFor(uri)` (`packages/sparkdown/src/compiler/utils/sparkdownGrammarFor.ts`) returns the grammar definition for a uri. `createSparkdownParser(uri)` builds a parser on it, and the compiler's `SparkdownDocumentRegistry.parserFor(uri)` keeps one parser per root. The language server uses the compiler's registry.
+  - The web editor's `sparkdownLanguageExtension` passes the document's grammar to CodeMirror.
+  - For VS Code, the build writes `sparkdown-luau.language-grammar.json` beside the grammar. Its scope is `source.sparkdown.luau` and its root includes `text.source.sparkdown#LuauFile`, so it copies no rule. The extension's `sparkdown-luau` language, which claims `.luau`, is highlighted with it.
+- **The reachability walks treat both roots as roots.** The `no-unreferenced-rule` lint and `grammarReachability.test.ts` start from the top-level `patterns:` and from `luauFile.rule`.
 
 ---
 

@@ -1934,10 +1934,11 @@ function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], e
 // ---------------------------------------------------------------------------
 const documentFacts = new WeakMap<Tree, { outside: OutsideReading[]; narrativeIfs: Set<number>; names: LuauNameFacts; roots: NameRoot[]; uncertainGlobalUses: Set<number>; outermostLocals: Set<string>; misreadStatements: NameRange[]; errorLines: NameRange[]; mentionsUnplaced: (name: string) => boolean; mentionsUnplacedVariable: (name: string) => boolean; topLevelMembers: TopLevelMemberDefinition[]; parameterStarts: Set<number> }>();
 
-export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string): LuauScriptLints {
+/** A script's lints. `luauFile` reads the tree as a `.luau` file's, which the grammar's `.luau` root built (`readDocumentUnits`). */
+export function collectLuauLints(tree: Tree, read: (from: number, to: number) => string, { luauFile = false }: { luauFile?: boolean } = {}): LuauScriptLints {
   const text = read(0, tree.length);
   const starts = lineStarts(text);
-  const units = readDocumentUnits(tree, text);
+  const units = readDocumentUnits(tree, text, luauFile);
   let facts = documentFacts.get(tree);
   if (!facts) {
     const nodes = lintSyntaxNodes(tree, text);

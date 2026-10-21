@@ -6,6 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { lintBuiltinNames, SparkdownCompiler } from "../src/compiler/classes/SparkdownCompiler";
 import { collectLuauLints, indexProgramNames, lintGlobalsUsedAsLocals, LUAU_LINT_CODES } from "../src/compiler/lint/collectLuauLints";
+import { isLuauFile } from "../src/compiler/typecheck/LuauUnitNodes";
 import type { SparkDiagnostic } from "../src/compiler/types/SparkDiagnostic";
 
 export interface Script {
@@ -117,7 +118,7 @@ function moduleLevelGlobals(compiler: SparkdownCompiler, uri: string, script: Sc
   const doc = compiler.documents.get(uri);
   const tree = compiler.documents.tree(uri);
   if (!doc || !tree) return [];
-  const facts = collectLuauLints(tree, (from, to) => doc.read(from, to));
+  const facts = collectLuauLints(tree, (from, to) => doc.read(from, to), { luauFile: isLuauFile(uri) });
   const wrapper = [...facts.names.functionStarts].find(([fn, from]) => from === 0 && fn.debugname === "run")?.[0];
   const references = facts.names.references.map((reference) => {
     const enclosingFunctions = reference.enclosingFunctions.filter((fn) => fn !== wrapper);
