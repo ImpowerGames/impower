@@ -119,6 +119,11 @@ describe("a double-quoted string's interpolation left open ends at the string's 
       'local c = 1\n  local s = "a {c == 1 and "x" or "y"} z"',
       'local c = "c"\n  local s = "a {c .. "x" .. c} z"',
       'local s = "a {`x {"`"} y`} z"',
+      // Call sugar after a string, and a nested string with its own
+      // interpolation (round 3, `ax` findings 1 and 2).
+      'local f = function(s) return function(t) return s end end\n  local s = "a {f"x"{}} z"',
+      'local f = function(s) return function(t) return s end end\n  local s = "a {f"x"\'y\'} z"',
+      'local s = "a {tostring"x {tostring"y"}"} z"',
     ]) {
       expect(sparkdownErrors(documentOf(form).text), form).toEqual([]);
     }

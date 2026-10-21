@@ -615,10 +615,18 @@
     "LUAU_SINGLE_QUOTED_STRING_TEXT": "(?:(?:\\\\.|[^'\\\\\\r\\n])*)",
     "LUAU_BACKTICK_STRING_TEXT": "(?:(?:\\\\.|[^`\\\\\\r\\n])*)",
     "LUAU_UNFINISHED_LINE_STRING": "(?:(?:\"{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}|'{{LUAU_UNFINISHED_SINGLE_QUOTED_TEXT}}|`{{LUAU_UNFINISHED_BACKTICK_TEXT}})$)",
-    "LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE": "(?:(?!{{LUAU_DOUBLE_QUOTED_INTERPOLATION_NESTED_STRING}}){{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}+(?=[\"]))",
-    "LUAU_DOUBLE_QUOTED_INTERPOLATION_NESTED_STRING": "(?:{{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}*{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}{{WS}}*{{LUAU_INTERPOLATION_EXPRESSION_GOES_ON}})",
-    "LUAU_INTERPOLATION_EXPRESSION_GOES_ON": "(?:[}.:\\[(+*/%^<>=~-]|{{LUAU_INTERPOLATION_GOES_ON_KEYWORD}})",
-    "LUAU_INTERPOLATION_GOES_ON_KEYWORD": "(?:(?:and|or|then|else|elseif){{LUAU_NAME_END}})",
+    "LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE": "(?:{{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}+(?=[\"]{{LUAU_DOUBLE_QUOTED_INTERPOLATION_AFTER_CLOSE}}))",
+    "LUAU_DOUBLE_QUOTED_INTERPOLATION_AFTER_CLOSE": "(?:{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}$|{{LUAU_INTERPOLATED_DOUBLE_QUOTED_TEXT}}[\"](?!{{WS}}*{{LUAU_INTERPOLATION_EXPRESSION_GOES_ON}}))",
+    "LUAU_INTERPOLATED_DOUBLE_QUOTED_TEXT": "(?:(?:\\\\.|[^\"\\\\{`\\r\\n]|{{LUAU_INTERPOLATION_IN_STRING_ON_LINE}})*)",
+    "LUAU_INTERPOLATION_IN_STRING_ON_LINE": "(?:[{](?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|[^{}\"'`\\r\\n])*[}])",
+    "LUAU_INTERPOLATION_EXPRESSION_GOES_ON": "(?:[}.:\\[({\"'+*/%^<>=~-]|{{LUAU_INTERPOLATION_GOES_ON_KEYWORDS}})",
+    "LUAU_INTERPOLATION_GOES_ON_KEYWORDS": [
+      "and",
+      "or",
+      "then",
+      "else",
+      "elseif"
+    ],
     "LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT": "(?:{{LUAU_INTERPOLATION_GROUP_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_INTERPOLATION_PLAIN_CHARACTER}})",
     "LUAU_INTERPOLATION_GROUP_ON_LINE": "(?:[(]{{LUAU_INTERPOLATION_GROUP_ITEM}}*[)]|\\[(?![\\[=]){{LUAU_INTERPOLATION_GROUP_ITEM}}*\\])",
     "LUAU_INTERPOLATION_GROUP_ITEM": "(?:{{LUAU_INTERPOLATION_GROUP_TEXT}}|{{LUAU_INTERPOLATION_INNER_GROUP_ON_LINE}})",
@@ -17714,7 +17722,7 @@
       }
     },
     "LuauDoubleQuotedInterpolationBeforeClose": {
-      "match": "((?:(?!(?:(?:(?:[(](?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))|(?:[(](?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*[)]|\\[(?![\\[=])(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*\\]))*[)]|\\[(?![\\[=])(?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))|(?:[(](?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*[)]|\\[(?![\\[=])(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*\\]))*\\])|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")(?:[^\\S\\n\\r])*(?:[}.:\\[(+*/%^<>=~-]|(?:(?:and|or|then|else|elseif)(?![a-zA-Z0-9_])))))(?:(?:[(](?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))|(?:[(](?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*[)]|\\[(?![\\[=])(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*\\]))*[)]|\\[(?![\\[=])(?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))|(?:[(](?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*[)]|\\[(?![\\[=])(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*\\]))*\\])|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))+(?=[\"])))",
+      "match": "((?:(?:(?:[(](?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))|(?:[(](?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*[)]|\\[(?![\\[=])(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*\\]))*[)]|\\[(?![\\[=])(?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))|(?:[(](?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*[)]|\\[(?![\\[=])(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))*\\]))*\\])|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:[^{}()\\[\\]`\"'\\r\\n-]|-(?!-)))+(?=[\"](?:(?:(?:(?:\\\\z(?![ \\t\\v\\f]*$)|\\\\[^z\\r\\n])|[^\"\\\\\\r\\n])*)$|(?:(?:\\\\.|[^\"\\\\{`\\r\\n]|(?:[{](?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|[^{}\"'`\\r\\n])*[}]))*)[\"](?!(?:[^\\S\\n\\r])*(?:[}.:\\[({\"'+*/%^<>=~-]|\\b(?:and|or|then|else|elseif)\\b))))))",
       "captures": {
         "1": {
           "patterns": [
