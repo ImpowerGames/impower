@@ -62,10 +62,11 @@ export class VariableAssignment extends ParsedObject {
    *  (`ProgramResolver.decideWrites`), and kept while the statement is
    *  carried; null until decided (`Story.writesGlobal`). */
   public boundLocally: boolean | null = null;
-  /** For a `local` of the root frame's own scope, the slot that keeps its
-   *  binding (`rootSlotName`): the declaration stores the cell of the binding
-   *  it makes there, which a later declaration of the name closes on its value
-   *  and leaves to the code written between them (I-1374). */
+  /** For a `local` of the root frame's own scope whose name the document
+   *  declares there more than once, the slot that keeps its binding
+   *  (`rootSlotName`): the declaration stores the cell of the binding it makes
+   *  there, which a later declaration of the name closes on its value and
+   *  leaves to the code written between them (I-1374). */
   public rootSlot: string | null = null;
 
   /** Stores the cell of the binding the declaration just made in its slot

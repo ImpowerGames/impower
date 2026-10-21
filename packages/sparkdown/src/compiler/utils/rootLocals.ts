@@ -17,6 +17,12 @@ import {
   valueListAssignmentName,
 } from "./variableDefinitionNames";
 
+/** The answer for a name the document declares once in the root frame's own
+ *  scope: a function binds its binding there by name (`RootBinding`), with no
+ *  slot. A scene of another script that declares the name too shares that
+ *  scope, and replaces the binding while it runs (I-1455). */
+export const ROOT_ONLY = "only";
+
 /** The answer for a name the root frame's own scope declares, none of whose
  *  declarations is in scope where code is written (a scene's `local` read in
  *  another scene, or one declared below the code): the name reads the global,
@@ -65,9 +71,9 @@ interface Flow {
  * are followed as `topLevelStatements` follows them.
  *
  * Each declaration is known by its ordinal among the document's declarations
- * of its name, and keeps the binding it makes in a slot of its own
- * (`rootSlotName`), which the declarations after it, in this script or any
- * other, leave in place.
+ * of its name: a name declared once is `ROOT_ONLY`, and the binding of each
+ * declaration of a name declared more than once is kept under a slot of its
+ * own (`rootSlotName`), which the declarations after it leave in place.
  */
 export class RootLocals {
   protected readonly declarations = new Map<string, RootDeclaration[]>();
@@ -104,10 +110,11 @@ export class RootLocals {
   /**
    * The declaration of `name` a function reads where code at `at` is
    * written: the last one before it at the top level or in a flow whose body
-   * holds it, and in the body of a choice only within that body. Its ordinal
-   * (from 1) among the document's declarations of the name, or `ROOT_NONE`
-   * for none, where the name reads the global, or the builtin of a stdlib
-   * name. "" for a name the document declares nowhere in that scope.
+   * holds it, and in the body of a choice only within that body: `ROOT_ONLY`
+   * for the document's only declaration of the name, its ordinal (from 1)
+   * for one of several, or `ROOT_NONE` for none, where the name reads the
+   * global, or the builtin of a stdlib name. "" for a name the document
+   * declares nowhere in that scope.
    */
   answer(name: string, at: number): string {
     const list = this.declarations.get(name);
@@ -120,7 +127,7 @@ export class RootLocals {
         at <= declaration.visibleTo &&
         (declaration.flow < 0 || around.has(declaration.flow))
       ) {
-        return String(i + 1);
+        return list.length === 1 ? ROOT_ONLY : String(i + 1);
       }
     }
     return ROOT_NONE;
@@ -133,7 +140,8 @@ export class RootLocals {
     const list = this.declarations.get(name);
     if (!list) return "";
     const i = list.findIndex((declaration) => declaration.at === at);
-    return i < 0 ? "" : String(i + 1);
+    if (i < 0) return "";
+    return list.length === 1 ? ROOT_ONLY : String(i + 1);
   }
 
   /** The flows whose bodies hold `at`, innermost first. */

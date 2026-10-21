@@ -322,9 +322,9 @@ export function openVariablePointer(
  * scope of its own, is never it. Null when that scope binds no such name, as
  * before its `local` statement runs, or the root frame is the current one.
  *
- * With `slot` (`ROOT_SLOT`), the binding of one declaration of the name in
- * that scope: the cell the declaration stored in its slot (`rootSlotCell`),
- * or null when it has not run.
+ * With `slot` (`ROOT_SLOT`), the binding of one declaration of a name the
+ * scope declares more than once: the cell the declaration stored in its slot
+ * (`rootSlotCell`), or null when it has not run.
  */
 export function rootVariablePointer(
   callStack: CallStack,
@@ -381,8 +381,8 @@ export function rootSlotCell(
 }
 
 /**
- * Keeps the binding of `name` that a declaration of the root frame's own
- * scope (`SET_ROOT_SLOTTED`) is about to
+ * Keeps the binding of `name` that a declaration of a name the root frame's
+ * own scope declares more than once (`SET_ROOT_SLOTTED`) is about to
  * replace, when the scope holds it with no slot of the name at all: one an
  * engine before the slots made, which a save it wrote holds. Its cell goes in
  * the slot `<name>$0`, which the declaration's replacement closes on the
@@ -404,8 +404,8 @@ export function keepLegacyRootBinding(callStack: CallStack, name: string): void 
 }
 
 /**
- * The pointer a closure built in the root frame captures for a `local` of its
- * own scope (`Op.VarPtr` with `ROOT_SLOT`): the cell
+ * The pointer a closure built in the root frame captures for a `local` its
+ * own scope declares more than once (`Op.VarPtr` with `ROOT_SLOT`): the cell
  * of the declaration in scope where the closure is written, which its slot
  * keeps (`rootSlotCell`), whichever declaration of the name runs last. One
  * that has not run leaves a pointer at the global; a binding a save of an

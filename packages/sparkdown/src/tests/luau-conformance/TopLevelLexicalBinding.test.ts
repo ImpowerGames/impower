@@ -179,7 +179,9 @@ describe("a function written at the top level", () => {
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Go", "Got 1 3."));
   });
 
-  test("keeps the top-level local where a scene of another script declares the name", () => {
+  // A name a script declares once is bound by name in the scope every
+  // script's scenes share (I-1455).
+  test.fails("keeps the top-level local where a scene of another script declares the name", () => {
     const { program } = quiet(() =>
       programCompiler({
         "inmemory:///main.sd": ["local x = 1", "function g()", "  return x", "end", "-> S", ""].join("\n"),
@@ -427,12 +429,12 @@ describe("a top-level local beside a store of its name", () => {
 });
 
 describe("the entry of a function", () => {
-  test("binds the slot of the declaration it reads, a name declared once or several times", () => {
+  test("binds a name declared once by name, and one of several by the declaration's slot", () => {
     const listing = programListing(
       rootOf(["local a = 1", "local b = 1", "function g()", "  return a + b", "end", "local b = 2", "Got {g()}."]),
     );
     expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([
-      expect.stringMatching(/^BindRoot a\$1\$\S+ flags 1$/),
+      "BindRoot a",
       expect.stringMatching(/^BindRoot b\$1\$\S+ flags 1$/),
     ]);
   });

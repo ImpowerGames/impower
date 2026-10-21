@@ -2,7 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import type { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
-import { ROOT_NONE } from "../../utils/rootLocals";
+import { ROOT_NONE, ROOT_ONLY } from "../../utils/rootLocals";
 import type { LowerContext } from "../context";
 import { documentTag } from "./documentTag";
 
@@ -36,16 +36,17 @@ export function answersDeclaration(answer: string): boolean {
 }
 
 /**
- * The root frame's slot that keeps the binding of one declaration of a name in
- * that scope (`name$<ordinal>$<tag>`), or null for an answer that names no
- * declaration. The slot holds the cell of the declaration's binding
- * (`RootBinding`), so a later declaration of the name, in this script or
- * another, which replaces the binding, leaves it to the code written between
- * them. No name an author writes holds a `$`, and the document's tag keeps
- * the slots of two scripts apart.
+ * The root frame's slot that keeps the binding of one declaration of a name
+ * the document declares more than once in that scope (`name$<ordinal>$<tag>`),
+ * or null for an answer that needs none: the only declaration of its name,
+ * whose binding is the scope's own, or no declaration at all. The slot holds
+ * the cell of the declaration's binding (`RootBinding`), so a later
+ * declaration of the name, which replaces the binding, leaves it to the code
+ * written between them. No name an author writes holds a `$`, and the
+ * document's tag keeps the slots of two scripts' scenes apart.
  */
 export function rootSlotName(name: string, answer: string, ctx: LowerContext): string | null {
-  if (!answersDeclaration(answer)) return null;
+  if (!answersDeclaration(answer) || answer === ROOT_ONLY) return null;
   return `${name}$${answer}$${documentTag(ctx.filePath)}`;
 }
 
@@ -53,7 +54,8 @@ export function rootSlotName(name: string, answer: string, ctx: LowerContext): s
  * The slot a declaration of `name` written at `at` stores the cell of its
  * binding in (`VariableAssignment.rootSlot`, a flow's parameter's
  * `Argument.rootSlot`): one of the root frame's own scope, outside every
- * function and block. Null for any other.
+ * function and block, whose name the document declares there more than once.
+ * Null for any other.
  */
 export function rootDeclarationSlot(name: string, at: number, ctx: LowerContext): string | null {
   if (ctx.functionScopeStack?.length || ctx.scopeDepth) return null;

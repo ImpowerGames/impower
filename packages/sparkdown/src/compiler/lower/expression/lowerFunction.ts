@@ -841,7 +841,8 @@ export type RootCapture = { slot: string } | "global";
 
 /** How each of `upvals` a closure built in the root frame captures, where
  *  not by name: through the slot of the declaration of the root frame's own
- *  scope it reads (`rootSlotName`), and at the global for a name it reads as
+ *  scope it reads, for a name the document declares there more than once
+ *  (`rootSlotName`), and at the global for a name it reads as
  *  a global that the scope declares where no such declaration is in scope
  *  (`ROOT_NONE`), so that a scene's `local` of the name, which the scope may
  *  bind as the closure is built, is not captured (I-1374). A name the scope

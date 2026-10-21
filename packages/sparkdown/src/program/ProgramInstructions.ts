@@ -191,9 +191,9 @@ export const JUMP_LUAU = 1;
 export const JUMP_DECISION = 2;
 
 /** `BindRoot`'s and `VarPtr`'s flag: `arg` names the root frame's slot that
- *  keeps the binding of one declaration of its own scope (a `local`, or a
- *  scene's or a branch's parameter), `<name>$<ordinal>$<document tag>`, and
- *  the instruction
+ *  keeps the binding of one declaration of a name the document declares more
+ *  than once in its own scope (a `local`, or a scene's or a branch's
+ *  parameter), `<name>$<ordinal>$<document tag>`, and the instruction
  *  reaches the cell the slot holds. Where the slot is missing, the binding an
  *  engine before the slots made (a save it wrote) is reached instead: the
  *  cell the first declaration of the name to run since kept of it
@@ -219,9 +219,9 @@ export const SET_VARARGS = 4;
  *  after its name is declared, #1720). It assigns as an assignment does, and
  *  a data breakpoint's write watch does not hear it. */
 export const SET_INITIALIZE = 8;
-/** The declaration is one of the root frame's own scope (a `local`, or a
- *  scene's or a branch's parameter), which keeps the cell of its binding in a
- *  slot (`ROOT_SLOT`). Before it replaces a binding of the name that the scope
+/** The declaration is one of a name the document declares more than once in
+ *  the root frame's own scope (a `local`, or a scene's or a branch's
+ *  parameter), which keeps the cell of its binding in a slot (`ROOT_SLOT`). Before it replaces a binding of the name that the scope
  *  holds with no slot of the name at all, one an engine before the slots
  *  made, it keeps that binding's cell in the slot `<name>$0`, which the
  *  readers of a declaration whose slot is missing reach. */

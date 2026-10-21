@@ -24,10 +24,11 @@ import type { RootCapture } from "../../../../../compiler/lower/expression/lower
 // an Expression (slottable into `ObjectExpressionEntry.value`).
 //
 // A closure built in the root frame captures, in place of the newest binding
-// of the name (`rootCapture`, `rootCaptureSlots`): for a `local` of the
-// root frame's own scope, the binding of the declaration in scope where it is
-// written, which that declaration's slot keeps; and for a name that scope
-// declares where none of its declarations is in scope, the global.
+// of the name (`rootCapture`, `rootCaptureSlots`): for a `local` the root
+// frame's own scope declares more than once, the binding of the declaration
+// in scope where it is written, which that declaration's slot keeps; and for
+// a name that scope declares where none of its declarations is in scope, the
+// global.
 export class VariablePointerExpression extends Expression {
   constructor(
     public readonly variableName: string,

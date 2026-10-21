@@ -11,9 +11,10 @@ import { Op, ROOT_SLOT } from "../../../../../program/ProgramInstructions";
 // called before the line that defines it, so it can capture no upvalue when it
 // is built, as a closure does (`buildClosureExpression`); it reaches the
 // local each time it is called, through the cell a closure over the same
-// local shares. It reaches it through the slot of the declaration in scope
-// (`slot`, `rootSlotName`), which the declarations of the name after it, in
-// this script or another, leave in place; without one, by name in that scope.
+// local shares. A name the document declares more than once in that scope is
+// reached through the slot of the declaration in scope (`slot`,
+// `rootSlotName`), which the declarations after it leave in place; a name it
+// declares once, by name in that scope.
 export class RootBinding extends ParsedObject {
   constructor(
     public readonly variableName: string,

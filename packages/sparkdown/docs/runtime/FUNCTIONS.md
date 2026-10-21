@@ -144,22 +144,21 @@ name reads the global until that local's line has run. A name no such
 `local` takes reads the global, or the builtin of a stdlib name (`count`,
 `math`, `table`): a `local` of the name declared below the function, a
 later `local` of the name in the same scope, a scene's `local` (a scene
-other than the one the function is written in, in this script or another)
-and a block's local (a loop's variable, an `if`'s local) are never the one
+other than the one the function is written in) and a block's local (a loop's variable, an `if`'s local) are never the one
 it reads. The compiler decides which declaration each name reads
 (`RootLocals`), and records the answer, so an incremental compile lowers a
 function again when a `local` written, removed or moved above it changes
-it. Each declaration keeps the cell of its binding in a slot of the scope
-(`name$<ordinal>$<document tag>`, a parameter's after its flow's entry
-binds every parameter), which a later declaration of the name, in this
-script or another, closes on its value and leaves in place, and the
-function binds the slot of the declaration it reads. A name declared once
-is slotted too: a scene of another script that declares it shares the
-scope, and binding by name would read that scene's `local` while it holds.
-Each declaration costs two more instructions (a `VarPtr` of the name and a
-`SetVar` of its slot) and keeps one open cell on the root frame. A save is the scope's
-temporaries as before, the slots among them. A save written before the
-slots holds none: a function reaches the binding of the name by name, as
+it. A name the document declares once in that scope is bound by name
+there. Each declaration of a name declared more than once keeps the cell of
+its binding in a slot of the scope (`name$<ordinal>$<document tag>`, a
+parameter's after its flow's entry binds every parameter), which a later
+declaration of the name closes on its value and leaves in place, and the
+function binds the slot of the declaration it reads. Such a declaration
+costs two more instructions (a `VarPtr` of the name and a `SetVar` of its
+slot) and keeps one open cell on the root frame; a name declared once costs
+nothing. A save is the scope's temporaries as before, the slots among
+them. A save written before the slots holds none: a function reaches the
+binding of the name by name, as
 the engine that wrote it did, until a declaration of the name runs, which
 keeps that binding's cell in the slot `name$0` before it replaces it, and a
 function whose declaration's slot is missing reads that cell. A define's
@@ -170,10 +169,11 @@ parameters.
 
 **A closure** (a function value, `local function` in a function, `function
 t.f`) is built where it is written and captures there the locals it reads,
-as Luau's does (#822). Built in the root frame, it captures a `local` of
-that scope through the slot of the declaration in scope where it is
-written, so a scene's `local` of the name, which runs before the closure is
-built, is not the one it captures; and a name the scope declares only where
+as Luau's does (#822). Built in the root frame, it captures a `local` that
+scope declares more than once through the slot of the declaration in scope
+where it is written, so a scene's `local` of the name, which runs before
+the closure is built, is not the one it captures; and a name the scope
+declares only where
 it is not in scope (another scene's `local`) at the global. A name a
 `store`, a `const`, a top-level function or a stdlib entry would answer,
 which a closure does not capture, is bound at its entry as a top-level
@@ -191,6 +191,12 @@ top-level block, which Luau's would close over the block's locals, reads
 none of them: in a `do` block it is a function of the story, built before
 the block runs, and a name a local of the block takes reads the global in
 it (I-1444); in an `if` or a loop it fails when the block runs (I-1443).
+A name a script declares once is bound by name in the root frame's scope,
+which every script's scenes share, so a scene of another script that
+declares the name too replaces it while it runs (I-1455). Slotting
+every declaration would key it apart, but an ordinal slot changes whenever
+a declaration of the name moves past another, which would emit a moved
+statement again, and it would put a temporary into every save.
 
 A `define` written in a function has its methods read
 that function's locals through a global cell for each
