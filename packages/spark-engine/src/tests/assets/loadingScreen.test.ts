@@ -8,7 +8,7 @@ import { UIModule } from "../../game/modules/ui/classes/UIModule";
 
 const ASSETS: File[] = [
   {
-    uri: "file://proj/room.png",
+    uri: "inmemory:///room.png",
     type: "image",
     name: "room",
     ext: "png",

@@ -44,7 +44,7 @@ end
 
 const FONTS: File[] = [
   {
-    uri: "file://proj/fancy.ttf",
+    uri: "inmemory:///fancy.ttf",
     type: "font",
     name: "Fancy",
     ext: "ttf",
@@ -292,7 +292,7 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
 });
 
 const SPRITE: File = {
-  uri: "file://proj/sprite.png",
+  uri: "inmemory:///sprite.png",
   type: "image",
   name: "SPRITE",
   ext: "png",

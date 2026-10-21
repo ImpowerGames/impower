@@ -118,6 +118,9 @@ describe("assets scoped to the project of the compiled script", () => {
     );
     expect(collisionsOn(program, a)).toHaveLength(1);
     expect(collisionsOn(program, b)).toHaveLength(1);
+    expect(msg(collisionsOn(program, a)[0])).toBe(
+      "Asset name collision: `forest` (image) is provided by more than one file. Asset names are shared across the project, so a script that references `forest` is ambiguous — rename or remove one of the files.",
+    );
   });
 
   it("warns on neither when the same two assets are in different projects", () => {
