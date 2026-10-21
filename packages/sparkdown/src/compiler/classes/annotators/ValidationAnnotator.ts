@@ -139,6 +139,16 @@ const BACKTICK_INTERPOLATIONS = nodeNameSet([
   "LuauBacktickFunctionCallShorthand",
 ]);
 const BACKTICK_STRINGS = nodeNameSet(["LuauInterpolatedString"]);
+
+/**
+ * The first lexeme Luau's lexer reads of a backtick string that `text`
+ * begins with, to its line's end: to its first interpolation's `{`
+ * (`` `a { ``), the whole string with no interpolation, or, with neither,
+ * the string its line ends (I-1419).
+ */
+function backtickLexeme(text: string): string {
+  return /^`(?:[^`{\\\r\n]|\\.)*[`{]?/.exec(text)?.[0] ?? "";
+}
 const BACKTICK_INTERPOLATION_ENDS = nodeNameSet([
   "LuauBacktickStringInterpolation_end",
   "LuauBacktickFunctionCallShorthand_end",
@@ -566,6 +576,13 @@ function outermostStatementOf(statement: SyntaxNode): SyntaxNode {
 export interface Diagnostic {
   message?: string;
   severity?: "info" | "warning" | "error";
+  /**
+   * Luau's error for a backtick string, from a reading of the string alone
+   * (`luauStringError`), which an error the reading of its statement
+   * reports at its token, or at the string's first lexeme (these offsets),
+   * replaces.
+   */
+  luauString?: { from: number; to: number };
 }
 
 export class ValidationAnnotator extends SparkdownAnnotator<
@@ -767,6 +784,34 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
+   * Luau's error for a backtick string, as a reading of the string alone
+   * gives it (`readLuauStringErrors`). That reading cannot tell where the
+   * statement around the string rejects it before reading it
+   * (`` `a {} b` `` as a statement, `(1 `a {} b`)`, I-1419). Luau then
+   * reports the string's first lexeme (`stringFrom` to its end) instead,
+   * and none of the string's own errors: the error gives way to any the
+   * statement's reading reports at its token or at that lexeme, the type
+   * checker's in its merge (`SparkdownCompiler.validateTypes`), a
+   * lowerer's here.
+   */
+  protected luauStringError(
+    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
+    message: string,
+    from: number,
+    to: number,
+    stringFrom: number,
+  ) {
+    if (this.loweredReadingReports(message, from, to)) return;
+    const lexeme = { from: stringFrom, to: stringFrom + backtickLexeme(this.read(stringFrom, this.text?.lineAt(stringFrom).to ?? stringFrom)).length };
+    const at = (start: number, end: number) => (position: number) => start <= position && position < end;
+    const owned = (position: number) => at(from, to)(position) || at(lexeme.from, lexeme.to)(position);
+    if (this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null)?.some((error) => owned(Math.max(error.to - 1, error.from)))) return;
+    annotations.push(
+      SparkdownAnnotation.mark<Diagnostic>({ message, severity: "error", luauString: lexeme }).range(from, to),
+    );
+  }
+
+  /**
    * Brace blocks in `style`, `animation`, `theme` and `morph` bodies. A `{`
    * with no `}` is reported on that brace: the grammar ends the block where
    * the declaration's `end` starts a line, so everything up to it is read into
@@ -898,11 +943,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           const text = this.statementDocumentText();
           const [error] = readLuauStringErrors(node, text);
           if (error) {
-            this.error(
+            this.luauStringError(
               annotations,
               error.message,
               luauPositionOffset(error.location.begin, text),
               luauPositionOffset(error.location.end, text),
+              node.from,
             );
             return true;
           }
@@ -1584,11 +1630,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (nameOnLaterLine) {
         this.error(annotations, NAME_ON_LATER_LINE, nodeRef.to - 1, nodeRef.to);
       } else if (!this.checkerReadsOnTo(nodeRef.node, got?.from)) {
+        // A backtick string is named as Luau's lexer reads it, by its first
+        // lexeme (`` `a { ``), or as a malformed string where its line ends
+        // first (I-1419).
+        const backtick = got?.text === "`" ? backtickLexeme(this.read(got.from, this.text?.lineAt(got.from).to ?? got.from)) : undefined;
+        const finished = backtick !== undefined && backtick.length > 1 && /[`{]$/.test(backtick);
+        const description = got == null ? "<eof>" : backtick !== undefined ? (finished ? backtick : "malformed string") : `'${got.text}'`;
+        const length = backtick !== undefined ? backtick.length : (got?.text.length ?? 0);
         this.error(
           annotations,
-          `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`,
+          `Expected identifier, got ${description}`,
           got?.from ?? nodeRef.to - 1,
-          got ? got.from + got.text.length : nodeRef.to,
+          got ? got.from + length : nodeRef.to,
         );
       }
       return annotations;
@@ -1861,6 +1914,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             const abandonedAt = readLuauStringAbandonedAt(string, this.statementDocumentText());
             if (abandonedAt !== undefined && nodeRef.from >= abandonedAt) return annotations;
           }
+          // Otherwise it is Luau's error, in Luau's words at the string's
+          // section that opened it (I-1420), as the converter's reading of
+          // the string gives it, so the editor and the type checker agree
+          // (`luauStringError`). Luau reports none where an unfinished
+          // section follows the `{}` (`` `a {} b `` with no closing
+          // backtick): the string's own error is that one (I-1318).
+          const string = ancestorMatching(nodeRef.node, BACKTICK_STRINGS);
+          if (!string) return annotations;
+          const text = this.statementDocumentText();
+          const error = readLuauStringErrors(string, text).find(
+            (e) => /expected expression inside/.test(e.message) && luauPositionOffset(e.location.end, text) === nodeRef.from + 1,
+          );
+          if (error) this.luauStringError(annotations, error.message, luauPositionOffset(error.location.begin, text), nodeRef.from + 1, string.from);
+          return annotations;
         }
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
