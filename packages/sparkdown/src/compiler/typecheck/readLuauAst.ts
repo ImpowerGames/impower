@@ -3731,12 +3731,14 @@ class Parser {
       const matchParen = this.current();
       this.next();
       const args: AstExpr[] = [];
+      const reports = this.reports;
       if (!this.is(")")) this.parseExprList(args);
       const end = this.current().location;
-      // Not part of Luau: whether the list stopped before its `)`, which
-      // the closer's recovery past one token does not undo (I-1428).
-      const malformed = !this.is(")");
       this.expectMatchAndConsume(")", matchParen);
+      // Not part of Luau: whether reading the list to its `)` reported an
+      // error, a missing argument (`f(1,)`) or a token before the closer
+      // (`f(1 'x')`) alike (I-1428).
+      const malformed = this.reports > reports;
       return new AstExprCall(Location.span(func.location, end), func, args, self, [], new Location(argStart, end.end), malformed);
     }
     if (this.is("{")) {

@@ -28,10 +28,12 @@ function luauErrors(body: string): string[] {
 }
 
 describe("a call with a syntax error in its arguments reports Luau's error (I-1428)", () => {
+  // `g` is another function of the program, with no parameters, so each
+  // call reads arguments the arity check would judge.
   for (const callee of ["f", "g"]) {
-    for (const arg of ["'x'", "`x`"]) {
-      test(`${callee}(1 ${arg}) inside function f`, () => {
-        const body = `function f()\nlocal t = ${callee}(1 ${arg})\nend\n`;
+    for (const args of ["1 'x'", "1 `x`", "1,", "1 + "]) {
+      test(`${callee}(${args}) inside function f`, () => {
+        const body = `function g()\nend\nfunction f()\nlocal t = ${callee}(${args})\nend\n`;
         const official = luauErrors(body);
         expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
         expect(sparkdownErrors(`${body}Go {f()}.\n`)).toEqual(official);
