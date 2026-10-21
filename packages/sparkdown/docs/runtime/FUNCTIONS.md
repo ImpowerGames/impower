@@ -153,7 +153,11 @@ it. Each declaration keeps the cell of its binding in a slot of the scope
 (`name$<ordinal>$<document tag>`, a parameter's after its flow's entry
 binds every parameter), which a later declaration of the name, in this
 script or another, closes on its value and leaves in place, and the
-function binds the slot of the declaration it reads. A save is the scope's
+function binds the slot of the declaration it reads. A name declared once
+is slotted too: a scene of another script that declares it shares the
+scope, and binding by name would read that scene's `local` while it holds.
+Each declaration costs two more instructions (a `VarPtr` of the name and a
+`SetVar` of its slot) and keeps one open cell on the root frame. A save is the scope's
 temporaries as before, the slots among them. A save written before the
 slots holds none: a function reaches the binding of the name by name, as
 the engine that wrote it did, until a declaration of the name runs, which

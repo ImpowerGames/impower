@@ -213,6 +213,29 @@ describe("a function written at the top level", () => {
   });
 });
 
+describe("a define's method written in a top-level function", () => {
+  // The function binds a top-level local only its define's methods read, as
+  // the scan of its syntax node finds them (I-1373), at the declaration in
+  // scope where the function is written.
+  test("reads the top-level local the function is written after", () => {
+    expect(
+      run([
+        "local x = 3",
+        "function install()",
+        "  define thing with",
+        "    function get()",
+        "      return x",
+        "    end",
+        "  end",
+        "end",
+        "local x = 4",
+        "& install()",
+        "Got {tostring(thing.get())} {x}.",
+      ]),
+    ).toEqual(got("Got 3 4."));
+  });
+});
+
 describe("a define's method written at the top level", () => {
   test("keeps the local it is written after when a later local of the name is declared", () => {
     expect(
