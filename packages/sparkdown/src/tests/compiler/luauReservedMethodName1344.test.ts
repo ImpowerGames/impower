@@ -168,6 +168,24 @@ test.each([["local b = t :: T | :end"], ["local b = t :: T & :do"], ["local b = 
   },
 );
 
+// A close of another level inside a block comment is its text, so a reserved
+// word there is no method's name, and the call after the comment's real close
+// is read as it is (round 3, `undirected` finding 1).
+test.each([
+  ["local t = {}\n  local b = (t): --[====[a]=====] end ]====] foo()"],
+  ["local t = {}\n  local b = (t): --[=========[a]==========] end ]=========] foo()"],
+])("a reserved word inside a method's trivia comment is no method's name: %s", (form) => {
+  const luau = `${HEADER}${form}${FOOTER}`;
+  const text = `${luau}${STORY}`;
+  const tree = stripAnsi(dumpTree(text));
+  expect(tree).not.toContain("ERROR_INCOMPLETE");
+  expect(tree).not.toContain("LuauKeywordMethodName");
+  const fn = parseSource(text).topNode.firstChild!;
+  expect([fn.name, fn.from, fn.to]).toEqual(["LuauFunctionDefinition", 0, luau.length - 1]);
+  expect(officialErrorsInReportOrder(luau)).toEqual([]);
+  expect(sparkdownErrors(text)).toEqual([]);
+});
+
 describe("a reserved word read as a method's name (I-1344, I-1351)", () => {
   for (const [name, forms] of Object.entries(CASES)) {
     describe(name, () => {
