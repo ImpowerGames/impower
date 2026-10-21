@@ -396,6 +396,27 @@ describe("round 2's undirected probes", () => {
   });
 });
 
+// Round 3's undirected probes: a rejection inside a whole if expression's
+// condition or value is the reading's, not the if expression's own.
+describe("round 3's undirected probes", () => {
+  test("story braces Hello {if true then 1 else (2 `a {} b`)}.", () => {
+    const text = "scene start\n  Hello {if true then 1 else (2 `a {} b`)}.\nend\n";
+    // The official parser over the same expression at the same columns.
+    expect(official("\n  return if true then 1 else (2 `a {} b`)\n")).toContain("1:32-1:36 Expected ')' (to close '(' at column 30), got `a {");
+    expect(sparkdownErrors(text)).toEqual(["1:32-1:36 Expected ')' (to close '(' at column 30), got `a {"]);
+    expectIncrementalEqualsCold(text);
+  });
+  for (const expr of ["if (1 `a {} b`) then 1 else 2", "if true then (1 `a {} b`) else 2"]) {
+    test(`story braces Hello {${expr}}.`, () => {
+      const text = `scene start\n  Hello {${expr}}.\nend\n`;
+      const errors = sparkdownErrors(text);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatch(/Expected '\)' \(to close '\(' at column \d+\), got `a \{$/);
+      expectIncrementalEqualsCold(text);
+    });
+  }
+});
+
 // The probes of I-1419's fourth review round: a string split over lines by
 // an escape, and a statement's error at the string's first lexeme after
 // which Luau reads the string on, in a function the type checker reads and

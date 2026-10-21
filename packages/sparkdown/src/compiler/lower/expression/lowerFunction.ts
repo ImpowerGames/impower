@@ -230,6 +230,24 @@ function ifExpressionIsWhole(node: AstExprIfElse): boolean {
   return !(node.falseExpr instanceof AstExprIfElse) || ifExpressionIsWhole(node.falseExpr);
 }
 
+/**
+ * Whether an error that begins at `begin` is one of an if expression's own,
+ * a part it lacks: in it but in none of its parts that it has (an error in
+ * its condition or a value, `{if c then 1 else (2 `a {} b`)}`'s, is the
+ * reading's, unless an if expression in that part owns it), and at its end
+ * only where the if lacks a part there (`{if c then a}`, not
+ * `{(if c then 1 else 2}`).
+ */
+function ownedByIfExpression(node: AstExprIfElse, begin: Position): boolean {
+  if (begin.lt(node.location.begin) || node.location.end.lt(begin)) return false;
+  if (begin.equals(node.location.end) && ifExpressionIsWhole(node)) return false;
+  for (const part of [node.condition, node.trueExpr, node.falseExpr]) {
+    if (part instanceof AstExprError || begin.lt(part.location.begin) || !begin.lt(part.location.end)) continue;
+    return ifExpressionsIn(part).some((inner) => ownedByIfExpression(inner, begin));
+  }
+  return true;
+}
+
 /** The if expressions an expression holds, outermost ones only. */
 function ifExpressionsIn(expr: AstNode): AstExprIfElse[] {
   const found: AstExprIfElse[] = [];
@@ -281,19 +299,13 @@ export function reportReadingErrors(
   while (root.parent) root = root.parent;
   const read = (from: number, to: number) => ctx.read(from, to);
   // Whether the reading has met a form the tree checks name: the rest of
-  // its errors are that form's recovery. An if expression is one whole
-  // (`IF_EXPRESSION_WITHOUT_*` in `ValidationAnnotator`, which know where
-  // story text may leave out its `else`): an error that begins in one.
+  // its errors are that form's recovery. An if expression's own errors, a
+  // part it lacks (`IF_EXPRESSION_WITHOUT_*` in `ValidationAnnotator`, which
+  // know where story text may leave out its `else`), are one too
+  // (`ownedByIfExpression`).
   let treeForm = false;
   const ifExpressions = scope === "expression" && expr ? ifExpressionsIn(expr) : [];
-  // One at an if expression's end is its own only when the if lacks a part
-  // there (`{if c then a}`), not one after a whole if (`{(if c then 1 else 2}`).
-  const inIfExpression = (error: LuauSyntaxError) =>
-    ifExpressions.some(
-      (node) =>
-        !error.location.begin.lt(node.location.begin) &&
-        (error.location.begin.lt(node.location.end) || (error.location.begin.equals(node.location.end) && !ifExpressionIsWhole(node))),
-    );
+  const inIfExpression = (error: LuauSyntaxError) => ifExpressions.some((node) => ownedByIfExpression(node, error.location.begin));
   const owned = errors.filter((error) => {
     if (error.sparkdown || error.pastChunkEnd) return false;
     if (!error.ofString) {
