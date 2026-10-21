@@ -599,8 +599,8 @@ export class SparkdownCompiler {
   }
 
   /** Lints and names of each script's current tree. A tree is replaced
-   *  whenever its script changes, so an unchanged included script is not
-   *  walked again. */
+   *  whenever its script changes, so an unchanged script is not walked
+   *  again. */
   protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
 
   // Type checks each document's Luau, keeping results between compiles.
@@ -807,11 +807,10 @@ export class SparkdownCompiler {
   // whose objects this compile's assembly does not place again, still
   // answers.
   protected _placedBy = new WeakMap<ParsedObject, object>();
-  // Where each top-level object of an included script (its top level's
-  // weave), which the story places where the script is included, came from:
-  // the included script, and the line and compiled block of the `include` or
-  // `run` statement in the script that includes it (`programFlows`,
-  // `includedAt`).
+  // Where each top-level object of a `run` statement's call document (its top
+  // level's weave), which the story places for the statement, came from: the
+  // call document, and the line and compiled block of the `run` statement
+  // (`programFlows`, `includedAt`).
   // For a script other than main, the part of its top level that runs where
   // it is placed (a member function's write), as a story of its own, by the
   // story `parseIncrementally` built for the script's declarations.
@@ -985,7 +984,7 @@ export class SparkdownCompiler {
   // Bumped whenever the file registry changes (assets added/updated/removed,
   // or a reconfigure). Part of the no-change compile short-circuit key:
   // document versions alone can't see asset changes, but populateAssets and
-  // include resolution can be affected by them.
+  // run resolution can be affected by them.
   protected _filesEpoch = 0;
   // The registered files of the project the last compile started in
   // (`projectFilesOf`), kept while the registry is unchanged.
@@ -1508,8 +1507,9 @@ export class SparkdownCompiler {
       this._previewUndo = [];
       compiled = this.compileStory({ textDocument: root, startFrom });
       if (compiled.program.scripts[textDocument.uri] == null) {
-        // The root does not include the edited script, which is then compiled
-        // on its own, as `SparkdownWorkspace.compile` does for a real edit.
+        // The edited script is not part of the root's project, and is then
+        // compiled on its own, as `SparkdownWorkspace.compile` does for a
+        // real edit.
         compiled = this.compileStory({ textDocument, startFrom });
       }
     } finally {
@@ -1779,7 +1779,7 @@ export class SparkdownCompiler {
       },
     };
     // Stash on `state` so the recursive `parseIncrementally` can update
-    // `currentParentUri` before each include descent.
+    // `currentParentUri` before each run descent.
     state.fileResolutionState = fileResolutionState;
 
     // Seed the builtin Sparkle trees as the base layer BEFORE parsing this
@@ -2566,7 +2566,7 @@ export class SparkdownCompiler {
     const topLevelContent: (FlowBase | Weave)[] = [];
 
     // SOURCE-INJECT the builtins prelude (P5 prerequisite). For the ROOT parse
-    // only, prepend the prelude as a synthetic leading `include` so its builtin
+    // only, prepend the prelude as a leading `IncludedFile` so its builtin
     // `__def` global declarations initialize in THIS program —
     // one coherent `global decl`, prelude FIRST (so an authored define reusing a
     // builtin name re-registers/overrides in place), resolved with the rest of
@@ -2998,9 +2998,9 @@ export class SparkdownCompiler {
       // identity means it was re-lowered. Record the 0-based source line
       // ranges of the chunks lowered anew since the chunk store's current
       // root, tagged with this script's uri: the lines come from THIS script's
-      // document, and this function recurses through every included script,
-      // so the uri is what keeps a range from being read against another
-      // script's flows.
+      // document, and this function recurses through every script of the
+      // project and every document a `run` compiles, so the uri is what
+      // keeps a range from being read against another script's flows.
       const compiledBlock = rec.block as object;
       this._compilationIds?.add(compiledBlock);
       // The source-injected prelude's defines are scoped by a pass of their
@@ -3129,7 +3129,7 @@ export class SparkdownCompiler {
           //   the declaration, `function <wrapper>() <content> end`,
           //   once per compile, at the first `run` of the file the
           //   compile reaches. As a flow it is hoisted to the end of the
-          //   parent program, wherever it is included.
+          //   parent program, wherever the `run` stands.
           //   the call, `& <wrapper>()`, in a document of this statement
           //   alone, spliced inline here by IncludedFile processing. It
           //   is numbered by the statement's compiled block
@@ -3183,9 +3183,7 @@ export class SparkdownCompiler {
               state.fileResolutionState.runStack ??= [];
               state.fileResolutionState.runStack.push(resolvedFilePath);
             }
-            let runStory: ReturnType<
-              SparkdownCompiler["parseIncrementally"]
-            > | null = null;
+            let runStory: Story;
             try {
               runStory = this.parseIncrementally(
                 virtualUri,
@@ -3200,14 +3198,12 @@ export class SparkdownCompiler {
                 state.fileResolutionState.runStack.pop();
               }
             }
-            if (runStory) {
-              this.recordIncludedAt(
-                runStory,
-                virtualUri,
-                lineNumberOffset,
-                compiledBlock,
-              );
-            }
+            this.recordIncludedAt(
+              runStory,
+              virtualUri,
+              lineNumberOffset,
+              compiledBlock,
+            );
             topLevelIncludedFileObjs.push(new IncludedFile(runStory));
           }
         }
@@ -3682,7 +3678,7 @@ export class SparkdownCompiler {
     // A string field is recorded once per node, with the name it held when
     // the walk first reached it, so a node the walk reaches twice is not
     // renamed twice. The walk reaches each node once when every script is
-    // included once; the record keeps a second visit harmless.
+    // read once; the record keeps a second visit harmless.
     const matchedStrings: Array<{ node: any; field: string; name: string }> =
       [];
     const seenStrings = new Map<object, Set<string>>();
@@ -4193,11 +4189,11 @@ export class SparkdownCompiler {
     return collides;
   }
 
-  /** Records where an included script's top level came from: each object of
-   *  `story`'s content that the including story places where the script is
-   *  included (all but its flows, `Story.PreProcessTopLevelObjects`), with
-   *  the script `uri`, and the `line` and compiled `block` of the statement
-   *  that includes it. */
+  /** Records where a `run` statement's call document's top level came from:
+   *  each object of `story`'s content that the including story places for
+   *  the statement (all but its flows, `Story.PreProcessTopLevelObjects`),
+   *  with the document's `uri`, and the `line` and compiled `block` of the
+   *  `run` statement. */
   protected recordIncludedAt(
     story: Story,
     uri: string,

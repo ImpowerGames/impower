@@ -530,21 +530,6 @@
   "fallback": null,
   "diagnostics": []
  },
- "misc/include/includes/included_file.sd": {
-  "fallback": null,
-  "diagnostics": []
- },
- "misc/include/includes/included_file_2.sd": {
-  "fallback": null,
-  "diagnostics": []
- },
- "misc/include/main.sd": {
-  "fallback": null,
-  "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Scripts in the project folder are part of the story. Delete this line.\"},\"range\":{\"end\":{\"character\":33,\"line\":0},\"start\":{\"character\":0,\"line\":0}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":33,\"line\":0},\"start\":{\"character\":0,\"line\":0}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Scripts in the project folder are part of the story. Delete this line.\"},\"range\":{\"end\":{\"character\":35,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":35,\"line\":1},\"start\":{\"character\":0,\"line\":1}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
-  ]
- },
  "misc/nested-include/includes/included_file_4.sd": {
   "fallback": null,
   "diagnostics": []

@@ -5,7 +5,7 @@ Build game UI — menus, HUDs, dialogs, inventory panels — in Sparkdown, the s
 Read in order:
 
 1. **[Introduction](./Introduction.md)** — what Sparkle is and why.
-2. **[Basic Concepts](./Structure.md)** — layouts, elements, blocks, classes, content, props, events.
+2. **[Basic Concepts](./Structure.md)** — layouts, elements, blocks, classes, content, props, events, and how scripts make up a project.
 3. **[Control Flow](./ControlFlow.md)** — `if` / `for` / `match` for dynamic UI.
 4. **[Components](./Components.md)** — reusable UI with parameters and slots.
 5. **[Interactive Widgets](./Widgets.md)** — buttons, fields, sliders, checkboxes, dropdowns.

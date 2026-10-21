@@ -79,8 +79,8 @@ export interface ProgramFlowsInput {
   record(block: object): StatementRecord | undefined;
   /** For an object of an included script's top level (its weave), which the
    *  story places where the script is included: the included script, and
-   *  the line and compiled block of the `include` or `run` statement in the
-   *  script that includes it. */
+   *  the line and compiled block of the `run` statement in the script that
+   *  runs it. */
   includedAt?(
     obj: ParsedObject,
   ): { uri: string; line: number; block?: object } | undefined;
@@ -118,11 +118,13 @@ export interface ProgramFlows {
  * statements carry the statements of its bodies, from the shape its lowering
  * recorded.
  *
- * The top-level content of an included script, which the story places where
- * the script is included (`Story.PreProcessTopLevelObjects`), is a flow of
- * its own in that script (`includedFlowName`), which the including flow
- * jumps to where the story places it and which jumps back when it runs out
- * (`IncludeEntry`, `IncludeExit`).
+ * The top-level content of an included story, which the story places before
+ * the including flow's own (`Story.PreProcessTopLevelObjects`), is a flow of
+ * its own in that story's script (`includedFlowName`), which the including
+ * flow jumps to where the story places it and which jumps back when it runs
+ * out (`IncludeEntry`, `IncludeExit`). Two kinds of story are included: the
+ * call document of a `run` statement, and the member functions' writes of a
+ * script other than main (I-1438). An `include` line includes nothing.
  *
  * The compiler adds a few objects of its own: the `-> DONE` that ends a flow
  * that does not end itself, and the final gather and `done` of the top level.
@@ -139,7 +141,7 @@ export interface ProgramFlows {
 export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   const flows: FlowSource[] = [];
   // The keys of the statements that end included scripts' content, and of
-  // an entry whose `include` statement's block the caller cannot say, by
+  // an entry whose `run` statement's block the caller cannot say, by
   // their syntax: the compiler's own, so they live as long as it does, or
   // this listing's alone.
   const includeKeys = input.includeKeys ?? new Map<string, object>();
@@ -238,8 +240,8 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     };
     visit(content);
     close();
-    // The story places the content of the scripts a script includes before
-    // its own content, wherever the `include` statements stand, so an entry
+    // The story places the content of the stories a flow includes before
+    // its own content, wherever the `run` statements stand, so an entry
     // runs before the statements after it and stands no lower than the
     // first of them, as the line starts of a sequence go.
     for (let i = statements.length - 2; i >= 0; i -= 1) {
@@ -253,7 +255,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
 
   /** An included script's top level, `weave`, as the statement of the
    *  including flow that runs it (`IncludeEntry`), on the line of the
-   *  `include` statement there, or nothing when it runs nothing. Its
+   *  `run` statement there, or nothing when it runs nothing. Its
    *  statements are a flow of its own in its script (`includedFlowName`): the
    *  entries of the scripts it includes, whose content the story places
    *  first, and then its own. A script whose top level holds declarations
@@ -641,7 +643,7 @@ const includeEndName = (flow: string): string => `${flow}$end`;
 
 /**
  * The statement that runs an included script's top-level content where the
- * story places it, at the include (`Story.PreProcessTopLevelObjects`): a
+ * story places it (`Story.PreProcessTopLevelObjects`): a
  * `JumpSym` to the flow of that content (`includedFlowName`), then the
  * `Visit` of a label of its own, which the chunk exports, for that flow to
  * jump back to when its content has run (`IncludeExit`). The object engine
@@ -708,9 +710,9 @@ export class IncludeExit extends ParsedObject {
 }
 
 // The key of each statement that runs an included script's content
-// (`includeEntry`), by the compiled block of the `include` or `run`
-// statement it stands for and its syntax, so that it is carried exactly
-// while that block is, as a statement of any other block is.
+// (`includeEntry`), by the compiled block of the `run` statement it stands
+// for and its syntax, so that it is carried exactly while that block is, as
+// a statement of any other block is.
 const includeEntryKeys = new WeakMap<object, Map<string, object>>();
 
 const includeStatement = (
@@ -738,7 +740,7 @@ const includeStatement = (
 
 /** The statement of the including flow that runs the included script `uri`'s
  *  top-level content, the flow `flow` (`IncludeEntry`), on the line of the
- *  `include` statement (`statementsOf` keeps it above the statements after
+ *  `run` statement (`statementsOf` keeps it above the statements after
  *  it). It has no line rows. It is known by the compiled block of that
  *  statement (`includeBlock`) and its syntax, so it is carried only while
  *  the incremental parse carried that block, which an edit to the statement

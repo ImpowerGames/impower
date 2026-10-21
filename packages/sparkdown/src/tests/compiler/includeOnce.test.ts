@@ -126,18 +126,6 @@ describe("a script of a project of three scripts", () => {
     expect(testStory(program.chunks).EvaluateFunction(id!)).toBe(1);
   });
 
-  // Left for I-1390, which retargets it to run: only run now places a script's top-level lines in the story.
-  it.skip("shows its display content once, where it is first included", () => {
-    // `shared.sd` was included by `main.sd` and again by `chapter.sd`.
-    const program = compileOnce({
-      main: ["include shared.sd", "include chapter.sd", "", "scene main_one", "  Main.", "end", ""].join("\n"),
-      chapter: ["include shared.sd", "", "scene chapter_one", "  Chapter.", "end", ""].join("\n"),
-      shared: ["Shared line.", ""].join("\n"),
-    });
-    expect(errors(program)).toEqual([]);
-    const shown = play(program);
-    expect(count(shown, "Shared line.")).toBe(1);
-  });
 
   // An edit to the entry script keeps the flows of every other script for
   // reuse, the shared script's among them; an edit to another script
@@ -180,15 +168,94 @@ describe("a script of a project of three scripts", () => {
   });
 });
 
-describe("a script included twice by one script", () => {
-  // Left for I-1390, which retargets it to run: only run now places a script's top-level lines in the story.
-  it.skip("declares its scene once and shows its display content once", () => {
-    const program = compileOnce({
-      main: ["include shared.sd", "include shared.sd", "", "scene main_one", "  Main.", "end", ""].join("\n"),
-      shared: ["Shared line.", "", "scene shared_scene", "  Shared.", "end", ""].join("\n"),
+// A `run` statement's Luau file is the body of a function the compile
+// declares once, however many `run` lines name the file, and each line calls
+// it where it stands. A function declared twice would be an error.
+describe("a Luau file that main runs twice", () => {
+  const luau = (name: string, text: string): File => ({
+    uri: `file://proj/${name}.luau`,
+    type: "script",
+    name,
+    ext: "luau",
+    text,
+    version: 1,
+    languageId: "luau",
+  });
+
+  function compileWithLuau(project: Project, files: File[]) {
+    return quiet(() => {
+      const compiler = testCompiler();
+      compiler.configure({
+        files: [...Object.entries(project).map(([name, text]) => file(uriOf(name), text, 1)), ...files],
+      });
+      return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
     });
+  }
+
+  it("is declared once and runs once for each of its lines", () => {
+    const program = compileWithLuau(
+      { main: ["store n = 0", "run bump", "run bump", "Main {n}.", ""].join("\n") },
+      [luau("bump", "n += 1\n")],
+    );
     expect(errors(program)).toEqual([]);
-    expect(count(play(program), "Shared line.")).toBe(1);
+    expect(play(program)).toBe("Main 2.\n");
+  });
+
+  it("is declared once and runs once for its line in main's top level and once for its line in a scene of main", () => {
+    const program = compileWithLuau(
+      {
+        main: [
+          "store n = 0",
+          "run bump",
+          "-> main_one",
+          "",
+          "scene main_one",
+          "  run bump",
+          "  Scene {n}.",
+          "end",
+          "",
+        ].join("\n"),
+      },
+      [luau("bump", "n += 1\n")],
+    );
+    expect(errors(program)).toEqual([]);
+    expect(play(program)).toBe("Scene 2.\n");
+  });
+
+  // I-1439: every run runs at the start of the story, before main's first
+  // line, wherever its line stands.
+  it.fails("runs where each of its lines stands", () => {
+    const program = compileWithLuau(
+      {
+        main: ["store n = 0", "run bump", "After one {n}.", "run bump", "After two {n}.", ""].join("\n"),
+      },
+      [luau("bump", "n += 1\n")],
+    );
+    expect(errors(program)).toEqual([]);
+    expect(play(program)).toBe("After one 1.\nAfter two 2.\n");
+  });
+
+  // I-1439.
+  it.fails("runs where its line stands in main's top level and where it stands in a scene of main", () => {
+    const program = compileWithLuau(
+      {
+        main: [
+          "store n = 0",
+          "run bump",
+          "Top {n}.",
+          "-> main_one",
+          "",
+          "scene main_one",
+          "  run bump",
+          "  Scene {n}.",
+          "end",
+          "",
+        ].join("\n"),
+      },
+      [luau("bump", "n += 1\n")],
+    );
+    expect(errors(program)).toEqual([]);
+    expect(play(program)).toBe("Top 1.\nScene 2.\n");
   });
 });
 

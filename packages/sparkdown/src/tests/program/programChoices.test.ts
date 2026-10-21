@@ -1379,10 +1379,7 @@ describe("large blocks", () => {
 
   it("runs the preview fixture, whose then clause holds 1,100 lines, from chunks", () => {
     const { files } = buildPreviewFixture();
-    const text = files
-      .get("main.sd")!
-      .replace("include scripts/characters\n", "")
-      .replace("include scripts/portraits\n", "");
+    const text = files.get("main.sd")!;
     const [first, other] = runsOf(text, [[0], [1]], "MAIN");
     expect(first!.run.beats.length).toBeGreaterThan(700);
     expect(texts(first!.run).at(-1)).toBe("A CRASH of thunder.");

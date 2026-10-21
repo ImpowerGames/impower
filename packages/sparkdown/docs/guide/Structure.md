@@ -308,4 +308,56 @@ layout arcade with
 end
 ```
 
+---
+
+## 2.8 Scripts and projects
+
+A **project** is a folder: the folder of its `main.sd`. Every `.sd` script under that folder, in any subfolder, is part of the story, and every asset under it is the story's asset. There is no line to write to bring a script in. A script with no `main.sd` above it is a project of its own, rooted at its own folder.
+
+```
+my-game/
+  main.sd             -- the story starts here
+  scripts/
+    defs.sd           -- part of the story
+    chapters/
+      act1.sd         -- part of the story
+  helpers.luau
+  images/
+    forest.png        -- the asset `forest`
+```
+
+**Only `main.sd` runs lines outside a scene.** Every other script holds declarations: `scene`, `branch`, `function`, `define`, `const`, `store`, `external` and `type`. A scene declared in `act1.sd` is reachable from `main.sd` with nothing written there:
+
+```sparkdown
+-- main.sd
+scene start
+  -> act1
+end
+```
+
+```sparkdown
+-- scripts/chapters/act1.sd
+store visited_forest = false
+
+scene act1
+  The forest.
+  done
+end
+```
+
+A display line, a choice, a divert, a top-level `local`, an assignment, a call or a `run` at the top of any other script is an error: _Only main.sd runs lines outside a scene. Move this into a scene or into main.sd._ An `include` line is an error too, since the script it would name is already part of the story: _Scripts in the project folder are part of the story. Delete this line._
+
+**`run` calls a Luau file** where its line stands, as often as the line is written. It takes either form:
+
+```sparkdown
+run helpers -- the one helpers.luau anywhere in the project
+run "./lib/helpers" -- a path relative to this script, extension implied
+```
+
+An unquoted name is the file's name before its first dot, and it must name one `.luau` file in the project: two candidates are an error listing both, and an unquoted name with a slash in it asks you to quote it as a path.
+
+**Assets are per project.** An asset's name is its file name without the extension, shared by the whole project, so two assets with one name anywhere in the project warn on both files. A subfolder that holds its own `main.sd` is a separate project: its scripts and assets are not part of the parent's, and its asset names are its own. In the web editor, the layout migration currently moves a sub-project's assets out of its folder, so this separation holds in a folder layout such as VS Code's.
+
+Files and folders named `node_modules`, or whose name starts with `.`, belong to no project. To leave a draft out of the story, change its extension (`intro.sd.bak`).
+
 Next up: [Control Flow](./ControlFlow.md) — making the UI change as state changes.

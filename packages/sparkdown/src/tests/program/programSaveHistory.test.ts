@@ -781,8 +781,6 @@ describe("a save's listings", () => {
     // route's last beat.
     const text = files
       .get("main.sd")!
-      .replace("include scripts/characters\n", "")
-      .replace("include scripts/portraits\n", "")
       .replace("scene MAIN\n", 'store mark = nil\n\n-> MAIN\n\nscene MAIN\n  & mark = function() return 1 end\n  Start {cycle|"a"|"b"}.\n');
     const story = engine(rootOf(text));
     const beats = silence(() => play(story, [0]));
