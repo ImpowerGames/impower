@@ -208,6 +208,13 @@ return t[k]`, "repro.luau:3: attempt to index nil with string");
 return t[k]`, "repro.luau:3: attempt to index nil with string");
   });
 
+  test("a quoted index key shows only the bytes before a NUL", () => {
+    trapped(`local t, k = nil, "a" .. string.char(0) .. "b"
+return t[k]`, "repro.luau:3: attempt to index nil with 'a'");
+    trapped(`local t, k = nil, "a" .. string.char(0) .. "b"
+t[k] = 1`, "repro.luau:3: attempt to index nil with 'a'");
+  });
+
   test("negating nil keeps I-1083's text", () => {
     trapped(`local x = nil
 return -x`, "repro.luau:3: attempt to perform arithmetic (unm) on a nil value");

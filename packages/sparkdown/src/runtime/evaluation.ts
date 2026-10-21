@@ -147,7 +147,8 @@ function luauIndexTargetError(v: unknown, key: unknown): string | null {
 
 // Luau's message for indexing a value of type `baseType` with `key`
 // (`luaG_indexerror`): a string key of at most 64 bytes is quoted, any
-// other key is named by its type.
+// other key is named by its type. Luau prints the quoted key through C's
+// `%s`, so it shows only the bytes before a NUL.
 function luauIndexError(baseType: string, key: unknown): string {
   const keyText =
     typeof key === "string"
@@ -156,7 +157,7 @@ function luauIndexError(baseType: string, key: unknown): string {
         ? key.value
         : null;
   return keyText != null && luauStringToBytes(keyText).length <= 64
-    ? `attempt to index ${baseType} with '${keyText}'`
+    ? `attempt to index ${baseType} with '${keyText.split("\0", 1)[0]}'`
     : `attempt to index ${baseType} with ${luauTypeOf(key)}`;
 }
 
