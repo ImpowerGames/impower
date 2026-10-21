@@ -222,8 +222,9 @@ export class RootLocals {
   }
 
   /** The bindings the statements of a `choose` block or its `then` clause
-   *  declare, each read up to the next choice of the block or the block's
-   *  end: a choice's body is the statements after it, up to the next. */
+   *  declare: those of a choice's body, the statements after it, read up to
+   *  the next choice of the block or the block's end, and those written
+   *  before the first choice, the block's preamble, through the block's end. */
   protected collectBodies(
     node: SyntaxNode,
     flow: number,
@@ -231,10 +232,14 @@ export class RootLocals {
   ): void {
     const content = childEndingWith(node, "_content");
     if (!content) return;
+    let inChoice = false;
     for (let child = content.firstChild; child; child = child.nextSibling) {
-      if (CHOICES.has(child.name)) continue;
+      if (CHOICES.has(child.name)) {
+        inChoice = true;
+        continue;
+      }
       let visibleTo = content.to;
-      for (let next = child.nextSibling; next; next = next.nextSibling) {
+      for (let next = inChoice ? child.nextSibling : null; next; next = next.nextSibling) {
         if (CHOICES.has(next.name)) {
           visibleTo = next.from;
           break;

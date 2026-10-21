@@ -309,6 +309,70 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got nil."));
   });
 
+  test("reads a local of the choose block's preamble from a choice's body", () => {
+    const story = new ProgramStory(
+      rootOf([
+        "-> S",
+        "scene S",
+        "  choose",
+        "    local x = 3",
+        "    + Go",
+        "      local f = function() return x end",
+        "      Got {tostring(f())} {x}.",
+        "  end",
+        "end",
+      ]),
+    );
+    quiet(() => storyBeats(story));
+    story.ChooseChoiceIndex(0);
+    const { beats, errors } = quiet(() => storyBeats(story));
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Go", "Got 3 3."));
+  });
+
+  // A closure keeps the cell of a local its entry binds (a name a store, a
+  // const, a top-level function or a stdlib entry would answer), as it does
+  // one it captures, so a closure built before its scene runs again keeps
+  // the local it was built over.
+  test.each([
+    ["a store", "store a = 0"],
+    ["a const", "const a = 0"],
+    ["a top-level function", "function a() return 0 end"],
+    ["nothing", "store other = 0"],
+  ])("keeps the scene's local over %s of its name across the scene's next run", (_, decl) => {
+    expect(
+      run([
+        decl,
+        "store fs = {}",
+        "-> S(1)",
+        "scene S(v)",
+        "  local a = v",
+        "  & fs[v] = function() return a end",
+        "  if v == 1 then",
+        "    -> S(2)",
+        "  end",
+        "  Got {fs[1]()} {fs[2]()} {a}.",
+        "end",
+      ]),
+    ).toEqual(got("Got 1 2 2."));
+  });
+
+  test("keeps a scene's stdlib-named local across the scene's next run", () => {
+    expect(
+      run([
+        "store fs = {}",
+        "-> S(1)",
+        "scene S(v)",
+        "  local print = v",
+        "  & fs[v] = function() return print end",
+        "  if v == 1 then",
+        "    -> S(2)",
+        "  end",
+        "  Got {fs[1]()} {fs[2]()}.",
+        "end",
+      ]),
+    ).toEqual(got("Got 1 2."));
+  });
+
   // A choice's body declares in the root frame's own scope too, whatever
   // another scene declares there.
   test("reads a local of the choice body it is written in, though another scene declares the name", () => {

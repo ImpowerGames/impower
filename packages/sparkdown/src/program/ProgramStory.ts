@@ -1951,8 +1951,25 @@ export class ProgramStory implements StoryEngine {
    *  (`FunctionTargetOf`), in a new function frame that returns to the
    *  position after the call. */
   EnterFunction(target: FunctionTarget): void {
+    const pending = this._closureRoots;
+    this._closureRoots = null;
     this.enter(target as SymbolTarget, PushPopType.Function);
+    if (pending && pending.target === target) {
+      this._state.callStack.currentElement!.closureRoots = pending.roots;
+    }
   }
+
+  /** The cells of the root locals a closure kept where it was built
+   *  (`__closure_roots`), for the frame the call of `target` the closure's
+   *  dispatch arranged enters next (`EnterFunction`). */
+  SetClosureRoots(target: FunctionTarget, roots: ReadonlyMap<string, unknown> | null): void {
+    this._closureRoots = roots ? { target, roots } : null;
+  }
+
+  protected _closureRoots: {
+    target: FunctionTarget;
+    roots: ReadonlyMap<string, unknown>;
+  } | null = null;
 
   /** The stack trace `debug.traceback` prints, as the object engine's call
    *  stack printed it: each call frame from the outermost, with the function
@@ -2754,14 +2771,24 @@ export class ProgramStory implements StoryEngine {
         // With `ROOT_SLOT`, `arg` names the slot of the declaration the
         // function reads, and the local it declares is the name before the
         // slot's first `$`.
+        // A closure's call takes the cell the closure kept where it was
+        // built (`closureRoots`), and any other the root frame's binding.
+        const kept = state.callStack.currentElement?.closureRoots;
         if (flagsOf(w0) & ROOT_SLOT) {
           const slot = this.root.table.strings[arg]!;
           const binding = this.slotBinding(arg, slot);
-          const cell = rootVariablePointer(state.callStack, binding.variableName!, slot);
+          const own = kept?.get(binding.variableName!);
+          const cell =
+            own instanceof VariablePointerValue
+              ? own
+              : rootVariablePointer(state.callStack, binding.variableName!, slot);
           if (cell) state.variablesState.Assign(binding, cell);
           break;
         }
-        const cell = rootVariablePointer(state.callStack, this.root.table.strings[arg]!);
+        const name = this.root.table.strings[arg]!;
+        const own = kept?.get(name);
+        const cell =
+          own instanceof VariablePointerValue ? own : rootVariablePointer(state.callStack, name);
         if (cell) {
           state.variablesState.Assign(this.assignment(arg, SET_DECLARE), cell);
         }

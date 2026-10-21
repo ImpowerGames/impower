@@ -97,6 +97,15 @@ export function extractClosureTarget(
   if (target === null) return null;
   const upvalsMap = upvalsVal.value;
   if (!(upvalsMap instanceof Map)) return null;
+  // The cells of the root locals the function's entry binds that the
+  // closure kept where it was built, which the frame the call enters takes
+  // (`CallStack.Element.closureRoots`); none for a closure built before
+  // closures kept them, whose entry binds them as it runs.
+  const rootsVal = map.get("__closure_roots");
+  story.SetClosureRoots?.(
+    target,
+    rootsVal instanceof ObjectValue && rootsVal.value instanceof Map ? rootsVal.value : null,
+  );
   // `__closure_user_arity` counts FIXED params only. A variadic
   // target binds one extra slot — the packed `...` MultiValue the
   // call-site normalization (packVariadicValueCallArgs /

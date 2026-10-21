@@ -371,6 +371,12 @@ export namespace CallStack {
     // redeclares the variable.
     public borrowedUpvalues: VariablePointerValue[] = [];
 
+    // For the frame of a closure's call, the cells of the root locals its
+    // entry binds that the closure kept where it was built
+    // (`__closure_roots`), which its `BindRoot`s take (I-1365). Read only by
+    // the entry's code, which runs as the frame is entered.
+    public closureRoots: ReadonlyMap<string, unknown> | null = null;
+
     constructor(type: PushPopType, inExpressionEvaluation: boolean = false) {
       this.inExpressionEvaluation = inExpressionEvaluation;
       this.temporaryScopes = [new Map()];
@@ -532,6 +538,7 @@ export namespace CallStack {
         if (!ptr.isClosed) copy.BorrowUpvalue(ptr, this);
       }
       copy.borrowedUpvalues.push(...this.borrowedUpvalues);
+      copy.closureRoots = this.closureRoots;
       return copy;
     }
 

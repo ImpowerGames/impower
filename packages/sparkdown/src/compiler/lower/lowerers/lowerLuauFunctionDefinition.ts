@@ -34,6 +34,7 @@ import {
   functionArguments,
   lowerFunctionBody,
   parameterNames,
+  closureRootCaptures,
   rootCaptureSlots,
   type RootRead,
 } from "../expression/lowerFunction";
@@ -243,6 +244,7 @@ function lowerNestedNamedFunction(
       upvals,
       ctx,
     ),
+    closureRootCaptures(rootReads, upvals, ctx),
   );
 
   // `function NAME ... end` (no `local`) — Luau treats this as
@@ -382,6 +384,7 @@ function lowerPropertyTargetFunctionDefinition(
     upvals,
     userArity,
     rootCaptureSlots(rootReads, upvals, ctx),
+    closureRootCaptures(rootReads, upvals, ctx),
   );
   const keyExpr = new StringExpression([new Text(name.index)]);
   const definition = new StorePropertyAssignment(baseExpr, keyExpr, closureValue);

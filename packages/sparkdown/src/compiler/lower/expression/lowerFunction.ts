@@ -774,6 +774,7 @@ export function buildClosureExpression(
   upvals: string[],
   userArity: number,
   rootCaptures?: ReadonlyMap<string, RootCapture>,
+  roots: readonly { name: string; capture?: RootCapture }[] = [],
 ): Expression {
   const fnDivert = new DivertTarget(
     new Divert([new Identifier(synthName)]),
@@ -788,10 +789,26 @@ export function buildClosureExpression(
   );
   const upvalObject = new ObjectExpression(upvalEntries);
   const arityExpr = new NumberExpression(userArity, "int");
+  // The cells of the root locals the closure's entry binds, captured where
+  // it is built (`closureRootCaptures`).
+  const rootEntries = roots.length
+    ? [
+        new ObjectExpressionEntry(
+          "__closure_roots",
+          new ObjectExpression(
+            roots.map(
+              ({ name, capture }) =>
+                new ObjectExpressionEntry(name, new VariablePointerExpression(name, capture)),
+            ),
+          ),
+        ),
+      ]
+    : [];
   return new ObjectExpression([
     new ObjectExpressionEntry("__closure_fn", fnDivert),
     new ObjectExpressionEntry("__closure_upvals", upvalObject),
     new ObjectExpressionEntry("__closure_user_arity", arityExpr),
+    ...rootEntries,
   ]);
 }
 
@@ -858,6 +875,28 @@ export type RootCapture = { slot: string } | "global";
  *  closure built in a function captures the
  *  function's own binding of the name, which the function's entry bound
  *  (`rootBindings`). */
+/** The names a closure's entry binds to a `local` of the root frame's own
+ *  scope (`rootBindings`, those it does not capture), each with how the
+ *  closure captures that local's cell where it is built (`rootCaptureSlots`):
+ *  the closure keeps the cells (`__closure_roots`), and its entry binds them
+ *  rather than the newest binding of the declaration, so a closure built
+ *  before a scene that declares the local runs again keeps the local it was
+ *  built over (I-1365). */
+export function closureRootCaptures(
+  reads: readonly RootRead[],
+  upvals: readonly string[],
+  ctx: LowerContext,
+): { name: string; capture?: RootCapture }[] {
+  const captured = new Set(upvals);
+  const nested = !!ctx.functionScopeStack && ctx.functionScopeStack.length > 0;
+  return reads
+    .filter(({ name, answer }) => answersDeclaration(answer) && !captured.has(name))
+    .map(({ name, answer }) => {
+      const slot = nested ? null : rootSlotName(name, answer, ctx);
+      return slot ? { name, capture: { slot } } : { name };
+    });
+}
+
 export function rootCaptureSlots(
   reads: readonly RootRead[],
   upvals: readonly string[],
@@ -1134,5 +1173,6 @@ export function lowerFunctionExpression(
     upvals,
     userArity,
     rootCaptureSlots(rootReads, upvals, ctx),
+    closureRootCaptures(rootReads, upvals, ctx),
   );
 }

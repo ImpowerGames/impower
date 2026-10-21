@@ -177,8 +177,12 @@ declares only where
 it is not in scope (another scene's `local`) at the global. A name a
 `store`, a `const`, a top-level function or a stdlib entry would answer,
 which a closure does not capture, is bound at its entry as a top-level
-function binds it: a closure written after a `local` of the name reads the
-local (I-1365), and one written before it reads what the name names there.
+function binds it, to the cell the closure kept of that local where it was
+built (`__closure_roots`), so a closure built before its scene runs again
+keeps the local it was built over: a closure written after a `local` of
+the name reads the local (I-1365), and one written before it reads what the
+name names there. A closure a save written before kept no such cell, and
+its entry binds the local as it runs.
 A top-level `local` beside a `store` of its name stays a compile error
 (I-767), so the `local` that shadows a `store` or a `const` is a scene's,
 a branch's or a choice's.
