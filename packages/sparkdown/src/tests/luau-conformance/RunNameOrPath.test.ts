@@ -329,6 +329,30 @@ describe("run by quoted path", () => {
     },
   );
 
+  // Round 2 of PR #2124's review: a quoted path may name a file in a folder
+  // that holds a main script of its own, and its case-only near miss is
+  // found there too.
+  test("says the spelling of a path into another project", () => {
+    const files = {
+      "other/main.sd": "done\n",
+      "other/helpers.luau": "harness_record(1)\n",
+    };
+    const { result, diagnostics } = compileProject({
+      "main.sd": mainRunning('"other/Helpers"'),
+      ...files,
+    });
+    expect(diagnostics(MAIN).map((d) => d.message)).toEqual([
+      "Could not find 'other/Helpers.luau' for 'run' statement. Did you mean 'other/helpers.luau'?",
+    ]);
+    const [error] = (result.program.diagnostics?.[MAIN] ?? []).filter((d) => d.severity === 1);
+    expect(error!.data).toEqual({
+      runFixes: [{ title: "Change to 'other/helpers'", newText: '"other/helpers"' }],
+    });
+    const fixed = compileProject({ "main.sd": mainRunning('"other/helpers"'), ...files });
+    expect(fixed.errors).toEqual([]);
+    expect(recorded(fixed.result.program.chunks)).toEqual([1]);
+  });
+
   test("lists every path that differs only by case", () => {
     const { diagnostics } = compileProject({
       "main.sd": mainRunning('"Helpers"'),

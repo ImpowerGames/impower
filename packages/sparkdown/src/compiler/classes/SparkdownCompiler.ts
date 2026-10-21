@@ -2290,30 +2290,27 @@ export class SparkdownCompiler {
     program: SparkProgram,
   ): { uri?: string; message?: string; fixes?: RunFix[] } {
     const asWritten = this._config.uriPathsAsWritten;
-    const luauFiles = this.projectLuauFilesOf(program.uri);
     const resolved = (uri: string) => {
       program.scripts[uri] = this.documents.get(uri)?.version ?? -1;
       return { uri };
     };
     if (run.quote) {
       // Any registered Luau file, in the project or not, by its path as
-      // the file system names it (`findRunPath`).
-      const uri = findRunPath(
-        scriptUri,
-        `${run.path}.luau`,
-        this.files
-          .all()
-          .map((file) => file.uri)
-          .filter((file) => hasLuauExtension(file) && this.documents.has(file)),
-        asWritten,
-      );
+      // the file system names it (`findRunPath`); its case-only near misses
+      // come from the same files, in URI order so they are listed alike in
+      // every compile.
+      const registered = [...this.files.all()]
+        .map((file) => file.uri)
+        .filter((file) => hasLuauExtension(file) && this.documents.has(file))
+        .sort();
+      const uri = findRunPath(scriptUri, `${run.path}.luau`, registered, asWritten);
       if (uri) {
         return resolved(uri);
       } else {
         const spellings = runPathNearMisses(
           run.written,
           scriptUri,
-          luauFiles,
+          registered,
           asWritten,
         );
         return {
@@ -2325,7 +2322,11 @@ export class SparkdownCompiler {
         };
       }
     }
-    const { matches, nearMisses } = findRunName(run.path, luauFiles, asWritten);
+    const { matches, nearMisses } = findRunName(
+      run.path,
+      this.projectLuauFilesOf(program.uri),
+      asWritten,
+    );
     if (matches.length === 1) {
       return resolved(matches[0]!);
     }
