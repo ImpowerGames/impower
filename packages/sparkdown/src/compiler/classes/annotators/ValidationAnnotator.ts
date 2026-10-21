@@ -139,6 +139,16 @@ const BACKTICK_INTERPOLATIONS = nodeNameSet([
   "LuauBacktickFunctionCallShorthand",
 ]);
 const BACKTICK_STRINGS = nodeNameSet(["LuauInterpolatedString"]);
+
+/**
+ * The first lexeme Luau's lexer reads of a backtick string that `text`
+ * begins with, to its line's end: to its first interpolation's `{`
+ * (`` `a { ``), the whole string with no interpolation, or, with neither,
+ * the string its line ends (I-1419).
+ */
+function backtickLexeme(text: string): string {
+  return /^`(?:[^`{\\\r\n]|\\.)*[`{]?/.exec(text)?.[0] ?? "";
+}
 const BACKTICK_INTERPOLATION_ENDS = nodeNameSet([
   "LuauBacktickStringInterpolation_end",
   "LuauBacktickFunctionCallShorthand_end",
@@ -569,9 +579,10 @@ export interface Diagnostic {
   /**
    * Luau's error for a backtick string, from a reading of the string alone
    * (`luauStringError`), which an error the reading of its statement
-   * reports at its token replaces.
+   * reports at its token, or at the string's first lexeme (these offsets),
+   * replaces.
    */
-  luauString?: true;
+  luauString?: { from: number; to: number };
 }
 
 export class ValidationAnnotator extends SparkdownAnnotator<
@@ -776,20 +787,27 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * Luau's error for a backtick string, as a reading of the string alone
    * gives it (`readLuauStringErrors`). That reading cannot tell where the
    * statement around the string rejects it before reading it
-   * (`` `a {} b` `` as a statement, `(1 `a {} b`)`, I-1419), where Luau
-   * reports the string's first lexeme instead: the type checker's merge
-   * gives this error up to any error the statement's reading reports at
-   * its token (`SparkdownCompiler.validateTypes`).
+   * (`` `a {} b` `` as a statement, `(1 `a {} b`)`, I-1419). Luau then
+   * reports the string's first lexeme (`stringFrom` to its end) instead,
+   * and none of the string's own errors: the error gives way to any the
+   * statement's reading reports at its token or at that lexeme, the type
+   * checker's in its merge (`SparkdownCompiler.validateTypes`), a
+   * lowerer's here.
    */
   protected luauStringError(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     message: string,
     from: number,
     to: number,
+    stringFrom: number,
   ) {
     if (this.loweredReadingReports(message, from, to)) return;
+    const lexeme = { from: stringFrom, to: stringFrom + backtickLexeme(this.read(stringFrom, this.text?.lineAt(stringFrom).to ?? stringFrom)).length };
+    const at = (start: number, end: number) => (position: number) => start <= position && position < end;
+    const owned = (position: number) => at(from, to)(position) || at(lexeme.from, lexeme.to)(position);
+    if (this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null)?.some((error) => owned(Math.max(error.to - 1, error.from)))) return;
     annotations.push(
-      SparkdownAnnotation.mark<Diagnostic>({ message, severity: "error", luauString: true }).range(from, to),
+      SparkdownAnnotation.mark<Diagnostic>({ message, severity: "error", luauString: lexeme }).range(from, to),
     );
   }
 
@@ -930,6 +948,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
               error.message,
               luauPositionOffset(error.location.begin, text),
               luauPositionOffset(error.location.end, text),
+              node.from,
             );
             return true;
           }
@@ -1614,10 +1633,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         // A backtick string is named as Luau's lexer reads it, by its first
         // lexeme (`` `a { ``), or as a malformed string where its line ends
         // first (I-1419).
-        const backtick = got?.text === "`" ? /^`(?:[^`{\\\r\n]|\\.)*([`{])?/.exec(this.read(got.from, this.text?.lineAt(got.from).to ?? got.from)) : null;
-        const lexeme = backtick ? (backtick[1] ? backtick[0] : null) : undefined;
-        const description = got == null ? "<eof>" : lexeme !== undefined ? (lexeme ?? "malformed string") : `'${got.text}'`;
-        const length = backtick ? backtick[0].length : (got?.text.length ?? 0);
+        const backtick = got?.text === "`" ? backtickLexeme(this.read(got.from, this.text?.lineAt(got.from).to ?? got.from)) : undefined;
+        const finished = backtick !== undefined && backtick.length > 1 && /[`{]$/.test(backtick);
+        const description = got == null ? "<eof>" : backtick !== undefined ? (finished ? backtick : "malformed string") : `'${got.text}'`;
+        const length = backtick !== undefined ? backtick.length : (got?.text.length ?? 0);
         this.error(
           annotations,
           `Expected identifier, got ${description}`,
@@ -1907,7 +1926,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           const error = readLuauStringErrors(string, text).find(
             (e) => /expected expression inside/.test(e.message) && luauPositionOffset(e.location.end, text) === nodeRef.from + 1,
           );
-          if (error) this.luauStringError(annotations, error.message, luauPositionOffset(error.location.begin, text), nodeRef.from + 1);
+          if (error) this.luauStringError(annotations, error.message, luauPositionOffset(error.location.begin, text), nodeRef.from + 1, string.from);
           return annotations;
         }
         annotations.push(

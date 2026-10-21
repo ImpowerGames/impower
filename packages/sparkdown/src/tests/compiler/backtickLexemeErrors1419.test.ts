@@ -67,6 +67,10 @@ describe("a rejected backtick string is read as Luau's lexemes (I-1419)", () => 
     "local s: `a {1 2} b` = 1",
     "while true `a {x} b` do end",
     "for k in t `a {x} b` do end",
+    // A header rejects the string at its first lexeme and reports none of
+    // its later sections' errors (round 3).
+    "function `a {x} b {} c`() end",
+    "local function g(`a {x} b {} c`) end",
   ];
   for (const body of bodies) {
     test(`a function's ${body}`, () => {
@@ -150,6 +154,22 @@ describe("an empty interpolation reports Luau's error at the string's opening se
   test("a double-quoted string's {} is Sparkdown's own", () => {
     expect(sparkdownErrors(`store s = "a {} b"\n${SCENE}`).filter((e) => /expected expression inside/.test(e))).toHaveLength(1);
   });
+});
+
+// A define's method and a Sparkle handler's closure are read by their
+// lowerers, whose errors stand for the statement's reading (round 3). The
+// body is the third line, indented four, as the Luau it is compared with.
+describe("a rejected backtick string in a body a lowerer reads is read as Luau's lexemes (I-1419)", () => {
+  for (const body of ["`a {} b`", "local t = (1 `a {} b`)", "`a {x} b {} c`"]) {
+    const expected = () => official(`\n\n    ${body}\n`);
+    test(`a define's method ${body}`, () => {
+      expect(expected().length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`define Thing with\n  run()\n    ${body}\n  end\nend\n`)).toEqual(expected());
+    });
+    test(`a Sparkle handler ${body}`, () => {
+      expect(sparkdownErrors(`layout main with\n  button @click={\n    ${body}\n  }\nend\n`)).toEqual(expected());
+    });
+  }
 });
 
 // Each edit that makes a statement reject its string, or read it again,

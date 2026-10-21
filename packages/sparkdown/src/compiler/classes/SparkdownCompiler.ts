@@ -224,8 +224,9 @@ const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
 // The validator's diagnostics that are Luau's errors for a backtick string,
-// from a reading of the string alone (`ValidationAnnotator.luauStringError`).
-const LUAU_STRING_DIAGNOSTICS = new WeakSet<SparkDiagnostic>();
+// from a reading of the string alone (`ValidationAnnotator.luauStringError`),
+// with the range of the string's first lexeme.
+const LUAU_STRING_DIAGNOSTICS = new WeakMap<SparkDiagnostic, Range>();
 // Synthetic URI for the bundled builtins prelude (used as the file URI when the
 // prelude is compiled once to seed the builtins cache; see getCompiledPrelude).
 const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
@@ -5793,7 +5794,8 @@ export class SparkdownCompiler {
                 ],
                 source: LANGUAGE_NAME,
               };
-              if (diagnostic.luauString) LUAU_STRING_DIAGNOSTICS.add(reported);
+              const lexeme = diagnostic.luauString && doc.range(diagnostic.luauString.from, diagnostic.luauString.to);
+              if (lexeme) LUAU_STRING_DIAGNOSTICS.set(reported, lexeme);
               program.diagnostics[uri].push(reported);
             }
           }
@@ -6169,9 +6171,11 @@ export class SparkdownCompiler {
         for (const e of errors) {
           // Luau's error for a backtick string, which the validator gives
           // from a reading of the string alone, gives way to any the
-          // reading of its statement reports at its token: there the
-          // statement rejects the string before reading it (I-1419).
-          if ((messageOf(e) === d.message && meets(e.range, d)) || (LUAU_STRING_DIAGNOSTICS.has(e) && rangeContains(e.range, tokenOf(d)))) {
+          // reading of its statement reports at its token, or at the
+          // string's first lexeme, where the statement rejects the string
+          // before reading it and reports none of its errors (I-1419).
+          const lexeme = LUAU_STRING_DIAGNOSTICS.get(e);
+          if ((messageOf(e) === d.message && meets(e.range, d)) || (lexeme && (rangeContains(e.range, tokenOf(d)) || rangeContains(lexeme, tokenOf(d))))) {
             replaced.add(e);
             replacing.add(d);
           }
