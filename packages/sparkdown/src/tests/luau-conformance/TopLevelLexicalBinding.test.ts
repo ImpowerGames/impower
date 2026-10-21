@@ -80,6 +80,20 @@ describe("a function written at the top level", () => {
     ).toEqual(got("Got 5 2."));
   });
 
+  // The converter reads a line's statements as one unit, so it binds the
+  // function's read to the local written before it on the line, which is a
+  // declaration of the root frame's own scope.
+  test.each([
+    ["after a `;`", "& local a = 1; function g() return a end"],
+    ["after a comment", "local a = 1 --[[c]] function g() return a end"],
+  ])("reads a local declared on its line %s", (_, line) => {
+    expect(run([line, "Got {tostring(g())}."])).toEqual(got("Got 1."));
+  });
+
+  test("writes a local declared on its line", () => {
+    expect(run(["& local a = 1; function g() a = 5 end", "& g()", "Got {a}."])).toEqual(got("Got 5."));
+  });
+
   test("reads the global for a local declared below it", () => {
     expect(run(["function g()", "  return a", "end", "local a = 1", "Got {tostring(g())}."])).toEqual(
       got("Got nil."),

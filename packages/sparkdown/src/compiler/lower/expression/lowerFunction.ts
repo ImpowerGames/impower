@@ -72,7 +72,12 @@ import {
   type LuauSource,
 } from "../utils/luauAst";
 import { syntheticId } from "../utils/documentTag";
-import { answersDeclaration, rootLocalAnswer, rootSlotName } from "../utils/rootLocalReads";
+import {
+  answersDeclaration,
+  rootDeclarationAnswer,
+  rootLocalAnswer,
+  rootSlotName,
+} from "../utils/rootLocalReads";
 import { ROOT_NONE } from "../../utils/rootLocals";
 import { followsLineEndingComma } from "../utils/lineContinuation";
 import { statementSource } from "../utils/statementSource";
@@ -406,10 +411,9 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  *
  * A read the converter binds to a local declared outside the function (a
  * local of a block around it, written in the same statement) reads that
- * local, whatever its name.
- *
- * `stdlibReads`, when given, collects the stdlib names left uncaptured that
- * way (`_G` aside), in the order they are first read.
+ * local, whatever its name; when that local is a declaration of the root
+ * frame's own scope (one written on the function's line, `& local a = 1;
+ * function g() ... end`), it is that declaration's root read.
  *
  * `rootReads`, when given, collects each name read that no function around
  * the function declares and the converter does not bind to a local, with the
@@ -443,13 +447,11 @@ export function freeVariables(
   body: AstStatBlock | null,
   ctx: LowerContext,
   {
-    stdlibReads,
     rootReads,
     node,
     defineReads,
     unscoped = false,
   }: {
-    stdlibReads?: string[];
     rootReads?: RootRead[];
     node?: SyntaxNode | null;
     defineReads?: string[];
@@ -520,12 +522,13 @@ export function freeVariables(
   };
   const free: string[] = [];
   const seen = new Set<string>();
-  const stdlibSeen = new Set<string>();
   const rootSeen = new Set<string>();
   // Where a read lands: the list returned, or `defineReads` for the reads
   // only a define's methods make.
   let into = free;
-  const readAt = (name: string, at: number, readsLocal = false) => {
+  // `declared`, for a read the converter binds to a declaration of the root
+  // frame's own scope, is that declaration's answer (`rootDeclarationAnswer`).
+  const readAt = (name: string, at: number, readsLocal = false, declared?: string) => {
     if (bound.has(name) || seen.has(name)) return;
     if (declaredByFunctionStatement(name)) return;
     if (!unscoped) {
@@ -544,17 +547,11 @@ export function freeVariables(
       // scope of its name.
       if (!readsLocal && !isShadowedLocal(name) && !rootSeen.has(name)) {
         rootSeen.add(name);
-        rootReads?.push({ name, answer: rootLocalAnswer(name, at, ctx) });
+        rootReads?.push({ name, answer: declared ?? rootLocalAnswer(name, at, ctx) });
       }
       if (!isShadowedLocal(name) && !readsLocal) {
         if (isGlobalCallable(name)) return;
-        if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) {
-          if (stdlibReads && name !== "_G" && !stdlibSeen.has(name)) {
-            stdlibSeen.add(name);
-            stdlibReads.push(name);
-          }
-          return;
-        }
+        if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) return;
       }
     }
     seen.add(name);
@@ -566,7 +563,14 @@ export function freeVariables(
     if (node instanceof AstExprGlobal) read(node.name, node.location);
     else if (node instanceof AstExprLocal) {
       if (!locals.has(node.local)) {
-        readAt(node.local.name, offsetAt(node.location.begin, ctx), true);
+        const at = offsetAt(node.location.begin, ctx);
+        const declared = rootDeclarationAnswer(
+          node.local.name,
+          offsetAt(node.local.location.begin, ctx),
+          ctx,
+        );
+        if (declared) readAt(node.local.name, at, false, declared);
+        else readAt(node.local.name, at, true);
       }
     } else if (node instanceof AstExprFunction) {
       // A nested function's function statements bind its own reads.
