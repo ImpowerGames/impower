@@ -4586,24 +4586,7 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
   const tokenizer = new Tokenizer(documentText, index);
   tokenizer.luauThroughout = true;
   const nodes: TreeNodeRef[] = [];
-  // The body's statements are its children, under the wrapper nodes the grammar puts around a rule's parts.
-  const readStatements = (parent: SyntaxNode) => {
-    let at = parent.from;
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (child.from > at) tokenizer.lex(at, child.from);
-      if (WRAPPER.test(child.name)) {
-        readStatements(child);
-      } else {
-        tokenizer.source = nodes.length;
-        nodes.push(ref(child));
-        tokenizer.read(child);
-        tokenizer.source = -1;
-      }
-      at = Math.max(at, child.to);
-    }
-    if (parent.to > at) tokenizer.lex(at, parent.to);
-  };
-  readStatements(body);
+  readBodyStatements(tokenizer, nodes, body);
   // The file ends where its wrapper's last line begins, as Luau reads the
   // file's own end.
   const fileEnd = documentText.endsWith(RUN_WRAPPER_SUFFIX) ? documentText.length - RUN_WRAPPER_SUFFIX.length : undefined;
@@ -4630,6 +4613,42 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
     appendAll(tokenizer.tokens, inFile);
   }
   return readUnit("file", tokenizer, nodes, 1, new Position(index.lineAt(body.from) + 1, 0), options, fileEnd);
+}
+
+/**
+ * Reads a `.luau` document's Luau from its own tree, which the grammar's
+ * `.luau` root reads as a function's body from the first line (GRAMMAR.md
+ * §1.5): the document's statements, as one unit that ends where the
+ * document does.
+ */
+export function readLuauFile(tree: Tree, documentText: string, options: ReadOptions = {}): LuauAstUnit {
+  const tokenizer = new Tokenizer(documentText, lineIndex(documentText));
+  tokenizer.luauThroughout = true;
+  const nodes: TreeNodeRef[] = [];
+  readBodyStatements(tokenizer, nodes, tree.topNode);
+  return readUnit("file", tokenizer, nodes, 1, new Position(0, 0), options, documentText.length);
+}
+
+/**
+ * Reads a pure-Luau body's statements, which are its children under the
+ * wrapper nodes the grammar puts around a rule's parts, recording each
+ * statement's node, and lexes the text between them.
+ */
+function readBodyStatements(tokenizer: Tokenizer, nodes: TreeNodeRef[], parent: SyntaxNode): void {
+  let at = parent.from;
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    if (child.from > at) tokenizer.lex(at, child.from);
+    if (WRAPPER.test(child.name)) {
+      readBodyStatements(tokenizer, nodes, child);
+    } else {
+      tokenizer.source = nodes.length;
+      nodes.push(ref(child));
+      tokenizer.read(child);
+      tokenizer.source = -1;
+    }
+    at = Math.max(at, child.to);
+  }
+  if (parent.to > at) tokenizer.lex(at, parent.to);
 }
 
 // The nodes the grammar puts around a rule's begin, content and end, and their captures.

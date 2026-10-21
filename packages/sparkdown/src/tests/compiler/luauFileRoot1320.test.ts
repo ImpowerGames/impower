@@ -87,11 +87,7 @@ describe("the .luau root's tree and scopes", () => {
 
 // The forms of I-1385's table: in a `.luau` file each is Luau's, and its
 // errors are the official parser's, no more and no fewer, each at its range.
-// Pending: the type checker reads a `.luau` file's errors from a function
-// wrapping its text, whose body is the shared function body's, not the
-// file's own tree; the reader that reads that tree (`readLuauFile`, I-1320
-// comment 6308431416) lands once I-1400 leaves `readLuauAst.ts`.
-describe.skip("a .luau file's Sparkdown-looking lines get the official parser's errors (I-1385; pending readLuauFile, I-1320 comment 6308431416)", () => {
+describe("a .luau file's Sparkdown-looking lines get the official parser's errors (I-1385)", () => {
   const errorsIn = (sources: Record<string, string>) =>
     diagnoseFilesDetailed(sources)
       .filter((d) => d.file === "snippet.luau" && d.severity === DiagnosticSeverity.Error)

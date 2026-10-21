@@ -585,9 +585,8 @@ export class SparkdownCompiler {
    *  walked again. */
   protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
 
-  // Type checks each document's Luau, keeping results between compiles. A
-  // `.luau` file's text is parsed as a `run` wraps it (`luauFileUnit`).
-  protected _typechecker = new SparkdownTypechecker((text) => this.documents.parser.parse(text));
+  // Type checks each document's Luau, keeping results between compiles.
+  protected _typechecker = new SparkdownTypechecker();
 
   protected _files = new SparkdownFileRegistry();
   get files() {
