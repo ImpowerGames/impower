@@ -76,6 +76,9 @@ describe("a double-quoted string's interpolation left open ends at the string's 
     // (round 1, `ax` finding 1).
     ["{b", ' .. "c"'],
     ["{b", ' .. x) -- say "hello"'],
+    // A lone quote in a trailing comment (round 2, `ax` finding 1).
+    ["{b", ' .. x) -- say "hello'],
+    ["{b", ' .. x) -- "a" "b'],
   ] as const) {
     const form = `g("a ${interpolation}"${after}${after.includes(")") ? "" : ")"}\n  return 1`;
     test(JSON.stringify(form), () => {
