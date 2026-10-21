@@ -1,0 +1,54 @@
+{
+  "engine": "program",
+  "position": [
+    4,
+    2,
+    0,
+    1
+  ],
+  "evalStack": [],
+  "output": [
+    {
+      "objid": 1,
+      "obj": {
+        "target": "^action",
+        "text": "^First."
+      }
+    },
+    "\n"
+  ],
+  "lineEndPending": false,
+  "lineJoinable": false,
+  "turnIdx": -1,
+  "storySeed": 38,
+  "previousRandom": 0,
+  "previousFlow": "start",
+  "previousAddress": 6291468,
+  "didSafeExit": false,
+  "variablesState": {
+    "t": {
+      "objid": 2,
+      "obj": {
+        "DivertTargetValue(f)": 42,
+        "function: f": 99
+      }
+    }
+  },
+  "frames": [
+    {
+      "type": 0,
+      "start": 0,
+      "height": 0,
+      "temps": [
+        {}
+      ]
+    }
+  ],
+  "countGeneration": 0,
+  "visitCounts": {
+    "start": 1
+  },
+  "turnIndices": {
+    "start": -1
+  }
+}
