@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
+import { ALTERNATOR_CANDIDATES, opensAlternator } from "@impower/sparkdown/src/compiler/utils/alternatorDecision";
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
@@ -82,6 +83,8 @@ const INDENTING_BLOCKS = nodeNameSet([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
+  "LuauSequentialAlternatorLineStart",
+  "LuauConditionalAlternatorLineStart",
   "LuauSparkleBlockIf",
   "LuauSparkleBlockElseif",
   "LuauSparkleBlockElse",
@@ -516,6 +519,15 @@ function computeBlockIndent(
     // `elseif`; this rule keeps indent correct so both passes
     // agree.
     if (isElseBlockMergeableIntoIf(node, stack[i - 1])) continue;
+
+    // A structural word that holds no arms is a name (I-1310): its rule is
+    // the call it reads as, which indents nothing.
+    if (ALTERNATOR_CANDIDATES.has(node.name) && !opensAlternator(node)) continue;
+
+    // An alternator's arms take its `end` (I-1310), which aligns with the
+    // word that opened it as a block's own `end` does.
+    const arms = stack[i - 2];
+    if (arms && isExplicitRuleName(arms.name, "LuauAlternatorArms") && stack[i - 3]?.name === `${arms.name}_end`) continue;
 
     // Header-opener line (e.g. `then` on its own line inside an
     // if-block whose condition was too long to inline). Such lines
@@ -1256,114 +1268,7 @@ export const getFormatting = (
     }
   }
 
-  // Inline alternator comma-form → pipe-form. The grammar accepts
-  // both `plural(n){one="is",other="are"}` (table-literal sugar)
-  // and `plural(n)|one="is"|other="are"` as identical alternator
-  // expressions; we normalize to pipe-form. This is a structural
-  // rewrite (removes braces, swaps commas for pipes), so we drive
-  // it off the parse tree, not source regex.
   if (tree) {
-    // Inline alternators (the ones without `Sparkdown` in the name)
-    // wrap their pipe-or-table arms via these block names. When the
-    // parser saw a `{...}` arm-table instead of `|`, the LuauTable
-    // shows up as a descendant — we walk up the ancestor chain to
-    // see if it's inside one of these constructs.
-    const INLINE_ALTERNATOR_BLOCKS = nodeNameSet([
-      "LuauConditionalAlternatorBlock",
-      "LuauSequentialAlternatorBlock",
-    ]);
-    tree.iterate({
-      from: treeIterFrom,
-      to: treeIterTo,
-      enter: (nodeRef) => {
-        if (!isExplicitRuleName(nodeRef.name, "LuauTable")) return;
-        // Walk up the ancestor chain looking for an inline-alternator
-        // wrapper. If found, this table represents the alternator's
-        // arms and gets rewritten to pipe-form.
-        let ancestor = nodeRef.node.parent;
-        let insideInlineAlternator = false;
-        while (ancestor) {
-          if (INLINE_ALTERNATOR_BLOCKS.has(ancestor.name)) {
-            insideInlineAlternator = true;
-            break;
-          }
-          ancestor = ancestor.parent;
-        }
-        if (!insideInlineAlternator) return;
-        const tableNode = nodeRef.node;
-        // Compute the boundary positions: `{` of LuauTable_begin,
-        // each top-level `,` (LuauCommaSeparator) inside content,
-        // and `}` of LuauTable_end.
-        let openBracePos: number | undefined;
-        let closeBracePos: number | undefined;
-        const commaPositions: { from: number; to: number }[] = [];
-        tableNode.cursor().iterate((inner) => {
-          if (inner.node === tableNode) return true;
-          if (isExplicitRuleName(inner.name, "LuauTable_begin")) {
-            // Find the `{` character at the begin range start.
-            if (document.read(inner.from, inner.from + 1) === "{") {
-              openBracePos = inner.from;
-            }
-            return false;
-          }
-          if (isExplicitRuleName(inner.name, "LuauTable_end")) {
-            if (document.read(inner.from, inner.from + 1) === "}") {
-              closeBracePos = inner.from;
-            }
-            return false;
-          }
-          if (inner.name === "LuauCommaSeparator") {
-            // Top-level comma between arms — find the `,` character.
-            let c = inner.from;
-            while (c < inner.to && document.read(c, c + 1) !== ",") c += 1;
-            if (document.read(c, c + 1) === ",") {
-              commaPositions.push({ from: c, to: c + 1 });
-            }
-            return false;
-          }
-          // Don't descend into nested tables / function calls — their
-          // commas are unrelated to our alternator arms.
-          if (isExplicitRuleName(inner.name, "LuauTable") || isExplicitRuleName(inner.name, "LuauFunctionCall")) {
-            return false;
-          }
-          return true;
-        });
-        if (openBracePos == null || closeBracePos == null) return;
-        const pushTreeEdit = (
-          from: number,
-          to: number,
-          newText: string,
-          type: string,
-        ) => {
-          const range: Range = {
-            start: document.positionAt(from),
-            end: document.positionAt(to),
-          };
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText,
-            type,
-          });
-        };
-        pushTreeEdit(
-          openBracePos,
-          openBracePos + 1,
-          "|",
-          "alternator_open",
-        );
-        for (const c of commaPositions) {
-          pushTreeEdit(c.from, c.to, "|", "alternator_comma");
-        }
-        pushTreeEdit(
-          closeBracePos,
-          closeBracePos + 1,
-          "",
-          "alternator_close",
-        );
-      },
-    });
     // `else if X then BODY end end` → `elseif X then BODY end`. The
     // indent-suppression rule above (`isElseBlockMergeableIntoIf`)
     // already aligns indents as if these were a single `elseif`;
@@ -2058,9 +1963,6 @@ export const getFormatting = (
 // merge/adjacent-concat fallback.
 const PRECEDENCE: Record<string, number> = {
   // Targeted character rewrites that nothing else should touch.
-  alternator_open: 100,
-  alternator_close: 100,
-  alternator_comma: 100,
   trailing_comma_insert: 100,
   trailing_comma_delete: 100,
   quote_normalize: 100,

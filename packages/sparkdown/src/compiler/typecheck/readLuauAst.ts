@@ -123,7 +123,7 @@ import {
   type SparkdownSource,
 } from "./Ast";
 import { Location, Position } from "./Location";
-import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
+import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, isSparkdownExpression, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
@@ -598,8 +598,7 @@ const OWN_CLOSERS: Readonly<Record<string, ReadonlySet<string>>> = (() => {
     LuauFunctionTypeDeclaration: end,
     LuauMethodDefinition: end,
     LuauDefine: end,
-    LuauConditionalAlternatorBlock: end,
-    LuauSequentialAlternatorBlock: end,
+    LuauAlternatorArms: end,
     LuauFunctionCallParameters: none,
     LuauFunctionParameters: none,
     LuauParenthetical: none,
@@ -691,7 +690,7 @@ const readsFromTree = (node: SyntaxNode): boolean =>
   node.name === RAW_STRING ||
   node.name === INTERPOLATED_STRING ||
   node.name === "LuauNewExpression" ||
-  SPARKDOWN_EXPRESSIONS.has(node.name) ||
+  isSparkdownExpression(node) ||
   node.name === "LuauAssignmentOperation";
 const isNumber = nameTest(NUMBER);
 const isComment = nameTest(COMMENT);
@@ -913,7 +912,9 @@ class Tokenizer {
       for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;
       return;
     }
-    if (SPARKDOWN_EXPRESSIONS.has(name)) {
+    // A structural word's rule that holds no arms is read as Luau, through
+    // its children: the word is a name (`match(1)` is a call, I-1310).
+    if (isSparkdownExpression(node)) {
       if (to > from) this.push("sparkdown", from, to, node);
       return;
     }
@@ -4053,6 +4054,7 @@ function sparkdownExpression(token: Token): AstExpr {
       return new AstExprSparkdownRegex(token.location, match?.[1] ?? token.text.slice(2), match?.[2] ?? "", source);
     }
     case "LuauConditionalAlternatorBlock":
+    case "LuauConditionalAlternatorLineStart":
     case "LuauSparkdownExplicitConditionalAlternatorBlock":
       return new AstExprSparkdownConditionalAlternator(token.location, source);
     default:

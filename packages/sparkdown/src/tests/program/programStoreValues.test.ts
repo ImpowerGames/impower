@@ -66,6 +66,63 @@ describe("a store with more names than values", () => {
     ).toEqual(["Value 1 and 10 after 1 call.\n"]);
   });
 
+  // Luau evaluates every value of a declaration, in order, and drops the
+  // ones after the last name (#1333).
+  describe("evaluates the values after the last name", () => {
+    const BUMP = [
+      "store calls = 0",
+      "function bump()",
+      "  calls = calls + 1",
+      "  return 9",
+      "end",
+      "",
+    ].join("\n");
+    it.each([
+      ["store x = 1, bump()", "Value 1 1.\n"],
+      ["store x, y = 1, bump()", "Value 1 1.\n"],
+      ["store x = bump(), 1", "Value 9 1.\n"],
+      ["store x, y = 1, 2, bump()", "Value 1 1.\n"],
+      ["store x = 1, bump(), bump()", "Value 1 2.\n"],
+    ])("%s", (declaration, expected) => {
+      expect(play(`${BUMP}${declaration}\n\nValue {x} {calls}.\n`)).toEqual([expected]);
+    });
+
+    it("evaluates them in source order", () => {
+      const ORDERED = [
+        "store calls = 0",
+        "function first()",
+        "  calls = calls * 10 + 1",
+        "end",
+        "function second()",
+        "  calls = calls * 10 + 2",
+        "end",
+        "",
+      ].join("\n");
+      expect(play(`${ORDERED}store x = 1, first(), second()\n\nValue {calls}.\n`)).toEqual([
+        "Value 12.\n",
+      ]);
+      expect(
+        play(`${ORDERED}store x, y = 1, 2, first(), second()\n\nValue {calls}.\n`),
+      ).toEqual(["Value 12.\n"]);
+    });
+
+    it("keeps evaluating them across later compiles of an edited document", () => {
+      const beats = (root: ProgramRoot) =>
+        storyBeats(new ProgramStory(root)).beats.map((b) => b.text);
+      const session = programSession(`${BUMP}store x = 1\n\nValue {x} {calls}.\n`);
+      expect(beats(session.root)).toEqual(["Value 1 0.\n"]);
+      expect(beats(session.edit("store x = 1", "store x = 1, bump()"))).toEqual([
+        "Value 1 1.\n",
+      ]);
+      expect(errorsOf(session.program)).toEqual([]);
+      expect(beats(session.edit("Value", "Now"))).toEqual(["Now 1 1.\n"]);
+      expect(beats(session.edit("calls + 1", "calls + 5"))).toEqual(["Now 1 5.\n"]);
+      expect(beats(session.edit("store x = 1, bump()", "store x = 1"))).toEqual([
+        "Now 1 0.\n",
+      ]);
+    });
+  });
+
   // A store's values run when the story starts, outside any function, so
   // its `...` has no values to give the names after it.
   it("reports a `...` that would give the names after it its further values", () => {

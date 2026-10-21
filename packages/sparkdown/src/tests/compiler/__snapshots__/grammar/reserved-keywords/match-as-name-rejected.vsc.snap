@@ -20,5 +20,4 @@ text.source.sparkdown [0..40]
  │       └─ punctuation.definition.template-expression.end.sd [35..36]: ")"
  ├─ Newline [36..37]: "\n"
  └─ meta.function.luau [37..40]
-     └─ meta.function.body.luau [37..40]
-         └─ keyword.control.end.luau [37..40]: "end"
+     └─ keyword.control.end.luau [37..40]: "end"

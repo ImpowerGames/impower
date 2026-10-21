@@ -3,6 +3,7 @@
 // that the validator can ask the same question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
+import { opensAlternator } from "../utils/alternatorDecision";
 import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
@@ -78,9 +79,20 @@ export const SPARKDOWN_ONLY = new Set([
 export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorLineStart",
+  "LuauSequentialAlternatorLineStart",
   "LuauDivertTargetLiteral",
   "LuauRegexLiteral",
 ].flatMap(explicitRuleNames));
+
+/**
+ * Whether a node is one of Sparkdown's own expressions: a structural word's
+ * rule only when it holds its arms (`opensAlternator`, I-1310), since one
+ * that holds none is Luau (`match(1)` is a call).
+ */
+export function isSparkdownExpression(node: SyntaxNode): boolean {
+  return SPARKDOWN_EXPRESSIONS.has(node.name) && opensAlternator(node);
+}
 
 // A comment, or a part of one the tree reads apart from it (the `]]` that
 // closes a block comment after a value or type); a cast after a comment is not one.
@@ -103,7 +115,7 @@ export const LUAU_SCOPE_MODIFIERS = new Set(["local", "const"]);
  */
 export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
-    if (SPARKDOWN_ONLY.has(n.name) || SPARKDOWN_EXPRESSIONS.has(n.name)) return false;
+    if (SPARKDOWN_ONLY.has(n.name) || isSparkdownExpression(n)) return false;
     if (!n.name.startsWith("Luau") && !NEUTRAL.test(n.name)) return false;
     if (VARIABLE_DEFINITION_NAMES.has(n.name)) {
       const modifier = findChild(n.getChild(`${n.name}_begin`)?.firstChild ?? null, "LuauScopeModifier");

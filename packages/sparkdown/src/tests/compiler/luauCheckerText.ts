@@ -13,6 +13,7 @@ import type { SyntaxNode, Tree } from "@lezer/common";
 import type { Json } from "./officialLuau";
 import { loadOfficialLuau, officialLuauAvailable } from "./officialLuau";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
+import { opensAlternator } from "../../compiler/utils/alternatorDecision";
 import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../../compiler/typecheck/LuauUnitNodes";
 
 // Derive counterpart identities from the grammar being parsed, independently
@@ -560,7 +561,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
           lines.keepVerbatim(child.from, child.to);
           keepInterpolations(child);
         } else if (ATOMIC.test(child.name)) lines.keepVerbatim(child.from, child.to);
-        else if (SPARKDOWN_EXPRESSIONS.has(oracleName(child.name))) replaceWithAny(child);
+        else if (SPARKDOWN_EXPRESSIONS.has(oracleName(child.name)) && opensAlternator(child)) replaceWithAny(child);
         else if (isSparkdownOnly(child)) lines.mark(child.from, child.to, false);
         else blankWithin(child);
       }

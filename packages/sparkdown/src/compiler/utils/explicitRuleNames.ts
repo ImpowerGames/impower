@@ -52,6 +52,8 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauFunctionCall": "LuauSparkdownExplicitFunctionCall",
   "LuauElseExpression": "LuauSparkdownExplicitElseExpression",
   "LuauAlternatorBlocks": "LuauSparkdownExplicitAlternatorBlocks",
+  "LuauAlternatorArms": "LuauSparkdownExplicitAlternatorArms",
+  "LuauAlternatorHead": "LuauSparkdownExplicitAlternatorHead",
   "LuauConditionalAlternatorCondition": "LuauSparkdownExplicitConditionalAlternatorCondition",
   "TagContent": "SparkdownExplicitTagContent",
   "LuauVariableDefinition": "LuauSparkdownExplicitVariableDefinition",

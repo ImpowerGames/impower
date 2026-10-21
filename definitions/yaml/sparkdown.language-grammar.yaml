@@ -704,42 +704,66 @@ variables:
   # One of Luau's reserved words as a whole name. `continue` is not one:
   # Luau reads it as a keyword only where a statement begins.
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
-  # Where `match` or `plural` opens a conditional alternator in Luau code:
-  # before its `(` condition or a `|` arm, before a condition its arms
-  # follow on the line (`{match x|"a"|"b"}`), or as the first word of its
-  # line, the block form whose arms follow on the next lines. Anywhere else
-  # the word is a name (`if match then`, `{match}`, #984, #1102).
-  # lookaround: anywhere else `LuauAccessPath` reads the word as a name,
-  # and it comes after the alternators in `LuauExpression`. The block
-  # form's arms are on the next lines, which no pattern on this line can
-  # see, so where the word stands on its line says it is the block's.
-  LUAU_CONDITIONAL_ALTERNATOR_SHAPE: (?:{{LUAU_CONDITIONAL_ALTERNATOR_ARMS_AHEAD}}|(?<=^{{WS}}*{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*)(?:$|{{LUAU_EXPRESSION_START}}))
-  # A `(` condition, or arms later on the line (`{match x|"a"|"b"}`).
-  # lookaround: without either the word is a name `LuauAccessPath` reads,
-  # and a `(` after it would be a call (`LuauFunctionCall`) if this begin
-  # did not take it first.
-  LUAU_CONDITIONAL_ALTERNATOR_ARMS_AHEAD: (?:(?=[(])|{{LUAU_ALTERNATOR_ARMS_AHEAD}})
-  # Where `queue`, `cycle`, `chain` or `shuffle` opens a sequential
-  # alternator in Luau code: before its arms on the line (`queue | a | b`,
-  # `{cycle "a" | "b" end}`), or alone on its line, the block form whose
-  # arms follow on the next lines. Anywhere else the word is a name
-  # (`local y = queue`, #984). A comment may end the line it stands alone on
-  # (`queue -- note`).
-  # lookaround: as for `LUAU_CONDITIONAL_ALTERNATOR_SHAPE`, `LuauAccessPath`
-  # reads the word as a name anywhere else, and only the line the word
-  # stands alone on says the block form's arms follow.
-  LUAU_SEQUENTIAL_ALTERNATOR_SHAPE: (?:{{LUAU_ALTERNATOR_ARMS_AHEAD}}|(?<={{LUAU_SEQUENTIAL_BLOCK_LINE_HEAD}})(?={{LUAU_LINE_END_OR_COMMENT}}))
-  # A line that holds only a sequential alternator's head so far.
-  LUAU_SEQUENTIAL_BLOCK_LINE_HEAD: ^{{WS}}*(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}{{WS}}*)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}{{WS}}*)?
-  # A `|` arm separator later on the line, before any comment, after a
-  # first token that an arm can begin with. A word followed by an operator,
-  # a separator, a closing bracket or a reserved word is a name in an
-  # expression, whatever `|` the line holds later (`tostring(queue) .. "|"`,
-  # `return queue, "|"`, `queue :: number | string`), past the space a
-  # head's `{{WS}}*` can give back.
-  # lookaround: without arms on its line an alternator's word is a name
-  # `LuauAccessPath` reads.
-  LUAU_ALTERNATOR_ARMS_AHEAD: (?!{{WS}}*{{LUAU_EXPRESSION_GOES_ON}})(?={{LUAU_ARM_LINE_CHARACTER}}*[|])
+  # Where a structural word (`queue`, `cycle`, `chain`, `shuffle`, `match`,
+  # `plural`) opens a candidate alternator in an expression: before a token
+  # an expression or an arm can begin with (`{cycle "a" | "b" end}`,
+  # `queue | a | b`, `match(x) | 1 = "a"`, `queue("a|b")`). Whether it is an
+  # alternator or a name is not decided here: the candidate is an alternator
+  # only when it holds its arms (`LuauAlternatorArms`), which open at a `|`
+  # at the word's own level, and the converter reads it as Luau otherwise
+  # (`opensAlternator`, I-1310). A token that carries a name on (an
+  # operator, a separator, a closer, a reserved word, a member's `.` or
+  # `:`, an `=`), a line end or a comment leaves the word a plain name
+  # (`local y = queue`, `queue :: number | string`, `if match then`, #984).
+  # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
+  # comes after the alternators in `LuauExpression`.
+  LUAU_ALTERNATOR_CANDIDATE_AHEAD: (?!{{WS}}*(?:{{LUAU_EXPRESSION_GOES_ON}}|{{LUAU_LINE_END_OR_COMMENT}}))
+  # Where a structural word that begins its line opens a candidate: as in
+  # an expression, but also before the line's end or a comment, the block
+  # form whose arms follow on the next lines (`queue -- note`, then
+  # `| print(1)` lines), in a body or inside a bracket (`return (`, then
+  # `chain` and its arms).
+  # lookaround: a token that carries a name on leaves the word to
+  # `LuauAccessPath` (`queue = 5`, `match.x = 1`).
+  LUAU_ALTERNATOR_LINE_START_AHEAD: (?!{{WS}}*{{LUAU_EXPRESSION_GOES_ON}})
+  # Where `match` or `plural` that begins its line opens a candidate: as
+  # any line-start word does, or before any expression its condition can
+  # begin with, a constant, `not`, a unary `-` or `#` included
+  # (`match true`, `match not x`, `match -1`, `match #t`).
+  # lookaround: as for `LUAU_ALTERNATOR_LINE_START_AHEAD`; an operator that
+  # only goes on from a name (`match + 1`, `match = 1`) leaves it a name.
+  LUAU_CONDITIONAL_LINE_START_AHEAD: (?:{{LUAU_ALTERNATOR_LINE_START_AHEAD}}|(?={{WS}}*{{LUAU_EXPRESSION_START}}))
+  # Right after the `end` a candidate's arms took: the candidate ends with
+  # them. A candidate takes no `end` of its own, and its only children are
+  # its head (`LuauAlternatorHead`) and its arms. The head never ends right
+  # after an `end`: before the arms' `|` it ends only where an `end` does not
+  # stand against the `|`, or after the whitespace before it
+  # (`_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_`), keeping the arms inside it
+  # otherwise; on a line-start candidate it ends at the start of a later
+  # line; and anywhere else it ends where the candidate does. So the `end` this follows is the arms' own,
+  # never a comment's last word (`match n -- end`) or the `end` of an
+  # alternator in the condition (`match match(x) | a = 1 end | b = 2 end`).
+  # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
+  LUAU_AFTER_ALTERNATOR_ARMS: (?<=\bend)
+  # Where a candidate's head ends before its arms' `|`: right before it,
+  # or after the whitespace before it, but never right after an `end`, which
+  # would leave the candidate's end (`LUAU_AFTER_ALTERNATOR_ARMS`) to read
+  # that `end` as its own arms'. After an alternator in the condition that
+  # ends against the `|` (`match match(x) | a = 1 end| b = 2 end`), the head
+  # stays open and the arms open inside it, as its last child.
+  # lookaround: `LuauAlternatorArms` reads the `|`.
+  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+)(?=[|]))
+  # The start of a line that does not go on with a line-start candidate's
+  # head: one that is neither blank nor a comment line.
+  # lookaround: `LuauAlternatorArms` and the next statement read the line.
+  LUAU_LINE_AFTER_ALTERNATOR_HEAD: ^(?!{{WS}}*(?:--|$))
+  # The start of a line that does not go on with a line-start candidate's
+  # arms: one that begins neither with a `|` nor with a comment, and is not
+  # blank. A candidate whose word holds no arms ends there, so a call
+  # (`match(1)`) leaves the next line, and the function's `end`, to the
+  # body around it.
+  # lookaround: `LuauAlternatorArms` opens at a `|` beginning the line.
+  LUAU_LINE_WITHOUT_ALTERNATOR_ARMS: ^(?!{{WS}}*(?:[|]|--|$))
   # What goes on from a name in an expression: an operator (not a divert's
   # `->`), a separator, a closing bracket, a member's `.` or `:`, or a
   # reserved word (`or`, `then`, `end`).
@@ -748,28 +772,6 @@ variables:
   # lookaround: `LuauDivertTargetLiteral` reads `->` and `LuauComment` reads
   # `--`, so only a lone `-` is the operator.
   LUAU_ARITHMETIC_MINUS: (?:-(?![>-]))
-  # A character of the line before an alternator's first `|`, or a whole
-  # string there, whose `|` is not an arm's (`queue("a|b")`). A quote or a
-  # long string's opening bracket is read only as a whole string, so the
-  # scan cannot step into one.
-  # lookaround: a `|` inside a comment (`LuauComment`) is not an arm's.
-  LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--|\[=*\[)[^\n|"'`])
-  # A string literal that ends on its line, quoted as Luau quotes one.
-  LUAU_LINE_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}}|{{LUAU_LINE_LONG_STRING}})
-  # A long string (`[[a|b]]`, `[=[a|b]=]`), whose brackets are a block
-  # comment's after its `--`, or one of a higher level (`[====[a|b]====]`).
-  LUAU_LINE_LONG_STRING: (?:\[{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_LINE_HIGH_LONG_STRING}})
-  # A long string of level 4 or more. Matching its own closing level needs
-  # a back-reference, which a variable cannot hold, so it ends at the first
-  # closing bracket of any level 1 or more; one that holds a lower-level
-  # closer (`]=]`) ends there.
-  # Known limit: in such a string, a `|` after that closer
-  # (`queue([====[a]=]|b]====])`) is read as an arm separator, so the word
-  # opens an alternator. Deciding alternator or name where the tokens are
-  # known, in the converter or lowerer, is #2049.
-  # lookaround: LuauMultilineString reads the string; here its closing
-  # bracket ends it, and any other `]` is its text.
-  LUAU_LINE_HIGH_LONG_STRING: (?:\[={4,}\[(?:[^\]\n]|\](?!=+\]))*\]=+\])
   # The name after a structural keyword (`style`, `layout`, `screen`,
   # `component`, `animation`, `theme`, `morph`), which its block opens only
   # before: anywhere else the keyword is a name (`local y = style`, #984).
@@ -1085,8 +1087,8 @@ variables:
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   # An attribute's name in a header's prefix, which a lookbehind reads.
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
-  # A quoted string on its line, one per quote kind, shared by a header's
-  # attribute prefix and the alternator arm scan (`LUAU_LINE_STRING`). A
+  # A quoted string on its line, one per quote kind, read by a header's
+  # attribute prefix. A
   # backslash is only ever an escape with the character after it, so an
   # escaped quote (`"\"]"`) never closes the string, and a run of
   # backslashes reads one way.
@@ -9328,8 +9330,10 @@ repository:
     # See bounded-exit rationale above for the structural alternatives.
     end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|$"
 
+  # The bounded twin of `LuauConditionalAlternatorBlock`, a candidate
+  # alternator that ends at its line unless its arms opened on it.
   LuauSparkdownExplicitConditionalAlternatorBlock:
-    begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_CONDITIONAL_ALTERNATOR_ARMS_AHEAD}}"
+    begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
     beginCaptures:
       1:
         patterns:
@@ -9342,7 +9346,30 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauSparkdownExplicitAlternatorArms" }
+      - { include: "#LuauSparkdownExplicitAlternatorHead" }
+    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+
+  # The bounded twin of `LuauAlternatorHead`.
+  # lookaround: as for `LuauAlternatorHead`.
+  LuauSparkdownExplicitAlternatorHead:
+    begin: (?!{{WS}}*[|])
+    patterns:
+      - { include: "#LuauSparkdownExplicitAlternatorArms" }
       - { include: "#LuauSparkdownExplicitConditionalAlternatorCondition" }
+      - { include: "#LuauSparkdownExplicitExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  # The bounded twin of `LuauAlternatorArms`, which ends at its line.
+  LuauSparkdownExplicitAlternatorArms:
+    # lookaround: LuauAlternatorSeparator reads the `|` this opens before.
+    begin: (?={{WS}}*[|])
+    patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|$
@@ -9361,7 +9388,7 @@ repository:
     # lookaround: LuauAccessPath owns dotted keyword members; this alternator opens only at a standalone sequential keyword.
     # See bounded-consuming-entry rationale above; the modifier/keyword
     # prefix also occurs in ordinary member expressions such as queue.field.
-    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_ARMS_AHEAD}}"
+    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
     beginCaptures:
       1:
         patterns:
@@ -9381,17 +9408,9 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|$
-    endCaptures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauEndKeyword" }
+      - { include: "#LuauSparkdownExplicitAlternatorArms" }
+      - { include: "#LuauSparkdownExplicitAlternatorHead" }
+    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
 
   LuauSparkdownExplicitFunctionCallShorthand:
     tag: meta
@@ -11463,10 +11482,79 @@ repository:
       - { include: "#LuauSparkdownConditionalAlternatorBlock" }
       - { include: "#LuauSparkdownSequentialAlternatorBlock" }
 
+  # A structural word that begins its line opens a candidate that may go on
+  # past its line, to arms on the lines below; one later on its line opens a
+  # candidate that ends at its line unless its arms open on it.
   LuauAlternatorBlocks:
     patterns:
+      - { include: "#LuauConditionalAlternatorLineStart" }
+      - { include: "#LuauSequentialAlternatorLineStart" }
       - { include: "#LuauConditionalAlternatorBlock" }
       - { include: "#LuauSequentialAlternatorBlock" }
+
+  # A candidate alternator's head: what follows the word before its arms
+  # (a condition, a call's arguments, a first arm's value), in an
+  # expression. It never ends right after its own text, so the candidate's
+  # end never takes the head's last word for the arms' `end`
+  # (`LUAU_AFTER_ALTERNATOR_ARMS`): before the arms' `|` it takes the
+  # whitespace, and anywhere else it ends where the candidate does.
+  # lookaround: `LuauAlternatorArms` opens at the `|` this yields before,
+  # and the candidate's own end reads the closer, beat or line end.
+  LuauAlternatorHead:
+    begin: (?!{{WS}}*[|])
+    patterns:
+      - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauConditionalAlternatorCondition" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  # A line-start candidate's head, which goes on past its line through the
+  # blank and comment lines before its arms (`queue -- end`, a blank line,
+  # `-- the end`, then `| print(1)` lines), and ends at the start of the
+  # first line that is neither (`LUAU_LINE_AFTER_ALTERNATOR_HEAD`). So the
+  # candidate's end never sees a comment's last word as the arms' `end`.
+  # lookaround: as for `LuauAlternatorHead`.
+  LuauAlternatorLineStartHead:
+    begin: (?!{{WS}}*[|])
+    patterns:
+      - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauConditionalAlternatorCondition" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|{{_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_AFTER_ALTERNATOR_HEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  # A candidate alternator's arms, from its first `|` at the word's own
+  # level to the `end` they take. The candidate is an alternator only when
+  # it holds them (`opensAlternator`, I-1310): a `|` there is never valid
+  # Luau, which has `|` only in a type, and the grammar reads a type, a
+  # string, a comment and a bracket whole, so the `|` that opens them is
+  # always an arm separator.
+  LuauAlternatorArms:
+    # lookaround: LuauAlternatorSeparator reads the `|` this opens before.
+    begin: (?={{WS}}*[|])
+    patterns:
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
 
   LuauAlternatorSeparator:
     match: ({{WS}}*)([|])({{WS}}*)(?:({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*))?
@@ -11543,8 +11631,18 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
+  # A candidate conditional alternator in an expression (`{match(x) | 1 =
+  # "a" | 2 = "b"}`, `local s = match x | 1 = "a" end`): the word, its
+  # condition, and the arms if a `|` follows at its own level. Without arms
+  # it is a name, and the converter reads its text as Luau (`match(1)` is a
+  # call, I-1304). It ends at its line unless its arms opened on it, and at
+  # the next line's start when a child took the line break (a cast's type,
+  # whose union may go on below: `queue(x) :: string`). The
+  # word carries the keyword's scope whichever it is, since its arms come
+  # later; the semantic tokens give a name its own (GRAMMAR.md §10.1), so
+  # until they arrive a call (`match(1)`) shows the keyword's colour.
   LuauConditionalAlternatorBlock:
-    begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_CONDITIONAL_ALTERNATOR_SHAPE}}"
+    begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
     beginCaptures:
       1:
         patterns:
@@ -11557,19 +11655,31 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauConditionalAlternatorCondition" }
-      - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauBlockBody" }
-      - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
-    endCaptures:
+      - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauAlternatorHead" }
+    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+
+  # A candidate conditional alternator whose word begins its line, in a body
+  # or an expression. Its arms may begin on the lines below (`match n`, then
+  # `| 1 = print(1)` lines and `end`), so it goes on past its line, to the
+  # first line that does not begin with a `|`, a comment or nothing.
+  LuauConditionalAlternatorLineStart:
+    begin: "^({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}{{LUAU_CONDITIONAL_LINE_START_AHEAD}}"
+    beginCaptures:
       1:
-        emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#LuauEndKeyword" }
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauAlternatorLineStartHead" }
+    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_WITHOUT_ALTERNATOR_ARMS}}
 
   # lookaround: the lookbehind opens the condition once, after the `match` or
   # `plural` its parent's begin took (see `LuauIfBlockCondition`). The
@@ -11703,10 +11813,12 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
+  # A candidate sequential alternator in an expression (`{cycle "a" | "b"
+  # end}`, `local x = queue | 1 | 2 end`), as `LuauConditionalAlternatorBlock`
+  # is for `match`. See `LuauSparkdownSequentialAlternatorBlock` for the
+  # leading-lookahead structure — same shape, same zero-width-match concern.
   LuauSequentialAlternatorBlock:
-    # See `LuauSparkdownSequentialAlternatorBlock` for the leading-
-    # lookahead structure — same shape, same zero-width-match concern.
-    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_SEQUENTIAL_ALTERNATOR_SHAPE}}"
+    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
     beginCaptures:
       1:
         patterns:
@@ -11726,18 +11838,38 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauBlockBody" }
-      - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
-    endCaptures:
+      - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauAlternatorHead" }
+    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+
+  # A candidate sequential alternator whose word begins its line
+  # (`queue -- note`, then `| print(1)` lines and `end`), as
+  # `LuauConditionalAlternatorLineStart` is for `match`.
+  # lookaround: LuauAccessPath owns dotted keyword members; this candidate opens only at a standalone sequential keyword.
+  LuauSequentialAlternatorLineStart:
+    begin: "^({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_LINE_START_AHEAD}}"
+    beginCaptures:
       1:
-        emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#LuauEndKeyword" }
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauAlternatorArms" }
+      - { include: "#LuauAlternatorLineStartHead" }
+    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_WITHOUT_ALTERNATOR_ARMS}}
 
   # ----------------------------------------------------------------------------
   # Flow Statements
