@@ -9,6 +9,7 @@ import {
   readsDefineStatement,
 } from "../../utils/defineStatement";
 import { nextLuauToken } from "../../typecheck/readLuauAst";
+import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -203,6 +204,12 @@ function reportDefineStatement(
     const documentText = ctx.documentText?.() ?? ctx.read(0, root.to);
     for (const dot of dots) {
       const after = nextLuauToken(dot.to, documentText);
+      // The validator reports the `.` where no reading reads on to the
+      // token after it (`checkerReadsOnTo`, ValidationAnnotator's
+      // `LuauDanglingAccessor` check). Where it defers, as to a method's
+      // lowered reading in a function with no name (`function()` as a line
+      // of the body) that no method lowers, this reading keeps the error.
+      if (checkerReadsOnTo(dot, after?.from, read)) continue;
       if (after) dotErrorsAt.add(after.from);
       else dotAtEnd = true;
     }

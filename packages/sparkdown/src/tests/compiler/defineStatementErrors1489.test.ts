@@ -54,7 +54,9 @@ const PADDING = "function padding()\n  local p = 0\nend\n";
 /** Asserts that each edit, in `PADDING` ahead of `text` or in its body, reports what a cold compile of the edited text does. */
 function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
-  const body = padded.indexOf("\n", padded.indexOf(HEADER)) + 1;
+  // The form's own first line is its header, whatever its spelling.
+  const body = padded.indexOf("\n", PADDING.length) + 1;
+  expect(body, "the body edits fall in the form").toBeGreaterThan(PADDING.length);
   for (const [offset, removed, insert] of [
     [padded.indexOf("0"), 1, "10000000000"],
     [padded.indexOf("local p"), 0, "    "],
@@ -217,11 +219,34 @@ describe("a define body statement reports every Luau error once (I-1489)", () =>
     ["define 2hero.\n  1 + 2; t.f(1 +)\nend\n", "1:16-1:17 Expected identifier when parsing expression, got ')'"],
     ["define X with t.a = 1 +\n  1 + 2; t.f(1 +)\nend\n", "1:16-1:17 Expected identifier when parsing expression, got ')'"],
   ];
+  // After a property on a line that finishes a dangling header, the call is
+  // the reading's alone (round 4, undirected 1).
+  HEADER_RUNS_ON.push(
+    ["define X with there.\n  y = 1; t.f(1 +)\nend\n", "1:16-1:17 Expected identifier when parsing expression, got ')'"],
+    ["define 2hero.\n  y = 1; t.f(1 +)\nend\n", "1:16-1:17 Expected identifier when parsing expression, got ')'"],
+  );
   for (const [text, error] of HEADER_RUNS_ON) {
     test(`a body line after a header that runs on reports once: ${JSON.stringify(text)}`, () => {
       expect(errors(text).filter((e) => e === error)).toEqual([error]);
       const body = text.split("\n").slice(1, -2).join("\n") + "\n";
       expect(official(body)).toContain(error);
+      expectIncrementalEqualsCold(text);
+    });
+  }
+
+  // A line finishing an unread header is read as its own statement, every
+  // error of it (round 4, undirected 3), and a dangling dot in a function
+  // with no name keeps its error (undirected 2): the body lines report the
+  // official parser's errors.
+  const BODY_AFTER_HEADER: [text: string, body: string][] = [
+    ["define X with there.\n  t.f(1 2 3)\n  t.f(1 +)\nend\n", "  t.f(1 2 3)\n  t.f(1 +)\n"],
+    ["define 2hero.\n  t.f(1 2 3)\nend\n", "  t.f(1 2 3)\n"],
+    ["define X with\n  function()\n    t.a = f(x., 1)\n  end\nend\n", "  function()\n    t.a = f(x., 1)\n  end\n"],
+    ["define X with\n  function()\n    x.\n  end\nend\n", "  function()\n    x.\n  end\n"],
+  ];
+  for (const [text, body] of BODY_AFTER_HEADER) {
+    test(`the body reports the official errors: ${JSON.stringify(text)}`, () => {
+      expect(errors(text).filter((e) => !e.startsWith("0:") && !/^1:\d+-\d+:\d+ .*(?:define|header)/.test(e))).toEqual(official(body));
       expectIncrementalEqualsCold(text);
     });
   }

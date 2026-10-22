@@ -42,15 +42,41 @@ export function isDefineStatementStart(child: SyntaxNode, lineOf: (pos: number) 
  * when the line finishes what the line before it left open (a value after
  * a line-ending `=` or operator, a name after a line-ending `.`), which
  * belongs to the reading of that line's statement, or to the tree checks
- * when a member left it open.
+ * when a member left it open. A line that finishes the define's header line
+ * is read as its own (`define X with there.` then `t.f(1 2 3)`): no reading
+ * reads the header.
  */
 export function readsDefineStatement(start: SyntaxNode, read: (from: number, to: number) => string): boolean {
-  return !finishesLineBefore(start, read);
+  return !finishesReadLine(start, read);
 }
 
 /** Whether a line's first node finishes what the line before it left open. */
 function finishesLineBefore(start: SyntaxNode, read: (from: number, to: number) => string): boolean {
   return followsDanglingDot(start, read) || followsMissingValue(start, read);
+}
+
+/** Whether a line's first node finishes what a line before it, not the define's header, left open. */
+function finishesReadLine(start: SyntaxNode, read: (from: number, to: number) => string): boolean {
+  if (!finishesLineBefore(start, read)) return false;
+  let prev = start.prevSibling;
+  while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
+  const define = start.parent?.name === DEFINE_CONTENT ? start.parent.parent : null;
+  return !prev || !define || read(define.from, prev.from).includes("\n");
+}
+
+/** The first node after a property on its line that begins a statement, up to `top`, or null. */
+function statementAfterProperty(property: SyntaxNode, top: SyntaxNode): SyntaxNode | null {
+  let next = property.nextSibling;
+  while (
+    next &&
+    next.name !== "Newline" &&
+    next.from <= top.from &&
+    !DEFINE_STATEMENT_STARTS.has(next.name) &&
+    !REASSIGNMENT_NAMES.has(next.name)
+  ) {
+    next = next.nextSibling;
+  }
+  return !next || next.name === "Newline" || next.from > top.from ? null : next;
 }
 
 /**
@@ -154,31 +180,29 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
     if (!next || next.from > top.from) return null;
     start = next;
   }
-  // A line that continues the line before, or finishes what it left open,
-  // is read with that line's statement, unless that line is the header's
-  // (`define 2hero.` then `t.f(1 +)`), which no reading reads.
-  while (isLineContinuation(start) || finishesLineBefore(start, read)) {
+  // After a property on its line, a statement begins at the next node that
+  // begins one (`y = 1; t.f(2 +)`), as the lowerer reads it past the value,
+  // whatever the line the property finishes.
+  if (start.name === "LuauPropertyDefinition" && !read(start.from, top.from).includes("\n")) {
+    const after = statementAfterProperty(start, top);
+    if (!after) return null;
+    start = after;
+  }
+  // A line that continues the line before, or finishes what a statement
+  // line before it left open, is read with that line's statement. A
+  // continuation of the header's line is the header's, which no reading
+  // reads.
+  while (isLineContinuation(start) || finishesReadLine(start, read)) {
     let prev = start.prevSibling;
     while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
     if (!prev) return null;
     start = lineFirst(prev);
     if (onHeader(start)) return null;
   }
-  // After a property on its line, a statement begins at the next node that
-  // begins one (`y = 1; t.f(2 +)`), as the lowerer reads it past the value.
   if (start.name === "LuauPropertyDefinition") {
-    let next = start.nextSibling;
-    while (
-      next &&
-      next.name !== "Newline" &&
-      next.from <= top.from &&
-      !DEFINE_STATEMENT_STARTS.has(next.name) &&
-      !REASSIGNMENT_NAMES.has(next.name)
-    ) {
-      next = next.nextSibling;
-    }
-    if (!next || next.name === "Newline" || next.from > top.from) return null;
-    start = next;
+    const after = statementAfterProperty(start, top);
+    if (!after) return null;
+    start = after;
   }
   if (!isDefineStatementStart(start, lineCounter(start, read))) return null;
   return readsDefineStatement(start, read) ? start : null;
