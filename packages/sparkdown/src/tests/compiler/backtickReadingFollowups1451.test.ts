@@ -212,13 +212,26 @@ describe("the lookups after an edit inside a backtick string's interpolation", (
     expect(cached.errors).toEqual([]);
   });
 
+  test("an edit after a backtick string's \\z escape and the lines it skips (round 1)", () => {
+    const before = "local s = `a \\z\n" + " ".repeat(160) + "x b`\n";
+    forget();
+    nextLuauToken(before.length, before);
+    const at = before.indexOf("x b");
+    const after = before.slice(0, at) + "{x}" + before.slice(at + 1);
+    noteLuauDocumentEdit(before, after, at, at + 1, at + 3);
+    const cached = { next: nextLuauToken(15, after), expression: readLuauExpressionAfter(10, after) };
+    forget();
+    expect(cached).toEqual({ next: fresh(15, after), expression: readLuauExpressionAfter(10, after) });
+    expect(cached.expression.errors).toEqual([]);
+  });
+
   test("a chain of edits in and around interpolations", () => {
     let seed = 1451;
     const random = (n: number) => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
       return seed % n;
     };
-    const pieces = ["`", "{", "}", "{ ", " }", "\n", " ", "x", "1", "+", "`a {", "} b {", "} c`", "{1}", "--", "\\"];
+    const pieces = ["`", "{", "}", "{ ", " }", "\n", " ", "x", "1", "+", "`a {", "} b {", "} c`", "{1}", "--", "\\", "\\z", " ".repeat(70), "\\u{41}"];
     let source = Array.from({ length: 30 }, (_, i) =>
       i % 3 === 0 ? `local v${i} = \`a {${"x + ".repeat(20)}{ y = ${i} }} b {z} c\`\n` : i % 3 === 1 ? `f(\`a {g(\`b {${i}} c\`)} d\`)\n` : `-- ${"note ".repeat(16)}${i}\n`).join("");
     forget();

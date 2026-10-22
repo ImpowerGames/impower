@@ -1266,8 +1266,15 @@ class Tokenizer {
         return this.interpSection(i, to);
       }
     }
-    if (ch === "`" && sectionEnd(text, i, to).opens) return this.interpSection(i, to);
-    if (ch === '"' || ch === "'" || ch === "`") {
+    if (ch === "`") {
+      // One with no interpolation is one string to its closing backtick, or
+      // to its line's end, read as far as the section was (`sectionEnd`).
+      const { end, opens } = sectionEnd(text, i, to);
+      if (opens) return this.interpSection(i, to);
+      this.push("string", i, end);
+      return end;
+    }
+    if (ch === '"' || ch === "'") {
       let end = i + 1;
       while (end < to && text[end] !== ch && text[end] !== "\n") end += text[end] === "\\" ? 2 : 1;
       end = Math.min(to, text[end] === ch ? end + 1 : end);
