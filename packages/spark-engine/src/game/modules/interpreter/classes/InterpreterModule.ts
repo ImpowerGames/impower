@@ -57,6 +57,41 @@ export class InterpreterModule extends Module<
 > {
   MARKERS = ["^", "*", "_", "~~", "::"];
 
+  /** Control tags this interpreter acts on (see the Text Tag branch). */
+  CONTROL_TAGS = ["speed", "pitch", "p", "wait", "w", "!", "/!"];
+
+  /**
+   * Tag names in parseRichText's vocabulary (ui/utils/parseRichText.ts), opening
+   * or closing, matched without case as it matches them. A line's text tag
+   * branch consumes these as it always has; any other closed `<...>` is not
+   * markup, so it stays on screen as written (`function: make.<anonymous>`).
+   */
+  RICH_TEXT_TAGS = [
+    "b",
+    "i",
+    "u",
+    "s",
+    "uppercase",
+    "allcaps",
+    "lowercase",
+    "smallcaps",
+    "nobr",
+    "color",
+    "mark",
+    "size",
+    "align",
+    "alpha",
+    "font-weight",
+    "line-height",
+    "cspace",
+    "voffset",
+    "indent",
+    "sub",
+    "sup",
+    "br",
+    "noparse",
+  ];
+
   ASSET_CONTROL_KEYWORDS = [
     "show",
     "hide",
@@ -1348,7 +1383,11 @@ export class InterpreterModule extends Module<
                 control = control.trimEnd();
                 arg = arg.trim();
                 const closed = chars[i] === ">";
-                if (closed) {
+                const name = control.toLowerCase().replace(/^\//, "");
+                const known =
+                  this.CONTROL_TAGS.includes(control) ||
+                  this.RICH_TEXT_TAGS.includes(name);
+                if (closed && known) {
                   i += 1;
                   if (control) {
                     // NOTE: no `s` shorthand — `<s>` is STRIKETHROUGH in UI
