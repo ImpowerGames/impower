@@ -104,6 +104,14 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x: (a: number) -> T:end", "end"],
     ["local x: Array<A, B>:end", "end"],
     ["local x, y: {a: number}:end", "end"],
+    // Any complete type, which the type reads the `:` after (round 1,
+    // `undirected` finding 1).
+    ["local x: {a: {b: {c: T}}}:end", "end"],
+    ["local x: T --[[c]] :end", "end"],
+    ["local x: T | --[[c]] U:end", "end"],
+    ["local x: typeof({a = {b = 1}}):end", "end"],
+    ["local x: {a: {b: {c: T}}}:function", "function"],
+    ["local x: T:nil", "nil"],
     // A function's return type, which the ticket asked to check.
     ["local function f(): T:end end", "end"],
     ["local function f(): T:end\n  end", "end"],
@@ -132,9 +140,23 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t): --[==[a]==] --[==========[b]==========] end", "end"],
     ["local t = {}\n  local b = (t): --[========[c]========] end", "end"],
     ["local t = {}\n  local b = t :: T: --[=========[c]=========] end", "end"],
-    // A header's `do` stays the header's past such a comment, as Luau's
-    // reading of the loop's extent has it.
+    // A header's `do` or `then` stays the header's past such a comment, as
+    // Luau's reading of the block's extent has it; anywhere else it is the
+    // method's name (round 1, `undirected` finding 2).
     ["local t = {}\n  while t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  while (t): --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  for k in t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  if t: --[=========[c]=========] then end", "then"],
+    ["local t = {}\n  if (t): --[=========[c]=========] then end", "then"],
+    ["local t = {}\n  local b = (t): --[=========[c]=========] do", "do"],
+    ["local t = {}\n  local b = t: --[=========[c]=========] do", "do"],
+    ["local t = {}\n  local b = t :: T: --[=========[c]=========] do", "do"],
+    ["local t = {}\n  local b = (t): --[=========[c]=========] then", "then"],
+    ["local x: T: --[=========[c]=========] do", "do"],
+    // A number or a boolean before the `:` (round 1, `undirected` finding 3).
+    ["local b = 1: --[=========[c]=========] end", "end"],
+    ["local b = true: --[=========[c]=========] end", "end"],
+    ["local b = nil: --[=========[c]=========] end", "end"],
     // A name past the comment is the method's too, whose call follows.
     ["local t = {}\n  local b = t :: T: --[=========[c]=========] foo()", null],
   ],
@@ -153,6 +175,8 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x: nil", null],
     ["local g = function(a: nil): nil return a end", null],
     ["local x: --[=========[c]=========] number", null],
+    ["for k: --[=========[c]=========] number in pairs({}) do end", null],
+    ["local function f(a: --[=========[c]=========] number) end", null],
   ],
   // A `:` that is a type's is no method's: a declaration's or a `for`
   // variable's annotation, which misses its type, as Luau reads it, so the
