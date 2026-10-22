@@ -137,17 +137,32 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
     top = top.parent;
   }
   if (!top?.parent) return null;
-  // What stands on the define's header line is the header's.
+  // What starts on the define's header line is the header's, which the
+  // lowerer never reads (`lowerLuauDefine`).
   const define = top.parent.parent;
-  if (define && !read(define.from, top.from).includes("\n")) return null;
+  const onHeader = (n: SyntaxNode) => !!define && !read(define.from, n.from).includes("\n");
+  if (onHeader(top)) return null;
   let start = lineFirst(top);
+  // A node of the header that runs on into this line (`define X with t.a =
+  // 1 +` then `1 + 2; t.f(1 +)`) is the header's; the lowerer reads the
+  // first statement after it.
+  if (onHeader(start)) {
+    let next: SyntaxNode | null = start;
+    while (next && next.from <= top.from && (onHeader(next) || !isDefineStatementStart(next, lineCounter(next, read)))) {
+      next = next.nextSibling;
+    }
+    if (!next || next.from > top.from) return null;
+    start = next;
+  }
   // A line that continues the line before, or finishes what it left open,
-  // is read with that line's statement.
+  // is read with that line's statement, unless that line is the header's
+  // (`define 2hero.` then `t.f(1 +)`), which no reading reads.
   while (isLineContinuation(start) || finishesLineBefore(start, read)) {
     let prev = start.prevSibling;
     while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
     if (!prev) return null;
     start = lineFirst(prev);
+    if (onHeader(start)) return null;
   }
   // After a property on its line, a statement begins at the next node that
   // begins one (`y = 1; t.f(2 +)`), as the lowerer reads it past the value.
@@ -165,11 +180,14 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
     if (!next || next.name === "Newline" || next.from > top.from) return null;
     start = next;
   }
-  // Lines are counted from the start, the only line a method call compares.
-  const first = start;
-  const lineOf = (pos: number) => (pos <= first.from ? 0 : read(first.from, pos).split("\n").length - 1);
-  if (!isDefineStatementStart(start, lineOf)) return null;
+  if (!isDefineStatementStart(start, lineCounter(start, read))) return null;
   return readsDefineStatement(start, read) ? start : null;
+}
+
+/** Lines counted from a node, the only line a method call compares. */
+function lineCounter(from: SyntaxNode, read: (from: number, to: number) => string): (pos: number) => number {
+  // value-level: the text between two offsets, its line breaks counted.
+  return (pos) => (pos <= from.from ? 0 : read(from.from, pos).split("\n").length - 1);
 }
 
 /** The first node of the line a sibling is on, past trivia, or the sibling itself. */

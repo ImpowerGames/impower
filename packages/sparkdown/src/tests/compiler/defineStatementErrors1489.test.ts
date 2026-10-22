@@ -209,6 +209,23 @@ describe("a define body statement reports every Luau error once (I-1489)", () =>
     expectIncrementalEqualsCold(text);
   });
 
+  // A body line that finishes the header line, or follows a header node
+  // that runs on into it, reports a missing operand once, as main does
+  // (round 4, ow 1 and 2).
+  const HEADER_RUNS_ON: [text: string, error: string][] = [
+    ["define 2hero.\n  t.f(1 +)\nend\n", "1:9-1:10 Expected identifier when parsing expression, got ')'"],
+    ["define 2hero.\n  1 + 2; t.f(1 +)\nend\n", "1:16-1:17 Expected identifier when parsing expression, got ')'"],
+    ["define X with t.a = 1 +\n  1 + 2; t.f(1 +)\nend\n", "1:16-1:17 Expected identifier when parsing expression, got ')'"],
+  ];
+  for (const [text, error] of HEADER_RUNS_ON) {
+    test(`a body line after a header that runs on reports once: ${JSON.stringify(text)}`, () => {
+      expect(errors(text).filter((e) => e === error)).toEqual([error]);
+      const body = text.split("\n").slice(1, -2).join("\n") + "\n";
+      expect(official(body)).toContain(error);
+      expectIncrementalEqualsCold(text);
+    });
+  }
+
   test("a statement Luau reads reports nothing", () => {
     for (const body of ["  t.f(1)\n", "  print(1)\n  y = 2\n", "  t.a = 1\n"]) {
       expect(official(body), body).toEqual([]);
