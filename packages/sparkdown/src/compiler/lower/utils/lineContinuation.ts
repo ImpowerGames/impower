@@ -11,6 +11,7 @@ import {
 import { REASSIGNMENT_NAMES } from "../../utils/reassignmentNames";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import { findOwnDeclarationName } from "./findOwnDeclarationName";
+import { CONTINUATION_BRIDGE, SKIPPABLE, lastSignificantLeaf } from "./significantLeaf";
 import {
   AstExpr,
   AstExprBinary,
@@ -58,27 +59,6 @@ const LINE_CONTINUATION = nodeNameSet([
 export function isLineContinuation(node: { name: string }): boolean {
   return LINE_CONTINUATION.has(node.name);
 }
-
-const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
-  "Newline",
-  "ExtraWhitespace",
-  "LuauLineComment",
-  "LuauDocLineComment",
-  "LuauBlockComment",
-  "LuauTypeTrailingBlockComment",
-  "LuauUncallableValueTrailingBlockComment",
-  "LuauCallableValueTrailingBlockComment",
-  "LuauTypeTrailingBlockCommentClose",
-]);
-
-const SKIPPABLE: ReadonlySet<string> = new Set([
-  ...CONTINUATION_BRIDGE,
-  "Whitespace",
-  "OptionalWhitespace",
-  "RequiredWhitespace",
-  "LuauComment",
-  "LuauReturnLineBreak",
-]);
 
 // The lines at the start of a function body that qualify the name its return
 // type ends with (`function f(): types` then `.Button`), with that return
@@ -635,16 +615,6 @@ function hasDescendant(node: SyntaxNode, name: string): boolean {
 function firstContentChild(node: SyntaxNode): SyntaxNode | null {
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (child.name === `${node.name}_content`) return child.firstChild;
-  }
-  return null;
-}
-
-export function lastSignificantLeaf(node: SyntaxNode): SyntaxNode | null {
-  for (let child = node.lastChild; child; child = child.prevSibling) {
-    if (SKIPPABLE.has(child.name) || child.from === child.to) continue;
-    if (!child.firstChild) return child;
-    const leaf = lastSignificantLeaf(child);
-    if (leaf) return leaf;
   }
   return null;
 }

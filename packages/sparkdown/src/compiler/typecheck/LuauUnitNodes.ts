@@ -4,6 +4,7 @@
 
 import type { SyntaxNode } from "@lezer/common";
 import { ALTERNATOR_CANDIDATES, opensAlternator } from "../utils/alternatorDecision";
+import { loweredDefineStatementOf } from "../utils/defineStatement";
 import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
@@ -235,10 +236,11 @@ export function loweredReadingEnd(body: SyntaxNode): number {
 /**
  * Whether a reading of Luau that reports its syntax errors reads a node:
  * the type checker's (`isCheckedLuau`), or a lowerer's of a body the
- * checker does not read (`loweredLuauBodyOf`).
+ * checker does not read (`loweredLuauBodyOf`) or of a define body's
+ * statement (`loweredDefineStatementOf`).
  */
 export function isReadLuau(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
-  return isCheckedLuau(node, read) || loweredLuauBodyOf(node) !== null;
+  return isCheckedLuau(node, read) || loweredLuauBodyOf(node) !== null || loweredDefineStatementOf(node, read) !== null;
 }
 
 /** Whether a document is a Luau file, which is Luau from its first line to its last. */
@@ -368,11 +370,14 @@ export function endsStatementBefore(name: string, previousToken: string | undefi
  * reads it in the checker's stead (`loweredLuauBodyOf`), that reading
  * reports it, at a token up to the body's own end, a closure's `}`
  * included, which the reading names where it closes the closure
- * (`closureReadingErrors`).
+ * (`closureReadingErrors`). A define body's statement is read by its
+ * lowerer (`loweredDefineStatementOf`), on to the token after it, as Luau
+ * reads it, and that reading reports every error of it (I-1489).
  */
 export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined, read: (from: number, to: number) => string): boolean {
   const lowered = loweredLuauBodyOf(node);
   if (lowered) return tokenFrom === undefined || (tokenFrom < lowered.to && readingCarriesOnTo(node, tokenFrom, read));
+  if (loweredDefineStatementOf(node, read)) return tokenFrom === undefined || readingCarriesOnTo(node, tokenFrom, read);
   if (!isCheckedLuau(node, read)) {
     const expression = loweredExpressionOf(node);
     return !!expression && (tokenFrom === undefined || tokenFrom < expression.to || unclosedBrace(expression));

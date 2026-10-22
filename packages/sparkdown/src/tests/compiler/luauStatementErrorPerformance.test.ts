@@ -3,7 +3,7 @@ import { Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { SparkdownCombinedAnnotator } from "../../compiler/classes/SparkdownCombinedAnnotator";
 import { parseSource } from "./grammarSnapshot";
-import { luauStatementError } from "../../compiler/utils/luauStatementError";
+import { luauStatementErrors } from "../../compiler/utils/luauStatementError";
 
 // The first name of each `Hello there` line: the statement candidate a define
 // body reports (`reportDefineStatement`).
@@ -55,7 +55,7 @@ function measure(count: number, oneFunction: boolean) {
     for (const node of nodes) {
       const line = source.slice(node.from, node.to);
       const from = node.from + line.length - line.trimStart().length;
-      const result = luauStatementError(
+      const { errors } = luauStatementErrors(
         wrap(node), from,
         (a, b) => {
           const text = source.slice(a, b);
@@ -67,7 +67,7 @@ function measure(count: number, oneFunction: boolean) {
           return cached;
         },
       );
-      expect(result).toEqual({
+      expect(errors[0]).toEqual({
         message: "Incomplete statement: expected assignment or a function call",
         from, to: from + 5,
       });

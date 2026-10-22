@@ -1,9 +1,8 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { UNREAD_TOKENS } from "../../utils/unreadTokens";
-import { luauStatementError } from "../../utils/luauStatementError";
+import { luauStatementErrors } from "../../utils/luauStatementError";
+import { isDefineStatementStart, readsDefineStatement } from "../../utils/defineStatement";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
-import { followsDanglingDot, followsMissingValue } from "../utils/statementBefore";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -151,40 +150,44 @@ const DEFINE_MEMBER_NAMES = nodeNameSet([
   "LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition",
 ]);
 
-const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
-  "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary",
-  "LuauDoubleQuotedString", "LuauSingleQuotedString", "LuauMultilineString",
-  "LuauInterpolatedString", "LuauBoolean", "LuauNil", "LuauTable",
-  "LuauLengthOperation", "LuauLogicalOperation", "LuauParenthetical", "LuauUnitKeywords",
-]);
-
-// Define bodies lower members only, but still report expressions that Luau
-// cannot read as statements. A property's continuation is consumed first.
-// A statement that is a `.` no name follows is the validator's to report
-// (`LuauDanglingAccessor`); a later one on the line (`Hello there.`) is a
-// statement of its own, and Luau's first error is this one's. A call the
-// grammar opened as a method (`isDefineMethodCall`) holds its whole line,
-// line break included, so it is the statement alone (`whole`).
-function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = false): SyntaxNode {
+// Define bodies lower members only, but still report the statements that
+// Luau cannot read, every error of each (I-1489), as their one owner
+// (`loweredDefineStatementOf`). A property's continuation is consumed
+// first. A statement that is a `.` no name follows is the validator's to
+// report (`readsDefineStatement`); a later one on the line (`Hello there.`)
+// is a statement of its own. A call the grammar opened as a method
+// (`isDefineMethodCall`) holds its whole line, line break included, so it
+// is the statement alone (`whole`). A statement that Luau's reading of the
+// statement before it reads on into (`Hi, Bob` then `1 + 2`, the
+// assignment's values), before `readFrom`, is that reading's. Returns the
+// statement's last node and where the reading of it ends.
+function reportDefineStatement(
+  start: SyntaxNode,
+  ctx: LowerContext,
+  readFrom: number,
+  whole = false,
+): { last: SyntaxNode; readTo: number } {
   let last = start;
   if (!whole) for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) last = node;
-  const dangling = start.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", start) !== undefined;
   const read = (from: number, to: number) => ctx.read(from, to);
-  if (dangling || followsDanglingDot(start, read) || followsMissingValue(start, read)) return last;
-  const error = luauStatementError(start, start.from, read, last.to, ctx.documentText);
-  if (error) ctx.diagnostics?.push({
-    message: error.message,
-    severity: ErrorType.Error,
-    source: {
-      fileName: null,
-      filePath: ctx.filePath ?? null,
-      startLineNumber: ctx.lineNumber(error.from) + 1,
-      endLineNumber: ctx.lineNumber(error.to) + 1,
-      startCharacterNumber: ctx.characterNumber(error.from) + 1,
-      endCharacterNumber: ctx.characterNumber(error.to) + 1,
-    },
-  });
-  return last;
+  if (start.from < readFrom) return { last, readTo: readFrom };
+  if (!readsDefineStatement(start, read)) return { last, readTo: last.to };
+  const { errors, to } = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
+  for (const error of errors) {
+    ctx.diagnostics?.push({
+      message: error.message,
+      severity: ErrorType.Error,
+      source: {
+        fileName: null,
+        filePath: ctx.filePath ?? null,
+        startLineNumber: ctx.lineNumber(error.from) + 1,
+        endLineNumber: ctx.lineNumber(error.to) + 1,
+        startCharacterNumber: ctx.characterNumber(error.from) + 1,
+        endCharacterNumber: ctx.characterNumber(error.to) + 1,
+      },
+    });
+  }
+  return { last, readTo: to };
 }
 
 // Coerce a property's value to a compile-time literal for the engine struct
@@ -404,6 +407,8 @@ export function lowerLuauDefine(
   const methodNodes: { name: string; node: SyntaxNode }[] = [];
   if (content) {
     let child = content.firstChild;
+    // Where the reading of the last statement of the body ends.
+    let readTo = content.from;
     while (child) {
       if (child.name === "LuauPropertyDefinition") {
         const prop = readPropertyDefinition(child, ctx);
@@ -415,7 +420,7 @@ export function lowerLuauDefine(
       } else if (isDefineMethodCall(child, (pos) => ctx.lineNumber(pos))) {
         // A line the grammar opened as a method, which took neither a line
         // below it nor an `end`: a statement of the body (`print("x")`).
-        if (structureErrors.length === 0) reportDefineStatement(child, ctx, true);
+        if (structureErrors.length === 0) ({ readTo } = reportDefineStatement(child, ctx, readTo, true));
       } else if (child.name === "LuauMethodDefinition") {
         const methodNameNode = getDescendent("LuauFunctionName", child);
         if (methodNameNode) {
@@ -436,15 +441,13 @@ export function lowerLuauDefine(
             node: child,
           });
         } else if (structureErrors.length === 0) {
-          child = reportDefineStatement(child, ctx);
+          ({ last: child, readTo } = reportDefineStatement(child, ctx, readTo));
         }
-      } else if (
-        structureErrors.length === 0 &&
-        (EXPRESSION_STATEMENT_STARTS.has(child.name) || UNREAD_TOKENS.has(child.name))
-      ) {
-        // A token no rule of the body read (`!`, `a = 1 !`) has its error
-        // here too: the validator leaves it to Luau's reading.
-        child = reportDefineStatement(child, ctx);
+      } else if (structureErrors.length === 0 && isDefineStatementStart(child, (pos) => ctx.lineNumber(pos))) {
+        // An expression, a reassignment (`t.a = 1`), or a token no rule of
+        // the body read (`!`, `a = 1 !`): the validator leaves its errors to
+        // Luau's reading.
+        ({ last: child, readTo } = reportDefineStatement(child, ctx, readTo));
       }
       child = child.nextSibling;
     }
