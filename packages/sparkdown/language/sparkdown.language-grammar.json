@@ -6529,9 +6529,6 @@
               "include": "#InlinePropQuotedValue"
             },
             {
-              "include": "#LuauComment"
-            },
-            {
               "include": "#StylingValuePart"
             },
             {
@@ -11538,7 +11535,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|(?:(?:[^\\S\\n\\r])*(?:end)\\b)|[)\\]}])|(?=(?:[^\\S\\n\\r])*do\\b)"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|(?:[^\\S\\n\\r])*(?:(?:end|else|elseif|until)(?![a-zA-Z0-9_]))|[)\\]}])|(?=(?:[^\\S\\n\\r])*do\\b)"
     },
     "LuauSparkdownRepeatLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(repeat)\\b((?:[^\\S\\n\\r])*)",
@@ -16081,7 +16078,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<!^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;)|(?=\\b(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)|(?=^(?:(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))|[.](?![.\\d])|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))|^(?:(?:[^\\S\\n\\r])*\\[(?!=*\\[)))"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<!^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;|[^\\x00-\\x7F])|(?=\\b(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)|(?=^(?:(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))|[.](?![.\\d])|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))|^(?:(?:[^\\S\\n\\r])*\\[(?!=*\\[)))"
     },
     "LuauReturnLineBreak": {
       "begin": "(?<=^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$|(?:[-][-]))",
