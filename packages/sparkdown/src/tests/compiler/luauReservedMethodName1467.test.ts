@@ -137,27 +137,16 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: () -> :end", "end"],
     ["local t = {}\n  local b = t :: T & :end", "end"],
     ["local t = {}\n  local b = t :: T | : --[[c]] end", "end"],
-    ["local t = {}\n  local b = t :: T | : --[=========[c]=========] end", "end"],
     ["local t = {}\n  local b = t :: T | :function", "function"],
-    // `do` and `then` past a long comment at a stray `:` are the method's
-    // name outside a header, and the header's in one (round 2, `undirected`
-    // finding 2).
-    ["local x: T | : --[=========[c]=========] do", "do"],
     // A type alias's complete type hands the `:` to the alias, which reads
     // it as a method's (round 4 preparation). After a type operator with no
-    // operand, `:do` and `:then` keep base's reading (round 4 `undirected`
-    // finding 2: a header's bracket may hold them).
+    // operand, a `:` before `do`, `then` or a comment of level nine or more
+    // keeps base's reading (round 4 `undirected` finding 2: a header's
+    // bracket may hold it), and a header keeps its keyword.
     ["type A = T:do", "do"],
     ["type A = T: --[=========[c]=========] end", "end"],
-    ["local x: T | : --[=========[c]=========] then", "then"],
-    ["local t = {}\n  local b = t :: T | : --[=========[c]=========] do", "do"],
     ["local t = {}\n  while t :: T | : --[=========[c]=========] do end", null],
     ["local t = {}\n  if t :: T | : --[=========[c]=========] then end", null],
-    // A header word in a comment or a string is no header, and a header on
-    // the line before is one (round 3, `undirected` finding 2).
-    ["local x: T | : --[=========[while]=========] do", "do"],
-    ["local x: T | : --[=========[if]=========] then", "then"],
-    ['local s = "while"\n  local x: T | : --[=========[c]=========] do', "do"],
     ["local t = {}\n  while\n    t :: T | : --[=========[c]=========] do end", null],
     ["local t = {}\n  if\n    t :: T | : --[=========[c]=========] then end", null],
   ],
@@ -181,6 +170,11 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: T: --[=========[c]=========] do", "do"],
     ["local t = {}\n  local b = (t): --[=========[c]=========] then", "then"],
     ["local x: T: --[=========[c]=========] do", "do"],
+    // A header word in a comment or a string is no header (round 3,
+    // `undirected` finding 2).
+    ["local x: T: --[=========[while]=========] do", "do"],
+    ["local x: T: --[=========[if]=========] then", "then"],
+    ['local s = "while"\n  local x: T: --[=========[c]=========] do', "do"],
     // Round 2, `gb` finding 1: the access inside an operand of a header's
     // condition.
     ["local t = {}\n  while not t: --[=========[c]=========] do end", "do"],
@@ -191,7 +185,6 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t): --[=========[a]b]=========] end", "end"],
     ["local t = {}\n  local b = t: --[=========[a]b]=========] end", "end"],
     ["local x: T: --[=========[a]b]=========] end", "end"],
-    ["local x: T | : --[=========[a]b]=========] end", "end"],
     ["local t = {}\n  local b = (t): --[=========[a]==========]b]=========] end", "end"],
     // A number or a boolean before the `:` (round 1, `undirected` finding 3).
     ["local b = 1: --[=========[c]=========] end", "end"],
@@ -254,6 +247,13 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  if t :: {a: T | :then end", null],
     ["local t = {}\n  local x = if t then t :: T | :then else a", null],
     ["local t = {}\n  while t :: {a: T:do end", null],
+    ["local t = {}\n  if\n    t :: {a: T | : --[=========[c]=========] end end", null, "local t = {}\n  if\n    t :: {a: T | : --[=========[c]=========] end end"],
+    ["local t = {}\n  if\n    {t :: T |: --[=========[c]=========] do end", null],
+    ["local t = {}\n  if\n    {t :: T |:do end", null],
+    // After a value operator with no operand the `:` is still a method's, as
+    // on base: only a type operator leaves `do` to the rule around.
+    ["local t = {}\n  local b = t + :do", "do"],
+    ["local t = {}\n  while t + :do end", null],
   ],
   // A `:` that is a type's is no method's: a declaration's or a `for`
   // variable's annotation, which misses its type, as Luau reads it, so the
