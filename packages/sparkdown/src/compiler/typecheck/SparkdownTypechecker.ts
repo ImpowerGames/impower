@@ -33,7 +33,7 @@ import {
   type LuauUnit,
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
-import { luauReadingReportsAllAt } from "./LuauUnitNodes";
+import { luauReadingReportsAllAt, storyStoreOf } from "./LuauUnitNodes";
 import { withMessageLines } from "./messageLines";
 import { syntaxErrorEnd } from "./syntaxErrorRange";
 import { Mode } from "./Module";
@@ -51,6 +51,8 @@ export interface TypecheckDiagnostic {
   unknownGlobal?: string;
   /** Whether this is a syntax error, which is an error rather than a warning. */
   syntax?: boolean;
+  /** Whether it is one of a backtick string's own errors (`LuauSyntaxError.ofString`), which no other reporter reports. */
+  ofString?: true;
 }
 
 // Syntax Sparkdown adds to Luau's, which the reading does not know: a label
@@ -189,9 +191,10 @@ export class SparkdownTypechecker {
           // at Luau's range, its recovery's included (I-1322). Elsewhere the
           // Luau is a story statement's, bounded by its line, whose errors
           // have one owner each (#931, #1907): the reading's for a construct
-          // only it finds malformed (`LuauSyntaxError.malformed`) and for a
+          // only it finds malformed (`LuauSyntaxError.malformed`), for a
           // statement that holds a token the grammar left unread
-          // (`LuauSyntaxError.unread`), Sparkdown's own syntax's for the rest.
+          // (`LuauSyntaxError.unread`) and for a backtick string's own errors
+          // (`LuauSyntaxError.ofString`), Sparkdown's own syntax's for the rest.
           const inPureLuau = pureLuau || inFunction(start);
           // Luau's parser stops at the end of the chunk, and what the reading
           // reads on after it is none of Luau's: in a `.luau` or `run` file
@@ -202,12 +205,17 @@ export class SparkdownTypechecker {
           const stoppedAt = syntaxError?.pastChunkEnd;
           if (stoppedAt && (pureLuau || topLevelAt(start) === topLevelAt(documentPosition(unit, stoppedAt.begin)))) continue;
           if (!inPureLuau) {
-            if (!syntaxError?.malformed && !syntaxError?.unread) continue;
+            // A backtick string's own error is the reading's wherever the
+            // string stands (I-1435), but in a story `store`, whose reading
+            // of the declaration alone reports it (`validateStores`).
+            if (syntaxError?.ofString) {
+              if (storyStoreOf(tree.resolveInner(offsetOf(start), 1), read)) continue;
+            } else if (!syntaxError?.malformed && !syntaxError?.unread) continue;
             const token = `${end.line}:${end.character}`;
             if (reportedTokens.has(token)) continue;
             reportedTokens.add(token);
           }
-          diagnostics.push({ start, end, code: "SyntaxError", message: inDocumentLines(unit, message), syntax: true });
+          diagnostics.push({ start, end, code: "SyntaxError", message: inDocumentLines(unit, message), syntax: true, ...(syntaxError?.ofString ? { ofString: true as const } : {}) });
           continue;
         }
         const diagnostic: TypecheckDiagnostic = {

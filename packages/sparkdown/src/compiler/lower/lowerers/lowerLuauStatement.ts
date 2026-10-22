@@ -47,6 +47,7 @@ import { REASSIGNMENT_NAMES } from "../../utils/reassignmentNames";
 import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
 import type { LowerContext } from "../context";
 import { stampStatement } from "../lower";
+import { reportReadingErrors } from "../expression/lowerFunction";
 import {
   documentText,
   nodeAfterAttributes,
@@ -242,6 +243,9 @@ export function lowerLuauStatementNode(
   }
   const reading = readBlockAst(nodes, ctx);
   if (!reading) return {};
+  // A backtick string's own errors, where no other reading reads the
+  // statement (an alternator's arm), are this reading's (I-1435).
+  reportReadingErrors(reading.source.errors, node, ctx, "string");
   return lowerLuauStatementsAt(
     node,
     readStatements(node, reading.unit.statements, reading.source, ctx),

@@ -177,6 +177,17 @@ export interface LuauSyntaxError {
    * included, as Luau reports them.
    */
   unread?: true;
+  /**
+   * Not part of Luau: the error is one of a backtick string's own, which the
+   * reading gives while it reads the string as a string: an empty `{}`, a
+   * section Luau's lexer could not finish, an interpolation left open or
+   * holding a stray token, a malformed escape. The reading of the
+   * statement the string stands in is its one owner (I-1435): no reading of
+   * the string alone reports it, and where the statement rejects the
+   * string before reading it, the reading gives none of these. Every
+   * reading that reads the string reports it, whatever the context.
+   */
+  ofString?: true;
 }
 
 /**
@@ -525,8 +536,10 @@ interface Token {
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
   unread?: true;
-  /** A token of the rest of a backtick string Luau's parser gave up on (`stringRest`, I-1406). */
-  abandoned?: true;
+  /** The first of a backtick string's lexemes (`interpLexemes`): the string, and how many lexemes it is. */
+  lexemesOf?: { token: Token; count: number };
+  /** A string section Luau's lexer could not finish on its line, which it reads as a malformed string (I-1421). */
+  broken?: true;
   /** The implicit `function` of a function the author wrote without it (a `define` method, a handler's closure), read as Luau reads the function it stands for. */
   written?: true;
   /** A `store` that Luau code's `LuauVariableDefinition` begins, which is a name when no name or `function` follows it (see `parseStat`). */
@@ -1294,7 +1307,10 @@ function describe(token: Token): string {
     case "rawstring":
       return `"${token.text.replace(/^\[=*\[|^["']|["']$|\]=*\]$/g, "")}"`;
     case "interp":
-      return token.text;
+      // A section Luau's lexer could not finish, or a whole string it could
+      // not (`(1 `a {x`)`'s ```)``, I-1435), not a split string's first
+      // lexeme, is Luau's malformed string.
+      return token.broken || (!token.lexemesOf && token.text.startsWith("`") && !isFinished(token)) ? "malformed string" : token.text;
     default:
       return `'${token.text}'`;
   }
@@ -1312,6 +1328,13 @@ function describeKind(token: Token): string {
       return "string";
     case "eof":
       return "<eof>";
+    case "interp":
+      // A backtick string's lexemes (`interpLexemes`), or the whole string,
+      // which Luau's lexer reads as its first lexeme (I-1419).
+      if (token.broken || (!token.lexemesOf && token.text.startsWith("`") && !isFinished(token))) return "malformed string";
+      if (token.node) return stringPartNodes(token.node, BACKTICK_INTERPOLATION).length > 0 ? "the beginning of an interpolated string" : "interpolated string";
+      if (token.text.startsWith("`")) return "the beginning of an interpolated string";
+      return token.text.endsWith("{") ? "the middle of an interpolated string" : "the end of an interpolated string";
     default:
       return `'${token.text}'`;
   }
@@ -1646,6 +1669,9 @@ class Parser {
   // the closing brackets given up on in the blocks being read (see
   // `parseBlockNoScope`).
   private sparkdownDepth = 0;
+  // Not part of Luau: whether the error being reported is one of a backtick
+  // string's own (`LuauSyntaxError.ofString`, `reportStringError`).
+  private stringError = false;
   // Not part of Luau: whether the reading has gone on past the end of the
   // chunk Luau's parser stops at (`parseChunk`).
   private pastChunkEnd: Location | undefined;
@@ -1701,12 +1727,6 @@ class Parser {
    */
   storyFunctions = 1;
   readonly statements: { statement: AstStat; first: number; end: number }[] = [];
-  /**
-   * Not part of Luau: for each backtick string Luau's parser gave up on
-   * (`parseInterpString`), by its node's start, the offset of the first
-   * token read after it.
-   */
-  readonly abandonedStrings = new Map<number, number>();
 
   constructor(
     private tokens: Token[],
@@ -1723,6 +1743,17 @@ class Parser {
 
   private current(): Token {
     return this.tokens[this.pos] ?? this.eof;
+  }
+
+  /**
+   * The current token, as an error that rejects it describes and ranges
+   * it: a backtick string with interpolations is Luau's lexemes, read on
+   * one at a time after its first (`` `a { ``, I-1419).
+   */
+  private rejected(): Token {
+    const lexemes = this.interpLexemes(this.current());
+    if (lexemes) this.tokens.splice(this.pos, 1, ...lexemes);
+    return this.current();
   }
 
   private lookahead(): Token {
@@ -1839,7 +1870,10 @@ class Parser {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
     }
-    if (atSparkdown) error.sparkdown = true;
+    // A backtick string's own error is the string's, whatever token the
+    // reading meets after it (I-1435).
+    if (this.stringError) error.ofString = true;
+    else if (atSparkdown) error.sparkdown = true;
     if (this.pastChunkEnd) error.pastChunkEnd = this.pastChunkEnd;
     if (this.tokens[errorPos]?.unread) this.errorsAtUnread.add(this.errors.length);
     this.errors.push(error);
@@ -1922,6 +1956,16 @@ class Parser {
     return new AstExprError(location, expressions, this.errors.length - 1);
   }
 
+  /** Reports one of a backtick string's own errors (`LuauSyntaxError.ofString`). */
+  private reportStringError(location: Location, expressions: AstExpr[], message: string, malformed?: MalformedConstruct): AstExprError {
+    this.stringError = true;
+    try {
+      return this.reportExprError(location, expressions, message, malformed);
+    } finally {
+      this.stringError = false;
+    }
+  }
+
   private reportStatError(location: Location, expressions: AstExpr[], statements: AstStat[], message: string, malformed?: MalformedConstruct): AstStatError {
     this.report(location, message, malformed);
     return new AstStatError(location, expressions, statements, this.errors.length - 1);
@@ -1977,7 +2021,7 @@ class Parser {
   }
 
   private expectAndConsumeFail(text: string, context?: string, malformed?: MalformedConstruct): void {
-    const got = describe(this.current());
+    const got = describe(this.rejected());
     const message = context !== undefined ? `Expected '${text}' when parsing ${context}, got ${got}` : `Expected '${text}', got ${got}`;
     // Not part of Luau: a `::` where a token was expected is an annotation written with it.
     this.report(this.current().location, message, malformed ?? (this.isAnnotationColon() ? "annotation" : undefined));
@@ -2007,7 +2051,7 @@ class Parser {
   }
 
   private expectMatchAndConsumeFail(text: string, begin: Token, extra = "", construct?: MalformedConstruct): void {
-    const location = this.current().location;
+    const location = this.rejected().location;
     const got = `${describe(this.current())}${extra}`;
     const open = begin.kind === "chooseThen" || begin.kind === "choose" ? "choose" : begin.text;
     // Not part of Luau: a `::` where the closer was expected is an annotation written with it.
@@ -2107,14 +2151,14 @@ class Parser {
   /** One expression, which must be all the tokens hold. */
   parseLoneExpression(): AstExpr {
     const expr = this.parseExpr();
-    if (this.current().kind !== "eof") this.report(this.current().location, `Expected the end of the expression, got ${describe(this.current())}`);
+    if (this.current().kind !== "eof") this.report(this.rejected().location, `Expected the end of the expression, got ${describe(this.current())}`);
     return expr;
   }
 
   parseChunk(): AstStatBlock {
     const result = this.parseBlock();
     while (this.current().kind !== "eof") {
-      this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`);
+      this.report(this.rejected().location, `Expected <eof>, got ${describe(this.current())}`);
       // Not part of Luau, whose parser stops there: the rest is read on for
       // Sparkdown's own use, and its errors are none of Luau's, up to the
       // next place it stops, which the errors after it name.
@@ -2351,7 +2395,7 @@ class Parser {
     const mark = this.current().location;
     this.next();
     if (this.blockFollow(this.current())) {
-      return this.reportStatError(mark, [], [], `Expected a statement after '&', got ${describe(this.current())}`);
+      return this.reportStatError(mark, [], [], `Expected a statement after '&', got ${describe(this.rejected())}`);
     }
     const statement = this.parseStat();
     return new AstStatSparkdownExplicit(Location.span(mark, statement.location), statement, mark);
@@ -2512,7 +2556,7 @@ class Parser {
       return this.parseLocal(start, attributes, true);
     }
     return this.reportStatError(
-      this.current().location,
+      this.rejected().location,
       [],
       [],
       `Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got ${describe(this.current())} instead`,
@@ -2544,7 +2588,7 @@ class Parser {
       return stat;
     };
     if (attributes.length !== 0 && !this.is("function")) {
-      this.report(this.current().location, `Expected 'function' after export declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
+      this.report(this.rejected().location, `Expected 'function' after export declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     if (this.is("local")) {
       const keywordLocation = this.current().location;
@@ -2788,7 +2832,7 @@ class Parser {
       return new AstStatLocalFunction(new Location(start.begin, body.location.end), variable!, body, isConst);
     }
     if (attributes.length !== 0) {
-      return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
+      return this.reportStatError(this.rejected().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     const names: Binding[] = [];
     this.parseBindingList(names, false, isConst, true);
@@ -3273,7 +3317,7 @@ class Parser {
       }
     }
     if (parts.length === 1 && !isUnion && !isIntersection) return parts[0]!;
-    if (parts.length === 0) return this.reportTypeError(begin, [], `Expected type, got ${describe(this.current())}`, "type");
+    if (parts.length === 0) return this.reportTypeError(begin, [], `Expected type, got ${describe(this.rejected())}`, "type");
     if (isUnion && isIntersection) {
       return this.reportTypeError(
         Location.span(begin, parts[parts.length - 1]!.location),
@@ -3338,8 +3382,12 @@ class Parser {
       return { type: this.reportTypeError(start, [], "String literal contains malformed escape sequence") };
     }
     if (token.kind === "interp" && token.node) {
-      this.next();
-      return { type: this.reportTypeError(start, [], "Interpolated string literals cannot be used as types") };
+      // Luau reads the whole string, with the errors its reading reports,
+      // and then reports it at its first lexeme (`` `a { ``, I-1419), where
+      // an error of the string's at that lexeme is the one Luau keeps.
+      const location = this.interpLexemes(token)?.[0]!.location ?? start;
+      this.parseInterpString();
+      return { type: this.reportTypeError(location, [], "Interpolated string literals cannot be used as types") };
     }
     if (this.isName()) {
       let prefix: string | undefined;
@@ -3591,11 +3639,9 @@ class Parser {
     }
     if (this.current().kind === "new") return this.parseNew();
     // Where no expression can begin, Luau's parser meets a backtick string
-    // in the rest of one it gave up on as its lexer reads it, a lexeme at a
-    // time (`` `a { ``, then the interpolation's tokens, then `` } b` ``),
-    // not as one string (I-1406).
-    const lexemes = this.interpLexemes(this.current());
-    if (lexemes) this.tokens.splice(this.pos, 1, ...lexemes);
+    // as its lexer reads it, a lexeme at a time (`` `a { ``, then the
+    // interpolation's tokens, then `` } b` ``), not as one string (I-1406,
+    // I-1419): `parseNameOpt` rejects it.
     return this.parseNameExpr("expression", "expression");
   }
 
@@ -3669,11 +3715,16 @@ class Parser {
   }
 
   private parseSimpleExpr(): AstExpr {
+    // A string an error rejected (`rejected`) is one string again where an
+    // expression begins at its first lexeme, as Luau's parser reads its
+    // lexemes there.
+    const split = this.current().lexemesOf;
+    if (split) this.tokens.splice(this.pos, split.count, split.token);
     const start = this.current().location;
     if (this.isAttribute()) {
       const attributes = this.parseAttributes();
       if (!this.is("function")) {
-        return this.reportExprError(start, [], `Expected 'function' declaration after attribute, but got ${describe(this.current())} instead`, "attribute");
+        return this.reportExprError(start, [], `Expected 'function' declaration after attribute, but got ${describe(this.rejected())} instead`, "attribute");
       }
       const matchFunction = this.current();
       this.next();
@@ -3770,7 +3821,7 @@ class Parser {
     return this.reportExprError(
       new Location(func.location.begin, this.current().location.begin),
       [func],
-      `Expected '(', '{' or <string> when parsing function call, got ${describe(this.current())}`,
+      `Expected '(', '{' or <string> when parsing function call, got ${describe(this.rejected())}`,
       "expression",
     );
   }
@@ -3845,7 +3896,7 @@ class Parser {
   /** `malformed` is what the name's absence leaves malformed (not part of Luau, see `MalformedConstruct`), an annotation where a `::` stands in its place. */
   private parseNameOpt(context?: string, malformed?: MalformedConstruct): Name | undefined {
     if (!this.isName()) {
-      const got = describe(this.current());
+      const got = describe(this.rejected());
       const message = context !== undefined ? `Expected identifier when parsing ${context}, got ${got}` : `Expected identifier, got ${got}`;
       this.report(this.current().location, message, this.nameMalformed(malformed));
       return undefined;
@@ -3930,13 +3981,15 @@ class Parser {
   private parseString(): AstExpr {
     const token = this.current();
     this.next();
-    if (!isFinished(token)) return this.reportExprError(token.location, [], "Malformed string; did you forget to finish it?");
+    // A backtick string's errors are its own (`LuauSyntaxError.ofString`).
+    const report = token.text.startsWith("`") ? this.reportStringError.bind(this) : this.reportExprError.bind(this);
+    if (!isFinished(token)) return report(token.location, [], "Malformed string; did you forget to finish it?");
     if (token.kind === "string" && token.text.startsWith('"') && token.node && hasInterpolation(token.node)) {
       return this.parseSparkdownString(token);
     }
     const style = token.kind === "rawstring" ? QuoteStyle.QuotedRaw : QuoteStyle.QuotedSimple;
     const value = this.charArray(token);
-    if (value === undefined) return this.reportExprError(token.location, [], "String literal contains malformed escape sequence");
+    if (value === undefined) return report(token.location, [], "String literal contains malformed escape sequence");
     return new AstExprConstantString(token.location, value, style);
   }
 
@@ -3956,20 +4009,44 @@ class Parser {
     let section = token.from;
     const close = token.to - 1;
     const children = stringPartNodes(node, interpolation);
+    const luau = interpolation === BACKTICK_INTERPOLATION;
     for (const [i, child] of children.entries()) {
       const isShorthand = CALL_SHORTHANDS.has(child.name);
       const value = quotedValue(text.slice(at, child.from));
-      if (value === undefined) return undefined;
+      if (value === undefined) {
+        if (!luau) return undefined;
+        // Luau's parser gives up on a backtick string at the section that
+        // holds a malformed escape, which it reports from the string's
+        // start through that section; the interpolation's tokens and the
+        // sections after it are read after the string, as they are after a
+        // stray token (I-1435).
+        const end = child.from + (isShorthand ? 2 : 1);
+        expressions.push(this.reportStringError(this.locationOf(token.from, end), [], "Interpolated string literal contains malformed escape sequence"));
+        const { body } = this.interpolationTokens(child, isShorthand);
+        const rest = this.stringRest(token, body, children.slice(i));
+        return { strings, expressions, unclosed: false, segment: this.locationOf(section, end), rest };
+      }
       strings.push(value);
       const segment = this.locationOf(section, child.from + (isShorthand ? 2 : 1));
-      const part = this.interpolation(child, isShorthand, segment, after, interpolation === BACKTICK_INTERPOLATION);
+      // The section after the last interpolation of a string with no closing
+      // backtick is one Luau's lexer could not finish.
+      const brokenNext = luau && i === children.length - 1 && !hasClosingBacktick(text, node);
+      const part = this.interpolation(child, isShorthand, segment, after, luau, brokenNext);
       expressions.push(part.expr);
       if (part.stray) {
         // The grammar read the rest as the string's, so its tokens are ones
         // it left unread as Luau's, and no rule of it reports the statements
         // Luau reads from them (`markUnreadErrors`): their errors, and the
         // string's statement's, are the reading's.
-        return { strings, expressions, unclosed: false, segment, rest: this.stringRest(token, part.stray, children.slice(i)) };
+        const rest = this.stringRest(token, part.stray, children.slice(i));
+        return { strings, expressions, unclosed: false, segment, rest };
+      }
+      if (part.empty) {
+        // Luau's parser gives up on the string at an empty interpolation
+        // (`` `a {} b {c} d` ``) once it has read the section after it
+        // (`} b {`): the rest is read after the string (I-1420).
+        const rest = this.stringRest(token, [], children.slice(i)).slice(1);
+        return { strings, expressions, unclosed: false, segment, rest };
       }
       if (!part.closed) {
         strings.push("");
@@ -3979,8 +4056,19 @@ class Parser {
       section = child.to - (isShorthand ? 2 : 1);
     }
     const value = quotedValue(text.slice(at, Math.max(at, close)));
-    if (value === undefined) return undefined;
-    strings.push(value);
+    if (value === undefined) {
+      if (!luau) return undefined;
+      // A last section Luau's lexer could not finish is a malformed string
+      // to it, whose escapes it does not read (I-1318). A finished one with
+      // a malformed escape is reported over the whole string, as a plain
+      // string's where the string has no interpolation (I-1435).
+      if (hasClosingBacktick(text, node)) {
+        const message = children.length === 0 ? "String literal contains malformed escape sequence" : "Interpolated string literal contains malformed escape sequence";
+        expressions.push(this.reportStringError(token.location, [], message));
+        return { strings, expressions, unclosed: false, segment: this.locationOf(section, token.to), rest: [] };
+      }
+    }
+    strings.push(value ?? "");
     return { strings, expressions, unclosed: false, segment: this.locationOf(section, token.to) };
   }
 
@@ -3999,7 +4087,7 @@ class Parser {
     // unread as Luau's, and no rule of it reports the statements Luau reads
     // from them (`markUnreadErrors`): their errors, and the string's
     // statement's, are the reading's.
-    const at = (t: Token): Token => ({ ...t, source: token.source, unread: true, abandoned: true, authoredIsland: token.authoredIsland });
+    const at = (t: Token): Token => ({ ...t, source: token.source, unread: true, authoredIsland: token.authoredIsland });
     const rest: Token[] = stray.map(at);
     for (const [i, part] of parts.entries()) {
       const shorthand = CALL_SHORTHANDS.has(part.name);
@@ -4010,34 +4098,56 @@ class Parser {
       const from = part.to - (shorthand ? 2 : 1);
       const to = next ? next.from + (CALL_SHORTHANDS.has(next.name) ? 2 : 1) : token.to;
       const text = this.ctx.text.slice(from, to);
-      rest.push(at({ kind: "interp", text, from, to, location: this.locationOf(from, to), source: token.source }));
+      const section = at({ kind: "interp", text, from, to, location: this.locationOf(from, to), source: token.source });
+      // Without its closing backtick, Luau's lexer reads the string's last
+      // section as a string it could not finish (I-1421).
+      if (!next && !hasClosingBacktick(this.ctx.text, token.node!)) section.broken = true;
+      rest.push(section);
     }
     return rest;
   }
 
   /**
-   * A backtick string with interpolations in the rest of a string Luau's
-   * parser gave up on, as Luau's lexer reads it: one lexeme per section
+   * A backtick string with interpolations, as Luau's lexer reads it where
+   * its parser does not read it as a string: one lexeme per section
    * (`` `a { ``, `} b {`, `` } c` ``) with each interpolation's tokens
-   * between them. Undefined for any other token, a string Luau reads as
-   * one lexeme, or one that the reading of a string reports on its own (an
-   * interpolation left open, or no closing backtick, I-1318).
+   * between them; with no closing backtick, the last section is one Luau's
+   * lexer could not finish (`stringRest`), and after an interpolation left
+   * open, the first included (`(1 `a {x)`, I-1435), its tokens and the code
+   * Luau's lexer reads on through end them. Undefined for any other token
+   * or a string Luau reads as one lexeme.
    */
   private interpLexemes(token: Token): Token[] | undefined {
     const node = token.node;
-    if (token.kind !== "interp" || !node || !token.abandoned) return undefined;
+    if (token.kind !== "interp" || !node) return undefined;
     const parts = stringPartNodes(node, BACKTICK_INTERPOLATION);
-    const end = node.getChild("LuauInterpolatedString_end");
-    if (parts.length === 0 || !end || !/`/.test(this.ctx.text.slice(end.from, end.to))) return undefined;
+    if (parts.length === 0) return undefined;
     const first = parts[0]!;
     const shorthand = CALL_SHORTHANDS.has(first.name);
-    const { body, opened, closed } = this.interpolationTokens(first, shorthand);
-    if (!opened || !closed) return undefined;
+    const { body, opened } = this.interpolationTokens(first, shorthand);
+    if (!opened) return undefined;
     const to = first.from + (shorthand ? 2 : 1);
-    const begin: Token = { ...token, node: undefined, text: this.ctx.text.slice(token.from, to), to, location: this.locationOf(token.from, to) };
     const rest = this.stringRest(token, body, parts);
-    // A later interpolation left open ends the lexemes before the string's end.
-    if (rest[rest.length - 1]?.to !== token.to) return undefined;
+    // After a later interpolation left open, Luau's lexer reads on as code
+    // through what the tree takes into the string after that
+    // interpolation's tokens (the `)` of `` `a {x} b {y) ``).
+    const end = rest[rest.length - 1]?.to ?? to;
+    if (end < token.to) {
+      const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
+      tokenizer.lex(end, token.to);
+      rest.push(...tokenizer.tokens.map((t) => ({ ...t, source: token.source, unread: true as const, authoredIsland: token.authoredIsland })));
+    }
+    // The grammar read the string as one, so its first lexeme is a token it
+    // left unread too: the errors at it are the reading's (`stringRest`).
+    const begin: Token = {
+      ...token,
+      node: undefined,
+      text: this.ctx.text.slice(token.from, to),
+      to,
+      location: this.locationOf(token.from, to),
+      unread: true,
+      lexemesOf: { token, count: rest.length + 1 },
+    };
     return [begin, ...rest];
   }
 
@@ -4060,7 +4170,7 @@ class Parser {
    * The expression of an interpolation (`{x}`), or of a `{{f}}` shorthand,
    * and whether its closing braces are written.
    */
-  private interpolation(node: SyntaxNode, shorthand: boolean, segment?: Location, after?: Token, luau = false): { expr: AstExpr; closed: boolean; stray?: Token[] } {
+  private interpolation(node: SyntaxNode, shorthand: boolean, segment?: Location, after?: Token, luau = false, brokenNext = false): { expr: AstExpr; closed: boolean; stray?: Token[]; empty?: true } {
     const { body, opened, closed, closers } = this.interpolationTokens(node, shorthand);
     const location = new Location(this.ctx.index.position(node.from), this.ctx.index.position(node.to));
     // The reading of the expression ends at its closing braces, or where the interpolation ends.
@@ -4073,18 +4183,38 @@ class Parser {
     // such a string (`` `a {b `` and then `end`, the token after the
     // interpolation, `after`).
     const broken = (token: Token | undefined) => (token?.kind === "string" || token?.kind === "interp") && !isFinished(token);
+    // A backtick string's errors here are its own (`LuauSyntaxError.ofString`),
+    // not those of the expression read inside the braces.
+    const own = <T>(report: () => T): T => {
+      if (!luau) return report();
+      this.stringError = true;
+      try {
+        return report();
+      } finally {
+        this.stringError = false;
+      }
+    };
     if (segment && !closed && broken(body[0])) {
-      return { expr: this.reportExprError(segment, [], "Malformed interpolated string; did you forget to add a '`'?"), closed };
+      return { expr: own(() => this.reportExprError(segment, [], "Malformed interpolated string; did you forget to add a '`'?")), closed };
+    }
+    // A backtick string's empty interpolation is Luau's error at the
+    // string's section that opened it (I-1420), unless the section after it
+    // is one Luau's lexer could not finish, which Luau's parser reports
+    // first. Not part of Luau: the error is the reading's to report, as the
+    // validator leaves it, in a story statement too.
+    if (body.length === 0 && opened && closed && !shorthand && luau && segment) {
+      const message = brokenNext ? "Malformed interpolated string; did you forget to add a '`'?" : "Malformed interpolated string, expected expression inside '{}'";
+      return { expr: own(() => this.reportExprError(segment, [], message, "expression")), closed, empty: true };
     }
     let stray: Token[] | undefined;
     const expr = this.withTokens(body, end, () => {
-      if (body.length === 0) return this.reportExprError(location, [], "Malformed interpolated string, expected expression inside '{}'");
+      if (body.length === 0) return own(() => this.reportExprError(location, [], "Malformed interpolated string, expected expression inside '{}'"));
       const e = this.parseExpr();
       // Without its closing brace, the interpolation ends where its expression does, as Luau reports it.
       if (!closed && segment && !broken(this.current()) && (this.current().kind !== "eof" || after)) {
         const found = this.current().kind === "eof" ? after! : this.current();
-        this.report(segment, `Malformed interpolated string, got ${describe(found)}`);
-      } else if (!closed) this.report(this.current().location, "Malformed interpolated string; did you forget to add a '}'?");
+        own(() => this.report(segment, `Malformed interpolated string, got ${describe(found)}`));
+      } else if (!closed) own(() => this.report(this.current().location, "Malformed interpolated string; did you forget to add a '}'?"));
       else if (this.current().kind !== "eof" && luau && segment) {
         // A backtick string's interpolation with a token after its
         // expression (`` `a {1 2} b` ``) ends the string where Luau's
@@ -4092,12 +4222,12 @@ class Parser {
         // interpolation; the tokens from that one on are read after the
         // string, as Luau reads them (`parseInterpString`, I-1406).
         stray = body.slice(this.pos);
-        return this.reportExprError(segment, [], `Malformed interpolated string, got ${describe(this.current())}`);
-      } else if (this.current().kind !== "eof") this.report(this.current().location, `Malformed interpolated string, got ${describe(this.current())}`);
+        return own(() => this.reportExprError(segment, [], `Malformed interpolated string, got ${describe(this.current())}`));
+      } else if (this.current().kind !== "eof") own(() => this.report(this.current().location, `Malformed interpolated string, got ${describe(this.current())}`));
       return e;
     });
     if (stray) return { expr, closed, stray };
-    if (!opened) return { expr: this.reportExprError(location, [expr], "Malformed interpolated string"), closed };
+    if (!opened) return { expr: own(() => this.reportExprError(location, [expr], "Malformed interpolated string")), closed };
     return { expr: shorthand ? new AstExprSparkdownCallShorthand(location, expr) : expr, closed };
   }
 
@@ -4122,27 +4252,30 @@ class Parser {
     const token = this.current();
     this.next();
     const parts = this.stringParts(token, BACKTICK_INTERPOLATION, this.current());
-    if (!parts) return this.reportExprError(token.location, [], "Interpolated string literal contains malformed escape sequence");
+    if (!parts) return this.reportStringError(token.location, [], "Interpolated string literal contains malformed escape sequence");
     if (parts.rest) {
       // Luau's parser reads the rest of the string's tokens after it.
       this.tokens.splice(this.pos, 0, ...parts.rest);
-      if (token.node && parts.rest[0]) this.abandonedStrings.set(token.node.from, parts.rest[0].from);
       return parts.expressions[parts.expressions.length - 1]!;
     }
     if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
-    // The closing backtick is the string node's own end, not a backtick inside it.
-    const end = token.node?.getChild("LuauInterpolatedString_end");
-    if (!end || !/`/.test(this.ctx.text.slice(end.from, end.to))) {
+    if (!token.node || !hasClosingBacktick(this.ctx.text, token.node)) {
       // The string ends at its line (I-1318). Luau's lexer reads one with no
       // interpolation as a string it could not finish, and one with an
       // interpolation as its last section, from the last `}`, unfinished.
-      if (parts.expressions.length === 0) return this.reportExprError(token.location, [], "Malformed string; did you forget to finish it?");
-      return this.reportExprError(parts.segment, parts.expressions, "Malformed interpolated string; did you forget to add a '`'?");
+      if (parts.expressions.length === 0) return this.reportStringError(token.location, [], "Malformed string; did you forget to finish it?");
+      return this.reportStringError(parts.segment, parts.expressions, "Malformed interpolated string; did you forget to add a '`'?");
     }
     // A string with no interpolation is a plain string to Luau.
     if (parts.expressions.length === 0) return new AstExprConstantString(token.location, parts.strings[0]!, QuoteStyle.QuotedSimple);
     return new AstExprInterpString(token.location, parts.strings, parts.expressions);
   }
+}
+
+/** Whether a backtick string's node ends in its closing backtick: its own end's, not a backtick inside it. */
+function hasClosingBacktick(text: string, node: SyntaxNode): boolean {
+  const end = node.getChild("LuauInterpolatedString_end");
+  return !!end && /`/.test(text.slice(end.from, end.to));
 }
 
 /** Whether a string's token holds its closing quote or brackets. */
@@ -4885,39 +5018,6 @@ export function readLuauStatementCandidate(
  * Reads the one Luau expression some nodes hold (an interpolation's,
  * a choice's condition, a struct's value), with every name read as a global.
  */
-/**
- * Luau's errors for a string node the tree read, as its reading reports
- * them: the string, then the document's next token, which an interpolation
- * left open names (`Malformed interpolated string, got 'end'`, I-1318). Only
- * the errors that begin in the string are its own. The validator reports
- * them for a backtick string left open, so they are the converter's reading
- * wherever the string stands.
- */
-export function readLuauStringErrors(node: SyntaxNode, documentText: string): LuauSyntaxError[] {
-  const index = lineIndex(documentText);
-  const tokenizer = new Tokenizer(documentText, index);
-  tokenizer.read(node);
-  const tokens = lexAhead(documentText, node.to);
-  const next = tokens[firstFrom(tokens, node.to)];
-  if (next) tokenizer.tokens.push({ ...next, location: tokenizer.location(next.from, next.to) });
-  const end = index.position(node.to);
-  return parseLoneTokens(tokenizer, documentText, index).errors.filter((error) => end.gt(error.location.begin));
-}
-
-/**
- * Where Luau's parser gives up on a backtick string, at an interpolation's
- * token after its expression (`` `a {1 2} b {} c` ``): the offset from
- * which the string's rest is Luau's tokens, not its interpolations, or
- * undefined for a string read whole, whatever a string inside it is
- * (I-1406).
- */
-export function readLuauStringAbandonedAt(node: SyntaxNode, documentText: string): number | undefined {
-  const index = lineIndex(documentText);
-  const tokenizer = new Tokenizer(documentText, index);
-  tokenizer.read(node);
-  return parseLoneTokens(tokenizer, documentText, index).abandonedStrings?.get(node.from);
-}
-
 export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
@@ -5155,7 +5255,7 @@ function parseLoneTokens(
   tokenizer: Tokenizer,
   documentText: string,
   index: LineIndex,
-): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[]; abandonedStrings?: ReadonlyMap<number, number> } {
+): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[] } {
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
@@ -5167,5 +5267,5 @@ function parseLoneTokens(
     parser.errors.push(error);
     expr = new AstExprError(error.location, [], parser.errors.length - 1);
   }
-  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements, abandonedStrings: parser.abandonedStrings };
+  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements };
 }
