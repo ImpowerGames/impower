@@ -58,9 +58,9 @@ For `adopt-pr` and `adopt-worktree`, record the existing writer with `adopt`, an
 
 At every check-in, on the first wake after you restart, and before acting on any writer's report or request, run the wake routine in [writer reports](references/writer-reports.md). A writer's checkpoint report is decided as [review checkpoints](references/review-checkpoints.md) describes, never by its round count alone. Writers keep their own review jobs, round counts, freezes and the machine-wide reviewer and test reservations.
 
-## 6. Bounded disk recovery
+## 6. Cleanup and disk recovery
 
-When a writer or reviewer is blocked on disk headroom, or the plan says free disk admits no writer, run the [clean-worktrees](../clean-worktrees/SKILL.md) dry run from the main checkout, then apply it; it removes only what it classifies as merged and removable. Record each removal with `disk-recovery --removed <path> --branch <branch> --classifier "<its row>"`. No other cleanup is part of this authority.
+When disk headroom blocks a writer or reviewer, or the plan admits none for free disk, run the [clean-worktrees](../clean-worktrees/SKILL.md) dry run from the main checkout, then apply it; it removes only merged, removable entries. Record each removal with `disk-recovery --removed <path> --branch <branch> --classifier "<its row>"`. Clean up after each merge and release per [cleanup](references/cleanup.md). No other cleanup is authorized.
 
 ## 7. Integrate and finish
 

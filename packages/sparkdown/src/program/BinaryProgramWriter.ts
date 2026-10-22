@@ -35,6 +35,7 @@ import { UnsupportedConstruct } from "./ProgramEmitter";
 import { FACT_KIND } from "./ProgramFacts";
 import {
   AUX_MAX,
+  CALL_METHOD,
   CHOICE_CONDITION,
   CHOICE_DECISION,
   CHOICE_INVISIBLE_DEFAULT,
@@ -451,7 +452,16 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.unsupported(`an operand of ${OP_NAMES[op] ?? op}`);
     }
     this._code.push(encodeWord0(op, flags, aux), arg);
-    this._layout.push(`${op}:${flags}:${aux}:${this.describeArg(op, arg)}`);
+    // A method call's name changes only the error a missing method raises,
+    // not where an offset resumes or what the stack holds, and the `Str` of
+    // its lookup already lays the name out: the layout leaves it out, so a
+    // save written before calls named their method still places inside the
+    // statement (I-1412).
+    if (op === Op.CallValue) {
+      this._layout.push(`${op}:${flags & ~CALL_METHOD}:${aux}:0`);
+    } else {
+      this._layout.push(`${op}:${flags}:${aux}:${this.describeArg(op, arg)}`);
+    }
     if (op === Op.BeginScope) {
       this._scopes += 1;
     } else if (op === Op.EndScope) {
@@ -2191,7 +2201,9 @@ export const describeInstruction = (
     case Op.Done:
       return flags & DONE_HOLD ? `${name} hold` : name;
     case Op.CallValue:
-      return `${name} ${aux}`;
+      return flags & CALL_METHOD
+        ? `${name} ${aux} method ${JSON.stringify(table.strings[arg])}`
+        : `${name} ${aux}`;
     case Op.Leave:
       return flags & LEAVE_CONTINUE ? `${name} continue` : name;
     case Op.Const:
