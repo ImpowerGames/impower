@@ -50,6 +50,11 @@ export class VariableAssignment extends ParsedObject {
    *  drops them (#1333). The declaration's chunk evaluates each and pops
    *  its value before it declares the global. */
   public discarded: readonly Expression[] = [];
+  /** For a `store` with several names, the globals of the statement, this
+   *  one included: Luau evaluates every value of the statement before it
+   *  binds any name, so the declaration's chunk evaluates all their values
+   *  and then declares them (I-1409). Empty for a store of one name. */
+  public statementGlobals: readonly VariableAssignment[] = [];
 
   /** Adopts the values the declaration evaluates and drops (`discarded`). */
   public Discard(expressions: readonly Expression[]): void {

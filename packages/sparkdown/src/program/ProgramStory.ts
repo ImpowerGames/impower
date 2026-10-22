@@ -2849,6 +2849,14 @@ export class ProgramStory implements StoryEngine {
       case Op.Unpack:
         unpackTuple(this, arg);
         break;
+      case Op.DeclareValue:
+        if (
+          this._declarationRunning !== null &&
+          state.callStack.elements.length <= this._declarationDepth
+        ) {
+          this._declarationGlobals = arg;
+        }
+        break;
       case Op.Index: {
         const key = state.PopEvaluationStack();
         const base = state.PopEvaluationStack();
@@ -2879,8 +2887,10 @@ export class ProgramStory implements StoryEngine {
           keepLegacyRootBinding(state.callStack, this.root.table.strings[arg]!);
         }
         state.variablesState.Assign(this.assignment(arg, flags), value);
-        // A declaration chunk declares its globals one after another, each
-        // after its value, in its own frame.
+        // A declaration chunk declares its globals in its own frame, each
+        // after its value, or a store's several names after all their
+        // values; where the count does not reach the global whose value
+        // runs, a `DeclareValue` sets it (I-1409).
         if (
           this._declarationRunning !== null &&
           flags & SET_DECLARE &&
