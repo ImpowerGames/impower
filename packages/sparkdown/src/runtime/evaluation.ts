@@ -1299,10 +1299,13 @@ export function callVariableTarget(
  * steps and a builtin runs; a table calls its `__call` handler, and a nil
  * whose receiver has `__namecall` calls that. `callSiteArgCount` is the
  * number of arguments the call site pushed, or -1 when it did not say.
+ * `methodName` is the method a colon call names, whose first argument is
+ * the receiver, or null for any other call.
  */
 export function callValueAsFunction(
   story: any,
   callSiteArgCount: number,
+  methodName: string | null = null,
 ): void {
   // Pops a symbol value (regular fn) OR a closure `ObjectValue` off
   // the eval stack and calls the function it refers to, pushing a
@@ -1436,6 +1439,15 @@ export function callValueAsFunction(
       // No __namecall — restore the popped args so the error
       // below reports with the stack intact.
       for (const a of nmArgs) story.state.PushEvaluationStack(a);
+      // A colon call whose method lookup missed raises Luau's namecall
+      // error, naming the method and the receiver's type (errors.luau
+      // lines 403-408, I-1412); a dot call of a nil field keeps the error
+      // for calling nil.
+      if (methodName !== null) {
+        throw luauRuntimeError(
+          `attempt to call missing method '${methodName}' of ${luauTypeOf(oneValue(nmReceiver ?? null))}`,
+        );
+      }
     }
     // Lua's exact message (`luaG_callerror`) — iter.luau line 174 matches
     // `attempt to call a nil value` through pcall.

@@ -245,6 +245,12 @@ export const SET_ROOT_SLOTTED = 16;
  *  passed. */
 export const CALL_ARGS_UNKNOWN = 0xffff;
 
+/** `CallValue`'s flag for a method call (`recv:name(...)`), whose first
+ *  argument is the receiver and whose `arg` names the method: a method the
+ *  receiver lacks raises Luau's `attempt to call missing method '<name>' of
+ *  <type>` rather than the error for calling nil (I-1412). */
+export const CALL_METHOD = 1;
+
 /** `Leave`'s flag: resume the loop's owner where its next pass starts. */
 export const LEAVE_CONTINUE = 1;
 

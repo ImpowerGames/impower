@@ -71,6 +71,7 @@ import {
 } from "./ProgramImages";
 import {
   CALL_ARGS_UNKNOWN,
+  CALL_METHOD,
   CALL_DISCARD,
   CALL_TUNNEL,
   JUMP_ARGUMENTS,
@@ -3000,7 +3001,11 @@ export class ProgramStory implements StoryEngine {
       case Op.CallValue: {
         this.callsMade += 1;
         const count = auxOf(w0);
-        callValueAsFunction(this, count === CALL_ARGS_UNKNOWN ? -1 : count);
+        callValueAsFunction(
+          this,
+          count === CALL_ARGS_UNKNOWN ? -1 : count,
+          flags & CALL_METHOD ? this.root.table.strings[arg]! : null,
+        );
         break;
       }
       case Op.Return:

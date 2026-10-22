@@ -1,6 +1,6 @@
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { Op } from "../../../../../program/ProgramInstructions";
+import { CALL_METHOD, Op } from "../../../../../program/ProgramInstructions";
 
 // Call an arbitrary expression value (closure, symbol value, or
 // `__call`-equipped table) with a list of pre-evaluated args. The
@@ -22,7 +22,13 @@ export class CallValueExpression extends Expression {
   public readonly args: Expression[];
   public shouldPopReturnedValue: boolean = false;
 
-  constructor(target: Expression, args: Expression[]) {
+  // `methodName` is the method a colon call (`recv:name(...)`) names, whose
+  // first argument is the receiver; a dot call or any other call has none.
+  constructor(
+    target: Expression,
+    args: Expression[],
+    public readonly methodName: string | null = null,
+  ) {
     super();
     this.targetExpression = this.AddContent(target) as Expression;
     this.args = args.map((a) => this.AddContent(a) as Expression);
@@ -40,13 +46,23 @@ export class CallValueExpression extends Expression {
   }
 
   // The arguments, the callable, then `CallValue` with the number of
-  // arguments, and `Pop` where the value is discarded.
+  // arguments, naming the method of a colon call, and `Pop` where the value
+  // is discarded.
   public override EmitExpression(emitter: ProgramEmitter): void {
     for (const arg of this.args) {
       emitter.emitObject(arg);
     }
     emitter.emitObject(this.targetExpression);
-    emitter.emit(Op.CallValue, 0, this.args.length);
+    if (this.methodName !== null) {
+      emitter.emit(
+        Op.CallValue,
+        emitter.string(this.methodName),
+        this.args.length,
+        CALL_METHOD,
+      );
+    } else {
+      emitter.emit(Op.CallValue, 0, this.args.length);
+    }
     if (this.shouldPopReturnedValue) {
       emitter.emit(Op.Pop);
     }
