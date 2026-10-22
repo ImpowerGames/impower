@@ -134,6 +134,11 @@ const CALLS: [body: string, readings: string[]][] = [
   ["  print()\n", ["print:call"]],
   ["  print(1) -- note\n  -- more\n", ["print:call"]],
   ["  print(1)\n\n  g()\n    return 1\n  end\n", ["print:call", "g:method"]],
+  // Arguments that go on at the next line are still the call's.
+  ["  print(1,\n    2)\n  y = 2\n", ["print:call"]],
+  ['  print([[a\n    b]])\n  y = 2\n', ["print:call"]],
+  // A block comment that goes on at the next line is no body.
+  ["  print(1) --[[ a\n    b ]]\n  y = 2\n", ["print:call"]],
 ];
 
 // Well-formed methods, which read as before.

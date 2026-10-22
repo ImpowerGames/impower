@@ -32,12 +32,26 @@ export function isDefineMethodCall(node: SyntaxNode, lineOf: (pos: number) => nu
   if (end && holdsEndKeyword(end)) return false;
   const content = node.getChild("LuauMethodDefinition_content");
   if (!content) return true;
-  // A token of the content on a later line than the header is the body's.
+  // A token on a later line than the header's first is the body's, unless
+  // the header holds it: a parameter list or return type that goes on at the
+  // next line (`print(1,` then `2)`).
   const headerLine = lineOf(node.from);
-  const cursor = content.cursor();
-  while (cursor.next() && cursor.from < content.to) {
-    if (cursor.node.firstChild || isTrivia(cursor.node)) continue;
-    if (lineOf(cursor.from) > headerLine) return false;
+  const holdsLaterToken = (n: SyntaxNode): boolean => {
+    if (!n.firstChild) return !isTrivia(n) && lineOf(n.from) > headerLine;
+    for (let child: SyntaxNode | null = n.firstChild; child; child = child.nextSibling) {
+      if (holdsLaterToken(child)) return true;
+    }
+    return false;
+  };
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (!HEADER_PARTS.has(child.name) && holdsLaterToken(child)) return false;
   }
   return true;
 }
+
+/** The parts of a method's header that its content holds before the body. */
+const HEADER_PARTS: ReadonlySet<string> = new Set([
+  "LuauFunctionParameters",
+  "LuauFunctionReturnType",
+  "LuauFunctionReturnMissingType",
+]);
