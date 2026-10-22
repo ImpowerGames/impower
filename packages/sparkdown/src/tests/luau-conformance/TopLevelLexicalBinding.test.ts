@@ -181,6 +181,51 @@ describe("a function written at the top level", () => {
     ).toEqual(got("Got 1."));
   });
 
+  // Each kind of function a top-level block holds binds at its entry what it
+  // did before the index (I-1468), in every block form: a define's method
+  // reads and writes the top-level local, and so does a function statement
+  // in a `do` block; one in an `if` or a loop fails when the block runs
+  // (I-1443), whose error this pins as it stands.
+  const blockForms: [string, (body: string[]) => string[]][] = [
+    ["an `if`", (b) => ["if true then", ...b.map((l) => `  ${l}`), "end"]],
+    ["an `elseif`", (b) => ["if false then", "elseif true then", ...b.map((l) => `  ${l}`), "end"]],
+    ["an `else`", (b) => ["if false then", "else", ...b.map((l) => `  ${l}`), "end"]],
+    ["a `do` block", (b) => ["do", ...b.map((l) => `  ${l}`), "end"]],
+    ["a numeric `for` loop", (b) => ["for i = 1, 1 do", ...b.map((l) => `  ${l}`), "end"]],
+    ["a generic `for` loop", (b) => ["for _, i in {1} do", ...b.map((l) => `  ${l}`), "end"]],
+    ["a `while` loop", (b) => ["while true do", ...b.map((l) => `  ${l}`), "  break", "end"]],
+    ["a `repeat` loop", (b) => ["repeat", ...b.map((l) => `  ${l}`), "until true"]],
+    ["an `&` line's `for` loop", (b) => [`& for i = 1, 1 do ${b.join(" ")} end`]],
+    ["an `&` line's `while` loop", (b) => [`& while true do ${b.join(" ")} break end`]],
+  ];
+  const functionKinds: [string, string[], string[], string, boolean][] = [
+    ["function statement that reads", ["function g()", "  return a", "end"], ["Got {tostring(g())}."], "Got 1.", true],
+    ["function statement that writes", ["function set()", "  a = 5", "end"], ["& set()", "Got {a}."], "Got 5.", true],
+    ["define's method that reads", ["define thing with", "  function get()", "    return a", "  end", "end"], ["Got {tostring(thing.get())}."], "Got 1.", false],
+    ["define's method that writes", ["define thing with", "  function set()", "    a = 5", "  end", "end"], ["& thing.set()", "Got {a}."], "Got 5.", false],
+  ];
+  test.each(
+    blockForms.flatMap(([form, wrap]) =>
+      functionKinds
+        .filter(([, , , , inline]) => inline || !form.includes("`&`"))
+        .map(([kind, body, after, value]) => [kind, form, ["local a = 1", ...wrap(body), ...after], value] as const),
+    ),
+  )("a %s written inside %s binds the top-level local as before the index", (kind, form, lines, value) => {
+    const result = run([...lines]);
+    if (kind.startsWith("function statement") && form !== "a `do` block") {
+      // I-1443: the block runs the function where it stands.
+      expect(result.texts).toEqual([]);
+      expect(result.errors).toHaveLength(1);
+      expect(String(result.errors[0])).toMatch(
+        kind.endsWith("reads")
+          ? /Found function return statement \(return\), when expected end of flow/
+          : /Tried to divert using a target from a variable that could not be found \(set\)/,
+      );
+    } else {
+      expect(result).toEqual(got(value));
+    }
+  });
+
   test.each([
     ["scene", ["-> S(5)", "scene S(x)", "  function g()", "    return x", "  end", "  local x = 7", "  Got {g()} {x}.", "end"]],
     [
