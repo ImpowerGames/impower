@@ -51,23 +51,45 @@ const JOINING_PAIRS = new Set([
   "->",
   "[[",
   "[=",
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "%=",
+  "^=",
+  ".=",
 ]);
 
-// Whether removing all the whitespace between `prevChar` and `nextChar`
-// would join the tokens either side into one (`5 print` → `5print`,
-// `match match` → `matchmatch`), which changes what the script means.
-// A word after a closing `)` or `]` also keeps its space (`]] print(1)`,
-// a statement after a block comment), so a second statement on the line
-// is not glued to the first.
-function mustKeepSpaceBetween(prevChar: string, nextChar: string): boolean {
+// A name or number character in any script, so `ñandú x` is two words.
+const NAME_CHAR_REGEX = /[\p{L}\p{N}_]/u;
+
+// The text before a span ends with a number literal (`5`, `0xFF`, `1.`,
+// `1.5`, `.5`), not a name that ends in a digit (`text2`, `ñandú_2`).
+const ENDS_WITH_NUMBER_REGEX =
+  /(?:^|[^\p{L}\p{N}_.])(?:\d[\p{L}\p{N}_]*\.?[\p{L}\p{N}_]*|\.\d[\p{L}\p{N}_]*)$/u;
+
+// How much of the text before a span `mustKeepSpaceBetween` reads.
+const KEEP_SPACE_LOOKBEHIND = 64;
+
+// Whether removing all the whitespace between the text `before` a span
+// and the character after it would join the tokens either side into one
+// (`5 print` → `5print`, `match match` → `matchmatch`, `1. print` →
+// `1.print`, `5 .x` → `5.x`), which changes what the script means. A word
+// after a closing `)` or `]` also keeps its space (`]] print(1)`, a
+// statement after a block comment), so a second statement on the line is
+// not glued to the first.
+function mustKeepSpaceBetween(before: string, nextChar: string): boolean {
+  const prevChar = before.slice(-1);
+  const nextIsName = NAME_CHAR_REGEX.test(nextChar);
   if (
-    isWordChar(nextChar) &&
-    (isWordChar(prevChar) || prevChar === ")" || prevChar === "]")
+    nextIsName &&
+    (NAME_CHAR_REGEX.test(prevChar) || prevChar === ")" || prevChar === "]")
   ) {
     return true;
   }
-  // `5 .x` → `5.x` reads the `.` as the number's decimal point.
-  if (/[0-9]/.test(prevChar) && nextChar === ".") return true;
+  if ((nextIsName || nextChar === ".") && ENDS_WITH_NUMBER_REGEX.test(before)) {
+    return true;
+  }
   return JOINING_PAIRS.has(prevChar + nextChar);
 }
 
@@ -1048,13 +1070,40 @@ export const getFormatting = (
     };
   }
 
-  const cur = annotations.formatting.iter(iterStart);
-  const aheadCur = annotations.formatting.iter(iterStart);
   const formattingTo = formattingRange
     ? "end" in formattingRange
       ? document.offsetAt(formattingRange.end)
       : document.length
     : undefined;
+
+  // A zero-width `keyword_separator` inserts a space of its own (before
+  // the `..` in `5 .. x`), so a span that starts or ends at one may go
+  // without joining anything; keeping it too would write two spaces.
+  const insertsSpaceAt = new Set<number>();
+  const insertCur = annotations.formatting.iter(iterStart);
+  while (insertCur.value) {
+    if (formattingTo != null && insertCur.from > formattingTo) break;
+    if (
+      insertCur.value.type === "keyword_separator" &&
+      insertCur.from === insertCur.to
+    ) {
+      insertsSpaceAt.add(insertCur.from);
+    }
+    insertCur.next();
+  }
+  // Whether the whitespace from `from` to `to` must keep one space so the
+  // tokens either side are not joined.
+  const keepsJoiningSpace = (from: number, to: number) =>
+    from !== to &&
+    !insertsSpaceAt.has(from) &&
+    !insertsSpaceAt.has(to) &&
+    mustKeepSpaceBetween(
+      document.read(Math.max(0, from - KEEP_SPACE_LOOKBEHIND), from),
+      document.read(to, to + 1),
+    );
+
+  const cur = annotations.formatting.iter(iterStart);
+  const aheadCur = annotations.formatting.iter(iterStart);
   aheadCur.next();
 
   while (cur.value) {
@@ -1131,7 +1180,7 @@ export const getFormatting = (
         // side would otherwise join.
         expectedText =
           shouldInsertSpaceBetween(prevChar, nextChar) ||
-          (cur.from !== cur.to && mustKeepSpaceBetween(prevChar, nextChar))
+          keepsJoiningSpace(cur.from, cur.to)
             ? " "
             : "";
       }
@@ -1170,14 +1219,7 @@ export const getFormatting = (
       const text = document.getText(range);
       // Extra whitespace goes, except one space where its removal would
       // join the tokens either side into one.
-      const expectedText =
-        cur.from !== cur.to &&
-        mustKeepSpaceBetween(
-          document.read(cur.from - 1, cur.from),
-          document.read(cur.to, cur.to + 1),
-        )
-          ? " "
-          : "";
+      const expectedText = keepsJoiningSpace(cur.from, cur.to) ? " " : "";
       if (text !== expectedText) {
         pushIfInRange({
           lineNumber: range.start.line + 1,

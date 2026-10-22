@@ -52,6 +52,52 @@ end
   );
 });
 
+test("formatting keeps a number ending in a point apart from the next statement", () => {
+  const source = `function f()
+  local v = 1. print(3)
+  return v
+end
+`;
+  expectFormatsTo(source, source);
+});
+
+test("formatting a concatenation after a number writes one space", () => {
+  const expected = `function f(x)
+  local v = 5 .. x
+  return v
+end
+`;
+  for (const space of [" ", "  ", "\t", " \t "]) {
+    expectFormatsTo(
+      `function f(x)
+  local v = 5${space}.. x
+  return v
+end
+`,
+      expected,
+    );
+  }
+});
+
+test("formatting still glues a class to a name that ends in a digit", () => {
+  expectFormatsTo(
+    `layout a with
+  column {
+    text2 .title
+    text .level2 .big
+  }
+end
+`,
+    `layout a with
+  column {
+    text2.title
+    text.level2.big
+  }
+end
+`,
+  );
+});
+
 // I-1494: an alternator used as a Luau value keeps its words apart.
 test("formatting keeps a match alternator's word apart from the next word", () => {
   const expected = `function f()
