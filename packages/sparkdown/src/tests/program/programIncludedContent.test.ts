@@ -819,10 +819,11 @@ describe("a save taken inside a scene of a script other than main", () => {
 });
 
 // A line that declares a global and writes a member function is two chunks
-// of its script's declaration sequence from one source: the write's chunk
-// hashes its role with that source (`memberWriteFingerprint`), so a save
-// never takes the global's chunk, or a closure of its initializer, for the
-// write (round 4 of the review of I-1438).
+// of its script's declaration sequence from one source, and so of one
+// fingerprint. A save names the write among its script's writes alone and
+// looks for it among writes alone (`writesView`, `writesIndex`), so it never
+// takes the global's chunk, or a closure of its initializer, for the write
+// (rounds 4 and 5 of the review of I-1438).
 describe("a save of a member function written on a line that declares its table", () => {
   const A = "file://proj/scripts/a.sd";
   const menu = lines("Before.", "choose", "  * Go", "    Result {api.f()}.", "end");
@@ -837,9 +838,9 @@ describe("a save of a member function written on a line that declares its table"
       "& store api = { decoy = function() return 2 end }; function api.f() return 7 end",
     ),
   };
-  const programOf = (script: string) =>
+  const programOf = (script: string, uri = A) =>
     quiet(() =>
-      programCompiler({ [MAIN]: menu, [A]: script }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+      programCompiler({ [MAIN]: menu, [uri]: script }, { seedBuiltinsIntoStory: true }).compile(MAIN),
     ).program;
   /** A save at the menu of `story`, continued to it. */
   const saveAtMenu = (story: ProgramStory) => {
@@ -852,8 +853,8 @@ describe("a save of a member function written on a line that declares its table"
   };
   /** `save` loaded into the program of `script`, and Go taken: the write's
    *  own function runs, from a place the load says it found exactly. */
-  const loadsTheWrite = (save: string, script: string) => {
-    const program = programOf(script);
+  const loadsTheWrite = (save: string, script: string, uri = A) => {
+    const program = programOf(script, uri);
     expect(reported(program)).toEqual([]);
     const loaded = new ProgramStory(program.chunks!);
     loaded.keepBeatImages = true;
@@ -892,6 +893,19 @@ describe("a save of a member function written on a line that declares its table"
       loadsTheWrite(saveAtMenu(story), edited);
     },
   );
+
+  // A renamed script names no writes the save names, and the search for
+  // the write's neighbours looks among writes alone, where the global of
+  // the line, whose neighbours the writes above it are too, never stands.
+  it("keeps the write's function when its script is renamed, below other writes", () => {
+    const script = lines(
+      "function api.a() return 11 end",
+      "function api.b() return 12 end",
+      "& store api = { decoy = function() return 2 end }; function api.f() return 7 end",
+    );
+    const save = saveAtMenu(new ProgramStory(programOf(script).chunks!));
+    loadsTheWrite(save, script, "file://proj/scripts/renamed.sd");
+  });
 });
 
 // Saves taken before I-1438, which name a member function's write of a

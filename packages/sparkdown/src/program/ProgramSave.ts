@@ -909,6 +909,7 @@ class FormPlacer {
    *  declaration sequence and by that sequence of the writes. */
   protected _writes = new Map<SequenceRow, { view: SequenceRow; entries: number[] }>();
   protected _writesOf = new Map<SequenceRow, { real: SequenceRow; entries: number[] }>();
+  protected _writesIndex: Map<string, { sequence: SequenceRow; entry: number }[]> | undefined;
 
   constructor(
     readonly root: ProgramRoot,
@@ -952,7 +953,13 @@ class FormPlacer {
     if (!index) {
       index = new Map();
       for (const sequence of this.root.sequences()) {
+        const declarations = sequence.flow < 0 && sequence.owner < 0;
         this.printsOf(sequence).forEach((print, entry) => {
+          // A member function's write is looked for among writes alone
+          // (`writesIndex`).
+          if (declarations && !declaresGlobal(sequence.arrays.chunks[entry]!)) {
+            return;
+          }
           let list = index!.get(print);
           if (!list) {
             list = [];
@@ -964,6 +971,31 @@ class FormPlacer {
       INDEXES.set(this.root, index);
     }
     return index;
+  }
+
+  /** The same over the writes of every declaration sequence alone
+   *  (`writesOf`), whose entries `placeLevels` translates back, so that the
+   *  search of step 3 never places a saved write on a global. */
+  protected writesIndex(): Map<string, { sequence: SequenceRow; entry: number }[]> {
+    if (!this._writesIndex) {
+      const index = new Map<string, { sequence: SequenceRow; entry: number }[]>();
+      for (const declarations of this.root.sequences()) {
+        if (declarations.flow >= 0 || declarations.owner >= 0) {
+          continue;
+        }
+        const sequence = this.writesOf(declarations);
+        this.printsOf(sequence).forEach((print, entry) => {
+          let list = index.get(print);
+          if (!list) {
+            list = [];
+            index.set(print, list);
+          }
+          list.push({ sequence, entry });
+        });
+      }
+      this._writesIndex = index;
+    }
+    return this._writesIndex;
   }
 
   /** The window of listing `s` that holds ordinal `at`. */
@@ -1174,7 +1206,13 @@ class FormPlacer {
         }
       }
     }
-    const found = this.search(window.prints, wi);
+    // A level among a script's writes is looked for among writes alone, in
+    // every script: its own may have been renamed (`writesIndex`).
+    const found = this.search(
+      window.prints,
+      wi,
+      level.flow?.startsWith(SAVED_INCLUDED_FLOW_PREFIX) === true,
+    );
     if (found) {
       return {
         sequence: found.sequence,
@@ -1213,8 +1251,9 @@ class FormPlacer {
   protected search(
     prints: readonly string[],
     wi: number,
+    writes = false,
   ): { sequence: SequenceRow; entry: number } | undefined {
-    const candidates = this.index().get(prints[wi]!) ?? [];
+    const candidates = (writes ? this.writesIndex() : this.index()).get(prints[wi]!) ?? [];
     let best = 0;
     let found: { sequence: SequenceRow; entry: number }[] = [];
     for (const candidate of candidates) {
