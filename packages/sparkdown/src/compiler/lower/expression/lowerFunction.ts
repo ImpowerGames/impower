@@ -638,22 +638,50 @@ export function freeVariables(
   };
   const read = (name: string, location: Location) =>
     readAt(name, offsetAt(location.begin, ctx));
-  // An alternator's head and arms, read on their own (`alternatorPartsAst`),
-  // read a local the function declares before them as a global of its name.
-  let inAlternator = 0;
-  const declaredBefore = (name: string, location: Location) => {
+  // A local read where the reading that holds the function binds it: none
+  // of the function's own, a local of a scope around the function.
+  const readLocal = (local: AstLocal, location: Location) => {
+    if (locals.has(local)) return;
     const at = offsetAt(location.begin, ctx);
-    for (const local of locals) {
-      if (local.name === name && offsetAt(local.location.begin, ctx) < at) return true;
+    // The local is written in the statement being read, so whether it
+    // is a declaration of the root frame's own scope changes only with
+    // that statement; its ordinal among the declarations of its name is
+    // recorded when it is one. Inside a block a top-level statement
+    // opens, it is read as a global is, as before the index (I-1468);
+    // the block is that statement or inside it, so this too changes
+    // only with the statement.
+    const declaredAt = offsetAt(local.location.begin, ctx);
+    const index = rawContext(ctx).rootLocals;
+    if (index?.answer(local.name, at) === ROOT_IN_BLOCK) {
+      readAt(local.name, at);
+    } else {
+      const declared = index?.declared(local.name, declaredAt)
+        ? rootDeclarationAnswer(local.name, declaredAt, ctx)
+        : "";
+      if (declared) readAt(local.name, at, false, declared);
+      else readAt(local.name, at, true);
     }
-    return false;
+  };
+  // The locals in scope where each alternator being walked is read, the
+  // innermost last: its head and arms, read on their own
+  // (`alternatorPartsAst`), read those locals as globals of their names.
+  const alternatorScopes: ReadonlyMap<string, AstLocal>[] = [];
+  const localInAlternatorScope = (name: string): AstLocal | undefined => {
+    for (let i = alternatorScopes.length - 1; i >= 0; i--) {
+      const local = alternatorScopes[i]!.get(name);
+      if (local) return local;
+    }
+    return undefined;
   };
   const readNames = (node: AstNode): boolean => {
     if (node instanceof AstExprGlobal) {
-      if (!(inAlternator > 0 && declaredBefore(node.name, node.location))) read(node.name, node.location);
+      const local = localInAlternatorScope(node.name);
+      if (local) readLocal(local, node.location);
+      else read(node.name, node.location);
     } else if (node instanceof AstExprSparkdownSequentialAlternator || node instanceof AstExprSparkdownConditionalAlternator) {
-      // What the alternator runs reads names too (I-1284): its locals are
-      // the function's, and its other reads are the function's reads.
+      // What the alternator runs reads names too (I-1284): the locals it
+      // declares are the function's, and its other reads are the
+      // function's reads, of the locals in scope where it stands.
       const candidate = node.source.node as SyntaxNode | undefined;
       if (!candidate) return false;
       const parts = alternatorPartsAst(candidate, documentText(ctx));
@@ -663,32 +691,12 @@ export function freeVariables(
           return true;
         });
       }
-      inAlternator += 1;
+      alternatorScopes.push(node.visibleLocals);
       for (const part of parts) walk(part, readNames);
-      inAlternator -= 1;
+      alternatorScopes.pop();
       return false;
     } else if (node instanceof AstExprLocal) {
-      if (!locals.has(node.local)) {
-        const at = offsetAt(node.location.begin, ctx);
-        // The local is written in the statement being read, so whether it
-        // is a declaration of the root frame's own scope changes only with
-        // that statement; its ordinal among the declarations of its name is
-        // recorded when it is one. Inside a block a top-level statement
-        // opens, it is read as a global is, as before the index (I-1468);
-        // the block is that statement or inside it, so this too changes
-        // only with the statement.
-        const declaredAt = offsetAt(node.local.location.begin, ctx);
-        const index = rawContext(ctx).rootLocals;
-        if (index?.answer(node.local.name, at) === ROOT_IN_BLOCK) {
-          readAt(node.local.name, at);
-        } else {
-          const declared = index?.declared(node.local.name, declaredAt)
-            ? rootDeclarationAnswer(node.local.name, declaredAt, ctx)
-            : "";
-          if (declared) readAt(node.local.name, at, false, declared);
-          else readAt(node.local.name, at, true);
-        }
-      }
+      readLocal(node.local, node.location);
     } else if (node instanceof AstExprFunction) {
       // A nested function's function statements bind its own reads.
       functionScopes.push(functionStatementNames(node.body, ctx));

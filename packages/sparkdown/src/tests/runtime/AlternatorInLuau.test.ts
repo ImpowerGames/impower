@@ -207,6 +207,20 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     ).toEqual({ output: "Value in out.\n", errors: [] });
   });
 
+  // Round 1, comment 6347863425: a local of a name is the arm's only where
+  // it is in scope at the alternator.
+  test.each([
+    ["a block's local that ended before it", ["    do local x = 1 end", "    return cycle | x end"]],
+    ["another function's parameter", ["    local function identity(x) return x end", "    return cycle | x end"]],
+    ["the local its own value declares", ["    local x = cycle | x end", "    return x"]],
+    ["a block's local that ended before a match's condition", ["    do local x = 1 end", '    return match x | other = x end']],
+  ])("an arm reads the captured parameter, not %s", (_name, body) => {
+    expect(run(lines("store x = 99", "function make(x)", "  return function()", ...body, "  end", "end", "local g = make(7)", "Value {g()}."))).toEqual({
+      output: "Value 7.\n",
+      errors: [],
+    });
+  });
+
   test("a top-level function's arm reads a top-level local", () => {
     expect(run(lines('local greeting = "hi"', "function f()", "  return cycle | greeting end", "end", "Value {f()}."))).toEqual({
       output: "Value hi.\n",
@@ -335,8 +349,22 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
   });
 
   test("a scene's `&` statement runs one arm each time the line runs", () => {
+    // The pass count bounds the loop whatever the alternator does (round 1,
+    // comment 6347863425).
     const { program } = compileScript(
-      lines(...TRAIL, "scene main", "  label top", '  & cycle | add("a") | add("b") end', "  if #trail < 3 then", "    -> top", "  end", "  Log {trail}.", "end"),
+      lines(
+        ...TRAIL,
+        "store passes = 0",
+        "scene main",
+        "  label top",
+        "  & passes = passes + 1",
+        '  & cycle | add("a") | add("b") end',
+        "  if passes < 3 then",
+        "    -> top",
+        "  end",
+        "  Log {trail}.",
+        "end",
+      ),
     );
     expect(errorsOf(program)).toEqual([]);
     expect(storyRun(new ProgramStory(program.chunks!), [], { from: "main" }).beats.map((beat) => beat.text)).toEqual(["Log aba.\n"]);
