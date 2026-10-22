@@ -326,9 +326,9 @@ text.source.sparkdown [0..673]
  │   ├─ string.unquoted.identifier.sd [543..548]: "Arial"
  │   ├─ markup.raw.whitespace.separator.sd [548..549]: " "
  │   ├─ constant.numeric.sd [549..550]: "1"
- │   └─ comment.line.double-dash.luau [550..559]
- │       ├─ comment.luau [550..552]: "--"
- │       └─ punctuation.definition.comment.content.sd [552..559]: "display"
+ │   ├─ string.unquoted.char.sd [550..551]: "-"
+ │   ├─ string.unquoted.char.sd [551..552]: "-"
+ │   └─ string.unquoted.identifier.sd [552..559]: "display"
  ├─ Newline [559..560]: "\n"
  ├─ meta.theme.luau [560..563]
  │   ├─ punctuation.whitespace.sd [560..562]: "  "

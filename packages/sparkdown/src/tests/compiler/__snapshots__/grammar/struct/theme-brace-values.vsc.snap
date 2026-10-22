@@ -214,9 +214,9 @@ text.source.sparkdown [0..386]
  │   ├─ markup.raw.whitespace.separator.optional.sd [371..372]: " "
  │   ├─ keyword.operator.assignment.sd [372..373]: "="
  │   ├─ markup.raw.whitespace.separator.optional.sd [373..374]: " "
- │   ├─ comment.line.double-dash.luau [374..379]
- │   │   ├─ comment.luau [374..376]: "--"
- │   │   └─ punctuation.definition.comment.content.sd [376..379]: "gap"
+ │   ├─ string.unquoted.char.sd [374..375]: "-"
+ │   ├─ string.unquoted.char.sd [375..376]: "-"
+ │   ├─ string.unquoted.identifier.sd [376..379]: "gap"
  │   ├─ punctuation.whitespace.sd [379..380]: " "
  │   └─ invalid.illegal.struct-block-close.sd [380..381]: "}"
  ├─ Newline [381..382]: "\n"
