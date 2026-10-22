@@ -111,13 +111,17 @@ export class MatchRule implements Rule {
                   children.push(matched);
                   i += matched.length;
                 } else {
+                  // Like vscode-textmate, scan on past a character the
+                  // capture's patterns cannot read, leaving it in the
+                  // capture's scope. The capture's extent is fixed by the
+                  // outer match, so no incomplete-close signal is lost.
                   const noneMatched = Matched.create(
                     GrammarNode.Unrecognized,
                     pos + i,
                     1,
                   );
                   children.push(noneMatched);
-                  break;
+                  i += 1;
                 }
               }
               const captureMatched = Matched.create(

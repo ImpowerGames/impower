@@ -48,6 +48,8 @@ export interface ScopedRuleDefinition extends RuleDefinition {
   end: string;
   beginCaptures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
   endCaptures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
+  /** Used for begin or end when it has no `beginCaptures` or `endCaptures`, as in vscode-textmate. */
+  captures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
   patterns?: IncludeDefinition[];
   applyEndPatternLast?: boolean;
 }

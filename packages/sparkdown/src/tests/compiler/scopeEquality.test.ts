@@ -131,14 +131,21 @@ const TARGETED: Record<string, string> = {
   // `LuauInterpolatedStringExpression` nodes inside `TagContent`). Adjacent
   // interpolations + literal runs (`# pic{a}{b}.jpg`), an interpolation
   // mid-body, and a multi-tag line all exercise the no-`^` `TagText` /
-  // interpolation interleaving in `TagContent`. Line-start `#` is used so
-  // these don't trip a PRE-EXISTING `Tag` capture-1 leading-whitespace
-  // divergence (the space before a mid-line `#` already diverges on the
-  // unchanged grammar — out of scope for this fix).
+  // interpolation interleaving in `TagContent`.
   "tag-interpolation": "# pic{amount}{color}.jpg\n",
   "tag-interpolation-midbody": "# a tag {var} more\n",
   "tag-plain-no-interp": "# plain tag no interp\n",
   "tag-multi-with-interp": "# a # b {x}\n",
+  // A begin/end rule with only `captures` uses them for begin and end, as
+  // vscode-textmate does: the space before a mid-line `#` keeps the `Tags`
+  // rule's required-whitespace scope (#886).
+  "tag-midline-required-whitespace-886": "Text # a {var}\n",
+
+  // A capture scans on past a character its patterns cannot read and leaves
+  // it in the capture's scope, as vscode-textmate does: the name after a `$`
+  // struct key is still a property (#828).
+  "struct-dollar-key-828":
+    "theme t with\n  g:\n    $c = 3\nend\ntheme u with\n  g { $c = 3 }\nend\n",
 
   // --- a pure-Luau body or bracket tiles with `LuauUnreadToken` (#1905), so
   // both engines read a token its rules lack the same way, and the function
