@@ -1718,6 +1718,16 @@ function deprecatedArgsErrors(attrLoc: Location, args: AstExpr[]): [Location, st
   return errors;
 }
 
+/**
+ * Not part of Luau: a block being read, by its opener (none for a chunk),
+ * and whether Luau's parser has ended it while the reading reads on to its
+ * closer (I-1430).
+ */
+interface OpenBlock {
+  begin: Token | undefined;
+  ended: boolean;
+}
+
 /** A statement a block read: its tokens, by index into the token list it was read from, and its errors, by index. */
 interface StatementSpan {
   tokens: Token[];
@@ -1761,6 +1771,15 @@ class Parser {
   // Not part of Luau: whether the reading has gone on past the end of the
   // chunk Luau's parser stops at (`parseChunk`).
   private pastChunkEnd: Location | undefined;
+  // Not part of Luau: the blocks being read, innermost last, each with its
+  // opener and whether Luau's parser has ended it while this reading reads
+  // on to its closer: at an error after a `return` in it, or at a closer
+  // it read for a block it had ended already (see `parseBlockNoScope`,
+  // `closeWrittenBlock`, I-1430). The block read last, and the closers
+  // Luau's parser read already for blocks this reading reads on.
+  private readonly blocks: OpenBlock[] = [];
+  private closedBlock: OpenBlock | undefined;
+  private readonly luauClosed = new Set<Token>();
   // Not part of Luau: how many attribute lists (`@[...]`) are being read;
   // every error met in one is the list's (`MalformedConstruct` "attribute").
   private attributeListDepth = 0;
@@ -2166,16 +2185,104 @@ class Parser {
     if (this.errors.length > reported && begin.from < begin.to) this.errors[reported]!.opener = begin.location;
   }
 
+  /** Not part of Luau: whether a block's opener is written, not a chunk's or a flow's wrapper's. */
+  private writtenOpener(begin: Token | undefined): boolean {
+    return begin !== undefined && (begin.from < begin.to || begin.written === true);
+  }
+
+  /**
+   * Not part of Luau: the innermost block from `at` out that Luau's parser
+   * still reads in (written, and not ended, `blocks`), or -1 where it reads
+   * in the chunk, past every written block.
+   */
+  private luauBlockFrom(at: number): number {
+    for (; at >= 0 && this.writtenOpener(this.blocks[at]!.begin); at--) if (!this.blocks[at]!.ended) return at;
+    return -1;
+  }
+
+  /** Not part of Luau: ends the reading of Luau's blocks, which Luau's parser does not read past (`pastChunkEnd`). */
+  private stopAtChunkEnd(): void {
+    const token = this.rejected();
+    this.report(token.location, `Expected <eof>, got ${describe(token)}`, "statement");
+    this.pastChunkEnd = token.location;
+    for (const block of this.blocks) block.ended = false;
+  }
+
+  /**
+   * Not part of Luau: reads the token the reading stands at, as the closer
+   * of the block it has just read (an `end`, an `until`, an `else` or
+   * `elseif`) or where that block's closer is missing, as Luau's parser
+   * does when it had ended that block already (`OpenBlock.ended`, I-1430):
+   * in the innermost block around it that Luau still reads in. That block
+   * takes the token if it is one of its own closers, which ends it for
+   * Luau while this reading reads on to its closer; otherwise Luau reports
+   * its missing closer there and ends it too, or, when its own closer comes
+   * next, Luau's recovery reads both tokens and closes it with them. A
+   * token met outside every written block is met where Luau's chunk ends,
+   * which reports it and stops, as `parseChunk` does, unless it is the end
+   * of input. A token Luau has read already is not read again.
+   */
+  private closeWrittenBlock(closed: OpenBlock | undefined): void {
+    if (!closed?.ended || this.luauClosed.has(this.current())) return;
+    for (let at = this.blocks.length - 1; ; ) {
+      const index = this.luauBlockFrom(at);
+      if (index < 0) {
+        if (this.current().kind !== "eof") this.stopAtChunkEnd();
+        return;
+      }
+      const block = this.blocks[index]!;
+      const begin = block.begin!;
+      const closer = begin.text === "repeat" ? "until" : "end";
+      block.ended = true;
+      if (this.is(closer) || (begin.text === "then" && (this.is("else") || this.is("elseif")))) {
+        if (this.is(closer)) this.noteEndMismatchSuspect(begin);
+        // The blocks around read this token again where Luau has read it.
+        this.luauClosed.add(this.current());
+        return;
+      }
+      this.expectMatchAndConsumeFail(closer, begin, this.endMismatchSuggestion(begin));
+      if (this.is(closer, this.lookahead())) {
+        this.luauClosed.add(this.current());
+        this.luauClosed.add(this.lookahead());
+        return;
+      }
+      at = index - 1;
+    }
+  }
+
+  /** The block just read, when `begin` opened it. */
+  private closedBlockOf(begin: Token): OpenBlock | undefined {
+    return this.closedBlock?.begin === begin ? this.closedBlock : undefined;
+  }
+
+  /** Luau's suggestion of the block an `end` it finds missing for `begin` may have been taken by (`endMismatchSuspect`). */
+  private endMismatchSuggestion(begin: Token): string {
+    const suspect = this.endMismatchSuspect;
+    return suspect && suspect.location.begin.line > begin.location.begin.line ? `; did you forget to close ${describeKind(suspect)} at line ${suspect.location.begin.line + 1}?` : "";
+  }
+
+  /**
+   * Notes the closer the reading stands at as closing `begin`: one on
+   * another line and in another column than its opener is indented as if
+   * it closed something else.
+   */
+  private noteEndMismatchSuspect(begin: Token): void {
+    const at = this.current().location.begin;
+    const opened = begin.location.begin;
+    // A unit's own opener (a flow's wrapper function) is no author's.
+    if (begin.from < begin.to && at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
+      this.endMismatchSuspect = begin;
+    }
+  }
+
   private expectMatchEndAndConsume(text: string, begin: Token): boolean {
     if (this.is(text)) {
-      // A closer on another line and in another column than its opener is
-      // indented as if it closed something else.
-      const at = this.current().location.begin;
-      const opened = begin.location.begin;
-      // A unit's own opener (a flow's wrapper function) is no author's.
-      if (begin.from < begin.to && at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
-        this.endMismatchSuspect = begin;
-      }
+      // Where Luau ended the block already, the closer closes the block
+      // Luau reads it in (`closeWrittenBlock`, I-1430).
+      // A closer Luau's recovery read (`luauClosed`) notes no suspect.
+      const closed = this.closedBlockOf(begin);
+      if (closed?.ended) this.closeWrittenBlock(closed);
+      else if (!this.luauClosed.has(this.current())) this.noteEndMismatchSuspect(begin);
       this.nextExpected();
       return true;
     }
@@ -2184,9 +2291,15 @@ class Parser {
     // the converter owns the native misplaced-branch diagnostic. Keep EOF
     // and other keyword-closer diagnostics under their existing ownership.
     const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
-    const suspect = this.endMismatchSuspect;
-    const suggestion = suspect && suspect.location.begin.line > begin.location.begin.line ? `; did you forget to close ${describeKind(suspect)} at line ${suspect.location.begin.line + 1}?` : "";
-    this.expectMatchAndConsumeFail(text, begin, suggestion, misplacedElseBranch ? "statement" : undefined);
+    // Where Luau ended the block already, a block further out reads the
+    // token instead, and this block's own recovery reads nothing Luau's
+    // reading does not (`closeWrittenBlock`, I-1430).
+    const closed = this.closedBlockOf(begin);
+    if (closed?.ended) {
+      this.closeWrittenBlock(closed);
+      return false;
+    }
+    this.expectMatchAndConsumeFail(text, begin, this.endMismatchSuggestion(begin), misplacedElseBranch ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
       return false;
@@ -2283,6 +2396,8 @@ class Parser {
     const body: AstStat[] = [];
     const prevPosition = this.previousLocation().end;
     this.blockDepth++;
+    const block: OpenBlock = { begin, ended: false };
+    this.blocks.push(block);
     const record = this.blockDepth === this.recordDepth;
     // Not part of Luau: a bracket given up on in this block is closed in it
     // or not at all; one given up on before it began may be closed in it.
@@ -2295,6 +2410,9 @@ class Parser {
     // Not part of Luau: whether the statement before had errors that are
     // marked `unread` (see `markUnreadErrors`).
     let unreadErrors = false;
+    // Not part of Luau: whether what follows is the condition Luau reads for
+    // a `repeat` loop whose block it ended after a `return` (see below).
+    let repeatCondition = false;
     while (!this.blockFollow(this.current())) {
       const current = this.current();
       // Not part of Luau: where the tree ends the statement before, no statement begins.
@@ -2318,7 +2436,14 @@ class Parser {
       const unreadRecovery: boolean = unreadErrors && this.followerStart !== undefined;
       this.statementErrorBegin = undefined;
       this.statementState = { begin: start.location.begin, hasError: false, startsAtError: false };
-      const stat = this.parseStat();
+      let stat: AstStat;
+      if (repeatCondition) {
+        repeatCondition = false;
+        const condition = this.parseExpr();
+        stat = new AstStatExpr(condition.location, condition);
+      } else {
+        stat = this.parseStat();
+      }
       // Whether the statement was read in the recovery from an earlier error.
       const inRecovery = this.followerStart !== undefined || this.statementState?.startsAtError === true;
       this.followerStart = outerFollowerStart;
@@ -2372,7 +2497,38 @@ class Parser {
         while (this.current().kind === "break" && !this.current().story) this.next();
         const following = this.pos;
         if (this.current().kind === "mark") this.next();
-        if (!this.blockFollow(this.current())) this.expectMatchAndConsumeFail(closer, begin, "", "statement");
+        // Where Luau ended this block already, the return is in the
+        // innermost block around it that Luau still reads in, or in the
+        // chunk past every written one (`closeWrittenBlock`, I-1430).
+        const index = this.writtenOpener(begin) ? this.luauBlockFrom(this.blocks.length - 1) : this.blocks.length - 1;
+        if (!this.blockFollow(this.current()) && index < 0) {
+          this.stopAtChunkEnd();
+        } else if (!this.blockFollow(this.current())) {
+          const luauBlock = this.blocks[index]!;
+          const luauBegin = luauBlock.begin!;
+          const luauCloser = luauBlock === block ? closer : luauBegin.text === "repeat" ? "until" : "end";
+          this.expectMatchAndConsumeFail(luauCloser, luauBegin, this.endMismatchSuggestion(luauBegin), "statement");
+          // Luau's recovery reads the closer only when it is the token after
+          // the one it rejects (`return 1 x` before `end`, I-1400); otherwise
+          // Luau's block ends at the error, and each closer after it is read
+          // in a block around it, the last where Luau's chunk ends
+          // (`closeWrittenBlock`, I-1430).
+          let after = this.pos + 1;
+          while (this.tokens[after]?.kind === "break" && !this.tokens[after]!.story) after++;
+          const next = this.tokens[after] ?? this.eof;
+          if (!this.is(luauCloser, next)) {
+            luauBlock.ended = true;
+            // Luau reads a `repeat` loop's condition after its missing
+            // `until`, and the statements after it in the block around.
+            repeatCondition = luauCloser === "until" && this.pos === following;
+          } else {
+            // Luau's recovery reads the closer and closes its block with it,
+            // ending a block around this one for Luau; the block that meets
+            // the closer here reads it as read already.
+            if (luauBlock !== block) luauBlock.ended = true;
+            this.luauClosed.add(next);
+          }
+        }
         this.pos = following;
       } else if (returned instanceof AstStatReturn && this.reports === reportsBefore &&
         (stat instanceof AstStatSparkdownExplicit || start.authoredIsland !== undefined)) {
@@ -2412,6 +2568,8 @@ class Parser {
       // after one as its block's, never run, and the unreachable-code lint
       // reports them.
     }
+    this.blocks.pop();
+    this.closedBlock = block;
     this.blockDepth--;
     for (let i = this.abandonedClosers.length - 1; i >= 0; i--) if (!inherited.has(this.abandonedClosers[i]!)) this.abandonedClosers.splice(i, 1);
     return new AstStatBlock(new Location(prevPosition, this.current().location.begin), body);
@@ -2733,6 +2891,7 @@ class Parser {
     let end = start;
     let elseLocation: Location | undefined;
     if (this.is("elseif")) {
+      this.closeWrittenBlock(this.closedBlockOf(matchThen));
       thenbody.hasEnd = true;
       const oldRecursionCount = this.recursionCounter;
       this.incrementRecursionCounter("elseif");
@@ -2743,6 +2902,7 @@ class Parser {
     } else {
       let matchThenElse = matchThen;
       if (this.is("else")) {
+        this.closeWrittenBlock(this.closedBlockOf(matchThen));
         thenbody.hasEnd = true;
         elseLocation = this.current().location;
         matchThenElse = this.current();
@@ -2781,10 +2941,14 @@ class Parser {
     this.currentFunction().loopDepth++;
     const body = this.parseBlockNoScope(matchRepeat, "until");
     this.currentFunction().loopDepth--;
+    // Where Luau ended the loop's block already, it read the condition then
+    // and reads a missing `until`'s token in a block further out
+    // (`closeWrittenBlock`, I-1430).
+    const shifted = this.closedBlockOf(matchRepeat)?.ended === true;
     body.hasEnd = this.expectMatchEndAndConsume("until", matchRepeat);
     // Once an unfinished comment consumed the missing closer, native Luau
     // leaves the absent condition in that recovery without a second error.
-    const cond = !body.hasEnd && this.previousLocation().end.equals(this.current().location.begin) && this.tokens[this.pos - 1]?.kind === "unfinishedComment"
+    const cond = !body.hasEnd && (shifted || (this.previousLocation().end.equals(this.current().location.begin) && this.tokens[this.pos - 1]?.kind === "unfinishedComment"))
       ? new AstExprError(this.current().location, [], this.errors.length - 1)
       : this.parseExpr();
     this.restoreLocals(localsBegin);
