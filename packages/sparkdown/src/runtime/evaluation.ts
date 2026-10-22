@@ -333,12 +333,15 @@ export function openVariablePointer(
  *
  * With `slot` (`ROOT_SLOT`), the binding of one declaration of a name the
  * scope declares more than once: the cell the declaration stored in its slot
- * (`rootSlotCell`), or null when it has not run.
+ * (`rootSlotCell`), or null when it has not run. With `anyScope`
+ * (`ROOT_ANY_SCOPE`), the binding in the outermost scope of the root frame
+ * that binds the name, a block's local included (I-1468).
  */
 export function rootVariablePointer(
   callStack: CallStack,
   name: string,
   slot: string | null = null,
+  anyScope = false,
 ): VariablePointerValue | null {
   const root = callStack.elements[0];
   if (!root || callStack.elements.length < 2) return null;
@@ -346,18 +349,22 @@ export function rootVariablePointer(
     const cell = rootSlotCell(root.temporaryScopes[0]!, name, slot);
     if (cell !== undefined) return cell;
   }
-  const scope = root.temporaryScopes[0]!;
-  if (!scope.has(name)) return null;
-  const slotValue = scope.get(name);
+  const scopeIdx = anyScope
+    ? root.temporaryScopes.findIndex((scope) => scope.has(name))
+    : root.temporaryScopes[0]!.has(name)
+      ? 0
+      : -1;
+  if (scopeIdx < 0) return null;
+  const slotValue = root.temporaryScopes[scopeIdx]!.get(name);
   if (slotValue instanceof VariablePointerValue) {
     return slotValue;
   }
-  const existing = callStack.FindOpenUpvalue(1, name, 0);
+  const existing = callStack.FindOpenUpvalue(1, name, scopeIdx);
   if (existing) {
     return existing;
   }
   const newPtr = new VariablePointerValue(name, 1);
-  newPtr.scopeIndex = 0;
+  newPtr.scopeIndex = scopeIdx;
   callStack.RegisterOpenUpvalue(newPtr, 1);
   return newPtr;
 }

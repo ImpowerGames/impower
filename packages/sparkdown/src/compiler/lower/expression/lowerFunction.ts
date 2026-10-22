@@ -79,7 +79,7 @@ import {
   rootLocalAnswer,
   rootSlotName,
 } from "../utils/rootLocalReads";
-import { ROOT_BLOCK, ROOT_NONE } from "../../utils/rootLocals";
+import { ROOT_IN_BLOCK, ROOT_NONE } from "../../utils/rootLocals";
 import { followsLineEndingComma } from "../utils/lineContinuation";
 import { statementSource } from "../utils/statementSource";
 import {
@@ -524,8 +524,6 @@ export function freeVariables(
   const free: string[] = [];
   const seen = new Set<string>();
   const rootSeen = new Set<string>();
-  // The names a block around the read binds (`ROOT_BLOCK`), read as locals.
-  const blockLocals = new Set<string>();
   // Where a read lands: the list returned, or `defineReads` for the reads
   // only a define's methods make.
   let into = free;
@@ -551,14 +549,22 @@ export function freeVariables(
       if (!readsLocal && !isShadowedLocal(name) && !rootSeen.has(name)) {
         rootSeen.add(name);
         const answer = declared ?? rootLocalAnswer(name, at, ctx);
-        // A loop's variable or a block's local, which a later statement of
-        // the block reads as a global, is a local of the block: never a
-        // binding of the root frame's own scope, and captured whatever its
-        // name.
-        if (answer === ROOT_BLOCK) blockLocals.add(name);
-        else rootReads?.push({ name, answer });
+        // Inside a block a top-level statement opens, a later statement of
+        // the block reads the block's locals as globals, so the read binds
+        // by name, as it did before the index (I-1468): captured, or for a
+        // stdlib name, which no closure captures, bound at the entry to the
+        // root frame's binding of the name in any of its scopes.
+        if (answer !== ROOT_IN_BLOCK) {
+          rootReads?.push({ name, answer });
+        } else if (
+          !isGlobalCallable(name) &&
+          STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name) &&
+          name !== "_G"
+        ) {
+          rootReads?.push({ name, answer });
+        }
       }
-      if (!isShadowedLocal(name) && !readsLocal && !blockLocals.has(name)) {
+      if (!isShadowedLocal(name) && !readsLocal) {
         if (isGlobalCallable(name)) return;
         if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) return;
       }
@@ -576,11 +582,17 @@ export function freeVariables(
         // The local is written in the statement being read, so whether it
         // is a declaration of the root frame's own scope changes only with
         // that statement; its ordinal among the declarations of its name is
-        // recorded when it is one.
+        // recorded when it is one. Inside a block a top-level statement
+        // opens, the read is one of a local, as it was before the index
+        // (I-1468); the block is that statement or inside it, so this too
+        // changes only with the statement.
         const declaredAt = offsetAt(node.local.location.begin, ctx);
-        const declared = rawContext(ctx).rootLocals?.declared(node.local.name, declaredAt)
-          ? rootDeclarationAnswer(node.local.name, declaredAt, ctx)
-          : "";
+        const index = rawContext(ctx).rootLocals;
+        const declared =
+          index?.declared(node.local.name, declaredAt) &&
+          index.answer(node.local.name, at) !== ROOT_IN_BLOCK
+            ? rootDeclarationAnswer(node.local.name, declaredAt, ctx)
+            : "";
         if (declared) readAt(node.local.name, at, false, declared);
         else readAt(node.local.name, at, true);
       }
@@ -829,11 +841,17 @@ export interface RootRead {
 
 /** The binding at a function's entry of each of `reads` (`RootBinding`):
  *  through the slot of its declaration when it has one (`rootSlotName`),
- *  and otherwise by name. */
+ *  by name otherwise, and for a stdlib name read inside a block a
+ *  top-level statement opens (`ROOT_IN_BLOCK`), by name in any scope of the
+ *  root frame, as before the index. */
 export function rootBindingsOf(reads: readonly RootRead[], ctx: LowerContext): RootBinding[] {
   return reads
-    .filter(({ answer }) => answersDeclaration(answer))
-    .map(({ name, answer }) => new RootBinding(name, rootSlotName(name, answer, ctx)));
+    .filter(({ answer }) => answersDeclaration(answer) || answer === ROOT_IN_BLOCK)
+    .map(({ name, answer }) =>
+      answer === ROOT_IN_BLOCK
+        ? new RootBinding(name, null, true)
+        : new RootBinding(name, rootSlotName(name, answer, ctx)),
+    );
 }
 
 /**

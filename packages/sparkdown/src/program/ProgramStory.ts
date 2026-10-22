@@ -91,6 +91,7 @@ import {
   NUM_FLOAT,
   Op,
   SET_DECLARE,
+  ROOT_ANY_SCOPE,
   ROOT_GLOBAL,
   ROOT_SLOT,
   SET_ROOT_SLOTTED,
@@ -2814,10 +2815,14 @@ export class ProgramStory implements StoryEngine {
           if (cell) state.variablesState.Assign(binding, cell);
           break;
         }
+        // With `ROOT_ANY_SCOPE`, the binding of the name in any scope of the
+        // root frame, a block's local included.
         const name = this.root.table.strings[arg]!;
         const kept = own?.get(keptSlotName(name));
         const cell =
-          kept instanceof VariablePointerValue ? kept : rootVariablePointer(state.callStack, name);
+          kept instanceof VariablePointerValue
+            ? kept
+            : rootVariablePointer(state.callStack, name, null, (flagsOf(w0) & ROOT_ANY_SCOPE) !== 0);
         if (cell) {
           state.variablesState.Assign(this.assignment(arg, SET_DECLARE), cell);
         }

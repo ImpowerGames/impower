@@ -1,6 +1,6 @@
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { Op, ROOT_SLOT } from "../../../../../program/ProgramInstructions";
+import { Op, ROOT_ANY_SCOPE, ROOT_SLOT } from "../../../../../program/ProgramInstructions";
 
 // The binding a function, a define's method or a closure makes at its entry
 // for a name it reads from a `local` of the root frame's own scope that is in
@@ -14,11 +14,15 @@ import { Op, ROOT_SLOT } from "../../../../../program/ProgramInstructions";
 // local shares. A name the document declares more than once in that scope is
 // reached through the slot of the declaration in scope (`slot`,
 // `rootSlotName`), which the declarations after it leave in place; a name it
-// declares once, by name in that scope.
+// declares once, by name in that scope. A stdlib name a closure written
+// inside a block a top-level statement opens reads binds by name in any scope
+// of the root frame (`anyScope`, `ROOT_ANY_SCOPE`), as every function's did
+// before the slots, so a block's local of the name is reached (I-1468).
 export class RootBinding extends ParsedObject {
   constructor(
     public readonly variableName: string,
     public readonly slot: string | null = null,
+    public readonly anyScope = false,
   ) {
     super();
   }
@@ -37,8 +41,13 @@ export class RootBinding extends ParsedObject {
       emitter.emit(Op.BindRoot, emitter.variable(this.slot), 0, ROOT_SLOT);
       return;
     }
+    if (this.anyScope) {
+      emitter.emit(Op.BindRoot, emitter.variable(this.variableName), 0, ROOT_ANY_SCOPE);
+      return;
+    }
     emitter.emit(Op.BindRoot, emitter.variable(this.variableName));
   }
 
-  public override readonly toString = (): string => `^${this.slot ?? this.variableName}`;
+  public override readonly toString = (): string =>
+    `^${this.anyScope ? "*" : ""}${this.slot ?? this.variableName}`;
 }

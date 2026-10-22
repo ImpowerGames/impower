@@ -23,11 +23,12 @@ import {
  *  scope, and replaces the binding while it runs (I-1455). */
 export const ROOT_ONLY = "only";
 
-/** The answer for a name a block around the code binds (a loop's variable,
- *  a `local` of an `if`'s, a `do`'s or a loop's body above it): the code
- *  reads that local, never a binding of the root frame's own scope, and a
- *  closure captures it as it captures any local. */
-export const ROOT_BLOCK = "block";
+/** The answer for any name read inside a block a top-level statement opens
+ *  (an `if`, a `do`, a loop): the index does not follow the block's own
+ *  bindings, so a function or a closure written there binds its names by
+ *  name, as one did before the index, until the converter reads a block's
+ *  later statements in the scope of its earlier ones (I-1468). */
+export const ROOT_IN_BLOCK = "inBlock";
 
 /** The answer for a name the root frame's own scope declares, none of whose
  *  declarations is in scope where code is written (a scene's `local` read in
@@ -42,9 +43,9 @@ const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
 const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 const CHOICES = nodeNameSet(["Choice"]);
 
-// The blocks a top-level statement opens a scope of its own with, whose
-// bindings shadow the root frame's own scope inside them. An `&` line's
-// `for` or `while` loop is a `LuauSparkdownExplicitLoop`.
+// The blocks a top-level statement opens a scope of its own with, inside
+// which every name answers `ROOT_IN_BLOCK`. An `&` line's `for` or `while`
+// loop is a `LuauSparkdownExplicitLoop`.
 const BLOCKS = nodeNameSet([
   "LuauIfBlock",
   "LuauSparkdownIfBlock",
@@ -60,46 +61,6 @@ const BLOCKS = nodeNameSet([
   "LuauRepeatLoop",
   "LuauSparkdownRepeatLoop",
   "LuauSparkdownExplicitRepeatLoop",
-]);
-
-// The `elseif` and `else` arms of an `if`, each a body of its own: the
-// statements of the arm before one are written beside it, in the same
-// content, and end where it starts.
-const ARMS = nodeNameSet([
-  "LuauElseifBlock",
-  "LuauElseBlock",
-  "LuauSparkdownElseifBlock",
-  "LuauSparkdownElseBlock",
-  "LuauSparkdownExplicitElseifBlock",
-  "LuauSparkdownExplicitElseBlock",
-]);
-
-// A loop's header: a `for` loop's names before its `=` or `in` are the
-// loop's variables. A `while` loop's header, which a narrative and an `&`
-// line's `while` share with their `for`, binds nothing.
-const LOOP_CONDITIONS = nodeNameSet([
-  "LuauForCondition",
-  "LuauSparkdownExplicitLoopCondition",
-]);
-
-// What ends a loop header's variable list.
-const LOOP_VARIABLE_ENDS = nodeNameSet([
-  "LuauInKeyword",
-  "LuauAssignmentOperation",
-  "LuauSparkdownExplicitAssignmentOperation",
-  "LuauSparkdownAssignmentOperation",
-  "LuauAssignmentOperator",
-]);
-
-// What separates a loop header's variables.
-const LOOP_VARIABLE_SEPARATORS = nodeNameSet(["LuauCommaSeparator"]);
-
-// The functions written in a block, whose locals are the function's.
-const FUNCTION_NODES = nodeNameSet([
-  "LuauFunctionDefinition",
-  "LuauFunctionAttributes",
-  "LuauMethodDefinition",
-  "LuauDefine",
 ]);
 
 /** A binding of the root frame's own scope: where its name is written, from
@@ -144,9 +105,9 @@ interface Flow {
 export class RootLocals {
   protected readonly declarations = new Map<string, RootDeclaration[]>();
   protected readonly flows: Flow[] = [];
-  // The bindings of the blocks top-level statements open, each with where
-  // code reads it: from its declaration to the end of its block's body.
-  protected readonly blocks = new Map<string, { from: number; to: number }[]>();
+  // The blocks top-level statements open, in document order, none inside
+  // another.
+  protected readonly blocks: { from: number; to: number }[] = [];
 
   constructor(top: SyntaxNode, read: (from: number, to: number) => string) {
     const open: number[] = [];
@@ -183,13 +144,11 @@ export class RootLocals {
    * for the document's only declaration of the name, its ordinal (from 1)
    * for one of several, or `ROOT_NONE` for none, where the name reads the
    * global, or the builtin of a stdlib name. "" for a name the document
-   * declares nowhere in that scope. `ROOT_BLOCK` for a name a block around
-   * `at` binds, before any of these.
+   * declares nowhere in that scope. `ROOT_IN_BLOCK` for any name when `at`
+   * is inside a block a top-level statement opens, before any of these.
    */
   answer(name: string, at: number): string {
-    for (const binding of this.blocks.get(name) ?? []) {
-      if (binding.from <= at && at <= binding.to) return ROOT_BLOCK;
-    }
+    if (this.inBlock(at)) return ROOT_IN_BLOCK;
     const list = this.declarations.get(name);
     if (!list) return "";
     const around = this.flowsAround(at);
@@ -215,6 +174,20 @@ export class RootLocals {
     const i = list.findIndex((declaration) => declaration.at === at);
     if (i < 0) return "";
     return list.length === 1 ? ROOT_ONLY : String(i + 1);
+  }
+
+  /** Whether `at` is inside a block a top-level statement opens. */
+  protected inBlock(at: number): boolean {
+    let lo = 0;
+    let hi = this.blocks.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const block = this.blocks[mid]!;
+      if (at < block.from) hi = mid - 1;
+      else if (at > block.to) lo = mid + 1;
+      else return true;
+    }
+    return false;
   }
 
   /** The flows whose bodies hold `at`, innermost first. */
@@ -270,7 +243,7 @@ export class RootLocals {
       return;
     }
     if (BLOCKS.has(node.name)) {
-      this.collectBlock(node, read);
+      this.blocks.push({ from: node.from, to: node.to });
       return;
     }
     if (!VARIABLE_DEFINITION_NAMES.has(node.name)) return;
@@ -283,45 +256,6 @@ export class RootLocals {
         flow,
       });
     }
-  }
-
-  /** The bindings a block statement and the blocks inside it make, outside
-   *  the functions written in them: a `for` loop's variables, through the
-   *  loop, and each `local` of a body, from its statement to the body's end:
-   *  the next arm of its `if`, the next choice after a choice's body, or the
-   *  end of the content it is written in. */
-  protected collectBlock(
-    block: SyntaxNode,
-    read: (from: number, to: number) => string,
-  ): void {
-    const add = (name: string, from: number, to: number) => {
-      const list = this.blocks.get(name);
-      if (list) list.push({ from, to });
-      else this.blocks.set(name, [{ from, to }]);
-    };
-    const visit = (node: SyntaxNode): void => {
-      let inChoice = false;
-      for (let child = node.firstChild; child; child = child.nextSibling) {
-        if (CHOICES.has(child.name)) inChoice = true;
-        if (FUNCTION_NODES.has(child.name)) continue;
-        if (LOOP_CONDITIONS.has(child.name)) {
-          const loop = child.parent?.parent;
-          if (loop && isForLoop(loop)) {
-            for (const name of loopVariables(child, read)) add(name, child.to, loop.to);
-          }
-          continue;
-        }
-        if (VARIABLE_DEFINITION_NAMES.has(child.name)) {
-          if (scopeOf(child, read) === "local") {
-            const bodyEnd = bodyEndAfter(child, inChoice);
-            for (const name of declaredNames(child, read)) add(name, child.to, bodyEnd);
-          }
-          continue;
-        }
-        visit(child);
-      }
-    };
-    visit(block);
   }
 
   /** The bindings the statements of a `choose` block or its `then` clause
@@ -369,51 +303,6 @@ function declaredNameNodes(node: SyntaxNode): SyntaxNode[] {
       const nameNode = assignmentListName(inner);
       if (nameNode) names.push(nameNode);
     }
-  }
-  return names;
-}
-
-/** The names a `local` declaration declares. */
-function declaredNames(node: SyntaxNode, read: (from: number, to: number) => string): string[] {
-  return declaredNameNodes(node).map((nameNode) => read(nameNode.from, nameNode.to).trim());
-}
-
-/** Where the body a statement is written in ends for the statement: at the
- *  next arm of its `if`, at the next choice when a choice's body holds it
- *  (`inChoice`), or at the end of the content holding it. */
-function bodyEndAfter(statement: SyntaxNode, inChoice: boolean): number {
-  for (let next = statement.nextSibling; next; next = next.nextSibling) {
-    if (ARMS.has(next.name) || (inChoice && CHOICES.has(next.name))) return next.from;
-  }
-  return statement.parent?.to ?? statement.to;
-}
-
-/** Whether a loop is a `for` loop, whose header binds its variables: a
- *  narrative or an `&` line's `while` loop has a header of the same kind. */
-function isForLoop(loop: SyntaxNode): boolean {
-  const begin = childEndingWith(loop, "_begin");
-  return Boolean(begin && getDescendent("LuauForKeyword", begin));
-}
-
-/** A loop header's variables: the name each variable of the list before its
- *  `=` (a numeric `for`) or its `in` (a generic `for`) starts with. What
- *  follows the name up to the next comma, a type annotation such as
- *  `: typeof(a)`, reads names and binds none. */
-function loopVariables(condition: SyntaxNode, read: (from: number, to: number) => string): string[] {
-  const names: string[] = [];
-  const content = childEndingWith(condition, "_content") ?? condition;
-  let first = true;
-  for (let child = content.firstChild; child; child = child.nextSibling) {
-    if (LOOP_VARIABLE_ENDS.has(child.name)) break;
-    if (LOOP_VARIABLE_SEPARATORS.has(child.name)) {
-      first = true;
-      continue;
-    }
-    if (!first) continue;
-    first = false;
-    const nameNode =
-      child.name === "LuauVariableName" ? child : getDescendent("LuauVariableName", child);
-    if (nameNode && nameNode.from === child.from) names.push(read(nameNode.from, nameNode.to).trim());
   }
   return names;
 }

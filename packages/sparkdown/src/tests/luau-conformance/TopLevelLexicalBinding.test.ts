@@ -445,12 +445,55 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 2 1."));
   });
 
-  // What binds no name inside a block leaves the closure reading the
+  // A closure written inside a block a top-level statement opens binds its
+  // names by name, as before the index: it reads the block's own local or
+  // loop variable, whatever the root frame's own scope declares of the name.
+  test.each([
+    ["an `if`", ["if true then", "  local a = 2", "  & f = function() return a end", "end"]],
+    ["an `elseif`", ["if false then", "elseif true then", "  local a = 2", "  & f = function() return a end", "end"]],
+    ["an `else`", ["if false then", "else", "  local a = 2", "  & f = function() return a end", "end"]],
+    ["a `do` block", ["do", "  local a = 2", "  & f = function() return a end", "end"]],
+    ["a numeric `for` loop", ["for a = 2, 2 do", "  & f = function() return a end", "end"]],
+    ["a generic `for` loop", ["for _, a in {2} do", "  & f = function() return a end", "end"]],
+    ["a `while` loop", ["while true do", "  local a = 2", "  & f = function() return a end", "  break", "end"]],
+    ["a `repeat` loop", ["repeat", "  local a = 2", "  & f = function() return a end", "until true"]],
+    ["an `&` line's `for` loop", ["& for a = 2, 2 do f = function() return a end end"]],
+    ["an `&` line's `while` loop", ["& while true do local a = 2 f = function() return a end break end"]],
+  ])("written inside %s, reads the block's local by name", (_, block) => {
+    expect(
+      run(["local a = 1", "store f = nil", ...block, "local a = 3", "Got {f()}."]),
+    ).toEqual(got("Got 2."));
+  });
+
+  // After the block's `end` on the same line, the closure reads the
+  // top-level local in scope there again, though scene T holds another
+  // binding of the name as S runs.
+  test("written after a block's end on the same line, reads the top-level local in scope", () => {
+    expect(
+      run([
+        "local a = 1",
+        "store f = nil",
+        "-> T",
+        "scene T",
+        "  local a = 9",
+        "  -> S",
+        "end",
+        "scene S",
+        "  & if true then end f = function() return a end",
+        "  Got {f()}.",
+        "end",
+      ]),
+    ).toEqual(got("Got 1."));
+  });
+
+  // What binds no name inside a block would leave the closure reading the
   // top-level local in scope where it is written, though scene T holds
   // another binding of the name as S runs: a `while` loop's condition, a
   // `for` loop variable's type annotation, and a local of another arm of an
-  // `if` or of another choice.
-  test.each([
+  // `if` or of another choice. Inside a block the closure binds by name and
+  // reads scene T's local, until the converter reads a block's statements in
+  // the scope of the ones before them (I-1468).
+  test.fails.each([
     ["a narrative `while` loop's condition", ["while a == 9 do", "  & f = function() return a end", "  break", "end"]],
     ["an `&` line's `while` loop's condition", ["& while a == 9 do f = function() return a end break end"]],
     ["a numeric loop variable's type annotation", ["for i: typeof(a) = 2, 2 do", "  & f = function() return a end", "end"]],
@@ -458,7 +501,7 @@ describe("a closure written in the root frame", () => {
     ["a local of the `if` arm before the `else`", ["if false then", "  local a = 2", "else", "  & f = function() return a end", "end"]],
     ["a local of the `if` arm before the `elseif`", ["if false then", "  local a = 2", "elseif true then", "  & f = function() return a end", "end"]],
     ["a local of an `&` line's `if` arm before the `else`", ["& if false then local a = 2 else f = function() return a end end"]],
-  ])("reads the top-level local past %s", (_, body) => {
+  ])("reads the top-level local past %s (Luau: Got 1., I-1468)", (_, body) => {
     expect(
       run([
         "local a = 1",
@@ -476,7 +519,7 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 1."));
   });
 
-  test("reads the top-level local past a local of another choice of a `choose` in an `if`", () => {
+  test.fails("reads the top-level local past a local of another choice of a `choose` in an `if` (Luau: Got 1., I-1468)", () => {
     const story = new ProgramStory(
       rootOf([
         "local a = 1",

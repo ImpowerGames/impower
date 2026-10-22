@@ -174,10 +174,7 @@ captures a `local` that scope declares more than once through the slot
 of the declaration in scope where it is written, so a scene's `local` of
 the name, which runs before the closure is built, is not the one it
 captures; and a name the scope declares only where it is not in scope
-(another scene's `local`) at the global. A loop's variable or a block's
-`local`, which a later statement of the block reads, is captured as the
-block's local, whatever the root frame's scope declares of its name or
-whether it names a stdlib entry. A name a `store`, a `const`, a
+(another scene's `local`) at the global. A name a `store`, a `const`, a
 top-level function or a stdlib entry would answer, which a closure does
 not capture, is bound at its entry as a top-level function binds it, to
 the cell the closure kept of that local where it was built
@@ -188,6 +185,21 @@ the name names there. A closure a save written before kept no such cell,
 and its entry binds the local as it runs. A top-level `local` beside a
 `store` of its name stays a compile error (I-767), so the `local` that
 shadows a `store` or a `const` is a scene's, a branch's or a choice's.
+
+**Inside a top-level block** (an `if`, a `do`, a loop, an `&` line's
+`for` or `while`), a closure, and a function or a `define` written
+there, binds its names by name until I-1468, as every function did
+before the slots: it captures a name it reads, which reaches the block's
+own local or loop variable, and binds a stdlib name it does not capture at
+its entry to the root frame's binding of the name in any of its scopes
+(`BindRoot` with `ROOT_ANY_SCOPE`). The converter reads a block's later
+statements apart from its earlier ones, so a later statement reads the
+block's locals as globals, and the compiler does not follow the block's
+own bindings: inside the block it takes none of the top-level `local`s
+in scope either, and a name of one reads whatever binding of the name the
+root frame holds as the closure is built (a scene's `local` of the name,
+I-1468). Code on the same line after the block's `end` reads the top-level
+`local` in scope again.
 
 Where a script's control flow differs from its text, the text decides. A
 closure written in a scene captures a top-level `local` above the scene

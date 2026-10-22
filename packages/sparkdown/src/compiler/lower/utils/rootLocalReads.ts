@@ -2,7 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import type { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
-import { ROOT_NONE, ROOT_ONLY } from "../../utils/rootLocals";
+import { ROOT_IN_BLOCK, ROOT_NONE, ROOT_ONLY } from "../../utils/rootLocals";
 import type { LowerContext } from "../context";
 import { documentTag } from "./documentTag";
 
@@ -30,9 +30,9 @@ export function rootDeclarationAnswer(name: string, at: number, ctx: LowerContex
 }
 
 /** Whether an answer names a declaration in scope (`RootLocals.answer`), which
- *  a function's entry binds. */
+ *  a function's entry binds. Inside a block (`ROOT_IN_BLOCK`), none does. */
 export function answersDeclaration(answer: string): boolean {
-  return answer !== "" && answer !== ROOT_NONE;
+  return answer !== "" && answer !== ROOT_NONE && answer !== ROOT_IN_BLOCK;
 }
 
 /**

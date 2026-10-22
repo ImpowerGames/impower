@@ -4353,7 +4353,7 @@ const hoistedOf = (statement: StatementSource): string =>
           local instanceof VariableAssignment
             ? (local.variableName ?? "")
             : local instanceof RootBinding
-              ? `^${local.slot ?? local.variableName}`
+              ? local.toString()
               : local.typeName,
         )
         .join(","),
