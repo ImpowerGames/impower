@@ -221,6 +221,25 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     });
   });
 
+  // Round 2, comment 6348352524: a name an arm's own statement declared
+  // before it is that local, so the closure captures nothing of its name
+  // and keeps nothing alive in a save.
+  test("an arm reads the local its statement declares, capturing no outer local of its name", () => {
+    const source = lines(
+      "function make(y)",
+      "  return function()",
+      "    return cycle | local y = 3 y end",
+      "  end",
+      "end",
+      'local g = make(string.rep("retention-marker", 100))',
+      "Value {g()}.",
+    );
+    const { story, errorMessages } = makeRuntimeStoryFromSource(source);
+    expect(errorMessages).toEqual([]);
+    expect(runToEnd(story)).toBe("Value 3.\n");
+    expect(story.state.toJson().includes("retention-marker")).toBe(false);
+  });
+
   test("a top-level function's arm reads a top-level local", () => {
     expect(run(lines('local greeting = "hi"', "function f()", "  return cycle | greeting end", "end", "Value {f()}."))).toEqual({
       output: "Value hi.\n",

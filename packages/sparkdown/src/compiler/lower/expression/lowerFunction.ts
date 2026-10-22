@@ -684,15 +684,30 @@ export function freeVariables(
       // function's reads, of the locals in scope where it stands.
       const candidate = node.source.node as SyntaxNode | undefined;
       if (!candidate) return false;
-      const parts = alternatorPartsAst(candidate, documentText(ctx));
-      for (const part of parts) {
+      const groups = alternatorPartsAst(candidate, documentText(ctx));
+      for (const part of groups.flat()) {
         walk(part, (inner) => {
           for (const local of declaredLocals(inner)) locals.add(local);
           return true;
         });
       }
       alternatorScopes.push(node.visibleLocals);
-      for (const part of parts) walk(part, readNames);
+      for (const group of groups) {
+        // The locals an arm's statements declare, in scope for its parts
+        // after them.
+        const armScope = new Map<string, AstLocal>();
+        alternatorScopes.push(armScope);
+        for (const part of group) {
+          walk(part, readNames);
+          if (!(part instanceof AstStatBlock)) continue;
+          for (const written of part.body) {
+            const stat = written instanceof AstStatSparkdownExplicit ? written.statement : written;
+            if (stat instanceof AstStatLocal) for (const local of stat.vars) armScope.set(local.name, local);
+            else if (stat instanceof AstStatLocalFunction) armScope.set(stat.name.name, stat.name);
+          }
+        }
+        alternatorScopes.pop();
+      }
       alternatorScopes.pop();
       return false;
     } else if (node instanceof AstExprLocal) {

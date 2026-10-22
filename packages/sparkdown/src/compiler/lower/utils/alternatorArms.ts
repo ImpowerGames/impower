@@ -469,25 +469,29 @@ export function valuedConditionNodes(candidate: SyntaxNode): SyntaxNode[] {
  * statement of each arm (`armParts`). The reading of the code around it
  * holds the alternator as one opaque value (`AstExprSparkdownSequentialAlternator`),
  * so a scan of the names that code reads (`freeVariables`) reads these
- * too. Reports nothing: the reading around it reports their errors
- * (`reportNestedAlternators`).
+ * too. They are grouped by the scope they share, the head's and then each
+ * arm's, in order: a statement's locals are in scope for the parts of its
+ * arm after it, which are read on their own. Reports nothing: the reading
+ * around it reports their errors (`reportNestedAlternators`).
  */
-export function alternatorPartsAst(candidate: SyntaxNode, text: string): AstNode[] {
-  const out: AstNode[] = [];
+export function alternatorPartsAst(candidate: SyntaxNode, text: string): AstNode[][] {
+  const groups: AstNode[][] = [];
   const readParts = (nodes: readonly SyntaxNode[]) => {
+    const group: AstNode[] = [];
     for (const part of armParts(nodes)) {
       if (part.nodes.length === 0) continue;
-      out.push(part.statement ? readLuauBlock(part.nodes, text).root : readLuauExpression(part.nodes, text).expr);
+      group.push(part.statement ? readLuauBlock(part.nodes, text).root : readLuauExpression(part.nodes, text).expr);
     }
+    if (group.length > 0) groups.push(group);
   };
   if (SEQUENTIAL_ALTERNATORS.has(candidate.name)) {
     readParts(alternatorHeadNodes(candidate).filter((node) => !isTrivia(node)));
   } else {
     const condition = valuedConditionNodes(candidate);
-    if (condition.length > 0) out.push(readLuauExpression(condition, text).expr);
+    if (condition.length > 0) groups.push([readLuauExpression(condition, text).expr]);
   }
   for (const nodes of armNodesOf(candidate)) readParts(nodes);
-  return out;
+  return groups;
 }
 
 // A single-line block arm is a display line of its own: a `display({ text })`
