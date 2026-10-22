@@ -8119,8 +8119,13 @@ repository:
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
     # The comments after `end` that run to the line's end are the
-    # definition's (`LUAU_END_TRAILING_COMMENTS`).
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{LUAU_END_TRAILING_COMMENTS}})?
+    # definition's (`LUAU_END_TRAILING_COMMENTS`). Before a `::`, the end
+    # takes the whitespace up to it, as a value takes the whitespace before
+    # an operator (`_LUAU_VALUE_OPERATOR_AHEAD_`): a function literal's type
+    # assertion (`local f = function() end :: T`, I-1364) then follows with
+    # no whitespace left to close a story declaration or its value, both of
+    # which end at whitespace.
+    end: (?={{BEAT}})|({{WS}}*)(end)\b(?:({{LUAU_END_TRAILING_COMMENTS}})|({{WS}}*)(?={{LUAU_TYPECAST_OPERATOR}}))?
     endCaptures:
       1:
         emit: true
@@ -8132,6 +8137,10 @@ repository:
       3:
         patterns:
           - { include: "#LuauComment" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
 
   LuauFunctionBody:
     tag: meta

@@ -530,7 +530,8 @@ sparkdown [0..297]
  │   │       │   │   │       │       │           │       └─ OptionalWhitespace 186
  │   │       │   │   │       │       │           ├─ LuauFunctionDefinition_end_c2 [186..189]
  │   │       │   │   │       │       │           │   └─ LuauEndKeyword [186..189]: "end"
- │   │       │   │   │       │       │           └─ LuauFunctionDefinition_end_c3 189
+ │   │       │   │   │       │       │           ├─ LuauFunctionDefinition_end_c3 189
+ │   │       │   │   │       │       │           └─ LuauFunctionDefinition_end_c4 189
  │   │       │   │   │       │       └─ LuauSparkdownExplicitAssignmentOperation_end 189
  │   │       │   │   │       └─ LuauSparkdownExplicitVariableAssignment_end 189
  │   │       │   │   └─ LuauSparkdownExplicitVariableDefinition_end 189
