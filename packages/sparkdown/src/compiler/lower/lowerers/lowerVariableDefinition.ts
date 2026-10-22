@@ -25,6 +25,10 @@ import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import type { StatementSite } from "./lowerLuauStatement";
 
+// The name the converter gives a name it could not read, as Luau's parser
+// does (`kParseNameError`).
+const MISSING_NAME = "%error-id%";
+
 /**
  * A declaration: `local` names (a temporary of the enclosing flow or
  * function), `store` names (globals the story saves, registered at the story
@@ -185,7 +189,14 @@ export function lowerVariableDefinition(
     assignments[assignments.length - 1]!.Discard(
       expressions.slice(targets.length),
     );
-    return wrapInWeave(assignments);
+    // A slot of the list with no name (`store , = 1`, `store a,, = 1`) is
+    // the reading's syntax error and declares nothing: two of them would be
+    // two globals of one name (I-1426).
+    const declared = assignments.filter((_, i) => targets[i]!.name !== MISSING_NAME);
+    for (const assignment of declared) {
+      assignment.spreadTo = assignment.spreadTo.filter((a) => declared.includes(a));
+    }
+    return wrapInWeave(declared);
   }
 
   // Single target. If there are multiple RHS expressions (`local x = a, b`),
