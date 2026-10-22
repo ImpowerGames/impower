@@ -5998,7 +5998,7 @@ export class SparkdownCompiler {
       if (errors.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
       const before = (a: Range["start"], b: Range["start"]) => a.line < b.line || (a.line === b.line && a.character < b.character);
-      const reported = new Map<string, { range: Range | undefined; declaration: boolean; story: boolean }>();
+      const reported = new Map<string, { declaration: boolean; story: boolean; messages: Set<string> }>();
       for (const error of errors) {
         const key = `${error.store.from}:${error.store.to}`;
         let inError = reported.get(key);
@@ -6029,18 +6029,21 @@ export class SparkdownCompiler {
               )
             : [];
           // The story the declaration's line runs on into (`local a,, = 1
-          // 2`'s `2`) has no reader but the declaration's, so an error there
-          // defers only to an error in that story (I-1452).
+          // 2`'s `2`, `StoreSyntaxError.inStory`) has no reader but the
+          // declaration's, so an error there defers only to an error in that
+          // story, after the declaration's end, or to a report of the same
+          // error elsewhere on the line (`store a = 1, return`, whose
+          // `return` the validator names at the comma) (I-1452).
           inError = {
-            range,
             declaration: !range || others.length > 0,
             story: !range || others.some((d) => !before(d.range.start, range.end)),
+            messages: new Set(others.map((d) => (typeof d.message === "string" ? d.message : d.message.value))),
           };
           reported.set(key, inError);
         }
-        const inStory = inError.range !== undefined && !before(error.start, inError.range.end);
+        const deferred = error.inStory ? inError.story || inError.messages.has(error.message) : inError.declaration;
         // A backtick string's own error has no other reporter (I-1435).
-        if ((inStory ? inError.story : inError.declaration) && !error.ofString) continue;
+        if (deferred && !error.ofString) continue;
         diagnostics.push({
           range: { start: error.start, end: error.end },
           code: "SyntaxError",
