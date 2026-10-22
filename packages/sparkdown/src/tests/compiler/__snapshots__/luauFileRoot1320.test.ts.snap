@@ -292,7 +292,8 @@ exports[`the .luau root's tree and scopes > the tree 1`] = `
  │   │           │       └─ OptionalWhitespace 111
  │   │           ├─ LuauFunctionDefinition_end_c2 [111..114]
  │   │           │   └─ LuauEndKeyword [111..114]: "end"
- │   │           └─ LuauFunctionDefinition_end_c3 114
+ │   │           ├─ LuauFunctionDefinition_end_c3 114
+ │   │           └─ LuauFunctionDefinition_end_c4 114
  │   └─ LuauFunctionAttributes_end 114
  ├─ Newline [114..115]: "\\n"
  ├─ LuauFileSparkdownWord [115..121]
