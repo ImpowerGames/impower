@@ -251,13 +251,13 @@ function lowerMultipleAssignment(
           isTemporaryNewDeclaration: true,
         }),
       );
-      writes.push(
-        new StorePropertyAssignment(
-          new VariableReference([baseTemp]),
-          new VariableReference([keyTemp]),
-          tempRef,
-        ),
+      const write = new StorePropertyAssignment(
+        new VariableReference([baseTemp]),
+        new VariableReference([keyTemp]),
+        tempRef,
       );
+      write.writtenTarget = store;
+      writes.push(write);
       return;
     }
     const name = names[i];

@@ -5,6 +5,11 @@ import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
+/** The name a store through the globals table whose key the compiler cannot
+ *  name stands as a write of (`_G[k] = v`, I-1394): it may write any global.
+ *  No identifier spells it. */
+export const ANY_GLOBAL = "_G[]";
+
 // Mutating assignment into an existing object property: `obj.field = value`,
 // `obj.a.b = value`, etc.
 //
@@ -32,6 +37,11 @@ export class StorePropertyAssignment extends ParsedObject {
    *  (`function api.f()`, `function api:f()`), which writes the function
    *  into its table. */
   public definesFunction = false;
+  /** The target's table and key as the author wrote them, when the lowering
+   *  stashed them in temporaries the store reads instead (a multiple
+   *  assignment's `_G[k], x = g, 1`, a compound `_G[k] += 1`): which global
+   *  the store writes is read from these (`globalWrittenAt`). */
+  public writtenTarget: { base: Expression; key: Expression } | null = null;
 
   constructor(base: Expression, key: Expression, value: Expression) {
     super();
@@ -44,24 +54,34 @@ export class StorePropertyAssignment extends ParsedObject {
     return "StorePropertyAssignment";
   }
 
-  /** The global a store through the globals table writes (`_G.f = v`,
-   *  `_G['f'] = v`), which the runtime writes as the global `f` itself; null
-   *  for any other store, a key it cannot name before it runs (`_G[k] = v`)
-   *  included. A plain assignment of that name writes the same global, so a
-   *  call of a top-level function `f` calls what it holds (I-1091). */
-  get globalName(): string | null {
-    const base = this.baseExpression;
-    const key = this.keyExpression;
+  /** The global a store into `table` at `key` writes when `table` is the
+   *  globals table (`_G.f = v`, `_G['f'] = v`), which the runtime writes as
+   *  the global `f` itself: the key's name when it is a string literal
+   *  (I-1091), {@link ANY_GLOBAL} for a key the compiler cannot name
+   *  (`_G[k]`, `_G[key()]`), whichever global it names when it runs
+   *  (I-1394), and null for any other table. A plain assignment of that name
+   *  writes the same global, so a call of a top-level function `f` calls
+   *  what it holds. A literal key no name spells (empty, {@link ANY_GLOBAL}
+   *  itself, or one starting with `*`, the resolver's keys for whole tables)
+   *  writes a global no call reads, and is left out too, so that it stands
+   *  for none of those. */
+  static globalWrittenAt(
+    table: Expression | undefined,
+    key: Expression | undefined,
+  ): string | null {
     if (
-      base instanceof VariableReference &&
-      base.path.length === 1 &&
-      base.name === "_G" &&
-      key instanceof StringExpression &&
-      key.isSingleString
+      !(table instanceof VariableReference) ||
+      table.path.length !== 1 ||
+      table.name !== "_G" ||
+      !key
     ) {
-      return key.toString() || null;
+      return null;
     }
-    return null;
+    if (key instanceof StringExpression && key.isSingleString) {
+      const name = key.toString();
+      return !name || name === ANY_GLOBAL || name.startsWith("*") ? null : name;
+    }
+    return ANY_GLOBAL;
   }
 
   public override EmitProgram(emitter: ProgramEmitter): void {
