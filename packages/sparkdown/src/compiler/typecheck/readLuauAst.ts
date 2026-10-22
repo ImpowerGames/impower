@@ -2179,14 +2179,16 @@ class Parser {
 
   /**
    * Not part of Luau: reads the closer the reading stands at (an `end`, an
-   * `until`, an `else` or `elseif`) as Luau's parser does when it ended
+   * `until`, an `else` or `elseif`), or the token where a block's closer is
+   * missing, as Luau's parser does when it ended
    * blocks being read at an error after their `return` (`unclosedBlocks`,
    * I-1430): each such block moves every closer after it out by one block.
    * The block Luau reads the closer in takes it if it is one of its own;
    * otherwise Luau reports its missing closer there and ends it too, unless
    * its own closer comes next, which Luau's recovery reads and this reading
-   * does not follow. A closer met outside every written block is met where
-   * Luau's chunk ends, which reports it and stops, as `parseChunk` does.
+   * does not follow. A token met outside every written block is met where
+   * Luau's chunk ends, which reports it and stops, as `parseChunk` does,
+   * unless it is the end of input.
    */
   private closeWrittenBlock(): void {
     while (this.unclosedBlocks > 0) {
@@ -2195,6 +2197,7 @@ class Parser {
       const block = this.writtenOpener(this.blockOpeners[at]) ? this.blockOpeners[at]! : undefined;
       if (!block) {
         this.unclosedBlocks = 0;
+        if (this.current().kind === "eof") return;
         this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`);
         this.pastChunkEnd = this.current().location;
         return;
@@ -2232,7 +2235,14 @@ class Parser {
     // the converter owns the native misplaced-branch diagnostic. Keep EOF
     // and other keyword-closer diagnostics under their existing ownership.
     const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
-    this.expectMatchAndConsumeFail(text, begin, this.endMismatchSuggestion(begin), misplacedElseBranch ? "statement" : undefined);
+    // Where Luau ended blocks at an error after a `return`, a block further
+    // out reads the token instead (`closeWrittenBlock`, I-1430). One that
+    // takes it as its closer leaves one block fewer ended, since this
+    // reading meets the token again as the closer of the block around.
+    if (this.unclosedBlocks > 0) {
+      this.closeWrittenBlock();
+      if (this.unclosedBlocks > 0) this.unclosedBlocks--;
+    } else this.expectMatchAndConsumeFail(text, begin, this.endMismatchSuggestion(begin), misplacedElseBranch ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
       return false;
@@ -2858,10 +2868,14 @@ class Parser {
     this.currentFunction().loopDepth++;
     const body = this.parseBlockNoScope(matchRepeat, "until");
     this.currentFunction().loopDepth--;
+    // Where Luau ended blocks at an error after a `return`, it read the
+    // loop's condition there and reads the missing `until`'s token in a
+    // block further out (`closeWrittenBlock`, I-1430).
+    const shifted = this.unclosedBlocks > 0;
     body.hasEnd = this.expectMatchEndAndConsume("until", matchRepeat);
     // Once an unfinished comment consumed the missing closer, native Luau
     // leaves the absent condition in that recovery without a second error.
-    const cond = !body.hasEnd && this.previousLocation().end.equals(this.current().location.begin) && this.tokens[this.pos - 1]?.kind === "unfinishedComment"
+    const cond = !body.hasEnd && (shifted || (this.previousLocation().end.equals(this.current().location.begin) && this.tokens[this.pos - 1]?.kind === "unfinishedComment"))
       ? new AstExprError(this.current().location, [], this.errors.length - 1)
       : this.parseExpr();
     this.restoreLocals(localsBegin);

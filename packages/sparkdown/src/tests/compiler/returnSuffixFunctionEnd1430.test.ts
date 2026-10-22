@@ -47,6 +47,16 @@ const FORMS: [string, (line: string) => string][] = [
   ["a function value in a function", (line) => `function f()\nlocal g = function()\n${line}\nend\nreturn g\nend\n`],
   ["a function in a table", (line) => `local t = {function()\n${line}\nend}\n`],
   ["a function on one line", (line) => `function f() ${line} end\n`],
+  ["a nested block before a later statement", (line) => `function f()\nif true then\n${line}\nend\nprint(1)\nend\n`],
+];
+
+// Scripts whose function is never closed, which end at their Luau: a line
+// of story after it would be read as the function's.
+const UNCLOSED: [string, (line: string) => string][] = [
+  ["a function with no end", (line) => `function f()\n${line}\n`],
+  ["a nested block with one end", (line) => `function f()\nif true then\n${line}\nend\n`],
+  ["a nested block with no end", (line) => `function f()\nif true then\n${line}\n`],
+  ["a repeat loop with no until", (line) => `function f()\nrepeat\n${line}\nend\n`],
   ["a nested function", (line) => `function f()\nlocal function g()\n${line}\nend\nreturn g\nend\n`],
 ];
 
@@ -58,6 +68,16 @@ describe("a function's return followed by two or more tokens reports Luau's erro
         const official = officialErrorList(luau).sort();
         expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
         expect(sparkdownErrors(`${luau}Go.\n`)).toEqual(official);
+      });
+    }
+  }
+  for (const [name, form] of UNCLOSED) {
+    for (const line of SUFFIXES) {
+      test(`${JSON.stringify(line)} in ${name}`, () => {
+        const luau = form(line);
+        const official = officialErrorList(luau).sort();
+        expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
+        expect(sparkdownErrors(luau)).toEqual(official);
       });
     }
   }
