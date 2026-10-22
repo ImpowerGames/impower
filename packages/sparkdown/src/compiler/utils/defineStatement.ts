@@ -94,14 +94,23 @@ export function defineStatementLast(start: SyntaxNode, whole = false): SyntaxNod
  * The last node of the statement lines Luau's reading of a statement reads
  * on into, before `to`, where that reading ends: each next line that begins
  * a statement (`isDefineStatementStart`), whole, with the lines that
- * continue it. A line a member begins is the member's and ends them. `last`
- * when the reading ends on the statement's own lines.
+ * continue it, and each next line that finishes what the line before it
+ * left open (`readsDefineStatement`), whether or not Luau takes its first
+ * token (`there.` then `1 + 2; t.f(1 +)`): no reading of its own reads it.
+ * A line a member begins is the member's and ends them. `last` when the
+ * reading ends on the statement's own lines.
  */
-export function defineStatementThrough(last: SyntaxNode, to: number, lineOf: (pos: number) => number): SyntaxNode {
+export function defineStatementThrough(
+  last: SyntaxNode,
+  to: number,
+  read: (from: number, to: number) => string,
+  lineOf: (pos: number) => number,
+): SyntaxNode {
   for (;;) {
     let next = last.nextSibling;
     while (next && TRIVIA_BEFORE_STATEMENT.has(next.name)) next = next.nextSibling;
-    if (!next || next.from >= to || !isDefineStatementStart(next, lineOf)) return last;
+    if (!next || !isDefineStatementStart(next, lineOf)) return last;
+    if (next.from >= to && !finishesLineBefore(next, read)) return last;
     last = defineStatementLast(next, isDefineMethodCall(next, lineOf));
   }
 }

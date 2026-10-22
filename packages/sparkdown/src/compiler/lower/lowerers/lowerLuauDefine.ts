@@ -177,7 +177,7 @@ function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = fal
   let errors: LuauStatementError[];
   for (;;) {
     const reading = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
-    const through = defineStatementThrough(last, reading.to, lineOf);
+    const through = defineStatementThrough(last, reading.to, read, lineOf);
     if (through === last) {
       errors = reading.errors;
       break;
@@ -199,6 +199,7 @@ function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = fal
       if (after) dotErrorsAt.add(after.from);
     }
   }
+  // value-level: the message of an error Luau's reading returned.
   errors = errors.filter((error) => !(dotErrorsAt.has(error.from) && error.message.startsWith("Expected identifier, got ")));
   for (const error of errors) {
     ctx.diagnostics?.push({

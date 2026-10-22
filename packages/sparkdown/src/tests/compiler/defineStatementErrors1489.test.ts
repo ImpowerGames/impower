@@ -131,6 +131,10 @@ const BODIES: string[] = [
   "  t.f(1)\n  there.\n",
   "  t.a = f(x., 1 2 3)\n",
   "  t.a, t.b\n  print(1); there.\n",
+  // A line that finishes a dangling line whose first token Luau rejects as
+  // the member's name is read with it (round 3, undirected 1).
+  "  there.\n  1 + 2; t.f(1 +)\n",
+  "  t.f(1 2 3); there.\n  1 + 2; t.f(1 +)\n",
   // A statement after a property on its line (undirected 3).
   "  y = 1; t.f(2 +)\n",
   "  y = 1; t.f(1 2 3)\n",
