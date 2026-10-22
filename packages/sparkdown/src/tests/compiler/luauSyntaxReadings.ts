@@ -30,6 +30,8 @@ export const NOT_SYNTAX: RegExp[] = [
   // A compile that stopped, such as at a `store` whose value raises an error
   // when the declarations run (`reportCompileThrow`).
   /^The compile stopped /,
+  // A sequential alternator's head, which takes no value (I-1446).
+  /takes no value before its first `\|`/,
 ];
 
 export function messageOf(d: SparkDiagnostic): string {

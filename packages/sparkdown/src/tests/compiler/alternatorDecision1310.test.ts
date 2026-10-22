@@ -23,6 +23,9 @@ const run = (text: string) => {
 
 const tree = (text: string) => stripAnsi(dumpTree(text));
 
+// What a `cycle` reports for anything before its first `|` (I-1446).
+const HEAD_ERROR = "A `cycle` takes no value before its first `|`; write its arms as `| ...`";
+
 /** Every error a full compile reports, with its range. */
 const errorsOf = (text: string): string[] => {
   const c = new SparkdownCompiler();
@@ -122,10 +125,17 @@ describe("a real alternator in each structural word opens and lowers as before",
     ['{match(x) | warrior = "w" | mage = "m"}', "m"],
     ['{match x | warrior = "w" | mage = "m"}', "m"],
     ['{plural(1) | one = "is" | other = "are"}', "is"],
-    ['{cycle "x" | "a" | "b" end}', "a"],
   ])("%s", (alternator, value) => {
     const source = `store x = "mage"\n\nValue ${alternator}.\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: `Value ${value}.\n` });
+    expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
+  });
+
+  // A sequential head still opens the arms; it is an error, and the
+  // alternator runs as if it had none (I-1446).
+  test('{cycle "x" | "a" | "b" end}', () => {
+    const source = 'store x = "mage"\n\nValue {cycle "x" | "a" | "b" end}.\n';
+    expect(run(source)).toEqual({ errors: [HEAD_ERROR], warnings: [], output: "Value a.\n" });
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
   });
 
@@ -190,7 +200,8 @@ describe("where a candidate ends", () => {
     ["at the start of a function's line", 'function f()\n  match match("x") | x = print(1) end| mage = print(2) end\n  return 3\nend\nValue {f()}.\n', "match"],
     ["around a sequential word", 'Value {cycle match("x") | x = "a" end| "b" end}.\n', "cycle"],
   ])("written against the outer `|` %s", (_, source, outer) => {
-    expect(errorsOf(source)).toEqual([]);
+    // A sequential word's head is an error (I-1446).
+    expect(errorsOf(source)).toEqual(outer === "cycle" ? [`0:13-0:37 ${HEAD_ERROR}`] : []);
     expect(semanticTokenOf(source, outer, 1)).toBeUndefined();
     expect(semanticTokenOf(source, "match", outer === "match" ? 2 : 1)).toBeUndefined();
     const owners: string[] = [];
@@ -224,7 +235,7 @@ describe("where a candidate ends", () => {
   });
 
   test("a nested condition followed by a comment before the arms in an interpolation keeps its arms", () => {
-    expect(run('Value {cycle match("x") | x = "mage" end --[[ note ]] | "yes" end}.\n')).toEqual({ errors: [], warnings: [], output: "Value yes.\n" });
+    expect(run('Value {cycle match("x") | x = "mage" end --[[ note ]] | "yes" end}.\n')).toEqual({ errors: [HEAD_ERROR], warnings: [], output: "Value yes.\n" });
   });
 
   test.each(["true", "false", "nil", "-1", "not false", '#"x"'])("a block-form match on `%s` opens its arms", (condition) => {
