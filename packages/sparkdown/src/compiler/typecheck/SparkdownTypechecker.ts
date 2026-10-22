@@ -34,6 +34,7 @@ import {
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
 import { luauReadingReportsAllAt, storyStoreOf } from "./LuauUnitNodes";
+import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { withMessageLines } from "./messageLines";
 import { syntaxErrorEnd } from "./syntaxErrorRange";
 import { Mode } from "./Module";
@@ -169,6 +170,14 @@ export class SparkdownTypechecker {
     };
     const inFunction = (position: { line: number; character: number }) =>
       luauReadingReportsAllAt(tree.resolveInner(offsetOf(position), -1), read);
+    // Whether a position is inside a backtick string the tree holds, whose
+    // text no tree check reads (I-1435).
+    const inBacktickString = (position: { line: number; character: number }) => {
+      for (let n: SyntaxNode | null = tree.resolveInner(offsetOf(position), 1); n; n = n.parent) {
+        if (isExplicitRuleName(n.name, "LuauInterpolatedString")) return true;
+      }
+      return false;
+    };
     const report = (entry: CachedUnit, unit: LuauUnit, pureLuau: boolean) => {
       checks.push(entry.check);
       // In a story statement's Luau, which ends at its line, the tokens a
@@ -193,8 +202,12 @@ export class SparkdownTypechecker {
           // have one owner each (#931, #1907): the reading's for a construct
           // only it finds malformed (`LuauSyntaxError.malformed`), for a
           // statement that holds a token the grammar left unread
-          // (`LuauSyntaxError.unread`) and for a backtick string's own errors
-          // (`LuauSyntaxError.ofString`), Sparkdown's own syntax's for the rest.
+          // (`LuauSyntaxError.unread`), for a backtick string's own errors
+          // (`LuauSyntaxError.ofString`) and for an error at a token inside a
+          // backtick string, where Luau gave up on the string and no tree
+          // check names a token (`if `a {1 2} b` == "x" then`'s `Expected
+          // 'then' ..., got '2'`, I-1463), Sparkdown's own syntax's for the
+          // rest.
           const inPureLuau = pureLuau || inFunction(start);
           // Luau's parser stops at the end of the chunk, and what the reading
           // reads on after it is none of Luau's: in a `.luau` or `run` file
@@ -210,7 +223,7 @@ export class SparkdownTypechecker {
             // of the declaration alone reports it (`validateStores`).
             if (syntaxError?.ofString) {
               if (storyStoreOf(tree.resolveInner(offsetOf(start), 1), read)) continue;
-            } else if (!syntaxError?.malformed && !syntaxError?.unread) continue;
+            } else if (!syntaxError?.malformed && !syntaxError?.unread && !inBacktickString(start)) continue;
             const token = `${end.line}:${end.character}`;
             if (reportedTokens.has(token)) continue;
             reportedTokens.add(token);

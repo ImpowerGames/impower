@@ -24,7 +24,7 @@ import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMet
 import { closureReadingErrors } from "../../typecheck/closureReading";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isLuauDocument, isLuauFile, isReadLuau, loweredExpressionOf, loweredLuauBodyOf, luauReadingReportsAllAt, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -987,17 +987,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * the token Luau finds instead (`checkerReadsOnTo`). A Luau file is Luau
    * throughout, however this document's tree reads it.
    *
-   * Where no such reading reads the construct, in story braces
-   * (`Hello {x.}.`) and an alternator's head and arms, these tree checks
-   * report the forms they name, a name or value missing after a `.`, a
-   * `:`, an operator or `not`, naming the closing brace (`{x.}`, `{x +}`,
-   * `{not}`, `{x:}`). The lowerer's reading of the expression reports its
-   * other forms (`{1 2}`, `{x y}`, a backtick string it rejects, `{(1}`) and
-   * a backtick string's own errors: one owner per form (I-1435,
-   * `reportReadingErrors`). In an expression that holds an if expression
-   * the reading reports only the string's own errors and a rejection of it;
-   * these checks and the if expression's own report the rest, as on base
-   * (I-1445).
+   * In story braces (`Hello {x.}.`), a choice's condition and an
+   * alternator's head and arms, the lowerer's reading of the expression
+   * reports every syntax error, in Luau's words, naming the brace's `}` or
+   * the arm's `|` it ends at, and these checks defer to it
+   * (`loweredExpressionOf`, I-1445).
    */
   /**
    * The end of a missing type's range, from where the type should stand
@@ -1340,7 +1334,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // missing name, at the word (I-1318). In a pure-Luau body Luau's reading
     // reports it and every error around it (I-1322).
     if (nodeRef.name === "LuauKeywordMethodName") {
-      if (this.inPureLuau(nodeRef.node)) {
+      if (this.inPureLuau(nodeRef.node) || loweredExpressionOf(nodeRef.node)) {
         return annotations;
       }
       // After a `for` loop variable the `:` is its type's, and the word is
@@ -1380,6 +1374,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // missing name after a member access (#1175), where it reads the token
       // found instead.
       if (checkerReportsType && (!isMethodColon || this.checkerReadsOnTo(nodeRef.node, this.luauTokenAt(nodeRef.to, authoredEnd)?.from))) {
+        return annotations;
+      }
+      // In a story brace or an alternator's arm the lowerer's reading
+      // reports a method call's missing name and arguments (I-1445).
+      if (isMethodColon && loweredExpressionOf(nodeRef.node)) {
         return annotations;
       }
       if (!isMethodColon) {
@@ -1618,9 +1617,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // missing. An if expression that is a whole `{…}` interpolation in
     // display text is Sparkdown's inline conditional, which may leave out
     // its arms.
+    // In a story brace or an alternator's arm, the lowerer's reading reports
+    // every part one lacks (I-1445, `reportInlineIfReading` for a whole
+    // brace's).
     if (
       isExplicitRuleName(nodeRef.name, "LuauTernaryExpression") &&
-      !isInlineConditional(nodeRef.node)
+      !isInlineConditional(nodeRef.node) &&
+      !loweredExpressionOf(nodeRef.node)
     ) {
       const found = missingIfExpressionPart(nodeRef.node, (from, to) =>
         this.read(from, to),

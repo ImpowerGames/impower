@@ -15,8 +15,8 @@ import type {
 } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromContainer } from "../expression/lowerExpression";
-import { findChildByName, lowerArms, reportAlternatorHead } from "../utils/alternatorArms";
+import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
+import { findChildByName, lowerArms, reportAlternatorHead, tokenAfter } from "../utils/alternatorArms";
 import { alternatorHeadNodes } from "../../utils/alternatorDecision";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -95,12 +95,16 @@ export function lowerSparkdownConditionalAlternatorBlock(
     nodeRef.node,
   );
   // Its condition, an alternator's head in a story brace, reports its
-  // reading's errors by form (`reportReadingErrors`), as an arm does: the
-  // whole head where the grammar gives it one, which can hold more than the
-  // condition (`match 1 `a {} b` | ...`), or else the condition.
+  // reading's errors (`reportReadingErrors`), as an arm does, ending at the
+  // `|` after it (`tokenAfter`): the whole head where the grammar gives it
+  // one, which can hold more than the condition (`match 1 `a {} b` | ...`),
+  // or else the condition.
   const readsHead = alternatorHeadNodes(nodeRef.node).length > 0;
   if (readsHead) reportAlternatorHead(nodeRef.node, ctx);
-  let condExpr = condNode ? lowerExpressionFromContainer(condNode, ctx, readsHead ? null : "expression") : null;
+  const condNodes = condNode ? containerValueNodes(condNode) : [];
+  let condExpr = condNode
+    ? lowerExpressionFromNodes(condNodes, ctx, readsHead ? null : "expression", readsHead ? undefined : tokenAfter(condNodes, ctx))
+    : null;
 
   // Plural desugars to `plural.category(condition)` — the stdlib
   // builtin consults `lang.current` internally to pick the right

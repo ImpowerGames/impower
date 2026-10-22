@@ -6,10 +6,9 @@
 // arms. The validator reports none of the string's text, so a statement that
 // rejects the string before reading it reports Luau's rejection alone. In
 // story braces and alternator arms the lowerer's reading owns the
-// expression's other errors by form, beside Sparkdown's tree checks, but in
-// an expression that holds an if expression, only a rejection of the
-// string. Each form reports what a cold compile of the same text reports
-// after an edit away from it.
+// expression's other errors too, in Luau's words (I-1445,
+// `braceReadingOneOwner1445.test.ts`). Each form reports what a cold
+// compile of the same text reports after an edit away from it.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
@@ -263,22 +262,18 @@ describe("a string the statement rejects reports the statement's error, none of 
   });
 });
 
-// In story braces and an alternator's arms, Sparkdown's tree checks own the
-// forms they name with the closing brace, and the lowerer's reading owns the
-// others, in its own words: one owner per form.
+// In story braces and an alternator's arms, the lowerer's reading owns every
+// form, in Luau's words, naming the closing brace it ends at (I-1445).
 describe("story braces and alternator arms: one owner per form", () => {
   const forms: [string, string[]][] = [
-    // The reading's.
     ["1 2", ["1:11-1:12 Expected the end of the expression, got '2'"]],
     ["x y", ["1:11-1:12 Expected the end of the expression, got 'y'"]],
-    ["(1", ["1:11-2:0 Expected ')' (to close '(' at column 10), got <eof>"]],
-    // The tree checks'.
+    ["(1", ["1:11-1:12 Expected ')' (to close '(' at column 10), got '}'"]],
     ["x.", ["1:11-1:12 Expected identifier, got '}'"]],
     ["x +", ["1:12-1:13 Expected identifier when parsing expression, got '}'"]],
     ["not", ["1:12-1:13 Expected identifier when parsing expression, got '}'"]],
-    ["x:", ["1:11-1:12 Expected identifier when parsing method name, got '}'"]],
-    // Neither's: a call left open (I-1445).
-    ["f(", []],
+    ["x:", ["1:11-1:12 Expected identifier when parsing method name, got '}'", "1:9-1:11 Expected '(', '{' or <string> when parsing function call, got '}'"]],
+    ["f(", ["1:11-1:12 Expected identifier when parsing expression, got '}'"]],
   ];
   for (const [form, expected] of forms) {
     test(`story braces Hello {${form}}.`, () => {
@@ -333,13 +328,12 @@ describe("round 1's undirected probes", () => {
     );
     expectIncrementalEqualsCold(text);
   });
-  // An expression that holds an if expression reports the string's errors
-  // and a rejection of it only; its other errors are the tree checks', as on
-  // base (round 4's retreat, I-1445).
+  // An expression that holds an if expression reports every error of its
+  // reading too (I-1445).
   for (const [expr, expected] of [
-    ["(if true then 1 else 2) 3", []],
+    ["(if true then 1 else 2) 3", ["1:33-1:34 Expected the end of the expression, got '3'"]],
     ["(if true then 1 else 2) `a {} b`", ["1:33-1:37 Expected the end of the expression, got `a {"]],
-    ["(if true then 1 else 2", []],
+    ["(if true then 1 else 2", ["1:31-1:32 Expected ')' (to close '(' at column 10), got '}'"]],
     ["if true then `a {} b` else 'ok'", officialFirst("local _ = `a {} b`\n", 1, 12)],
   ] as const) {
     test(`story braces Hello {${expr}}.`, () => {
@@ -410,12 +404,21 @@ describe("round 3's undirected probes", () => {
     expect(sparkdownErrors(text)).toEqual(["1:32-1:36 Expected ')' (to close '(' at column 30), got `a {"]);
     expectIncrementalEqualsCold(text);
   });
-  for (const expr of ["if (1 `a {} b`) then 1 else 2", "if true then (1 `a {} b`) else 2"]) {
+  // With Luau's recovery after the rejection, which the reading reports too
+  // (I-1445).
+  for (const [expr, expected] of [
+    [
+      "if (1 `a {} b`) then 1 else 2",
+      ["1:15-1:19 Expected ')' (to close '(' at column 13), got `a {", "1:23-1:24 Expected 'else' when parsing if then else expression, got ')'"],
+    ],
+    [
+      "if true then (1 `a {} b`) else 2",
+      ["1:25-1:29 Expected ')' (to close '(' at column 23), got `a {", "1:33-1:34 Expected the end of the expression, got ')'"],
+    ],
+  ] as const) {
     test(`story braces Hello {${expr}}.`, () => {
       const text = `scene start\n  Hello {${expr}}.\nend\n`;
-      const errors = sparkdownErrors(text);
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toMatch(/Expected '\)' \(to close '\(' at column \d+\), got `a \{$/);
+      expect(sparkdownErrors(text)).toEqual(expected);
       expectIncrementalEqualsCold(text);
     });
   }
@@ -423,39 +426,67 @@ describe("round 3's undirected probes", () => {
 
 // Round 4's undirected probes: an if expression whose recovery leaves a part
 // in error, in choice text, parenthesized in story text and in an arm,
-// reports the rejection of the string in its condition or value. Every other
-// error of a reading that holds an if expression is the tree checks', as on
-// base (the retreat, I-1445).
+// reports the rejection of the string in its condition or value, and every
+// other error of the reading, Luau's recovery's included (I-1445, which
+// took back the retreat these probes pinned).
 describe("round 4's undirected probes", () => {
   const contexts = [
     ["choice text", (expr: string) => `scene start\n  choose\n    * Hello {${expr}}.\n  end\nend\n`],
     ["parenthesized story text", (expr: string) => `scene start\n  Hello {(${expr})}.\nend\n`],
     ["an arm", (expr: string) => `store s = cycle | (${expr}) | 2 end\n`],
   ] as const;
+  const expected: Record<string, Record<string, string[]>> = {
+    "choice text": {
+      "if (2 `a {} b`) then 1 else 2": ["2:19-2:23 Expected ')' (to close '(' at column 17), got `a {", "2:27-2:28 Expected 'else' when parsing if then else expression, got ')'"],
+      "if true then (2 `a {} b`) else 2": ["2:29-2:33 Expected ')' (to close '(' at column 27), got `a {", "2:37-2:38 Expected the end of the expression, got ')'"],
+      "if true then 1 else (2 3)": ["2:36-2:37 Expected ')' (to close '(' at column 34), got '3'"],
+      "if (1 2) then 1 else 2": ["2:19-2:20 Expected ')' (to close '(' at column 17), got '2'", "2:20-2:21 Expected 'else' when parsing if then else expression, got ')'"],
+    },
+    "parenthesized story text": {
+      "if (2 `a {} b`) then 1 else 2": [
+        "1:16-1:20 Expected ')' (to close '(' at column 14), got `a {",
+        "1:24-1:25 Expected 'else' when parsing if then else expression, got ')'",
+        "1:26-1:30 Expected the end of the expression, got 'then'",
+      ],
+      "if true then (2 `a {} b`) else 2": ["1:26-1:30 Expected ')' (to close '(' at column 24), got `a {", "1:36-1:40 Expected the end of the expression, got 'else'"],
+      "if true then 1 else (2 3)": ["1:33-1:34 Expected ')' (to close '(' at column 31), got '3'"],
+      "if (1 2) then 1 else 2": [
+        "1:16-1:17 Expected ')' (to close '(' at column 14), got '2'",
+        "1:17-1:18 Expected 'else' when parsing if then else expression, got ')'",
+        "1:19-1:23 Expected the end of the expression, got 'then'",
+      ],
+    },
+    "an arm": {
+      "if (2 `a {} b`) then 1 else 2": [
+        "0:25-0:29 Expected ')' (to close '(' at column 23), got `a {",
+        "0:33-0:34 Expected 'else' when parsing if then else expression, got ')'",
+        "0:35-0:39 Expected the end of the expression, got 'then'",
+      ],
+      "if true then (2 `a {} b`) else 2": ["0:35-0:39 Expected ')' (to close '(' at column 33), got `a {", "0:45-0:49 Expected the end of the expression, got 'else'"],
+      "if true then 1 else (2 3)": ["0:42-0:43 Expected ')' (to close '(' at column 40), got '3'"],
+      "if (1 2) then 1 else 2": [
+        "0:25-0:26 Expected ')' (to close '(' at column 23), got '2'",
+        "0:26-0:27 Expected 'else' when parsing if then else expression, got ')'",
+        "0:28-0:32 Expected the end of the expression, got 'then'",
+      ],
+    },
+  };
   for (const [place, wrap] of contexts) {
-    for (const expr of ["if (2 `a {} b`) then 1 else 2", "if true then (2 `a {} b`) else 2"]) {
+    for (const [expr, errors] of Object.entries(expected[place]!)) {
       test(`${place}: ${expr}`, () => {
         const text = wrap(expr);
-        const lines = text.split("\n");
-        const line = lines.findIndex((l) => l.includes("`"));
-        const at = lines[line]!.indexOf("`");
-        const paren = lines[line]!.lastIndexOf("(", at) + 1;
-        expect(sparkdownErrors(text)).toEqual([`${line}:${at}-${line}:${at + 4} Expected ')' (to close '(' at column ${paren}), got \`a {`]);
-        expectIncrementalEqualsCold(text);
-      });
-    }
-    for (const expr of ["if true then 1 else (2 3)", "if (1 2) then 1 else 2"]) {
-      test(`${place}: ${expr} reports nothing, as on base`, () => {
-        const text = wrap(expr);
-        expect(sparkdownErrors(text)).toEqual([]);
+        expect(sparkdownErrors(text)).toEqual(errors);
         expectIncrementalEqualsCold(text);
       });
     }
   }
-  for (const expr of ["if true then 1 else (2 3)", "if (1 2) then 1 else 2"]) {
-    test(`story braces Hello {${expr}}. reports nothing, as on base`, () => {
+  for (const [expr, errors] of [
+    ["if true then 1 else (2 3)", ["1:32-1:33 Expected ')' (to close '(' at column 30), got '3'"]],
+    ["if (1 2) then 1 else 2", ["1:15-1:16 Expected ')' (to close '(' at column 13), got '2'", "1:16-1:17 Expected 'else' when parsing if then else expression, got ')'"]],
+  ] as const) {
+    test(`story braces Hello {${expr}}.`, () => {
       const text = `scene start\n  Hello {${expr}}.\nend\n`;
-      expect(sparkdownErrors(text)).toEqual([]);
+      expect(sparkdownErrors(text)).toEqual(errors);
       expectIncrementalEqualsCold(text);
     });
   }
