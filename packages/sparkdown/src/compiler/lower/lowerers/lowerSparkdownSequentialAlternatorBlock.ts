@@ -24,9 +24,12 @@ const TYPE_BY_KEYWORD: { [k: string]: SequenceType } = {
   chain: SequenceType.Stopping,
 };
 
+// With `valued`, each arm pushes one value (`lowerArms`), for an alternator
+// Luau code uses as a value or writes as a statement (`lowerAlternatorValue`).
 export function lowerSparkdownSequentialAlternatorBlock(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
+  valued = false,
 ): CompiledBlock {
   // Works for both the top-level `LuauSparkdownSequentialAlternatorBlock`
   // (block form: `queue ... | ... end` on its own lines) and the inline
@@ -57,9 +60,11 @@ export function lowerSparkdownSequentialAlternatorBlock(
   if (isShuffle) seqType |= SequenceType.Shuffle;
 
   const content = findChildByName(nodeRef.node, `${prefix}_content`);
-  // What stands before the first `|` is no arm, but its errors are read.
-  reportAlternatorHead(nodeRef.node, ctx);
-  const arms = lowerArms(content, ctx);
+  // What stands before the first `|` is no arm, but its errors are read,
+  // by the reading of Luau code that uses the alternator as a value
+  // (`reportNestedAlternators`) when `valued`.
+  if (!valued) reportAlternatorHead(nodeRef.node, ctx);
+  const arms = lowerArms(content, ctx, valued);
 
   // An alternator with no arm has nothing to alternate between, and a
   // sequence of no elements makes the engine's shuffle draw from nothing
@@ -82,6 +87,7 @@ export function lowerSparkdownSequentialAlternatorBlock(
 
   const contentLists = arms.map((arm) => new ContentList(arm.body));
   const sequence = new Sequence(contentLists, seqType);
+  sequence.valued = valued;
   recordAlternatorSource(ctx, sequence, nodeRef.node);
   return wrapInWeave([sequence]);
 }

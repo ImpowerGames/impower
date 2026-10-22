@@ -230,11 +230,14 @@ export function readStatements(
  * Lowers a statement node on its own: a top-level node of a scene or of the
  * document, or a child of a block that lowers its children one by one (a
  * `choose` block, an alternator's arm). A `repeat` loop's `until` line is a
- * node of its own after it, which the loop reads with it.
+ * node of its own after it, which the loop reads with it. Without `report`,
+ * the reading's errors are another reading's to report (the arm of an
+ * alternator Luau code uses as a value, `reportAlternatorValue`).
  */
 export function lowerLuauStatementNode(
   node: SyntaxNode,
   ctx: LowerContext,
+  report = true,
 ): CompiledBlock {
   const nodes = [node];
   if (node.name === "LuauRepeatLoop" || node.name === "LuauSparkdownRepeatLoop") {
@@ -245,7 +248,7 @@ export function lowerLuauStatementNode(
   if (!reading) return {};
   // A backtick string's own errors, where no other reading reads the
   // statement (an alternator's arm), are this reading's (I-1435).
-  reportReadingErrors(reading.source.errors, node, ctx, "string");
+  if (report) reportReadingErrors(reading.source.errors, node, ctx, "string");
   return lowerLuauStatementsAt(
     node,
     readStatements(node, reading.unit.statements, reading.source, ctx),

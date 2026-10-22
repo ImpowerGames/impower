@@ -101,7 +101,11 @@ const semanticsOf = (text: string) => {
 };
 
 // Each form in its compact spelling, the story's output (base's for the
-// spaced spelling, which this change leaves as it was), and its arms.
+// spaced spelling, which this change leaves as it was), and its arms. Since
+// I-1284 and I-1397, an alternator Luau code uses as a value (a condition, a
+// declaration's value, a table field) or writes as a statement runs as a
+// displayed one does: it gives its selected arm's value, nil for an empty
+// arm, and runs that arm's calls.
 const FORMS: [string, string, string, string[]][] = [
   [
     "a function body's local, with a statement after it",
@@ -112,10 +116,10 @@ const FORMS: [string, string, string, string[]][] = [
   [
     "a function value whose end stands against the bar",
     "function f()\n  match function() return 1 end| other = print(2) end local after = 7\n  return after\nend\nValue {f()}.\n",
-    "Value 7.\n",
+    "Value 27.\n",
     ["other = print(2)"],
   ],
-  ["story braces, with a keyed first arm", 'Value {match match("x") | x = "mage" end| mage = "yes" end}.\n', "Value .\n", ['mage = "yes"', 'x = "mage"']],
+  ["story braces, with a keyed first arm", 'Value {match match("x") | x = "mage" end| mage = "yes" end}.\n', "Value yes.\n", ['mage = "yes"', 'x = "mage"']],
   ["story braces, with an unkeyed first arm", 'Value {cycle match("x") | x = "a" end| "b" end}.\n', "Value b.\n", ['"b"', 'x = "a"']],
   ["story braces, with no space after the bar", 'Value {cycle match("x") | x = "a" end|"b" end}.\n', "Value b.\n", ['"b"', 'x = "a"']],
   [
@@ -124,18 +128,18 @@ const FORMS: [string, string, string, string[]][] = [
     "Value c.\n",
     ['"c"', '"b"', 'x = "a"'],
   ],
-  ["a store's value", 'store s = cycle match("x") | x = "a" end| "b" end\nValue {s}.\n', "Value nil.\n", ['"b"', 'x = "a"']],
+  ["a store's value", 'store s = cycle match("x") | x = "a" end| "b" end\nValue {s}.\n', "Value b.\n", ['"b"', 'x = "a"']],
   ["a narrative statement's local, in the bounded rules", '& local v = match match("x") | x = 1 end| mage = 2 end\nDone.\n', "Done.\n", ["mage = 2", "x = 1"]],
   [
     "a story if's condition, in the bounded rules",
     'if cycle match("x") | x = "a" end| "b" end == "b" then\n  Yes.\nend\nAfter.\n',
-    "After.\n",
+    "Yes.\nAfter.\n",
     ['"b"', 'x = "a"'],
   ],
   [
     "a block form whose arms go on below",
     'function f()\n  match match("x") | x = print(1) end| mage = print(2)\n    | other = print(3)\n  end\n  return 3\nend\nValue {f()}.\n',
-    "Value 3.\n",
+    "Value 133.\n",
     ["mage = print(2) | other = print(3)", "x = print(1)"],
   ],
   // An empty arm right after the separator the head took: the candidate's
@@ -147,7 +151,7 @@ const FORMS: [string, string, string, string[]][] = [
   [
     "a block form with an empty arm at its line's end",
     'function f()\n  match match("x") | x = print(1) end|\n    | other = print(3)\n  end\n  return 3\nend\nValue {f()}.\n',
-    "Value 3.\n",
+    "Value 133.\n",
     [" | other = print(3)", "x = print(1)"],
   ],
   ["a narrative statement's local with an empty arm, in the bounded rules", '& local v = match match("x") | x = 1 end| end\nDone.\n', "Done.\n", ["", "x = 1"]],
@@ -158,13 +162,14 @@ const FORMS: [string, string, string, string[]][] = [
   [
     "a parenthesized value with an empty arm before its closer",
     'function f()\n  return (cycle match("x") | x = "a" end|)\nend\nValue {f()}.\n',
-    "Value .\n",
+    "Value nil.\n",
     ["", 'x = "a"'],
   ],
   [
     "a table field with an empty arm before its separator",
     'function f()\n  local t = { cycle match("x") | x = "a" end|, 2 }\n  return #t\nend\nValue {f()}.\n',
-    "Value 1.\n",
+    // The table is `{ nil, 2 }`, whose length Luau reads as 2 (I-1502).
+    "Value 0.\n",
     ["", 'x = "a"'],
   ],
   [

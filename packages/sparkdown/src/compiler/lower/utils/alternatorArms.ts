@@ -3,6 +3,10 @@ import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
+import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
+import type { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
+import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { emptyDivertDiagnostic } from "../lowerers/lowerDivert";
 import { lowerDivertPath } from "./lowerDivertPath";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -18,6 +22,7 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lower } from "../lower";
+import { LUAU_STATEMENT_NODES, lowerLuauStatementNode } from "../lowerers/lowerLuauStatement";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
@@ -97,10 +102,14 @@ export interface AlternatorArm {
 
 // Walks the content of an alternator block, partitioning children into arms
 // delimited by `LuauAlternatorSeparator`. Each arm's body nodes are lowered
-// via the main dispatcher and unwrapped from their `Weave` containers.
+// via the main dispatcher and unwrapped from their `Weave` containers. With
+// `valued`, for an alternator Luau code uses as a value or writes as a
+// statement (I-1284, I-1397), each arm pushes one value instead of writing
+// what it holds (`valueArmBody`).
 export function lowerArms(
   content: SyntaxNode | null,
   ctx: LowerContext,
+  valued = false,
 ): AlternatorArm[] {
   const arms: AlternatorArm[] = [];
   if (!content) return arms;
@@ -116,8 +125,11 @@ export function lowerArms(
   // The current arm's Luau nodes, for its errors (`reportArmReading`):
   // not a line of story or a divert, which lower as Sparkdown's own.
   let armNodes: SyntaxNode[] = [];
+  // A valued alternator's arms are read where Luau code reads it, which
+  // reports their errors (`reportNestedAlternators`).
   const reportArm = () => {
-    reportArmReading(armNodes, ctx, false);
+    if (valued && current) current.body = valueArmBody(armNodes, ctx);
+    else reportArmReading(armNodes, ctx, false);
     armNodes = [];
   };
   const startArm = (separator: SyntaxNode): AlternatorArm => {
@@ -166,6 +178,9 @@ export function lowerArms(
           current.body.push(...armLineAsDisplayCall(parts, ctx));
         }
       }
+    } else if (current && valued) {
+      // A valued arm is lowered whole where it ends (`reportArm`).
+      if (isLuauNodeName(child.name) && !isTrivia(child)) armNodes.push(child);
     } else if (current) {
       // Special case: inline alternators (`LuauSequentialAlternatorBlock`,
       // no Sparkdown prefix) use `#LuauExpression` for arm content. A
@@ -260,6 +275,43 @@ function armParts(nodes: readonly SyntaxNode[]): { statement: boolean; nodes: Sy
     else parts.push({ statement: false, nodes: [node] });
   }
   return parts;
+}
+
+/**
+ * What a valued arm runs (`lowerArms`): each statement it holds and each call
+ * it holds before its last value, whose result is discarded, then its last
+ * value, or nil where it holds none (an empty arm, or one that ends with a
+ * statement), as an empty displayed arm shows nothing. A value before the
+ * last that is no call has nothing to run, and nothing reads it. Its errors
+ * are reported by the reading of the Luau code that holds the alternator
+ * (`reportAlternatorValue`), not here.
+ */
+function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext): ParsedObject[] {
+  const body: ParsedObject[] = [];
+  const parts = armParts(nodes);
+  let value: Expression | null = null;
+  for (const [k, part] of parts.entries()) {
+    if (part.statement) {
+      const node = part.nodes[0]!;
+      const block = LUAU_STATEMENT_NODES.has(node.name)
+        ? lowerLuauStatementNode(node, ctx, false)
+        : lower(node as unknown as SparkdownSyntaxNodeRef, ctx);
+      forwardBlockDiagnostics(block, ctx);
+      body.push(...unwrapBlockContent(block));
+      continue;
+    }
+    if (part.nodes.length === 0) continue;
+    const expr = lowerExpressionFromNodes(part.nodes, ctx, null, tokenAfter(part.nodes, ctx));
+    if (!expr) continue;
+    if (k === parts.length - 1) {
+      value = expr;
+    } else if (expr instanceof FunctionCall || expr instanceof CallValueExpression) {
+      expr.shouldPopReturnedValue = true;
+      body.push(expr);
+    }
+  }
+  body.push(value ?? new NullExpression());
+  return body;
 }
 
 /**

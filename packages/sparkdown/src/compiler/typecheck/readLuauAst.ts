@@ -2453,6 +2453,14 @@ class Parser {
       this.tokens[this.pos] = { ...token, kind: "name" };
     } else if (token.kind === "choose") {
       return this.parseChoose();
+    } else if (token.kind === "sparkdown" && token.node) {
+      // Not part of Luau: an alternator is a statement of its own, which
+      // runs its selected arm (I-1397).
+      const alternator = sparkdownExpression(token);
+      if (alternator instanceof AstExprSparkdownSequentialAlternator || alternator instanceof AstExprSparkdownConditionalAlternator) {
+        this.next();
+        return new AstStatExpr(alternator.location, alternator);
+      }
     }
 
     const start = token.location;
