@@ -257,6 +257,35 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     expect(story.state.toJson().includes("retention-marker")).toBe(false);
   });
 
+  // Round 3, comment 6349294529: an arm's locals are the function's for every
+  // scan of what it declares, so a closure or a call in the arm reads them,
+  // and a value nothing reads captures nothing.
+  test.each([
+    ["a closure reads an arm's local named as a builtin", ["  return cycle | local math = 3 function() return math end end"], "local g = f()", "Value {g()}.", "Value 3."],
+    ["a closure reads an arm's local named as a top-level function", ["  return cycle | local x = 3 function() return x end end"], "local g = f()", "Value {g()}.", "Value 3."],
+    ["a call reaches an arm's local named as a builtin", ['  return cycle | local type = function() return "arm" end type(1) end'], "", "Value {f()}.", "Value arm."],
+  ])("%s", (_name, body, setup, line, output) => {
+    expect(run(lines("function x() return 7 end", "function f()", ...body, "end", setup, line))).toEqual({ output: `${output}\n`, errors: [] });
+  });
+
+  test.each([
+    ["a value before the arm's last", "    return function() return cycle | y 3 end end"],
+    ["a sequential alternator's head", "    return function() return cycle y | 3 end end"],
+  ])("%s, which nothing reads, keeps nothing alive in a save", (_name, body) => {
+    const source = lines("function make(y)", body, "end", 'local g = make(string.rep("unused-marker", 100))', "Value {g()}.");
+    const { story, errorMessages } = makeRuntimeStoryFromSource(source);
+    expect(errorMessages).toEqual([]);
+    expect(runToEnd(story)).toBe("Value 3.\n");
+    expect(story.state.toJson().includes("unused-marker")).toBe(false);
+  });
+
+  test.each([
+    ["on the arm's line", ["  return cycle |", "    @native function() return 3 end end"]],
+    ["on a line of its own", ["  return cycle |", "    @native", "    function() return 3 end end"]],
+  ])("an attributed function with no name, %s, is the arm's value", (_name, body) => {
+    expect(run(lines("function f()", ...body, "end", "local g = f()", "Value {type(g)} {g()}."))).toEqual({ output: "Value function 3.\n", errors: [] });
+  });
+
   test("a top-level function's arm reads a top-level local", () => {
     expect(run(lines('local greeting = "hi"', "function f()", "  return cycle | greeting end", "end", "Value {f()}."))).toEqual({
       output: "Value hi.\n",

@@ -65,7 +65,7 @@ import { lowerStatements } from "../lower";
 import { rawContext } from "../recordingContext";
 import { defineMethodReads } from "../lowerers/lowerLuauDefine";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
-import { alternatorPartsAst } from "../utils/alternatorArms";
+import { alternatorPartsAst, alternatorScopesOf } from "../utils/alternatorArms";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
   documentText,
@@ -412,17 +412,25 @@ export function immediateBodyDeclarations(
 ): Set<string> {
   const out = new Set<string>(params);
   if (!body) return out;
-  walk(body, (node) => {
+  const declares = (node: AstNode): boolean => {
     if (node instanceof AstExprFunction) return false;
     if (node instanceof AstStatFunction || node instanceof AstStatLocalFunction) {
       const name = declaredFunctionName(node, ctx);
       if (name) out.add(name);
       return false;
     }
+    // What an alternator runs declares too, in its arms' scopes
+    // (`functionBindings`).
+    const scopes = alternatorScopesOf(node, ctx);
+    if (scopes) {
+      for (const scope of scopes) for (const part of scope.parts) walk(part, declares);
+      return false;
+    }
     for (const name of declarationNames(node)) out.add(name);
     for (const name of loopNames(node)) out.add(name);
     return true;
-  });
+  };
+  walk(body, declares);
   return out;
 }
 
@@ -684,7 +692,7 @@ export function freeVariables(
       // function's reads, of the locals in scope where it stands.
       const candidate = node.source.node as SyntaxNode | undefined;
       if (!candidate) return false;
-      const groups = alternatorPartsAst(candidate, documentText(ctx));
+      const groups = alternatorPartsAst(candidate, documentText(ctx)).map((scope) => scope.parts);
       for (const part of groups.flat()) {
         walk(part, (inner) => {
           for (const local of declaredLocals(inner)) locals.add(local);

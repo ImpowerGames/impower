@@ -32,6 +32,7 @@ import { documentText, readBlockAst, readExpressionAst } from "./luauAst";
 import { nextLuauToken, readLuauBlock, readLuauExpression } from "../../typecheck/readLuauAst";
 import { enclosingAlternator, isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
 import {
+  AstExprCall,
   AstExprSparkdownConditionalAlternator,
   AstExprSparkdownSequentialAlternator,
   visitAst,
@@ -272,7 +273,13 @@ function armParts(nodes: readonly SyntaxNode[], functionValues = false): { state
   const parts: { statement: boolean; nodes: SyntaxNode[] }[] = [];
   for (const node of nodes) {
     const last = parts[parts.length - 1];
-    if (isArmAssignment(node)) parts.push({ statement: false, nodes: containerValueNodes(node) });
+    // A function's attributes before it (`@native function() end`) are
+    // part of it.
+    const attributed = last && last.nodes.length > 0 && last.nodes.every(isAttribute) && isExplicitRuleName(node.name, "LuauFunctionDefinition");
+    if (attributed) {
+      last.nodes.push(node);
+      last.statement = !(functionValues && isFunctionValue(node));
+    } else if (isArmAssignment(node)) parts.push({ statement: false, nodes: containerValueNodes(node) });
     else if (functionValues && isFunctionValue(node)) parts.push({ statement: false, nodes: [node] });
     else if (LUAU_STATEMENTS.has(node.name)) parts.push({ statement: true, nodes: [node] });
     else if (CONTINUATIONS.has(node.name) && last && !last.statement) last.nodes.push(node);
@@ -328,6 +335,11 @@ function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext): ParsedOb
   ctx.scopeDepth = (ctx.scopeDepth ?? 1) - 1;
   ctx.blockEndStack?.pop()?.forEach((end) => end());
   return wrapInScope(body);
+}
+
+/** Whether a node of an arm is a function's attribute (`@native`). */
+function isAttribute(node: SyntaxNode): boolean {
+  return isExplicitRuleName(node.name, "LuauAttribute");
 }
 
 /** Whether a node of an arm is a function with no name, a value (`| function() return 3 end`). */
@@ -486,34 +498,61 @@ export function valuedConditionNodes(candidate: SyntaxNode): SyntaxNode[] {
 
 /**
  * What an alternator Luau code uses as a value or writes as a statement
- * runs, read as Luau on its own, as `lowerArms` reads it: a `match`'s
- * condition, or a sequential alternator's head, and each value and
- * statement of each arm (`armParts`). The reading of the code around it
- * holds the alternator as one opaque value (`AstExprSparkdownSequentialAlternator`),
- * so a scan of the names that code reads (`freeVariables`) reads these
- * too. They are grouped by the scope they share, the head's and then each
- * arm's, in order: a statement's locals are in scope for the parts of its
- * arm after it, which are read on their own. Reports nothing: the reading
- * around it reports their errors (`reportNestedAlternators`).
+ * runs, read as Luau on its own, as `valueArmBody` lowers it: a `match`'s
+ * condition, and each arm's statements, the calls before its last value and
+ * its last value (`armParts`); not a sequential alternator's head, which is
+ * no arm (I-1446), nor a value before an arm's last that is no call, which
+ * nothing reads. The reading of the code around it holds the alternator as
+ * one opaque value (`AstExprSparkdownSequentialAlternator`), so the scans
+ * of what that code declares and reads (`freeVariables`,
+ * `immediateBodyDeclarations`, `functionBindings`) read these too. They are
+ * grouped by the scope they share, the condition's and then each arm's, in
+ * order, with the document range of each: a statement's locals are in scope
+ * for the parts of its arm after it, which are read on their own. Reports
+ * nothing: the reading around it reports their errors
+ * (`reportNestedAlternators`).
  */
-export function alternatorPartsAst(candidate: SyntaxNode, text: string): AstNode[][] {
-  const groups: AstNode[][] = [];
+export function alternatorPartsAst(candidate: SyntaxNode, text: string): AlternatorScope[] {
+  const groups: AlternatorScope[] = [];
   const readParts = (nodes: readonly SyntaxNode[]) => {
+    const parts = armParts(nodes, true).filter((part) => part.nodes.length > 0);
     const group: AstNode[] = [];
-    for (const part of armParts(nodes, true)) {
-      if (part.nodes.length === 0) continue;
-      group.push(part.statement ? readLuauBlock(part.nodes, text).root : readLuauExpression(part.nodes, text).expr);
+    for (const [k, part] of parts.entries()) {
+      if (part.statement) {
+        group.push(readLuauBlock(part.nodes, text).root);
+        continue;
+      }
+      const expr = readLuauExpression(part.nodes, text).expr;
+      if (k === parts.length - 1 || expr instanceof AstExprCall) group.push(expr);
     }
-    if (group.length > 0) groups.push(group);
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    if (group.length > 0 && first && last) groups.push({ from: first.from, to: last.to, parts: group });
   };
-  if (SEQUENTIAL_ALTERNATORS.has(candidate.name)) {
-    readParts(alternatorHeadNodes(candidate).filter((node) => !isTrivia(node)));
-  } else {
+  if (!SEQUENTIAL_ALTERNATORS.has(candidate.name)) {
     const condition = valuedConditionNodes(candidate);
-    if (condition.length > 0) groups.push([readLuauExpression(condition, text).expr]);
+    if (condition.length > 0) readParts(condition);
   }
   for (const nodes of armNodesOf(candidate)) readParts(nodes);
   return groups;
+}
+
+/**
+ * The scopes of an alternator Luau code reads as one opaque value
+ * (`alternatorPartsAst`), or null for any other node: what the scans of a
+ * function's declarations and reads walk into.
+ */
+export function alternatorScopesOf(node: AstNode, ctx: LowerContext): AlternatorScope[] | null {
+  if (!(node instanceof AstExprSparkdownSequentialAlternator || node instanceof AstExprSparkdownConditionalAlternator)) return null;
+  const candidate = node.source.node as SyntaxNode | undefined;
+  return candidate ? alternatorPartsAst(candidate, documentText(ctx)) : [];
+}
+
+/** The Luau one scope of an alternator runs (`alternatorPartsAst`), and its document range. */
+export interface AlternatorScope {
+  from: number;
+  to: number;
+  parts: AstNode[];
 }
 
 // A single-line block arm is a display line of its own: a `display({ text })`
