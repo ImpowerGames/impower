@@ -49,6 +49,22 @@ export function alternatorArms(node: SyntaxNode): SyntaxNode | null {
 }
 
 /**
+ * What a candidate's head holds before its arms: the nodes between its word
+ * and its first `|` (a `match`'s condition, or what a sequential
+ * alternator holds there), none when it has no head.
+ */
+export function alternatorHeadNodes(node: SyntaxNode): SyntaxNode[] {
+  const nodes: SyntaxNode[] = [];
+  const content = node.getChild(`${node.name}_content`);
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (!HEADS.has(child.name)) continue;
+    const head = child.getChild(`${child.name}_content`);
+    for (let part = head?.firstChild ?? null; part && !ARMS.has(part.name); part = part.nextSibling) nodes.push(part);
+  }
+  return nodes;
+}
+
+/**
  * Whether a node opens an alternator: a candidate that holds its arms, or
  * any other node (a story alternator, which its word always opens).
  */

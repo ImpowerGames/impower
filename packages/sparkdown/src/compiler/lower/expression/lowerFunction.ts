@@ -31,6 +31,7 @@ import {
   AstExprCall,
   AstExprFunction,
   AstExprGlobal,
+  AstExprIfElse,
   AstExprLocal,
   AstStatBlock,
   AstStatFor,
@@ -57,6 +58,7 @@ import {
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { Location, Position } from "../../typecheck/Location";
 import { lineCountOf, syntaxErrorEnd } from "../../typecheck/syntaxErrorRange";
+import { isReadLuau, storyStoreOf } from "../../typecheck/LuauUnitNodes";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { defineMethodReads } from "../lowerers/lowerLuauDefine";
@@ -208,6 +210,91 @@ export function reportSyntaxErrors(
       ...(namesLine ? { messageLinesInChunk: true as const } : {}),
     });
   }
+}
+
+/**
+ * Which errors of a lowerer's reading of an expression it reports
+ * (`reportReadingErrors`): `"string"`, a backtick string's own
+ * (`LuauSyntaxError.ofString`) only; `"ifExpression"`, in an if
+ * expression's condition and values in story text, those and a rejection
+ * of a backtick string, an error that begins at one; `"expression"`, in
+ * story braces (`Hello {1 2}.`) and an alternator's head and arms, every
+ * error of the reading but the ones it marks `malformed`, or, where the
+ * expression holds an if expression, those of `"ifExpression"`.
+ */
+export type ReadingErrorScope = "string" | "ifExpression" | "expression";
+
+/** Whether an expression holds an if expression. */
+function holdsIfExpression(expr: AstNode): boolean {
+  let found = false;
+  visitAst(expr, {
+    visit: (node) => {
+      if (node instanceof AstExprIfElse) found = true;
+      return !found;
+    },
+  });
+  return found;
+}
+
+/**
+ * Reports the errors of a lowerer's reading of an expression that `node`
+ * begins, where no other reading reads the expression: not the type
+ * checker's (`isReadLuau`), which reads a statement's Luau, a lowerer's of a
+ * define's method or a Sparkle handler, which reads it whole
+ * (`loweredLuauBodyOf`), nor a story store's (`storyStoreOf`).
+ *
+ * A backtick string's own errors are reported in every such place: in
+ * story text, a choice, an alternator's head or arm and a define's value,
+ * the reading that lowers the expression is the string's one owner
+ * (I-1435). In story braces and an alternator's head and arms
+ * (`"expression"`) its other errors are reported too, by form: the
+ * forms Sparkdown's tree checks name with the closing brace, a name or
+ * value missing after a `.`, a `:`, an operator or `not`
+ * (`{x.}`, `{x +}`, `{not}`, `{x:}`, `ValidationAnnotator`), whose error the
+ * reading marks `malformed`, are the tree checks', with every error the
+ * reading meets after it (`{x:}`'s missing call); the rest are the
+ * reading's, in its own words: two values or names side by side
+ * (`{1 2}`, `{x y}`), a backtick string the expression rejects
+ * (`{1 `a {} b`}`) and a bracket left open (`{(1}`), each reported as
+ * `Expected the end of the expression, got …` or Luau's words for the
+ * bracket. A call left open (`{f(}`), which the reading marks `malformed`
+ * and no tree check names, reports nothing (I-1445). Where the expression
+ * holds an if expression (`expr`, the reading's expression), whose `else`
+ * story text may leave out (`{if c then a}`), the tree checks own every
+ * error but the string's own and a rejection of it, an error that begins at
+ * a backtick (`{if c then (1 `a {} b`) else 2}`'s), as on base for the rest
+ * (`{(if c then 1 else 2) 3}` reports nothing, I-1445).
+ */
+export function reportReadingErrors(
+  errors: readonly LuauSyntaxError[],
+  node: SyntaxNode,
+  ctx: LowerContext,
+  scope: ReadingErrorScope,
+  expr?: AstNode,
+): void {
+  let root = node;
+  while (root.parent) root = root.parent;
+  const read = (from: number, to: number) => ctx.read(from, to);
+  // An if expression's errors, a part it lacks, are the tree checks'
+  // (`IF_EXPRESSION_WITHOUT_*` in `ValidationAnnotator`, which know where
+  // story text may leave out its `else`).
+  const inIfExpression = scope === "ifExpression" || (scope === "expression" && !!expr && holdsIfExpression(expr));
+  // Whether the reading has met a form the tree checks name: the rest of
+  // its errors are that form's recovery.
+  let treeForm = false;
+  const owned = errors.filter((error) => {
+    if (error.sparkdown || error.pastChunkEnd) return false;
+    const offset = offsetAt(error.location.begin, ctx);
+    if (!error.ofString) {
+      if (scope === "string") return false;
+      if (error.malformed) treeForm = true;
+      if (treeForm) return false;
+      if (inIfExpression && read(offset, offset + 1) !== "`") return false;
+    }
+    const at = root.resolveInner(offset, 1);
+    return !isReadLuau(at, read) && !storyStoreOf(at, read);
+  });
+  if (owned.length > 0) reportSyntaxErrors(owned, ctx);
 }
 
 /**

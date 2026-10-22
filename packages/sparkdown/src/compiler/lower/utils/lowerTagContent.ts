@@ -7,9 +7,12 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { LowerContext } from "../context";
 import {
+  containerValueNodes,
   FUNCTION_CALL_SHORTHAND_NODES,
   lowerExpressionFromContainer,
 } from "../expression/lowerExpression";
+import { reportReadingErrors } from "../expression/lowerFunction";
+import { readExpressionAst } from "./luauAst";
 
 // Shared lowering for a tag body (`# tag {var}`). The grammar classifies a
 // `TagContent` body into `TagText` literal runs interleaved with
@@ -58,6 +61,10 @@ export function lowerTagContent(
         segs.push({ kind: "ref", name: ctx.read(variable.from, variable.to) });
       } else {
         // Non-identifier expression → emit the raw `{...}` as literal text.
+        // A backtick string's own errors in it are still its reading's to
+        // report, as everywhere (I-1435).
+        const reading = content ? readExpressionAst(containerValueNodes(child), ctx) : null;
+        if (reading) reportReadingErrors(reading.source.errors, child, ctx, "string");
         segs.push({ kind: "text", raw: ctx.read(child.from, child.to) });
       }
       cursor = child.to;

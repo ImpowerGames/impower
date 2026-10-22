@@ -6,7 +6,7 @@ import { ErrorType } from "../../../runtime/Error";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { findChildByName, lowerArms } from "../utils/alternatorArms";
+import { findChildByName, lowerArms, reportAlternatorHead } from "../utils/alternatorArms";
 import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -57,6 +57,8 @@ export function lowerSparkdownSequentialAlternatorBlock(
   if (isShuffle) seqType |= SequenceType.Shuffle;
 
   const content = findChildByName(nodeRef.node, `${prefix}_content`);
+  // What stands before the first `|` is no arm, but its errors are read.
+  reportAlternatorHead(nodeRef.node, ctx);
   const arms = lowerArms(content, ctx);
 
   // An alternator with no arm has nothing to alternate between, and a

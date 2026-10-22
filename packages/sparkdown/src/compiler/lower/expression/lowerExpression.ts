@@ -106,7 +106,7 @@ import {
   siblingSubFlowInfo,
   withSiblingSubFlowUpvalArgs,
 } from "./bindings";
-import { buildClosureExpression, lowerFunctionExpression } from "./lowerFunction";
+import { buildClosureExpression, lowerFunctionExpression, reportReadingErrors, type ReadingErrorScope } from "./lowerFunction";
 import { lowerTable } from "./lowerTable";
 import { numberLiteralValue } from "../../utils/numberLiteralValue";
 import {
@@ -160,25 +160,35 @@ export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {
 
 /**
  * Lowers the value a container node holds (an interpolation, a condition,
- * the operation after `=`): the expression its content reads as.
+ * the operation after `=`): the expression its content reads as, reporting
+ * the errors of its reading in `scope` (`reportReadingErrors`): story
+ * braces (`Hello {1 2}.`) pass `"expression"`.
  */
 export function lowerExpressionFromContainer(
   parent: SyntaxNode,
   ctx: LowerContext,
+  scope: ReadingErrorScope | null = "string",
 ): Expression | null {
-  const expr = lowerExpressionFromNodes(containerValueNodes(parent), ctx);
+  const expr = lowerExpressionFromNodes(containerValueNodes(parent), ctx, scope);
   if (FUNCTION_CALL_SHORTHAND_NODES.has(parent.name)) {
     return coerceFunctionCallShorthand(expr, parent, ctx);
   }
   return expr;
 }
 
-/** Lowers the one expression some sibling nodes hold. */
+/**
+ * Lowers the one expression some sibling nodes hold, reporting the errors of
+ * its reading in `scope` (`reportReadingErrors`), or none where the nodes
+ * are part of an expression another reading reads whole (an alternator's
+ * arm, `lowerArms`).
+ */
 export function lowerExpressionFromNodes(
   nodes: readonly SyntaxNode[],
   ctx: LowerContext,
+  scope: ReadingErrorScope | null = "string",
 ): Expression | null {
   const reading = readExpressionAst(nodes, ctx);
+  if (reading && scope) reportReadingErrors(reading.source.errors, nodes[0]!, ctx, scope, reading.expr);
   return reading ? lowerExpression(reading.expr, reading.source, ctx) : null;
 }
 
@@ -305,8 +315,9 @@ export function lowerExpression(
   }
   if (expr instanceof AstExprError) return lowerMalformedString(expr, source, ctx);
   // A syntax error, which the type checker reports, an alternator used as
-  // a value, which the display lowerers lower themselves, and a branch's
-  // argument, which only the type checker reads.
+  // a value, which the display lowerers lower themselves (its reading reads
+  // its head and arms, `readExpressionAst`), and a branch's argument, which
+  // only the type checker reads.
   return null;
 }
 

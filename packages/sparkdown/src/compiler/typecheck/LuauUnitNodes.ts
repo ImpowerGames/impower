@@ -105,6 +105,11 @@ export const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhi
 // and the checker reads its declaration without it.
 export const LUAU_SCOPE_MODIFIERS = new Set(["local", "const"]);
 
+/** Whether the tree names a node as Luau's syntax, all of whose rules it names `Luau…` (Sparkdown's own constructs among them, `SPARKDOWN_ONLY`). */
+export function isLuauNodeName(name: string): boolean {
+  return name.startsWith("Luau");
+}
+
 /**
  * Whether the type checker reads a node as Luau: a node of one of a file's
  * Luau statements, outside what is Sparkdown's own in it, and not in a
@@ -116,7 +121,7 @@ export const LUAU_SCOPE_MODIFIERS = new Set(["local", "const"]);
 export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
     if (SPARKDOWN_ONLY.has(n.name) || isSparkdownExpression(n)) return false;
-    if (!n.name.startsWith("Luau") && !NEUTRAL.test(n.name)) return false;
+    if (!isLuauNodeName(n.name) && !NEUTRAL.test(n.name)) return false;
     if (VARIABLE_DEFINITION_NAMES.has(n.name)) {
       const modifier = findChild(n.getChild(`${n.name}_begin`)?.firstChild ?? null, "LuauScopeModifier");
       if (modifier && !LUAU_SCOPE_MODIFIERS.has(read(modifier.from, modifier.to).trim())) return false;
