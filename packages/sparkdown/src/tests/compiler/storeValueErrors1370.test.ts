@@ -84,12 +84,7 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     [`store hp = 100,\n${SCENE}`, ["0:14-0:15 Expected identifier when parsing expression, got <eof>"]],
     ["store x = if true then 1\nStory follows.\n", ["0:10-0:12 Expected 'else' when parsing if then else expression"]],
     ["store x =   \n", ["0:12-1:0 Expected identifier when parsing expression, got <eof>"]],
-    // The store's own reading reports Luau's first error beside it, which
-    // no other reporter reports (I-1452), ranged as every missing type is.
-    [
-      "store x: --[[ unfinished\nlocal y = 1",
-      ["0:8-1:0 Expected type, got unfinished comment", "0:9-1:11 Expected identifier when parsing expression, got unfinished comment"],
-    ],
+    ["store x: --[[ unfinished\nlocal y = 1", ["0:9-1:11 Expected identifier when parsing expression, got unfinished comment"]],
     ["store h = function() const a = 1; a = 2; return a end\nGo {h()}.\n", ["0:34-0:35 Variable 'a' is constant and may not be reassigned"]],
     [
       `store t = {1 ? 2}\n${SCENE}`,

@@ -6014,15 +6014,16 @@ export class SparkdownCompiler {
           const at = offsetOf(d.range.start);
           return at >= spanFrom && at <= spanTo;
         });
-        // Each report in the span is the report of at most one error the
-        // reading finds, and each error has at most one: first the error
-        // it copies (its start and words), then one at its token (the
-        // same start, else an overlapping range or the opener a missing
-        // closer's error names), and, for a report at no error the
-        // reading finds, one in its words (Sparkdown's own words may leave
-        // out Luau's `, got ...`). A report of the whole statement (a
-        // compile that stopped at it) is at no one token. Only the errors
-        // no report accounts for are left to report (I-1452).
+        // A report in the span that copies an error the reading finds (its
+        // start and words) is that error's report alone. A report in other
+        // words is its reporter's report of what the reading finds at its
+        // token (an overlapping range, or the opener a missing closer's
+        // error names), all of it, as Sparkdown reads the construct its own
+        // way. A report at no error the reading finds is the report of one
+        // in its words (Sparkdown's own words may leave out Luau's `, got
+        // ...`). A report of the whole statement (a compile that stopped at
+        // it) is at no one token. Only the errors no report accounts for
+        // are left to report (I-1452).
         const spanOf = (range: Range) => {
           const start = offsetOf(range.start);
           return { start, end: Math.max(offsetOf(range.end), start + 1) };
@@ -6049,17 +6050,18 @@ export class SparkdownCompiler {
           return e.message === words || (!/, got /.test(words) && e.message.startsWith(`${words}, got `));
         };
         const accounted = new Set<Found>();
-        let left = reports;
-        const pass = (pick: (d: SparkDiagnostic, open: Found[]) => Found | undefined) => {
-          left = left.filter((d) => {
-            const error = pick(d, found.filter((e) => !accounted.has(e)));
-            if (error) accounted.add(error);
-            return !error;
-          });
-        };
-        pass((d, open) => open.find((e) => sameStart(e, d) && e.message === wordsOf(d)));
-        pass((d, open) => (ofStatement(d) ? undefined : (open.find((e) => sameStart(e, d)) ?? open.find((e) => atToken(e, d)))));
-        pass((d, open) => (found.some((e) => atToken(e, d)) ? undefined : open.find((e) => sameWords(e, d))));
+        const copies = (d: SparkDiagnostic) => found.some((e) => sameStart(e, d) && e.message === wordsOf(d));
+        for (const d of reports) {
+          const copy = found.find((e) => !accounted.has(e) && sameStart(e, d) && e.message === wordsOf(d));
+          if (copy) accounted.add(copy);
+        }
+        const others = reports.filter((d) => !copies(d) && !ofStatement(d));
+        for (const e of found) if (others.some((d) => atToken(e, d))) accounted.add(e);
+        for (const d of others) {
+          if (found.some((e) => atToken(e, d))) continue;
+          const error = found.find((e) => !accounted.has(e) && sameWords(e, d));
+          if (error) accounted.add(error);
+        }
         for (const error of reported) {
           // A backtick string's own error has no other reporter (I-1435).
           if (accounted.has(error) && !error.ofString) continue;
