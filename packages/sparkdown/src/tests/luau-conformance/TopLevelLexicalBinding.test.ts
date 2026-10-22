@@ -428,6 +428,83 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 2."));
   });
 
+  // An `&` line's loop is a block too, and the closure after its `end` on
+  // the same line reads the root frame's own scope again.
+  test.each([
+    ["numeric", "for a = 2, 2 do"],
+    ["generic", "for _, a in {2} do"],
+  ])("reads an `&` line's %s loop's variable, and the top-level local after the loop", (_, header) => {
+    expect(
+      run([
+        "local a = 1",
+        "store fs = {}",
+        `& ${header} fs[1] = function() return a end end; fs[2] = function() return a end`,
+        "local a = 3",
+        "Got {fs[1]()} {fs[2]()}.",
+      ]),
+    ).toEqual(got("Got 2 1."));
+  });
+
+  // What binds no name inside a block leaves the closure reading the
+  // top-level local in scope where it is written, though scene T holds
+  // another binding of the name as S runs: a `while` loop's condition, a
+  // `for` loop variable's type annotation, and a local of another arm of an
+  // `if` or of another choice.
+  test.each([
+    ["a narrative `while` loop's condition", ["while a == 9 do", "  & f = function() return a end", "  break", "end"]],
+    ["an `&` line's `while` loop's condition", ["& while a == 9 do f = function() return a end break end"]],
+    ["a numeric loop variable's type annotation", ["for i: typeof(a) = 2, 2 do", "  & f = function() return a end", "end"]],
+    ["a generic loop variable's type annotation", ["for _, i: typeof(a) in {2} do", "  & f = function() return a end", "end"]],
+    ["a local of the `if` arm before the `else`", ["if false then", "  local a = 2", "else", "  & f = function() return a end", "end"]],
+    ["a local of the `if` arm before the `elseif`", ["if false then", "  local a = 2", "elseif true then", "  & f = function() return a end", "end"]],
+    ["a local of an `&` line's `if` arm before the `else`", ["& if false then local a = 2 else f = function() return a end end"]],
+  ])("reads the top-level local past %s", (_, body) => {
+    expect(
+      run([
+        "local a = 1",
+        "store f = nil",
+        "-> T",
+        "scene T",
+        "  local a = 9",
+        "  -> S",
+        "end",
+        "scene S",
+        ...body.map((line) => `  ${line}`),
+        "  Got {f()}.",
+        "end",
+      ]),
+    ).toEqual(got("Got 1."));
+  });
+
+  test("reads the top-level local past a local of another choice of a `choose` in an `if`", () => {
+    const story = new ProgramStory(
+      rootOf([
+        "local a = 1",
+        "store f = nil",
+        "-> T",
+        "scene T",
+        "  local a = 9",
+        "  -> S",
+        "end",
+        "scene S",
+        "  if true then",
+        "    choose",
+        "      + One",
+        "        local a = 2",
+        "      + Two",
+        "        & f = function() return a end",
+        "    end",
+        "  end",
+        "  Got {f()}.",
+        "end",
+      ]),
+    );
+    quiet(() => storyBeats(story));
+    story.ChooseChoiceIndex(1);
+    const { beats, errors } = quiet(() => storyBeats(story));
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Two", "Got 1."));
+  });
+
   // A choice's body declares in the root frame's own scope too, whatever
   // another scene declares there.
   test("reads a local of the choice body it is written in, though another scene declares the name", () => {

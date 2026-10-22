@@ -43,8 +43,9 @@ const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 const CHOICES = nodeNameSet(["Choice"]);
 
 // The blocks a top-level statement opens a scope of its own with, whose
-// bindings shadow the root frame's own scope inside them.
-const BLOCKS = new Set<string>([
+// bindings shadow the root frame's own scope inside them. An `&` line's
+// `for` or `while` loop is a `LuauSparkdownExplicitLoop`.
+const BLOCKS = nodeNameSet([
   "LuauIfBlock",
   "LuauSparkdownIfBlock",
   "LuauSparkdownExplicitIfBlock",
@@ -55,20 +56,34 @@ const BLOCKS = new Set<string>([
   "LuauSparkdownForLoop",
   "LuauWhileLoop",
   "LuauSparkdownWhileLoop",
+  "LuauSparkdownExplicitLoop",
   "LuauRepeatLoop",
   "LuauSparkdownRepeatLoop",
   "LuauSparkdownExplicitRepeatLoop",
 ]);
 
-// A loop's header, whose names before its `=` or `in` are the loop's
-// variables.
-const LOOP_CONDITIONS = new Set<string>([
+// The `elseif` and `else` arms of an `if`, each a body of its own: the
+// statements of the arm before one are written beside it, in the same
+// content, and end where it starts.
+const ARMS = nodeNameSet([
+  "LuauElseifBlock",
+  "LuauElseBlock",
+  "LuauSparkdownElseifBlock",
+  "LuauSparkdownElseBlock",
+  "LuauSparkdownExplicitElseifBlock",
+  "LuauSparkdownExplicitElseBlock",
+]);
+
+// A loop's header: a `for` loop's names before its `=` or `in` are the
+// loop's variables. A `while` loop's header, which a narrative and an `&`
+// line's `while` share with their `for`, binds nothing.
+const LOOP_CONDITIONS = nodeNameSet([
   "LuauForCondition",
   "LuauSparkdownExplicitLoopCondition",
 ]);
 
 // What ends a loop header's variable list.
-const LOOP_VARIABLE_ENDS = new Set<string>([
+const LOOP_VARIABLE_ENDS = nodeNameSet([
   "LuauInKeyword",
   "LuauAssignmentOperation",
   "LuauSparkdownExplicitAssignmentOperation",
@@ -76,8 +91,11 @@ const LOOP_VARIABLE_ENDS = new Set<string>([
   "LuauAssignmentOperator",
 ]);
 
+// What separates a loop header's variables.
+const LOOP_VARIABLE_SEPARATORS = nodeNameSet(["LuauCommaSeparator"]);
+
 // The functions written in a block, whose locals are the function's.
-const FUNCTION_NODES = new Set<string>([
+const FUNCTION_NODES = nodeNameSet([
   "LuauFunctionDefinition",
   "LuauFunctionAttributes",
   "LuauMethodDefinition",
@@ -268,8 +286,10 @@ export class RootLocals {
   }
 
   /** The bindings a block statement and the blocks inside it make, outside
-   *  the functions written in them: a loop's variables, through the loop,
-   *  and each `local` of a body, from its statement to the body's end. */
+   *  the functions written in them: a `for` loop's variables, through the
+   *  loop, and each `local` of a body, from its statement to the body's end:
+   *  the next arm of its `if`, the next choice after a choice's body, or the
+   *  end of the content it is written in. */
   protected collectBlock(
     block: SyntaxNode,
     read: (from: number, to: number) => string,
@@ -280,16 +300,20 @@ export class RootLocals {
       else this.blocks.set(name, [{ from, to }]);
     };
     const visit = (node: SyntaxNode): void => {
+      let inChoice = false;
       for (let child = node.firstChild; child; child = child.nextSibling) {
+        if (CHOICES.has(child.name)) inChoice = true;
         if (FUNCTION_NODES.has(child.name)) continue;
         if (LOOP_CONDITIONS.has(child.name)) {
-          const loopEnd = child.parent?.parent?.to ?? block.to;
-          for (const name of loopVariables(child, read)) add(name, child.to, loopEnd);
+          const loop = child.parent?.parent;
+          if (loop && isForLoop(loop)) {
+            for (const name of loopVariables(child, read)) add(name, child.to, loop.to);
+          }
           continue;
         }
         if (VARIABLE_DEFINITION_NAMES.has(child.name)) {
           if (scopeOf(child, read) === "local") {
-            const bodyEnd = child.parent?.to ?? block.to;
+            const bodyEnd = bodyEndAfter(child, inChoice);
             for (const name of declaredNames(child, read)) add(name, child.to, bodyEnd);
           }
           continue;
@@ -354,16 +378,42 @@ function declaredNames(node: SyntaxNode, read: (from: number, to: number) => str
   return declaredNameNodes(node).map((nameNode) => read(nameNode.from, nameNode.to).trim());
 }
 
-/** A loop header's variables: the names written before its `=` (a numeric
- *  `for`) or its `in` (a generic `for`). */
+/** Where the body a statement is written in ends for the statement: at the
+ *  next arm of its `if`, at the next choice when a choice's body holds it
+ *  (`inChoice`), or at the end of the content holding it. */
+function bodyEndAfter(statement: SyntaxNode, inChoice: boolean): number {
+  for (let next = statement.nextSibling; next; next = next.nextSibling) {
+    if (ARMS.has(next.name) || (inChoice && CHOICES.has(next.name))) return next.from;
+  }
+  return statement.parent?.to ?? statement.to;
+}
+
+/** Whether a loop is a `for` loop, whose header binds its variables: a
+ *  narrative or an `&` line's `while` loop has a header of the same kind. */
+function isForLoop(loop: SyntaxNode): boolean {
+  const begin = childEndingWith(loop, "_begin");
+  return Boolean(begin && getDescendent("LuauForKeyword", begin));
+}
+
+/** A loop header's variables: the name each variable of the list before its
+ *  `=` (a numeric `for`) or its `in` (a generic `for`) starts with. What
+ *  follows the name up to the next comma, a type annotation such as
+ *  `: typeof(a)`, reads names and binds none. */
 function loopVariables(condition: SyntaxNode, read: (from: number, to: number) => string): string[] {
   const names: string[] = [];
   const content = childEndingWith(condition, "_content") ?? condition;
+  let first = true;
   for (let child = content.firstChild; child; child = child.nextSibling) {
     if (LOOP_VARIABLE_ENDS.has(child.name)) break;
+    if (LOOP_VARIABLE_SEPARATORS.has(child.name)) {
+      first = true;
+      continue;
+    }
+    if (!first) continue;
+    first = false;
     const nameNode =
       child.name === "LuauVariableName" ? child : getDescendent("LuauVariableName", child);
-    if (nameNode) names.push(read(nameNode.from, nameNode.to).trim());
+    if (nameNode && nameNode.from === child.from) names.push(read(nameNode.from, nameNode.to).trim());
   }
   return names;
 }
