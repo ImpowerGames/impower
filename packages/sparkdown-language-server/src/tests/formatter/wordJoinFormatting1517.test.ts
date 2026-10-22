@@ -148,15 +148,38 @@ test("formatting keeps nested alternator words apart in an interpolation", () =>
 });
 
 // I-874's `-> two then`: a divert target stays apart from the keyword after
-// it. The first pass still writes `one==`, which I-874 owns, so this checks
-// only that no word is joined.
+// it. (A divert before `==`, as in `-> one == -> two`, still loses its space
+// on the first pass; I-874 owns that.)
 test("formatting keeps a divert target apart from then", () => {
-  const formatted = formatSource(`function f()
-  if -> one == -> two then
+  const source = `function f()
+  if to_one == -> two then
     return 1
   end
 end
-`);
-  expect(formatted).toContain("-> two then");
-  expect(formatSource(formatted)).toContain("-> two then");
+`;
+  expectFormatsTo(source, source);
+});
+
+// Round 2 of review: a UI name that ends in a digit is not a number, so a
+// class still glues to it.
+test("formatting glues a class to a hyphenated or long name ending in a digit", () => {
+  const long = "text" + "1".repeat(65);
+  expectFormatsTo(
+    `layout a with
+  column {
+    text-2 .title
+    text.level-2 .title
+    ${long} .title
+  }
+end
+`,
+    `layout a with
+  column {
+    text-2.title
+    text.level-2.title
+    ${long}.title
+  }
+end
+`,
+  );
 });

@@ -63,23 +63,35 @@ const JOINING_PAIRS = new Set([
 // A name or number character in any script, so `ñandú x` is two words.
 const NAME_CHAR_REGEX = /[\p{L}\p{N}_]/u;
 
-// The text before a span ends with a number literal (`5`, `0xFF`, `1.`,
-// `1.5`, `.5`), not a name that ends in a digit (`text2`, `ñandú_2`).
-const ENDS_WITH_NUMBER_REGEX =
-  /(?:^|[^\p{L}\p{N}_.])(?:\d[\p{L}\p{N}_]*\.?[\p{L}\p{N}_]*|\.\d[\p{L}\p{N}_]*)$/u;
+// The grammar's number literals (`LuauNumericDecimal`, `LuauNumericHex`,
+// ... and their captures), as opposed to a name that ends in a digit
+// (`text2`, `text-2`, `t.a1`).
+const NUMBER_NODE_REGEX = /^(?:LuauNumeric[A-Za-z]*|NumberLiteral|NumberValue)(?:_|$)/;
 
-// How much of the text before a span `mustKeepSpaceBetween` reads.
-const KEEP_SPACE_LOOKBEHIND = 64;
+// Whether the token that ends at `offset` is a number literal (`5`, `1.`,
+// `-1.`, `0xFF`), read from the syntax tree.
+function endsNumberAt(tree: Tree | undefined, offset: number): boolean {
+  const node = tree?.resolveInner(offset, -1);
+  return Boolean(
+    node &&
+      (NUMBER_NODE_REGEX.test(node.name) ||
+        (node.parent != null && NUMBER_NODE_REGEX.test(node.parent.name))),
+  );
+}
 
-// Whether removing all the whitespace between the text `before` a span
-// and the character after it would join the tokens either side into one
-// (`5 print` → `5print`, `match match` → `matchmatch`, `1. print` →
-// `1.print`, `5 .x` → `5.x`), which changes what the script means. A word
-// after a closing `)` or `]` also keeps its space (`]] print(1)`, a
-// statement after a block comment), so a second statement on the line is
-// not glued to the first.
-function mustKeepSpaceBetween(before: string, nextChar: string): boolean {
-  const prevChar = before.slice(-1);
+// Whether removing all the whitespace between `prevChar` and `nextChar`
+// would join the tokens either side into one (`5 print` → `5print`,
+// `match match` → `matchmatch`), which changes what the script means.
+// After a number (`afterNumber`) a `.` or name character would read as
+// part of it (`1. print` → `1.print`, `5 .x` → `5.x`). A word after a
+// closing `)` or `]` also keeps its space (`]] print(1)`, a statement
+// after a block comment), so a second statement on the line is not glued
+// to the first.
+function mustKeepSpaceBetween(
+  prevChar: string,
+  nextChar: string,
+  afterNumber: boolean,
+): boolean {
   const nextIsName = NAME_CHAR_REGEX.test(nextChar);
   if (
     nextIsName &&
@@ -87,9 +99,7 @@ function mustKeepSpaceBetween(before: string, nextChar: string): boolean {
   ) {
     return true;
   }
-  if ((nextIsName || nextChar === ".") && ENDS_WITH_NUMBER_REGEX.test(before)) {
-    return true;
-  }
+  if (afterNumber && (nextIsName || nextChar === ".")) return true;
   return JOINING_PAIRS.has(prevChar + nextChar);
 }
 
@@ -1093,14 +1103,18 @@ export const getFormatting = (
   }
   // Whether the whitespace from `from` to `to` must keep one space so the
   // tokens either side are not joined.
-  const keepsJoiningSpace = (from: number, to: number) =>
-    from !== to &&
-    !insertsSpaceAt.has(from) &&
-    !insertsSpaceAt.has(to) &&
-    mustKeepSpaceBetween(
-      document.read(Math.max(0, from - KEEP_SPACE_LOOKBEHIND), from),
-      document.read(to, to + 1),
+  const keepsJoiningSpace = (from: number, to: number) => {
+    if (from === to || insertsSpaceAt.has(from) || insertsSpaceAt.has(to)) {
+      return false;
+    }
+    const nextChar = document.read(to, to + 1);
+    return mustKeepSpaceBetween(
+      document.read(from - 1, from),
+      nextChar,
+      (NAME_CHAR_REGEX.test(nextChar) || nextChar === ".") &&
+        endsNumberAt(tree, from),
     );
+  };
 
   const cur = annotations.formatting.iter(iterStart);
   const aheadCur = annotations.formatting.iter(iterStart);
