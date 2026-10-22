@@ -30,7 +30,9 @@ import { ReturnType } from "../inkjs/compiler/Parser/ParsedHierarchy/ReturnType"
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { StructDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import {
+  detachedGlobalsTableWrites,
   functionSitesUnder,
+  globalsTableWrite,
   sitesNaming,
   type Story,
 } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
@@ -41,7 +43,6 @@ import {
 } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
 import { MultiVariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { memoGatherOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
-import { StorePropertyAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { DebugMetadata } from "../runtime/DebugMetadata";
@@ -251,10 +252,12 @@ const standsAsAssignment = (obj: ParsedObject): boolean =>
 
 /** Whether `obj` is an assignment the story's walks for its global writes
  *  read: a plain assignment or local declaration, or a store through the
- *  globals table that names its global (`_G.f = v`, I-1091). */
+ *  globals table (`_G.f = v`, I-1091; `_G[k] = v`, `rawset(_G, k, v)`,
+ *  I-1394; `globalsTableWrite`). One among the arguments of a prepared
+ *  builtin call is not in its content, and each walk takes it from the call
+ *  (`detachedGlobalsTableWrites`). */
 const isAssignmentFact = (obj: ParsedObject): boolean =>
-  obj instanceof VariableAssignment ||
-  (obj instanceof StorePropertyAssignment && obj.globalName !== null);
+  obj instanceof VariableAssignment || globalsTableWrite(obj) !== null;
 
 /** The assignments a stand-in, or a block statement's stand-in, holds that
  *  made auto-globals or declared locals, each with what its memo recorded
@@ -548,7 +551,7 @@ export class ProgramResolver {
   /** The first function value naming each flow this compile, made on first
    *  use (`ResolutionTap.functionValue`). */
   protected _functionValues: Map<string, ParsedObject> | null = null;
-  /** The names a plain assignment or a literal-key store through the globals table of
+  /** The names a plain assignment or a store through the globals table of
    *  the story writes to the global scope this compile, made on first use (`ResolutionTap.globalWrite`). */
   protected _globalWrites: Set<string> | null = null;
   protected _occurrences = new WeakMap<object, object[]>();
@@ -1091,6 +1094,7 @@ export class ProgramResolver {
         } else if (obj instanceof DivertTarget && obj.isFunctionValue) {
           shape.functionValues.push(obj);
         }
+        shape.assignments.push(...detachedGlobalsTableWrites(obj));
       }
       this.localsOf(member);
       if (!(member instanceof FlowBase) && !positionOf(member)) {
@@ -1188,11 +1192,16 @@ export class ProgramResolver {
       for (const member of unit.members) {
         for (const obj of this.alongContent(member)) {
           // A store through the globals table always writes the global it
-          // names, which no local binds (I-1091).
-          if (obj instanceof StorePropertyAssignment) {
-            if (obj.globalName !== null) {
-              declareWrite(unit, obj.globalName, false);
-            }
+          // names, which no local binds (I-1091), or, with a key the
+          // compiler cannot name, may write any global (`ANY_GLOBAL`,
+          // I-1394). One among a prepared builtin call's arguments is not
+          // in its content (`detachedGlobalsTableWrites`).
+          for (const held of detachedGlobalsTableWrites(obj)) {
+            declareWrite(unit, globalsTableWrite(held)!, false);
+          }
+          const throughGlobals = globalsTableWrite(obj);
+          if (throughGlobals !== null) {
+            declareWrite(unit, throughGlobals, false);
             continue;
           }
           if (!(obj instanceof VariableAssignment) || obj.isDeclaration) {
@@ -1282,6 +1291,7 @@ export class ProgramResolver {
           if (isAssignmentFact(obj)) {
             yield obj;
           }
+          yield* detachedGlobalsTableWrites(obj);
         }
       }
     }
@@ -1322,6 +1332,7 @@ export class ProgramResolver {
         } else if (child instanceof DivertTarget && child.isFunctionValue) {
           functionValues.push(child);
         }
+        assignments.push(...detachedGlobalsTableWrites(child));
         walk(child);
       }
     };
@@ -2604,7 +2615,7 @@ export class ProgramResolver {
 /** Whether `obj`, or anything under it, is what the story's passes over the
  *  whole program take of a statement (`ProgramResolver.shapeOf`,
  *  `readFacts`): a declaration of any kind, a flow, a label, a return, an
- *  assignment or a function value. A statement served from its memo holds
+ *  assignment, a store through the globals table or a function value. A statement served from its memo holds
  *  no objects, so a statement that holds any of these is never remembered. */
 const holdsWhatTheStoryWalks = (
   obj: ParsedObject,
@@ -2626,7 +2637,12 @@ const holdsWhatTheStoryWalks = (
     obj instanceof ReturnType ||
     obj instanceof MultiReturnType ||
     ((obj instanceof Gather || obj instanceof Choice) && obj.identifier?.name != null) ||
-    (obj instanceof DivertTarget && obj.isFunctionValue)
+    (obj instanceof DivertTarget && obj.isFunctionValue) ||
+    // A store through the globals table is an assignment the story's
+    // global writes read (`isAssignmentFact`), one among a prepared builtin
+    // call's arguments too.
+    globalsTableWrite(obj) !== null ||
+    detachedGlobalsTableWrites(obj).length > 0
   ) {
     return true;
   }

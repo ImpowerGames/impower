@@ -11,6 +11,7 @@ import { resolutionTap } from "../ResolutionTap";
 import { ParsedObject } from "../Object";
 import { Path } from "../Path";
 import { Story } from "../Story";
+import { ANY_GLOBAL } from "../Variable/StorePropertyAssignment";
 import { VariableReference } from "../Variable/VariableReference";
 import { DivertTarget } from "./DivertTarget";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -572,11 +573,14 @@ export class Divert extends ParsedObject {
   }
 
   // Whether this is a call of a function written at the top level whose name
-  // a plain assignment or a literal-key store through the globals table anywhere in the
-  // story writes to the global scope (`Story.assignsGlobally`, which reads only the name). A function nested
-  // in another is a value of that function's scope, which its lowering
-  // rebinds itself.
-  private callsReboundFunction(story: Story): boolean {
+  // a plain assignment or a store through the globals table anywhere in the
+  // story writes to the global scope (`Story.assignsGlobally`, which reads
+  // only the name): `"name"`; or, failing that, which a store through the
+  // globals table whose key the compiler cannot name may write
+  // (`ANY_GLOBAL`, I-1394): `"any"`; null for neither. A function nested in
+  // another is a value of that function's scope, which its lowering rebinds
+  // itself.
+  private callsReboundFunction(story: Story): "name" | "any" | null {
     const name = this.target?.firstComponent;
     if (
       !this.isFunctionCall ||
@@ -584,15 +588,16 @@ export class Divert extends ParsedObject {
       this.target?.numberOfComponents !== 1 ||
       !name
     ) {
-      return false;
+      return null;
     }
     const flow = asOrNull(this.targetContent, FlowBase);
-    return (
-      !!flow &&
-      flow.isFunction &&
-      ClosestFlowBase(flow) === story &&
-      story.assignsGlobally(name)
-    );
+    if (!flow || !flow.isFunction || ClosestFlowBase(flow) !== story) {
+      return null;
+    }
+    if (story.assignsGlobally(name)) {
+      return "name";
+    }
+    return story.assignsGlobally(ANY_GLOBAL) ? "any" : null;
   }
 
   public readonly ResolveTargetContent = (): void => {
@@ -683,8 +688,12 @@ export class Divert extends ParsedObject {
     // `function f` is `f = function`, so `f = g` anywhere rebinds `f`. Until
     // an assignment runs the global is unset, and a call through it reaches
     // the function of its name (`callVariableTarget`). A story that never
-    // assigns the name keeps the direct call.
-    if (this.callsReboundFunction(context)) {
+    // assigns the name keeps the direct call. A store through the globals
+    // table whose key the compiler cannot name (`_G[k] = g`) may write any
+    // global, so with one in the story every such call goes through its
+    // global (I-1394).
+    const rebound = this.callsReboundFunction(context);
+    if (rebound) {
       this.setVariableDivertName(this.target!.firstComponent);
       this._variableDivertEpoch = currentResolutionEpoch();
     }
@@ -693,8 +702,13 @@ export class Divert extends ParsedObject {
 
     // A call through a variable passes whatever function the variable holds
     // when it runs the arguments that function takes, so only a direct call
-    // is held to its function's parameters.
-    if (this.isFunctionCall && this.variableDivertName == null) {
+    // is held to its function's parameters; and a call that goes through its
+    // global only because a store whose key the compiler cannot name might
+    // write it, which is still held to the function the story names.
+    if (
+      this.isFunctionCall &&
+      (this.variableDivertName == null || rebound === "any")
+    ) {
       this.CheckArgumentValidity();
     }
 
