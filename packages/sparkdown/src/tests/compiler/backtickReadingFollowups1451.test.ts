@@ -1,0 +1,133 @@
+// The backtick-string readings left after one owner for a string's errors
+// (I-1435), each reporting the official parser's errors once at Luau's
+// ranges (I-1451): an interpolation holding an expression and then a
+// backtick string with interpolations (I-1427), a story store's run-on
+// value that is such a string (I-1429), a malformed interpolation in a
+// scene-level call's argument (I-1433), and an interpolation left open
+// inside a call, after which Luau reads on from the next line (I-1343).
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { officialErrorList } from "./officialSyntax";
+import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
+
+const URI = "inmemory:///main.sd";
+
+/** Syntax errors, as `start-end message` in 0-based lines and characters, sorted. */
+function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
+  return diagnostics
+    .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+    .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
+    .sort();
+}
+
+function newCompiler(text: string): SparkdownCompiler {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  return compiler;
+}
+
+function compileErrors(compiler: SparkdownCompiler): string[] {
+  return errorsOf(compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? []);
+}
+
+/** A cold compile's syntax errors. */
+function sparkdownErrors(text: string): string[] {
+  return compileErrors(newCompiler(text));
+}
+
+// A function ahead of the form, whose `0` an edit makes longer: the edit is
+// away from every string, on a line before it, and changes no line count.
+const PADDING = "function padding()\n  local p = 0\nend\n";
+
+/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
+function expectIncrementalEqualsCold(text: string): void {
+  const padded = PADDING + text;
+  const offset = padded.indexOf("0");
+  const compiler = newCompiler(padded);
+  compiler.compile({ textDocument: { uri: URI } } as never);
+  compiler.updateDocument({
+    textDocument: { uri: URI, version: 2 },
+    contentChanges: [{ range: { start: { line: 1, character: 12 }, end: { line: 1, character: 13 } }, text: "10000000000" }],
+  } as never);
+  const edited = padded.slice(0, offset) + "10000000000" + padded.slice(offset + 1);
+  expect(compileErrors(compiler)).toEqual(sparkdownErrors(edited));
+}
+
+/**
+ * The official parser's errors for `text`, moved down by `line` lines and
+ * right by `shift` characters, with the bracket positions their messages
+ * name (`at column 6`, `at line 2`) moved too.
+ */
+function official(text: string, line = 0, shift = 0): string[] {
+  return officialErrorList(text)
+    .map((error) =>
+      error
+        .replace(/^(\d+):(\d+)-(\d+):(\d+)/, (_, sl, sc, el, ec) => `${+sl + line}:${+sc + shift}-${+el + line}:${+ec + shift}`)
+        .replace(/at column (\d+)\)/, (_, column) => `at column ${+column + shift})`)
+        .replace(/at line (\d+)\)/, (_, at) => `at line ${+at + line})`),
+    )
+    .sort();
+}
+
+describe("an interpolation holding an expression and then a backtick string with interpolations (I-1427)", () => {
+  for (const string of ["`a {1 `b {x} c`} d`", "`a {1 `b {x} c` 2} d`", "`a {1 `b {x} c {y} e`} d`", "`a {1 `b`} d`", "`a {1 2} b`"]) {
+    test(`a function's local t = ${string}`, () => {
+      const luau = `local t = ${string}\n`;
+      const expected = official(luau, 1);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`function f()\n${luau}end\nGo {f()}.\n`)).toEqual(expected);
+    });
+    test(`a story store t = ${string}`, () => {
+      expect(sparkdownErrors(`store t = ${string}\n`)).toEqual(official(`local t = ${string}\n`));
+      expectIncrementalEqualsCold(`store t = ${string}\n`);
+    });
+  }
+});
+
+describe("a story store's run-on value that is a backtick string with interpolations (I-1429)", () => {
+  for (const string of ["`a {x} b`", "`a {x} b {y} c`", "`a {x}`"]) {
+    for (const tail of ["", "scene start\n  Hello.\nend\n"]) {
+      test(`store s = 1 ${string}${tail ? " before a scene" : ""}`, () => {
+        const expected = official(`local s = 1 ${string}\n`);
+        expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+        expect(sparkdownErrors(`store s = 1 ${string}\n${tail}`)).toEqual(expected);
+        expectIncrementalEqualsCold(`store s = 1 ${string}\n${tail}`);
+      });
+    }
+  }
+});
+
+describe("a malformed interpolation in a scene-level call's argument (I-1433)", () => {
+  // A scene-level call is a Luau statement written after `&`; without it
+  // the line is display text, whose backticks are a raw span, not Luau.
+  for (const line of ["print(`a {} b`)", "print(`a {1 2} b`)", "print(`a {x y} b`)", "print(1, `a {} b`)", "print(1, `a {1 2} b`)", "print((`a {} b`))"]) {
+    test(`& ${line}`, () => {
+      const expected = official(`${line}\n`, 1, 4);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`scene start\n  & ${line}\n  Hello.\nend\n`)).toEqual(expected);
+    });
+    test(`display text: ${line}`, () => {
+      expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual([]);
+    });
+  }
+  // The positions that already reported the string's errors keep them.
+  for (const line of ["s = `a {} b`", "local x = print(`a {} b`)"]) {
+    test(`unchanged: ${line}`, () => {
+      expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual(official(`${line}\n`, 1, 2));
+    });
+  }
+});
+
+describe("an interpolation left open inside a call reads on from the line after it (I-1343)", () => {
+  for (const body of ["  f(`a {b\n  x = 1\n", "  local s = `a {b +\n  x = 1\n", "  local s = `a {b\n  x = 1\n", "  f(`a {b\n  x\n  }`)\n", "  f(1, `a {b\n  x = 1\n"]) {
+    test(JSON.stringify(body), () => {
+      const luau = `function run()\n${body}end\n`;
+      const expected = official(luau);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`${luau}After {run()}.\n`)).toEqual(expected);
+    });
+  }
+});
