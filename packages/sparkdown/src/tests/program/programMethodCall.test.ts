@@ -1,12 +1,17 @@
 // What the writer emits for a method call (I-1412): a colon call's
 // `CallValue` names its method, so a receiver that lacks it raises Luau's
 // `attempt to call missing method`, and nothing else of the call changes; a
-// dot call's `CallValue` names none.
+// dot call's `CallValue` names none. The name stays out of the layout hash,
+// so a save written before it places as it did.
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import type { ProgramChunk } from "../../program/ProgramChunk";
+import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript } from "./programHarness";
 
 const SCRIPT = "local t = {}\n& t:add(1)\n& t.add(1)\nlocal v = t:add(2, 3)\n";
@@ -62,5 +67,68 @@ describe("a method call", () => {
   it("names the method by the string its lookup already interned", () => {
     const root = compiled(SCRIPT);
     expect(root.table.strings.filter((s) => s === "add")).toHaveLength(1);
+  });
+});
+
+// The layout hash a save checks a frame's code by leaves the method's name
+// out, so a save written before calls named their method still places
+// inside a statement or a loop that holds a colon call.
+describe("a save written before colon calls named their method", () => {
+  const SAVED_SCRIPT = [
+    "store x = 0",
+    "store o = nil",
+    "",
+    "-> start",
+    "",
+    "scene start",
+    "  & o = { left = 2, m = function(self, v) return show(v) end, more = function(self) self.left = self.left - 1 return self.left >= 0 end }",
+    "  Before.",
+    "  & x = x + o:m(10)",
+    "  After {x}.",
+    "  while o:more() do",
+    "    Pass {o.left}.",
+    "  end",
+    "  The end.",
+    "end",
+    "",
+    "function show(v)",
+    '  display("Shown " .. v)',
+    "  return v",
+    "end",
+    "",
+  ].join("\n");
+
+  const fixture = JSON.parse(
+    readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "fixtures", "program-save-pre-1412.json"),
+      "utf-8",
+    ),
+  );
+
+  const loaded = (save: unknown) => {
+    const story = new ProgramStory(compiled(SAVED_SCRIPT));
+    story.onError = () => {};
+    story.loadSave(JSON.stringify(save));
+    const beats: string[] = [];
+    while (story.canContinue) {
+      story.Continue();
+      const text = story.currentText?.trim();
+      if (text) beats.push(text);
+    }
+    return { report: story.loadedSaveReport!, beats };
+  };
+
+  it("resumes inside the statement whose colon call the frame returns to", () => {
+    const { report, beats } = loaded(fixture.insideStatement);
+    expect(report.warnings).toEqual([]);
+    expect(report.exact).toBe(true);
+    expect(beats).toEqual(["After 10.", "Pass 1.", "Pass 0.", "The end."]);
+  });
+
+  it("resumes inside the loop whose test is a colon call", () => {
+    const { report, beats } = loaded(fixture.insideLoop);
+    expect(report.warnings).toEqual([]);
+    expect(report.exact).toBe(true);
+    expect(beats).toEqual(["Pass 0.", "The end."]);
   });
 });
