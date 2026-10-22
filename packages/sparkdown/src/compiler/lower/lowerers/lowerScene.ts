@@ -5,6 +5,7 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lowerArguments } from "../utils/lowerArguments";
+import { markRootParameters } from "../utils/rootLocalReads";
 
 // `Scene` is a boundary-only Scoped rule (see docs/compiler/GRAMMAR.md) — it
 // covers the declaration line only. The scene's body lives at root,
@@ -23,6 +24,7 @@ export function lowerScene(
   }
   const identifier = identifierAt(nameNode, ctx);
   const args = lowerArguments(nodeRef.node, ctx);
+  markRootParameters(nodeRef.node, args, ctx);
   const knot = new Knot(identifier, [], args, false);
   return { content: [knot] };
 }

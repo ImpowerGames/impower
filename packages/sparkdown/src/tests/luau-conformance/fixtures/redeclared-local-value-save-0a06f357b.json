@@ -1,0 +1,79 @@
+{
+  "engine": "program",
+  "format": 2,
+  "engineVersion": "2",
+  "gameVersion": "",
+  "beats": [
+    {
+      "flags": 0,
+      "decisions": [],
+      "position": {
+        "st": {
+          "levels": [
+            {
+              "s": 0,
+              "at": 1,
+              "flow": "S",
+              "params": []
+            }
+          ]
+        },
+        "a": "start"
+      },
+      "evalStack": [],
+      "output": [
+        {
+          "objid": 1,
+          "obj": {
+            "target": "^action",
+            "text": "^First."
+          }
+        },
+        "\n"
+      ],
+      "lineEndPending": false,
+      "lineJoinable": false,
+      "turnIdx": -1,
+      "storySeed": 26,
+      "previousRandom": 0,
+      "previousFlow": "S",
+      "didSafeExit": false,
+      "variablesState": {},
+      "frames": [
+        {
+          "type": 0,
+          "start": 0,
+          "height": 0,
+          "temps": [
+            {
+              "a": 2
+            }
+          ]
+        }
+      ],
+      "counts": [
+        [
+          {
+            "n": "S"
+          },
+          1,
+          -1
+        ]
+      ]
+    }
+  ],
+  "listings": [
+    {
+      "n": 3,
+      "windows": [
+        [
+          0,
+          "4f9039b3cd0ff300",
+          "fa42e20332c81c81",
+          "870b04266a69d01d"
+        ]
+      ]
+    }
+  ],
+  "parts": []
+}

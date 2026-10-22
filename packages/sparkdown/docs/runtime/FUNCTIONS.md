@@ -127,32 +127,99 @@ through the environment chain. A `const` inside a function is a local
 of its block, like Luau's (`docs/runtime/DIVERGENCES.md`).
 
 **A function or a `define`'s method written at the top level** reads
-and writes a top-level `local` declared above it, as Luau's upvalue
-(#823). It can be called from lines above its definition, and a
-define's table is built when the story starts, so nothing it could
-capture when it is built is the local yet: its entry binds, after its
-parameters, each name it reads that none of its own scopes binds to
-the root frame's local of that name, when one exists as it runs
-(`BindRoot`), sharing the cell a closure over that local holds, and
-the name reads the global otherwise. A define's method still captures
-those names when its table is built, as it did before, a pointer at
-the global of each name, which the binding replaces: a closure of the
-method that an older save holds passes the same parameters. The binding is
-by name as the function runs, not by where it is written: a function
-written above `local a` reads that local once it exists, a second
-`local a` in the same scope replaces the one a function written
-between the two reads, a scene's `local a`, which shares the top
-level's frame, is the one it reads while it holds, and with no `a` in
-the top level's own scope, a block's `a` there (a loop's variable, an
-`if`'s local) is the one it reads while the block runs. A name of the
-standard library (`count`, `math`, `table`) that no function around it
-declares is bound the same way by every function, closures included,
-since a closure cannot capture a builtin: a top-level `local count`
-is the `count` a function reads, as the editor's checks read it, and
-with no such local the name reads the builtin. By name, that holds
-for a function written above `local table` or for a scene's
-`local count` too, which then hides the builtin from functions called
-while it holds. A `define` written in a function has its methods read
+and writes the top-level `local` in scope where it is written, as Luau's
+upvalue (#823, I-1374): the newest `local` of the name declared above it
+in the root frame's own scope. The top level and the bodies of its scenes
+and branches share that scope (a scene opens no scope of its own), and so
+do a scene's or a branch's parameters and the bodies of a `choose` block's
+choices, each of which holds its locals up to the next choice. The local is
+the newest one above the function at the top level, in the scene or branch
+whose body holds the function, or in the choice's body that holds it. It
+can be called from lines above its definition, and a define's table is
+built when the story starts, so nothing it could capture when it is built
+is the local yet: its entry binds, after its parameters, each name it reads
+that none of its own scopes binds and a `local` takes where it is written
+(`BindRoot`), sharing the cell a closure over that local holds, and the
+name reads the global until that local's line has run. A name no such
+`local` takes reads the global, or the builtin of a stdlib name (`count`,
+`math`, `table`): a `local` of the name declared below the function, a
+later `local` of the name in the same scope, a scene's `local` (a scene
+other than the one the function is written in) and a block's local (a loop's variable, an `if`'s local) are never the one
+it reads. The compiler decides which declaration each name reads
+(`RootLocals`), and records the answer, so an incremental compile lowers a
+function again when a `local` written, removed or moved above it changes
+it. A name the document declares once in that scope is bound by name
+there. Each declaration of a name declared more than once keeps the cell of
+its binding in a slot of the scope (`name$<ordinal>$<document tag>`, a
+parameter's after its flow's entry binds every parameter), which a later
+declaration of the name closes on its value and leaves in place, and the
+function binds the slot of the declaration it reads. Such a declaration
+costs two more instructions (a `VarPtr` of the name and a `SetVar` of its
+slot) and keeps one open cell on the root frame; a name declared once costs
+nothing. A save is the scope's temporaries as before, the slots among
+them. A save written before the slots holds none: a function reaches the
+binding of the name by name, as
+the engine that wrote it did, until a declaration of the name runs, which
+keeps that binding's cell in the slot `name$0` before it replaces it, and a
+function whose declaration's slot is missing reads that cell. A define's
+method still captures the names its body reads when its table is built, as
+it did before, a pointer at the global of each name, which the binding
+replaces: a closure of the method that an older save holds passes the same
+parameters.
+
+**A closure** (a function value, `local function` in a function,
+`function t.f`) is built where it is written and captures there the
+locals it reads, as Luau's does (#822). Built in the root frame, it
+captures a `local` that scope declares more than once through the slot
+of the declaration in scope where it is written, so a scene's `local` of
+the name, which runs before the closure is built, is not the one it
+captures; and a name the scope declares only where it is not in scope
+(another scene's `local`) at the global. A name a `store`, a `const`, a
+top-level function or a stdlib entry would answer, which a closure does
+not capture, is bound at its entry as a top-level function binds it, to
+the cell the closure kept of that local where it was built
+(`__closure_roots`), so a closure built before its scene runs again
+keeps the local it was built over: a closure written after a `local` of
+the name reads the local (I-1365), and one written before it reads what
+the name names there. A closure a save written before kept no such cell,
+and its entry binds the local as it runs. A top-level `local` beside a
+`store` of its name stays a compile error (I-767), so the `local` that
+shadows a `store` or a `const` is a scene's, a branch's or a choice's.
+
+**Inside a top-level block** (an `if`, a `do`, a loop, an `&` line's
+`for` or `while`), a closure, and a function or a `define` written
+there, binds its names by name until I-1468, as every function did
+before the slots: a closure captures a name it reads, which reaches the
+block's own local or loop variable, and each name a function does not
+capture (every name a function statement or a top-level define's method
+reads, and a stdlib name a closure reads) is bound at its entry to the root
+frame's binding of the name in any of its scopes (`BindRoot` with
+`ROOT_ANY_SCOPE`), so a function statement in a `do` block reads and
+writes the top-level `local` of the name. The converter reads a block's later
+statements apart from its earlier ones, so a later statement reads the
+block's locals as globals, and the compiler does not follow the block's
+own bindings: inside the block it takes none of the top-level `local`s
+in scope either, and a name of one reads whatever binding of the name the
+root frame holds as the closure is built (a scene's `local` of the name,
+I-1468). Code on the same line after the block's `end` reads the top-level
+`local` in scope again.
+
+Where a script's control flow differs from its text, the text decides. A
+closure written in a scene captures a top-level `local` above the scene
+even when the top level diverted to the scene before that `local`'s line
+ran; it then reads the global. A function statement written inside a
+top-level block, which Luau's would close over the block's locals, reads
+none of them: in a `do` block it is a function of the story, built before
+the block runs, and a name a local of the block takes reads the global in
+it (I-1444); in an `if` or a loop it fails when the block runs (I-1443).
+A name a script declares once is bound by name in the root frame's scope,
+which every script's scenes share, so a scene of another script that
+declares the name too replaces it while it runs (I-1455). Slotting
+every declaration would key it apart, but an ordinal slot changes whenever
+a declaration of the name moves past another, which would emit a moved
+statement again, and it would put a temporary into every save.
+
+A `define` written in a function has its methods read
 that function's locals through a global cell for each
 (`DefineCellBinding`), which the define's line points at the running
 call's local, so they read the locals of the last call that ran it,

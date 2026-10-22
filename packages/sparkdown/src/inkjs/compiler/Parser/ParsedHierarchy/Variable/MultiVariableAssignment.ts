@@ -3,7 +3,7 @@ import { Identifier } from "../Identifier";
 import { ParsedObject } from "../Object";
 import { VariableAssignment } from "./VariableAssignment";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
+import { Op, SET_DECLARE, SET_ROOT_SLOTTED } from "../../../../../program/ProgramInstructions";
 
 // Lua/Luau multi-target assignment: `local a, b, c = expr1, expr2, …`.
 //
@@ -67,8 +67,10 @@ export class MultiVariableAssignment extends ParsedObject {
         Op.SetVar,
         emitter.variable(target.variableName),
         0,
-        target.isNewTemporaryDeclaration ? SET_DECLARE : 0,
+        (target.isNewTemporaryDeclaration ? SET_DECLARE : 0) |
+          (target.rootSlot ? SET_ROOT_SLOTTED : 0),
       );
+      target.EmitRootSlot(emitter);
     }
   }
 
