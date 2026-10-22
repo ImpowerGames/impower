@@ -5671,10 +5671,12 @@ repository:
 
   # The text of a `StylingValue` that is not a lone literal. A quoted run in it
   # is read whole, as the value's boundary reads it, so a `--` inside the
-  # quotes is not colored as a comment. It holds no comment: a comment in a
-  # value begins after whitespace, which `StylingValue` splits off, and a
-  # `--` with no whitespace before it (`gap = --gap`) is the value, as the
-  # value readers read it (`stripTrailingLineComment`).
+  # quotes is not colored as a comment. It holds no comment: a comment after
+  # text begins after whitespace, which `StylingValue` splits off, so a `--`
+  # with no whitespace before it (`gap = --gap`, `Arial 1--display`) is part
+  # of the value, which the lowerers read whole (`structValueNode`). A `--`
+  # right after a lone literal (`gap = 1--x`) is `StylingValue`'s literal
+  # branch and stays a comment (GRAMMAR.md §11.7).
   StylingValueContent:
     match: (.+)
     captures:
