@@ -242,6 +242,7 @@ describe("the arity of a stdlib namespace member's call", () => {
         "end",
         "Two literals give {math.abs(1, 2)}.",
         "Nothing then two gives {math.abs(none(), 2)}.",
+        "One gives {math.abs(1)}.",
       ]),
     ).toEqual([]);
   });
@@ -280,6 +281,17 @@ describe("the arity of a stdlib namespace member's call", () => {
         "Got {math.abs(1, 2)}.",
       ]),
     ).toEqual([]);
+  });
+
+  // Luau's library tables are read-only: a write of one member leaves the
+  // builtin's type describing the call.
+  test("is the builtin's when the script writes only the member", () => {
+    expect(
+      arityWarnings([
+        "math.abs = function(a, b) return a end",
+        "Got {math.abs(1, 2)}.",
+      ]),
+    ).toEqual(["math.abs should take 1 parameter, got 2"]);
   });
 
   test("is the builtin's when nothing replaces it", () => {
