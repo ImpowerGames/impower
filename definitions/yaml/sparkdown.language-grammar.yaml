@@ -14880,9 +14880,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # A `:` that `do`, `then` or a comment of level nine or more follows,
+    # after the alias's type or where its type must begin, which the type
+    # ends before (`type A = T | :do`, `LUAU_COLON_FOR_HEADER_OR_VALUE`), is a
+    # method's, in error, as Luau reads it: no header holds an alias, so the
+    # expression's accessor reads it and the word here (I-1447, I-1450).
     patterns:
       - { include: "#LuauTypeOperatorComments" }
       - { include: "#LuauComment" }
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
@@ -14975,7 +14981,11 @@ repository:
       # `:` and every `::`. A `:` that `do`, `then` or a comment of level
       # nine or more follows, which a header may hold, ends the type instead
       # and begins none (`LUAU_COLON_FOR_HEADER_OR_VALUE`), so the rule
-      # around decides.
+      # around decides. After a complete type the expression's accessor
+      # reads a reserved word no type can begin, as it did when the type
+      # ended before it, so the validator leaves that name to the checker
+      # as it does there (a define's method, `f(): T:end`).
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauKeywordMethodAccessor" }
       - { include: "#LuauNextLineMethodAccessor" }
       - { include: "#LuauTypeStrayColon" }

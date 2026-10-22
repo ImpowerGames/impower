@@ -143,6 +143,12 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     // name outside a header, and the header's in one (round 2, `undirected`
     // finding 2).
     ["local x: T | : --[=========[c]=========] do", "do"],
+    // A type alias's type hands the `:` to the alias, which reads it as a
+    // method's (round 4 preparation).
+    ["type A = T | :do", "do"],
+    ["type A = T:do", "do"],
+    ["export type A = T | :do", "do"],
+    ["type A = T: --[=========[c]=========] end", "end"],
     ["local x: T | : --[=========[c]=========] then", "then"],
     ["local t = {}\n  local b = t :: T | : --[=========[c]=========] do", "do"],
     ["local t = {}\n  while t :: T | : --[=========[c]=========] do end", null],

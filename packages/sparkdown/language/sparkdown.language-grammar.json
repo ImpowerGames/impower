@@ -19290,6 +19290,9 @@
           "include": "#LuauComment"
         },
         {
+          "include": "#LuauExpressionKeywordMethodAccessor"
+        },
+        {
           "include": "#LuauTypeLiteral"
         }
       ],
@@ -19389,6 +19392,9 @@
         },
         {
           "include": "#LuauTypeStrayOptionalOperator"
+        },
+        {
+          "include": "#LuauExpressionKeywordMethodAccessor"
         },
         {
           "include": "#LuauKeywordMethodAccessor"
