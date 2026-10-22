@@ -1450,6 +1450,11 @@ export const getFormatting = (
           child = child.nextSibling;
         }
         if (!contentNode || !endNode) return;
+        // An end that matched no text closes no block here: a define's call
+        // line the grammar opened as a method (`isDefineMethodCall`), or a
+        // block left open, which ends before the next line. Compacting
+        // against it would join that line onto this one.
+        if (endNode.from === endNode.to) return;
         // Find the signature: the part of `_content` that represents
         // the declaration (name + params for function/method, name +
         // inheritance for define). Everything after the signature
@@ -1511,7 +1516,10 @@ export const getFormatting = (
         if (bodyHasContent) return;
         if (signatureEnd == null) signatureEnd = contentNode.from;
         const replaceFrom = signatureEnd;
-        const replaceTo = endNode.from;
+        // An `_end` capture can hold the indentation before its `end` (a
+        // define's method): that whitespace is part of the gap too.
+        const endText = document.read(endNode.from, endNode.to);
+        const replaceTo = endNode.from + endText.length - endText.trimStart().length;
         if (replaceFrom >= replaceTo) return;
         const text = document.read(replaceFrom, replaceTo);
         if (text === " ") return; // already compact

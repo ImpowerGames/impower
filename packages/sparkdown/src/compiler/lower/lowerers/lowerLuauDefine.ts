@@ -72,6 +72,7 @@ import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
+import { isDefineMethodCall } from "../../utils/defineMethodCall";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
@@ -161,10 +162,12 @@ const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
 // cannot read as statements. A property's continuation is consumed first.
 // A statement that is a `.` no name follows is the validator's to report
 // (`LuauDanglingAccessor`); a later one on the line (`Hello there.`) is a
-// statement of its own, and Luau's first error is this one's.
-function reportDefineStatement(start: SyntaxNode, ctx: LowerContext): SyntaxNode {
+// statement of its own, and Luau's first error is this one's. A call the
+// grammar opened as a method (`isDefineMethodCall`) holds its whole line,
+// line break included, so it is the statement alone (`whole`).
+function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = false): SyntaxNode {
   let last = start;
-  for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) last = node;
+  if (!whole) for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) last = node;
   const dangling = start.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", start) !== undefined;
   const read = (from: number, to: number) => ctx.read(from, to);
   if (dangling || followsDanglingDot(start, read) || followsMissingValue(start, read)) return last;
@@ -409,6 +412,10 @@ export function lowerLuauDefine(
           const end = rangeOf(prop.value.expr.location, ctx).to;
           while (child.nextSibling && child.nextSibling.from < end) child = child.nextSibling;
         }
+      } else if (isDefineMethodCall(child, (pos) => ctx.lineNumber(pos))) {
+        // A line the grammar opened as a method, which took neither a line
+        // below it nor an `end`: a statement of the body (`print("x")`).
+        if (structureErrors.length === 0) reportDefineStatement(child, ctx, true);
       } else if (child.name === "LuauMethodDefinition") {
         const methodNameNode = getDescendent("LuauFunctionName", child);
         if (methodNameNode) {
@@ -469,9 +476,11 @@ export function lowerLuauDefine(
   // methods read that function's locals through (`DefineCellBinding`).
   const cellBindings: DefineCellBinding[] = [];
   // A define with no `end` of its own lent it to its last method, which is
-  // then a line the grammar read as a method's header for that `end` (a
-  // call, `print("x")`): the define reports its missing `end`, and that
-  // method's header is no header to report (I-1401).
+  // then a line the grammar read as a method's header for that `end`: a
+  // call whose line the define's `end` stands under at the same column, as
+  // in a body written at column 0 (`print("x")`, I-1411). The define reports
+  // its missing `end`, and that method's header is no header to report
+  // (I-1401).
   const defineEnd = findChildByName(nodeRef.node, "LuauDefine_end");
   const lentEnd = !(defineEnd && getDescendent("LuauEndKeyword", defineEnd));
   for (const method of methodNodes) {
@@ -684,7 +693,7 @@ export function defineMethodReads(
     const declName =
       child.name === "LuauFunctionDefinition" ? findOwnDeclarationName(child) : null;
     const isMethod =
-      (child.name === "LuauMethodDefinition" && !!getDescendent("LuauFunctionName", child)) ||
+      (child.name === "LuauMethodDefinition" && !isDefineMethodCall(child, (pos) => ctx.lineNumber(pos)) && !!getDescendent("LuauFunctionName", child)) ||
       (!!declName && !!getDescendent("LuauFunctionName", declName));
     const body = isMethod ? getFunctionBodyContent(child) : null;
     if (!body) continue;
