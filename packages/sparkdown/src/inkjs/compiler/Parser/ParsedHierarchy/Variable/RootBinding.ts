@@ -14,10 +14,11 @@ import { Op, ROOT_ANY_SCOPE, ROOT_SLOT } from "../../../../../program/ProgramIns
 // local shares. A name the document declares more than once in that scope is
 // reached through the slot of the declaration in scope (`slot`,
 // `rootSlotName`), which the declarations after it leave in place; a name it
-// declares once, by name in that scope. A stdlib name a closure written
-// inside a block a top-level statement opens reads binds by name in any scope
-// of the root frame (`anyScope`, `ROOT_ANY_SCOPE`), as every function's did
-// before the slots, so a block's local of the name is reached (I-1468).
+// declares once, by name in that scope. A name a function written inside a
+// block a top-level statement opens reads and does not capture binds by name
+// in any scope of the root frame (`anyScope`, `ROOT_ANY_SCOPE`), as every
+// function's did before the slots, so a block's local of the name is reached
+// (I-1468).
 export class RootBinding extends ParsedObject {
   constructor(
     public readonly variableName: string,

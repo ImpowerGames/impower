@@ -207,8 +207,10 @@ export const ROOT_SLOT = 1;
  *  name the scope binds as it is built (a scene's, I-1374). */
 export const ROOT_GLOBAL = 2;
 
-/** `BindRoot`'s flag for a stdlib name a closure written inside a block a
- *  top-level statement opens reads: the binding of the name in the outermost
+/** `BindRoot`'s flag for a name a function written inside a block a
+ *  top-level statement opens reads and does not capture (any name of a
+ *  function statement or a top-level define's method, a stdlib name of a
+ *  closure): the binding of the name in the outermost
  *  scope of the root frame that binds it, a block's local of the name
  *  included, as `BindRoot` reached every name before `ROOT_SLOT` (I-1468). */
 export const ROOT_ANY_SCOPE = 4;

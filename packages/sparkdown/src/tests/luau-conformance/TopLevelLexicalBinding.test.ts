@@ -160,6 +160,27 @@ describe("a function written at the top level", () => {
     ).toEqual(got("Got 1."));
   });
 
+  // Inside a top-level block, a function statement binds what it reads at
+  // its entry by name, as before the index (I-1468): the top-level local of
+  // the name, which it reads and writes, and a stdlib-named one.
+  test("written in a top-level do block, reads the top-level local", () => {
+    expect(
+      run(["local a = 1", "do", "  function g()", "    return a", "  end", "end", "Got {tostring(g())}."]),
+    ).toEqual(got("Got 1."));
+  });
+
+  test("written in a top-level do block, writes the top-level local", () => {
+    expect(
+      run(["local a = 1", "do", "  function set()", "    a = 5", "  end", "end", "& set()", "Got {a}."]),
+    ).toEqual(got("Got 5."));
+  });
+
+  test("written in a top-level do block, reads a stdlib-named top-level local", () => {
+    expect(
+      run(["local print = 1", "do", "  function g()", "    return print", "  end", "end", "Got {tostring(g())}."]),
+    ).toEqual(got("Got 1."));
+  });
+
   test.each([
     ["scene", ["-> S(5)", "scene S(x)", "  function g()", "    return x", "  end", "  local x = 7", "  Got {g()} {x}.", "end"]],
     [
@@ -272,6 +293,24 @@ describe("a define's method written at the top level", () => {
     expect(
       run(["define thing with", "  function get()", "    return a", "  end", "end", "local a = 1", "Got {tostring(thing.get())}."]),
     ).toEqual(got("Got nil."));
+  });
+
+  // Inside a top-level block, it binds what it reads at its entry by name,
+  // as before the index (I-1468).
+  test("written in a top-level do block, reads the top-level local", () => {
+    expect(
+      run([
+        "local a = 1",
+        "do",
+        "  define thing with",
+        "    function get()",
+        "      return a",
+        "    end",
+        "  end",
+        "end",
+        "Got {tostring(thing.get())}.",
+      ]),
+    ).toEqual(got("Got 1."));
   });
 });
 

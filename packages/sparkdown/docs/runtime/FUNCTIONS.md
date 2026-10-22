@@ -189,10 +189,13 @@ shadows a `store` or a `const` is a scene's, a branch's or a choice's.
 **Inside a top-level block** (an `if`, a `do`, a loop, an `&` line's
 `for` or `while`), a closure, and a function or a `define` written
 there, binds its names by name until I-1468, as every function did
-before the slots: it captures a name it reads, which reaches the block's
-own local or loop variable, and binds a stdlib name it does not capture at
-its entry to the root frame's binding of the name in any of its scopes
-(`BindRoot` with `ROOT_ANY_SCOPE`). The converter reads a block's later
+before the slots: a closure captures a name it reads, which reaches the
+block's own local or loop variable, and each name a function does not
+capture (every name a function statement or a top-level define's method
+reads, and a stdlib name a closure reads) is bound at its entry to the root
+frame's binding of the name in any of its scopes (`BindRoot` with
+`ROOT_ANY_SCOPE`), so a function statement in a `do` block reads and
+writes the top-level `local` of the name. The converter reads a block's later
 statements apart from its earlier ones, so a later statement reads the
 block's locals as globals, and the compiler does not follow the block's
 own bindings: inside the block it takes none of the top-level `local`s

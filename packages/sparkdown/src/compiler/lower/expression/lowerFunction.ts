@@ -638,16 +638,15 @@ export function freeVariables(
         const answer = declared ?? rootLocalAnswer(name, at, ctx);
         // Inside a block a top-level statement opens, a later statement of
         // the block reads the block's locals as globals, so the read binds
-        // by name, as it did before the index (I-1468): captured, or for a
-        // stdlib name, which no closure captures, bound at the entry to the
-        // root frame's binding of the name in any of its scopes.
+        // by name, as it did before the index (I-1468): a function's entry
+        // binds it to the root frame's binding of the name in any of its
+        // scopes, where the function does not capture it (a top-level
+        // function, a top-level define's method, a stdlib name), as every
+        // function's entry did. A global callable or `_G` it reads binds
+        // nothing, as before.
         if (answer !== ROOT_IN_BLOCK) {
           rootReads?.push({ name, answer });
-        } else if (
-          !isGlobalCallable(name) &&
-          STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name) &&
-          name !== "_G"
-        ) {
+        } else if (!isGlobalCallable(name) && name !== "_G") {
           rootReads?.push({ name, answer });
         }
       }
@@ -670,18 +669,20 @@ export function freeVariables(
         // is a declaration of the root frame's own scope changes only with
         // that statement; its ordinal among the declarations of its name is
         // recorded when it is one. Inside a block a top-level statement
-        // opens, the read is one of a local, as it was before the index
-        // (I-1468); the block is that statement or inside it, so this too
-        // changes only with the statement.
+        // opens, it is read as a global is, as before the index (I-1468);
+        // the block is that statement or inside it, so this too changes
+        // only with the statement.
         const declaredAt = offsetAt(node.local.location.begin, ctx);
         const index = rawContext(ctx).rootLocals;
-        const declared =
-          index?.declared(node.local.name, declaredAt) &&
-          index.answer(node.local.name, at) !== ROOT_IN_BLOCK
+        if (index?.answer(node.local.name, at) === ROOT_IN_BLOCK) {
+          readAt(node.local.name, at);
+        } else {
+          const declared = index?.declared(node.local.name, declaredAt)
             ? rootDeclarationAnswer(node.local.name, declaredAt, ctx)
             : "";
-        if (declared) readAt(node.local.name, at, false, declared);
-        else readAt(node.local.name, at, true);
+          if (declared) readAt(node.local.name, at, false, declared);
+          else readAt(node.local.name, at, true);
+        }
       }
     } else if (node instanceof AstExprFunction) {
       // A nested function's function statements bind its own reads.
@@ -928,9 +929,9 @@ export interface RootRead {
 
 /** The binding at a function's entry of each of `reads` (`RootBinding`):
  *  through the slot of its declaration when it has one (`rootSlotName`),
- *  by name otherwise, and for a stdlib name read inside a block a
- *  top-level statement opens (`ROOT_IN_BLOCK`), by name in any scope of the
- *  root frame, as before the index. */
+ *  by name otherwise, and for a name read inside a block a top-level
+ *  statement opens (`ROOT_IN_BLOCK`), by name in any scope of the root
+ *  frame, as before the index. */
 export function rootBindingsOf(reads: readonly RootRead[], ctx: LowerContext): RootBinding[] {
   return reads
     .filter(({ answer }) => answersDeclaration(answer) || answer === ROOT_IN_BLOCK)
