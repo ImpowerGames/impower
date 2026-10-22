@@ -69,10 +69,12 @@ import {
   AstExprInterpString,
   AstExprLocal,
   AstExprSparkdownCallShorthand,
+  AstExprSparkdownConditionalAlternator,
   AstExprSparkdownDivertTarget,
   AstExprSparkdownInterpString,
   AstExprSparkdownNew,
   AstExprSparkdownRegex,
+  AstExprSparkdownSequentialAlternator,
   AstExprTable,
   AstExprTypeAssertion,
   AstExprUnary,
@@ -112,6 +114,7 @@ import {
 } from "./bindings";
 import { buildClosureExpression, lowerFunctionExpression, reportReadingErrors, type ReadingErrorScope } from "./lowerFunction";
 import { lowerTable } from "./lowerTable";
+import { lowerAlternatorValue, soleLocalAlternators } from "../utils/alternatorValue";
 import { numberLiteralValue } from "../../utils/numberLiteralValue";
 import {
   processLuauEscapes,
@@ -419,10 +422,15 @@ export function lowerExpression(
     );
   }
   if (expr instanceof AstExprError) return lowerMalformedString(expr, source, ctx);
-  // A syntax error, which the type checker reports, an alternator used as
-  // a value, which the display lowerers lower themselves (its reading reads
-  // its head and arms, `readExpressionAst`), and a branch's argument, which
-  // only the type checker reads.
+  // An alternator used as a value runs as a displayed one does, its selected
+  // arm giving the value (I-1284); its reading reads its head and arms
+  // (`readExpressionAst`).
+  if (expr instanceof AstExprSparkdownSequentialAlternator || expr instanceof AstExprSparkdownConditionalAlternator) {
+    const node = expr.source.node as SyntaxNode | undefined;
+    return (node ? lowerAlternatorValue(node, ctx, false, soleLocalAlternators.has(expr)) : null) ?? new NullExpression();
+  }
+  // A syntax error, which the type checker reports, and a branch's argument,
+  // which only the type checker reads.
   return null;
 }
 

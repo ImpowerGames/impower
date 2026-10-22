@@ -31,6 +31,8 @@ import {
   AstExprCall,
   AstExprFunction,
   AstExprGlobal,
+  AstExprSparkdownConditionalAlternator,
+  AstExprSparkdownSequentialAlternator,
   AstExprLocal,
   AstStatBlock,
   AstStatFor,
@@ -63,6 +65,7 @@ import { lowerStatements } from "../lower";
 import { rawContext } from "../recordingContext";
 import { defineMethodReads } from "../lowerers/lowerLuauDefine";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
+import { alternatorPartsAst, alternatorScopesOf } from "../utils/alternatorArms";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
   documentText,
@@ -409,17 +412,25 @@ export function immediateBodyDeclarations(
 ): Set<string> {
   const out = new Set<string>(params);
   if (!body) return out;
-  walk(body, (node) => {
+  const declares = (node: AstNode): boolean => {
     if (node instanceof AstExprFunction) return false;
     if (node instanceof AstStatFunction || node instanceof AstStatLocalFunction) {
       const name = declaredFunctionName(node, ctx);
       if (name) out.add(name);
       return false;
     }
+    // What an alternator runs declares too, in its arms' scopes
+    // (`functionBindings`).
+    const scopes = alternatorScopesOf(node, ctx);
+    if (scopes) {
+      for (const scope of scopes) for (const part of scope.parts) walk(part, declares);
+      return false;
+    }
     for (const name of declarationNames(node)) out.add(name);
     for (const name of loopNames(node)) out.add(name);
     return true;
-  });
+  };
+  walk(body, declares);
   return out;
 }
 
@@ -635,30 +646,80 @@ export function freeVariables(
   };
   const read = (name: string, location: Location) =>
     readAt(name, offsetAt(location.begin, ctx));
+  // A local read where the reading that holds the function binds it: none
+  // of the function's own, a local of a scope around the function.
+  const readLocal = (local: AstLocal, location: Location) => {
+    if (locals.has(local)) return;
+    const at = offsetAt(location.begin, ctx);
+    // The local is written in the statement being read, so whether it
+    // is a declaration of the root frame's own scope changes only with
+    // that statement; its ordinal among the declarations of its name is
+    // recorded when it is one. Inside a block a top-level statement
+    // opens, it is read as a global is, as before the index (I-1468);
+    // the block is that statement or inside it, so this too changes
+    // only with the statement.
+    const declaredAt = offsetAt(local.location.begin, ctx);
+    const index = rawContext(ctx).rootLocals;
+    if (index?.answer(local.name, at) === ROOT_IN_BLOCK) {
+      readAt(local.name, at);
+    } else {
+      const declared = index?.declared(local.name, declaredAt)
+        ? rootDeclarationAnswer(local.name, declaredAt, ctx)
+        : "";
+      if (declared) readAt(local.name, at, false, declared);
+      else readAt(local.name, at, true);
+    }
+  };
+  // The locals in scope where each alternator being walked is read, the
+  // innermost last: its head and arms, read on their own
+  // (`alternatorPartsAst`), read those locals as globals of their names.
+  const alternatorScopes: ReadonlyMap<string, AstLocal>[] = [];
+  const localInAlternatorScope = (name: string): AstLocal | undefined => {
+    for (let i = alternatorScopes.length - 1; i >= 0; i--) {
+      const local = alternatorScopes[i]!.get(name);
+      if (local) return local;
+    }
+    return undefined;
+  };
   const readNames = (node: AstNode): boolean => {
-    if (node instanceof AstExprGlobal) read(node.name, node.location);
-    else if (node instanceof AstExprLocal) {
-      if (!locals.has(node.local)) {
-        const at = offsetAt(node.location.begin, ctx);
-        // The local is written in the statement being read, so whether it
-        // is a declaration of the root frame's own scope changes only with
-        // that statement; its ordinal among the declarations of its name is
-        // recorded when it is one. Inside a block a top-level statement
-        // opens, it is read as a global is, as before the index (I-1468);
-        // the block is that statement or inside it, so this too changes
-        // only with the statement.
-        const declaredAt = offsetAt(node.local.location.begin, ctx);
-        const index = rawContext(ctx).rootLocals;
-        if (index?.answer(node.local.name, at) === ROOT_IN_BLOCK) {
-          readAt(node.local.name, at);
-        } else {
-          const declared = index?.declared(node.local.name, declaredAt)
-            ? rootDeclarationAnswer(node.local.name, declaredAt, ctx)
-            : "";
-          if (declared) readAt(node.local.name, at, false, declared);
-          else readAt(node.local.name, at, true);
-        }
+    if (node instanceof AstExprGlobal) {
+      const local = localInAlternatorScope(node.name);
+      if (local) readLocal(local, node.location);
+      else read(node.name, node.location);
+    } else if (node instanceof AstExprSparkdownSequentialAlternator || node instanceof AstExprSparkdownConditionalAlternator) {
+      // What the alternator runs reads names too (I-1284): the locals it
+      // declares are the function's, and its other reads are the
+      // function's reads, of the locals in scope where it stands.
+      const candidate = node.source.node as SyntaxNode | undefined;
+      if (!candidate) return false;
+      const groups = alternatorPartsAst(candidate, documentText(ctx)).map((scope) => scope.parts);
+      for (const part of groups.flat()) {
+        walk(part, (inner) => {
+          for (const local of declaredLocals(inner)) locals.add(local);
+          return true;
+        });
       }
+      alternatorScopes.push(node.visibleLocals);
+      for (const group of groups) {
+        // The locals an arm's statements declare, in scope for its parts
+        // after them.
+        const armScope = new Map<string, AstLocal>();
+        alternatorScopes.push(armScope);
+        for (const part of group) {
+          walk(part, readNames);
+          if (!(part instanceof AstStatBlock)) continue;
+          for (const written of part.body) {
+            const stat = written instanceof AstStatSparkdownExplicit ? written.statement : written;
+            if (stat instanceof AstStatLocal) for (const local of stat.vars) armScope.set(local.name, local);
+            else if (stat instanceof AstStatLocalFunction) armScope.set(stat.name.name, stat.name);
+          }
+        }
+        alternatorScopes.pop();
+      }
+      alternatorScopes.pop();
+      return false;
+    } else if (node instanceof AstExprLocal) {
+      readLocal(node.local, node.location);
     } else if (node instanceof AstExprFunction) {
       // A nested function's function statements bind its own reads.
       functionScopes.push(functionStatementNames(node.body, ctx));

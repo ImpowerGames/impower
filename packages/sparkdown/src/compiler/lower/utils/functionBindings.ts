@@ -8,8 +8,10 @@ import {
   AstStatRepeat,
   AstStatSparkdownExplicit,
   visitAst,
+  type AstNode,
   type AstStat,
 } from "../../typecheck/Ast";
+import { alternatorScopesOf } from "./alternatorArms";
 import type { LowerContext } from "../context";
 import { offsetAt } from "./luauAst";
 
@@ -92,11 +94,23 @@ export function functionBindings(
   };
   // The blocks inside a statement (an `if`'s arms, a `while`'s body), not
   // those of the functions in it.
-  const nested = (stat: AstStat): void => {
+  const nested = (stat: AstNode): void => {
     visitAst(stat, {
       visit: (node) => {
         if (node === stat) return true;
         if (node instanceof AstExprFunction) return false;
+        // What an alternator runs binds a statement's locals over the rest
+        // of its arm (`alternatorPartsAst`).
+        const scopes = alternatorScopesOf(node, ctx);
+        if (scopes) {
+          for (const scope of scopes) {
+            for (const part of scope.parts) {
+              if (part instanceof AstStatBlock) walkBlock(part, scope);
+              else nested(part);
+            }
+          }
+          return false;
+        }
         if (node instanceof AstStatBlock) {
           walkBlock(node, blockRange(node));
           return false;

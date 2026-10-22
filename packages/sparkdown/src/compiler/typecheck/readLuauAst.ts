@@ -2334,6 +2334,13 @@ class Parser {
     return local;
   }
 
+  /** The locals in scope here, by name, as a name read here resolves them. */
+  private visibleLocals(): ReadonlyMap<string, AstLocal> {
+    const visible = new Map<string, AstLocal>();
+    for (const [name, local] of this.localMap) if (local) visible.set(name, local);
+    return visible;
+  }
+
   private saveLocals(): number {
     return this.localStack.length;
   }
@@ -2611,6 +2618,14 @@ class Parser {
       this.tokens[this.pos] = { ...token, kind: "name" };
     } else if (token.kind === "choose") {
       return this.parseChoose();
+    } else if (token.kind === "sparkdown" && token.node) {
+      // Not part of Luau: an alternator is a statement of its own, which
+      // runs its selected arm (I-1397).
+      const alternator = sparkdownExpression(token, this.visibleLocals());
+      if (alternator instanceof AstExprSparkdownSequentialAlternator || alternator instanceof AstExprSparkdownConditionalAlternator) {
+        this.next();
+        return new AstStatExpr(alternator.location, alternator);
+      }
     }
 
     const start = token.location;
@@ -4033,7 +4048,7 @@ class Parser {
     if (this.is("if")) return this.parseIfElseExpr();
     if (token.kind === "sparkdown") {
       this.next();
-      return sparkdownExpression(token);
+      return sparkdownExpression(token, this.visibleLocals());
     }
     if (token.kind === "flowArgument") {
       this.next();
@@ -4730,7 +4745,7 @@ function hasInterpolation(node: SyntaxNode): boolean {
 }
 
 /** One of Sparkdown's own expressions, from its token. */
-function sparkdownExpression(token: Token): AstExpr {
+function sparkdownExpression(token: Token, visibleLocals?: ReadonlyMap<string, AstLocal>): AstExpr {
   const node = token.node!;
   const source: SparkdownSource = { name: node.name, from: node.from, to: node.to, node };
   switch (node.name) {
@@ -4744,9 +4759,9 @@ function sparkdownExpression(token: Token): AstExpr {
     case "LuauConditionalAlternatorBlock":
     case "LuauConditionalAlternatorLineStart":
     case "LuauSparkdownExplicitConditionalAlternatorBlock":
-      return new AstExprSparkdownConditionalAlternator(token.location, source);
+      return new AstExprSparkdownConditionalAlternator(token.location, source, visibleLocals);
     default:
-      return new AstExprSparkdownSequentialAlternator(token.location, source);
+      return new AstExprSparkdownSequentialAlternator(token.location, source, visibleLocals);
   }
 }
 
