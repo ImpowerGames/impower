@@ -68,6 +68,13 @@ const FORMS: [string, (line: string) => string][] = [
   ["a block opened after the return and closed", (line) => `function f()\n${line}\ndo\nlocal a = 1\nend\nend\n`],
   ["an if with else opened after the return", (line) => `function f()\n${line}\nif true then\nlocal a = 1\nelse\nreturn 2 a b\nend\nend\n`],
   ["a nested block's return before a block opened after it", (line) => `function f()\nif true then\n${line}\ndo\nreturn 2 a b\nend\nend\nend\n`],
+  // Luau's words for the token where its chunk ends, and the block Luau's
+  // suggestion names for a missing closer (round 3 of the review).
+  ["a function with a later return of a string with interpolations", (line) => `function f()\n${line}\nreturn 2; \`a {x} z {y} w\`\nend\n`],
+  ["a nested block in a repeat", (line) => `function f()\nrepeat\nif true then\n${line}\nend\nuntil true\nend\n`],
+  ["an indented nested block in a repeat", (line) => `function f()\n  repeat\n    if true then\n      ${line}\n    end\n  until true\nend\n`],
+  ["a misindented end after a nested block's return", (line) => `function f()\n  repeat\n    do\n      if true then\n        ${line}\n    end\n      end\n  until true\nend\n`],
+  ["a misindented end before a missing until", (line) => `function f()\n  while true do\n    repeat\n      if true then\n        ${line}\n    end\n  end\n  local a = 1\nend\n`],
 ];
 
 // Scripts whose function is never closed, which end at their Luau: a line
@@ -82,6 +89,7 @@ const UNCLOSED: [string, (line: string) => string][] = [
   ["an if opened after the return with no end", (line) => `function f()\n${line}\nif true then\nprint(1)\n`],
   ["a repeat opened after the return with no until", (line) => `function f()\n${line}\nrepeat\nprint(1)\n`],
   ["a block opened after the return, closed, with no end", (line) => `function f()\n${line}\ndo\nprint(1)\nend\n`],
+  ["an indented nested block before a later block", (line) => `function f()\n  while true do\n    if true then\n      ${line}\n      end\n  end\n  if true then\n    local a = 1\nend\n`],
   ["a nested function", (line) => `function f()\nlocal function g()\n${line}\nend\nreturn g\nend\n`],
 ];
 

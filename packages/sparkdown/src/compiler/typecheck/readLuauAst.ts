@@ -2202,8 +2202,9 @@ class Parser {
 
   /** Not part of Luau: ends the reading of Luau's blocks, which Luau's parser does not read past (`pastChunkEnd`). */
   private stopAtChunkEnd(): void {
-    this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`, "statement");
-    this.pastChunkEnd = this.current().location;
+    const token = this.rejected();
+    this.report(token.location, `Expected <eof>, got ${describe(token)}`, "statement");
+    this.pastChunkEnd = token.location;
     for (const block of this.blocks) block.ended = false;
   }
 
@@ -2234,6 +2235,7 @@ class Parser {
       const closer = begin.text === "repeat" ? "until" : "end";
       block.ended = true;
       if (this.is(closer) || (begin.text === "then" && (this.is("else") || this.is("elseif")))) {
+        if (this.is(closer)) this.noteEndMismatchSuspect(begin);
         // The blocks around read this token again where Luau has read it.
         this.luauClosedAt = this.current();
         return;
@@ -2258,17 +2260,27 @@ class Parser {
     return suspect && suspect.location.begin.line > begin.location.begin.line ? `; did you forget to close ${describeKind(suspect)} at line ${suspect.location.begin.line + 1}?` : "";
   }
 
+  /**
+   * Notes the closer the reading stands at as closing `begin`: one on
+   * another line and in another column than its opener is indented as if
+   * it closed something else.
+   */
+  private noteEndMismatchSuspect(begin: Token): void {
+    const at = this.current().location.begin;
+    const opened = begin.location.begin;
+    // A unit's own opener (a flow's wrapper function) is no author's.
+    if (begin.from < begin.to && at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
+      this.endMismatchSuspect = begin;
+    }
+  }
+
   private expectMatchEndAndConsume(text: string, begin: Token): boolean {
     if (this.is(text)) {
-      // A closer on another line and in another column than its opener is
-      // indented as if it closed something else.
-      const at = this.current().location.begin;
-      const opened = begin.location.begin;
-      // A unit's own opener (a flow's wrapper function) is no author's.
-      if (begin.from < begin.to && at.line !== opened.line && at.column !== opened.column && (this.endMismatchSuspect?.location.begin.line ?? 0) < opened.line) {
-        this.endMismatchSuspect = begin;
-      }
-      this.closeWrittenBlock(this.closedBlockOf(begin));
+      // Where Luau ended the block already, the closer closes the block
+      // Luau reads it in (`closeWrittenBlock`, I-1430).
+      const closed = this.closedBlockOf(begin);
+      if (closed?.ended) this.closeWrittenBlock(closed);
+      else this.noteEndMismatchSuspect(begin);
       this.nextExpected();
       return true;
     }
