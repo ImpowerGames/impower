@@ -63,6 +63,7 @@ import { lowerLuauStyle } from "./lowerers/lowerLuauStyle";
 import { lowerLuauStructDefine } from "./lowerers/lowerLuauStructDefine";
 import { lowerLuauUI, lowerLuauScreen } from "./lowerers/lowerLuauUI";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
+import { validateTopLevelDeclaration } from "./utils/validateTopLevelDeclaration";
 import {
   LUAU_STATEMENT_NODES,
   lowerLuauStatementNode,
@@ -179,6 +180,22 @@ function lowerInner(
   if (LUAU_STATEMENT_NODES.has(nodeRef.name)) {
     return lowerLuauStatementNode(nodeRef.node, ctx);
   }
+  // A top-level Sparkle declaration written inside a function is an error
+  // (I-1405). It is lowered as written, so the errors in its body are
+  // reported too, and registers nothing.
+  const misplaced = validateTopLevelDeclaration(nodeRef.node, ctx);
+  if (misplaced) {
+    ctx.diagnostics?.push(misplaced);
+    const block = lowerNode(nodeRef, ctx);
+    return block && { ...block, context: undefined, sparkle: undefined };
+  }
+  return lowerNode(nodeRef, ctx);
+}
+
+function lowerNode(
+  nodeRef: SparkdownSyntaxNodeRef,
+  ctx: LowerContext,
+): CompiledBlock | undefined {
   switch (nodeRef.name) {
     case "Include":
       return lowerInclude(nodeRef, ctx);
