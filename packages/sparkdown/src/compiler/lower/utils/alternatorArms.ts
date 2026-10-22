@@ -22,7 +22,8 @@ import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
 import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
-import { readBlockAst, readExpressionAst } from "./luauAst";
+import { documentText, readBlockAst, readExpressionAst } from "./luauAst";
+import { nextLuauToken } from "../../typecheck/readLuauAst";
 import { isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
 import {
   AstExprSparkdownConditionalAlternator,
@@ -256,12 +257,13 @@ function armParts(nodes: readonly SyntaxNode[]): { statement: boolean; nodes: Sy
  * alternator as a value of any type, not its arms, so an arm holding a
  * token no rule read (`cycle "a" | ! end`, `cycle "a" | (!b) end`) has every
  * error of its reading as an expression (I-1310). Otherwise each value the
- * arm holds (`armParts`) has its reading's errors by form
- * (`reportReadingErrors` "expression"): a backtick string's own (I-1435),
- * and `cycle | (1 2) | 3 end`'s. A statement in the arm is read where it is
- * lowered (`lowerLuauStatementNode`); in an arm nobody lowers
- * (`unlowered`, `reportAlternatorValue`), it is read here for its
- * string's errors. Each alternator a part holds is read in turn by the
+ * arm holds (`armParts`) has every error of its reading
+ * (`reportReadingErrors` "expression"), which ends at the `|` or `end` after
+ * the value (`tokenAfter`, I-1445): a backtick string's own (I-1435),
+ * `cycle | (1 2) | 3 end`'s and `cycle | x. | 3 end`'s. A statement in the
+ * arm is read where it is lowered (`lowerLuauStatementNode`); in an arm
+ * nobody lowers (`unlowered`, `reportAlternatorValue`), it is read here for
+ * its string's errors. Each alternator a part holds is read in turn by the
  * part's reading (`readExpressionAst`).
  */
 function reportArmReading(nodes: readonly SyntaxNode[], ctx: LowerContext, unlowered: boolean): void {
@@ -278,9 +280,9 @@ function reportArmReading(nodes: readonly SyntaxNode[], ctx: LowerContext, unlow
       if (reading) reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "string");
       continue;
     }
-    const reading = readExpressionAst(part.nodes, ctx);
+    const reading = readExpressionAst(part.nodes, ctx, tokenAfter(part.nodes, ctx));
     if (!reading) continue;
-    reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "expression", reading.expr);
+    reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "expression");
   }
 }
 
@@ -314,7 +316,7 @@ function isArmAssignment(node: SyntaxNode): boolean {
 /**
  * Reports the errors of an alternator's head, what stands between its word
  * and its first `|` (`cycle `a {} b` | 1 end`, a `match`'s condition),
- * read as an expression by form (`reportReadingErrors` "expression"),
+ * read as an expression (`reportReadingErrors` "expression"),
  * where no lowerer lowers it: a sequential alternator's head, and any head
  * of an alternator Luau code uses as a value. A backtick string's errors in
  * it are the reading's to report, as everywhere (I-1435).
@@ -325,9 +327,23 @@ export function reportAlternatorHead(candidate: SyntaxNode, ctx: LowerContext): 
   // A sequential alternator's head holds what an arm holds; a `match`'s
   // is its one condition.
   if (SEQUENTIAL_ALTERNATORS.has(candidate.name)) return reportArmReading(nodes, ctx, true);
-  const reading = readExpressionAst(nodes, ctx);
+  const reading = readExpressionAst(nodes, ctx, tokenAfter(nodes, ctx));
   if (!reading) return;
-  reportReadingErrors(reading.source.errors, nodes[0]!, ctx, "expression", reading.expr);
+  reportReadingErrors(reading.source.errors, nodes[0]!, ctx, "expression");
+}
+
+/**
+ * The offset of the token that ends a value of an alternator's head or arm,
+ * where its reading meets its end of input (`readExpressionAst`): the `|`,
+ * the `end` or the next value after it, within the alternator.
+ */
+export function tokenAfter(nodes: readonly SyntaxNode[], ctx: LowerContext): number | undefined {
+  const last = nodes[nodes.length - 1];
+  if (!last) return undefined;
+  let alternator = last.parent;
+  while (alternator && !ALTERNATOR_CANDIDATES.has(alternator.name)) alternator = alternator.parent;
+  if (!alternator) return undefined;
+  return nextLuauToken(last.to, documentText(ctx), alternator.to)?.from;
 }
 
 /**

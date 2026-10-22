@@ -18,6 +18,8 @@
 import { lineBreakValues } from "../utils/assignmentLineBreak";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import type { LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
 import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
@@ -159,36 +161,132 @@ export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {
 }
 
 /**
+ * The document offset of the token that closes a container node, its
+ * written `}` (`Hello {x.}.`), or undefined where the author wrote none.
+ */
+export function closingTokenOf(parent: SyntaxNode): number | undefined {
+  const close = parent.getChild(`${parent.name}_end`);
+  return close && close.from < close.to ? close.from : undefined;
+}
+
+/**
  * Lowers the value a container node holds (an interpolation, a condition,
  * the operation after `=`): the expression its content reads as, reporting
  * the errors of its reading in `scope` (`reportReadingErrors`): story
- * braces (`Hello {1 2}.`) pass `"expression"`.
+ * braces (`Hello {1 2}.`) pass `"expression"`, and their reading ends at
+ * the brace's `}` (`closingTokenOf`, `readExpressionAst`).
  */
 export function lowerExpressionFromContainer(
   parent: SyntaxNode,
   ctx: LowerContext,
   scope: ReadingErrorScope | null = "string",
 ): Expression | null {
-  const expr = lowerExpressionFromNodes(containerValueNodes(parent), ctx, scope);
+  // A brace that holds an if expression whole reports its reading's errors
+  // as one (`reportInlineIfReading`).
+  if (scope === "expression" && inlineIfOf(parent)) {
+    reportInlineIfReading(parent, ctx);
+    scope = null;
+  }
+  const end = scope === "expression" ? closingTokenOf(parent) : undefined;
+  const expr = lowerExpressionFromNodes(containerValueNodes(parent), ctx, scope, end);
   if (FUNCTION_CALL_SHORTHAND_NODES.has(parent.name)) {
     return coerceFunctionCallShorthand(expr, parent, ctx);
   }
   return expr;
 }
 
+// The trivia between an if expression's clauses.
+const IF_CLAUSE_TRIVIA = new Set(["ExtraWhitespace", "Whitespace", "OptionalWhitespace", "RequiredWhitespace", "Newline"]);
+
+/** The child of a node of a kind, not looking into its `_content` wrapper. */
+function directChild(parent: SyntaxNode, name: string): SyntaxNode | null {
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    if (isExplicitRuleName(child.name, name)) return child;
+  }
+  return null;
+}
+
+/**
+ * The value nodes of an if expression's `then` or `else` clause
+ * (`LuauThenExpression`, `LuauElseExpression`): its `_content`'s children
+ * but its keyword (`LuauThenOperator`, `LuauElseOperator`) and whitespace.
+ */
+export function ifClauseValueNodes(clause: SyntaxNode): SyntaxNode[] {
+  const body: SyntaxNode[] = [];
+  const content = directChild(clause, `${clause.name}_content`) ?? clause;
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (
+      !isExplicitRuleName(child.name, "LuauThenOperator") &&
+      !isExplicitRuleName(child.name, "LuauElseOperator") &&
+      !IF_CLAUSE_TRIVIA.has(child.name)
+    ) {
+      body.push(child);
+    }
+  }
+  return body;
+}
+
+/**
+ * The if expression a story brace holds whole (`{if c then a else b}`), in
+ * story text, dialogue or choice text, which may leave out its `else`
+ * (`{if c then a}` shows nothing when `c` is false), or null for any other
+ * brace.
+ */
+function inlineIfOf(brace: SyntaxNode): SyntaxNode | null {
+  if (FUNCTION_CALL_SHORTHAND_NODES.has(brace.name)) return null;
+  const content = directChild(brace, `${brace.name}_content`) ?? brace;
+  const ifExpr = directChild(content, "LuauTernaryExpression");
+  return ifExpr && getDescendent("LuauTernaryExpressionCondition_content", ifExpr) ? ifExpr : null;
+}
+
+/**
+ * Reports the errors of a story brace that holds an if expression whole
+ * (`inlineIfOf`), from one reading of the brace, which ends at its `}`
+ * (`readExpressionAst`), as every story brace's reading does (I-1445).
+ * Where the tree's if expression has no `else` clause, which story text may
+ * leave out, what the reading meets at the `}` is the last value's own,
+ * from the reading of that value alone (`{if c then (1}`'s unclosed
+ * parenthesis), and not the `else` Luau would expect there.
+ */
+export function reportInlineIfReading(brace: SyntaxNode, ctx: LowerContext): void {
+  const ifExpr = inlineIfOf(brace);
+  const nodes = containerValueNodes(brace);
+  if (!ifExpr || nodes.length === 0) return;
+  const end = closingTokenOf(brace);
+  const reading = readExpressionAst(nodes, ctx, end);
+  if (!reading) return;
+  let errors = reading.source.errors;
+  const ifContent = directChild(ifExpr, `${ifExpr.name}_content`) ?? ifExpr;
+  let lastClause: SyntaxNode | null = null;
+  let hasElse = false;
+  for (let child = ifContent.firstChild; child; child = child.nextSibling) {
+    if (isExplicitRuleName(child.name, "LuauThenExpression")) lastClause = child;
+    else if (isExplicitRuleName(child.name, "LuauElseExpression")) hasElse = true;
+  }
+  const lastValue = lastClause ? ifClauseValueNodes(lastClause) : [];
+  if (end !== undefined && !hasElse && lastValue.length > 0) {
+    const atEnd = (error: LuauSyntaxError) => offsetAt(error.location.begin, ctx) === end;
+    const own = readExpressionAst(lastValue, ctx, end)?.source.errors ?? [];
+    errors = [...errors.filter((error) => !atEnd(error)), ...own.filter(atEnd)];
+  }
+  reportReadingErrors(errors, nodes[0]!, ctx, "expression");
+}
+
 /**
  * Lowers the one expression some sibling nodes hold, reporting the errors of
  * its reading in `scope` (`reportReadingErrors`), or none where the nodes
  * are part of an expression another reading reads whole (an alternator's
- * arm, `lowerArms`).
+ * arm, `lowerArms`); `end` is the offset of the token that ends it
+ * (`readExpressionAst`).
  */
 export function lowerExpressionFromNodes(
   nodes: readonly SyntaxNode[],
   ctx: LowerContext,
   scope: ReadingErrorScope | null = "string",
+  end?: number,
 ): Expression | null {
-  const reading = readExpressionAst(nodes, ctx);
-  if (reading && scope) reportReadingErrors(reading.source.errors, nodes[0]!, ctx, scope, reading.expr);
+  const reading = readExpressionAst(nodes, ctx, end);
+  if (reading && scope) reportReadingErrors(reading.source.errors, nodes[0]!, ctx, scope);
   return reading ? lowerExpression(reading.expr, reading.source, ctx) : null;
 }
 

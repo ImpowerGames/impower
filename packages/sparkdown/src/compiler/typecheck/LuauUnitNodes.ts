@@ -3,7 +3,7 @@
 // that the validator can ask the same question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
-import { opensAlternator } from "../utils/alternatorDecision";
+import { ALTERNATOR_CANDIDATES, opensAlternator } from "../utils/alternatorDecision";
 import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
@@ -373,12 +373,58 @@ export function endsStatementBefore(name: string, previousToken: string | undefi
 export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined, read: (from: number, to: number) => string): boolean {
   const lowered = loweredLuauBodyOf(node);
   if (lowered) return tokenFrom === undefined || (tokenFrom < lowered.to && readingCarriesOnTo(node, tokenFrom, read));
-  if (!isCheckedLuau(node, read)) return false;
+  if (!isCheckedLuau(node, read)) {
+    const expression = loweredExpressionOf(node);
+    return !!expression && (tokenFrom === undefined || tokenFrom < expression.to);
+  }
   if (tokenFrom === undefined) return true;
   let root = node;
   while (root.parent) root = root.parent;
   if (!isCheckedLuau(root.resolveInner(tokenFrom, 1), read)) return false;
   return readingCarriesOnTo(node, tokenFrom, read);
+}
+
+// The braces of story text, dialogue and choice text (`Hello {x.}.`), and
+// the text that holds them.
+const STORY_BRACES = new Set(["LuauInterpolatedStringExpression", "LuauFunctionCallShorthand"].flatMap(explicitRuleNames));
+const STORY_TEXT = new Set(["TextChunk", "ChoiceTextContent"]);
+// What an alternator's arm holds that is no value of it: a line of story, a
+// statement, which its own reading reads.
+const ARM_STORY = new Set(["LuauSparkdownAlternatorArm", "LuauSparkdownInlineGluedAlternatorArm"]);
+
+/**
+ * The expression a lowerer reads a node in, where no other reading reads
+ * it and the lowerer's reading reports every syntax error of it, in Luau's
+ * words, ending at the token after it (I-1445, `reportReadingErrors`
+ * "expression"): a story brace in story text, dialogue or choice text
+ * (`Hello {x.}.`, not a tag's, nor one in a string), a choice's `if`
+ * condition, or an alternator's head or a value in its arm (not a statement
+ * or line of story in it), whose reading ends within the alternator. Null
+ * for any other node.
+ */
+export function loweredExpressionOf(node: SyntaxNode | null): SyntaxNode | null {
+  for (let n = node; n?.parent; n = n.parent) {
+    if (isExplicitRuleName(n.name, "ChoiceCondition")) return n;
+    if (isExplicitRuleName(n.name, "LuauAlternatorHead")) {
+      let alternator: SyntaxNode | null = n.parent;
+      while (alternator && !ALTERNATOR_CANDIDATES.has(alternator.name)) alternator = alternator.parent;
+      return alternator;
+    }
+    const arms = n.parent.parent;
+    if (arms && isExplicitRuleName(arms.name, "LuauAlternatorArms") && n.parent.name === `${arms.name}_content`) {
+      if (LUAU_STATEMENTS.has(n.name) || ARM_STORY.has(n.name)) return null;
+      const alternator = arms.parent?.parent;
+      return alternator && ALTERNATOR_CANDIDATES.has(alternator.name) ? alternator : null;
+    }
+    if (STORY_BRACES.has(n.name)) {
+      for (let text: SyntaxNode | null = n.parent; text; text = text.parent) {
+        if (STORY_TEXT.has(text.name)) return n;
+        if (isExplicitRuleName(text.name, "Tag") || isLuauNodeName(text.name)) return null;
+      }
+      return null;
+    }
+  }
+  return null;
 }
 
 /**
