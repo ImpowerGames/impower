@@ -1,0 +1,463 @@
+{
+  "note": "Saves the engine wrote at f5064be83, before CallValue named a colon call's method (I-1412), of the script in programMethodCall.test.ts: inside show() called from a statement holding a colon call, and inside a loop whose test is a colon call.",
+  "insideStatement": {
+    "engine": "program",
+    "format": 2,
+    "engineVersion": "2",
+    "gameVersion": "",
+    "beats": [
+      {
+        "flags": 1,
+        "decisions": [],
+        "position": {
+          "st": {
+            "levels": [
+              {
+                "s": 1,
+                "at": 0,
+                "flow": "show"
+              },
+              {
+                "s": 0,
+                "at": 1,
+                "p": 0,
+                "k": "functions",
+                "i": 0
+              }
+            ]
+          },
+          "a": "start"
+        },
+        "evalStack": [
+          0
+        ],
+        "output": [
+          "^Shown 10",
+          "\n"
+        ],
+        "lineEndPending": false,
+        "lineJoinable": false,
+        "turnIdx": -1,
+        "storySeed": 69,
+        "previousRandom": 0,
+        "previousFlow": "show",
+        "didSafeExit": false,
+        "variablesState": {
+          "x": 0,
+          "o": {
+            "objid": 1,
+            "obj": {
+              "left": 2,
+              "m": {
+                "objid": 2,
+                "obj": {
+                  "__closure_fn": {
+                    "^symsave": "{\"st\":{\"levels\":[{\"s\":2,\"at\":0,\"flow\":\"start\"}]},\"k\":\"functions\",\"i\":0,\"pl\":1}"
+                  },
+                  "__closure_upvals": {
+                    "objid": 3,
+                    "obj": {}
+                  },
+                  "__closure_user_arity": 2
+                }
+              },
+              "more": {
+                "objid": 4,
+                "obj": {
+                  "__closure_fn": {
+                    "^symsave": "{\"st\":{\"levels\":[{\"s\":2,\"at\":0,\"flow\":\"start\"}]},\"k\":\"functions\",\"i\":1,\"pl\":1}"
+                  },
+                  "__closure_upvals": {
+                    "objid": 5,
+                    "obj": {}
+                  },
+                  "__closure_user_arity": 1
+                }
+              }
+            }
+          }
+        },
+        "frames": [
+          {
+            "type": 0,
+            "start": 0,
+            "height": 0,
+            "temps": [
+              {
+                "__t$0": {
+                  "objref": 1
+                }
+              }
+            ]
+          },
+          {
+            "type": 1,
+            "start": -1,
+            "height": 1,
+            "fn": {
+              "st": {
+                "levels": [
+                  {
+                    "s": 2,
+                    "at": 0,
+                    "flow": "start"
+                  }
+                ]
+              },
+              "k": "functions",
+              "i": 0,
+              "pl": 1
+            },
+            "bound": "da7201b0959f595a",
+            "returnTo": {
+              "st": {
+                "levels": [
+                  {
+                    "s": 2,
+                    "at": 2,
+                    "flow": "start",
+                    "params": []
+                  }
+                ]
+              },
+              "a": [
+                18,
+                "ce2e8b90a9050ad8"
+              ]
+            },
+            "temps": [
+              {
+                "v": 10,
+                "self": {
+                  "objref": 1
+                }
+              }
+            ]
+          },
+          {
+            "type": 1,
+            "start": -1,
+            "height": 1,
+            "fn": {
+              "n": "show"
+            },
+            "bound": "fc69ea144c78799a",
+            "returnTo": {
+              "st": {
+                "levels": [
+                  {
+                    "s": 2,
+                    "at": 0,
+                    "flow": "start"
+                  },
+                  {
+                    "s": 3,
+                    "at": 0,
+                    "p": 1,
+                    "k": "functions",
+                    "i": 0
+                  }
+                ]
+              },
+              "a": [
+                4,
+                "6077660a0908604c"
+              ]
+            },
+            "temps": [
+              {
+                "v": 10
+              }
+            ]
+          }
+        ],
+        "counts": [
+          [
+            {
+              "n": "start"
+            },
+            1,
+            -1
+          ],
+          [
+            {
+              "n": "show"
+            },
+            1,
+            -1
+          ],
+          [
+            {
+              "st": {
+                "levels": [
+                  {
+                    "s": 2,
+                    "at": 0,
+                    "flow": "start"
+                  }
+                ]
+              },
+              "k": "functions",
+              "i": 0,
+              "pl": 1
+            },
+            1,
+            -1
+          ]
+        ]
+      }
+    ],
+    "listings": [
+      {
+        "n": 2,
+        "windows": [
+          [
+            0,
+            "200d71b8ac33b997",
+            "218ab7dabe6417fc"
+          ]
+        ]
+      },
+      {
+        "n": 1,
+        "windows": [
+          [
+            0,
+            "eda855924608f592"
+          ]
+        ]
+      },
+      {
+        "n": 6,
+        "windows": [
+          [
+            0,
+            "d4122586659e3998",
+            "f042dbd371746f58",
+            "49b01717ac5f8384",
+            "08f5aaf3deb46ffc",
+            "0e50f271aa78c73b",
+            "e1a32ab0c3ec7a74"
+          ]
+        ]
+      },
+      {
+        "n": 1,
+        "windows": [
+          [
+            0,
+            "0c8911c257ec527d"
+          ]
+        ]
+      }
+    ],
+    "parts": [
+      {
+        "k": "functions",
+        "l": [
+          "566697975641ff3f"
+        ]
+      },
+      {
+        "k": "functions",
+        "l": [
+          "f9ece633ffa905a6",
+          "d22f5611fa2decd2"
+        ]
+      }
+    ]
+  },
+  "insideLoop": {
+    "engine": "program",
+    "format": 2,
+    "engineVersion": "2",
+    "gameVersion": "",
+    "beats": [
+      {
+        "flags": 1,
+        "decisions": [],
+        "position": {
+          "st": {
+            "levels": [
+              {
+                "s": 1,
+                "at": 4,
+                "flow": "start",
+                "params": []
+              },
+              {
+                "s": 0,
+                "at": 1,
+                "p": 0,
+                "k": "heads",
+                "i": 0,
+                "loop": "c710cdcb09a1ce8f"
+              }
+            ]
+          },
+          "a": "end"
+        },
+        "evalStack": [],
+        "output": [
+          {
+            "objid": 1,
+            "obj": {
+              "target": "^action",
+              "text": "^Pass 1."
+            }
+          },
+          "\n"
+        ],
+        "lineEndPending": false,
+        "lineJoinable": false,
+        "turnIdx": -1,
+        "storySeed": 50,
+        "previousRandom": 0,
+        "previousFlow": "start",
+        "didSafeExit": false,
+        "variablesState": {
+          "x": 10,
+          "o": {
+            "objid": 2,
+            "obj": {
+              "left": 1,
+              "m": {
+                "objid": 3,
+                "obj": {
+                  "__closure_fn": {
+                    "^symsave": "{\"st\":{\"levels\":[{\"s\":1,\"at\":0,\"flow\":\"start\"}]},\"k\":\"functions\",\"i\":0,\"pl\":1}"
+                  },
+                  "__closure_upvals": {
+                    "objid": 4,
+                    "obj": {}
+                  },
+                  "__closure_user_arity": 2
+                }
+              },
+              "more": {
+                "objid": 5,
+                "obj": {
+                  "__closure_fn": {
+                    "^symsave": "{\"st\":{\"levels\":[{\"s\":1,\"at\":0,\"flow\":\"start\"}]},\"k\":\"functions\",\"i\":1,\"pl\":1}"
+                  },
+                  "__closure_upvals": {
+                    "objid": 6,
+                    "obj": {}
+                  },
+                  "__closure_user_arity": 1
+                }
+              }
+            }
+          }
+        },
+        "frames": [
+          {
+            "type": 0,
+            "start": 0,
+            "height": 0,
+            "temps": [
+              {
+                "__t$0": {
+                  "objref": 2
+                }
+              },
+              {}
+            ]
+          }
+        ],
+        "counts": [
+          [
+            {
+              "n": "start"
+            },
+            1,
+            -1
+          ],
+          [
+            {
+              "n": "show"
+            },
+            1,
+            -1
+          ],
+          [
+            {
+              "st": {
+                "levels": [
+                  {
+                    "s": 1,
+                    "at": 0,
+                    "flow": "start"
+                  }
+                ]
+              },
+              "k": "functions",
+              "i": 0,
+              "pl": 1
+            },
+            1,
+            -1
+          ],
+          [
+            {
+              "st": {
+                "levels": [
+                  {
+                    "s": 1,
+                    "at": 0,
+                    "flow": "start"
+                  }
+                ]
+              },
+              "k": "functions",
+              "i": 1,
+              "pl": 1
+            },
+            1,
+            -1
+          ]
+        ]
+      }
+    ],
+    "listings": [
+      {
+        "n": 1,
+        "windows": [
+          [
+            0,
+            "cfdd9cbc43cbe8ef"
+          ]
+        ]
+      },
+      {
+        "n": 6,
+        "windows": [
+          [
+            0,
+            "d4122586659e3998",
+            "f042dbd371746f58",
+            "49b01717ac5f8384",
+            "08f5aaf3deb46ffc",
+            "0e50f271aa78c73b",
+            "e1a32ab0c3ec7a74"
+          ]
+        ]
+      }
+    ],
+    "parts": [
+      {
+        "k": "heads",
+        "l": [
+          "c99276cf25feb3a1"
+        ]
+      },
+      {
+        "k": "functions",
+        "l": [
+          "f9ece633ffa905a6",
+          "d22f5611fa2decd2"
+        ]
+      }
+    ]
+  }
+}
