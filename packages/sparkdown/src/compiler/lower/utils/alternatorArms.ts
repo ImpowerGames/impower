@@ -24,7 +24,7 @@ import { isTrivia } from "../../lint/luauTree";
 import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
 import { documentText, readBlockAst, readExpressionAst } from "./luauAst";
 import { nextLuauToken } from "../../typecheck/readLuauAst";
-import { isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
+import { enclosingAlternator, isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
 import {
   AstExprSparkdownConditionalAlternator,
   AstExprSparkdownSequentialAlternator,
@@ -335,13 +335,13 @@ export function reportAlternatorHead(candidate: SyntaxNode, ctx: LowerContext): 
 /**
  * The offset of the token that ends a value of an alternator's head or arm,
  * where its reading meets its end of input (`readExpressionAst`): the `|`,
- * the `end` or the next value after it, within the alternator.
+ * the `end` or the next value after it, within the alternator
+ * (`enclosingAlternator`, a story `match`'s too).
  */
 export function tokenAfter(nodes: readonly SyntaxNode[], ctx: LowerContext): number | undefined {
   const last = nodes[nodes.length - 1];
   if (!last) return undefined;
-  let alternator = last.parent;
-  while (alternator && !ALTERNATOR_CANDIDATES.has(alternator.name)) alternator = alternator.parent;
+  const alternator = enclosingAlternator(last.parent);
   if (!alternator) return undefined;
   return nextLuauToken(last.to, documentText(ctx), alternator.to)?.from;
 }

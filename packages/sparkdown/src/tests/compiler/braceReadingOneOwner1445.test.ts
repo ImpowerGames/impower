@@ -83,7 +83,8 @@ function expectIncrementalEqualsCold(text: string): void {
  * `E` begins (`line`, `column`). The oracle is Luau's reading of a table
  * that holds `E` at the same columns (`_ = {E}`), whose `}` stands where the
  * place's end token does: the brace's `}`, or, a space after `E`, an arm's
- * `|`, which the place's errors name instead (`end`).
+ * `|`, which the place's errors name instead (`end`); or, for a head on a
+ * line of its own, the `|` at column `next` (zero-based) of the next line.
  */
 interface Place {
   name: string;
@@ -91,6 +92,7 @@ interface Place {
   line: number;
   column: number;
   end: "}" | "|";
+  next?: number;
 }
 
 const STORY: Place = { name: "story text", wrap: (e) => `scene start\n  Hello {${e}}.\nend\n`, line: 1, column: 9, end: "}" };
@@ -99,6 +101,25 @@ const CHOICE: Place = { name: "choice text", wrap: (e) => `scene start\n  choose
 const ARM: Place = { name: "a store's arm", wrap: (e) => `store s = cycle | ${e} | 3 end\n`, line: 0, column: 18, end: "|" };
 const BRACE_ARM: Place = { name: "a story brace's arm", wrap: (e) => `scene start\n  Hello {cycle | ${e} | 3 end}.\nend\n`, line: 1, column: 17, end: "|" };
 const MATCH_HEAD: Place = { name: "a story brace's match condition", wrap: (e) => `scene start\n  Hello {match ${e} | 1 = 2 end}.\nend\n`, line: 1, column: 15, end: "|" };
+// Heads on a line of their own: an alternator a store's value holds in
+// parentheses, one a function's local holds, and a story `match`.
+const STORE_LINE_HEAD: Place = { name: "a store's multiline match condition", wrap: (e) => `store s = (\n  match ${e}\n  | 1 = 2\n  end\n)\n`, line: 1, column: 8, end: "|", next: 2 };
+const FUNCTION_LINE_HEAD: Place = {
+  name: "a function's multiline cycle head",
+  wrap: (e) => `function f()\n  local c = (\n    cycle ${e}\n    | 1\n    end\n  )\n  return c\nend\nGo {f()}.\n`,
+  line: 2,
+  column: 10,
+  end: "|",
+  next: 4,
+};
+const STORY_MATCH: Place = { name: "a story match's condition", wrap: (e) => `scene start\n  match ${e}\n  | 1 = Hello.\n  end\nend\n`, line: 1, column: 8, end: "|", next: 2 };
+
+/** The Luau text the oracle reads for `expr` at `place` (`oracle`). */
+function oracleText(place: Place, expr: string): string {
+  const head = `${"\n".repeat(place.line)}_ =${" ".repeat(place.column - 4)}{${expr}`;
+  if (place.next !== undefined) return `${head}\n${" ".repeat(place.next)}}\n`;
+  return `${head}${place.end === "|" ? " " : ""}}\n`;
+}
 
 /**
  * Luau's errors for `expr` at `place`, in the words a lone expression's
@@ -108,8 +129,7 @@ const MATCH_HEAD: Place = { name: "a story brace's match condition", wrap: (e) =
  */
 function oracle(place: Place, expr: string): string[] {
   const brace = place.column - 1;
-  const text = `${"\n".repeat(place.line)}_ =${" ".repeat(brace - 3)}{${expr}${place.end === "|" ? " " : ""}}\n`;
-  return official(text).map((error) => {
+  return official(oracleText(place, expr)).map((error) => {
     let mapped = error.replace(new RegExp(`Expected '\\}' \\(to close '\\{' at column ${brace + 1}\\), got`), "Expected the end of the expression, got");
     if (place.end === "|") mapped = mapped.replace(/got '\}'$/, "got '|'");
     return mapped;
@@ -131,7 +151,7 @@ function expectLuauErrors(place: Place, expr: string): void {
   expect(errors, "no error reported twice").toEqual([...new Set(errors)]);
   for (const error of errors) expect(expected, "an error Luau reports").toContain(error);
   if (expected.length > 0) {
-    const [first] = officialErrorList(`${"\n".repeat(place.line)}_ =${" ".repeat(place.column - 4)}{${expr}${place.end === "|" ? " " : ""}}\n`);
+    const [first] = officialErrorList(oracleText(place, expr));
     const firstMessage = first!.slice(first!.indexOf(" ") + 1);
     expect(
       errors.some((error) => error.endsWith(firstMessage.replace(/got '\}'$/, `got '${place.end}'`)) || /Expected the end of the expression/.test(error)),
@@ -214,6 +234,17 @@ describe("an alternator's head and arms: the reading reports Luau's errors, nami
   // with an open bracket or call, which the grammar reads past it).
   for (const expr of ["x.", "x +", "x and", "(1 2)", "f(1 2)", "x[1 2]", "t[]", "()", "x:m", "(x.)", "a.b.c.", "x =="]) {
     test(`${MATCH_HEAD.name}: match ${expr} |`, () => expectLuauErrors(MATCH_HEAD, expr));
+  }
+  // A head on a line of its own, outside any story brace, and a story
+  // `match`'s condition: the reading names the `|` that begins the next line.
+  // Not `x:m`, whose missing arguments Luau words apart when the token after
+  // it is on a later line, which a lone reading's end of input cannot be;
+  // nor `not`, which the converter does not read as a `cycle`'s head in a
+  // function's Luau, as on base.
+  for (const place of [STORE_LINE_HEAD, FUNCTION_LINE_HEAD, STORY_MATCH]) {
+    for (const expr of ["x.", "x +", "x and", "(1 2)", "f(1 2)", "x[1 2]", "t[]", "()", "(x.)", "a.b.c."]) {
+      test(`${place.name}: ${expr}`, () => expectLuauErrors(place, expr));
+    }
   }
 });
 

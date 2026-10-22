@@ -391,6 +391,25 @@ const STORY_TEXT = new Set(["TextChunk", "ChoiceTextContent"]);
 // What an alternator's arm holds that is no value of it: a line of story, a
 // statement, which its own reading reads.
 const ARM_STORY = new Set(["LuauSparkdownAlternatorArm", "LuauSparkdownInlineGluedAlternatorArm"]);
+// An alternator's head, on its word's line or beginning a line of its own.
+const ALTERNATOR_HEADS = new Set(["LuauAlternatorHead", "LuauAlternatorLineStartHead"].flatMap(explicitRuleNames));
+// The alternators of story text whose condition is Luau (`match x` on a
+// line of its own, or glued into a line of text), beside the candidates.
+const STORY_CONDITIONAL_ALTERNATORS = new Set(
+  ["LuauSparkdownConditionalAlternatorBlock", "LuauSparkdownInlineGluedConditionalAlternatorBlock"].flatMap(explicitRuleNames),
+);
+
+/**
+ * The alternator a node of its head, condition or arms is in: a candidate in
+ * Luau or a story brace (`ALTERNATOR_CANDIDATES`), or a story conditional
+ * alternator, whose condition its lowerer reads (`tokenAfter`).
+ */
+export function enclosingAlternator(node: SyntaxNode | null): SyntaxNode | null {
+  for (let n = node; n; n = n.parent) {
+    if (ALTERNATOR_CANDIDATES.has(n.name) || STORY_CONDITIONAL_ALTERNATORS.has(n.name)) return n;
+  }
+  return null;
+}
 
 /**
  * The expression a lowerer reads a node in, where no other reading reads
@@ -398,17 +417,17 @@ const ARM_STORY = new Set(["LuauSparkdownAlternatorArm", "LuauSparkdownInlineGlu
  * words, ending at the token after it (I-1445, `reportReadingErrors`
  * "expression"): a story brace in story text, dialogue or choice text
  * (`Hello {x.}.`, not a tag's, nor one in a string), a choice's `if`
- * condition, or an alternator's head or a value in its arm (not a statement
- * or line of story in it), whose reading ends within the alternator. Null
- * for any other node.
+ * condition, an alternator's head, on its word's line or its own, a story
+ * conditional alternator's condition (`match x.` on a line of its own), or a
+ * value in an alternator's arm (not a statement or line of story in it),
+ * whose reading ends within the alternator. Null for any other node.
  */
 export function loweredExpressionOf(node: SyntaxNode | null): SyntaxNode | null {
   for (let n = node; n?.parent; n = n.parent) {
     if (isExplicitRuleName(n.name, "ChoiceCondition")) return n;
-    if (isExplicitRuleName(n.name, "LuauAlternatorHead")) {
-      let alternator: SyntaxNode | null = n.parent;
-      while (alternator && !ALTERNATOR_CANDIDATES.has(alternator.name)) alternator = alternator.parent;
-      return alternator;
+    if (ALTERNATOR_HEADS.has(n.name)) return enclosingAlternator(n.parent);
+    if (isExplicitRuleName(n.name, "LuauConditionalAlternatorCondition") && STORY_CONDITIONAL_ALTERNATORS.has(n.parent.parent?.name ?? "")) {
+      return n.parent.parent;
     }
     const arms = n.parent.parent;
     if (arms && isExplicitRuleName(arms.name, "LuauAlternatorArms") && n.parent.name === `${arms.name}_content`) {
