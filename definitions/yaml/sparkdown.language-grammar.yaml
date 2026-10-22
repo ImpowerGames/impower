@@ -171,14 +171,6 @@ variables:
   # A character other than a `:` before a single `:`, or the line's start.
   # lookaround: read only in lookbehinds, with no lookaround of its own.
   LUAU_NOT_COLON_BEHIND: (?:^|[^:\n\r])
-  # The same position after a single `:` that a type read as stray
-  # (`LuauTypeStrayColon`, I-1450), and not after a `::`.
-  # lookaround: read only in lookbehinds, with no lookaround of its own.
-  LUAU_STRAY_COLON_BEHIND: (?:{{LUAU_NOT_COLON_BEHIND}}{{LUAU_METHOD_COLON_LINE_BEHIND}})
-  # A reserved word right after such a stray `:`, which the type reads as a
-  # method's name instead of ending before it (`LuauTypeLiteral`).
-  # lookaround: `LuauTypeLiteral`'s end yields to its `LuauKeywordMethodName` only after the stray `:` it has read, which only the text before the word shows.
-  LUAU_NON_TYPE_KEYWORD_NOT_AFTER_STRAY_COLON: (?:(?<!{{LUAU_STRAY_COLON_BEHIND}}){{LUAU_NON_TYPE_KEYWORDS}})
   # The same position past a comment of level nine or more.
   # lookaround: read only in lookbehinds, with no lookaround of its own.
   LUAU_METHOD_COLON_LONG_COMMENT_BEHIND: (?:{{LUAU_METHOD_COLON_LINE_BEHIND}}{{LUAU_LONG_BLOCK_COMMENT_BEHIND}}{{LUAU_BLOCK_COMMENT_BEHIND}}*)
@@ -188,13 +180,14 @@ variables:
   # not another annotation's (I-1447): Luau's type ends before it, the
   # statement with it, and the `:` begins the next statement, whose method
   # name is the word. The type is a run of tokens with no space, comma, `;`,
-  # `=` or `:` in it outside a bracket pair of one level, joined by `|`, `&`
-  # or `->`, so an annotation's own `:` never stands at a position it
-  # matches: that `:` follows a target's name, which a `,`, `(`, `{` or a
-  # keyword comes before, never a `:` and a type. A longer type
-  # (`{a: number}`, `Array<A, B>`) leaves the `:` to
-  # `LuauTypeAnnotationMissingType`, as before, and the word closes the
-  # block it may close.
+  # `=` or `:` in it outside its brackets, which nest two levels deep,
+  # joined by `|`, `&` or `->` (`LUAU_TYPE_TOKEN_BEHIND`), so an
+  # annotation's own `:` never stands at a position it matches: that `:`
+  # follows a target's name, which a `,`, an unclosed `(` or `{` or a
+  # keyword comes before, never a `:` and a complete type. A type with
+  # brackets three levels deep, or with a word after a space that no type
+  # operator joins, leaves the `:` to `LuauTypeAnnotationMissingType`, as
+  # before, and the word closes the block it may close.
   # lookaround: read only in lookbehinds, with no lookaround of its own (VS Code's regex engine refuses one inside a lookbehind).
   LUAU_TYPE_AFTER_COLON_BEHIND: (?:{{LUAU_NOT_COLON_BEHIND}}[:][:]?{{WS}}*{{LUAU_TYPE_BEHIND}}{{WS}}*)
   # Such a type: its tokens joined by `|`, `&` or `->`.
@@ -205,7 +198,9 @@ variables:
   # A `:` after such a type that a reserved word follows, which
   # `LuauTypeAnnotationMissingType` leaves to the method accessor.
   # lookaround: `LuauExpressionKeywordMethodAccessor` reads a `:` that a reserved word follows after an annotation's complete type, and only the text since the annotation's `:` shows that a type stands there; `LuauTypeAnnotationMissingType` steps aside for it.
-  LUAU_METHOD_COLON_AFTER_TYPE_AHEAD: (?:(?<={{LUAU_TYPE_AFTER_COLON_BEHIND}}){{LUAU_COLON_BEFORE_RESERVED_WORD}})
+  # The lookahead goes first, so the lookbehind, which reads back along the
+  # line, runs only at such a `:`.
+  LUAU_METHOD_COLON_AFTER_TYPE_AHEAD: (?:(?={{LUAU_COLON_BEFORE_RESERVED_WORD}})(?<={{LUAU_TYPE_AFTER_COLON_BEHIND}}))
   # A value's bracket or quote, or such a type, before a method's `:` that a
   # comment of level nine or more follows, where
   # `LuauExpressionKeywordMethodAccessor` reads the `:` (I-1459): a name
@@ -213,7 +208,24 @@ variables:
   # annotation's target, whose `:` is the annotation's.
   # lookaround: read only in lookbehinds, with no lookaround of its own.
   LUAU_RECEIVER_BEFORE_LONG_COMMENT_BEHIND: (?:[)\]}"'`]{{WS}}*|{{LUAU_TYPE_AFTER_COLON_BEHIND}})
-  LUAU_TYPE_TOKEN_BEHIND: (?:(?:[^\s,;=:(){}\[\]|&]|[(][^\n\r(){}\[\],;=:]*[)]|[{][^\n\r(){}\[\],;=:]*[}]|\[[^\n\r(){}\[\],;=:]*\])+)
+  # One token of such a type: a run of characters with no space, comma, `;`,
+  # `=`, `:`, bracket, `|` or `&`, or a bracket pair, which may hold any of
+  # them and one more level of brackets (`{a: number}`, `(a: T) -> U`,
+  # `Array<A, B>`, `{a: {b: T}}`).
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_TOKEN_BEHIND: (?:(?:[^\s,;=:(){}\[\]|&]|{{LUAU_TYPE_BRACKETS_BEHIND}})+)
+  # A bracket pair in a type, holding one more level of brackets.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_BRACKETS_BEHIND: (?:[(]{{LUAU_TYPE_BRACKET_PART_BEHIND}}*[)]|[{]{{LUAU_TYPE_BRACKET_PART_BEHIND}}*[}]|\[{{LUAU_TYPE_BRACKET_PART_BEHIND}}*\]|[<]{{LUAU_TYPE_GENERIC_PART_BEHIND}}*[>])
+  # A character or inner bracket pair in such a pair.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_BRACKET_PART_BEHIND: (?:[^\n\r(){}\[\]]|{{LUAU_TYPE_INNER_BRACKETS_BEHIND}})
+  # The same in a generic's angle brackets, which hold no angle bracket.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_GENERIC_PART_BEHIND: (?:[^\n\r(){}\[\]<>]|{{LUAU_TYPE_INNER_BRACKETS_BEHIND}})
+  # A bracket pair inside one, holding no brackets.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_INNER_BRACKETS_BEHIND: (?:[(][^\n\r(){}\[\]]*[)]|[{][^\n\r(){}\[\]]*[}]|\[[^\n\r(){}\[\]]*\]|[<][^\n\r(){}\[\]<>]*[>])
   # A `:` that `do` or `then` follows on its line, with no name between
   # (`while t: do`, `local b = a:  then`), where an access path ends. Either
   # keyword may end a header, so the rule around the path decides, as no
@@ -14888,6 +14900,16 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeOptionalOperator" }
       - { include: "#LuauTypeStrayOptionalOperator" }
+      # A single `:` where a type must begin that a reserved word follows on
+      # its line (`t :: T | :end`, I-1450), or a comment or the line's end:
+      # Luau reports the missing type at the `:` and reads it again as the
+      # start of a statement whose method name is the word, so the word
+      # opens and closes no block. The method accessors read the `:` and the
+      # name as a path's do (with comments of level nine or more,
+      # `LuauNextLineMethodAccessor`); tried before the stray-colon token,
+      # which reads any other `:` and every `::`.
+      - { include: "#LuauKeywordMethodAccessor" }
+      - { include: "#LuauNextLineMethodAccessor" }
       - { include: "#LuauTypeStrayColon" }
       - { include: "#LuauTypeBinaryOperation" }
       - { include: "#LuauTypeTableStruct" }
@@ -14903,9 +14925,6 @@ repository:
       - { include: "#LuauTypeFunctionParameters" }
       - { include: "#LuauTypeGenerics" }
       - { include: "#LuauTypeName" }
-      # A reserved word after a stray `:` on its line, which the end leaves
-      # (I-1450); no type rule above reads one.
-      - { include: "#LuauKeywordMethodName" }
       # A type goes on across the line break (GRAMMAR.md §11.5): the
       # whitespace before it and the line break are the type's own, and
       # the next line either continues it with `|` or ends it at its start.
@@ -14927,13 +14946,7 @@ repository:
     # A complete type also ends before a `:` that a reserved word no type
     # can begin follows (`t :: T:do`, `LUAU_COLON_BEFORE_RESERVED_WORD`),
     # which the expression around it reads as a method's (I-1351).
-    # Right after a stray `:` (`t :: T | :end`, `LuauTypeStrayColon`) and
-    # the trivia after it on its line, a reserved word does not end it: Luau
-    # reports the missing type at the `:`, which then begins a statement
-    # whose method name is the word (I-1450), so the type reads the word as
-    # that name (`LuauKeywordMethodName`) and it opens and closes no block.
-    # lookaround: `LuauKeywordMethodName` reads the word after the `LuauTypeStrayColon` the type has already read, which only the text before the word shows (`LUAU_NON_TYPE_KEYWORD_NOT_AFTER_STRAY_COLON`, reading the `:`'s line only).
-    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORD_NOT_AFTER_STRAY_COLON}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
+    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
 
   # A block comment right after a type that closes on a later line
   # (`local w: number --[[a` then `b]] print(1)`). No pattern on the

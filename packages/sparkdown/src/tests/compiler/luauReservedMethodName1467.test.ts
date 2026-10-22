@@ -97,6 +97,13 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x: T | U:end", "end"],
     ["local x, y: T:end", "end"],
     ["local x: T: --[=========[c]=========] end", "end"],
+    // Types whose brackets hold a `:` or a `,` (round 1, `ax` finding 1).
+    ["local x: {a: number}:end", "end"],
+    ["local x: {a: number, b: string}:end", "end"],
+    ["local x: {a: {b: T}}:end", "end"],
+    ["local x: (a: number) -> T:end", "end"],
+    ["local x: Array<A, B>:end", "end"],
+    ["local x, y: {a: number}:end", "end"],
     // A function's return type, which the ticket asked to check.
     ["local function f(): T:end end", "end"],
     ["local function f(): T:end\n  end", "end"],
@@ -114,6 +121,9 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: () -> :end", "end"],
     ["local t = {}\n  local b = t :: T & :end", "end"],
     ["local t = {}\n  local b = t :: T & :do", "do"],
+    ["local t = {}\n  local b = t :: T | : --[[c]] end", "end"],
+    ["local t = {}\n  local b = t :: T | : --[=========[c]=========] end", "end"],
+    ["local t = {}\n  local b = t :: T | :function", "function"],
   ],
   "after a block comment of level 9 or more (I-1459)": [
     ["local t = {}\n  local b = (t): --[=========[c]=========] end", "end"],
@@ -131,6 +141,7 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
   "well-formed code the same rules read": [
     ["for a, b in pairs({}) do end", null],
     ["for k: number, v: string in pairs({}) do end", null],
+    ["for k: {a: number}, v: number in pairs({}) do end", null],
     ["for i: number = 1, 3 do end", null],
     ["local t = {}\n  for k, v in pairs(t), t do end", null],
     ["local t = {}\n  local b = (t)\n    :foo()", null],
@@ -153,7 +164,10 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x\n  : end", null, "local x\n  : end"],
     ["local a, b: end", null, "local a, b: end"],
     ["local a: T, b: end", null, "local a: T, b: end"],
+    ["local a: {x: T, y: U}, b: end", null, "local a: {x: T, y: U}, b: end"],
+    ["local function f(a: {x: T}, b: end) end", null, "local function f(a: {x: T}, b: end) end"],
     ["for k: in pairs({}) do end", null],
+    ["for k: {a: number}, v: in pairs({}) do end", null],
     ["for k\n  : in pairs({}) do end", null],
     ["local function f():end", null],
   ],
