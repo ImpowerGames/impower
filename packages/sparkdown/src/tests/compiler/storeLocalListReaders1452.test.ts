@@ -14,10 +14,10 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const SCENE = "scene start\n  Hello.\nend\n";
 
-/** Syntax errors, as `start-end message` in 0-based lines and characters, sorted. */
-function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
+/** Syntax errors (with `all`, every error), as `start-end message` in 0-based lines and characters, sorted. */
+function errorsOf(diagnostics: readonly SparkDiagnostic[], all = false): string[] {
   return diagnostics
-    .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+    .filter((d) => d.severity === DiagnosticSeverity.Error && (all || !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d)))))
     .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
     .sort();
 }
@@ -106,6 +106,22 @@ describe("a bare local with no name (I-1425)", () => {
 
 describe("a store name list with an empty slot before its end (I-1426)", () => {
   for (const line of ["store , = 1", "store a,, = 1", "store ,, = 1", "store , a = 1"]) pinLine(line, line.replace(/^store/, "local"));
+});
+
+// An error of another kind on a declaration's line, a name declared twice,
+// reports something else and leaves the declaration's own (round 1).
+describe("a declaration whose line holds another kind of error", () => {
+  const lines = ["store , = 1", "store a,, = 1", "local a = 1 2", "local b = 1 Hello", "local", "store s = 1 g(x"];
+  const text = `${lines.join("\n")}\n`;
+  test("each line reports its own Luau errors", () => {
+    const expected = lines.flatMap((line, i) => official(`${line.replace(/^store/, "local")}\n`, i)).sort();
+    expect(sparkdownErrors(text)).toEqual(expected);
+    expectIncrementalEqualsCold(text);
+  });
+  test("the names declared twice are reported", () => {
+    const errors = errorsOf(newCompiler(text).compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [], true);
+    expect(errors.some((e) => e.includes("Duplicate identifier `a`")), "a store and a local named `a`").toBe(true);
+  });
 });
 
 describe("a story store whose run-on value leaves a call open to its line's end (I-1477)", () => {

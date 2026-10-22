@@ -5975,7 +5975,8 @@ export class SparkdownCompiler {
   /**
    * Reports a story `store` declaration's syntax errors as Luau reads the
    * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
-   * I-1370), for a store no other reporter reported an error on. The type
+   * I-1370), for a store no other reporter reported an error on, but at a
+   * name it declares (a name declared twice, I-1452). The type
    * checker leaves a store's errors to Sparkdown, which reports what the tree
    * marks missing or unread, in its own words and ranges; a store's errors
    * have one owner, as a story statement's do (#931, #1907), and Luau's
@@ -6006,13 +6007,24 @@ export class SparkdownCompiler {
           const { from, to } = error.store;
           const last = to > from && doc.read(to - 1, to) === "\n" ? to - 1 : to;
           const range = doc.range(from, last);
+          // An error at a name the declaration declares (the name declared
+          // twice) is about the name, not the declaration's syntax (I-1452).
+          const atName = (d: SparkDiagnostic) =>
+            error.names.some(
+              (name) =>
+                name.start.line === d.range.start.line &&
+                name.start.character === d.range.start.character &&
+                name.end.line === d.range.end.line &&
+                name.end.character === d.range.end.character,
+            );
           inError =
             !range ||
             diagnostics.some(
               (d) =>
                 d.severity === DiagnosticSeverity.Error &&
                 d.range.start.line >= range.start.line &&
-                d.range.start.line <= range.end.line,
+                d.range.start.line <= range.end.line &&
+                !atName(d),
             );
           reported.set(key, inError);
         }
