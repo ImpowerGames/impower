@@ -160,6 +160,76 @@ describe("a function's local of a stdlib name", () => {
   });
 });
 
+describe("a function's local of a stdlib name out of scope at the call", () => {
+  // The top-level locals the calls read when nothing in the function hides
+  // them.
+  const locals = [
+    "local math = { abs = function(v) return 77 end }",
+    "local type = function(v) return 'custom' end",
+  ];
+
+  test("leaves the top-level local to a call written before it", () => {
+    expect(
+      run([
+        ...locals,
+        "function g()",
+        "  local f = math.abs",
+        "  local result = tostring(f(-3)) .. ' ' .. tostring(math.abs(-3)) .. ' ' .. type(7)",
+        "  local math = {}",
+        "  local type = 1",
+        "  return result",
+        "end",
+        "Got {g()}.",
+      ]),
+    ).toEqual(got("Got 77 77 custom."));
+  });
+
+  test("leaves the top-level local to a call after the block that declared it", () => {
+    expect(
+      run([
+        ...locals,
+        "function g()",
+        "  do",
+        "    local math = {}",
+        "    local type = 1",
+        "  end",
+        "  return tostring(math.abs(-3)) .. ' ' .. type(7)",
+        "end",
+        "Got {g()}.",
+      ]),
+    ).toEqual(got("Got 77 custom."));
+  });
+
+  test("leaves the top-level local to a closure written before it", () => {
+    expect(
+      run([
+        ...locals,
+        "function g()",
+        "  local c = function() return tostring(math.abs(-3)) .. ' ' .. type(7) end",
+        "  local math = {}",
+        "  local type = 1",
+        "  return c()",
+        "end",
+        "Got {g()}.",
+      ]),
+    ).toEqual(got("Got 77 custom."));
+  });
+
+  test("leaves the builtin to a call written before it with no top-level local", () => {
+    expect(
+      run([
+        "function g()",
+        "  local before = tostring(math.abs(-3)) .. ' ' .. type(7)",
+        "  local math = {}",
+        "  local type = 1",
+        "  return before",
+        "end",
+        "Got {g()}.",
+      ]),
+    ).toEqual(got("Got 3 number."));
+  });
+});
+
 describe("an incremental compile", () => {
   // The edits leave the calls' own lines as they were, so the chunks that
   // hold them are carried unless the `local` above them is asked again.
