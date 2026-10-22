@@ -570,11 +570,12 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
 
   it("reports the expressions of a define body that are not statements", () => {
     const source = 'define foo as object with\n  name = "Orion"\n  Hello\n  Hi, Bob\n  1 + 2\nend\n';
-    // `Hi, Bob` gets Luau's range at the next token, the `1` below it.
+    // `Hi, Bob` gets Luau's range at the next token, the `1` below it, and
+    // Luau reads `1 + 2` as the assignment's values, as the official parser
+    // does (I-1489).
     expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character, d.message])).toEqual([
       [2, 2, "Incomplete statement: expected assignment or a function call"],
       [4, 2, "Expected '=' when parsing assignment, got '1'"],
-      [4, 2, luauFirstError("function f()\n  1 + 2\nend\n").message],
     ]);
   });
 
@@ -583,11 +584,12 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(errorsOf(source)).toEqual(luauErrors(source));
   });
 
-  // `Hello` is Luau's first error; `there.` is a statement of its own, whose
-  // `.` names the `end` after it.
+  // `Hello` and `there.` are each a statement Luau finds incomplete, and the
+  // `.` names the `end` after it, as the official parser reports (I-1489).
   it("reports such a line among the properties of a define block", () => {
     const source = `define foo as object with\n  name = "Orion"\n  Hello there.\nend\n`;
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
+      [2, "Incomplete statement: expected assignment or a function call"],
       [2, "Incomplete statement: expected assignment or a function call"],
       [3, "Expected identifier, got 'end'"],
     ]);
