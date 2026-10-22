@@ -146,7 +146,9 @@ describe("a real alternator in each structural word opens and lowers as before",
     ["the sequential block form inside a bracket", "function f()\n  print(\n    chain\n      | 1\n      | 2\n    end\n  )\n  return 3\nend\nValue {f()}.\n", "LuauSequentialAlternatorLineStart"],
     ["the conditional block form with a parenthesized condition", "function f(n)\n  match (n)\n    | 1 = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n", "LuauConditionalAlternatorLineStart"],
   ])("%s keeps its arms and the function its end", (_, source, rule) => {
-    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\n" });
+    // The selected arm's call runs, writing its `1` before the line
+    // (I-1397).
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 13.\n" });
     expect(tree(source)).toMatch(new RegExp(`─ ${rule} \\[`));
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
   });
@@ -155,17 +157,19 @@ describe("a real alternator in each structural word opens and lowers as before",
 describe("where a candidate ends", () => {
   test("a candidate first on its line goes on past blank and comment lines to its arms", () => {
     const source = "function f(n)\n  match n\n\n  -- the arms\n    | 1 = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n";
-    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\n" });
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 13.\n" });
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
   });
 
   test.each([
-    ["a comment after the head that ends in `end`", "function f()\n  queue -- end\n    | print(1)\n  end\n  return 3\nend\nValue {f()}.\n"],
-    ["a comment line between the head and its arms that ends in `end`", "function f(n)\n  match n\n    -- the end\n    | a = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n"],
-    ["a comment after a bare condition that ends in `end`", "function f(n)\n  match n -- end\n    | print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n"],
-    ["a comment after a parenthesized condition that ends in `end`", "function f(n)\n  plural (n) -- the end\n    | one = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n"],
-  ])("%s leaves the candidate open to its arms", (_, source) => {
-    expect(run(source)).toEqual({ errors: [], warnings: expect.any(Array), output: "Value 3.\n" });
+    // The selected arm's call runs, writing its `1` before the line, and a
+    // `match` arm no value takes runs nothing (I-1397).
+    ["a comment after the head that ends in `end`", "function f()\n  queue -- end\n    | print(1)\n  end\n  return 3\nend\nValue {f()}.\n", "Value 13.\n"],
+    ["a comment line between the head and its arms that ends in `end`", "function f(n)\n  match n\n    -- the end\n    | a = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n", "Value 3.\n"],
+    ["a comment after a bare condition that ends in `end`", "function f(n)\n  match n -- end\n    | print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n", "Value 13.\n"],
+    ["a comment after a parenthesized condition that ends in `end`", "function f(n)\n  plural (n) -- the end\n    | one = print(1)\n  end\n  return 3\nend\nValue {f(1)}.\n", "Value 13.\n"],
+  ])("%s leaves the candidate open to its arms", (_, source, output) => {
+    expect(run(source)).toEqual({ errors: [], warnings: expect.any(Array), output });
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
   });
 
@@ -226,7 +230,8 @@ describe("where a candidate ends", () => {
   // here) leaves the outer word its arms (round 4).
   test("a nested condition followed by a comment before the arms on the next line keeps the function's end", () => {
     const source = 'function f(n)\n  match match("x") | x = "mage" end -- note\n    | mage = print(2)\n  end\n  return 3\nend\nValue {f(1)}.\nAfter.\n';
-    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\nAfter.\n" });
+    // The condition is `mage`, whose arm's call runs (I-1284, I-1397).
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 23.\nAfter.\n" });
   });
 
   test("a nested condition followed by a comment before the arms in an interpolation keeps its arms", () => {
@@ -235,7 +240,8 @@ describe("where a candidate ends", () => {
 
   test.each(["true", "false", "nil", "-1", "not false", '#"x"'])("a block-form match on `%s` opens its arms", (condition) => {
     const source = `function f()\n  match ${condition}\n    | other = print(1)\n  end\n  return 3\nend\nValue {f()}.\nAfter.\n`;
-    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\nAfter.\n" });
+    // `other` takes every condition, and its call runs (I-1397).
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 13.\nAfter.\n" });
     expect(tree(source)).toMatch(/─ LuauConditionalAlternatorLineStart \[/);
     expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
   });
@@ -243,7 +249,8 @@ describe("where a candidate ends", () => {
   test.each([["\r\n"], ["\r"]])("a head comment ending in `end` reads the line break %j whole", (eol) => {
     const source = ["function f(n)", "  queue -- end", "    | print(1)", "  end", "  match n -- end", "    | a = print(1)", "  end", "  return 3", "end", "Value {f(1)}.", "After.", ""].join(eol);
     expect(tree(source)).not.toMatch(/ERROR_INCOMPLETE/);
-    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\nAfter.\n" });
+    // The queue's arm runs; the match's arm takes no `1` (I-1397).
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 13.\nAfter.\n" });
   });
 
   test("a candidate first on its line that no arms follow ends before the next statement", () => {

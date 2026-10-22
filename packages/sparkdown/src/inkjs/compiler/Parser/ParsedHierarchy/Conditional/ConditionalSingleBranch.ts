@@ -109,12 +109,14 @@ export class ConditionalSingleBranch extends ParsedObject {
       if (!this.isTrueBranch) {
         // A branch with no expression of its own (a keyless arm of a
         // `match`) tests what is on the stack, as the current engine's
-        // conditional divert does.
+        // conditional divert does: in a switch-like conditional, the copy
+        // of the value, which compared with nothing leaves the value below
+        // it for the branch to pop.
         if (this.ownExpression) {
           emitter.emitObject(this.ownExpression);
-        }
-        if (this.matchingEquality) {
-          emitter.emit(Op.Native, emitter.string("=="), 2);
+          if (this.matchingEquality) {
+            emitter.emit(Op.Native, emitter.string("=="), 2);
+          }
         }
       }
       skip = emitter.jump(Op.JumpIfFalse, JUMP_DECISION);
