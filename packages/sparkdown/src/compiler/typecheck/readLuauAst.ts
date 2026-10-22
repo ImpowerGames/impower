@@ -2175,7 +2175,7 @@ class Parser {
     const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && begin.authoredIsland !== undefined && !this.currentFunction().luau;
     const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
     // Luau compares the line of the token found with the opener's.
-    const line = this.current().kind === "eof" && this.eofOnNextLine ? location.begin.line + 1 : location.begin.line;
+    const line = this.endOfInputOnNextLine() ? location.begin.line + 1 : location.begin.line;
     const message =
       line === begin.location.begin.line
         ? `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`
@@ -2183,6 +2183,22 @@ class Parser {
     const reported = this.errors.length;
     this.report(location, message, malformed);
     if (this.errors.length > reported && begin.from < begin.to) this.errors[reported]!.opener = begin.location;
+  }
+
+  /**
+   * Not part of Luau: whether the end of input the reading meets (its own,
+   * or a marked island's) stands on the next line in Luau's reading. A
+   * reading that stops at the end of a line, with only trivia after its last
+   * token and a line break after that (`store s = g(x`, I-1490), stops where
+   * Luau reads on past the line break, so Luau's end of input is on the next
+   * line, as `ReadOptions.eofOnNextLine` says for a store's reading (I-1477).
+   */
+  private endOfInputOnNextLine(): boolean {
+    const at = this.current();
+    if (at.kind !== "eof" && !(at.kind === "break" && at.authoredEnd)) return false;
+    if (at.kind === "eof" && this.eofOnNextLine) return true;
+    const lineEnd = this.ctx.text.indexOf("\n", at.to);
+    return lineEnd >= 0 && /^[ \t\r]*(--.*)?$/.test(this.ctx.text.slice(at.to, lineEnd));
   }
 
   /** Not part of Luau: whether a block's opener is written, not a chunk's or a flow's wrapper's. */
