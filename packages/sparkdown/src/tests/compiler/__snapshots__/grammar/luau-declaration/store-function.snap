@@ -31,7 +31,8 @@ sparkdown [0..86]
  │       │       └─ OptionalWhitespace [18..19]: " "
  │       ├─ LuauFunctionDefinition_end_c2 [19..22]
  │       │   └─ LuauEndKeyword [19..22]: "end"
- │       └─ LuauFunctionDefinition_end_c3 22
+ │       ├─ LuauFunctionDefinition_end_c3 22
+ │       └─ LuauFunctionDefinition_end_c4 22
  ├─ Newline [22..23]: "\n"
  ├─ Scene [23..33]
  │   ├─ Scene_begin [23..29]
@@ -103,7 +104,8 @@ sparkdown [0..86]
  │   │   │       │       └─ OptionalWhitespace [71..72]: " "
  │   │   │       ├─ LuauFunctionDefinition_end_c2 [72..75]
  │   │   │       │   └─ LuauEndKeyword [72..75]: "end"
- │   │   │       └─ LuauFunctionDefinition_end_c3 75
+ │   │   │       ├─ LuauFunctionDefinition_end_c3 75
+ │   │   │       └─ LuauFunctionDefinition_end_c4 75
  │   │   └─ Newline [75..76]: "\n"
  │   └─ LuauSparkdownIfBlock_end [76..81]
  │       ├─ LuauSparkdownIfBlock_end_c1 [76..78]
