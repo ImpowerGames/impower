@@ -239,6 +239,20 @@ describe("the reading's words, at the token it ends at", () => {
   }
 });
 
+// A keyword the tree reads as a member's name reads a define's property of
+// that name (#1081), in story text and an arm alike.
+describe("a keyword member name is Sparkdown's", () => {
+  for (const text of [
+    "define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n",
+    "define cfg with\n  repeat = 3\nend\nstore s = cycle | cfg.repeat | 3 end\n",
+  ]) {
+    test(JSON.stringify(text.split("\n")[3]), () => {
+      expect(sparkdownErrors(text)).toEqual([]);
+      expectIncrementalEqualsCold(text);
+    });
+  }
+});
+
 // Story text, dialogue and choice text may leave out an if expression's
 // `else` where the brace holds it whole (`{if c then a}` shows nothing when
 // `c` is false): the reading reports what the last value lacks at the `}`,

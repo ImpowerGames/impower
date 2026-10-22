@@ -220,6 +220,15 @@ export function reportSyntaxErrors(
  */
 export type ReadingErrorScope = "string" | "expression";
 
+/** Whether a node is, or is in, a member's name the tree reads (`LuauPropertyName`). */
+function isPropertyName(node: SyntaxNode | null): boolean {
+  for (let n = node; n; n = n.parent) {
+    if (isExplicitRuleName(n.name, "LuauPropertyName")) return true;
+    if (isExplicitRuleName(n.name, "LuauPropertyAccessor")) return false;
+  }
+  return false;
+}
+
 /**
  * Reports the errors of a lowerer's reading of an expression that `node`
  * begins, where no other reading reads the expression: not the type
@@ -239,7 +248,10 @@ export type ReadingErrorScope = "string" | "expression";
  * and `{f(}` `Expected identifier when parsing expression, got '}'`. Two
  * values or names side by side (`{1 2}`), and a backtick string the
  * expression rejects (`{1 `a {} b`}`), report `Expected the end of the
- * expression, got …`.
+ * expression, got …`. A keyword the tree reads as a member's name
+ * (`LuauPropertyName`, `{cfg.repeat}`), which story text may use to read a
+ * define's property of that name (#1081), is Sparkdown's syntax, not Luau's
+ * missing name.
  */
 export function reportReadingErrors(
   errors: readonly LuauSyntaxError[],
@@ -254,6 +266,7 @@ export function reportReadingErrors(
     if (error.sparkdown || error.pastChunkEnd) return false;
     if (scope === "string" && !error.ofString) return false;
     const at = root.resolveInner(offsetAt(error.location.begin, ctx), 1);
+    if (!error.ofString && isPropertyName(at)) return false;
     return !isReadLuau(at, read) && !storyStoreOf(at, read);
   });
   if (owned.length > 0) reportSyntaxErrors(owned, ctx);

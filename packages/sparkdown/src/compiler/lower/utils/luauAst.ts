@@ -152,6 +152,7 @@ export function readExpressionAst(
 }
 
 // A message's `got <eof>`, the token the error found.
+// value-level: a reading error's message, naming the token it found
 const GOT_EOF = /got <eof>(?=;|$)/;
 
 /** A reading's errors with its end of input named as the token at `end` (`readExpressionAst`). */
@@ -162,6 +163,7 @@ function endingAt(errors: readonly LuauSyntaxError[], end: number, ctx: LowerCon
   const begin = positionAt(token.from, ctx);
   const location = new Location(begin, positionAt(token.from + token.text.length, ctx));
   return errors.map((error) => {
+    // value-level: a reading error's message, naming the token it found
     if (!GOT_EOF.test(error.message)) return error;
     const message = error.message.replace(GOT_EOF, `got '${token.text}'`);
     // The end of input itself stands where the reading's last token ends,
