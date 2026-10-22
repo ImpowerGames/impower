@@ -1,7 +1,7 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { luauStatementErrors } from "../../utils/luauStatementError";
-import { defineStatementLast, isDefineStatementStart, readsDefineStatement } from "../../utils/defineStatement";
+import { luauStatementErrors, type LuauStatementError } from "../../utils/luauStatementError";
+import { defineStatementLast, defineStatementThrough, isDefineStatementStart, readsDefineStatement } from "../../utils/defineStatement";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -153,28 +153,30 @@ const DEFINE_MEMBER_NAMES = nodeNameSet([
 // Define bodies lower members only, but still report the statements that
 // Luau cannot read, every error of each (I-1489), as their one owner
 // (`loweredDefineStatementOf`). A property's continuation is consumed
-// first. A statement that is a `.` no name follows is the validator's to
-// report (`readsDefineStatement`); a later one on the line (`Hello there.`)
-// is a statement of its own. A call the grammar opened as a method
+// first, and a line that finishes what a property left open is the tree
+// checks' (`readsDefineStatement`). A call the grammar opened as a method
 // (`isDefineMethodCall`) holds its whole line, line break included, so it
 // is the statement alone (`whole`). The lines that continue a statement
-// (`.g(2)`) are its own (`defineStatementLast`). A statement that Luau's reading of the
-// statement before it reads on into (`Hi, Bob` then `1 + 2`, the
-// assignment's values), before `readFrom`, is that reading's. Returns the
-// statement's last node and where the reading of it ends.
-function reportDefineStatement(
-  start: SyntaxNode,
-  ctx: LowerContext,
-  readFrom: number,
-  whole = false,
-): { last: SyntaxNode; readTo: number } {
-  // A node the reading before consumed is skipped alone: a statement later
-  // on its line (`1 + 2; t.f(1 +)`) begins one of its own.
-  if (start.from < readFrom) return { last: start, readTo: readFrom };
-  const last = defineStatementLast(start, whole);
+// (`.g(2)`) are its own (`defineStatementLast`). A statement line that
+// Luau's reading reads on into (`Hi, Bob` then `1 + 2; t.f(1 +)`, whose
+// `1 + 2` is the assignment's values) is read with it whole, as Luau reads
+// it, so the reading reports every statement on that line too
+// (`defineStatementThrough`). Returns the last node read.
+function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = false): SyntaxNode {
+  let last = defineStatementLast(start, whole);
   const read = (from: number, to: number) => ctx.read(from, to);
-  if (!readsDefineStatement(start, read)) return { last, readTo: last.to };
-  const { errors, to } = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
+  if (!readsDefineStatement(start, read)) return last;
+  const lineOf = (pos: number) => ctx.lineNumber(pos);
+  let errors: LuauStatementError[];
+  for (;;) {
+    const reading = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
+    const through = defineStatementThrough(last, reading.to, lineOf);
+    if (through === last) {
+      errors = reading.errors;
+      break;
+    }
+    last = through;
+  }
   for (const error of errors) {
     ctx.diagnostics?.push({
       message: error.message,
@@ -189,7 +191,7 @@ function reportDefineStatement(
       },
     });
   }
-  return { last, readTo: to };
+  return last;
 }
 
 // Coerce a property's value to a compile-time literal for the engine struct
@@ -409,8 +411,6 @@ export function lowerLuauDefine(
   const methodNodes: { name: string; node: SyntaxNode }[] = [];
   if (content) {
     let child = content.firstChild;
-    // Where the reading of the last statement of the body ends.
-    let readTo = content.from;
     while (child) {
       if (child.name === "LuauPropertyDefinition") {
         const prop = readPropertyDefinition(child, ctx);
@@ -422,7 +422,7 @@ export function lowerLuauDefine(
       } else if (isDefineMethodCall(child, (pos) => ctx.lineNumber(pos))) {
         // A line the grammar opened as a method, which took neither a line
         // below it nor an `end`: a statement of the body (`print("x")`).
-        if (structureErrors.length === 0) ({ readTo } = reportDefineStatement(child, ctx, readTo, true));
+        if (structureErrors.length === 0) child = reportDefineStatement(child, ctx, true);
       } else if (child.name === "LuauMethodDefinition") {
         const methodNameNode = getDescendent("LuauFunctionName", child);
         if (methodNameNode) {
@@ -443,13 +443,13 @@ export function lowerLuauDefine(
             node: child,
           });
         } else if (structureErrors.length === 0) {
-          ({ last: child, readTo } = reportDefineStatement(child, ctx, readTo));
+          child = reportDefineStatement(child, ctx);
         }
       } else if (structureErrors.length === 0 && isDefineStatementStart(child, (pos) => ctx.lineNumber(pos))) {
         // An expression, a reassignment (`t.a = 1`), or a token no rule of
         // the body read (`!`, `a = 1 !`): the validator leaves its errors to
         // Luau's reading.
-        ({ last: child, readTo } = reportDefineStatement(child, ctx, readTo));
+        child = reportDefineStatement(child, ctx);
       }
       child = child.nextSibling;
     }

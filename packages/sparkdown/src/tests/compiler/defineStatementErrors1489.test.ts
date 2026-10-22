@@ -115,6 +115,18 @@ const BODIES: string[] = [
   "  Hello\n  Hi, Bob\n  1 + 2; t.f(1 +)\n",
   "  t.a, t.b\n  1 + 2; Hello\n",
   "  t.f(1); t.a, t.b\n  f(\n    1 +)\n",
+  // A line read on into is read whole: a dangling statement, a call
+  // candidate holding a later statement, and the line continuing it
+  // (round 2, bd 1 and 2).
+  "  t.a, t.b\n  1 + 2; there.\n",
+  "  t.f(1); t.a, t.b\n  f(1); t.f(2 +)\n",
+  "  t.f(1); t.a, t.b\n  f(1)\n  .g(2 +)\n",
+  "  t.a, t.b\n  there.\n",
+  "  t.a = 1 +\n  there.\n",
+  // A `.` no name follows is the reading's like any other error.
+  "  there.\n",
+  "  y = 1; there.\n",
+  "  t.f(1)\n  there.\n",
   // A statement after a property on its line (undirected 3).
   "  y = 1; t.f(2 +)\n",
   "  y = 1; t.f(1 2 3)\n",

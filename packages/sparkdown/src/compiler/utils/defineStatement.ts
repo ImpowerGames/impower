@@ -1,5 +1,4 @@
 import type { SyntaxNode } from "@lezer/common";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../lower/utils/findOwnDeclarationName";
 import { isLineContinuation } from "../lower/utils/significantLeaf";
 import { followsDanglingDot, followsMissingValue, TRIVIA_BEFORE_STATEMENT } from "../lower/utils/statementBefore";
@@ -39,16 +38,20 @@ export function isDefineStatementStart(child: SyntaxNode, lineOf: (pos: number) 
 }
 
 /**
- * Whether the reading reads the statement a start begins, or leaves it to
- * the tree checks: a statement that is a `.` no name follows, or holds one,
- * is the validator's to report (`LuauDanglingAccessor`), and a line that
- * finishes what the statement before it left open (a value after a
- * line-ending `=` or operator, a name after a line-ending `.`) is reported
- * where that statement ends.
+ * Whether the reading reads the statement a start begins as its own: not
+ * when the line finishes what the line before it left open (a value after
+ * a line-ending `=` or operator, a name after a line-ending `.`), which
+ * belongs to the reading of that line's statement, or to the tree checks
+ * when a member left it open. A `.` no name follows (`there.`) is the
+ * reading's like any other error of Luau's.
  */
 export function readsDefineStatement(start: SyntaxNode, read: (from: number, to: number) => string): boolean {
-  const dangling = start.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", start) !== undefined;
-  return !dangling && !followsDanglingDot(start, read) && !followsMissingValue(start, read);
+  return !finishesLineBefore(start, read);
+}
+
+/** Whether a line's first node finishes what the line before it left open. */
+function finishesLineBefore(start: SyntaxNode, read: (from: number, to: number) => string): boolean {
+  return followsDanglingDot(start, read) || followsMissingValue(start, read);
 }
 
 /**
@@ -70,11 +73,30 @@ export function defineStatementLast(start: SyntaxNode, whole = false): SyntaxNod
 }
 
 /**
+ * The last node of the statement lines Luau's reading of a statement reads
+ * on into, before `to`, where that reading ends: each next line that begins
+ * a statement (`isDefineStatementStart`), whole, with the lines that
+ * continue it. A line a member begins is the member's and ends them. `last`
+ * when the reading ends on the statement's own lines.
+ */
+export function defineStatementThrough(last: SyntaxNode, to: number, lineOf: (pos: number) => number): SyntaxNode {
+  for (;;) {
+    let next = last.nextSibling;
+    while (next && TRIVIA_BEFORE_STATEMENT.has(next.name)) next = next.nextSibling;
+    if (!next || next.from >= to || !isDefineStatementStart(next, lineOf)) return last;
+    last = defineStatementLast(next, isDefineMethodCall(next, lineOf));
+  }
+}
+
+/**
  * The start of the define body statement a node is in, where the reading
  * reads it (`readsDefineStatement`). A statement begins at the first node of
  * its line, past trivia, and runs to the line's end and through the lines
  * that continue it (`defineStatementLast`), or, on a line a property begins,
- * at the first node after it that begins a statement. Null for a node of a
+ * at the first node after it that begins a statement. A line the reading
+ * of an earlier statement reads on into is read whole with that statement
+ * (`defineStatementThrough`); its own start answers for it, since the line
+ * is read either way. Null for a node of a
  * member, of the define's header, of a line that another member begins or
  * that continues one, and outside a define's content.
  */
@@ -83,7 +105,9 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
   while (top?.parent && top.parent.name !== DEFINE_CONTENT) top = top.parent;
   if (!top?.parent) return null;
   let start = lineFirst(top);
-  while (isLineContinuation(start)) {
+  // A line that continues the line before, or finishes what it left open,
+  // is read with that line's statement.
+  while (isLineContinuation(start) || finishesLineBefore(start, read)) {
     let prev = start.prevSibling;
     while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
     if (!prev) return null;
@@ -93,10 +117,16 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
   // begins one (`y = 1; t.f(2 +)`), as the lowerer reads it past the value.
   if (start.name === "LuauPropertyDefinition") {
     let next = start.nextSibling;
-    while (next && next.from <= top.from && !DEFINE_STATEMENT_STARTS.has(next.name) && !REASSIGNMENT_NAMES.has(next.name)) {
+    while (
+      next &&
+      next.name !== "Newline" &&
+      next.from <= top.from &&
+      !DEFINE_STATEMENT_STARTS.has(next.name) &&
+      !REASSIGNMENT_NAMES.has(next.name)
+    ) {
       next = next.nextSibling;
     }
-    if (!next || next.from > top.from) return null;
+    if (!next || next.name === "Newline" || next.from > top.from) return null;
     start = next;
   }
   // Lines are counted from the start, the only line a method call compares.
