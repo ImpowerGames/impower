@@ -167,8 +167,12 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
     });
   }
   // In a store, a missing operand in an interpolation (`{x +}`) is the
-  // validator's to report, in its words, which is outside this change.
-  for (const value of [...forms, "`a {1 `b {x +} c`} d`", "1 g(`a \\z\n  {x} b`)", "`a {1 `b {x} c\n} d`", "`a {1 `b {x\n} c`} d`", "`a {1 `b {x} c\n} d` + `e {y} f`"]) {
+  // validator's to report, in its words, which is outside this change. A
+  // continued string whose inner last section is unfinished at its line's
+  // end (`` `a {1 `b {x} c `` and then `` } d` ``) leaves the outer
+  // interpolation open in Luau's lexer across lines where the tree ends the
+  // string at its line (I-1318), which is not part of this change.
+  for (const value of [...forms, "`a {1 `b {x +} c`} d`", "1 g(`a \\z\n  {x} b`)", "`a {1 `b {x\n} c`} d`"]) {
     test(`a function's local s = ${JSON.stringify(value)}`, () => {
       const luau = `function f()\nlocal s = ${value}\nend\n`;
       expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(official(luau));
@@ -182,6 +186,18 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
     expect(readLuauExpressionAfter(0, source).errors[0]?.message).toBe("Malformed string; did you forget to finish it?");
     forgetLookups();
     expect(nextLuauToken(7, source)).toEqual({ text: "b", from: source.indexOf("b") });
+  });
+
+  // A store ends at its line: the story after a continued string left open
+  // there is story, not the string's, and reports nothing (round 3). The
+  // string's own error is its line's; which of Luau's words it takes depends
+  // on the lines after it in Luau, which reads on inside the open
+  // interpolation, and is not part of this change.
+  test("a store whose continued string is left open at its line, before story lines", () => {
+    const text = "store s = `a {1 `b {x} c\nHello.\n} d`\nstore t = 1\n";
+    const errors = sparkdownErrors(text);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/^0:21-0:24 Malformed interpolated string; /);
   });
 
   test("a read bounded inside a string's section reads what the text up to the bound gives", () => {

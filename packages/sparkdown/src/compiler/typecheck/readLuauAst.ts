@@ -1233,23 +1233,6 @@ class Tokenizer {
   }
 
   /**
-   * Lexes from `from` inside the interpolations `openInterpolations` holds
-   * open until they close, no further than `to`, and returns where the
-   * lex stopped.
-   */
-  lexOpen(from: number, to: number, openInterpolations: readonly number[]): number {
-    this.interpBraces = [...openInterpolations];
-    let i = from;
-    while (i < to && this.interpBraces.length > 0) i = this.lexOne(i, to);
-    return i;
-  }
-
-  /** The interpolations the lex leaves open, innermost last. */
-  openInterpolations(): number[] {
-    return [...this.interpBraces];
-  }
-
-  /**
    * Reads what begins at `i`, no further than `to`: whitespace, a comment or
    * one token, pushing the token. Returns where the next one begins.
    *
@@ -4093,7 +4076,7 @@ class Parser {
     token: Token,
     interpolation: string,
     after?: Token,
-  ): { strings: string[]; expressions: AstExpr[]; unclosed: boolean; segment: Location; rest?: Token[]; ended?: Location; open?: number[] } | undefined {
+  ): { strings: string[]; expressions: AstExpr[]; unclosed: boolean; segment: Location; rest?: Token[]; ended?: Location } | undefined {
     const node = token.node!;
     const strings: string[] = [];
     const expressions: AstExpr[] = [];
@@ -4143,7 +4126,7 @@ class Parser {
         // A string that went on through another's sections ends with that
         // one's last, as Luau's parser ends it, with no error of its own.
         const ended = part.continued?.end !== undefined ? this.locationOf(token.from, part.continued.end) : undefined;
-        return { strings, expressions, unclosed: false, segment, rest, ended, open: part.continued?.open };
+        return { strings, expressions, unclosed: false, segment, rest, ended };
       }
       if (part.empty) {
         // Luau's parser gives up on the string at an empty interpolation
@@ -4341,15 +4324,10 @@ class Parser {
           tokenizer.lex(inner.from, string.to, [0]);
           const lexed = tokenizer.tokens.map((t): Token => ({ ...t, source: inner.source, unread: true, authoredIsland: inner.authoredIsland }));
           const stringEnd = this.locationOf(string.to, string.to);
-          // Where the tree ends this string inside an interpolation Luau's
-          // lexer still reads (an inner string's last section unfinished at
-          // its line's end), the text after it is lexed on inside it.
-          const open = tokenizer.openInterpolations();
           this.withTokens(lexed, stringEnd, () => {
             const value = this.parseLexedInterpString(this.locationOf(string.from, string.from));
             const ended = value instanceof AstExprInterpString;
             continued = ended ? { strings: value.strings, expressions: value.expressions, end: this.tokens[this.pos - 1]!.to } : { strings: [], expressions: [value] };
-            if (open.length > 0) continued.open = open;
             stray = this.tokens.slice(this.pos);
           });
           return e;
@@ -4452,49 +4430,12 @@ class Parser {
     return new AstExprSparkdownInterpString(token.location, parts.strings, parts.expressions, luauValue);
   }
 
-  /**
-   * Replaces the tokens after a string the tree ended inside interpolations
-   * Luau's lexer still reads (`ContinuedString.open`) with the text after it
-   * lexed on inside them until they close (`` } d` `` on the next line), and
-   * on to the end of that line, whose backticks the tree paired from where
-   * it ended the string. The unit's tokens stay when the interpolations do
-   * not close before they end, since no `}` then reads otherwise than the
-   * tree read it. Tokens the unit writes itself, which take no text, stay
-   * where they stand.
-   */
-  private lexOnInside(token: Token, open: number[]): void {
-    const last = this.tokens[this.tokens.length - 1];
-    const to = Math.max(token.to, last?.to ?? token.to);
-    const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
-    let end = tokenizer.lexOpen(token.to, to, open);
-    if (tokenizer.openInterpolations().length > 0) return;
-    const lineEnd = this.ctx.text.indexOf("\n", end);
-    const restOfLine = lineEnd < 0 ? to : Math.min(lineEnd, to);
-    if (restOfLine > end) {
-      tokenizer.lex(end, restOfLine);
-      end = restOfLine;
-    }
-    let i = this.pos;
-    while (i < this.tokens.length && this.tokens[i]!.from < end) i++;
-    // A tree token the lex stopped inside is lexed to its end.
-    const straddling = this.tokens[i - 1];
-    if (i > this.pos && straddling && straddling.to > end) {
-      tokenizer.lex(end, straddling.to);
-      end = straddling.to;
-    }
-    const lexed = tokenizer.tokens.map((t): Token => ({ ...t, source: token.source, unread: true, authoredIsland: token.authoredIsland }));
-    const written = this.tokens.slice(this.pos, i).filter((t) => t.from === t.to);
-    const merged = [...lexed, ...written].sort((a, b) => a.from - b.from);
-    this.tokens.splice(this.pos, i - this.pos, ...merged);
-  }
-
   private parseInterpString(): AstExpr {
     const token = this.current();
     this.next();
     const parts = this.stringParts(token, BACKTICK_INTERPOLATION, this.current());
     if (!parts) return this.reportStringError(token.location, [], "Interpolated string literal contains malformed escape sequence");
     if (parts.rest) {
-      if (parts.open) this.lexOnInside(token, parts.open);
       // Luau's parser reads the rest of the string's tokens after it.
       this.tokens.splice(this.pos, 0, ...parts.rest);
       if (parts.ended) return new AstExprInterpString(parts.ended, parts.strings, parts.expressions);
@@ -4516,14 +4457,13 @@ class Parser {
 
 /**
  * A backtick string that goes on through another's sections (I-1427): the
- * strings and expressions read from them; where it ends, unless it ends at
- * an error; and the interpolations still open where the tree ends it.
+ * strings and expressions read from them, and where it ends, unless it ends
+ * at an error.
  */
 interface ContinuedString {
   strings: string[];
   expressions: AstExpr[];
   end?: number;
-  open?: number[];
 }
 
 /** Whether a backtick string's node ends in its closing backtick: its own end's, not a backtick inside it. */
