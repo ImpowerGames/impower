@@ -25,16 +25,30 @@ import { lower } from "../lower";
 import { LUAU_STATEMENT_NODES, lowerLuauStatementNode } from "../lowerers/lowerLuauStatement";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 import { wrapInScope } from "./wrapInScope";
+import type { ValuedArms } from "./alternatorValue";
+import { ErrorType } from "../../../runtime/Error";
+import { makeSource } from "./validateDefineStructure";
 import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
 import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
-import { documentText, readBlockAst, readExpressionAst } from "./luauAst";
+import { documentText, offsetAt, readBlockAst, readExpressionAst } from "./luauAst";
 import { nextLuauToken, readLuauBlock, readLuauExpression } from "../../typecheck/readLuauAst";
 import { enclosingAlternator, isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
 import {
   AstExprCall,
+  AstExprFunction,
   AstExprSparkdownConditionalAlternator,
   AstExprSparkdownSequentialAlternator,
+  AstStatBreak,
+  AstStatContinue,
+  AstStatExpr,
+  AstStatFor,
+  AstStatForIn,
+  AstStatLocal,
+  AstStatRepeat,
+  AstStatReturn,
+  AstStatSparkdownExplicit,
+  AstStatWhile,
   visitAst,
   type AstNode,
 } from "../../typecheck/Ast";
@@ -111,7 +125,7 @@ export interface AlternatorArm {
 export function lowerArms(
   content: SyntaxNode | null,
   ctx: LowerContext,
-  valued = false,
+  valued: ValuedArms | false = false,
 ): AlternatorArm[] {
   const arms: AlternatorArm[] = [];
   if (!content) return arms;
@@ -130,7 +144,7 @@ export function lowerArms(
   // A valued alternator's arms are read where Luau code reads it, which
   // reports their errors (`reportNestedAlternators`).
   const reportArm = () => {
-    if (valued && current) current.body = valueArmBody(armNodes, ctx);
+    if (valued && current) current.body = valueArmBody(armNodes, ctx, valued);
     else reportArmReading(armNodes, ctx, false);
     armNodes = [];
   };
@@ -298,9 +312,14 @@ function armParts(nodes: readonly SyntaxNode[], functionValues = false): { state
  * are reported by the reading of the Luau code that holds the alternator
  * (`reportAlternatorValue`), not here.
  */
-function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext): ParsedObject[] {
+function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext, mode: ValuedArms): ParsedObject[] {
   const body: ParsedObject[] = [];
   const parts = armParts(nodes, true);
+  if (mode === "value") {
+    for (const part of parts) {
+      if (part.statement) reportArmExits(readLuauBlock(part.nodes, documentText(ctx)).root, ctx);
+    }
+  }
   // An arm that declares holds its locals for itself, as a `do` block does
   // (`lowerLuauDoBlock`): the names they hide are the enclosing scope's
   // again after it.
@@ -335,6 +354,70 @@ function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext): ParsedOb
   ctx.scopeDepth = (ctx.scopeDepth ?? 1) - 1;
   ctx.blockEndStack?.pop()?.forEach((end) => end());
   return wrapInScope(body);
+}
+
+const EXIT_KEYWORDS = new Map<unknown, string>([
+  [AstStatBreak, "break"],
+  [AstStatContinue, "continue"],
+  [AstStatReturn, "return"],
+]);
+
+/**
+ * Reports each `break`, `continue` and `return` that would leave an arm of
+ * an alternator used as a value (`valueArmBody` with `"value"`): the
+ * expression around the alternator has values waiting on the evaluation
+ * stack, which leaving it would leave there. A `return` in a function
+ * written in the arm returns from that function, and a `break` or
+ * `continue` of a loop written in the arm stays in it. An alternator the
+ * arm runs as a statement, or as the sole value of a `local`
+ * (`armRunAlternator`), is part of the arm, and its arms are read in turn;
+ * one the arm uses as a value reports its own.
+ */
+function reportArmExits(root: AstNode, ctx: LowerContext): void {
+  const walk = (node: AstNode, loops: number) => {
+    visitAst(node, {
+      visit: (inner) => {
+        if (inner === node) return true;
+        if (inner instanceof AstExprFunction) return false;
+        if (inner instanceof AstStatWhile || inner instanceof AstStatRepeat || inner instanceof AstStatFor || inner instanceof AstStatForIn) {
+          walk(inner.body, loops + 1);
+          return false;
+        }
+        const keyword = EXIT_KEYWORDS.get(inner.constructor);
+        if (keyword && (keyword === "return" || loops === 0)) {
+          const from = offsetAt(inner.location.begin, ctx);
+          ctx.diagnostics?.push({
+            message: "`" + keyword + "` cannot leave an arm of an alternator used as a value; write the alternator as a statement",
+            severity: ErrorType.Error,
+            source: makeSource(from, from + keyword.length, ctx),
+          });
+        }
+        const runs = armRunAlternator(inner);
+        if (runs) {
+          for (const scope of alternatorScopesOf(runs, ctx) ?? []) for (const part of scope.parts) walk(part, loops);
+          return false;
+        }
+        // An alternator used as a value is lowered on its own, and reports
+        // its own arms' exits.
+        return !(inner instanceof AstExprSparkdownSequentialAlternator || inner instanceof AstExprSparkdownConditionalAlternator);
+      },
+    });
+  };
+  walk(root, 0);
+}
+
+/**
+ * The alternator a statement runs where nothing waits on the evaluation
+ * stack: a statement alternator, or the sole value of a `local`
+ * (`soleLocalAlternators`).
+ */
+export function armRunAlternator(node: AstNode): AstExprSparkdownSequentialAlternator | AstExprSparkdownConditionalAlternator | null {
+  const stat = node instanceof AstStatSparkdownExplicit ? node.statement : node;
+  const value =
+    stat instanceof AstStatExpr ? stat.expr
+    : stat instanceof AstStatLocal && stat.vars.length === 1 && stat.values.length === 1 ? stat.values[0]
+    : undefined;
+  return value instanceof AstExprSparkdownSequentialAlternator || value instanceof AstExprSparkdownConditionalAlternator ? value : null;
 }
 
 /** Whether a node of an arm is a function's attribute (`@native`). */

@@ -16,6 +16,7 @@ import type {
 } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
+import type { ValuedArms } from "../utils/alternatorValue";
 import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { findChildByName, lowerArms, reportAlternatorHead, tokenAfter, valuedConditionNodes } from "../utils/alternatorArms";
 import { alternatorHeadNodes } from "../../utils/alternatorDecision";
@@ -76,7 +77,7 @@ const NOT_A_LINE = nodeNameSet([
 export function lowerSparkdownConditionalAlternatorBlock(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  valued = false,
+  valued: ValuedArms | false = false,
 ): CompiledBlock {
   // Works for both the top-level `LuauSparkdownConditionalAlternatorBlock`
   // (block form: `plural(n) ... end` on its own lines) and the inline
@@ -105,7 +106,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
   // or else the condition.
   // When `valued`, the reading of Luau code that uses the alternator as a
   // value reads its head (`reportNestedAlternators`).
-  const readsHead = valued || alternatorHeadNodes(nodeRef.node).length > 0;
+  const readsHead = valued !== false || alternatorHeadNodes(nodeRef.node).length > 0;
   if (readsHead && !valued) reportAlternatorHead(nodeRef.node, ctx);
   const condNodes = valued ? valuedConditionNodes(nodeRef.node) : condNode ? containerValueNodes(condNode) : [];
   let condExpr = condNodes.length > 0
@@ -185,7 +186,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
   // A valued alternator's arms push a value and write nothing, so none
   // starts a line.
   const isInline =
-    valued ||
+    valued !== false ||
     isExplicitRuleName(prefix, "LuauConditionalAlternatorBlock") ||
     prefix === "LuauSparkdownInlineGluedConditionalAlternatorBlock" ||
     prefix === "LuauSparkdownSingleLineConditionalAlternatorBlock";

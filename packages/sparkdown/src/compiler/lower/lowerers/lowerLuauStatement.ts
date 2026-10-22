@@ -62,6 +62,8 @@ import {
 import { makeSource } from "../utils/validateDefineStructure";
 import { validateStatementNode } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { armRunAlternator } from "../utils/alternatorArms";
+import { soleLocalAlternators } from "../utils/alternatorValue";
 import { lowerExplicitStatement } from "./lowerExplicitStatement";
 import { lowerLuauBreakStatement, lowerLuauContinueStatement } from "./lowerLuauBreakContinue";
 import { lowerLuauDoBlock } from "./lowerLuauDoBlock";
@@ -352,6 +354,10 @@ export function lowerLuauStatement(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
+  // An alternator this statement runs with nothing waiting on the
+  // evaluation stack may leave its loop or function from an arm.
+  const runs = armRunAlternator(stat);
+  if (runs) soleLocalAlternators.add(runs);
   if (stat instanceof AstStatSparkdownExplicit) {
     return lowerExplicitStatement(stat, site, ctx);
   }

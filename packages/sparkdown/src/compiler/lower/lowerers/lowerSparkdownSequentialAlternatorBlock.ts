@@ -6,6 +6,7 @@ import { ErrorType } from "../../../runtime/Error";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
+import type { ValuedArms } from "../utils/alternatorValue";
 import { findChildByName, lowerArms, reportAlternatorHead } from "../utils/alternatorArms";
 import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
@@ -29,7 +30,7 @@ const TYPE_BY_KEYWORD: { [k: string]: SequenceType } = {
 export function lowerSparkdownSequentialAlternatorBlock(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  valued = false,
+  valued: ValuedArms | false = false,
 ): CompiledBlock {
   // Works for both the top-level `LuauSparkdownSequentialAlternatorBlock`
   // (block form: `queue ... | ... end` on its own lines) and the inline
@@ -87,7 +88,7 @@ export function lowerSparkdownSequentialAlternatorBlock(
 
   const contentLists = arms.map((arm) => new ContentList(arm.body));
   const sequence = new Sequence(contentLists, seqType);
-  sequence.valued = valued;
+  sequence.valued = valued !== false;
   recordAlternatorSource(ctx, sequence, nodeRef.node);
   return wrapInWeave([sequence]);
 }

@@ -114,7 +114,7 @@ import {
 } from "./bindings";
 import { buildClosureExpression, lowerFunctionExpression, reportReadingErrors, type ReadingErrorScope } from "./lowerFunction";
 import { lowerTable } from "./lowerTable";
-import { lowerAlternatorValue } from "../utils/alternatorValue";
+import { lowerAlternatorValue, soleLocalAlternators } from "../utils/alternatorValue";
 import { numberLiteralValue } from "../../utils/numberLiteralValue";
 import {
   processLuauEscapes,
@@ -427,7 +427,7 @@ export function lowerExpression(
   // (`readExpressionAst`).
   if (expr instanceof AstExprSparkdownSequentialAlternator || expr instanceof AstExprSparkdownConditionalAlternator) {
     const node = expr.source.node as SyntaxNode | undefined;
-    return (node ? lowerAlternatorValue(node, ctx) : null) ?? new NullExpression();
+    return (node ? lowerAlternatorValue(node, ctx, false, soleLocalAlternators.has(expr)) : null) ?? new NullExpression();
   }
   // A syntax error, which the type checker reports, and a branch's argument,
   // which only the type checker reads.

@@ -454,6 +454,84 @@ describe("an unread token in an arm (I-1284)", () => {
   });
 });
 
+// Round 3, comment 6349294529, and the coordinator's decision on it: an arm
+// of an alternator used as a value cannot leave its loop or function, since
+// the expression around the alternator has values waiting on the stack.
+describe("an exit in an arm of an alternator used as a value", () => {
+  const exitErrors = (source: string) => {
+    const { program } = compileScript(source);
+    return Object.values(program.diagnostics ?? {})
+      .flat()
+      .filter((d) => d.severity === 1)
+      .map((d) => {
+        const { start, end } = d.range;
+        return `${start.line}:${start.character}-${end.line}:${end.character} ${typeof d.message === "string" ? d.message : d.message.value}`;
+      });
+  };
+  const ARM = (keyword: string) => `cycle | ${keyword === "return" ? "return 5" : keyword} end`;
+  const CONTEXTS: [string, (alternator: string) => string][] = [
+    ["a concatenation", (alternator) => `    local v = "p" .. (${alternator})`],
+    ["a call's arguments", (alternator) => `    local v = tostring(1, ${alternator})`],
+    ["a Luau string's interpolation", (alternator) => `    local v = "p{${alternator}}"`],
+  ];
+
+  describe.each(["break", "continue", "return"])("`%s`", (keyword) => {
+    test.each(CONTEXTS)("in %s is one error at the keyword", (_name, context) => {
+      const line = context(ARM(keyword));
+      const source = lines("function f()", "  for i = 1, 2 do", line, "  end", "  return 0", "end", "Value {f()}.");
+      const at = line.indexOf(keyword);
+      expect(exitErrors(source)).toEqual([
+        `2:${at}-2:${at + keyword.length} \`${keyword}\` cannot leave an arm of an alternator used as a value; write the alternator as a statement`,
+      ]);
+    });
+  });
+
+  test("a statement alternator's arms leave their loop and function as before", () => {
+    expect(
+      run(
+        lines(
+          ...TRAIL,
+          "function f()",
+          "  for i = 1, 6 do",
+          "    cycle",
+          "      | add(tostring(i))",
+          "      | continue",
+          "      | break",
+          "    end",
+          "  end",
+          "  return trail",
+          "end",
+          "function g()",
+          "  cycle | return 1 | return 2 end",
+          "  return 0",
+          "end",
+          "Value {f()} {g()} {g()}.",
+        ),
+      ),
+    ).toEqual({ output: "Value 1 1 2.\n", errors: [] });
+  });
+
+  test("a loop written in the arm keeps its own break", () => {
+    expect(
+      run(lines("function f()", '  return "p" .. (cycle | local n = 0 while true do n = n + 1 if n == 2 then break end end n end)', "end", "Value {f()}.")),
+    ).toEqual({ output: "Value p2.\n", errors: [] });
+  });
+
+  test("a return in a function written in the arm returns from that function", () => {
+    expect(run(lines("function f()", '  return "p" .. (cycle | local function g() return 3 end g() end)', "end", "Value {f()}."))).toEqual({
+      output: "Value p3.\n",
+      errors: [],
+    });
+  });
+
+  test("the sole value of a local leaves its loop from an arm, with nothing waiting", () => {
+    expect(run(lines("function f(x)", "  for i = 1, 3 do", "    local v = cycle | break end", "  end", "  return x", "end", "Value {f(7)}."))).toEqual({
+      output: "Value 7.\n",
+      errors: [],
+    });
+  });
+});
+
 describe("a displayed alternator keeps its behaviour", () => {
   test("in story braces and as a story block", () => {
     expect(run(lines('1 {cycle | "a" | "b" end}.', '2 {queue | "a" end}.', "cycle", "  | A.", "  | B.", "end"))).toEqual({
