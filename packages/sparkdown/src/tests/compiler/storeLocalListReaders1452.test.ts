@@ -129,6 +129,12 @@ describe("a declaration whose line holds another kind of error", () => {
     expect(sparkdownErrors(text)).toEqual(expected);
     expectIncrementalEqualsCold(text);
   });
+  test("a local in a scene named as a store reports its own Luau errors", () => {
+    const scene = "store a,, = 1\nscene start\n  local a = 1 2\n  Hello.\nend\n";
+    const expected = [...official("local a,, = 1\n"), ...official("local a = 1 2\n", 2, 2)].sort();
+    expect(sparkdownErrors(scene)).toEqual(expected);
+    expectIncrementalEqualsCold(scene);
+  });
   test("the names declared twice are reported", () => {
     const errors = errorsOf(newCompiler(text).compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [], true);
     expect(errors.some((e) => e.includes("Duplicate identifier `a`")), "a store and a local named `a`").toBe(true);
