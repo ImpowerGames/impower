@@ -5,9 +5,8 @@ import type { ProgramTable } from "./ProgramTable";
  *  A root records the kind its program defines each symbol as
  *  (`ProgramRoot.kindOf`, `SequenceRow.kind` for a flow). */
 export const SymbolKind = {
-  /** The flow of a script's top-level content: the starting script's, named
-   *  by the empty string, or an included script's, named from its uri
-   *  (`INCLUDED_FLOW_PREFIX`), which the top level runs. */
+  /** The flow of the starting script's top-level content, named by the
+   *  empty string. */
   Root: 0,
   Scene: 1,
   Branch: 2,
@@ -34,11 +33,6 @@ export const UNDEFINED_KIND = -1;
 
 /** The name the flow of the top-level content is registered under. */
 export const ROOT_FLOW_NAME = "";
-
-/** How the names of the symbols of an included script's top-level content
- *  start: its flow's and the label its content jumps back to
- *  (`programFlows.ts`, `IncludeEntry`). Both stand in the top level. */
-export const INCLUDED_FLOW_PREFIX = "$include:";
 
 /** How a function the compiler named is shown to an author. */
 export const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";

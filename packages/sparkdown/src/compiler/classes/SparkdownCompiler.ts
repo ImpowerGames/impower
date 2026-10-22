@@ -806,15 +806,6 @@ export class SparkdownCompiler {
   // whose objects this compile's assembly does not place again, still
   // answers.
   protected _placedBy = new WeakMap<ParsedObject, object>();
-  // For a script other than main, the part of its top level that runs where
-  // it is placed (a member function's write), as a story of its own, by the
-  // story `parseIncrementally` built for the script's declarations.
-  protected _memberWrites = new WeakMap<Story, Story>();
-  // The keys the program listing gives the statements that enter and end
-  // included scripts' content, by their syntax, so they keep their chunks from one
-  // compile to the next for as long as this compiler lives
-  // (`ProgramFlowsInput.includeKeys`).
-  protected _includeKeys = new Map<string, object>();
   // What this compile knows of each compiled block: its script and line, its
   // syntax and the lowering inputs it recorded.
   protected _statementRecords = new Map<object, StatementRecord>();
@@ -3421,11 +3412,10 @@ export class SparkdownCompiler {
     // their declarations register after main's and in path order: the story
     // places each one's top level after the entry's
     // (`Story.PreProcessTopLevelObjects`), where its globals initialize after
-    // main's. A declaration that runs where it is written, a member function
-    // (`function api.f()` writes the function into `api`), is placed before
-    // the entry's own top level instead (`_memberWrites`), so it has run
-    // whatever the entry's top level does first, as it ran when an include
-    // line at the top of main placed it.
+    // main's. A member function's write (`function api.f()` writes the
+    // function into `api`) stays in its script's top level, and runs with the
+    // declarations, after every global initializes and before the entry's
+    // top level runs (`programFlows`).
     if (!isInclude) {
       for (const member of state.projectScripts ?? []) {
         const memberStory = this.parseIncrementally(
@@ -3437,10 +3427,6 @@ export class SparkdownCompiler {
           onDiagnostic,
           true,
         );
-        const writes = this._memberWrites.get(memberStory);
-        if (writes) {
-          topLevelIncludedFileObjs.push(new IncludedFile(writes));
-        }
         projectFileObjs.push(new IncludedFile(memberStory));
       }
     }
@@ -3509,25 +3495,7 @@ export class SparkdownCompiler {
       autoTerminate(flow);
     }
 
-    let topLevelObjs = topLevelWeaveObjs.flatMap((w) => w.content);
-    if (declarationOnly) {
-      // A script other than main: what its top level holds besides the
-      // globals, constants and externals it declares runs where it is placed,
-      // which is a member function's write, and goes before the entry's top
-      // level (see the project's scripts above).
-      const writes = topLevelObjs.filter((obj) => !isHoistedDeclaration(obj));
-      if (writes.length > 0) {
-        topLevelObjs = topLevelObjs.filter(isHoistedDeclaration);
-        const writesStory = new Story(writes, true);
-        const combined = new Story(
-          [...topLevelIncludedFileObjs, ...topLevelObjs, ...topLevelFlowBaseObjs],
-          isInclude,
-        );
-        this._memberWrites.set(combined, writesStory);
-        return combined;
-      }
-    }
-
+    const topLevelObjs = topLevelWeaveObjs.flatMap((w) => w.content);
     const combinedParsedStory = new Story(
       [
         ...topLevelIncludedFileObjs,
@@ -4369,7 +4337,6 @@ export class SparkdownCompiler {
       record: (block) =>
         this._statementRecords.get(block) ??
         this._preludeStatementRecords.get(block),
-      includeKeys: this._includeKeys,
       lineCount,
     });
     // The store interns into the compiler's persistent table, which

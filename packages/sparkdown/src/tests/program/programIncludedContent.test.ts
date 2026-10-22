@@ -4,15 +4,19 @@
 // flows of their own in its script, so their statements carry line tables and
 // addresses in that script, an edit inside one re-emits one chunk and keeps
 // every other, and a save taken before the edit loads after it. Its top-level
-// lines other than declarations report an error and are dropped, so no
-// `$include:` flow stands for it but the one its member functions' writes
-// run in (I-1438). A `run` statement is a call of its file's wrapper where
-// its line stands, a statement of the flow it is written in (I-1439).
+// lines other than declarations report an error and are dropped, and the
+// writes of its member functions run with the declarations, after every
+// script's globals initialize (I-1438), so no `$include:` flow stands for
+// it. A `run` statement is a call of its file's wrapper where its line
+// stands, a statement of the flow it is written in (I-1439).
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { chunkId } from "../../program/ProgramChunk";
+import { blockCount, chunkId } from "../../program/ProgramChunk";
 import {
   describeRoot,
   programCompiler,
@@ -193,10 +197,9 @@ describe("a script other than main", () => {
     expect(shows(texts, [], luau).beats).toEqual(["Main 7.\n", "In S 8.\n", "More.\n"]);
   });
 
-  // The one use of the mechanism a script other than main still makes (#1387):
-  // a member function's write runs where it is placed, before main's top
-  // level, as the `$include:` flow of its script.
-  it("keeps an `$include:` flow for its member functions' writes, which run before main's top level", () => {
+  // A member function's write (#1387) runs with the declarations, before
+  // main's top level, and not as a flow of its script (I-1438).
+  it("has no `$include:` flow for its member functions' writes, which run before main's top level", () => {
     const texts = {
       [MAIN]: lines("Main {api.twice(3)}."),
       [FIRST]: lines("store api = {}", "", "function api.twice(n)", "  return n * 2", "end"),
@@ -206,8 +209,70 @@ describe("a script other than main", () => {
       .flowSequences()
       .map((row) => [root.table.symbols[row.flow]!, row.uri] as const)
       .filter(([name]) => name.startsWith("$include:"));
-    expect(included).toEqual([[includedFlowName(FIRST), FIRST]]);
+    expect(included).toEqual([]);
     expect(shows(texts).beats).toEqual(["Main 6.\n"]);
+  });
+
+  it("emits no `$include:` flow for any script of a project, and declares main's globals, then each script's in path order, then the scripts' writes", () => {
+    const texts = {
+      [MAIN]: lines("store total = 2", "run start", "Main {api.twice(total)} {api.add(1)}.", "-> S"),
+      [FIRST]: lines("store api = {}", "", "function api.twice(n)", "  return n * 2", "end"),
+      // A write into a table another script declares, and a scene.
+      [SECOND]: lines(
+        "store base = 10",
+        "",
+        "function api.add(n)",
+        "  return n + base",
+        "end",
+        "",
+        "scene S",
+        "  In S {api.twice(base)}.",
+        "end",
+      ),
+    };
+    const luau = { "file://proj/start.luau": "total = total + 1\n" };
+    const program = compileProgram(texts, luau);
+    expect(reported(program)).toEqual([]);
+    const root = program.chunks!;
+    expect(
+      root
+        .flowSequences()
+        .map((row) => root.table.symbols[row.flow]!)
+        .filter((name) => name.startsWith("$include:")),
+    ).toEqual([]);
+    for (const uri of [MAIN, FIRST, SECOND]) {
+      expect(root.flowNamed(includedFlowName(uri))).toBeUndefined();
+    }
+    // The declaration chunks in the order they run, by script and first
+    // line: the globals, main's first and then each script's in path order,
+    // and then the writes, in the same order.
+    const scripts = new Set([MAIN, FIRST, SECOND]);
+    expect(
+      root.initialization
+        .map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21))
+        .filter((at) => at && scripts.has(at.uri))
+        .map((at) => [at!.uri, at!.startLine]),
+    ).toEqual([
+      [MAIN, 0],
+      [FIRST, 0],
+      [SECOND, 0],
+      [FIRST, 2],
+      [SECOND, 2],
+    ]);
+    // Main's top level holds its own lines alone.
+    const top = root.flowNamed("")!;
+    expect(
+      top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
+    ).toMatchObject([
+      { uri: MAIN, startLine: 1 },
+      { uri: MAIN, startLine: 2 },
+      { uri: MAIN, startLine: 3 },
+    ]);
+    expect(shows(texts, [], luau)).toEqual({
+      beats: ["Main 6 11.\n", "In S 20.\n"],
+      menus: [],
+      errors: [],
+    });
   });
 
   it("holds its scenes as flows of their own in its script, at their lines, and adds nothing to the top level", () => {
@@ -476,6 +541,69 @@ describe("an edit inside a script other than main", () => {
     matchesCold(after, s.texts);
   });
 
+  // A member function's write is a declaration chunk of its script
+  // (I-1438), whose function's body keeps its statements' chunks as a scene
+  // does.
+  it("re-emits one chunk for an edit inside a member function's body, and runs the edited function from main's first line", () => {
+    const s = session({
+      [MAIN]: lines("Main {api.twice(3)} {api.half(8)}."),
+      [FIRST]: lines(
+        "store api = {}",
+        "",
+        "function api.twice(n)",
+        "  return n * 2",
+        "end",
+        "",
+        "function api.half(n)",
+        "  return n / 2",
+        "end",
+      ),
+    });
+    const run = () =>
+      quiet(() => storyRun(new ProgramStory(s.root))).beats.map((beat) => beat.text);
+    expect(run()).toEqual(["Main 6 4.\n"]);
+    // The chunks of the script's declarations, their bodies' included.
+    const declared = (root: ProgramRoot): Int32Array[] => {
+      const of = (chunks: readonly Int32Array[]): Int32Array[] =>
+        chunks.flatMap((chunk) => [
+          chunk,
+          ...Array.from({ length: blockCount(chunk) }, (_, k) =>
+            of(root.body(chunk, k)?.arrays.chunks ?? []),
+          ).flat(),
+        ]);
+      return of(root.declarations(FIRST)!.arrays.chunks);
+    };
+    const before = s.root;
+    const was = declared(before);
+    const after = s.edit(FIRST, "n * 2", "n * 3");
+    expect(s.store.emittedLastBuild).toBe(1);
+    const is = declared(after);
+    expect(is.filter((chunk) => !was.includes(chunk))).toHaveLength(1);
+    expect(was.filter((chunk) => !is.includes(chunk))).toHaveLength(1);
+    expect(is).toHaveLength(was.length);
+    matchesCold(after, s.texts);
+    expect(run()).toEqual(["Main 9 4.\n"]);
+  });
+
+  // The line is a declaration chunk of the global and one of the write, in
+  // one declaration sequence, each keeping its own chunk.
+  it("keeps both chunks of a line that declares a table and writes its member function when another line is edited", () => {
+    const s = session({
+      [MAIN]: lines("Main {api.f()}."),
+      [FIRST]: lines("& store api = {}; function api.f() return 7 end"),
+    });
+    const before = s.root;
+    const after = s.edit(MAIN, "Main", "Main, edited,");
+    expect(s.store.emittedLastBuild).toBe(1);
+    expect(after.declarations(FIRST)!.arrays.chunks).toEqual(
+      before.declarations(FIRST)!.arrays.chunks,
+    );
+    matchesCold(after, s.texts);
+    expect(quiet(() => storyRun(new ProgramStory(after))).beats.map((beat) => beat.text)).toEqual([
+      "Main, edited, 7.\n",
+    ]);
+  });
+
   it("matches a cold compile when a script other than main gains top-level content, which it reports and drops, and loses it again", () => {
     const s = session(PROJECT);
     s.edit(SECOND, "scene T", "Second top.\n\nscene T");
@@ -687,5 +815,290 @@ describe("a save taken inside a scene of a script other than main", () => {
       "Main one.\n",
       "Main two.\n",
     ]);
+  });
+});
+
+// A line that declares a global and writes a member function is two chunks
+// of its script's declaration sequence from one source, and so of one
+// fingerprint. A save names the write among its script's writes alone and
+// looks for it among writes alone (`roleView`, `roleIndex`), so it never
+// takes the global's chunk, or a closure of its initializer, for the write
+// (rounds 4 and 5 of the review of I-1438).
+describe("a save of a member function written on a line that declares its table", () => {
+  const A = "file://proj/scripts/a.sd";
+  const menu = lines("Before.", "choose", "  * Go", "    Result {api.f()}.", "end");
+  const shared = lines("& store api = {}; function api.f() return 7 end");
+  const edits = {
+    "a global function added above the line, and a closure added to its table": lines(
+      "store added = function() return 101 end",
+      "& store api = { decoy = function() return 2 end }; function api.f() return 7 end",
+    ),
+    "a global added above the line, and a closure added to its table": lines(
+      "store added = 10",
+      "& store api = { decoy = function() return 2 end }; function api.f() return 7 end",
+    ),
+  };
+  const programOf = (script: string, uri = A) =>
+    quiet(() =>
+      programCompiler({ [MAIN]: menu, [uri]: script }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+    ).program;
+  /** A save at the menu of `story`, continued to it. */
+  const saveAtMenu = (story: ProgramStory) => {
+    story.keepBeatImages = true;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+    });
+    expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Go"]);
+    return story.toSave();
+  };
+  /** `save` loaded into the program of `script`, and Go taken: the write's
+   *  own function runs, from a place the load says it found exactly. */
+  const loadsTheWrite = (save: string, script: string, uri = A) => {
+    const program = programOf(script, uri);
+    expect(reported(program)).toEqual([]);
+    const loaded = new ProgramStory(program.chunks!);
+    loaded.keepBeatImages = true;
+    const errors: string[] = [];
+    loaded.onError = (message: string) => {
+      errors.push(message);
+    };
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    const run = storyRun(loaded, [0]);
+    expect({ exact: report.exact, warnings: report.warnings, beats: run.beats.map((beat) => beat.text) }).toEqual({
+      exact: true,
+      warnings: [],
+      beats: ["Go\n", "Result 7.\n"],
+    });
+    expect(run.errors).toEqual([]);
+    expect(errors).toEqual([]);
+  };
+
+  it.each(Object.entries(edits))(
+    "keeps the write's function when a save taken on this program loads after %s",
+    (_, edited) => {
+      loadsTheWrite(saveAtMenu(new ProgramStory(programOf(shared).chunks!)), edited);
+    },
+  );
+
+  it.each(Object.entries(edits))(
+    "keeps the write's function when a save taken before I-1438, loaded and saved again, loads after %s",
+    (_, edited) => {
+      const old = OLD_SAVES.find(
+        (c) => c.name === "a member function written on the line that declares its table",
+      )!;
+      const story = new ProgramStory(programOf(shared).chunks!);
+      story.onError = () => {};
+      story.loadSave(old.save);
+      loadsTheWrite(saveAtMenu(story), edited);
+    },
+  );
+
+  // A renamed script names no writes the save names, and the search for
+  // the write's neighbours looks among writes alone, where the global of
+  // the line, whose neighbours the writes above it are too, never stands.
+  it("keeps the write's function when its script is renamed, below other writes", () => {
+    const script = lines(
+      "function api.a() return 11 end",
+      "function api.b() return 12 end",
+      "& store api = { decoy = function() return 2 end }; function api.f() return 7 end",
+    );
+    const save = saveAtMenu(new ProgramStory(programOf(script).chunks!));
+    loadsTheWrite(save, script, "file://proj/scripts/renamed.sd");
+  });
+});
+
+// A closure a global's function made is saved by its statement, named among
+// its script's globals alone, so a write never takes its place (round 5 of
+// the review of I-1438). A closure a global's initializer stores is saved by
+// its place in that global's value and loads from it.
+describe("a save of a closure a global's function made, in a script that writes member functions", () => {
+  const A = "file://proj/scripts/a.sd";
+  const menu = lines(
+    "store api = {}",
+    "store g = 0",
+    "& g = maker()",
+    "Before.",
+    "choose",
+    "  * Go",
+    "    Result {g()}.",
+    "end",
+  );
+  const script = (...text: string[]) => lines(...text);
+  const programOf = (text: string, uri = A) =>
+    quiet(() =>
+      programCompiler({ [MAIN]: menu, [uri]: text }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+    ).program;
+  const saveAtMenu = (text: string) => {
+    const story = new ProgramStory(programOf(text).chunks!);
+    story.keepBeatImages = true;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+    });
+    expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Go"]);
+    const save = story.toSave();
+    // The closure is named by its statement, a level of the script's
+    // declarations, not by a place in a value.
+    expect(save).toContain(`decl\\":\\"${A}`);
+    return save;
+  };
+  const load = (save: string, text: string, uri = A) => {
+    const program = programOf(text, uri);
+    expect(reported(program)).toEqual([]);
+    const loaded = new ProgramStory(program.chunks!);
+    loaded.keepBeatImages = true;
+    loaded.onError = () => {};
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    const run = quiet(() => storyRun(loaded, [0]));
+    return {
+      exact: report.exact,
+      warnings: report.warnings,
+      beats: run.beats.map((beat) => beat.text),
+      errors: run.errors,
+    };
+  };
+
+  // Aligned with the whole declaration sequence, the global's place after
+  // the global above it is removed is the write's, whose function's closure
+  // would take the saved closure's place.
+  it("never takes a write's closure for it after a global above is removed and both functions are edited", () => {
+    const save = saveAtMenu(
+      script(
+        "store removed = 1",
+        "store maker = function() return function() return 2 end end",
+        "function api.f() return function() return 7 end end",
+      ),
+    );
+    const loaded = load(
+      save,
+      script(
+        "store maker = function() local z = 0 return function() return 2 end end",
+        "function api.f() return function() return 8 end end",
+      ),
+    );
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.beats[1]).not.toBe("Result 8.\n");
+    if (loaded.exact && loaded.warnings.length === 0) {
+      expect(loaded.beats).toEqual(["Go\n", "Result 2.\n"]);
+    } else {
+      expect(loaded.warnings.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps it when its script is renamed", () => {
+    const text = script(
+      "store x = 1",
+      "store maker = function() return function() return 2 end end",
+      "function api.f() return function() return 7 end end",
+    );
+    expect(load(saveAtMenu(text), text, "file://proj/scripts/renamed.sd")).toEqual({
+      exact: true,
+      warnings: [],
+      beats: ["Go\n", "Result 2.\n"],
+      errors: [],
+    });
+  });
+});
+
+// A line that declares a global and writes a member function: a closure the
+// global's initializer's function makes is the global's, named by the
+// global's declaration level, as main names it, never through the write
+// (round 6 of the review of I-1438).
+describe("a save of a closure a shared line's initializer function made", () => {
+  const A = "file://proj/scripts/a.sd";
+  const menu = lines("store g = 0", "& g = api.make()", "Before.", "choose", "  * Go", "    Result {g()}.", "end");
+  const line = (made: number, written: number) =>
+    lines(
+      `& store api = { make = function() return function() return ${made} end end }; function api.f() return function() return ${written} end end`,
+    );
+  const programOf = (text: string) =>
+    quiet(() =>
+      programCompiler({ [MAIN]: menu, [A]: text }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+    ).program;
+  const saveAtMenu = () => {
+    const story = new ProgramStory(programOf(line(2, 7)).chunks!);
+    story.keepBeatImages = true;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+    });
+    expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Go"]);
+    return story.toSave();
+  };
+  const load = (save: string, text: string) => {
+    const program = programOf(text);
+    expect(reported(program)).toEqual([]);
+    const loaded = new ProgramStory(program.chunks!);
+    loaded.keepBeatImages = true;
+    loaded.onError = () => {};
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    const run = quiet(() => storyRun(loaded, [0]));
+    expect(run.errors).toEqual([]);
+    return { exact: report.exact, warnings: report.warnings, beats: run.beats.map((beat) => beat.text) };
+  };
+
+  it("names it by the global's declaration level", () => {
+    const g = JSON.parse(JSON.parse(saveAtMenu()).beats.at(-1).globals.g.obj.__closure_fn["^symsave"]);
+    expect(g.st.levels[0]).toMatchObject({ decl: A });
+  });
+
+  it("keeps the global's function's closure when the member function is edited", () => {
+    expect(load(saveAtMenu(), line(2, 8))).toEqual({
+      exact: true,
+      warnings: [],
+      beats: ["Go\n", "Result 2.\n"],
+    });
+  });
+
+  it("follows the global's edited function, never the member function, when the global's is edited", () => {
+    const loaded = load(saveAtMenu(), line(3, 7));
+    expect(loaded.beats[1]).not.toBe("Result 7.\n");
+    if (loaded.warnings.length === 0) {
+      expect(loaded.beats).toEqual(["Go\n", "Result 3.\n"]);
+    }
+  });
+});
+
+// Saves taken before I-1438, which name a member function's write of a
+// script other than main by the `$include:` flow its script's top level then
+// had. Each was written by `toSave` at ae10deabd, at the menu, for the
+// project of main and one script beside it that the fixture holds with it
+// (round 1 and round 2 of the review of I-1438).
+const OLD_SAVES: {
+  name: string;
+  uri: string;
+  main: string;
+  script: string;
+  result: string;
+  save: string;
+}[] = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "fixtures", "program-save-member-writes-include.json"),
+    "utf-8",
+  ),
+);
+
+describe("a save taken before a member function's write ran with the declarations", () => {
+  it.each(OLD_SAVES)("loads, and calls the function it holds: $name", ({ uri, main, script, result, save }) => {
+    const program = quiet(() =>
+      programCompiler({ [MAIN]: main, [uri]: script }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+    ).program;
+    expect(reported(program)).toEqual([]);
+    const loaded = new ProgramStory(program.chunks!);
+    loaded.keepBeatImages = true;
+    const errors: string[] = [];
+    loaded.onError = (message: string) => {
+      errors.push(message);
+    };
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    expect(report.exact).toBe(true);
+    expect(report.warnings).toEqual([]);
+    const run = storyRun(loaded, [0]);
+    expect(run.menus.map((menu) => menu.choices.map((choice) => choice.text))).toEqual([["Go"]]);
+    expect(run.beats.map((beat) => beat.text)).toEqual(["Go\n", `${result}\n`]);
+    expect(run.errors).toEqual([]);
+    expect(errors).toEqual([]);
   });
 });

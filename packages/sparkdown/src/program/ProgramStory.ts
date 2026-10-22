@@ -2057,9 +2057,7 @@ export class ProgramStory implements StoryEngine {
 
   /** The name a frame that runs no function shows: the name of the flow it
    *  stands in, `0` for the top-level content, as the object engine's path
-   *  of that container read, and `global decl` for a declaration. An
-   *  included script's top-level content runs in the top level's frame
-   *  (`IncludeEntry`), so its flow shows `0` too. */
+   *  of that container read, and `global decl` for a declaration. */
   flowName(flow: number): string {
     if (flow < 0) {
       return "global decl";
