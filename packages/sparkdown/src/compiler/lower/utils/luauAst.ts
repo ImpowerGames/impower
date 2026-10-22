@@ -18,6 +18,7 @@ import {
   type LuauSyntaxError,
 } from "../../typecheck/readLuauAst";
 import type { LowerContext } from "../context";
+import { reportNestedAlternators } from "./alternatorArms";
 
 /**
  * What an AST was read from: the syntax tree it came from, for the nodes a
@@ -110,7 +111,12 @@ function topOf(node: SyntaxNode): SyntaxNode {
   return top;
 }
 
-/** The one Luau expression some nodes hold, as the converter reads it. */
+/**
+ * The one Luau expression some nodes hold, as the converter reads it. Each
+ * alternator the reading holds, which it reads as one opaque value, has its
+ * own head and arms read (`reportNestedAlternators`), whether or not lowering
+ * reaches it (I-1435).
+ */
 export function readExpressionAst(
   nodes: readonly SyntaxNode[],
   ctx: LowerContext,
@@ -118,6 +124,7 @@ export function readExpressionAst(
   const first = nodes[0];
   if (!first) return null;
   const { expr, errors } = readLuauExpression(nodes, documentText(ctx));
+  reportNestedAlternators(expr, ctx);
   return { expr, source: { top: topOf(first), errors } };
 }
 
@@ -134,6 +141,8 @@ export function readBlockAst(
   const first = nodes[0];
   if (!first) return null;
   const unit = readLuauBlock(nodes, documentText(ctx), afterType);
+  // As in an expression's reading (`readExpressionAst`).
+  reportNestedAlternators(unit.root, ctx);
   return { unit, source: { top: topOf(first), errors: unit.errors } };
 }
 
@@ -150,6 +159,8 @@ export function closureSyntaxErrors(content: SyntaxNode, ctx: LowerContext): rea
 /** A Sparkle closure's body, read as the body of the function value it runs as (`readLuauStatements`), or null when the reading is not one. */
 export function closureBodyAst(content: SyntaxNode, ctx: LowerContext): import("../../typecheck/Ast").AstStatBlock | null {
   const { expr } = readLuauStatements([content], documentText(ctx));
+  // As in an expression's reading (`readExpressionAst`).
+  reportNestedAlternators(expr, ctx);
   return expr instanceof AstExprFunction ? expr.body : null;
 }
 

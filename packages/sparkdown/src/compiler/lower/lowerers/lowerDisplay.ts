@@ -644,7 +644,7 @@ function processDisplayBody(
         if (inlineAlt) {
           for (const obj of inlineAlt) out.push(obj);
         } else {
-          const expr = lowerExpressionFromContainer(seg.node, ctx);
+          const expr = lowerExpressionFromContainer(seg.node, ctx, "expression");
           if (expr) {
             expr.outputWhenComplete = true;
             out.push(expr);
@@ -1422,7 +1422,7 @@ export function lowerLuauInterpolatedStringExpression(
       body.push(...alt);
       continue;
     }
-    const expr = lowerExpressionFromContainer(node, ctx);
+    const expr = lowerExpressionFromContainer(node, ctx, "expression");
     if (expr) {
       expr.outputWhenComplete = true;
       body.push(expr);
@@ -1769,7 +1769,10 @@ function tryLowerInlineConditional(
   //     └ LuauElseExpression?             (`else <body>`)
   type Branch = { cond: Expression | null; body: SyntaxNode[] };
   const branches: Branch[] = [];
-  const firstCond = lowerExpressionFromContainer(firstCondContent, ctx);
+  // Its condition and values are an if expression's parts in story braces,
+  // each reporting a backtick string's errors and a rejection of it
+  // (`reportReadingErrors`, I-1435).
+  const firstCond = lowerExpressionFromContainer(firstCondContent, ctx, "ifExpression");
   if (!firstCond) return null;
   let current: Branch = { cond: firstCond, body: [] };
   let elseifCondNodes: SyntaxNode[] = [];
@@ -1832,8 +1835,9 @@ function tryLowerInlineConditional(
                 elseifCondNode,
               ) ?? elseifCondNode,
               ctx,
+              "ifExpression",
             )
-          : lowerExpressionFromNodes(elseifCondNodes, ctx);
+          : lowerExpressionFromNodes(elseifCondNodes, ctx, "ifExpression");
         current = { cond: cond ?? null, body: collectClauseBody(child) };
         elseifCondNodes = [];
         elseifCondNode = null;
@@ -1869,7 +1873,7 @@ function tryLowerInlineConditional(
   for (let i = 0; i < branches.length; i++) {
     const b = branches[i]!;
     if (b.body.length === 0) continue;
-    const bodyExpr = lowerExpressionFromNodes(b.body, ctx);
+    const bodyExpr = lowerExpressionFromNodes(b.body, ctx, "ifExpression");
     if (!bodyExpr) continue;
     bodyExpr.outputWhenComplete = true;
     const branch = new ConditionalSingleBranch(

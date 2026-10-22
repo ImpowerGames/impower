@@ -612,7 +612,7 @@ parser tests (ported to
 | source | diagnostic |
 | --- | --- |
 | `` `{a` `` | Malformed interpolated string; did you forget to add a `}`? |
-| `` `{}` `` | Malformed interpolated string, expected expression inside `{}` |
+| `` `{}` `` | Malformed interpolated string, expected expression inside '{}' (at the string's section that opened it, `` `{ ``) |
 
 Both used to be silent. An unterminated `{` escaped its string and consumed
 the rest of the FILE, turning one typo into a cascade of unrelated errors; an
