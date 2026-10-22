@@ -129,6 +129,17 @@ describe("a declaration whose line holds another kind of error", () => {
     expect(sparkdownErrors(text)).toEqual(expected);
     expectIncrementalEqualsCold(text);
   });
+  // A collision of another declaration on the line is that declaration's
+  // (round 3).
+  for (const line of ["store a,, = 1 local b = 0", "local b = 0 store a,, = 1"]) {
+    test(`${JSON.stringify(line)} after a store named b`, () => {
+      const text = `store b = 0\n${line}\n${SCENE}`;
+      const expected = official(`${line.replace(/store/g, "local")}\n`, 1);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(text)).toEqual(expected);
+      expectIncrementalEqualsCold(text);
+    });
+  }
   test("a local in a scene named as a store reports its own Luau errors", () => {
     const scene = "store a,, = 1\nscene start\n  local a = 1 2\n  Hello.\nend\n";
     const expected = [...official("local a,, = 1\n"), ...official("local a = 1 2\n", 2, 2)].sort();

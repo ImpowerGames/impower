@@ -5975,7 +5975,7 @@ export class SparkdownCompiler {
   /**
    * Reports a story `store` declaration's syntax errors as Luau reads the
    * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
-   * I-1370), for a store no other reporter reported an error on, but at a
+   * I-1370), for a store no other reporter reported an error in, but at a
    * name it declares (a name declared twice, I-1452); an error in the story
    * its line runs on into defers only to an error in that story. The type
    * checker leaves a store's errors to Sparkdown, which reports what the tree
@@ -5997,18 +5997,25 @@ export class SparkdownCompiler {
       const errors = storeSyntaxErrors(tree, doc.read(0, doc.length));
       if (errors.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
-      const before = (a: Range["start"], b: Range["start"]) => a.line < b.line || (a.line === b.line && a.character < b.character);
       const reported = new Map<string, { declaration: boolean; story: boolean; messages: Set<string> }>();
       for (const error of errors) {
         const key = `${error.store.from}:${error.store.to}`;
         let inError = reported.get(key);
         if (inError === undefined) {
-          // The store's lines, as `reportCompileThrow` reads a statement's:
-          // a report at its end of input begins where its line ends. A store
-          // the tree ends with its line break ends on the line before it.
+          // The store's span, as `reportCompileThrow` reads a statement's: a
+          // report at its end of input begins where its line ends, and one
+          // for the statement may begin at its line's indent. A store the
+          // tree ends with its line break ends on the line before it. A
+          // report of another statement on its line is that statement's
+          // (I-1452).
           const { from, to } = error.store;
           const last = to > from && doc.read(to - 1, to) === "\n" ? to - 1 : to;
-          const range = doc.range(from, last);
+          const lineStart = doc.offsetAt({ line: doc.positionAt(from).line, character: 0 });
+          const spanFrom = /^\s*$/.test(doc.read(lineStart, from)) ? lineStart : from;
+          const startsIn = (d: SparkDiagnostic, start: number, end: number) => {
+            const at = doc.offsetAt(d.range.start);
+            return d.severity === DiagnosticSeverity.Error && at >= start && at <= end;
+          };
           // An error at a name the declaration declares (the name declared
           // twice) is about the name, not the declaration's syntax (I-1452).
           const atName = (d: SparkDiagnostic) =>
@@ -6019,20 +6026,12 @@ export class SparkdownCompiler {
                 name.end.line === d.range.end.line &&
                 name.end.character === d.range.end.character,
             );
-          const others = range
-            ? diagnostics.filter(
-                (d) =>
-                  d.severity === DiagnosticSeverity.Error &&
-                  d.range.start.line >= range.start.line &&
-                  d.range.start.line <= range.end.line &&
-                  !atName(d),
-              )
-            : [];
+          const others = diagnostics.filter((d) => startsIn(d, spanFrom, last) && !atName(d));
           // The story the declaration's line runs on into (`local a,, = 1
           // 2`'s `2`, `StoreSyntaxError.inStory`) has no reader but the
           // declaration's, so an error there defers only to an error in that
           // story, after the declaration's end, or to another reporter's
-          // report of the same error elsewhere on the line (`store a = 1,
+          // report of the same error in the declaration (`store a = 1,
           // return`, whose `return` the validator names at the comma). A
           // report where the reading finds an error of its own in the same
           // words (`local a = {1 ? 2} 2`'s first `2`) is that error (I-1452).
@@ -6042,8 +6041,8 @@ export class SparkdownCompiler {
               (e) => e.message === wordsOf(d) && e.start.line === d.range.start.line && e.start.character === d.range.start.character,
             );
           inError = {
-            declaration: !range || others.length > 0,
-            story: !range || others.some((d) => !before(d.range.start, range.end)),
+            declaration: others.length > 0,
+            story: diagnostics.some((d) => startsIn(d, last, Math.max(last, error.readTo)) && !atName(d)),
             messages: new Set(others.filter((d) => !readingsOwn(d)).map(wordsOf)),
           };
           reported.set(key, inError);
