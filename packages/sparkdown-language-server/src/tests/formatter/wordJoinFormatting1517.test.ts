@@ -160,6 +160,18 @@ end
   expectFormatsTo(source, source);
 });
 
+// Round 2 of review: a name whose letter lies outside the BMP is read
+// whole, not as half of a surrogate pair.
+test("formatting keeps a divert target outside the BMP apart from then", () => {
+  const source = `function f()
+  if to_one == -> 𐐀 then
+    return 1
+  end
+end
+`;
+  expectFormatsTo(source, source);
+});
+
 // Round 2 of review: a UI name that ends in a digit is not a number, so a
 // class still glues to it.
 test("formatting glues a class to a hyphenated or long name ending in a digit", () => {

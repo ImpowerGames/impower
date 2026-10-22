@@ -1107,9 +1107,13 @@ export const getFormatting = (
     if (from === to || insertsSpaceAt.has(from) || insertsSpaceAt.has(to)) {
       return false;
     }
-    const nextChar = document.read(to, to + 1);
+    // Whole code points, so a letter outside the BMP (`𐐀`) is not read as
+    // half of a surrogate pair.
+    const nextChar = Array.from(document.read(to, to + 2))[0] ?? "";
+    const prevChar =
+      Array.from(document.read(Math.max(0, from - 2), from)).pop() ?? "";
     return mustKeepSpaceBetween(
-      document.read(from - 1, from),
+      prevChar,
       nextChar,
       (NAME_CHAR_REGEX.test(nextChar) || nextChar === ".") &&
         endsNumberAt(tree, from),
