@@ -118,15 +118,17 @@ function oracle(place: Place, expr: string): string[] {
 
 /**
  * Asserts that the reading reports Luau's errors for the form: something
- * exactly where Luau reports something, Luau's first error, and nothing Luau
- * does not report (the reading stops at the end of the expression, where
- * Luau's reading of the table goes on in its recovery).
+ * exactly where Luau reports something, each error once, Luau's first error,
+ * and nothing Luau does not report (the reading stops at the end of the
+ * expression, where Luau's reading of the table goes on in its recovery).
  */
 function expectLuauErrors(place: Place, expr: string): void {
   const text = place.wrap(expr);
   const errors = sparkdownErrors(text);
   const expected = oracle(place, expr);
   expect(errors.length > 0, `${JSON.stringify(errors)} against Luau's ${JSON.stringify(expected)}`).toBe(expected.length > 0);
+  // Each error once: not by two readers, nor twice by one.
+  expect(errors, "no error reported twice").toEqual([...new Set(errors)]);
   for (const error of errors) expect(expected, "an error Luau reports").toContain(error);
   if (expected.length > 0) {
     const [first] = officialErrorList(`${"\n".repeat(place.line)}_ =${" ".repeat(place.column - 4)}{${expr}${place.end === "|" ? " " : ""}}\n`);
