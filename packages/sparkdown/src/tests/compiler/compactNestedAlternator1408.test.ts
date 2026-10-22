@@ -13,6 +13,7 @@ import { isTrivia } from "../../compiler/lint/luauTree";
 import { ALTERNATOR_CANDIDATES, alternatorArms } from "../../compiler/utils/alternatorDecision";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { getParser } from "./grammarSnapshot";
+import { Editor, expectParity, openRegistry } from "./incrementalParity";
 import { compareEnginesFull, formatDivergences, vscodeScopeStacksPerChar } from "./scopeEquality";
 
 const URI = "inmemory:///main.sd";
@@ -99,45 +100,6 @@ const semanticsOf = (text: string) => {
   return tokens;
 };
 
-// Cold equal to incremental, as `alternatorDecisionIncremental1310` checks it.
-const sets = ["declarations", "references", "semantics"] as const;
-function open(text: string) {
-  const registry = new SparkdownDocumentRegistry([...sets]);
-  registry.add({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  return registry;
-}
-function position(text: string, offset: number) {
-  const prefix = text.slice(0, offset).split("\n");
-  return { line: prefix.length - 1, character: prefix.at(-1)!.length };
-}
-function snapshot(registry: SparkdownDocumentRegistry) {
-  return sets.flatMap((key) => {
-    const result: string[] = [];
-    const iter = registry.annotations(URI)![key]!.iter();
-    while (iter.value) {
-      result.push(`${key}:${iter.from}:${iter.to}:${JSON.stringify(iter.value.type)}`);
-      iter.next();
-    }
-    return result;
-  });
-}
-function expectParity(registry: SparkdownDocumentRegistry, text: string, label: string) {
-  const cold = open(text);
-  expect(registry.tree(URI)!.toString(), `${label}: parse trees`).toBe(cold.tree(URI)!.toString());
-  const actual = snapshot(registry);
-  const expected = snapshot(cold);
-  expect({ extra: actual.filter((value) => !expected.includes(value)), missing: expected.filter((value) => !actual.includes(value)) }, label).toEqual({ extra: [], missing: [] });
-}
-class Editor {
-  version = 2;
-  constructor(public registry: SparkdownDocumentRegistry, public text: string) {}
-  replace(from: number, to: number, insert: string) {
-    const range = { start: position(this.text, from), end: position(this.text, to) };
-    this.registry.update({ textDocument: { uri: URI, version: this.version++ }, contentChanges: [{ range, text: insert }] });
-    this.text = this.text.slice(0, from) + insert + this.text.slice(to);
-  }
-}
-
 // Each form in its compact spelling, the story's output (base's for the
 // spaced spelling, which this change leaves as it was), and its arms.
 const FORMS: [string, string, string, string[]][] = [
@@ -218,16 +180,16 @@ describe("a nested alternator whose end stands against the outer bar reads as th
     });
 
     test("removing and restoring the space keeps cold equal to incremental", () => {
-      const editor = new Editor(open(spaced), spaced);
+      const editor = new Editor(openRegistry(URI, spaced), URI, spaced);
       for (const gap of [...gaps].reverse()) {
         const at = startIn(gaps.filter((g) => g < gap), gap);
         editor.replace(at, at + 1, "");
-        expectParity(editor.registry, editor.text, `space before offset ${gap} removed`);
+        expectParity(editor.registry, URI, editor.text, `space before offset ${gap} removed`);
       }
       expect(editor.text).toBe(compact);
       for (const gap of [...gaps].reverse()) {
         editor.replace(gap, gap, " ");
-        expectParity(editor.registry, editor.text, `space before offset ${gap} restored`);
+        expectParity(editor.registry, URI, editor.text, `space before offset ${gap} restored`);
       }
       expect(editor.text).toBe(spaced);
     });
