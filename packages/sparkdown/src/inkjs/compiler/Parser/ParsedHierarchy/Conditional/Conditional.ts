@@ -49,12 +49,15 @@ export class Conditional extends ParsedObject {
       branch.EmitBranch(emitter, end);
     }
     // With no branch to take the value (a `match` with no arm, which the
-    // lowering reports), it is popped as well.
+    // lowering reports), it is popped as well. A switch-like conditional
+    // whose first branch is keyless (`match c | k | x = m end`) keeps it
+    // too, where no branch took it.
     const first = this.branches[0];
     if (
       this.initialCondition !== null &&
       (!first ||
-        (first.ownExpression !== null &&
+        ((first.ownExpression !== null ||
+          (first.matchingEquality && !first.isTrueBranch)) &&
           !this.branches[this.branches.length - 1]!.isElse))
     ) {
       emitter.emit(Op.Pop);
