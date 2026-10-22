@@ -147,6 +147,13 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: T | : --[=========[c]=========] do", "do"],
     ["local t = {}\n  while t :: T | : --[=========[c]=========] do end", null],
     ["local t = {}\n  if t :: T | : --[=========[c]=========] then end", null],
+    // A header word in a comment or a string is no header, and a header on
+    // the line before is one (round 3, `undirected` finding 2).
+    ["local x: T | : --[=========[while]=========] do", "do"],
+    ["local x: T | : --[=========[if]=========] then", "then"],
+    ['local s = "while"\n  local x: T | : --[=========[c]=========] do', "do"],
+    ["local t = {}\n  while\n    t :: T | : --[=========[c]=========] do end", null],
+    ["local t = {}\n  if\n    t :: T | : --[=========[c]=========] then end", null],
   ],
   "after a block comment of level 9 or more (I-1459)": [
     ["local t = {}\n  local b = (t): --[=========[c]=========] end", "end"],
@@ -174,6 +181,12 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  while t + t: --[=========[c]=========] do end", "do"],
     ["local t = {}\n  if not t: --[=========[c]=========] then end", "then"],
     ["local t = {}\n  local b = not t: --[=========[c]=========] do", "do"],
+    // A `]` in the comment's text (round 3, `undirected` finding 1).
+    ["local t = {}\n  local b = (t): --[=========[a]b]=========] end", "end"],
+    ["local t = {}\n  local b = t: --[=========[a]b]=========] end", "end"],
+    ["local x: T: --[=========[a]b]=========] end", "end"],
+    ["local x: T | : --[=========[a]b]=========] end", "end"],
+    ["local t = {}\n  local b = (t): --[=========[a]==========]b]=========] end", "end"],
     // A number or a boolean before the `:` (round 1, `undirected` finding 3).
     ["local b = 1: --[=========[c]=========] end", "end"],
     ["local b = true: --[=========[c]=========] end", "end"],
