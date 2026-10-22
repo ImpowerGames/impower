@@ -182,12 +182,14 @@ function lowerInner(
   }
   // A top-level Sparkle declaration written inside a function is an error
   // (I-1405). It is lowered as written, so the errors in its body are
-  // reported too, and registers nothing.
+  // reported too, and only those are kept: neither what it registers in the
+  // program's context nor the statement that registers an `animation` or a
+  // `theme` when the story runs (`lowerLuauStructDefine`).
   const misplaced = validateTopLevelDeclaration(nodeRef.node, ctx);
   if (misplaced) {
     ctx.diagnostics?.push(misplaced);
     const block = lowerNode(nodeRef, ctx);
-    return block && { ...block, context: undefined, sparkle: undefined };
+    return block && { diagnostics: block.diagnostics };
   }
   return lowerNode(nodeRef, ctx);
 }
