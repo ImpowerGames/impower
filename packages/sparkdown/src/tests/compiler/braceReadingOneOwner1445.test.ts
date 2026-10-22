@@ -241,6 +241,32 @@ describe("the reading's words, at the token it ends at", () => {
   }
 });
 
+// A brace with no `}` reads its content to the end, past its line: the
+// reading reports what the content lacks there, once, and the brace's own
+// error says the `}` is missing. A clause-less if expression and one with no
+// value report Luau's words at the `}`.
+describe("a brace the reading reads to its end", () => {
+  const forms: [string, string[]][] = [
+    [
+      "scene start\n  Hello {x.\n  After.\nend\n",
+      [
+        "1:10-1:11 Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+        "1:8-3:0 Malformed interpolated string; did you forget to add a `}`?",
+        "2:8-3:0 Expected identifier, got <eof>",
+      ],
+    ],
+    ["scene start\n  Hello {f(\n  After.\nend\n", ["1:8-3:0 Malformed interpolated string; did you forget to add a `}`?", "2:8-3:0 Expected identifier, got <eof>"]],
+    ["scene start\n  Hello {if x}.\nend\n", ["1:13-1:14 Expected 'then' when parsing if then else expression, got '}'"]],
+    ["scene start\n  Hello {if x then}.\nend\n", ["1:18-1:19 Expected identifier when parsing expression, got '}'"]],
+  ];
+  for (const [text, expected] of forms) {
+    test(JSON.stringify(text.split("\n").slice(1, 3).join("\n")), () => {
+      expect(sparkdownErrors(text)).toEqual(expected);
+      expectIncrementalEqualsCold(text);
+    });
+  }
+});
+
 // A keyword the tree reads as a member's name reads a define's property of
 // that name (#1081), in story text and an arm alike.
 describe("a keyword member name is Sparkdown's", () => {

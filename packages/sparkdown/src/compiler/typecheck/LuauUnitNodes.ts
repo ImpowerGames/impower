@@ -375,7 +375,7 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   if (lowered) return tokenFrom === undefined || (tokenFrom < lowered.to && readingCarriesOnTo(node, tokenFrom, read));
   if (!isCheckedLuau(node, read)) {
     const expression = loweredExpressionOf(node);
-    return !!expression && (tokenFrom === undefined || tokenFrom < expression.to);
+    return !!expression && (tokenFrom === undefined || tokenFrom < expression.to || unclosedBrace(expression));
   }
   if (tokenFrom === undefined) return true;
   let root = node;
@@ -425,6 +425,18 @@ export function loweredExpressionOf(node: SyntaxNode | null): SyntaxNode | null 
     }
   }
   return null;
+}
+
+/**
+ * Whether a story brace has no written `}` (`Hello {x.` at the end of its
+ * line): its reading meets its end of input where the brace's content ends
+ * and reports what the content lacks there (`got <eof>`), so no token past
+ * it is the tree checks' to name.
+ */
+function unclosedBrace(expression: SyntaxNode): boolean {
+  if (!STORY_BRACES.has(expression.name)) return false;
+  const close = expression.getChild(`${expression.name}_end`);
+  return !close || close.from === close.to;
 }
 
 /**
