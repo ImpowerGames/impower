@@ -6,11 +6,7 @@ import {
 import { scanAssetDirectives } from "../compiler/utils/scanAssetDirectives";
 import { CALL_TUNNEL, Op, flagsOf, opOf } from "./ProgramInstructions";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
-import {
-  INCLUDED_FLOW_PREFIX,
-  ROOT_FLOW_NAME,
-  SymbolKind,
-} from "./ProgramSymbols";
+import { SymbolKind } from "./ProgramSymbols";
 import {
   HEADER_WORDS,
   addressOf,
@@ -59,18 +55,14 @@ export const captureProgramAssets = (
   const strings = root.table.strings;
   const symbols = root.table.symbols;
   // The top-level flow a symbol's name stands in: its first segment, or the
-  // top-level content's, which an included script's top-level content and
-  // the label it jumps back to stand in too.
+  // top-level content's.
   const flowOfName = (name: string | undefined): string | undefined => {
     if (name === undefined) {
       return undefined;
     }
     const head = name.split(".")[0] ?? "";
-    return head === "" || head.startsWith(INCLUDED_FLOW_PREFIX) ? "0" : head;
+    return head === "" ? "0" : head;
   };
-  // The flows of included scripts' top-level content the walk has read,
-  // each where the flow that includes it runs it (`IncludeEntry`).
-  const includedRead = new Set<number>();
   // A chunk's code, and each of its bodies where the code enters it, so that
   // a choice's entry and its body come before the next choice's (round 2 of
   // the review of #1618); a body no instruction enters follows the code.
@@ -117,15 +109,6 @@ export const captureProgramAssets = (
           break;
         }
         case Op.JumpSym: {
-          // The content of an included script runs where the statement that
-          // jumps to it stands, so its beats are read there, in the order
-          // they run.
-          const included =
-            root.kindOf(arg) === SymbolKind.Root ? root.flow(arg) : undefined;
-          if (included && !includedRead.has(included.id)) {
-            includedRead.add(included.id);
-            visitSequence(included, capture);
-          }
           const target = flowOfName(symbols[arg]);
           if (target) {
             capture.edges.push({ target, call: false });
@@ -175,13 +158,6 @@ export const captureProgramAssets = (
   }
   for (const uri of uris) {
     for (const row of root.flows(uri)) {
-      if (
-        row.kind === SymbolKind.Root &&
-        symbols[row.flow] !== ROOT_FLOW_NAME
-      ) {
-        // An included script's top-level content, read where it runs.
-        continue;
-      }
       let symbol = row.flow;
       if (row.kind === SymbolKind.Branch) {
         const scene = root.parentOf(symbol);

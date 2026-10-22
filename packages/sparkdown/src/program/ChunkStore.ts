@@ -173,7 +173,9 @@ export interface DeclaredGlobal {
   assignment: VariableAssignment;
 }
 
-/** A statement that declares globals, as the compile hands it to the store. */
+/** A statement that declares globals, as the compile hands it to the store,
+ *  or a member function's write of a script other than main, which declares
+ *  none and runs with the declarations (`programFlows`). */
 export interface DeclarationSource extends StatementSource {
   /** The script it is written in. */
   uri: string;
@@ -967,11 +969,15 @@ export class ChunkStore {
       let chunk = chunkOf.get(declaration);
       if (!chunk) {
         try {
+          // A declaration that declares no global, a member function's
+          // write, runs its statement as written (`programFlows`).
           chunk = this.emit(declaration, (input) =>
-            this._writer.writeDeclaration({
-              ...input,
-              globals: declaration.globals,
-            }),
+            declaration.globals.length === 0
+              ? this._writer.write(input)
+              : this._writer.writeDeclaration({
+                  ...input,
+                  globals: declaration.globals,
+                }),
           );
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
@@ -4353,7 +4359,7 @@ const hoistedOf = (statement: StatementSource): string =>
           local instanceof VariableAssignment
             ? (local.variableName ?? "")
             : local instanceof RootBinding
-              ? `^${local.variableName}`
+              ? local.toString()
               : local.typeName,
         )
         .join(","),

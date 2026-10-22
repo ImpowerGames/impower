@@ -32,13 +32,13 @@ const FUNCTIONS = nodeNameSet([
 
 // A statement marked with `&`, which declares when the statement it marks
 // does.
-const EXPLICIT = nodeNameSet(["LuauSparkdownExplicitStatement"]);
+export const EXPLICIT = nodeNameSet(["LuauSparkdownExplicitStatement"]);
 
 // What separates the statements of a marked line.
 const SEPARATORS = nodeNameSet(["LuauSemicolonSeparator"]);
 
 // The flows: a scene, and a branch, which runs to its `end` as a scene does.
-const FLOWS = nodeNameSet(["Scene", "Branch"]);
+export const FLOWS = nodeNameSet(["Scene", "Branch"]);
 
 // The lines a script's top level holds that neither run nor declare: the
 // `end` of a flow, and an `include` line, which reports an error of its own.
@@ -106,7 +106,7 @@ const declares = (
 };
 
 /** The first child of `node` whose name ends with `suffix`. */
-const childEndingWith = (
+export const childEndingWith = (
   node: SyntaxNode,
   suffix: string,
 ): SyntaxNode | undefined => {
@@ -121,7 +121,7 @@ const childEndingWith = (
 /** The statements a marked line's content holds, without the separators,
  *  the comments and the whitespace between them. An assignment is read as its
  *  target and its operation, each a child of its own, and neither declares. */
-const statementsOf = (content: SyntaxNode): SyntaxNode[] => {
+export const statementsOf = (content: SyntaxNode): SyntaxNode[] => {
   const statements: SyntaxNode[] = [];
   for (let child = content.firstChild; child; child = child.nextSibling) {
     if (
@@ -153,7 +153,7 @@ const findWithin = (node: SyntaxNode, name: string): SyntaxNode | undefined => {
  *  `store`, `const`), from the scope modifier the grammar gives its header,
  *  or undefined when it has none. The modifier is looked for in the header
  *  alone, since a statement of a function's body can have one of its own. */
-const scopeOf = (
+export const scopeOf = (
   node: SyntaxNode,
   read: (from: number, to: number) => string,
 ): string | undefined => {

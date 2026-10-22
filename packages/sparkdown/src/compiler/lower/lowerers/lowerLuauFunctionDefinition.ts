@@ -7,7 +7,6 @@ import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
-import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -35,6 +34,9 @@ import {
   functionArguments,
   lowerFunctionBody,
   parameterNames,
+  closureRootCaptures,
+  rootCaptureSlots,
+  type RootRead,
 } from "../expression/lowerFunction";
 import { lowerStoreBase } from "../utils/lowerPropertyTargetAssignment";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -140,18 +142,16 @@ export function lowerLuauFunctionDefinition(
   }
 
   const args = functionArguments(func);
-  // The names the body reads that no scope of its own binds, which its
-  // entry binds to the top-level locals of those names (`RootBinding`): a
-  // function written at the top level reads and writes a top-level local as
-  // Luau's upvalue, though it is built before the local exists.
-  const rootNames = freeVariables(parameterNames(func), func.body, ctx, { node });
   // The body opens a per-function buffer for any nested callables
   // (function values, nested named functions), so they live as subFlows of
   // this function rather than at the chunk's top level, and stacks this
   // function's own locals so a nested function's capture scan can detect
-  // shadowing.
-  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx);
-  hoisted.unshift(...rootNames.map((name) => new RootBinding(name)));
+  // shadowing. Its entry binds each name the body reads from a `local` of
+  // the root frame's own scope in scope where the function is written
+  // (`rootBindings`, captured none): a function written at the top level
+  // reads and writes that local as Luau's upvalue, though it is built before
+  // the local exists.
+  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx, null);
   const knot = new Knot(identifier, [], args, true);
   close(knot);
   // A definition closes at its `end` or just before a following `scene` or
@@ -204,7 +204,8 @@ function lowerNestedNamedFunction(
   assignsLocal = false,
 ): CompiledBlock {
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
-  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node });
+  const rootReads: RootRead[] = [];
+  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node, rootReads });
 
   // Detect self-reference: if the body calls the declared name, or reads
   // it as a value (`type(f)`, `local again = f`), which the scan captures,
@@ -232,7 +233,19 @@ function lowerNestedNamedFunction(
   // args with nil. Without this, callers like `function foo(a, b);
   // ... end; foo(1)` would have the function body's param binding
   // pop garbage from the caller's eval context for the missing `b`.
-  const closureValue = buildClosureExpression(synthName, upvals, func.args.length);
+  // The closure of a `local function` that reads its own name captures
+  // the local its statement has just declared, by name.
+  const closureValue = buildClosureExpression(
+    synthName,
+    upvals,
+    func.args.length,
+    rootCaptureSlots(
+      rootReads.filter(({ name }) => !isSelfReferential || name !== selfName),
+      upvals,
+      ctx,
+    ),
+    closureRootCaptures(rootReads, upvals, ctx),
+  );
 
   // `function NAME ... end` (no `local`) — Luau treats this as
   // `NAME = function() end`, a non-local assignment visible across
@@ -339,7 +352,8 @@ function lowerPropertyTargetFunctionDefinition(
   // `Class` itself, the canonical Lua OOP pattern at basic.luau
   // lines 419-438). The colon form's implicit `self` is a
   // PARAMETER, not a free variable — exclude it from capture.
-  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node }).filter(
+  const rootReads: RootRead[] = [];
+  const upvals = freeVariables(parameterNames(func), func.body, ctx, { node, rootReads }).filter(
     (n) => !(isColonForm && n === "self"),
   );
   recordCaptureRead(ctx, upvals);
@@ -365,7 +379,13 @@ function lowerPropertyTargetFunctionDefinition(
   // the FIXED-param count by contract; the runtime value-call packing
   // pushes the packed `...` MultiValue as one extra slot beyond it.
   const userArity = (isColonForm ? 1 : 0) + func.args.length;
-  const closureValue = buildClosureExpression(synthName, upvals, userArity);
+  const closureValue = buildClosureExpression(
+    synthName,
+    upvals,
+    userArity,
+    rootCaptureSlots(rootReads, upvals, ctx),
+    closureRootCaptures(rootReads, upvals, ctx),
+  );
   const keyExpr = new StringExpression([new Text(name.index)]);
   const definition = new StorePropertyAssignment(baseExpr, keyExpr, closureValue);
   definition.definesFunction = true;

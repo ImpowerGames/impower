@@ -26,7 +26,6 @@ import {
   DefineCellBinding,
   defineCellName,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/DefineCellBinding";
-import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -65,6 +64,8 @@ import {
   readBodyAst,
   reportBodySyntaxErrors,
   reportReadingErrors,
+  rootBindingsOf,
+  type RootRead,
 } from "../expression/lowerFunction";
 import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
@@ -727,9 +728,9 @@ function lowerDefineMethod(
     .filter((a) => !a.isVararg)
     .map((a) => a.identifier?.name ?? "");
   const reading = readBodyAst(content, METHOD_BODY_SKIP, ctx);
-  // The stdlib names it reads that no function around it declares, which it
-  // binds to a top-level local of the name (`stdlibRootReads`).
-  const stdlibReads: string[] = [];
+  // The names it reads from a `local` of the root frame's own scope in scope
+  // where it is written, with the declaration each reads (`rootReads`).
+  const rootReads: RootRead[] = [];
   const atTopLevel = !ctx.functionScopeStack?.length;
   // The names only the methods of the defines written in it read
   // (`freeVariables`' `node`), which a method of a define at the top level
@@ -740,15 +741,15 @@ function lowerDefineMethod(
     params,
     reading?.unit.root ?? null,
     ctx,
-    { stdlibReads, node, defineReads: atTopLevel ? defineReads : undefined },
+    { rootReads, node, defineReads: atTopLevel ? defineReads : undefined },
   ).filter((n) => n !== "self");
   // The define's table is built when the story starts, before the top level
   // runs, so what a method captures there is not yet the top-level local it
   // reads: a method of a define written at the top level binds each name it
-  // reads to the top-level local of that name at its entry, after its
-  // parameters, as it runs (`RootBinding`), as a top-level function's does,
-  // and otherwise reads what it captured, which reads the global of the
-  // name. It keeps those captures, so a closure of it that a save holds (a
+  // reads to the top-level local of that name in scope where the define is
+  // written at its entry, after its parameters (`RootBinding`), as a
+  // top-level function's does, and otherwise reads what it captured, which
+  // reads the global of the name. It keeps those captures, so a closure of it that a save holds (a
   // method kept in a variable) passes the parameters the method binds. A
   // method of a define written in a function reads that function's locals
   // through cells the define's line points at them when it runs.
@@ -794,9 +795,16 @@ function lowerDefineMethod(
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
+  // A method of a define at the top level binds every such name, and one of
+  // a define in a function those it does not capture: the names a store, a
+  // `const`, a top-level function or a stdlib entry would otherwise answer.
+  const captured = new Set(upvals);
   hoistedDecls.unshift(
-    ...[...(atTopLevel ? [...upvals, ...defineReads] : []), ...stdlibReads].map(
-      (name) => new RootBinding(name),
+    ...rootBindingsOf(
+      rootReads.filter(
+        ({ name }) => name !== "self" && (atTopLevel || !captured.has(name)),
+      ),
+      ctx,
     ),
   );
   const fn = new Function(

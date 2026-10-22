@@ -9,10 +9,6 @@
       "isFunction": true,
       "body": [
         {
-          "type": "RootBinding",
-          "name": "count"
-        },
-        {
           "type": "VariableAssignment",
           "kind": "reassign",
           "name": "count",

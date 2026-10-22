@@ -1,0 +1,131 @@
+{
+  "engine": "program",
+  "format": 2,
+  "engineVersion": "2",
+  "gameVersion": "",
+  "beats": [
+    {
+      "flags": 0,
+      "decisions": [],
+      "position": {
+        "st": {
+          "levels": [
+            {
+              "s": 0,
+              "at": 1,
+              "flow": "S",
+              "params": []
+            }
+          ]
+        },
+        "a": "start"
+      },
+      "evalStack": [],
+      "output": [
+        {
+          "objid": 1,
+          "obj": {
+            "target": "^action",
+            "text": "^First 1."
+          }
+        },
+        "\n"
+      ],
+      "lineEndPending": false,
+      "lineJoinable": false,
+      "turnIdx": -1,
+      "storySeed": 38,
+      "previousRandom": 0,
+      "previousFlow": "S",
+      "didSafeExit": false,
+      "variablesState": {},
+      "frames": [
+        {
+          "type": 0,
+          "start": 0,
+          "height": 0,
+          "temps": [
+            {
+              "a": 1,
+              "f": {
+                "objid": 2,
+                "obj": {
+                  "__closure_fn": {
+                    "^symsave": "{\"st\":{\"levels\":[{\"s\":1,\"at\":1,\"flow\":\"\"}]},\"k\":\"functions\",\"i\":0,\"pl\":0}"
+                  },
+                  "__closure_upvals": {
+                    "objid": 3,
+                    "obj": {
+                      "0": {
+                        "^var": "a",
+                        "ci": 1,
+                        "cell": 1,
+                        "si": 0
+                      }
+                    }
+                  },
+                  "__closure_user_arity": 0
+                }
+              }
+            }
+          ],
+          "upvalues": [
+            {
+              "^var": "a",
+              "ci": 1,
+              "cell": 1
+            }
+          ]
+        }
+      ],
+      "counts": [
+        [
+          {
+            "n": "S"
+          },
+          1,
+          -1
+        ],
+        [
+          {
+            "n": "g"
+          },
+          1,
+          -1
+        ]
+      ]
+    }
+  ],
+  "listings": [
+    {
+      "n": 3,
+      "windows": [
+        [
+          0,
+          "7a7e4f856d762290",
+          "c27885e1bfcfcbb9",
+          "09757c57e121ae22"
+        ]
+      ]
+    },
+    {
+      "n": 3,
+      "windows": [
+        [
+          0,
+          "014ec9bf43f96f64",
+          "fa42e20332c81c81",
+          "ccb5ca786912d3e1"
+        ]
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "k": "functions",
+      "l": [
+        "dd5d1d0810547a1f"
+      ]
+    }
+  ]
+}
