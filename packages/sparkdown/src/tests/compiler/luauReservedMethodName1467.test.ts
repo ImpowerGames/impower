@@ -112,6 +112,13 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x: typeof({a = {b = 1}}):end", "end"],
     ["local x: {a: {b: {c: T}}}:function", "function"],
     ["local x: T:nil", "nil"],
+    // Round 2, `gb` finding 3: a type the annotation's lexical test reads
+    // (three levels of brackets, comments) before `:do` or a long comment.
+    ["local x: {a: {b: {c: number}}}: --[=========[c]=========] end", "end"],
+    ["local x: {a: {b: {c: number}}}:do", "do"],
+    ["local x: T --[[c]] :do", "do"],
+    ["local x: T --[[c]] : --[=========[c]=========] end", "end"],
+    ["local x: T | --[[c]] U:do", "do"],
     // A function's return type, which the ticket asked to check.
     ["local function f(): T:end end", "end"],
     ["local function f(): T:end\n  end", "end"],
@@ -153,6 +160,12 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: T: --[=========[c]=========] do", "do"],
     ["local t = {}\n  local b = (t): --[=========[c]=========] then", "then"],
     ["local x: T: --[=========[c]=========] do", "do"],
+    // Round 2, `gb` finding 1: the access inside an operand of a header's
+    // condition.
+    ["local t = {}\n  while not t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  while t + t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  if not t: --[=========[c]=========] then end", "then"],
+    ["local t = {}\n  local b = not t: --[=========[c]=========] do", "do"],
     // A number or a boolean before the `:` (round 1, `undirected` finding 3).
     ["local b = 1: --[=========[c]=========] end", "end"],
     ["local b = true: --[=========[c]=========] end", "end"],
@@ -177,6 +190,14 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x: --[=========[c]=========] number", null],
     ["for k: --[=========[c]=========] number in pairs({}) do end", null],
     ["local function f(a: --[=========[c]=========] number) end", null],
+  ],
+  // A comment of level nine or more that closes on a later line: a reserved
+  // word after it is past the `:`'s line, so no method's name, and it closes
+  // the block it closes in Luau (round 2, `gb` finding 2).
+  "a long comment that closes on a later line": [
+    ["local t = {}\n  if t: --[=========[c\n  ]=========] end", null],
+    ["local t = {}\n  local b = (t): --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = (t): --[=========[c\n  ]=========] end"],
+    ["local t = {}\n  local b = t: --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = t: --[=========[c\n  ]=========] end"],
   ],
   // A `:` that is a type's is no method's: a declaration's or a `for`
   // variable's annotation, which misses its type, as Luau reads it, so the
