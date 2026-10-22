@@ -61,10 +61,11 @@ export class InterpreterModule extends Module<
   CONTROL_TAGS = ["speed", "pitch", "p", "wait", "w", "!", "/!"];
 
   /**
-   * Tag names in parseRichText's vocabulary (ui/utils/parseRichText.ts), opening
-   * or closing, matched without case as it matches them. A line's text tag
-   * branch consumes these as it always has; any other closed `<...>` is not
-   * markup, so it stays on screen as written (`function: make.<anonymous>`).
+   * Tag names in parseRichText's vocabulary (ui/utils/parseRichText.ts), matched
+   * without case as it matches them. A line's text tag branch consumes these
+   * and the control tags, opening or closing, as it always has; any other
+   * closed `<...>` is not markup, so it stays on screen as written
+   * (`function: make.<anonymous>`).
    */
   RICH_TEXT_TAGS = [
     "b",
@@ -1383,10 +1384,12 @@ export class InterpreterModule extends Module<
                 control = control.trimEnd();
                 arg = arg.trim();
                 const closed = chars[i] === ">";
-                const name = control.toLowerCase().replace(/^\//, "");
+                // A tag is known by its leading name, opening or closing, so
+                // `<b x>` and `</speed>` are consumed as they always were.
+                const name = (control.split(/\s/)[0] ?? "").replace(/^\//, "");
                 const known =
-                  this.CONTROL_TAGS.includes(control) ||
-                  this.RICH_TEXT_TAGS.includes(name);
+                  this.CONTROL_TAGS.includes(name) ||
+                  this.RICH_TEXT_TAGS.includes(name.toLowerCase());
                 if (closed && known) {
                   i += 1;
                   if (control) {

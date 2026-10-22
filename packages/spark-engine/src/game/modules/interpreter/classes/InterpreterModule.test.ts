@@ -256,6 +256,16 @@ describe("InterpreterModule text tags", () => {
       expect(render("Un<bogus=2> here.").text).toBe("Un<bogus=2> here.");
     });
 
+    it("keeps an unknown tag with words after its name as literal text", () => {
+      expect(render("Un<not a tag> here.").text).toBe("Un<not a tag> here.");
+    });
+
+    it("removes a control tag's closing form and one with more after its name", () => {
+      expect(render("Speed<speed:2> up</speed>.").text).toBe("Speed up.");
+      expect(render("Wait<wait x> here</wait>.").text).toBe("Wait here.");
+      expect(render("Pitch<p:1> up</p>.").text).toBe("Pitch up.");
+    });
+
     // An unterminated tag is not a tag -- it stays on screen as authored,
     // rather than silently swallowing the rest of the line. (Unterminated
     // *emphasis markers* behave differently on purpose; see below.)
@@ -312,6 +322,12 @@ describe("InterpreterModule text tags", () => {
     });
     it("matches rich-text tag names without case", () => {
       expect(render("A <B>word</B> here.").text).toBe("A word here.");
+    });
+    it("removes a rich-text tag with more after its name", () => {
+      expect(render("A <b x>word</b> here.").text).toBe("A word here.");
+      expect(render("A <color:red>word</color> here.").text).toBe(
+        "A word here.",
+      );
     });
   });
 
