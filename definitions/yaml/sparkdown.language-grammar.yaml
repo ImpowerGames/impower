@@ -800,7 +800,7 @@ variables:
   # first arm's key, `b =`): the first arm's separator ends the head, and
   # the arms open after it (`LUAU_AFTER_HEAD_SEPARATOR`).
   # lookaround: `LuauAlternatorArms` reads the `|` the head leaves.
-  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+)(?=[|])|(?<=\bend)({{LUAU_HEAD_SEPARATOR}}))
+  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+(?=[|])|(?<=\bend){{LUAU_HEAD_SEPARATOR}}))
   # The first arm's separator as a head takes it: the `|`, and what
   # `LuauAlternatorSeparator` reads after it.
   LUAU_HEAD_SEPARATOR: (?:[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?)
@@ -9642,10 +9642,8 @@ repository:
     endCaptures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
           - { include: "#LuauAlternatorSeparator" }
+          - { include: "#ExtraWhitespace" }
 
   # The bounded twin of `LuauAlternatorArms`, which ends at its line.
   LuauSparkdownExplicitAlternatorArms:
@@ -11799,10 +11797,8 @@ repository:
     endCaptures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
           - { include: "#LuauAlternatorSeparator" }
+          - { include: "#ExtraWhitespace" }
 
   # A line-start candidate's head, which goes on past its line through the
   # blank and comment lines before its arms (`queue -- end`, a blank line,
@@ -11821,10 +11817,8 @@ repository:
     endCaptures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
           - { include: "#LuauAlternatorSeparator" }
+          - { include: "#ExtraWhitespace" }
 
   # A candidate alternator's arms, from its first `|` at the word's own
   # level to the `end` they take. The candidate is an alternator only when
