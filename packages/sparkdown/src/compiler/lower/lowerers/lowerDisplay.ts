@@ -16,8 +16,10 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import {
   FUNCTION_CALL_SHORTHAND_NODES,
+  ifClauseValueNodes,
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
+  reportInlineIfReading,
 } from "../expression/lowerExpression";
 import {
   buildDivert,
@@ -136,7 +138,10 @@ function buildDisplayCalls(
       tryLowerInlineConditional(only, ctx, (body) => [
         buildDisplayCall(target, character, body, ranges[0]!, ctx),
       ]);
-    if (conditional) return [conditional];
+    if (conditional) {
+      reportInlineIfReading(only!, ctx);
+      return [conditional];
+    }
   }
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
@@ -633,6 +638,8 @@ function processDisplayBody(
       // rather than as a plain Expression.
       const inlineCond = tryLowerInlineConditional(seg.node, ctx);
       if (inlineCond) {
+        // Its errors are the reading's of the whole brace.
+        reportInlineIfReading(seg.node, ctx);
         out.push(inlineCond);
       } else {
         // `{queue|A|B|C end}` / `{plural(n)|one="…"|other="…" end}` —
@@ -1769,10 +1776,9 @@ function tryLowerInlineConditional(
   //     └ LuauElseExpression?             (`else <body>`)
   type Branch = { cond: Expression | null; body: SyntaxNode[] };
   const branches: Branch[] = [];
-  // Its condition and values are an if expression's parts in story braces,
-  // each reporting a backtick string's errors and a rejection of it
-  // (`reportReadingErrors`, I-1435).
-  const firstCond = lowerExpressionFromContainer(firstCondContent, ctx, "ifExpression");
+  // Its condition and values are lowered from their own readings, whose
+  // errors the reading of the whole brace reports (`reportInlineIfReading`).
+  const firstCond = lowerExpressionFromContainer(firstCondContent, ctx, null);
   if (!firstCond) return null;
   let current: Branch = { cond: firstCond, body: [] };
   let elseifCondNodes: SyntaxNode[] = [];
@@ -1784,28 +1790,6 @@ function tryLowerInlineConditional(
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace" ||
     name === "Newline";
-
-  // Collect the expression nodes inside a `LuauThenExpression` /
-  // `LuauElseExpression` wrapper. The wrapper's `_content` child holds
-  // the operator (`LuauThenOperator`/`LuauElseOperator`) plus the
-  // branch body. Skip the operator and any whitespace-only nodes.
-  const collectClauseBody = (clause: SyntaxNode): SyntaxNode[] => {
-    const body: SyntaxNode[] = [];
-    const content =
-      findChildByNameDirect(clause, `${clause.name}_content`) ?? clause;
-    let bodyChild = content.firstChild;
-    while (bodyChild) {
-      if (
-        !isExplicitRuleName(bodyChild.name, "LuauThenOperator") &&
-        !isExplicitRuleName(bodyChild.name, "LuauElseOperator") &&
-        !isWhitespaceNode(bodyChild.name)
-      ) {
-        body.push(bodyChild);
-      }
-      bodyChild = bodyChild.nextSibling;
-    }
-    return body;
-  };
 
   // The actual child clauses live inside the `_content` wrapper that
   // begin/end rules emit, not as direct children of the rule node.
@@ -1835,19 +1819,19 @@ function tryLowerInlineConditional(
                 elseifCondNode,
               ) ?? elseifCondNode,
               ctx,
-              "ifExpression",
+              null,
             )
-          : lowerExpressionFromNodes(elseifCondNodes, ctx, "ifExpression");
-        current = { cond: cond ?? null, body: collectClauseBody(child) };
+          : lowerExpressionFromNodes(elseifCondNodes, ctx, null);
+        current = { cond: cond ?? null, body: ifClauseValueNodes(child) };
         elseifCondNodes = [];
         elseifCondNode = null;
       } else {
-        current.body.push(...collectClauseBody(child));
+        current.body.push(...ifClauseValueNodes(child));
       }
       phase = "wait-next";
     } else if (isExplicitRuleName(child.name, "LuauElseExpression")) {
       branches.push(current);
-      current = { cond: null, body: collectClauseBody(child) };
+      current = { cond: null, body: ifClauseValueNodes(child) };
       phase = "wait-next";
     } else if (child.name === "LuauElseifKeyword") {
       branches.push(current);
@@ -1873,7 +1857,7 @@ function tryLowerInlineConditional(
   for (let i = 0; i < branches.length; i++) {
     const b = branches[i]!;
     if (b.body.length === 0) continue;
-    const bodyExpr = lowerExpressionFromNodes(b.body, ctx, "ifExpression");
+    const bodyExpr = lowerExpressionFromNodes(b.body, ctx, null);
     if (!bodyExpr) continue;
     bodyExpr.outputWhenComplete = true;
     const branch = new ConditionalSingleBranch(

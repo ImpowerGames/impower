@@ -13,6 +13,7 @@ import { lookupGlobalStdLibBuiltin } from "../../../runtime/StdLib";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { takesOffset } from "../recordingContext";
 import type { FunctionBinding } from "../utils/functionBindings";
+import { answersDeclaration, rootLocalAnswer } from "../utils/rootLocalReads";
 import { currentStatement } from "../utils/statementShape";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
 
@@ -84,6 +85,32 @@ export function resolveCallableBinding(
     if (frame?.has(name) && localInScope(frame, name, scopeAt)) return "local";
   }
   return null;
+}
+
+/**
+ * Whether a local in scope where `name` is written, at `at`, hides the
+ * standard library's `name` (a function such as `type`, or a namespace such
+ * as `math`) from a call, as Luau scopes it (I-1372): a local of a function
+ * lowering around it, in scope there, or else the `local` of the root frame's
+ * own scope a read of the name as a value reads there (`rootLocalAnswer`,
+ * recorded so the call is lowered again when a `local` above it changes the
+ * answer). A function's local of the name that is not in scope at `at`
+ * (declared later in its body, or in a block that has ended) hides nothing,
+ * as it hides nothing from the value read. Inside a block a top-level
+ * statement opens, the root answer names no declaration (`ROOT_IN_BLOCK`)
+ * and the call reaches the library, as before the index (I-1468).
+ */
+export function localHidesStdLib(
+  name: string,
+  ctx: LowerContext,
+  at: number,
+): boolean {
+  const locals = ctx.declaredLocalsStack ?? [];
+  for (let i = locals.length - 1; i >= 0; i--) {
+    const frame = locals[i]!;
+    if (frame.has(name) && localInScope(frame, name, at)) return true;
+  }
+  return answersDeclaration(rootLocalAnswer(name, at, ctx));
 }
 
 /**
