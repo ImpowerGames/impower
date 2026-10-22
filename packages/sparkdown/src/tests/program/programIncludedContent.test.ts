@@ -821,7 +821,7 @@ describe("a save taken inside a scene of a script other than main", () => {
 // A line that declares a global and writes a member function is two chunks
 // of its script's declaration sequence from one source, and so of one
 // fingerprint. A save names the write among its script's writes alone and
-// looks for it among writes alone (`writesView`, `writesIndex`), so it never
+// looks for it among writes alone (`roleView`, `roleIndex`), so it never
 // takes the global's chunk, or a closure of its initializer, for the write
 // (rounds 4 and 5 of the review of I-1438).
 describe("a save of a member function written on a line that declares its table", () => {
@@ -905,6 +905,99 @@ describe("a save of a member function written on a line that declares its table"
     );
     const save = saveAtMenu(new ProgramStory(programOf(script).chunks!));
     loadsTheWrite(save, script, "file://proj/scripts/renamed.sd");
+  });
+});
+
+// A closure a global's function made is saved by its statement, named among
+// its script's globals alone, so a write never takes its place (round 5 of
+// the review of I-1438). A closure a global's initializer stores is saved by
+// its place in that global's value and loads from it.
+describe("a save of a closure a global's function made, in a script that writes member functions", () => {
+  const A = "file://proj/scripts/a.sd";
+  const menu = lines(
+    "store api = {}",
+    "store g = 0",
+    "& g = maker()",
+    "Before.",
+    "choose",
+    "  * Go",
+    "    Result {g()}.",
+    "end",
+  );
+  const script = (...text: string[]) => lines(...text);
+  const programOf = (text: string, uri = A) =>
+    quiet(() =>
+      programCompiler({ [MAIN]: menu, [uri]: text }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+    ).program;
+  const saveAtMenu = (text: string) => {
+    const story = new ProgramStory(programOf(text).chunks!);
+    story.keepBeatImages = true;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+    });
+    expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Go"]);
+    const save = story.toSave();
+    // The closure is named by its statement, a level of the script's
+    // declarations, not by a place in a value.
+    expect(save).toContain(`decl\\":\\"${A}`);
+    return save;
+  };
+  const load = (save: string, text: string, uri = A) => {
+    const program = programOf(text, uri);
+    expect(reported(program)).toEqual([]);
+    const loaded = new ProgramStory(program.chunks!);
+    loaded.keepBeatImages = true;
+    loaded.onError = () => {};
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    const run = quiet(() => storyRun(loaded, [0]));
+    return {
+      exact: report.exact,
+      warnings: report.warnings,
+      beats: run.beats.map((beat) => beat.text),
+      errors: run.errors,
+    };
+  };
+
+  // Aligned with the whole declaration sequence, the global's place after
+  // the global above it is removed is the write's, whose function's closure
+  // would take the saved closure's place.
+  it("never takes a write's closure for it after a global above is removed and both functions are edited", () => {
+    const save = saveAtMenu(
+      script(
+        "store removed = 1",
+        "store maker = function() return function() return 2 end end",
+        "function api.f() return function() return 7 end end",
+      ),
+    );
+    const loaded = load(
+      save,
+      script(
+        "store maker = function() local z = 0 return function() return 2 end end",
+        "function api.f() return function() return 8 end end",
+      ),
+    );
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.beats[1]).not.toBe("Result 8.\n");
+    if (loaded.exact && loaded.warnings.length === 0) {
+      expect(loaded.beats).toEqual(["Go\n", "Result 2.\n"]);
+    } else {
+      expect(loaded.warnings.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps it when its script is renamed", () => {
+    const text = script(
+      "store x = 1",
+      "store maker = function() return function() return 2 end end",
+      "function api.f() return function() return 7 end end",
+    );
+    expect(load(saveAtMenu(text), text, "file://proj/scripts/renamed.sd")).toEqual({
+      exact: true,
+      warnings: [],
+      beats: ["Go\n", "Result 2.\n"],
+      errors: [],
+    });
   });
 });
 

@@ -318,25 +318,30 @@ const declaresGlobal = (chunk: ProgramChunk): boolean => {
   return false;
 };
 
-/** The member functions' writes of a declaration sequence, its chunks that
- *  declare no global, as a sequence of their own, with the entry of each in
- *  the declaration sequence. A save names a write among its script's writes
- *  alone, as the `$include:` flow of a save taken before I-1438 named it
- *  (`FormWriter.statementForm`, `FormPlacer.topOf`), so that a write and a
- *  global, whose chunks can share a source and so a fingerprint, never pair. */
-const writesView = (
+/** One role's chunks of a declaration sequence as a sequence of their own,
+ *  with the entry of each in the declaration sequence: the member functions'
+ *  writes (`writes`), its chunks that declare no global, or the globals'
+ *  declarations, the chunks that declare one. A save names a position in a
+ *  declaration sequence among the chunks of its role alone, a write under its
+ *  script's writes' name (`writesName`) and a global's declaration under its
+ *  script's uri, as a save taken before I-1438 named them when the writes
+ *  were a flow of their own (`FormWriter.statementForm`, `FormPlacer.topOf`),
+ *  so that a write and a global, whose chunks can share a source and so a
+ *  fingerprint, never pair. */
+const roleView = (
   declarations: SequenceRow,
+  writes: boolean,
 ): { view: SequenceRow; entries: number[] } => {
   const entries: number[] = [];
   declarations.arrays.chunks.forEach((chunk, entry) => {
-    if (!declaresGlobal(chunk)) {
+    if (declaresGlobal(chunk) !== writes) {
       entries.push(entry);
     }
   });
   return {
     view: {
       ...declarations,
-      id: -1 - declarations.id,
+      id: (writes ? -1 : -2) - 2 * declarations.id,
       arrays: {
         chunks: entries.map((entry) => declarations.arrays.chunks[entry]!),
         lineStarts: entries.map((entry) => declarations.arrays.lineStarts[entry]!),
@@ -346,7 +351,7 @@ const writesView = (
   };
 };
 
-/** The name a save gives the writes of the script `uri` (`writesView`):
+/** The name a save gives the writes of the script `uri` (`roleView`):
  *  `$include:` and the uri with each `.` written `%2E`, the name of the flow
  *  that held them before I-1438. */
 const writesName = (uri: string): string =>
@@ -655,11 +660,17 @@ class FormWriter {
     let at = sequence;
     let e = entry;
     for (;;) {
-      if (at.owner < 0 && at.flow < 0 && !declaresGlobal(at.arrays.chunks[e]!)) {
-        // A member function's write: among its script's writes alone.
-        const writes = writesView(at);
-        const w = writes.entries.indexOf(e);
-        levels.unshift({ s: this.listing(writes.view, w), at: w, flow: writesName(at.uri) });
+      if (at.owner < 0 && at.flow < 0) {
+        // A declaration sequence: a member function's write among its
+        // script's writes alone, a global's declaration among its globals.
+        const writes = !declaresGlobal(at.arrays.chunks[e]!);
+        const role = roleView(at, writes);
+        const r = role.entries.indexOf(e);
+        levels.unshift({
+          s: this.listing(role.view, r),
+          at: r,
+          ...(writes ? { flow: writesName(at.uri) } : { decl: at.uri }),
+        });
         break;
       }
       const level: SavedLevel = { s: this.listing(at, e), at: e };
@@ -904,12 +915,12 @@ class FormPlacer {
   /** The renames that apply (`settleRenames`), longest old prefix first. */
   protected _renames: [string, string][] = [];
   protected _blocks = new Map<string, [number, number, number][]>();
-  /** The member functions' writes of each declaration sequence a save taken
-   *  before I-1438 names (`writesOf`), as a sequence of their own, by the
-   *  declaration sequence and by that sequence of the writes. */
-  protected _writes = new Map<SequenceRow, { view: SequenceRow; entries: number[] }>();
-  protected _writesOf = new Map<SequenceRow, { real: SequenceRow; entries: number[] }>();
-  protected _writesIndex: Map<string, { sequence: SequenceRow; entry: number }[]> | undefined;
+  /** Each role's chunks of each declaration sequence a save names
+   *  (`roleOf`), as a sequence of their own, by the declaration sequence
+   *  and the role, and by that sequence. */
+  protected _roles = new Map<string, { view: SequenceRow; entries: number[] }>();
+  protected _roleOf = new Map<SequenceRow, { real: SequenceRow; entries: number[] }>();
+  protected _roleIndexes = new Map<boolean, Map<string, { sequence: SequenceRow; entry: number }[]>>();
 
   constructor(
     readonly root: ProgramRoot,
@@ -956,7 +967,7 @@ class FormPlacer {
         const declarations = sequence.flow < 0 && sequence.owner < 0;
         this.printsOf(sequence).forEach((print, entry) => {
           // A member function's write is looked for among writes alone
-          // (`writesIndex`).
+          // (`roleIndex`).
           if (declarations && !declaresGlobal(sequence.arrays.chunks[entry]!)) {
             return;
           }
@@ -973,29 +984,31 @@ class FormPlacer {
     return index;
   }
 
-  /** The same over the writes of every declaration sequence alone
-   *  (`writesOf`), whose entries `placeLevels` translates back, so that the
-   *  search of step 3 never places a saved write on a global. */
-  protected writesIndex(): Map<string, { sequence: SequenceRow; entry: number }[]> {
-    if (!this._writesIndex) {
-      const index = new Map<string, { sequence: SequenceRow; entry: number }[]>();
+  /** The same over one role's chunks of every declaration sequence alone
+   *  (`roleOf`), the writes or the globals' declarations, whose entries
+   *  `placeLevels` translates back, so that the search of step 3 never
+   *  places a saved write on a global or a global on a write. */
+  protected roleIndex(writes: boolean): Map<string, { sequence: SequenceRow; entry: number }[]> {
+    let index = this._roleIndexes.get(writes);
+    if (!index) {
+      index = new Map<string, { sequence: SequenceRow; entry: number }[]>();
       for (const declarations of this.root.sequences()) {
         if (declarations.flow >= 0 || declarations.owner >= 0) {
           continue;
         }
-        const sequence = this.writesOf(declarations);
+        const sequence = this.roleOf(declarations, writes);
         this.printsOf(sequence).forEach((print, entry) => {
-          let list = index.get(print);
+          let list = index!.get(print);
           if (!list) {
             list = [];
-            index.set(print, list);
+            index!.set(print, list);
           }
           list.push({ sequence, entry });
         });
       }
-      this._writesIndex = index;
+      this._roleIndexes.set(writes, index);
     }
-    return this._writesIndex;
+    return index;
   }
 
   /** The window of listing `s` that holds ordinal `at`. */
@@ -1069,7 +1082,7 @@ class FormPlacer {
   // writes alone (`writesName`), as a save taken before I-1438 named it by
   // the flow that held them then; the writes are statements of the script's
   // declaration sequence, beside its globals, and the level is placed among
-  // the writes alone (`writesOf`).
+  // the writes alone (`roleOf`).
   protected topOf(level: SavedLevel): SequenceRow | undefined {
     if (level.flow !== undefined) {
       const flow = this.root.flowNamed(this.renamed(level.flow));
@@ -1077,24 +1090,29 @@ class FormPlacer {
         const declarations = this.root.declarations(
           level.flow.slice(SAVED_INCLUDED_FLOW_PREFIX.length).replace(/%2E/g, "."),
         );
-        return declarations ? this.writesOf(declarations) : undefined;
+        return declarations ? this.roleOf(declarations, true) : undefined;
       }
       return flow;
     }
-    return level.decl !== undefined ? this.root.declarations(level.decl) : undefined;
+    if (level.decl === undefined) {
+      return undefined;
+    }
+    const declarations = this.root.declarations(level.decl);
+    return declarations ? this.roleOf(declarations, false) : undefined;
   }
 
   // The member functions' writes of a declaration sequence, its chunks that
   // declare no global, as a sequence of their own whose entries stand for
-  // theirs in the declaration sequence (`placeLevels`, `writesView`).
-  protected writesOf(declarations: SequenceRow): SequenceRow {
-    let writes = this._writes.get(declarations);
-    if (!writes) {
-      writes = writesView(declarations);
-      this._writes.set(declarations, writes);
-      this._writesOf.set(writes.view, { real: declarations, entries: writes.entries });
+  // theirs in the declaration sequence (`placeLevels`, `roleView`).
+  protected roleOf(declarations: SequenceRow, writes: boolean): SequenceRow {
+    const key = `${declarations.id}:${writes}`;
+    let role = this._roles.get(key);
+    if (!role || this._roleOf.get(role.view)?.real !== declarations) {
+      role = roleView(declarations, writes);
+      this._roles.set(key, role);
+      this._roleOf.set(role.view, { real: declarations, entries: role.entries });
     }
-    return writes.view;
+    return role.view;
   }
 
   // The qualified name of the flow a sequence is in, or nothing for a
@@ -1146,13 +1164,13 @@ class FormPlacer {
       }
       let placed = this.placeIn(sequence, level);
       // A place among a declaration sequence's writes is the place of that
-      // write in the declaration sequence (`writesOf`).
-      const writes = placed ? this._writesOf.get(placed.sequence) : undefined;
-      if (placed && writes) {
+      // write in the declaration sequence (`roleOf`).
+      const role = placed ? this._roleOf.get(placed.sequence) : undefined;
+      if (placed && role) {
         placed = {
           ...placed,
-          sequence: writes.real,
-          entry: writes.entries[placed.entry] ?? writes.real.arrays.chunks.length,
+          sequence: role.real,
+          entry: role.entries[placed.entry] ?? role.real.arrays.chunks.length,
         };
       }
       if (placed?.moved && levels[0]?.flow !== undefined) {
@@ -1206,12 +1224,17 @@ class FormPlacer {
         }
       }
     }
-    // A level among a script's writes is looked for among writes alone, in
-    // every script: its own may have been renamed (`writesIndex`).
+    // A level among a script's writes is looked for among writes alone, and
+    // a level among its globals among globals alone, in every script: its own
+    // may have been renamed (`roleIndex`).
     const found = this.search(
       window.prints,
       wi,
-      level.flow?.startsWith(SAVED_INCLUDED_FLOW_PREFIX) === true,
+      level.flow?.startsWith(SAVED_INCLUDED_FLOW_PREFIX) === true
+        ? true
+        : level.decl !== undefined
+          ? false
+          : undefined,
     );
     if (found) {
       return {
@@ -1251,9 +1274,10 @@ class FormPlacer {
   protected search(
     prints: readonly string[],
     wi: number,
-    writes = false,
+    writes?: boolean,
   ): { sequence: SequenceRow; entry: number } | undefined {
-    const candidates = (writes ? this.writesIndex() : this.index()).get(prints[wi]!) ?? [];
+    const candidates =
+      (writes === undefined ? this.index() : this.roleIndex(writes)).get(prints[wi]!) ?? [];
     let best = 0;
     let found: { sequence: SequenceRow; entry: number }[] = [];
     for (const candidate of candidates) {
