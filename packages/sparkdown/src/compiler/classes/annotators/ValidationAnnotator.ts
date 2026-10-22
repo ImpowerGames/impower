@@ -994,7 +994,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * `{not}`, `{x:}`). The lowerer's reading of the expression reports its
    * other forms (`{1 2}`, `{x y}`, a backtick string it rejects, `{(1}`) and
    * a backtick string's own errors: one owner per form (I-1435,
-   * `reportReadingErrors`).
+   * `reportReadingErrors`). In an expression that holds an if expression
+   * the reading reports only the string's own errors and a rejection of it;
+   * these checks and the if expression's own report the rest, as on base
+   * (I-1445).
    */
   /**
    * The end of a missing type's range, from where the type should stand

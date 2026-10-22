@@ -1769,9 +1769,10 @@ function tryLowerInlineConditional(
   //     └ LuauElseExpression?             (`else <body>`)
   type Branch = { cond: Expression | null; body: SyntaxNode[] };
   const branches: Branch[] = [];
-  // Its condition and values are story braces' expressions, each reporting
-  // its reading's errors by form (`reportReadingErrors`, I-1435).
-  const firstCond = lowerExpressionFromContainer(firstCondContent, ctx, "expression");
+  // Its condition and values are an if expression's parts in story braces,
+  // each reporting a backtick string's errors and a rejection of it
+  // (`reportReadingErrors`, I-1435).
+  const firstCond = lowerExpressionFromContainer(firstCondContent, ctx, "ifExpression");
   if (!firstCond) return null;
   let current: Branch = { cond: firstCond, body: [] };
   let elseifCondNodes: SyntaxNode[] = [];
@@ -1834,9 +1835,9 @@ function tryLowerInlineConditional(
                 elseifCondNode,
               ) ?? elseifCondNode,
               ctx,
-              "expression",
+              "ifExpression",
             )
-          : lowerExpressionFromNodes(elseifCondNodes, ctx, "expression");
+          : lowerExpressionFromNodes(elseifCondNodes, ctx, "ifExpression");
         current = { cond: cond ?? null, body: collectClauseBody(child) };
         elseifCondNodes = [];
         elseifCondNode = null;
@@ -1872,7 +1873,7 @@ function tryLowerInlineConditional(
   for (let i = 0; i < branches.length; i++) {
     const b = branches[i]!;
     if (b.body.length === 0) continue;
-    const bodyExpr = lowerExpressionFromNodes(b.body, ctx, "expression");
+    const bodyExpr = lowerExpressionFromNodes(b.body, ctx, "ifExpression");
     if (!bodyExpr) continue;
     bodyExpr.outputWhenComplete = true;
     const branch = new ConditionalSingleBranch(

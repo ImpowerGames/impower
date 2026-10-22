@@ -6,9 +6,10 @@
 // arms. The validator reports none of the string's text, so a statement that
 // rejects the string before reading it reports Luau's rejection alone. In
 // story braces and alternator arms the lowerer's reading owns the
-// expression's other errors by form, beside Sparkdown's tree checks. Each
-// form reports what a cold compile of the same text reports after an edit
-// away from it.
+// expression's other errors by form, beside Sparkdown's tree checks, but in
+// an expression that holds an if expression, only a rejection of the
+// string. Each form reports what a cold compile of the same text reports
+// after an edit away from it.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
@@ -332,10 +333,13 @@ describe("round 1's undirected probes", () => {
     );
     expectIncrementalEqualsCold(text);
   });
+  // An expression that holds an if expression reports the string's errors
+  // and a rejection of it only; its other errors are the tree checks', as on
+  // base (round 4's retreat, I-1445).
   for (const [expr, expected] of [
-    ["(if true then 1 else 2) 3", ["1:33-1:34 Expected the end of the expression, got '3'"]],
+    ["(if true then 1 else 2) 3", []],
     ["(if true then 1 else 2) `a {} b`", ["1:33-1:37 Expected the end of the expression, got `a {"]],
-    ["(if true then 1 else 2", ["1:31-2:0 Expected ')' (to close '(' at column 10), got <eof>"]],
+    ["(if true then 1 else 2", []],
     ["if true then `a {} b` else 'ok'", officialFirst("local _ = `a {} b`\n", 1, 12)],
   ] as const) {
     test(`story braces Hello {${expr}}.`, () => {
@@ -412,6 +416,46 @@ describe("round 3's undirected probes", () => {
       const errors = sparkdownErrors(text);
       expect(errors).toHaveLength(1);
       expect(errors[0]).toMatch(/Expected '\)' \(to close '\(' at column \d+\), got `a \{$/);
+      expectIncrementalEqualsCold(text);
+    });
+  }
+});
+
+// Round 4's undirected probes: an if expression whose recovery leaves a part
+// in error, in choice text, parenthesized in story text and in an arm,
+// reports the rejection of the string in its condition or value. Every other
+// error of a reading that holds an if expression is the tree checks', as on
+// base (the retreat, I-1445).
+describe("round 4's undirected probes", () => {
+  const contexts = [
+    ["choice text", (expr: string) => `scene start\n  choose\n    * Hello {${expr}}.\n  end\nend\n`],
+    ["parenthesized story text", (expr: string) => `scene start\n  Hello {(${expr})}.\nend\n`],
+    ["an arm", (expr: string) => `store s = cycle | (${expr}) | 2 end\n`],
+  ] as const;
+  for (const [place, wrap] of contexts) {
+    for (const expr of ["if (2 `a {} b`) then 1 else 2", "if true then (2 `a {} b`) else 2"]) {
+      test(`${place}: ${expr}`, () => {
+        const text = wrap(expr);
+        const lines = text.split("\n");
+        const line = lines.findIndex((l) => l.includes("`"));
+        const at = lines[line]!.indexOf("`");
+        const paren = lines[line]!.lastIndexOf("(", at) + 1;
+        expect(sparkdownErrors(text)).toEqual([`${line}:${at}-${line}:${at + 4} Expected ')' (to close '(' at column ${paren}), got \`a {`]);
+        expectIncrementalEqualsCold(text);
+      });
+    }
+    for (const expr of ["if true then 1 else (2 3)", "if (1 2) then 1 else 2"]) {
+      test(`${place}: ${expr} reports nothing, as on base`, () => {
+        const text = wrap(expr);
+        expect(sparkdownErrors(text)).toEqual([]);
+        expectIncrementalEqualsCold(text);
+      });
+    }
+  }
+  for (const expr of ["if true then 1 else (2 3)", "if (1 2) then 1 else 2"]) {
+    test(`story braces Hello {${expr}}. reports nothing, as on base`, () => {
+      const text = `scene start\n  Hello {${expr}}.\nend\n`;
+      expect(sparkdownErrors(text)).toEqual([]);
       expectIncrementalEqualsCold(text);
     });
   }

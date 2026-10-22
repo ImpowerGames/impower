@@ -30,7 +30,6 @@ import { ErrorType } from "../../../runtime/Error";
 import {
   AstExprCall,
   AstExprFunction,
-  AstExprError,
   AstExprGlobal,
   AstExprIfElse,
   AstExprLocal,
@@ -216,46 +215,22 @@ export function reportSyntaxErrors(
 /**
  * Which errors of a lowerer's reading of an expression it reports
  * (`reportReadingErrors`): `"string"`, a backtick string's own
- * (`LuauSyntaxError.ofString`) only; `"expression"`, in story braces
- * (`Hello {1 2}.`) and an alternator's head and arms, those too and every
- * other error of the reading but the ones it marks `malformed`.
+ * (`LuauSyntaxError.ofString`) only; `"ifExpression"`, in an if
+ * expression's condition and values in story text, those and a rejection
+ * of a backtick string, an error that begins at one; `"expression"`, in
+ * story braces (`Hello {1 2}.`) and an alternator's head and arms, every
+ * error of the reading but the ones it marks `malformed`, or, where the
+ * expression holds an if expression, those of `"ifExpression"`.
  */
-export type ReadingErrorScope = "string" | "expression";
+export type ReadingErrorScope = "string" | "ifExpression" | "expression";
 
-/** Whether an if expression has its condition, `then`, `else` and values, its `elseif` arms' included. */
-function ifExpressionIsWhole(node: AstExprIfElse): boolean {
-  if (!node.hasThen || !node.hasElse) return false;
-  if ([node.condition, node.trueExpr, node.falseExpr].some((part) => part instanceof AstExprError)) return false;
-  // An `elseif` chain's last arm is the if expression its `else` holds.
-  return !(node.falseExpr instanceof AstExprIfElse) || ifExpressionIsWhole(node.falseExpr);
-}
-
-/**
- * Whether an error that begins at `begin` is one of an if expression's own,
- * a part it lacks: in it but in none of its parts that it has (an error in
- * its condition or a value, `{if c then 1 else (2 `a {} b`)}`'s, is the
- * reading's, unless an if expression in that part owns it), and at its end
- * only where the if lacks a part there (`{if c then a}`, not
- * `{(if c then 1 else 2}`).
- */
-function ownedByIfExpression(node: AstExprIfElse, begin: Position): boolean {
-  if (begin.lt(node.location.begin) || node.location.end.lt(begin)) return false;
-  if (begin.equals(node.location.end) && ifExpressionIsWhole(node)) return false;
-  for (const part of [node.condition, node.trueExpr, node.falseExpr]) {
-    if (part instanceof AstExprError || begin.lt(part.location.begin) || !begin.lt(part.location.end)) continue;
-    return ifExpressionsIn(part).some((inner) => ownedByIfExpression(inner, begin));
-  }
-  return true;
-}
-
-/** The if expressions an expression holds, outermost ones only. */
-function ifExpressionsIn(expr: AstNode): AstExprIfElse[] {
-  const found: AstExprIfElse[] = [];
+/** Whether an expression holds an if expression. */
+function holdsIfExpression(expr: AstNode): boolean {
+  let found = false;
   visitAst(expr, {
     visit: (node) => {
-      if (!(node instanceof AstExprIfElse)) return true;
-      found.push(node);
-      return false;
+      if (node instanceof AstExprIfElse) found = true;
+      return !found;
     },
   });
   return found;
@@ -283,10 +258,12 @@ function ifExpressionsIn(expr: AstNode): AstExprIfElse[] {
  * (`{1 `a {} b`}`) and a bracket left open (`{(1}`), each reported as
  * `Expected the end of the expression, got …` or Luau's words for the
  * bracket. A call left open (`{f(}`), which the reading marks `malformed`
- * and no tree check names, reports nothing (I-1445). An error that begins
- * in an if expression (`{if c then a}`, whose `else` story text may leave
- * out) is the tree checks' (`expr`, the reading's expression); one outside
- * it (`{(if c then 1 else 2) 3}`) is the reading's.
+ * and no tree check names, reports nothing (I-1445). Where the expression
+ * holds an if expression (`expr`, the reading's expression), whose `else`
+ * story text may leave out (`{if c then a}`), the tree checks own every
+ * error but the string's own and a rejection of it, an error that begins at
+ * a backtick (`{if c then (1 `a {} b`) else 2}`'s), as on base for the rest
+ * (`{(if c then 1 else 2) 3}` reports nothing, I-1445).
  */
 export function reportReadingErrors(
   errors: readonly LuauSyntaxError[],
@@ -298,22 +275,23 @@ export function reportReadingErrors(
   let root = node;
   while (root.parent) root = root.parent;
   const read = (from: number, to: number) => ctx.read(from, to);
+  // An if expression's errors, a part it lacks, are the tree checks'
+  // (`IF_EXPRESSION_WITHOUT_*` in `ValidationAnnotator`, which know where
+  // story text may leave out its `else`).
+  const inIfExpression = scope === "ifExpression" || (scope === "expression" && !!expr && holdsIfExpression(expr));
   // Whether the reading has met a form the tree checks name: the rest of
-  // its errors are that form's recovery. An if expression's own errors, a
-  // part it lacks (`IF_EXPRESSION_WITHOUT_*` in `ValidationAnnotator`, which
-  // know where story text may leave out its `else`), are one too
-  // (`ownedByIfExpression`).
+  // its errors are that form's recovery.
   let treeForm = false;
-  const ifExpressions = scope === "expression" && expr ? ifExpressionsIn(expr) : [];
-  const inIfExpression = (error: LuauSyntaxError) => ifExpressions.some((node) => ownedByIfExpression(node, error.location.begin));
   const owned = errors.filter((error) => {
     if (error.sparkdown || error.pastChunkEnd) return false;
+    const offset = offsetAt(error.location.begin, ctx);
     if (!error.ofString) {
       if (scope === "string") return false;
       if (error.malformed) treeForm = true;
-      if (treeForm || inIfExpression(error)) return false;
+      if (treeForm) return false;
+      if (inIfExpression && read(offset, offset + 1) !== "`") return false;
     }
-    const at = root.resolveInner(offsetAt(error.location.begin, ctx), 1);
+    const at = root.resolveInner(offset, 1);
     return !isReadLuau(at, read) && !storyStoreOf(at, read);
   });
   if (owned.length > 0) reportSyntaxErrors(owned, ctx);
