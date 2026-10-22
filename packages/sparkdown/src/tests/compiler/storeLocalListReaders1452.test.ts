@@ -152,6 +152,77 @@ describe("a declaration whose line holds another kind of error", () => {
   });
 });
 
+// A report in a declaration's span that reports none of its errors leaves
+// them reported (the round-3 repair): a store's `...` error, which ranges
+// the statement, and a compile that stopped at another statement.
+describe("a report in a declaration's span that is no report of its errors", () => {
+  const VARARGS = "A `store` is set when the story starts";
+  for (const line of ["store a, b, = ...", "store a, b = ... 2"]) {
+    test(`${JSON.stringify(line)} reports its syntax error beside its \`...\` error`, () => {
+      const errors = sparkdownErrors(`${line}\n`);
+      const expected = official(`${line.replace(/^store/, "local")}\n`);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(errors.filter((e) => !e.includes(VARARGS))).toEqual(expected);
+      expect(errors.some((e) => e.includes(VARARGS)), "the `...` error").toBe(true);
+      expectIncrementalEqualsCold(`${line}\n`);
+    });
+  }
+  // A syntax error keeps the program from being made, so a compile stops
+  // only at a declaration with none; one that stopped at another still
+  // leaves this declaration's errors reported.
+  test("a compile stopped at another store", () => {
+    const text = "store a = 1 // note\nstore b = 1 2\n";
+    const all = errorsOf(newCompiler(text).compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [], true);
+    expect(all.some((e) => e.startsWith("0:0-") && e.includes("The compile stopped")), "the compile stopped at the first store").toBe(true);
+    expect(sparkdownErrors(text)).toEqual(official("local a = 1 // note\nlocal b = 1 2\n"));
+    expectIncrementalEqualsCold(text);
+  });
+});
+
+// The edges of a declaration's span (the round-3 repair).
+describe("a declaration's span at its edges", () => {
+  // A value the tree reads on across lines, in brackets.
+  for (const text of ["store t = {1,\n  2 3}\n", "store t = {1,\n  2} 3\n", "local t = {1,\n  2} 3\n"]) {
+    test(`multi-line ${JSON.stringify(text)}`, () => {
+      const expected = official(text.replace(/^store/, "local"));
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(text)).toEqual(expected);
+      expect(sparkdownErrors(`${text}${SCENE}`)).toEqual(expected);
+      expectIncrementalEqualsCold(`${text}${SCENE}`);
+    });
+  }
+  // Indented deeper than a scene's body.
+  for (const line of ["store a,, = 1", "local a = 1 2", "store s = 1 g(x"]) {
+    test(`${JSON.stringify(line)} indented four in a scene`, () => {
+      const text = `scene start\n    ${line}\n  Hello.\nend\n`;
+      expect(sparkdownErrors(text)).toEqual(official(`${line.replace(/^store/, "local")}\n`, 1, 4));
+      expectIncrementalEqualsCold(text);
+    });
+  }
+  // After another statement on its line.
+  for (const line of ["x = 1 store a,, = 1", "x = 1 store a = 1 2", "x = 1 local a = 1 2"]) {
+    test(`${JSON.stringify(line)}`, () => {
+      const expected = official(`${line.replace(/store/g, "local")}\n`);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`${line}\n${SCENE}`)).toEqual(expected);
+      expectIncrementalEqualsCold(`${line}\n${SCENE}`);
+    });
+  }
+  // An error at the very end of the span, the story's end of input.
+  for (const line of ["local a = 1 2,", "store a = 1 2,"]) {
+    test(`${JSON.stringify(line)}`, () => {
+      const expected = official(`${line.replace(/^store/, "local")}\n`);
+      expect(expected.some((e) => e.endsWith("got <eof>")), "the official parser reports the end of input").toBe(true);
+      expect(sparkdownErrors(`${line}\n${SCENE}`)).toEqual(expected);
+      expectIncrementalEqualsCold(`${line}\n${SCENE}`);
+    });
+  }
+  // A report of Sparkdown's own at the span's end is that error's one report.
+  test("a store's value missing at its line's end is reported once", () => {
+    expect(sparkdownErrors(`store a = 1,\n${SCENE}`)).toEqual(["0:11-0:12 Expected identifier when parsing expression, got <eof>"]);
+  });
+});
+
 describe("a story store whose run-on value leaves a call open to its line's end (I-1477)", () => {
   for (const line of ["store s = 1 g(x", "store s = 1 g(", "store s = 1 g(x, y", "store s = 1 g(x -- note", "local s = 1 g(x"]) {
     pinLine(line, line.replace(/^store/, "local"));

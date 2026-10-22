@@ -1,6 +1,4 @@
 import type { SyntaxNode, Tree } from "@lezer/common";
-import { AstStatLocal, AstStatSparkdownStore } from "./Ast";
-import type { Location } from "./Location";
 import { inLuauFunction, luauReadingReportsAllAt, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY, storyStoreOf } from "./LuauUnitNodes";
 import { luauPositionOffset, readLuauBlock, readLuauStatementCandidate, type LuauSyntaxError } from "./readLuauAst";
 import { lineCountOf, syntaxErrorEnd } from "./syntaxErrorRange";
@@ -23,7 +21,7 @@ export function storeReadingErrors(
 ): DeclarationReading {
   let root = store;
   while (root.parent) root = root.parent;
-  const { story, errors, names, lineErrors, readTo } = readDeclarationLine(store, documentText);
+  const { story, errors, lineErrors, readTo } = readDeclarationLine(store, documentText);
   const own = errors.filter((error) => {
     const from = luauPositionOffset(error.location.begin, documentText);
     // The story it reads on through is the declaration's.
@@ -34,20 +32,17 @@ export function storeReadingErrors(
     const owner = storyStoreOf(at, read);
     return from >= store.from && owner?.from === store.from && owner.to === store.to;
   });
-  return { errors: own, names, story, lineErrors, readTo };
+  return { errors: own, story, lineErrors, readTo };
 }
 
 /**
- * A story declaration's syntax errors, where the names it declares are
- * written, whether its line runs on into story, which the errors from its
- * end on are in, and every error the reading of its line finds, its own
- * included (`lineErrors`), which tells a report of one of them from another
- * reporter's report of the same words elsewhere, and where the reading
- * stops (`readTo`: the end of that story, or the declaration's).
+ * A story declaration's syntax errors, whether its line runs on into story,
+ * every error the reading of its line finds (`lineErrors`, its reported
+ * errors among them), and where the reading stops (`readTo`: the end of
+ * that story, or the declaration's).
  */
 interface DeclarationReading {
   errors: LuauSyntaxError[];
-  names: Location[];
   story: boolean;
   lineErrors: LuauSyntaxError[];
   readTo: number;
@@ -58,9 +53,9 @@ interface DeclarationReading {
  * (`storeReadingErrors`), but those at a token that is Sparkdown's own
  * (`LuauSyntaxError.sparkdown`), one past the end of the chunk
  * (`pastChunkEnd`), and one at an end of input the reading meets before a
- * token of its line, whether it reads on through story, and where the names
- * it declares are written. With `storyOnly`, a declaration whose line does
- * not run on into story is not read, and has none.
+ * token of its line, and whether it reads on through story. With
+ * `storyOnly`, a declaration whose line does not run on into story is not
+ * read, and has none.
  */
 function readDeclarationLine(declaration: SyntaxNode, documentText: string, storyOnly = false): DeclarationReading {
   const found = documentText[declaration.to - 1] === "\n" ? declaration.to : documentText.indexOf("\n", declaration.to);
@@ -75,7 +70,7 @@ function readDeclarationLine(declaration: SyntaxNode, documentText: string, stor
     storyEnd = Math.min(n.to, lineEnd);
   }
   const story = /\S/.test(documentText.slice(declaration.to, storyEnd));
-  if (storyOnly && !story) return { story, errors: [], names: [], lineErrors: [], readTo: declaration.to };
+  if (storyOnly && !story) return { story, errors: [], lineErrors: [], readTo: declaration.to };
   const readTo = story ? storyEnd : declaration.to;
   // Where the tree ends the reading before a token on its line (`store a,
   // const = 1, 2`, whose `const` the tree begins a statement at), the
@@ -91,17 +86,8 @@ function readDeclarationLine(declaration: SyntaxNode, documentText: string, stor
   const errors = reading.errors.filter(
     (error) => !error.sparkdown && !error.pastChunkEnd && (endsLine || !/got <eof>(?=;|$)/.test(error.message)),
   );
-  // The declaration is the reading's first statement; a name it could not
-  // read is none.
-  const statement = reading.root.body[0];
-  const vars = statement instanceof AstStatLocal || statement instanceof AstStatSparkdownStore ? statement.vars : [];
-  const names = vars.filter((v) => v.name !== MISSING_NAME).map((v) => v.location);
-  return { story, errors, names, lineErrors: errors, readTo };
+  return { story, errors, lineErrors: errors, readTo };
 }
-
-// The name the converter gives a name it could not read, as Luau's parser
-// does (`kParseNameError`).
-const MISSING_NAME = "%error-id%";
 
 /**
  * A story `local` declaration's syntax errors in the rest of its line that
@@ -110,8 +96,8 @@ const MISSING_NAME = "%error-id%";
  * declaration's own errors are its statement's reading's.
  */
 function storyLocalRunOnErrors(local: SyntaxNode, documentText: string): DeclarationReading {
-  const { errors, names, story, lineErrors, readTo } = readDeclarationLine(local, documentText, true);
-  return { errors: errors.filter((error) => luauPositionOffset(error.location.begin, documentText) >= local.to), names, story, lineErrors, readTo };
+  const { errors, story, lineErrors, readTo } = readDeclarationLine(local, documentText, true);
+  return { errors: errors.filter((error) => luauPositionOffset(error.location.begin, documentText) >= local.to), story, lineErrors, readTo };
 }
 
 /**
@@ -131,31 +117,34 @@ function isStoryLocal(node: SyntaxNode, read: (from: number, to: number) => stri
 /** A syntax error of a story store's reading, at its document range. */
 export interface StoreSyntaxError {
   message: string;
-  /** The range of the store, or the story local, it is reported for. */
-  store: { from: number; to: number };
-  /** Where the reading of the declaration's line stops: the end of the story it runs on into, or the declaration's. */
-  readTo: number;
-  /** Where the names the declaration declares are written. */
-  names: { start: { line: number; character: number }; end: { line: number; character: number } }[];
-  /** Where every error of the reading of the declaration's line begins, and its words (`DeclarationReading.lineErrors`). */
-  lineErrors: { start: { line: number; character: number }; message: string }[];
-  /** Whether it is in the story the declaration's line runs on into, which no other statement reads (`local a = 1 2`'s `2`). */
-  inStory?: true;
   /** Whether it is one of a backtick string's own errors (`LuauSyntaxError.ofString`), which no other reporter reports. */
   ofString?: true;
   start: { line: number; character: number };
   end: { line: number; character: number };
+  /** Where the opener a missing closer's error names is (`LuauSyntaxError.opener`). */
+  opener?: { start: { line: number; character: number }; end: { line: number; character: number } };
+}
+
+/** A story store's, or story local's, reading of its line. */
+export interface DeclarationSyntaxErrors {
+  /** The declaration's range, and where the reading of its line stops (the end of the story it runs on into, or the declaration's). */
+  declaration: { from: number; to: number; readTo: number };
+  /** Every error the reading of its line finds. */
+  found: StoreSyntaxError[];
+  /** The ones that are the declaration's to report, among `found`. */
+  reported: StoreSyntaxError[];
 }
 
 /**
  * Every story store's syntax errors in a document (`storeReadingErrors`),
  * and every story local's in the story its line runs on into
  * (`storyLocalRunOnErrors`), each ranged as the type checker ranges an
- * error of its reading (`syntaxErrorEnd`).
+ * error of its reading (`syntaxErrorEnd`), with every error the reading of
+ * its line finds.
  */
-export function storeSyntaxErrors(tree: Tree, documentText: string): StoreSyntaxError[] {
+export function storeSyntaxErrors(tree: Tree, documentText: string): DeclarationSyntaxErrors[] {
   const read = (from: number, to: number) => documentText.slice(from, to);
-  const found: StoreSyntaxError[] = [];
+  const declarations: DeclarationSyntaxErrors[] = [];
   tree.iterate({
     enter: (ref) => {
       if (!VARIABLE_DEFINITION_NAMES.has(ref.name)) return true;
@@ -164,27 +153,34 @@ export function storeSyntaxErrors(tree: Tree, documentText: string): StoreSyntax
       const local = !store && isStoryLocal(node, read);
       if (!local && (!store || store.from !== node.from || store.to !== node.to)) return true;
       const declaration = store ?? node;
-      const { errors, names, story, lineErrors, readTo } = store ? storeReadingErrors(store, documentText, read) : storyLocalRunOnErrors(node, documentText);
-      const at = (p: { line: number; column: number }) => ({ line: p.line, character: p.column });
-      const lineReports = lineErrors.map((error) => ({ start: at(error.location.begin), message: error.message }));
-      for (const error of errors) {
+      const { errors, lineErrors, readTo } = store ? storeReadingErrors(store, documentText, read) : storyLocalRunOnErrors(node, documentText);
+      if (errors.length === 0) return false;
+      const ranged = new Map<LuauSyntaxError, StoreSyntaxError>();
+      for (const error of lineErrors) {
         const { begin, end } = error.location;
         const start = { line: begin.line, character: begin.column };
-        const inStory = story && luauPositionOffset(begin, documentText) >= declaration.to;
-        found.push({
+        ranged.set(error, {
           message: error.message,
-          store: { from: declaration.from, to: declaration.to },
-          readTo,
-          names: names.map((name) => ({ start: at(name.begin), end: at(name.end) })),
-          lineErrors: lineReports,
           start,
           end: syntaxErrorEnd(start, { line: end.line, character: end.column }, error.message, () => lineCountOf(documentText)),
-          ...(inStory ? { inStory: true as const } : {}),
           ...(error.ofString ? { ofString: true as const } : {}),
+          ...(error.opener
+            ? {
+                opener: {
+                  start: { line: error.opener.begin.line, character: error.opener.begin.column },
+                  end: { line: error.opener.end.line, character: error.opener.end.column },
+                },
+              }
+            : {}),
         });
       }
+      declarations.push({
+        declaration: { from: declaration.from, to: declaration.to, readTo },
+        found: [...ranged.values()],
+        reported: errors.map((error) => ranged.get(error)!),
+      });
       return false;
     },
   });
-  return found;
+  return declarations;
 }

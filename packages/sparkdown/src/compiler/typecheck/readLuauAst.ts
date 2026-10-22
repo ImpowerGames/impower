@@ -188,6 +188,12 @@ export interface LuauSyntaxError {
    * reading that reads the string reports it, whatever the context.
    */
   ofString?: true;
+  /**
+   * Not part of Luau: for an error that a closer is missing (`Expected 'end'
+   * (to close 'function' at line 1)`), where the opener it names is, which
+   * the error is about as much as the token it is at (I-1452).
+   */
+  opener?: Location;
 }
 
 /**
@@ -2151,9 +2157,13 @@ class Parser {
     const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
     // Luau compares the line of the token found with the opener's.
     const line = this.current().kind === "eof" && this.eofOnNextLine ? location.begin.line + 1 : location.begin.line;
-    if (line === begin.location.begin.line)
-      this.report(location, `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`, malformed);
-    else this.report(location, `Expected '${text}' (to close '${open}' at line ${begin.location.begin.line + 1}), got ${got}`, malformed);
+    const message =
+      line === begin.location.begin.line
+        ? `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`
+        : `Expected '${text}' (to close '${open}' at line ${begin.location.begin.line + 1}), got ${got}`;
+    const reported = this.errors.length;
+    this.report(location, message, malformed);
+    if (this.errors.length > reported && begin.from < begin.to) this.errors[reported]!.opener = begin.location;
   }
 
   private expectMatchEndAndConsume(text: string, begin: Token): boolean {
