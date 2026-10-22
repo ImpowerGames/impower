@@ -153,7 +153,8 @@ sparkdown [0..116]
  │   │   │   │       │       │       │   │   │           │       └─ OptionalWhitespace [59..60]: " "
  │   │   │   │       │       │       │   │   │           ├─ LuauFunctionDefinition_end_c2 [60..63]
  │   │   │   │       │       │       │   │   │           │   └─ LuauEndKeyword [60..63]: "end"
- │   │   │   │       │       │       │   │   │           └─ LuauFunctionDefinition_end_c3 63
+ │   │   │   │       │       │       │   │   │           ├─ LuauFunctionDefinition_end_c3 63
+ │   │   │   │       │       │       │   │   │           └─ LuauFunctionDefinition_end_c4 63
  │   │   │   │       │       │       │   │   └─ LuauAssignmentOperation_end 63
  │   │   │   │       │       │       │   └─ ExtraWhitespace [63..64]: " "
  │   │   │   │       │       │       └─ LuauTable_end [64..65]

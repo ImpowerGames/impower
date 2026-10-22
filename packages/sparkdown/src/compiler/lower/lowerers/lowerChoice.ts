@@ -379,10 +379,13 @@ function collectChoiceCondition(
   // `not` prefix and parenthesized expressions are also accepted.
   // Lowering treats the captured node as a normal expression
   // (`LuauAccessPath`, `LuauParenthetical`, etc.) and assigns it to
-  // `choice.condition`, which `Choice.EmitProgram` then emits.
+  // `choice.condition`, which `Choice.EmitProgram` then emits. No other
+  // reading reads the condition, so its reading reports every error of it
+  // (`reportReadingErrors` "expression", I-1461); the choice text after it
+  // is story, which ends its Luau as a line of story does (`<eof>`).
   const condCapture = getDescendent("ChoiceCondition", choiceNode);
   if (!condCapture) return null;
-  return lowerExpressionFromContainer(condCapture, ctx);
+  return lowerExpressionFromContainer(condCapture, ctx, "expression");
 }
 
 
@@ -482,10 +485,9 @@ function appendNodeContent(
   for (const m of markers) {
     flushText(m.node.from);
     if (m.kind === "expr") {
-      // Choice text's braces report their reading's errors by form, as story
-      // text's do (`reportReadingErrors`).
-      const scope = isExplicitRuleName(m.node.name, "LuauInterpolatedStringExpression") ? "expression" : "string";
-      const expr = lowerExpressionFromContainer(m.node, ctx, scope);
+      // Choice text's braces report every error of their reading, as story
+      // text's do (`reportReadingErrors`, I-1445).
+      const expr = lowerExpressionFromContainer(m.node, ctx, "expression");
       if (expr) {
         expr.outputWhenComplete = true;
         list.AddContent(expr);

@@ -48,7 +48,9 @@ export function publishesConst(ctx: LowerContext): boolean {
  * error
  * (`isLuauConst` in `readLuauAst.ts`). A body whose syntax errors the
  * lowering reports itself (`reportBodySyntaxErrors`) leaves out the one
- * reported here at the same place.
+ * reported here at the same place, and so does a reading reported before
+ * this one: a story brace's, which reports every error of a function value
+ * it holds (`reportReadingErrors`, I-1445).
  */
 export function reportLuauConstError(
   message: string,
@@ -58,11 +60,15 @@ export function reportLuauConstError(
 ): void {
   const range = rangeOf(location, ctx);
   if (isCheckedLuauAt(node, range.from, (from, to) => ctx.read(from, to))) return;
-  ctx.diagnostics?.push({
-    message,
-    severity: ErrorType.Error,
-    source: makeSource(range.from, range.to, ctx),
-  });
+  const source = makeSource(range.from, range.to, ctx);
+  const reported = ctx.diagnostics?.some(
+    (d) =>
+      d.message === message &&
+      d.source?.startLineNumber === source.startLineNumber &&
+      d.source?.startCharacterNumber === source.startCharacterNumber,
+  );
+  if (reported) return;
+  ctx.diagnostics?.push({ message, severity: ErrorType.Error, source });
 }
 
 /**

@@ -8,8 +8,9 @@
 import type { SyntaxNode } from "@lezer/common";
 import type { AstExprError, AstStatError } from "../../typecheck/Ast";
 import { AstExprFunction } from "../../typecheck/Ast";
-import type { Location, Position } from "../../typecheck/Location";
+import { Location, Position } from "../../typecheck/Location";
 import {
+  nextLuauToken,
   readLuauBlock,
   readLuauExpression,
   readLuauMethod,
@@ -111,21 +112,70 @@ function topOf(node: SyntaxNode): SyntaxNode {
   return top;
 }
 
+/** The position of a document offset in the converter's AST, as `offsetAt` maps it back. */
+function positionAt(offset: number, ctx: LowerContext): Position {
+  const starts = lineStarts(documentText(ctx));
+  let low = 0;
+  let high = starts.length - 1;
+  while (low < high) {
+    const mid = (low + high + 1) >> 1;
+    if (starts[mid]! <= offset) low = mid;
+    else high = mid - 1;
+  }
+  return new Position(low, offset - starts[low]!);
+}
+
 /**
  * The one Luau expression some nodes hold, as the converter reads it. Each
  * alternator the reading holds, which it reads as one opaque value, has its
  * own head and arms read (`reportNestedAlternators`), whether or not lowering
  * reaches it (I-1435).
+ *
+ * `end` is the document offset of the token that ends the expression where
+ * the author wrote one after it: a story brace's `}`, or the `|`, `end` or
+ * next value after an alternator's value. The reading meets its end of input
+ * there, and names it as that token, as Luau's reading of the brace or arm
+ * would (I-1445): an error at the end of input is reported at the token, and
+ * every `got <eof>` names it (`got '}'`), as a Sparkle closure's reading
+ * names its `}` (`closureReadingErrors`).
  */
 export function readExpressionAst(
   nodes: readonly SyntaxNode[],
   ctx: LowerContext,
+  end?: number,
 ): { expr: import("../../typecheck/Ast").AstExpr; source: LuauSource } | null {
   const first = nodes[0];
   if (!first) return null;
   const { expr, errors } = readLuauExpression(nodes, documentText(ctx));
   reportNestedAlternators(expr, ctx);
-  return { expr, source: { top: topOf(first), errors } };
+  return { expr, source: { top: topOf(first), errors: end === undefined ? errors : endingAt(errors, end, ctx) } };
+}
+
+// A message's `got <eof>`, the token the error found.
+// value-level: a reading error's message, naming the token it found
+const GOT_EOF = /got <eof>(?=;|$)/;
+
+/** A reading's errors with its end of input named as the token at `end` (`readExpressionAst`). */
+function endingAt(errors: readonly LuauSyntaxError[], end: number, ctx: LowerContext): readonly LuauSyntaxError[] {
+  const token = nextLuauToken(end, documentText(ctx));
+  if (!token || token.from !== end) return errors;
+  const text = documentText(ctx);
+  const begin = positionAt(token.from, ctx);
+  const location = new Location(begin, positionAt(token.from + token.text.length, ctx));
+  return errors.map((error) => {
+    // value-level: a reading error's message, naming the token it found
+    if (!GOT_EOF.test(error.message)) return error;
+    const message = error.message.replace(GOT_EOF, `got '${token.text}'`);
+    // The end of input itself stands where the reading's last token ends,
+    // with only whitespace and comments between it and the token.
+    const from = offsetAt(error.location.begin, ctx);
+    const to = offsetAt(error.location.end, ctx);
+    const atEnd = nextLuauToken(to, text)?.from === token.from;
+    if (from === to && atEnd) return { ...error, message, location };
+    // An error that runs to the token Luau found (`x:m`'s missing call
+    // arguments) runs to the token's start.
+    return { ...error, message, location: atEnd ? new Location(error.location.begin, begin) : error.location };
+  });
 }
 
 /**

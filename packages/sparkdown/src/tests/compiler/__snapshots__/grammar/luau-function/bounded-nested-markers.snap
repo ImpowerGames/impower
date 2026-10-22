@@ -861,5 +861,6 @@ sparkdown [0..292]
  │       │       └─ OptionalWhitespace 288
  │       ├─ LuauFunctionDefinition_end_c2 [288..291]
  │       │   └─ LuauEndKeyword [288..291]: "end"
- │       └─ LuauFunctionDefinition_end_c3 291
+ │       ├─ LuauFunctionDefinition_end_c3 291
+ │       └─ LuauFunctionDefinition_end_c4 291
  └─ Newline [291..292]: "\n"

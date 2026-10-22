@@ -376,7 +376,8 @@ sparkdown [0..249]
  │       │       └─ OptionalWhitespace 147
  │       ├─ LuauFunctionDefinition_end_c2 [147..150]
  │       │   └─ LuauEndKeyword [147..150]: "end"
- │       └─ LuauFunctionDefinition_end_c3 150
+ │       ├─ LuauFunctionDefinition_end_c3 150
+ │       └─ LuauFunctionDefinition_end_c4 150
  ├─ Newline [150..151]: "\n"
  ├─ Scene [151..160]
  │   ├─ Scene_begin [151..157]

@@ -100,4 +100,5 @@ sparkdown [0..40]
          │       └─ OptionalWhitespace 37
          ├─ LuauFunctionDefinition_end_c2 [37..40]
          │   └─ LuauEndKeyword [37..40]: "end"
-         └─ LuauFunctionDefinition_end_c3 40
+         ├─ LuauFunctionDefinition_end_c3 40
+         └─ LuauFunctionDefinition_end_c4 40
