@@ -167,6 +167,18 @@ describe("a report in a declaration's span that is no report of its errors", () 
       expectIncrementalEqualsCold(`${line}\n`);
     });
   }
+  // A statement's report leaves out its indent (round 4).
+  for (const line of ["store a, b, c = {1 2}, ...", "store a, b, = {1 2}, ..."]) {
+    test(`${JSON.stringify(line)} in a scene reports its value's error beside its \`...\` error`, () => {
+      const text = `scene start\n  ${line}\n  Hello.\nend\n`;
+      const errors = sparkdownErrors(text);
+      const expected = official(`${line.replace(/^store/, "local")}\n`, 1, 2);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(errors.filter((e) => !e.includes(VARARGS))).toEqual(expected);
+      expect(errors.some((e) => e.includes(VARARGS)), "the `...` error").toBe(true);
+      expectIncrementalEqualsCold(text);
+    });
+  }
   // A syntax error keeps the program from being made, so a compile stops
   // only at a declaration with none; one that stopped at another still
   // leaves this declaration's errors reported.

@@ -6031,9 +6031,13 @@ export class SparkdownCompiler {
           const y = spanOf(b);
           return x.start < y.end && y.start < x.end;
         };
+        // A report of the statement begins at or before the declaration's
+        // first token (its line's start, or the token itself, leaving the
+        // indent out, as `statementSource` does) and runs to its end.
+        const firstToken = from + (/^\s*/.exec(doc.read(from, last))?.[0].length ?? 0);
         const tokenReports = reports.filter((d) => {
           const report = spanOf(d.range);
-          return !(report.start <= spanFrom && report.end >= last);
+          return !(report.start <= firstToken && report.end >= last);
         });
         const atToken = (e: (typeof found)[number], d: SparkDiagnostic) =>
           overlaps(d.range, e) || (e.opener !== undefined && overlaps(d.range, e.opener));
