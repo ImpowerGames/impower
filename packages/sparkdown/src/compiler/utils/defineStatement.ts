@@ -150,13 +150,64 @@ export function defineStatementThrough(
  * of an earlier statement reads on into is read whole with that statement
  * (`defineStatementThrough`); its own start answers for it, since the line
  * is read either way. Null for a node of a
- * member, of the define's header, of a line that another member begins or
+ * member (a property's is its own reading's, `loweredDefinePropertyOf`),
+ * of the define's header, of a line that another member begins or
  * that continues one, of a `.` no name follows (`danglingDots`), whose own
  * error the validator reports, of the define's header line, and outside a
  * define's content. A define's structure errors change nothing: its lowerer
  * reads the body of every define (`lowerLuauDefine`).
  */
 export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
+  const start = defineReadingOf(node, read);
+  return start && start.name !== "LuauPropertyDefinition" ? start : null;
+}
+
+/**
+ * The define body property a node is in, or whose line it finishes before
+ * a statement begins on it, or null: the property's reading reports every
+ * Luau error of its key and value, in Luau's words at Luau's range, once
+ * (`readPropertyDefinition`, I-1500), so the tree checks leave them to it
+ * (`checkerReadsOnTo`). A `.` no name follows keeps the validator's error,
+ * and a property on the define's header line is the header's.
+ */
+export function loweredDefinePropertyOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
+  const start = defineReadingOf(node, read);
+  return start?.name === "LuauPropertyDefinition" && readsDefineProperty(start) ? start : null;
+}
+
+/**
+ * Whether the lowerer reads a define body's property as Luau's statement
+ * `name = value` (`reportDefineProperty`, I-1500): a property keyed by a
+ * name. A bracket key (`["$link"] = …`), a key spelled as a reserved word
+ * and one with an access modifier are Sparkdown's syntax, which begins no
+ * Luau statement; such a property keeps its own reading's reports.
+ */
+export function readsDefineProperty(property: SyntaxNode): boolean {
+  const cursor = property.cursor();
+  let operator: SyntaxNode | null = null;
+  do {
+    // The key is before the `=`.
+    if (cursor.name === "LuauAssignmentOperator") {
+      operator = cursor.node;
+      break;
+    }
+    if (cursor.name === "LuauBracketKeyAssignment" || cursor.name === "LuauDefineKeywordKey" || cursor.name === "LuauAccessModifier") return false;
+  } while (cursor.next() && cursor.from < property.to);
+  // A property with no value on its line (`name =`) keeps the missing
+  // value's report (`validateAssignmentValue`).
+  for (let next = operator?.nextSibling ?? null; next; next = next.nextSibling) {
+    if (!PROPERTY_VALUE_TRIVIA.has(next.name) && !next.name.endsWith("Comment")) return true;
+  }
+  return false;
+}
+
+// What stands after a property's `=` that is no value.
+const PROPERTY_VALUE_TRIVIA = nodeNameSet([
+  "ExtraWhitespace", "Whitespace", "OptionalWhitespace", "RequiredWhitespace", "Newline", "LuauAssignmentLineBreak",
+]);
+
+/** The statement start or property whose reading reads a define body node (`loweredDefineStatementOf`, `loweredDefinePropertyOf`). */
+function defineReadingOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
   let top = node;
   while (top?.parent && top.parent.name !== DEFINE_CONTENT) {
     if (top.name === "LuauDanglingAccessor") return null;
@@ -183,9 +234,12 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
   // After a property on its line, a statement begins at the next node that
   // begins one (`y = 1; t.f(2 +)`), as the lowerer reads it past the value,
   // whatever the line the property finishes.
+  // The property's own nodes, and those of its line before a statement
+  // begins, are its reading's, which reports every error of its key and
+  // value (`readPropertyDefinition`, I-1500).
   if (start.name === "LuauPropertyDefinition" && !read(start.from, top.from).includes("\n")) {
-    const after = statementAfterProperty(start, top);
-    if (!after) return null;
+    const after = top === start ? null : statementAfterProperty(start, top);
+    if (!after) return start;
     start = after;
   }
   // A line that continues the line before, or finishes what a statement
@@ -199,9 +253,10 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
     start = lineFirst(prev);
     if (onHeader(start)) return null;
   }
+  // A line that finishes what a property left open is its reading's.
   if (start.name === "LuauPropertyDefinition") {
     const after = statementAfterProperty(start, top);
-    if (!after) return null;
+    if (!after) return start;
     start = after;
   }
   if (!isDefineStatementStart(start, lineCounter(start, read))) return null;
