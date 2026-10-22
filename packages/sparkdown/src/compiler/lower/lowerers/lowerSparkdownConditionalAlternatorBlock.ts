@@ -1,4 +1,3 @@
-import { type SyntaxNode } from "@lezer/common";
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -18,9 +17,8 @@ import type {
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
-import { findChildByName, lowerArms, reportAlternatorHead, tokenAfter } from "../utils/alternatorArms";
-import { ALTERNATOR_CANDIDATES, alternatorHeadNodes } from "../../utils/alternatorDecision";
-import { isTrivia } from "../../lint/luauTree";
+import { findChildByName, lowerArms, reportAlternatorHead, tokenAfter, valuedConditionNodes } from "../utils/alternatorArms";
+import { alternatorHeadNodes } from "../../utils/alternatorDecision";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -73,22 +71,6 @@ const NOT_A_LINE = nodeNameSet([
   "LuauBlockComment",
 ]);
 
-/**
- * The condition of an alternator Luau code uses as a value: its own
- * condition node, or where the grammar gives it none (a declaration's value
- * at the top level, `local v = match 1 | a = 2 end`), what its head holds
- * before its first `|`. A condition node of an alternator in its head or arms
- * is not its own.
- */
-function valuedConditionNodes(candidate: SyntaxNode, condNode: SyntaxNode | null): SyntaxNode[] {
-  let owner = condNode?.parent ?? null;
-  while (owner && !ALTERNATOR_CANDIDATES.has(owner.name)) owner = owner.parent;
-  if (condNode && owner && owner.from === candidate.from && owner.name === candidate.name) {
-    return containerValueNodes(condNode);
-  }
-  return alternatorHeadNodes(candidate).filter((node) => !isTrivia(node));
-}
-
 // With `valued`, each arm pushes one value (`lowerArms`), for an alternator
 // Luau code uses as a value or writes as a statement (`lowerAlternatorValue`).
 export function lowerSparkdownConditionalAlternatorBlock(
@@ -125,7 +107,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
   // value reads its head (`reportNestedAlternators`).
   const readsHead = valued || alternatorHeadNodes(nodeRef.node).length > 0;
   if (readsHead && !valued) reportAlternatorHead(nodeRef.node, ctx);
-  const condNodes = valued ? valuedConditionNodes(nodeRef.node, condNode ?? null) : condNode ? containerValueNodes(condNode) : [];
+  const condNodes = valued ? valuedConditionNodes(nodeRef.node) : condNode ? containerValueNodes(condNode) : [];
   let condExpr = condNodes.length > 0
     ? lowerExpressionFromNodes(condNodes, ctx, readsHead ? null : "expression", readsHead ? undefined : tokenAfter(condNodes, ctx))
     : null;

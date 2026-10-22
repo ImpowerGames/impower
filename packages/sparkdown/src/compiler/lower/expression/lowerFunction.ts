@@ -31,6 +31,8 @@ import {
   AstExprCall,
   AstExprFunction,
   AstExprGlobal,
+  AstExprSparkdownConditionalAlternator,
+  AstExprSparkdownSequentialAlternator,
   AstExprLocal,
   AstStatBlock,
   AstStatFor,
@@ -63,6 +65,7 @@ import { lowerStatements } from "../lower";
 import { rawContext } from "../recordingContext";
 import { defineMethodReads } from "../lowerers/lowerLuauDefine";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
+import { alternatorPartsAst } from "../utils/alternatorArms";
 import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
   documentText,
@@ -635,9 +638,36 @@ export function freeVariables(
   };
   const read = (name: string, location: Location) =>
     readAt(name, offsetAt(location.begin, ctx));
+  // An alternator's head and arms, read on their own (`alternatorPartsAst`),
+  // read a local the function declares before them as a global of its name.
+  let inAlternator = 0;
+  const declaredBefore = (name: string, location: Location) => {
+    const at = offsetAt(location.begin, ctx);
+    for (const local of locals) {
+      if (local.name === name && offsetAt(local.location.begin, ctx) < at) return true;
+    }
+    return false;
+  };
   const readNames = (node: AstNode): boolean => {
-    if (node instanceof AstExprGlobal) read(node.name, node.location);
-    else if (node instanceof AstExprLocal) {
+    if (node instanceof AstExprGlobal) {
+      if (!(inAlternator > 0 && declaredBefore(node.name, node.location))) read(node.name, node.location);
+    } else if (node instanceof AstExprSparkdownSequentialAlternator || node instanceof AstExprSparkdownConditionalAlternator) {
+      // What the alternator runs reads names too (I-1284): its locals are
+      // the function's, and its other reads are the function's reads.
+      const candidate = node.source.node as SyntaxNode | undefined;
+      if (!candidate) return false;
+      const parts = alternatorPartsAst(candidate, documentText(ctx));
+      for (const part of parts) {
+        walk(part, (inner) => {
+          for (const local of declaredLocals(inner)) locals.add(local);
+          return true;
+        });
+      }
+      inAlternator += 1;
+      for (const part of parts) walk(part, readNames);
+      inAlternator -= 1;
+      return false;
+    } else if (node instanceof AstExprLocal) {
       if (!locals.has(node.local)) {
         const at = offsetAt(node.location.begin, ctx);
         // The local is written in the statement being read, so whether it

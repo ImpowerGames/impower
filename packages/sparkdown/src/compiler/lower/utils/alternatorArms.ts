@@ -28,7 +28,7 @@ import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
 import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
 import { documentText, readBlockAst, readExpressionAst } from "./luauAst";
-import { nextLuauToken } from "../../typecheck/readLuauAst";
+import { nextLuauToken, readLuauBlock, readLuauExpression } from "../../typecheck/readLuauAst";
 import { enclosingAlternator, isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
 import {
   AstExprSparkdownConditionalAlternator,
@@ -417,25 +417,77 @@ export function tokenAfter(nodes: readonly SyntaxNode[], ctx: LowerContext): num
  */
 export function reportAlternatorValue(candidate: SyntaxNode, ctx: LowerContext): void {
   reportAlternatorHead(candidate, ctx);
+  for (const nodes of armNodesOf(candidate)) reportArmReading(nodes, ctx, true);
+}
+
+/** The nodes each arm of an alternator holds, trivia left out, in order. */
+function armNodesOf(candidate: SyntaxNode): SyntaxNode[][] {
   const isCandidate = ALTERNATOR_CANDIDATES.has(candidate.name);
   const armsNode = isCandidate ? alternatorArms(candidate) : null;
   // An empty first arm whose separator the head took leaves no content, or
   // no arms (`lowerArms`).
   const content = isCandidate ? (armsNode?.getChild(`${armsNode.name}_content`) ?? null) : findChildByName(candidate, `${candidate.name}_content`);
+  const arms: SyntaxNode[][] = [];
   let nodes: SyntaxNode[] = [];
   // The arms begin with the first arm's body where the head took its
   // separator (I-1408).
   let inArm = isCandidate && headSeparator(candidate) !== null;
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (child.name === "LuauAlternatorSeparator") {
-      reportArmReading(nodes, ctx, true);
+      if (inArm) arms.push(nodes);
       nodes = [];
       inArm = true;
     } else if (inArm && !isTrivia(child)) {
       nodes.push(child);
     }
   }
-  reportArmReading(nodes, ctx, true);
+  arms.push(nodes);
+  return arms;
+}
+
+/**
+ * The condition of an alternator Luau code uses as a value: its own
+ * condition node, or where the grammar gives it none (a declaration's value
+ * at the top level, `local v = match 1 | a = 2 end`), what its head holds
+ * before its first `|`. A condition node of an alternator in its head or arms
+ * is not its own.
+ */
+export function valuedConditionNodes(candidate: SyntaxNode): SyntaxNode[] {
+  const condNode = getDescendent("LuauConditionalAlternatorCondition", candidate) ?? null;
+  let owner = condNode?.parent ?? null;
+  while (owner && !ALTERNATOR_CANDIDATES.has(owner.name)) owner = owner.parent;
+  if (condNode && owner && owner.from === candidate.from && owner.name === candidate.name) {
+    return containerValueNodes(condNode);
+  }
+  return alternatorHeadNodes(candidate).filter((node) => !isTrivia(node));
+}
+
+/**
+ * What an alternator Luau code uses as a value or writes as a statement
+ * runs, read as Luau on its own, as `lowerArms` reads it: a `match`'s
+ * condition, or a sequential alternator's head, and each value and
+ * statement of each arm (`armParts`). The reading of the code around it
+ * holds the alternator as one opaque value (`AstExprSparkdownSequentialAlternator`),
+ * so a scan of the names that code reads (`freeVariables`) reads these
+ * too. Reports nothing: the reading around it reports their errors
+ * (`reportNestedAlternators`).
+ */
+export function alternatorPartsAst(candidate: SyntaxNode, text: string): AstNode[] {
+  const out: AstNode[] = [];
+  const readParts = (nodes: readonly SyntaxNode[]) => {
+    for (const part of armParts(nodes)) {
+      if (part.nodes.length === 0) continue;
+      out.push(part.statement ? readLuauBlock(part.nodes, text).root : readLuauExpression(part.nodes, text).expr);
+    }
+  };
+  if (SEQUENTIAL_ALTERNATORS.has(candidate.name)) {
+    readParts(alternatorHeadNodes(candidate).filter((node) => !isTrivia(node)));
+  } else {
+    const condition = valuedConditionNodes(candidate);
+    if (condition.length > 0) out.push(readLuauExpression(condition, text).expr);
+  }
+  for (const nodes of armNodesOf(candidate)) readParts(nodes);
+  return out;
 }
 
 // A single-line block arm is a display line of its own: a `display({ text })`

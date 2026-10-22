@@ -165,6 +165,56 @@ describe("an arm's last call gives one value, as an if expression's arm does (ro
   });
 });
 
+describe("the names an alternator's head and arms read, in a closure (round 1, comment 6347276089)", () => {
+  test("a value arm reads the parameter the closure captured, not a global of its name", () => {
+    expect(
+      run(lines("store x = 99", "function make(x)", "  return function()", "    return cycle | x end", "  end", "end", "local g = make(7)", "Value {g()}.")),
+    ).toEqual({ output: "Value 7.\n", errors: [] });
+  });
+
+  test("a statement arm's call reaches the locals the closure captured", () => {
+    expect(
+      run(
+        lines(
+          "function counter()",
+          "  local n = 0",
+          "  local function bump() n = n + 1 end",
+          "  return function()",
+          "    queue",
+          "      | bump()",
+          "      | bump()",
+          "    end",
+          "    return n",
+          "  end",
+          "end",
+          "local c = counter()",
+          "Value {c()} {c()} {c()}.",
+        ),
+      ),
+    ).toEqual({ output: "Value 1 2 2.\n", errors: [] });
+  });
+
+  test("a match's condition reads the captured parameter", () => {
+    expect(run(lines("function make(x)", "  return function()", '    return match x | a = "A" | other = "O" end', "  end", "end", 'Value {make("a")()}.'))).toEqual({
+      output: "Value A.\n",
+      errors: [],
+    });
+  });
+
+  test("an arm reads a local the closure declares before it, not one outside", () => {
+    expect(
+      run(lines('local y = "out"', "function make()", "  return function()", '    local y = "in"', "    return cycle | y end", "  end", "end", "Value {make()()} {y}.")),
+    ).toEqual({ output: "Value in out.\n", errors: [] });
+  });
+
+  test("a top-level function's arm reads a top-level local", () => {
+    expect(run(lines('local greeting = "hi"', "function f()", "  return cycle | greeting end", "end", "Value {f()}."))).toEqual({
+      output: "Value hi.\n",
+      errors: [],
+    });
+  });
+});
+
 describe("a conditional alternator used as a value in a function (I-1284)", () => {
   test("match gives the matching arm's value, and nil where none matches", () => {
     const { output, errors } = run(
@@ -324,6 +374,12 @@ describe("a displayed alternator keeps its behaviour", () => {
       output: "Value .\nThen k.\n",
       errors: [],
     });
+  });
+
+  // Round 1, comment 6347276089: a value that holds for no arm after a
+  // keyless first arm is popped, so the line keeps its text.
+  test.each(["false", "nil"])("a story match on %s that no arm takes after a keyless first arm keeps its line", (condition) => {
+    expect(run(lines(`store c = ${condition}`, 'Value {match c | "k" | x = "m" end}.', "After."))).toEqual({ output: "Value .\nAfter.\n", errors: [] });
   });
 });
 
