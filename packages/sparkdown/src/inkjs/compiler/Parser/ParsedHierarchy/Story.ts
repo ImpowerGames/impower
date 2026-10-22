@@ -56,6 +56,33 @@ export const globalsTableWrite = (obj: ParsedObject): string | null => {
   return null;
 };
 
+/** The stores through the globals table (`globalsTableWrite`) that the
+ *  arguments of `obj` hold at any depth when `obj` is a call of a builtin
+ *  whose preparation took its arguments out of its content
+ *  (`FunctionCall.PrepareIntoContainer`), in their order: a walk of the
+ *  story's content, which the walks for its global writes are, does not
+ *  reach them (`assert(rawset(_G, k, g))`). Empty for any other object,
+ *  whose content holds what it holds. */
+export const detachedGlobalsTableWrites = (obj: ParsedObject): ParsedObject[] => {
+  if (!(obj instanceof FunctionCall) || obj.content.includes(obj.proxyDivert)) {
+    return [];
+  }
+  const found: ParsedObject[] = [];
+  const visit = (held: ParsedObject): void => {
+    if (globalsTableWrite(held) !== null) {
+      found.push(held);
+    }
+    found.push(...detachedGlobalsTableWrites(held));
+    for (const child of held.content ?? []) {
+      visit(child);
+    }
+  };
+  for (const arg of obj.args) {
+    visit(arg);
+  }
+  return found;
+};
+
 const samePosition = (a: DebugMetadata, b: DebugMetadata): boolean =>
   a.filePath === b.filePath &&
   a.startLineNumber === b.startLineNumber &&
@@ -322,6 +349,7 @@ export class Story extends FlowBase {
     const visit = (obj: ParsedObject): void => {
       for (const child of obj.content ?? []) {
         add(child);
+        detachedGlobalsTableWrites(child).forEach(add);
         visit(child);
       }
     };

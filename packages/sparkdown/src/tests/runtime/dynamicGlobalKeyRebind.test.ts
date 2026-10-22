@@ -89,6 +89,26 @@ const cases: [string, string, string][] = [
     "f is 2.\n",
   ],
   [
+    "rawset on _G among a builtin call's arguments rebinds a top-level function",
+    "function f() return 7 end\n& local k = 'f'\n& assert(rawset(_G, k, function() return 2 end))\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "rawset on _G with a literal key among a builtin call's arguments rebinds a top-level function",
+    "function f() return 7 end\n& assert(rawset(_G, 'f', function() return 2 end))\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "rawset on _G among another rawset's arguments rebinds a top-level function",
+    "function f() return 7 end\n& local k = 'f'\n& rawset({}, 'other', rawset(_G, k, function() return 2 end))\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "rawset on _G in a line's interpolation rebinds a top-level function",
+    "function f() return 7 end\n& local k = 'f'\nset {rawset(_G, k, function() return 2 end) ~= nil}.\nf is {f()}.\n",
+    "set true.\nf is 2.\n",
+  ],
+  [
     "a dynamic write of another name leaves the function alone",
     "function f() return 7 end\n& local k = 'g'\n& _G[k] = function() return 2 end\nf is {f()}.\n",
     "f is 7.\n",
@@ -217,6 +237,8 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
     ["removes a dynamic-key store", dynamic, "& _G[k] = function() return 2 end", "& x = 1", "f is 7.\n"],
     ["adds a dynamic-key rawset", direct, "& x = 1", "& rawset(_G, k, function() return 2 end)", "f is 2.\n"],
     ["removes a dynamic-key rawset", dynamicRawset, "& rawset(_G, k, function() return 2 end)", "& x = 1", "f is 7.\n"],
+    ["adds a dynamic-key rawset among a builtin call's arguments", direct, "& x = 1", "& assert(rawset(_G, k, function() return 2 end))", "f is 2.\n"],
+    ["removes a dynamic-key rawset among a builtin call's arguments", dynamicRawset.replace("& rawset(_G, k, function() return 2 end)", "& assert(rawset(_G, k, function() return 2 end))"), "& assert(rawset(_G, k, function() return 2 end))", "& x = 1", "f is 7.\n"],
     ["makes the store's key a literal of another name", dynamic, "_G[k]", "_G['g']", "f is 7.\n"],
     ["makes a literal key dynamic", dynamic.replace("_G[k]", "_G['g']"), "_G['g']", "_G[k]", "f is 2.\n"],
   ])("an edit that %s compiles as a cold compile does", (_name, text, before, after, expected) => {

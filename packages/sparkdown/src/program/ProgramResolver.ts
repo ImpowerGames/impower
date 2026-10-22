@@ -30,6 +30,7 @@ import { ReturnType } from "../inkjs/compiler/Parser/ParsedHierarchy/ReturnType"
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { StructDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import {
+  detachedGlobalsTableWrites,
   functionSitesUnder,
   globalsTableWrite,
   sitesNaming,
@@ -252,7 +253,9 @@ const standsAsAssignment = (obj: ParsedObject): boolean =>
 /** Whether `obj` is an assignment the story's walks for its global writes
  *  read: a plain assignment or local declaration, or a store through the
  *  globals table (`_G.f = v`, I-1091; `_G[k] = v`, `rawset(_G, k, v)`,
- *  I-1394; `globalsTableWrite`). */
+ *  I-1394; `globalsTableWrite`). One among the arguments of a prepared
+ *  builtin call is not in its content, and each walk takes it from the call
+ *  (`detachedGlobalsTableWrites`). */
 const isAssignmentFact = (obj: ParsedObject): boolean =>
   obj instanceof VariableAssignment || globalsTableWrite(obj) !== null;
 
@@ -1091,6 +1094,7 @@ export class ProgramResolver {
         } else if (obj instanceof DivertTarget && obj.isFunctionValue) {
           shape.functionValues.push(obj);
         }
+        shape.assignments.push(...detachedGlobalsTableWrites(obj));
       }
       this.localsOf(member);
       if (!(member instanceof FlowBase) && !positionOf(member)) {
@@ -1190,7 +1194,11 @@ export class ProgramResolver {
           // A store through the globals table always writes the global it
           // names, which no local binds (I-1091), or, with a key the
           // compiler cannot name, may write any global (`ANY_GLOBAL`,
-          // I-1394).
+          // I-1394). One among a prepared builtin call's arguments is not
+          // in its content (`detachedGlobalsTableWrites`).
+          for (const held of detachedGlobalsTableWrites(obj)) {
+            declareWrite(unit, globalsTableWrite(held)!, false);
+          }
           const throughGlobals = globalsTableWrite(obj);
           if (throughGlobals !== null) {
             declareWrite(unit, throughGlobals, false);
@@ -1283,6 +1291,7 @@ export class ProgramResolver {
           if (isAssignmentFact(obj)) {
             yield obj;
           }
+          yield* detachedGlobalsTableWrites(obj);
         }
       }
     }
@@ -1323,6 +1332,7 @@ export class ProgramResolver {
         } else if (child instanceof DivertTarget && child.isFunctionValue) {
           functionValues.push(child);
         }
+        assignments.push(...detachedGlobalsTableWrites(child));
         walk(child);
       }
     };
