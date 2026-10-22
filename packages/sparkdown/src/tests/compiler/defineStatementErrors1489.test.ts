@@ -9,7 +9,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
-import { officialErrorList } from "./officialSyntax";
+import { inPositionOrder, officialErrorList } from "./officialSyntax";
 import { messageOf } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
@@ -25,26 +25,17 @@ function newCompiler(text: string): SparkdownCompiler {
 
 /** Every error, as `start-end message` in 0-based lines and characters, in position order. */
 function errorsOf(compiler: SparkdownCompiler): string[] {
-  return inOrder(
+  return inPositionOrder(
     (compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [])
       .filter((d) => d.severity === DiagnosticSeverity.Error)
       .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`),
   );
 }
 
-function inOrder(errors: string[]): string[] {
-  const start = (e: string) => e.split("-", 1)[0]!.split(":").map(Number) as [number, number];
-  return [...errors].sort((a, b) => {
-    const [al, ac] = start(a);
-    const [bl, bc] = start(b);
-    return al - bl || ac - bc || (a < b ? -1 : a > b ? 1 : 0);
-  });
-}
-
 const errors = (text: string) => errorsOf(newCompiler(text));
 
 /** The official parser's errors for a define body, read as a `do` block the define's `end` closes. */
-const official = (body: string) => inOrder(officialErrorList(`do\n${body}end\n`));
+const official = (body: string) => officialErrorList(`do\n${body}end\n`);
 
 const define = (body: string) => `${HEADER}\n${body}end\n`;
 
@@ -55,15 +46,20 @@ function positionAt(text: string, offset: number) {
 }
 
 // A function ahead of the form, whose `0` an edit makes longer: the edit is
-// away from the form, on a line before it, and changes no line count.
+// away from the form, on a line before it, and changes no line count. Two
+// edits inside the body follow: a property line written above its first
+// line, and a space typed at the end of its first line.
 const PADDING = "function padding()\n  local p = 0\nend\n";
 
-/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
+/** Asserts that each edit, in `PADDING` ahead of `text` or in its body, reports what a cold compile of the edited text does. */
 function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
+  const body = padded.indexOf("\n", padded.indexOf(HEADER)) + 1;
   for (const [offset, removed, insert] of [
     [padded.indexOf("0"), 1, "10000000000"],
     [padded.indexOf("local p"), 0, "    "],
+    [body, 0, "  z = 1\n"],
+    [padded.indexOf("\n", body), 0, " "],
   ] as const) {
     const compiler = newCompiler(padded);
     compiler.compile({ textDocument: { uri: URI } } as never);
