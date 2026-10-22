@@ -1,6 +1,9 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
+import { ErrorType } from "../../../runtime/Error";
+import { statementSource } from "./statementSource";
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { emptyDivertDiagnostic } from "../lowerers/lowerDivert";
@@ -329,17 +332,50 @@ function isArmAssignment(node: SyntaxNode): boolean {
  * read as an expression (`reportReadingErrors` "expression"),
  * where no lowerer lowers it: a sequential alternator's head, and any head
  * of an alternator Luau code uses as a value. A backtick string's errors in
- * it are the reading's to report, as everywhere (I-1435).
+ * it are the reading's to report, as everywhere (I-1435). A sequential
+ * alternator's head takes no value, so anything in it is an error at its
+ * range, and the alternator runs as if it had none (I-1446).
  */
 export function reportAlternatorHead(candidate: SyntaxNode, ctx: LowerContext): void {
-  const nodes = alternatorHeadNodes(candidate).filter((node) => !isTrivia(node));
+  const head = candidate.name === "LuauSparkdownSequentialAlternatorBlock" ? storyHeadNodes(candidate) : alternatorHeadNodes(candidate);
+  const nodes = head.filter((node) => !isTrivia(node));
   if (nodes.length === 0) return;
   // A sequential alternator's head holds what an arm holds; a `match`'s
   // is its one condition.
-  if (SEQUENTIAL_ALTERNATORS.has(candidate.name)) return reportArmReading(nodes, ctx, true);
+  if (SEQUENTIAL_ALTERNATORS.has(candidate.name)) {
+    reportArmReading(nodes.filter((node) => isLuauNodeName(node.name)), ctx, true);
+    const begin = candidate.getChild(`${candidate.name}_begin`);
+    // Its own keywords, not those of an alternator its head holds.
+    const keywords = (begin ? getDescendents("LuauControlKeyword", begin) : [])
+      .filter((k) => k.to <= nodes[0]!.from)
+      .map((k) => ctx.read(k.from, k.to).trim());
+    const message = `A \`${keywords.join(" ") || "queue"}\` takes no value before its first \`|\`; write its arms as \`| ...\``;
+    const source = statementSource({ from: nodes[0]!.from, to: nodes[nodes.length - 1]!.to }, ctx);
+    // More than one reading can hold the same alternator (a function body's),
+    // and each reports it (`reportNestedAlternators`): it is reported once.
+    const reported = ctx.diagnostics?.some(
+      (d) =>
+        d.message === message &&
+        d.source?.startLineNumber === source.startLineNumber &&
+        d.source?.startCharacterNumber === source.startCharacterNumber,
+    );
+    if (!reported) ctx.diagnostics?.push({ message, severity: ErrorType.Error, source });
+    return;
+  }
   const reading = readExpressionAst(nodes, ctx, tokenAfter(nodes, ctx));
   if (!reading) return;
   reportReadingErrors(reading.source.errors, nodes[0]!, ctx, "expression");
+}
+
+// A story block alternator's head: its content's nodes before the first `|`
+// (`chain x` on the keyword's line, story text that `lowerArms` never reaches).
+function storyHeadNodes(alternator: SyntaxNode): SyntaxNode[] {
+  const nodes: SyntaxNode[] = [];
+  const content = alternator.getChild(`${alternator.name}_content`);
+  for (let child = content?.firstChild ?? null; child && child.name !== "LuauAlternatorSeparator"; child = child.nextSibling) {
+    nodes.push(child);
+  }
+  return nodes;
 }
 
 /**
