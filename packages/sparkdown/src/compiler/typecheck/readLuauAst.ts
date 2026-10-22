@@ -188,6 +188,12 @@ export interface LuauSyntaxError {
    * reading that reads the string reports it, whatever the context.
    */
   ofString?: true;
+  /**
+   * Not part of Luau: for an error that a closer is missing (`Expected 'end'
+   * (to close 'function' at line 1)`), where the opener it names is, which
+   * the error is about as much as the token it is at (I-1452).
+   */
+  opener?: Location;
 }
 
 /**
@@ -280,6 +286,13 @@ export interface ReadOptions {
    * from its first, as the file's own do.
    */
   unitLines?: boolean;
+  /**
+   * Not part of Luau: the reading stops at the end of a line that Luau's
+   * parser reads on past, so Luau's end of input stands on the next line,
+   * and an unclosed bracket's opener on the reading's last line is named by
+   * its line (a story `store`'s reading of its line, I-1477).
+   */
+  eofOnNextLine?: boolean;
 }
 
 /** The Luau of a `.sd` file. */
@@ -1799,6 +1812,8 @@ class Parser {
    * which the compiler reports on itself (`isLuauConst`).
    */
   storyFunctions = 1;
+  /** Not part of Luau: whether the end of input stands on the line after the reading's last (`ReadOptions.eofOnNextLine`). */
+  eofOnNextLine = false;
   readonly statements: { statement: AstStat; first: number; end: number }[] = [];
 
   constructor(
@@ -2140,9 +2155,15 @@ class Parser {
     // line. Keyword closers retain their separate diagnostic ownership.
     const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && begin.authoredIsland !== undefined && !this.currentFunction().luau;
     const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
-    if (location.begin.line === begin.location.begin.line)
-      this.report(location, `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`, malformed);
-    else this.report(location, `Expected '${text}' (to close '${open}' at line ${begin.location.begin.line + 1}), got ${got}`, malformed);
+    // Luau compares the line of the token found with the opener's.
+    const line = this.current().kind === "eof" && this.eofOnNextLine ? location.begin.line + 1 : location.begin.line;
+    const message =
+      line === begin.location.begin.line
+        ? `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`
+        : `Expected '${text}' (to close '${open}' at line ${begin.location.begin.line + 1}), got ${got}`;
+    const reported = this.errors.length;
+    this.report(location, message, malformed);
+    if (this.errors.length > reported && begin.from < begin.to) this.errors[reported]!.opener = begin.location;
   }
 
   private expectMatchEndAndConsume(text: string, begin: Token): boolean {
@@ -3117,14 +3138,19 @@ class Parser {
     return this.parseExpr();
   }
 
-  /** `declaration` is whether the binding is a local declaration's (see `MalformedConstruct`). */
-  private parseBinding(isConst = false, declaration = false): Binding {
+  /**
+   * `declaration` is whether the binding is a local declaration's (see
+   * `MalformedConstruct`), and `first` whether it is the first of its names.
+   */
+  private parseBinding(isConst = false, declaration = false, first = false): Binding {
     // Not part of Luau: a `:` with no name before it is an annotation with
     // no name, and a local declaration's name missing before a token of its
     // line leaves the declaration malformed. One missing at its line's end
-    // is Sparkdown's own syntax's to report.
+    // after a comma is Sparkdown's own syntax's to report (`local a,`); a
+    // `local` with no name at all is not read by it (I-1425).
     const kind = this.current().kind;
-    const missing = this.is(":") ? "annotation" : declaration && kind !== "eof" && kind !== "break" ? "declaration" : undefined;
+    const atLineEnd = kind === "eof" || kind === "break";
+    const missing = this.is(":") ? "annotation" : declaration && (!atLineEnd || (first && !isConst)) ? "declaration" : undefined;
     let name = this.parseNameOpt("variable name", missing);
     if (!name) name = { name: ERROR_NAME, location: this.current().location };
     const annotation = this.parseOptionalType();
@@ -3144,7 +3170,7 @@ class Parser {
         }
         return [true, varargLocation, tailAnnotation];
       }
-      result.push(this.parseBinding(isConst, declaration));
+      result.push(this.parseBinding(isConst, declaration, result.length === 0));
       if (!this.is(",")) break;
       this.next();
     }
@@ -4632,6 +4658,7 @@ function readUnit(
   for (const span of tokenizer.returnTriviaSpans) parser.recordSourceDependency(span.from, span.to);
   parser.recordDepth = recordDepth;
   parser.storyFunctions = kind === "flow" ? 2 : kind === "file" ? 0 : 1;
+  parser.eofOnNextLine = options.eofOnNextLine === true;
   let root: AstStatBlock;
   try {
     root = parser.parseChunk();
@@ -5168,7 +5195,7 @@ const WRAPPER = /_(begin|content|end)(_c\d+)*$/;
  * (`& {}a = 9`) begins in that line's node; the alias is no statement of the
  * block.
  */
-export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string, afterType = false): LuauAstUnit {
+export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string, afterType = false, options: ReadOptions = {}): LuauAstUnit {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const refs: TreeNodeRef[] = [];
@@ -5186,7 +5213,7 @@ export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string
   }
   tokenizer.source = -1;
   const first = tokenizer.tokens[0];
-  const unit = readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0));
+  const unit = readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0), options);
   if (!afterType || at === undefined) return unit;
   return { ...unit, statements: unit.statements.slice(1) };
 }
@@ -5205,6 +5232,7 @@ export function readLuauStatementCandidate(
   documentText: string,
   from: number,
   to: number,
+  options: ReadOptions = {},
 ): Pick<LuauAstUnit, "root" | "errors"> {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
@@ -5243,7 +5271,7 @@ export function readLuauStatementCandidate(
     if (at < Math.min(to, current.to)) tokenizer.lex(at, Math.min(to, current.to));
   };
   read(root);
-  const result = readUnit("block", tokenizer, [], 1, index.position(from), {}, to);
+  const result = readUnit("block", tokenizer, [], 1, index.position(from), options, to);
   return { root: result.root, errors: result.errors };
 }
 

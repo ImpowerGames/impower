@@ -5975,14 +5975,17 @@ export class SparkdownCompiler {
   /**
    * Reports a story `store` declaration's syntax errors as Luau reads the
    * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
-   * I-1370), for a store no other reporter reported an error on. The type
-   * checker leaves a store's errors to Sparkdown, which reports what the tree
+   * I-1370), but each error another reporter already reported in the
+   * declaration's span: at the same token, or in the same words (I-1452).
+   * The type checker leaves a store's errors to Sparkdown, which reports what the tree
    * marks missing or unread, in its own words and ranges; a store's errors
    * have one owner, as a story statement's do (#931, #1907), and Luau's
    * reading is theirs where Sparkdown's syntax reads the value token by token
    * and reports nothing (`store t = {1 2}`). A backtick string's own
    * errors (`LuauSyntaxError.ofString`) are reported whatever else is: the
-   * store's reading is their one owner (I-1435).
+   * store's reading is their one owner (I-1435). A story `local` whose line
+   * runs on into story (`local a = 1 2`) reports the errors of that story
+   * the same way, which no statement of Luau's there reports (I-1424).
    */
   validateStores(program: SparkProgram) {
     for (const scriptUri of Object.keys(program.scripts)) {
@@ -5990,39 +5993,86 @@ export class SparkdownCompiler {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
       if (!doc || !tree) continue;
-      const errors = storeSyntaxErrors(tree, doc.read(0, doc.length));
-      if (errors.length === 0) continue;
+      const declarations = storeSyntaxErrors(tree, doc.read(0, doc.length));
+      if (declarations.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
-      const reported = new Map<string, boolean>();
-      for (const error of errors) {
-        const key = `${error.store.from}:${error.store.to}`;
-        let inError = reported.get(key);
-        if (inError === undefined) {
-          // The store's lines, as `reportCompileThrow` reads a statement's:
-          // a report at its end of input begins where its line ends. A store
-          // the tree ends with its line break ends on the line before it.
-          const { from, to } = error.store;
-          const last = to > from && doc.read(to - 1, to) === "\n" ? to - 1 : to;
-          const range = doc.range(from, last);
-          inError =
-            !range ||
-            diagnostics.some(
-              (d) =>
-                d.severity === DiagnosticSeverity.Error &&
-                d.range.start.line >= range.start.line &&
-                d.range.start.line <= range.end.line,
-            );
-          reported.set(key, inError);
-        }
-        // A backtick string's own error has no other reporter (I-1435).
-        if (inError && !error.ofString) continue;
-        diagnostics.push({
-          range: { start: error.start, end: error.end },
-          code: "SyntaxError",
-          severity: DiagnosticSeverity.Error,
-          message: error.message,
-          source: LANGUAGE_NAME,
+      const existing = diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error);
+      const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
+      const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
+      for (const { declaration, found, reported } of declarations) {
+        // The declaration's span: from its line's indent, where a report of
+        // the statement may begin (`reportCompileThrow`), to where the
+        // reading of its line stops, the end of the story it runs on into.
+        // A declaration the tree ends with its line break ends on the line
+        // before it.
+        const { from, to, readTo } = declaration;
+        const last = to > from && doc.read(to - 1, to) === "\n" ? to - 1 : to;
+        const lineStart = doc.offsetAt({ line: doc.positionAt(from).line, character: 0 });
+        const spanFrom = /^\s*$/.test(doc.read(lineStart, from)) ? lineStart : from;
+        const spanTo = Math.max(last, readTo > from && doc.read(readTo - 1, readTo) === "\n" ? readTo - 1 : readTo);
+        const reports = existing.filter((d) => {
+          const at = offsetOf(d.range.start);
+          return at >= spanFrom && at <= spanTo;
         });
+        // A report in the span that copies an error the reading finds (its
+        // start and words) is that error's report alone. A report in other
+        // words is its reporter's report of what the reading finds at its
+        // token (an overlapping range, or the opener a missing closer's
+        // error names), all of it, as Sparkdown reads the construct its own
+        // way. A report at no error the reading finds is the report of one
+        // in its words (Sparkdown's own words may leave out Luau's `, got
+        // ...`). A report of the whole statement (a compile that stopped at
+        // it) is at no one token. Only the errors no report accounts for
+        // are left to report (I-1452).
+        const spanOf = (range: Range) => {
+          const start = offsetOf(range.start);
+          return { start, end: Math.max(offsetOf(range.end), start + 1) };
+        };
+        const overlaps = (a: Range, b: Range) => {
+          const x = spanOf(a);
+          const y = spanOf(b);
+          return x.start < y.end && y.start < x.end;
+        };
+        // A report of the statement begins at or before the declaration's
+        // first token (its line's start, or the token itself, leaving the
+        // indent out, as `statementSource` does) and runs to its end.
+        const firstToken = from + (/^\s*/.exec(doc.read(from, last))?.[0].length ?? 0);
+        const ofStatement = (d: SparkDiagnostic) => {
+          const report = spanOf(d.range);
+          return report.start <= firstToken && report.end >= last;
+        };
+        type Found = (typeof found)[number];
+        const sameStart = (e: Found, d: SparkDiagnostic) => offsetOf(e.start) === offsetOf(d.range.start);
+        const atToken = (e: Found, d: SparkDiagnostic) =>
+          overlaps(d.range, e) || (e.opener !== undefined && overlaps(d.range, e.opener));
+        const sameWords = (e: Found, d: SparkDiagnostic) => {
+          const words = wordsOf(d);
+          return e.message === words || (!/, got /.test(words) && e.message.startsWith(`${words}, got `));
+        };
+        const accounted = new Set<Found>();
+        const copies = (d: SparkDiagnostic) => found.some((e) => sameStart(e, d) && e.message === wordsOf(d));
+        for (const d of reports) {
+          const copy = found.find((e) => !accounted.has(e) && sameStart(e, d) && e.message === wordsOf(d));
+          if (copy) accounted.add(copy);
+        }
+        const others = reports.filter((d) => !copies(d) && !ofStatement(d));
+        for (const e of found) if (others.some((d) => atToken(e, d))) accounted.add(e);
+        for (const d of others) {
+          if (found.some((e) => atToken(e, d))) continue;
+          const error = found.find((e) => !accounted.has(e) && sameWords(e, d));
+          if (error) accounted.add(error);
+        }
+        for (const error of reported) {
+          // A backtick string's own error has no other reporter (I-1435).
+          if (accounted.has(error) && !error.ofString) continue;
+          diagnostics.push({
+            range: { start: error.start, end: error.end },
+            code: "SyntaxError",
+            severity: DiagnosticSeverity.Error,
+            message: error.message,
+            source: LANGUAGE_NAME,
+          });
+        }
       }
     }
   }
