@@ -244,9 +244,12 @@ function inlineIfOf(brace: SyntaxNode): SyntaxNode | null {
  * (`inlineIfOf`), from one reading of the brace, which ends at its `}`
  * (`readExpressionAst`), as every story brace's reading does (I-1445).
  * Where the tree's if expression has no `else` clause, which story text may
- * leave out, what the reading meets at the `}` is the last value's own,
- * from the reading of that value alone (`{if c then (1}`'s unclosed
- * parenthesis), and not the `else` Luau would expect there.
+ * leave out, and its last branch has its `then` and a value, what the
+ * reading meets at the `}` is that value's own, from the reading of the
+ * value alone (`{if c then (1}`'s unclosed parenthesis), and not the `else`
+ * Luau would expect there. A last `elseif` without its `then` or value
+ * (`{if c then 1 elseif x.}`) lacks more than the `else`, and the whole
+ * reading's errors stand.
  */
 export function reportInlineIfReading(brace: SyntaxNode, ctx: LowerContext): void {
   const ifExpr = inlineIfOf(brace);
@@ -262,6 +265,8 @@ export function reportInlineIfReading(brace: SyntaxNode, ctx: LowerContext): voi
   for (let child = ifContent.firstChild; child; child = child.nextSibling) {
     if (isExplicitRuleName(child.name, "LuauThenExpression")) lastClause = child;
     else if (isExplicitRuleName(child.name, "LuauElseExpression")) hasElse = true;
+    // An `elseif` begins a branch whose `then` is still to come.
+    else if (child.name === "LuauElseifKeyword") lastClause = null;
   }
   const lastValue = lastClause ? ifClauseValueNodes(lastClause) : [];
   if (end !== undefined && !hasElse && lastValue.length > 0) {

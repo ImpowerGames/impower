@@ -333,6 +333,21 @@ describe("a brace's if expression may leave out its else", () => {
       expect(errors[0]).toMatch(/ Expected '\)' \(to close '\(' at column \d+\), got '\}'$/);
       expectIncrementalEqualsCold(text);
     });
+    // A last `elseif` without its `then` or value lacks more than the `else`
+    // (round 1's undirected review).
+    for (const [expr, message] of [
+      ["if true then 1 elseif x.", "Expected identifier, got '}'"],
+      ["if true then 1 elseif x", "Expected 'then' when parsing if then else expression, got '}'"],
+      ["if true then 1 elseif x then", "Expected identifier when parsing expression, got '}'"],
+    ] as const) {
+      test(`${place.name}: {${expr}} reports what the elseif lacks`, () => {
+        const text = place.wrap(expr);
+        const errors = sparkdownErrors(text);
+        expect(errors).toHaveLength(1);
+        expect(errors[0]!.endsWith(` ${message}`), errors[0]).toBe(true);
+        expectIncrementalEqualsCold(text);
+      });
+    }
     test(`${place.name}: {if true then x.} reports the missing name`, () => {
       const text = place.wrap("if true then x.");
       const errors = sparkdownErrors(text);
