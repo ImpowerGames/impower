@@ -455,18 +455,14 @@ sparkdown [0..386]
  │   │   │   │       │       │               │       │   ├─ StylingFunctionParameters_begin_c1 [236..237]
  │   │   │   │       │       │               │       │   │   └─ PunctuationParenOpen [236..237]: "("
  │   │   │   │       │       │               │       │   └─ StylingFunctionParameters_begin_c2 237
- │   │   │   │       │       │               │       ├─ StylingFunctionParameters_content [237..241]
- │   │   │   │       │       │               │       │   └─ LuauLineComment [237..241]
- │   │   │   │       │       │               │       │       ├─ LuauLineComment_begin [237..239]
- │   │   │   │       │       │               │       │       │   ├─ LuauLineComment_begin_c1 237
- │   │   │   │       │       │               │       │       │   └─ LuauLineComment_begin_c2 [237..239]
- │   │   │   │       │       │               │       │       │       └─ LuauCommentMark [237..239]: "--"
- │   │   │   │       │       │               │       │       ├─ LuauLineComment_content [239..241]
- │   │   │   │       │       │               │       │       │   └─ LuauLineCommentContent [239..241]: "x)"
- │   │   │   │       │       │               │       │       └─ LuauLineComment_end 241
- │   │   │   │       │       │               │       └─ StylingFunctionParameters_end 241
- │   │   │   │       │       │               │           ├─ StylingFunctionParameters_end_c1 241
- │   │   │   │       │       │               │           └─ StylingFunctionParameters_end_c2 241
+ │   │   │   │       │       │               │       ├─ StylingFunctionParameters_content [237..240]
+ │   │   │   │       │       │               │       │   ├─ CalcOperator [237..238]: "-"
+ │   │   │   │       │       │               │       │   ├─ CalcOperator [238..239]: "-"
+ │   │   │   │       │       │               │       │   └─ ParameterStringIdentifier [239..240]: "x"
+ │   │   │   │       │       │               │       └─ StylingFunctionParameters_end [240..241]
+ │   │   │   │       │       │               │           ├─ StylingFunctionParameters_end_c1 240
+ │   │   │   │       │       │               │           └─ StylingFunctionParameters_end_c2 [240..241]
+ │   │   │   │       │       │               │               └─ PunctuationParenClose [240..241]: ")"
  │   │   │   │       │       │               └─ StylingFunction_end 241
  │   │   │   │       │       ├─ StylingValue_c5 [241..249]
  │   │   │   │       │       │   └─ LuauLineComment [241..249]

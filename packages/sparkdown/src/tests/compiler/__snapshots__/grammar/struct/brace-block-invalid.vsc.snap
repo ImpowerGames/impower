@@ -183,9 +183,10 @@ text.source.sparkdown [0..673]
  │   ├─ markup.raw.whitespace.separator.optional.sd [283..284]: " "
  │   ├─ entity.name.function.sd [284..287]: "var"
  │   ├─ punctuation.definition.template-expression.begin.sd [287..288]: "("
- │   ├─ comment.line.double-dash.luau [288..294]
- │   │   ├─ comment.luau [288..290]: "--"
- │   │   └─ punctuation.definition.comment.content.sd [290..294]: "gap)"
+ │   ├─ keyword.other.calc.operator.sd [288..289]: "-"
+ │   ├─ keyword.other.calc.operator.sd [289..290]: "-"
+ │   ├─ string.unquoted.identifier.sd [290..293]: "gap"
+ │   ├─ punctuation.definition.template-expression.end.sd [293..294]: ")"
  │   ├─ punctuation.whitespace.sd [294..295]: " "
  │   └─ invalid.illegal.struct-block-close.sd [295..296]: "}"
  ├─ Newline [296..297]: "\n"
