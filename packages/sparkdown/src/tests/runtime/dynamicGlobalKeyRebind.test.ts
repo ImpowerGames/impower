@@ -1,0 +1,195 @@
+// Writing a top-level function's name through the globals table with a key
+// the compiler cannot name (`_G[k] = g`, `rawset(_G, k, g)`) rebinds it as
+// `f = g` does (I-1394): in Luau `_G[k]` and the global `k` names are the
+// same slot. With such a store anywhere in the story, every call of a
+// top-level function reads the global.
+import { describe, expect, it } from "vitest";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { BinaryProgramReader } from "../../program/BinaryProgramReader";
+import { Op } from "../../program/ProgramInstructions";
+import type { ProgramRoot } from "../../program/ProgramRoot";
+import { ProgramStory } from "../../program/ProgramStory";
+import {
+  coldSurface,
+  CONFIG,
+  divergence,
+  posAt,
+  quiet,
+  surface,
+} from "../program/incrementalOracleHarness";
+import {
+  compileScript,
+  MAIN_URI,
+  programCompiler,
+  rootChunks,
+  storyBeats,
+} from "../program/programHarness";
+
+// The text a compiled story runs to, with the compile's error and warning
+// diagnostics and the run's errors.
+const outcome = ({ program }: { program: SparkProgram }) => {
+  const diagnostics = Object.values(program.diagnostics ?? {})
+    .flat()
+    .filter((d) => d.severity === 1 || d.severity === 2)
+    .map((d) => d.message);
+  expect(program.chunks).toBeDefined();
+  const beats = storyBeats(new ProgramStory(program.chunks!));
+  return {
+    text: beats.beats.map((b) => b.text).join(""),
+    errors: [...diagnostics, ...beats.errors],
+  };
+};
+
+const run = (text: string) => outcome(compileScript(text));
+
+const cases: [string, string, string][] = [
+  [
+    "an index write through _G with a local key rebinds a top-level function",
+    "function f() return 7 end\n& local k = 'f'\n& _G[k] = function() return 2 end\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "rawset on _G with a local key rebinds a top-level function",
+    "function f() return 7 end\n& local k = 'f'\n& rawset(_G, k, function() return 2 end)\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "rawset on _G with a literal key rebinds a top-level function",
+    "function f() return 7 end\n& rawset(_G, 'f', function() return 2 end)\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "an index write through _G with a computed key rebinds a top-level function",
+    "function f() return 7 end\n& local function key() return 'f' end\n& _G[key()] = function() return 2 end\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
+    "a dynamic write through _G inside a function rebinds the global",
+    "function f() return 7 end\nfunction swap(k) _G[k] = function() return 3 end end\n& swap('f')\nf is {f()}.\n",
+    "f is 3.\n",
+  ],
+  [
+    "a call before the dynamic write runs the original",
+    "function f() return 7 end\n& local k = 'f'\nbefore {f()}.\n& _G[k] = function() return 2 end\nafter {f()}.\n",
+    "before 7.\nafter 2.\n",
+  ],
+  [
+    "a dynamic write of another name leaves the function alone",
+    "function f() return 7 end\n& local k = 'g'\n& _G[k] = function() return 2 end\nf is {f()}.\n",
+    "f is 7.\n",
+  ],
+];
+
+// Whether the program calls through a variable (`CallVar`) anywhere, as a
+// call of a rebound top-level function does, rather than jumping to it.
+const callsThroughVariable = (root: ProgramRoot): boolean => {
+  const reader = new BinaryProgramReader(root);
+  return rootChunks(root).some((chunk) =>
+    [...reader.instructions(chunk)].some((i) => i.op === Op.CallVar),
+  );
+};
+
+// An edit that replaces `before` with `after` in `text`, compiled
+// incrementally after a compile of `text`: the program's surface, which a
+// cold compile of the edited text must equal, and what it runs to.
+const afterEdit = (text: string, before: string, after: string) => {
+  const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
+  quiet(() => c.compile());
+  const at = text.indexOf(before);
+  expect(at).toBeGreaterThanOrEqual(0);
+  c.compiler.updateDocument({
+    textDocument: { uri: MAIN_URI, version: 2 },
+    contentChanges: [
+      {
+        range: { start: posAt(text, at), end: posAt(text, at + before.length) },
+        text: after,
+      },
+    ],
+  });
+  const compiled = quiet(() => c.compile());
+  const edited = text.slice(0, at) + after + text.slice(at + before.length);
+  return {
+    divergence: divergence(surface(compiled.program), coldSurface(edited)),
+    outcome: outcome(compiled),
+  };
+};
+
+describe("rebinding a top-level function through _G with a dynamic key (I-1394)", () => {
+  it.each(cases)("%s", (_name, text, expected) => {
+    expect(run(text)).toEqual({ text: expected, errors: [] });
+  });
+
+  // A story without a store through _G whose key is not a literal keeps
+  // every call of a top-level function a direct jump.
+  it.each([
+    ["no store through _G", "function f() return 7 end\n& x = 1\nf is {f()}.\n"],
+    [
+      "a literal-key store of another name",
+      "function f() return 7 end\n& _G.g = function() return 2 end\n& _G['h'] = 3\nf is {f()}.\n",
+    ],
+    [
+      "a literal-key rawset of another name",
+      "function f() return 7 end\n& rawset(_G, 'g', 2)\nf is {f()}.\n",
+    ],
+    [
+      "a dynamic-key store into another table",
+      "function f() return 7 end\n& local t = {}\n& local k = 'f'\n& t[k] = 2\nf is {f()}.\n",
+    ],
+  ])("%s keeps the direct call", (_name, text) => {
+    const { program } = compileScript(text);
+    expect(outcome({ program })).toEqual({ text: "f is 7.\n", errors: [] });
+    expect(callsThroughVariable(program.chunks!)).toBe(false);
+  });
+
+  it("a dynamic-key store sends every top-level function's call through its global", () => {
+    const { program } = compileScript(
+      "function f() return 7 end\nfunction h() return 5 end\n& local k = 'f'\n& _G[k] = function() return 2 end\nf is {f()}, h is {h()}.\n",
+    );
+    expect(outcome({ program })).toEqual({ text: "f is 2, h is 5.\n", errors: [] });
+    expect(callsThroughVariable(program.chunks!)).toBe(true);
+  });
+
+  // The call still names the function the story declares, so it is held to
+  // that function's parameters, as a direct call is; a name a store rebinds
+  // is not (I-1091).
+  const arity = "Function call to `f` requires 1 argument, but got 2";
+  const surplus =
+    "function f(a) return a end\n& local k = 'z'\n& x = 1\nf is {f(1, 2)}.\n";
+  it("a dynamic-key store keeps the check of a call's arguments", () => {
+    expect(run(surplus.replace("& x = 1", "& _G[k] = 1"))).toEqual({
+      text: "f is 1.\n",
+      errors: [expect.objectContaining({ value: arity })],
+    });
+  });
+  it("an edit that adds a dynamic-key store keeps the check of a call's arguments", () => {
+    const { divergence: diff, outcome: result } = afterEdit(
+      surplus,
+      "& x = 1",
+      "& _G[k] = 1",
+    );
+    expect(diff).toBeUndefined();
+    expect(result).toEqual({
+      text: "f is 1.\n",
+      errors: [expect.objectContaining({ value: arity })],
+    });
+  });
+
+  const direct =
+    "function f() return 7 end\n& local k = 'f'\n& x = 1\nf is {f()}.\n";
+  const dynamic =
+    "function f() return 7 end\n& local k = 'f'\n& _G[k] = function() return 2 end\nf is {f()}.\n";
+  const dynamicRawset =
+    "function f() return 7 end\n& local k = 'f'\n& rawset(_G, k, function() return 2 end)\nf is {f()}.\n";
+  it.each([
+    ["adds a dynamic-key store", direct, "& x = 1", "& _G[k] = function() return 2 end", "f is 2.\n"],
+    ["removes a dynamic-key store", dynamic, "& _G[k] = function() return 2 end", "& x = 1", "f is 7.\n"],
+    ["adds a dynamic-key rawset", direct, "& x = 1", "& rawset(_G, k, function() return 2 end)", "f is 2.\n"],
+    ["removes a dynamic-key rawset", dynamicRawset, "& rawset(_G, k, function() return 2 end)", "& x = 1", "f is 7.\n"],
+    ["makes the store's key a literal of another name", dynamic, "_G[k]", "_G['g']", "f is 7.\n"],
+    ["makes a literal key dynamic", dynamic.replace("_G[k]", "_G['g']"), "_G['g']", "_G[k]", "f is 2.\n"],
+  ])("an edit that %s compiles as a cold compile does", (_name, text, before, after, expected) => {
+    const { divergence: diff, outcome: result } = afterEdit(text, before, after);
+    expect(diff).toBeUndefined();
+    expect(result).toEqual({ text: expected, errors: [] });
+  });
+});

@@ -33,6 +33,28 @@ import { RESERVED } from "../../../../compiler/typecheck/LuauUnitNodes";
 import { ObjectExpression } from "./Expression/ObjectExpression";
 import { VariableReference } from "./Variable/VariableReference";
 
+/** The global a store through the globals table writes, which the runtime
+ *  writes as that global itself: a store (`_G.f = v`, `_G[k] = v`,
+ *  `StorePropertyAssignment.globalWrittenAt`) or a `rawset` call
+ *  (`rawset(_G, k, v)`) into `_G`. The key's name when it is a string
+ *  literal, `ANY_GLOBAL` for a key the compiler cannot name (I-1394), null
+ *  for anything else. A call of `rawset` is taken for the builtin whatever
+ *  the story binds to the name, which at worst sends calls through their
+ *  globals that could have jumped. */
+export const globalsTableWrite = (obj: ParsedObject): string | null => {
+  if (obj instanceof StorePropertyAssignment) {
+    return StorePropertyAssignment.globalWrittenAt(
+      obj.baseExpression,
+      obj.keyExpression,
+    );
+  }
+  if (obj instanceof FunctionCall && obj.name === "rawset") {
+    const [table, key] = obj.args;
+    return StorePropertyAssignment.globalWrittenAt(table, key);
+  }
+  return null;
+};
+
 const samePosition = (a: DebugMetadata, b: DebugMetadata): boolean =>
   a.filePath === b.filePath &&
   a.startLineNumber === b.startLineNumber &&
@@ -221,9 +243,9 @@ export class Story extends FlowBase {
   private _globalAssignmentNames: Set<string> | null = null;
 
   /** The names written to the global scope by a plain assignment
-   *  (`game = -> there`) or a literal-key store through the globals table
-   *  (`_G.game = v`) anywhere in the story, callables included: a global
-   *  write is visible from every flow. An assignment that a `local` or
+   *  (`game = -> there`) or a store through the globals table (`_G.game = v`,
+   *  `ANY_GLOBAL` for one whose key is not a literal) anywhere in the story,
+   *  callables included: a global write is visible from every flow. An assignment that a `local` or
    *  parameter of its name certainly binds writes that binding, not the
    *  global, and is left out (`globalWriteName`). Built once per export, on
    *  first use, for {@link builtinGlobalDiverts}'s severity, which reads every
@@ -235,7 +257,7 @@ export class Story extends FlowBase {
     return this.globalWriteNames(resolutionTap()?.assignments());
   }
 
-  /** Whether a plain assignment or a literal-key store through the globals table
+  /** Whether a plain assignment or a store through the globals table
    *  anywhere in the story writes the global `name` (`globalWriteName`), for a call of a top-level function of that
    *  name, which calls what the global holds when it does (`Divert`). Only
    *  the name is read: every assignment of it declares it, with how
@@ -273,13 +295,14 @@ export class Story extends FlowBase {
   }
 
   /** The global `obj` writes: a plain assignment's name where it writes the
-   *  global (`writesGlobal`), or the name a literal-key store through the globals table
-   *  writes (`StorePropertyAssignment.globalName`); null for anything else. */
+   *  global (`writesGlobal`), or the name a store through the globals table
+   *  writes (`globalsTableWrite`), `ANY_GLOBAL` for a key the compiler cannot
+   *  name; null for anything else. */
   public globalWriteName(obj: ParsedObject): string | null {
     if (obj instanceof VariableAssignment) {
       return this.writesGlobal(obj) ? obj.variableName : null;
     }
-    return obj instanceof StorePropertyAssignment ? obj.globalName : null;
+    return globalsTableWrite(obj);
   }
 
   /** The names `globalWriteName` finds written, of `known` assignments or,

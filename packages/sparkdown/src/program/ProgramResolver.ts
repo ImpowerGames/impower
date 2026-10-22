@@ -31,6 +31,7 @@ import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { StructDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import {
   functionSitesUnder,
+  globalsTableWrite,
   sitesNaming,
   type Story,
 } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
@@ -41,7 +42,6 @@ import {
 } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MemoizedAssignment";
 import { MultiVariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { memoGatherOf } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/MemoizedGather";
-import { StorePropertyAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { DebugMetadata } from "../runtime/DebugMetadata";
@@ -251,10 +251,10 @@ const standsAsAssignment = (obj: ParsedObject): boolean =>
 
 /** Whether `obj` is an assignment the story's walks for its global writes
  *  read: a plain assignment or local declaration, or a store through the
- *  globals table that names its global (`_G.f = v`, I-1091). */
+ *  globals table (`_G.f = v`, I-1091; `_G[k] = v`, `rawset(_G, k, v)`,
+ *  I-1394; `globalsTableWrite`). */
 const isAssignmentFact = (obj: ParsedObject): boolean =>
-  obj instanceof VariableAssignment ||
-  (obj instanceof StorePropertyAssignment && obj.globalName !== null);
+  obj instanceof VariableAssignment || globalsTableWrite(obj) !== null;
 
 /** The assignments a stand-in, or a block statement's stand-in, holds that
  *  made auto-globals or declared locals, each with what its memo recorded
@@ -548,7 +548,7 @@ export class ProgramResolver {
   /** The first function value naming each flow this compile, made on first
    *  use (`ResolutionTap.functionValue`). */
   protected _functionValues: Map<string, ParsedObject> | null = null;
-  /** The names a plain assignment or a literal-key store through the globals table of
+  /** The names a plain assignment or a store through the globals table of
    *  the story writes to the global scope this compile, made on first use (`ResolutionTap.globalWrite`). */
   protected _globalWrites: Set<string> | null = null;
   protected _occurrences = new WeakMap<object, object[]>();
@@ -1188,11 +1188,12 @@ export class ProgramResolver {
       for (const member of unit.members) {
         for (const obj of this.alongContent(member)) {
           // A store through the globals table always writes the global it
-          // names, which no local binds (I-1091).
-          if (obj instanceof StorePropertyAssignment) {
-            if (obj.globalName !== null) {
-              declareWrite(unit, obj.globalName, false);
-            }
+          // names, which no local binds (I-1091), or, with a key the
+          // compiler cannot name, may write any global (`ANY_GLOBAL`,
+          // I-1394).
+          const throughGlobals = globalsTableWrite(obj);
+          if (throughGlobals !== null) {
+            declareWrite(unit, throughGlobals, false);
             continue;
           }
           if (!(obj instanceof VariableAssignment) || obj.isDeclaration) {
