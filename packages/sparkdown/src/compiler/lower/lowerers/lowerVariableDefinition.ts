@@ -17,7 +17,8 @@ import {
   lowerCallArguments,
   type PathName,
 } from "../expression/lowerExpression";
-import { rangeOf } from "../utils/luauAst";
+import { offsetAt, rangeOf } from "../utils/luauAst";
+import { rootDeclarationSlot } from "../utils/rootLocalReads";
 import { publishesConst, reportMissingConstInitializer } from "../utils/publishesConst";
 import { statementSource } from "../utils/statementSource";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
@@ -159,9 +160,9 @@ export function lowerVariableDefinition(
       for (const target of targetIdentifiers) {
         if (target.name) shadowSiblingSubFlow(target.name, ctx);
       }
-      return wrapInWeave([
-        new MultiVariableAssignment(targetIdentifiers, multiExprs, true),
-      ]);
+      const multi = new MultiVariableAssignment(targetIdentifiers, multiExprs, true);
+      markRootDeclarations(multi.targetAssignments, targets, ctx);
+      return wrapInWeave([multi]);
     }
     const assignments = targetIdentifiers.map(
       (identifier, i) =>
@@ -193,9 +194,9 @@ export function lowerVariableDefinition(
   // (`lowerReassignment.ts`, `lowerMultipleAssignment`).
   if (scope === "local" && expressions.length > 1) {
     if (lastIdentifier.name) shadowSiblingSubFlow(lastIdentifier.name, ctx);
-    return wrapInWeave([
-      new MultiVariableAssignment([lastIdentifier], expressions, true),
-    ]);
+    const multi = new MultiVariableAssignment([lastIdentifier], expressions, true);
+    markRootDeclarations(multi.targetAssignments, [targets[targets.length - 1]!], ctx);
+    return wrapInWeave([multi]);
   }
   //
   // A declaration with no value (`local x`, `store x`, or either with an
@@ -219,5 +220,21 @@ export function lowerVariableDefinition(
   if (isTemp && lastIdentifier.name) {
     shadowSiblingSubFlow(lastIdentifier.name, ctx);
   }
+  if (isTemp) markRootDeclarations([va], [targets[targets.length - 1]!], ctx);
   return wrapInWeave([va]);
+}
+
+/** Gives each local the declaration makes in the root frame's own scope the
+ *  slot that keeps its binding, when that scope declares its name more than
+ *  once (`rootDeclarationSlot`, I-1374). */
+function markRootDeclarations(
+  assignments: readonly VariableAssignment[],
+  targets: readonly PathName[],
+  ctx: LowerContext,
+): void {
+  assignments.forEach((assignment, i) => {
+    const target = targets[i];
+    if (!target || !assignment.isNewTemporaryDeclaration) return;
+    assignment.rootSlot = rootDeclarationSlot(target.name, offsetAt(target.location.begin, ctx), ctx);
+  });
 }

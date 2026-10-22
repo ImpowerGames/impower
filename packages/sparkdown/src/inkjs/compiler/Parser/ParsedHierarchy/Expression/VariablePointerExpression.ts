@@ -1,6 +1,7 @@
 import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { Op } from "../../../../../program/ProgramInstructions";
+import { Op, ROOT_GLOBAL, ROOT_SLOT } from "../../../../../program/ProgramInstructions";
+import type { RootCapture } from "../../../../../compiler/lower/expression/lowerFunction";
 
 // A parsed expression that, when emitted into a runtime container,
 // produces a `VariablePointerValue` for the named variable. At
@@ -21,8 +22,18 @@ import { Op } from "../../../../../program/ProgramInstructions";
 // container and rely on the runtime to canonicalize it. We give it a
 // dedicated parsed class so the closure-build lowering can use it as
 // an Expression (slottable into `ObjectExpressionEntry.value`).
+//
+// A closure built in the root frame captures, in place of the newest binding
+// of the name (`rootCapture`, `rootCaptureSlots`): for a `local` the root
+// frame's own scope declares more than once, the binding of the declaration
+// in scope where it is written, which that declaration's slot keeps; and for
+// a name that scope declares where none of its declarations is in scope, the
+// global.
 export class VariablePointerExpression extends Expression {
-  constructor(public readonly variableName: string) {
+  constructor(
+    public readonly variableName: string,
+    public readonly rootCapture?: RootCapture,
+  ) {
     super();
   }
 
@@ -35,8 +46,20 @@ export class VariablePointerExpression extends Expression {
   }
 
   public override EmitExpression(emitter: ProgramEmitter): void {
+    const capture = this.rootCapture;
+    if (capture === "global") {
+      emitter.emit(Op.VarPtr, emitter.variable(this.variableName), 0, ROOT_GLOBAL);
+      return;
+    }
+    if (capture) {
+      emitter.emit(Op.VarPtr, emitter.variable(capture.slot), 0, ROOT_SLOT);
+      return;
+    }
     emitter.emit(Op.VarPtr, emitter.variable(this.variableName));
   }
 
-  public override readonly toString = (): string => `&${this.variableName}`;
+  public override readonly toString = (): string =>
+    this.rootCapture === "global"
+      ? `&${this.variableName}`
+      : `&${this.rootCapture?.slot ?? this.variableName}`;
 }

@@ -97,6 +97,15 @@ export function extractClosureTarget(
   if (target === null) return null;
   const upvalsMap = upvalsVal.value;
   if (!(upvalsMap instanceof Map)) return null;
+  // The cells of the root locals the function's entry binds that the
+  // closure kept where it was built, which the call keeps in the function's
+  // frame as it enters it (`EnterFunction`); none for a closure built before
+  // closures kept them, whose entry binds them as it runs.
+  const rootsVal = map.get("__closure_roots");
+  story.SetClosureRoots?.(
+    target,
+    rootsVal instanceof ObjectValue && rootsVal.value instanceof Map ? rootsVal.value : null,
+  );
   // `__closure_user_arity` counts FIXED params only. A variadic
   // target binds one extra slot — the packed `...` MultiValue the
   // call-site normalization (packVariadicValueCallArgs /
@@ -314,20 +323,37 @@ export function openVariablePointer(
 }
 
 /**
- * The pointer at the top-level local `name` a function written at the top
- * level reaches (`Op.BindRoot`): the binding of the name in the outermost
- * scope of the current thread's root frame that binds it, registered there
- * as an open upvalue, and shared with a closure that captured the same
- * binding (`openVariablePointer`). Null when the root frame binds no such
- * name, as before its `local` statement runs, or is the current frame.
+ * The pointer at the top-level local `name` a function reaches at its entry
+ * (`Op.BindRoot`): the binding of the name in the own scope of the current
+ * thread's root frame, which the top level and its scenes share, registered
+ * there as an open upvalue, and shared with a closure that captured the
+ * same binding (`openVariablePointer`). A block's local of the name, in a
+ * scope of its own, is never it. Null when that scope binds no such name, as
+ * before its `local` statement runs, or the root frame is the current one.
+ *
+ * With `slot` (`ROOT_SLOT`), the binding of one declaration of a name the
+ * scope declares more than once: the cell the declaration stored in its slot
+ * (`rootSlotCell`), or null when it has not run. With `anyScope`
+ * (`ROOT_ANY_SCOPE`), the binding in the outermost scope of the root frame
+ * that binds the name, a block's local included (I-1468).
  */
 export function rootVariablePointer(
   callStack: CallStack,
   name: string,
+  slot: string | null = null,
+  anyScope = false,
 ): VariablePointerValue | null {
   const root = callStack.elements[0];
   if (!root || callStack.elements.length < 2) return null;
-  const scopeIdx = root.temporaryScopes.findIndex((scope) => scope.has(name));
+  if (slot) {
+    const cell = rootSlotCell(root.temporaryScopes[0]!, name, slot);
+    if (cell !== undefined) return cell;
+  }
+  const scopeIdx = anyScope
+    ? root.temporaryScopes.findIndex((scope) => scope.has(name))
+    : root.temporaryScopes[0]!.has(name)
+      ? 0
+      : -1;
   if (scopeIdx < 0) return null;
   const slotValue = root.temporaryScopes[scopeIdx]!.get(name);
   if (slotValue instanceof VariablePointerValue) {
@@ -341,6 +367,83 @@ export function rootVariablePointer(
   newPtr.scopeIndex = scopeIdx;
   callStack.RegisterOpenUpvalue(newPtr, 1);
   return newPtr;
+}
+
+/**
+ * The cell the root frame's own scope (`scope`) keeps for one declaration of
+ * `name` in its slot (`slot`, `ROOT_SLOT`). Where that slot is missing,
+ * the binding an engine before the slots made, which a save it wrote holds:
+ * the cell a later declaration of the name kept of it (`<name>$0`,
+ * `keepLegacyRootBinding`), or undefined while the scope binds the name and
+ * holds no slot of it at all, where it is reached by name as that engine
+ * reached it. Null otherwise: the declaration has not run, and the name
+ * reads the global.
+ */
+export function rootSlotCell(
+  scope: Map<string, unknown>,
+  name: string,
+  slot: string,
+): VariablePointerValue | null | undefined {
+  const cell = scope.get(slot);
+  if (cell instanceof VariablePointerValue) return cell;
+  const legacy = scope.get(`${name}$0`);
+  if (legacy instanceof VariablePointerValue) return legacy;
+  if (!scope.has(name)) return null;
+  const prefix = `${name}$`;
+  for (const key of scope.keys()) {
+    if (key.startsWith(prefix)) return null;
+  }
+  return undefined;
+}
+
+/**
+ * Keeps the binding of `name` that a declaration of a name the root frame's
+ * own scope declares more than once (`SET_ROOT_SLOTTED`) is about to
+ * replace, when the scope holds it with no slot of the name at all: one an
+ * engine before the slots made, which a save it wrote holds. Its cell goes in
+ * the slot `<name>$0`, which the declaration's replacement closes on the
+ * binding's value, so a function or a closure that reads a declaration whose
+ * slot that engine never wrote still reaches the binding it left (I-1374).
+ */
+export function keepLegacyRootBinding(callStack: CallStack, name: string): void {
+  const root = callStack.elements[0];
+  if (!root || callStack.elements.length !== 1 || root.temporaryScopes.length !== 1) {
+    return;
+  }
+  const scope = root.temporaryScopes[0]!;
+  if (!scope.has(name)) return;
+  const prefix = `${name}$`;
+  for (const key of scope.keys()) {
+    if (key.startsWith(prefix)) return;
+  }
+  callStack.SetTemporaryVariable(`${name}$0`, openVariablePointer(callStack, name), true, 1);
+}
+
+/**
+ * The pointer a closure built in the root frame captures for a `local` its
+ * own scope declares more than once (`Op.VarPtr` with `ROOT_SLOT`): the cell
+ * of the declaration in scope where the closure is written, which its slot
+ * keeps (`rootSlotCell`), whichever declaration of the name runs last. One
+ * that has not run leaves a pointer at the global; a binding a save of an
+ * engine before the slots holds is captured by name, as that engine did.
+ */
+export function rootSlotPointer(
+  callStack: CallStack,
+  slot: string,
+): VariablePointerValue {
+  const name = slot.slice(0, slot.indexOf("$"));
+  const root = callStack.elements[0];
+  const cell = root ? rootSlotCell(root.temporaryScopes[0]!, name, slot) : null;
+  if (cell === undefined) return openVariablePointer(callStack, name);
+  return cell ?? rootGlobalPointer(name);
+}
+
+/** The pointer at the global `name` a closure built in the root frame
+ *  captures for a name no `local` of the root frame's own scope takes where
+ *  it is written (`ROOT_GLOBAL`), whatever `local` of the name a scene left
+ *  in that scope. */
+export function rootGlobalPointer(name: string): VariablePointerValue {
+  return new VariablePointerValue(name, 0);
 }
 
 // Maps a `NativeFunctionCall` operator name to the Luau metamethod

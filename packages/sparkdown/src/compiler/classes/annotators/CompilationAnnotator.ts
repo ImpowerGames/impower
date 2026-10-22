@@ -21,6 +21,7 @@ import type {
   SiblingSubFlowInfo,
 } from "../../lower/context";
 import { lower } from "../../lower/lower";
+import { takesOffset } from "../../lower/recordingContext";
 import { continuationRoutingRead } from "../../lower/lowerers/lowerDisplay";
 import { unreachableRead } from "../../lower/lowerers/lowerDoneOrFin";
 import {
@@ -34,6 +35,7 @@ import {
   VARIABLE_DEFINITION_NAMES,
   valueListAssignmentName,
 } from "../../utils/variableDefinitionNames";
+import { RootLocals } from "../../utils/rootLocals";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import {
   SparkdownAnnotator,
@@ -411,6 +413,34 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     return this._defineTypeNameIndex?.names ?? new Set<string>();
   }
 
+  /** The `local`s of the root frame's own scope the document declares
+   *  (`RootLocals`), built once for each tree. */
+  private rootLocals(): RootLocals | undefined {
+    const tree = this.tree;
+    if (!tree) return undefined;
+    if (this._rootLocalsTree !== tree || !this._rootLocals) {
+      this._rootLocals = new RootLocals(tree.topNode, (a, b) => this.read(a, b));
+      this._rootLocalsTree = tree;
+    }
+    return this._rootLocals;
+  }
+
+  private _rootLocals?: RootLocals;
+  private _rootLocalsTree?: unknown;
+
+  /** The document's `RootLocals` as a lowering asks it: each question names
+   *  the offset it is asked at (`takesOffset`), which a statement's memo
+   *  records from the statement's start, so that the statement keeps its
+   *  memo when an edit above it moves it (`recordingContext.ts`). */
+  private rootLocalsForLowering(): LowerContext["rootLocals"] {
+    const locals = this.rootLocals();
+    if (!locals) return undefined;
+    return {
+      answer: takesOffset((name: string, at: number) => locals.answer(name, at)),
+      declared: takesOffset((name: string, at: number) => locals.declared(name, at)),
+    };
+  }
+
   private collectGlobalNameAt(
     node: import("@lezer/common").SyntaxNode,
     set: Set<string>,
@@ -696,6 +726,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         functionScopeStack,
         loopStack,
         diagnostics: chunkDiagnostics,
+        rootLocals: this.rootLocalsForLowering(),
         globalCallableNames: {
           has: (name) => {
             const found = callableNames.has(name);
@@ -810,6 +841,16 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     const tree = this.tree;
     if (!text || !tree) {
       return undefined;
+    }
+    // A root local's read names its variable, not a node: the document's
+    // answer is its `RootLocals`'.
+    if (kind === "rootLocal" || kind === "rootDeclaration") {
+      const locals = this.rootLocals();
+      const answer =
+        kind === "rootLocal"
+          ? (locals?.answer(name, from) ?? "")
+          : (locals?.declared(name, from) ?? "");
+      return `${name}=${answer}`;
     }
     const node = nodeStartingAt(tree, from, name);
     if (!node) {

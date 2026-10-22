@@ -989,9 +989,7 @@ export class ProgramRoot {
   }
 
   /** The name of the top-level flow a sequence of this root stands in, as
-   *  `sceneAt` names it. An included script's top-level content, a flow of
-   *  the top-level kind that the top level runs (`IncludeEntry`), stands in
-   *  the top level. */
+   *  `sceneAt` names it. */
   sceneOf(sequence: SequenceRow): string | undefined {
     let row: SequenceRow | undefined = sequence;
     while (row && row.owner >= 0) {
