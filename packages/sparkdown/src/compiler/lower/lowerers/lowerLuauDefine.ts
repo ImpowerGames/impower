@@ -2,12 +2,13 @@ import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { luauStatementErrors, type LuauStatementError } from "../../utils/luauStatementError";
 import {
-  defineReadingBoundary,
+  danglingDots,
   defineStatementLast,
   defineStatementThrough,
   isDefineStatementStart,
   readsDefineStatement,
 } from "../../utils/defineStatement";
+import { nextLuauToken } from "../../typecheck/readLuauAst";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -176,17 +177,29 @@ function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = fal
   let errors: LuauStatementError[];
   for (;;) {
     const reading = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
-    const through = defineStatementThrough(last, reading.to, read, lineOf);
+    const through = defineStatementThrough(last, reading.to, lineOf);
     if (through === last) {
       errors = reading.errors;
       break;
     }
     last = through;
   }
-  // Past the start of a next line the validator reports (`there.`), what
-  // the reading finds is that line's report (`defineReadingBoundary`).
-  const boundary = defineReadingBoundary(last, read, lineOf);
-  if (boundary !== undefined) errors = errors.filter((error) => error.from <= boundary);
+  // A `.` no name follows has its own error reported by the validator, in a
+  // define of any structure (`danglingDots`): Luau's `Expected identifier,
+  // got …` at the token after it is left to that report, and the
+  // statement's other errors are the reading's.
+  const dotErrorsAt = new Set<number>();
+  const dots = danglingDots(start, last);
+  if (dots.length > 0) {
+    let root = start;
+    while (root.parent) root = root.parent;
+    const documentText = ctx.documentText?.() ?? ctx.read(0, root.to);
+    for (const dot of dots) {
+      const after = nextLuauToken(dot.to, documentText);
+      if (after) dotErrorsAt.add(after.from);
+    }
+  }
+  errors = errors.filter((error) => !(dotErrorsAt.has(error.from) && error.message.startsWith("Expected identifier, got ")));
   for (const error of errors) {
     ctx.diagnostics?.push({
       message: error.message,

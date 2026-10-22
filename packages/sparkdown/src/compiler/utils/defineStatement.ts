@@ -1,5 +1,4 @@
 import type { SyntaxNode } from "@lezer/common";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../lower/utils/findOwnDeclarationName";
 import { isLineContinuation } from "../lower/utils/significantLeaf";
 import { followsDanglingDot, followsMissingValue, TRIVIA_BEFORE_STATEMENT } from "../lower/utils/statementBefore";
@@ -43,13 +42,10 @@ export function isDefineStatementStart(child: SyntaxNode, lineOf: (pos: number) 
  * when the line finishes what the line before it left open (a value after
  * a line-ending `=` or operator, a name after a line-ending `.`), which
  * belongs to the reading of that line's statement, or to the tree checks
- * when a member left it open; nor when the start is a `.` no name follows
- * or holds one (`there.`), which is the validator's to report
- * (`LuauDanglingAccessor`), whether or not the define's structure lets the
- * reading run.
+ * when a member left it open.
  */
 export function readsDefineStatement(start: SyntaxNode, read: (from: number, to: number) => string): boolean {
-  return !finishesLineBefore(start, read) && !holdsDanglingDot(start);
+  return !finishesLineBefore(start, read);
 }
 
 /** Whether a line's first node finishes what the line before it left open. */
@@ -57,36 +53,23 @@ function finishesLineBefore(start: SyntaxNode, read: (from: number, to: number) 
   return followsDanglingDot(start, read) || followsMissingValue(start, read);
 }
 
-/** Whether a statement's start is a `.` no name follows, or holds one. */
-function holdsDanglingDot(start: SyntaxNode): boolean {
-  return start.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", start) !== undefined;
-}
-
 /**
- * Whether the reading of the statement before a line reads that line with
- * it: a line that begins a statement, unless its start is the validator's
- * (`holdsDanglingDot`) and it finishes nothing the line before left open.
+ * The `.` no name follows in the nodes from `start` to `last`
+ * (`LuauDanglingAccessor`). Each one's own error, Luau's `Expected
+ * identifier, got …` at the token after it, is the validator's to report,
+ * in a define of any structure, and the reading leaves it that one error
+ * (`loweredDefineStatementOf` answers null for the `.`).
  */
-function readWithStatementBefore(next: SyntaxNode, read: (from: number, to: number) => string, lineOf: (pos: number) => number): boolean {
-  return isDefineStatementStart(next, lineOf) && (finishesLineBefore(next, read) || !holdsDanglingDot(next));
-}
-
-/**
- * Where the text the reading of a statement owns ends, given its last
- * node: at the next line when that line is the validator's
- * (`readWithStatementBefore` refuses it), so the reading leaves the errors
- * it finds there and past it to the validator's report of that line; or
- * undefined, when the reading owns every error it finds.
- */
-export function defineReadingBoundary(
-  last: SyntaxNode,
-  read: (from: number, to: number) => string,
-  lineOf: (pos: number) => number,
-): number | undefined {
-  let next = last.nextSibling;
-  while (next && TRIVIA_BEFORE_STATEMENT.has(next.name)) next = next.nextSibling;
-  if (!next || !isDefineStatementStart(next, lineOf) || readWithStatementBefore(next, read, lineOf)) return undefined;
-  return next.from;
+export function danglingDots(start: SyntaxNode, last: SyntaxNode): SyntaxNode[] {
+  const dots: SyntaxNode[] = [];
+  for (let node: SyntaxNode | null = start; node; node = node.nextSibling) {
+    const cursor = node.cursor();
+    do {
+      if (cursor.name === "LuauDanglingAccessor") dots.push(cursor.node);
+    } while (cursor.next() && cursor.from < node.to);
+    if (node === last) break;
+  }
+  return dots;
 }
 
 /**
@@ -111,20 +94,14 @@ export function defineStatementLast(start: SyntaxNode, whole = false): SyntaxNod
  * The last node of the statement lines Luau's reading of a statement reads
  * on into, before `to`, where that reading ends: each next line that begins
  * a statement (`isDefineStatementStart`), whole, with the lines that
- * continue it. A line a member begins is the member's and ends them, and
- * so does a line the validator reports (`readWithStatementBefore`). `last`
+ * continue it. A line a member begins is the member's and ends them. `last`
  * when the reading ends on the statement's own lines.
  */
-export function defineStatementThrough(
-  last: SyntaxNode,
-  to: number,
-  read: (from: number, to: number) => string,
-  lineOf: (pos: number) => number,
-): SyntaxNode {
+export function defineStatementThrough(last: SyntaxNode, to: number, lineOf: (pos: number) => number): SyntaxNode {
   for (;;) {
     let next = last.nextSibling;
     while (next && TRIVIA_BEFORE_STATEMENT.has(next.name)) next = next.nextSibling;
-    if (!next || next.from >= to || !readWithStatementBefore(next, read, lineOf)) return last;
+    if (!next || next.from >= to || !isDefineStatementStart(next, lineOf)) return last;
     last = defineStatementLast(next, isDefineMethodCall(next, lineOf));
   }
 }
@@ -139,11 +116,15 @@ export function defineStatementThrough(
  * (`defineStatementThrough`); its own start answers for it, since the line
  * is read either way. Null for a node of a
  * member, of the define's header, of a line that another member begins or
- * that continues one, and outside a define's content.
+ * that continues one, of a `.` no name follows (`danglingDots`), whose own
+ * error the validator reports, and outside a define's content.
  */
 export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
   let top = node;
-  while (top?.parent && top.parent.name !== DEFINE_CONTENT) top = top.parent;
+  while (top?.parent && top.parent.name !== DEFINE_CONTENT) {
+    if (top.name === "LuauDanglingAccessor") return null;
+    top = top.parent;
+  }
   if (!top?.parent) return null;
   let start = lineFirst(top);
   // A line that continues the line before, or finishes what it left open,

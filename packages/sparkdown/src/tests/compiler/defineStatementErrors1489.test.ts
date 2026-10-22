@@ -123,6 +123,14 @@ const BODIES: string[] = [
   "  t.f(1); t.a, t.b\n  f(1)\n  .g(2 +)\n",
   "  t.a, t.b\n  there.\n",
   "  t.a = 1 +\n  there.\n",
+  // A `.` no name follows: its own error is the validator's, in a define of
+  // any structure, and the statement's other errors the reading's (round 3,
+  // ow 1 to 3; I-1512).
+  "  there.\n",
+  "  y = 1; there.\n",
+  "  t.f(1)\n  there.\n",
+  "  t.a = f(x., 1 2 3)\n",
+  "  t.a, t.b\n  print(1); there.\n",
   // A statement after a property on its line (undirected 3).
   "  y = 1; t.f(2 +)\n",
   "  y = 1; t.f(1 2 3)\n",
@@ -148,21 +156,19 @@ describe("a define body statement reports every Luau error once (I-1489)", () =>
     });
   }
 
-  // A line that begins with a `.` no name follows is the validator's
-  // (`LuauDanglingAccessor`), as on main, and a reading that reads on into
-  // it leaves it to that report: Luau's error at the token after the `.` is
-  // reported once. Luau's `Incomplete statement` before it is not reported
-  // there (I-1512).
-  for (const body of ["  there.\n", "  y = 1; there.\n", "  t.f(1)\n  there.\n", "  t.a, t.b\n  there.\n"]) {
-    test(`a dangling line once: ${JSON.stringify(body)}`, () => {
-      const text = define(body);
-      const reported = errors(text);
-      expect(new Set(reported).size, reported.join("\n")).toBe(reported.length);
-      const dot = official(body).find((e) => e.includes("Expected identifier, got 'end'"));
-      expect(reported).toContain(dot);
-      expectIncrementalEqualsCold(text);
-    });
-  }
+  // A statement after a property, the line before it a `.` no name follows:
+  // the call's error is the reading's alone (round 3, ow 3). The `.` with a
+  // name on the next line is Sparkdown's own report, and the property's
+  // value is the property reader's (I-1500), so only these are compared.
+  test("a call after a property after a dangling line reports its error once", () => {
+    const body = "  t.a, t.b\n  there.\n  y = 1; t.f(2 +)\n";
+    const text = define(body);
+    const reported = errors(text);
+    for (const error of official(body).filter((e) => !e.startsWith("3:4-"))) {
+      expect(reported.filter((e) => e === error), error).toHaveLength(1);
+    }
+    expectIncrementalEqualsCold(text);
+  });
 
   test("a statement Luau reads reports nothing", () => {
     for (const body of ["  t.f(1)\n", "  print(1)\n  y = 2\n", "  t.a = 1\n"]) {
