@@ -114,6 +114,21 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
     expect(run(lines("function f(x)", alternator, after, "end", "Value {f(7)}."))).toEqual({ output: `${output}\n`, errors: [] });
   });
 
+  // Round 3, comment 6350353372.
+  test.each([
+    ["as a value", ["  return cycle |", "    @native function g() return 3 end", "    g()", "  end"]],
+    ["as a statement", ["  cycle |", "    @native function g() return 3 end", "    print(g())", "  end", '  return ""']],
+  ])("an attributed named function in an arm is declared, %s", (_name, body) => {
+    expect(run(lines("function f()", ...body, "end", "Value {f()}."))).toEqual({ output: "Value 3.\n", errors: [] });
+  });
+
+  test.each([
+    ["on the until line", ["  return cycle | local n = 0 repeat n = n + 1 until n == 2 n end"]],
+    ["on the next line", ["  return cycle | local n = 0 repeat n = n + 1 until n == 2", "    n end"]],
+  ])("an arm's last value after a repeat loop, %s, is the arm's value", (_name, body) => {
+    expect(run(lines("function f()", ...body, "end", "Value {f()}."))).toEqual({ output: "Value 2.\n", errors: [] });
+  });
+
   test("an arm that is a function with no name gives that function", () => {
     expect(run(lines("function f()", "  return cycle | function() return 3 end end", "end", "local g = f()", "Value {type(g)} {g()}."))).toEqual({
       output: "Value function 3.\n",
@@ -524,9 +539,14 @@ describe("an exit in an arm of an alternator used as a value", () => {
     });
   });
 
-  test("the sole value of a local leaves its loop from an arm, with nothing waiting", () => {
-    expect(run(lines("function f(x)", "  for i = 1, 3 do", "    local v = cycle | break end", "  end", "  return x", "end", "Value {f(7)}."))).toEqual({
-      output: "Value 7.\n",
+  // Round 3, comment 6350353372: the loop runs once, so the exit ran.
+  test.each([
+    ["local v = cycle | break end"],
+    ["local v = (cycle | break end)"],
+    ["local a, b = cycle | break end"],
+  ])("the sole value of a local leaves its loop from an arm, with nothing waiting: %s", (declaration) => {
+    expect(run(lines("function f()", "  local n = 0", "  for i = 1, 3 do", "    n = n + 1", `    ${declaration}`, "  end", "  return n", "end", "Value {f()}."))).toEqual({
+      output: "Value 1.\n",
       errors: [],
     });
   });

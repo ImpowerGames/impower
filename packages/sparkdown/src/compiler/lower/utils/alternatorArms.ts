@@ -20,7 +20,7 @@ import { Tag as RuntimeTag } from "../../../runtime/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { asOneValue, containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
+import { asOneValue, containerValueNodes, lowerExpression, lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lower } from "../lower";
 import { LUAU_STATEMENT_NODES, lowerLuauStatementNode } from "../lowerers/lowerLuauStatement";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
@@ -37,6 +37,8 @@ import { enclosingAlternator, isLuauNodeName, LUAU_STATEMENTS } from "../../type
 import {
   AstExprCall,
   AstExprFunction,
+  AstExprGroup,
+  AstStatError,
   AstExprSparkdownConditionalAlternator,
   AstExprSparkdownSequentialAlternator,
   AstStatBreak,
@@ -331,7 +333,14 @@ function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext, mode: Val
   let value: Expression | null = null;
   for (const [k, part] of parts.entries()) {
     if (part.statement) {
-      const node = part.nodes[0]!;
+      // A function's attributes before it are part of it; the function
+      // statement lowers from its own node (`armParts`).
+      const node = part.nodes[part.nodes.length - 1]!;
+      const until = parts[k + 1];
+      if (until && k + 1 === parts.length - 1 && until.statement && isExplicitRuleName(until.nodes[0]!.name, "LuauUntilCondition")) {
+        const trailing = untilTrailingValue(node, until.nodes[0]!, ctx);
+        if (trailing) value = asOneValue(trailing);
+      }
       const block = LUAU_STATEMENT_NODES.has(node.name)
         ? lowerLuauStatementNode(node, ctx, false)
         : lower(node as unknown as SparkdownSyntaxNodeRef, ctx);
@@ -413,11 +422,30 @@ function reportArmExits(root: AstNode, ctx: LowerContext): void {
  */
 export function armRunAlternator(node: AstNode): AstExprSparkdownSequentialAlternator | AstExprSparkdownConditionalAlternator | null {
   const stat = node instanceof AstStatSparkdownExplicit ? node.statement : node;
-  const value =
+  let value =
     stat instanceof AstStatExpr ? stat.expr
-    : stat instanceof AstStatLocal && stat.vars.length === 1 && stat.values.length === 1 ? stat.values[0]
+    : stat instanceof AstStatLocal && stat.values.length === 1 ? stat.values[0]
     : undefined;
+  // Parentheses around it hold nothing on the stack either.
+  while (value instanceof AstExprGroup) value = value.expr;
   return value instanceof AstExprSparkdownSequentialAlternator || value instanceof AstExprSparkdownConditionalAlternator ? value : null;
+}
+
+/**
+ * The value a `repeat` loop's `until` line ends with, after its condition,
+ * as the last of an arm (`| local n = 0 repeat n = n + 1 until n == 2 n`):
+ * the grammar's `until` line runs to its line's end, and Luau reads the
+ * value after the condition as a statement of its own, which an arm gives
+ * as its value. Null where the line holds no such value.
+ */
+function untilTrailingValue(repeatNode: SyntaxNode, untilNode: SyntaxNode, ctx: LowerContext): Expression | null {
+  if (!isExplicitRuleName(repeatNode.name, "LuauRepeatLoop")) return null;
+  const unit = readLuauBlock([repeatNode, untilNode], documentText(ctx));
+  const last = unit.statements[unit.statements.length - 1]?.statement;
+  if (!(last instanceof AstStatError) || last.statements.length > 0 || last.expressions.length !== 1) return null;
+  let top = untilNode;
+  while (top.parent) top = top.parent;
+  return lowerExpression(last.expressions[0]!, { top, errors: unit.errors }, ctx);
 }
 
 /** Whether a node of an arm is a function's attribute (`@native`). */
