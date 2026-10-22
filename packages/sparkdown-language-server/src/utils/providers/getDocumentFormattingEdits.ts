@@ -37,6 +37,40 @@ function isWordChar(c: string): boolean {
   return /[a-zA-Z0-9_]/.test(c);
 }
 
+// Character pairs that begin a longer token when nothing separates them:
+// `- -x` would become the comment `--x`, `t[ [[s]] ]` a long string.
+const JOINING_PAIRS = new Set([
+  "--",
+  "..",
+  "==",
+  "~=",
+  "<=",
+  ">=",
+  "//",
+  "::",
+  "->",
+  "[[",
+  "[=",
+]);
+
+// Whether removing all the whitespace between `prevChar` and `nextChar`
+// would join the tokens either side into one (`5 print` → `5print`,
+// `match match` → `matchmatch`), which changes what the script means.
+// A word after a closing `)` or `]` also keeps its space (`]] print(1)`,
+// a statement after a block comment), so a second statement on the line
+// is not glued to the first.
+function mustKeepSpaceBetween(prevChar: string, nextChar: string): boolean {
+  if (
+    isWordChar(nextChar) &&
+    (isWordChar(prevChar) || prevChar === ")" || prevChar === "]")
+  ) {
+    return true;
+  }
+  // `5 .x` → `5.x` reads the `.` as the number's decimal point.
+  if (/[0-9]/.test(prevChar) && nextChar === ".") return true;
+  return JOINING_PAIRS.has(prevChar + nextChar);
+}
+
 function shouldInsertSpaceBetween(
   prevChar: string,
   nextChar: string,
@@ -1093,9 +1127,13 @@ export const getFormatting = (
       } else {
         const nextChar = document.read(cur.to, cur.to + 1);
         const prevChar = document.read(cur.from - 1, cur.from);
-        expectedText = shouldInsertSpaceBetween(prevChar, nextChar)
-          ? " "
-          : "";
+        // Collapsing existing spaces keeps one where the tokens either
+        // side would otherwise join.
+        expectedText =
+          shouldInsertSpaceBetween(prevChar, nextChar) ||
+          (cur.from !== cur.to && mustKeepSpaceBetween(prevChar, nextChar))
+            ? " "
+            : "";
       }
       // Skip the no-op zero-width insert (avoid creating a useless
       // empty-text edit).
@@ -1130,7 +1168,16 @@ export const getFormatting = (
       }
     } else if (cur.value.type === "extra") {
       const text = document.getText(range);
-      const expectedText = "";
+      // Extra whitespace goes, except one space where its removal would
+      // join the tokens either side into one.
+      const expectedText =
+        cur.from !== cur.to &&
+        mustKeepSpaceBetween(
+          document.read(cur.from - 1, cur.from),
+          document.read(cur.to, cur.to + 1),
+        )
+          ? " "
+          : "";
       if (text !== expectedText) {
         pushIfInRange({
           lineNumber: range.start.line + 1,
