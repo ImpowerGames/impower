@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import type { SyntaxNode } from "@lezer/common";
 import { readFileSync } from "node:fs";
 import { parseSource } from "./grammarSnapshot";
-import { luauStatementError } from "../../compiler/utils/luauStatementError";
+import { luauStatementErrors } from "../../compiler/utils/luauStatementError";
 
 function find(node: SyntaxNode, from: number): SyntaxNode | undefined {
   if (node.name === "LuauAccessPath" && node.from <= from && node.to > from) return node;
@@ -23,9 +23,9 @@ test.each([
   const from = source.indexOf(candidate);
   const node = find(parseSource(source).topNode, from);
   expect(node, source).toBeDefined();
-  const found = luauStatementError(node!, from, (a, b) => source.slice(a, b), node!.to);
-  if (message === null) expect(found).toBeNull();
-  else expect(found).toEqual({ message, from: source.indexOf(at, from), to: source.indexOf(at, from) + at.length });
+  const { errors } = luauStatementErrors(node!, from, (a, b) => source.slice(a, b), node!.to);
+  if (message === null) expect(errors).toEqual([]);
+  else expect(errors[0]).toEqual({ message, from: source.indexOf(at, from), to: source.indexOf(at, from) + at.length });
 });
 
 test("statement diagnostics use the converter without a ported parser dependency", () => {
@@ -38,11 +38,11 @@ test("a candidate after Unicode keeps its document UTF-16 offsets", () => {
   const from = source.indexOf("Hello");
   const node = find(parseSource(source).topNode, from)!;
   expect(node).toBeDefined();
-  expect(luauStatementError(node, from, (a, b) => source.slice(a, b), node.to)).toEqual({
+  expect(luauStatementErrors(node, from, (a, b) => source.slice(a, b), node.to).errors).toEqual([{
     message: "Incomplete statement: expected assignment or a function call",
     from,
     to: from + "Hello".length,
-  });
+  }]);
 });
 
 test("an error in the next statement is not owned by the candidate", () => {
@@ -50,5 +50,5 @@ test("an error in the next statement is not owned by the candidate", () => {
   const from = source.indexOf("print(1)");
   const node = find(parseSource(source).topNode, from)!;
   expect(node).toBeDefined();
-  expect(luauStatementError(node, from, (a, b) => source.slice(a, b), source.indexOf("\n", from))).toBeNull();
+  expect(luauStatementErrors(node, from, (a, b) => source.slice(a, b), source.indexOf("\n", from)).errors).toEqual([]);
 });

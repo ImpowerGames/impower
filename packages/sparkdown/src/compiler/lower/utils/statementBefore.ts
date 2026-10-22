@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import { lastSignificantLeaf } from "./lineContinuation";
+import { lastSignificantLeaf } from "./significantLeaf";
 
 // What the statement before a statement leaves for it to finish: a value
 // after a line-ending `=` or operator, or a name after a line-ending `.`.
