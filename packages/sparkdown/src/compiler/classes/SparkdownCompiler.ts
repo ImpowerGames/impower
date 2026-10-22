@@ -6014,12 +6014,13 @@ export class SparkdownCompiler {
           const at = offsetOf(d.range.start);
           return at >= spanFrom && at <= spanTo;
         });
-        // An error the reading finds is already reported when a report in
-        // the span is at its token (an overlapping range, or the opener a
-        // missing closer's error names), or, where no report is at its
-        // token, when a report at no error the reading finds has its words
-        // (Sparkdown's own words may leave out Luau's `, got ...`), one
-        // error to such a report. A report of the whole statement (a
+        // Each report in the span is the report of at most one error the
+        // reading finds, and each error has at most one: first the error
+        // it copies (its start and words), then one at its token (the
+        // same start, else an overlapping range or the opener a missing
+        // closer's error names), and, for a report at no error the
+        // reading finds, one in its words (Sparkdown's own words may leave
+        // out Luau's `, got ...`). A report of the whole statement (a
         // compile that stopped at it) is at no one token. Only the errors
         // no report accounts for are left to report (I-1452).
         const spanOf = (range: Range) => {
@@ -6035,22 +6036,30 @@ export class SparkdownCompiler {
         // first token (its line's start, or the token itself, leaving the
         // indent out, as `statementSource` does) and runs to its end.
         const firstToken = from + (/^\s*/.exec(doc.read(from, last))?.[0].length ?? 0);
-        const tokenReports = reports.filter((d) => {
+        const ofStatement = (d: SparkDiagnostic) => {
           const report = spanOf(d.range);
-          return !(report.start <= firstToken && report.end >= last);
-        });
-        const atToken = (e: (typeof found)[number], d: SparkDiagnostic) =>
+          return report.start <= firstToken && report.end >= last;
+        };
+        type Found = (typeof found)[number];
+        const sameStart = (e: Found, d: SparkDiagnostic) => offsetOf(e.start) === offsetOf(d.range.start);
+        const atToken = (e: Found, d: SparkDiagnostic) =>
           overlaps(d.range, e) || (e.opener !== undefined && overlaps(d.range, e.opener));
-        const accounted = new Set(found.filter((e) => tokenReports.some((d) => atToken(e, d))));
-        const sameWords = (e: (typeof found)[number], d: SparkDiagnostic) => {
+        const sameWords = (e: Found, d: SparkDiagnostic) => {
           const words = wordsOf(d);
           return e.message === words || (!/, got /.test(words) && e.message.startsWith(`${words}, got `));
         };
-        for (const d of reports) {
-          if (found.some((e) => atToken(e, d))) continue;
-          const error = found.find((e) => !accounted.has(e) && sameWords(e, d));
-          if (error) accounted.add(error);
-        }
+        const accounted = new Set<Found>();
+        let left = reports;
+        const pass = (pick: (d: SparkDiagnostic, open: Found[]) => Found | undefined) => {
+          left = left.filter((d) => {
+            const error = pick(d, found.filter((e) => !accounted.has(e)));
+            if (error) accounted.add(error);
+            return !error;
+          });
+        };
+        pass((d, open) => open.find((e) => sameStart(e, d) && e.message === wordsOf(d)));
+        pass((d, open) => (ofStatement(d) ? undefined : (open.find((e) => sameStart(e, d)) ?? open.find((e) => atToken(e, d)))));
+        pass((d, open) => (found.some((e) => atToken(e, d)) ? undefined : open.find((e) => sameWords(e, d))));
         for (const error of reported) {
           // A backtick string's own error has no other reporter (I-1435).
           if (accounted.has(error) && !error.ofString) continue;

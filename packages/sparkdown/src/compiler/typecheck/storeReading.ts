@@ -24,6 +24,10 @@ export function storeReadingErrors(
   const { story, errors, lineErrors, readTo } = readDeclarationLine(store, documentText);
   const own = errors.filter((error) => {
     const from = luauPositionOffset(error.location.begin, documentText);
+    // A double-quoted string that holds an interpolation is Sparkdown's
+    // own: Luau reads it as one string, the interpolation's text and its
+    // backtick strings' escapes included, which report their own errors.
+    if (holdsDoubleQuotedInterpolation(root, from, luauPositionOffset(error.location.end, documentText))) return false;
     // The story it reads on through is the declaration's.
     if (story && from >= store.to) return true;
     // The token the error is at, or, at the end of the declaration (a value
@@ -33,6 +37,21 @@ export function storeReadingErrors(
     return from >= store.from && owner?.from === store.from && owner.to === store.to;
   });
   return { errors: own, story, lineErrors, readTo };
+}
+
+/** Whether a double-quoted string's interpolation, Sparkdown's own, lies inside a range of the document. */
+function holdsDoubleQuotedInterpolation(root: SyntaxNode, from: number, to: number): boolean {
+  let found = false;
+  root.toTree().iterate({
+    from,
+    to,
+    enter: (ref) => {
+      if (found) return false;
+      if (ref.from >= from && ref.to <= to && ref.name.startsWith("LuauDoubleQuotedStringInterpolation")) found = true;
+      return !found;
+    },
+  });
+  return found;
 }
 
 /**

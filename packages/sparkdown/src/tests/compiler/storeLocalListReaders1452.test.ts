@@ -119,6 +119,14 @@ describe("a declaration with its own errors whose line runs on into story", () =
   }
 });
 
+// Two errors at one token, or one at another's opener, are two errors, and
+// a report of one is no report of the other (round 4).
+describe("errors that share a token", () => {
+  for (const line of ["store a = {1 ? 2}, {3 ? 4} 5", "store a = {1 ? 2}, {3 4}"]) {
+    pinLine(line, line.replace(/^store/, "local"));
+  }
+});
+
 // An error of another kind on a declaration's line, a name declared twice,
 // reports something else and leaves the declaration's own (round 1).
 describe("a declaration whose line holds another kind of error", () => {
