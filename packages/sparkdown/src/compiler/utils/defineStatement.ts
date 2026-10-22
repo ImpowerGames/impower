@@ -126,7 +126,9 @@ export function defineStatementThrough(
  * is read either way. Null for a node of a
  * member, of the define's header, of a line that another member begins or
  * that continues one, of a `.` no name follows (`danglingDots`), whose own
- * error the validator reports, and outside a define's content.
+ * error the validator reports, of the define's header line, and outside a
+ * define's content. A define's structure errors change nothing: its lowerer
+ * reads the body of every define (`lowerLuauDefine`).
  */
 export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
   let top = node;
@@ -135,6 +137,9 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
     top = top.parent;
   }
   if (!top?.parent) return null;
+  // What stands on the define's header line is the header's.
+  const define = top.parent.parent;
+  if (define && !read(define.from, top.from).includes("\n")) return null;
   let start = lineFirst(top);
   // A line that continues the line before, or finishes what it left open,
   // is read with that line's statement.

@@ -174,6 +174,41 @@ describe("a define body statement reports every Luau error once (I-1489)", () =>
     expectIncrementalEqualsCold(text);
   });
 
+  // A define with a structure error still reads its body's statements: the
+  // header's error is reported once, and the body lines report the official
+  // parser's errors for the body, as in a well-formed define, the missing
+  // operand main's validator reported included.
+  const BROKEN_BODY = "  t.f(1 +)\n  print(1 2 3)\n  t.a = f(x., 1)\n";
+  const BROKEN: [form: string, text: string, header: string][] = [
+    ["no name", `define\n${BROKEN_BODY}end\n`, "This define has no name"],
+    ["an unreadable name", `define 2hero with\n${BROKEN_BODY}end\n`, "`2` cannot be a define name"],
+    ["an unreadable header", `define X with )\n${BROKEN_BODY}end\n`, "This define cannot be read past"],
+    ["a missing end", `define X with\n${BROKEN_BODY}`, "Define is missing its closing `end` keyword"],
+    ["a body without with", `define X\n${BROKEN_BODY}end\n`, "This define has a body, so its header line needs `with`"],
+  ];
+  for (const [form, text, header] of BROKEN) {
+    test(`a define with ${form} reads its body`, () => {
+      const reported = errors(text);
+      expect(reported.filter((e) => e.includes(header)), reported.join("\n")).toHaveLength(1);
+      expect(reported.filter((e) => !e.startsWith("0:") && !e.includes(header))).toEqual(official(BROKEN_BODY));
+      expectIncrementalEqualsCold(text);
+    });
+  }
+
+  // Text after `with` on the header line is the header's: its structure
+  // error and the validator's missing operand there each report once, as on
+  // main, and the body below is read.
+  test("a define with a statement on its header line reads its body", () => {
+    const text = `define X with t.f(1 +)\n${BROKEN_BODY}end\n`;
+    const reported = errors(text);
+    expect(reported.filter((e) => e.includes("after `with` in the define header")), reported.join("\n")).toHaveLength(1);
+    expect(reported.filter((e) => e.startsWith("0:") && e.includes("got ')'"))).toEqual([
+      "0:21-0:22 Expected identifier when parsing expression, got ')'",
+    ]);
+    expect(reported.filter((e) => !e.startsWith("0:"))).toEqual(official(BROKEN_BODY));
+    expectIncrementalEqualsCold(text);
+  });
+
   test("a statement Luau reads reports nothing", () => {
     for (const body of ["  t.f(1)\n", "  print(1)\n  y = 2\n", "  t.a = 1\n"]) {
       expect(official(body), body).toEqual([]);

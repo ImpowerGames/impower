@@ -33,7 +33,7 @@ import {
   defineCellName,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/DefineCellBinding";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { CompiledBlock, InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import {
@@ -169,7 +169,12 @@ const DEFINE_MEMBER_NAMES = nodeNameSet([
 // `1 + 2` is the assignment's values) is read with it whole, as Luau reads
 // it, so the reading reports every statement on that line too
 // (`defineStatementThrough`). Returns the last node read.
-function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = false): SyntaxNode {
+function reportDefineStatement(
+  start: SyntaxNode,
+  ctx: LowerContext,
+  structureErrors: InkDiagnostic[],
+  whole = false,
+): SyntaxNode {
   let last = defineStatementLast(start, whole);
   const read = (from: number, to: number) => ctx.read(from, to);
   if (!readsDefineStatement(start, read)) return last;
@@ -188,7 +193,9 @@ function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = fal
   // define of any structure (`danglingDots`): Luau's `Expected identifier,
   // got …` at the token after it is left to that report, and the
   // statement's other errors are the reading's.
+  // A dot with no token after it is followed by the end of the input.
   const dotErrorsAt = new Set<number>();
+  let dotAtEnd = false;
   const dots = danglingDots(start, last);
   if (dots.length > 0) {
     let root = start;
@@ -197,25 +204,43 @@ function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = fal
     for (const dot of dots) {
       const after = nextLuauToken(dot.to, documentText);
       if (after) dotErrorsAt.add(after.from);
+      else dotAtEnd = true;
     }
   }
-  // value-level: the message of an error Luau's reading returned.
-  errors = errors.filter((error) => !(dotErrorsAt.has(error.from) && error.message.startsWith("Expected identifier, got ")));
+  const dotError = (error: LuauStatementError) =>
+    // value-level: the message of an error Luau's reading returned.
+    error.message.startsWith("Expected identifier, got ") &&
+    (dotErrorsAt.has(error.from) || (dotAtEnd && error.message === "Expected identifier, got <eof>"));
   for (const error of errors) {
-    ctx.diagnostics?.push({
-      message: error.message,
-      severity: ErrorType.Error,
-      source: {
-        fileName: null,
-        filePath: ctx.filePath ?? null,
-        startLineNumber: ctx.lineNumber(error.from) + 1,
-        endLineNumber: ctx.lineNumber(error.to) + 1,
-        startCharacterNumber: ctx.characterNumber(error.from) + 1,
-        endCharacterNumber: ctx.characterNumber(error.to) + 1,
-      },
-    });
+    if (dotError(error)) continue;
+    const source = {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(error.from) + 1,
+      endLineNumber: ctx.lineNumber(error.to) + 1,
+      startCharacterNumber: ctx.characterNumber(error.from) + 1,
+      endCharacterNumber: ctx.characterNumber(error.to) + 1,
+    };
+    // A token the define's structure check reports, in its own words (a
+    // `with` on the line below a header without one), has that one report.
+    if (structureErrors.some((reported) => sameRange(reported.source, source))) continue;
+    ctx.diagnostics?.push({ message: error.message, severity: ErrorType.Error, source });
   }
   return last;
+}
+
+/** Whether two diagnostic sources span the same range. */
+function sameRange(
+  a: { startLineNumber: number; endLineNumber: number; startCharacterNumber: number; endCharacterNumber: number } | null | undefined,
+  b: { startLineNumber: number; endLineNumber: number; startCharacterNumber: number; endCharacterNumber: number },
+): boolean {
+  return (
+    !!a &&
+    a.startLineNumber === b.startLineNumber &&
+    a.endLineNumber === b.endLineNumber &&
+    a.startCharacterNumber === b.startCharacterNumber &&
+    a.endCharacterNumber === b.endCharacterNumber
+  );
 }
 
 // Coerce a property's value to a compile-time literal for the engine struct
@@ -424,12 +449,14 @@ export function lowerLuauDefine(
   const structureErrors = validateDefineStructure(nodeRef.node, ctx);
   ctx.diagnostics?.push(...structureErrors);
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
-  if (!nameNode) return {};
-  const nameIdentifier = identifierAt(nameNode, ctx);
 
-  const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
-  const parentIdentifier = parentNode ? identifierAt(parentNode, ctx) : null;
-
+  // The body's statements are read in every define, whatever its structure
+  // errors (no name, an unreadable header, a missing `end`, a body without
+  // `with`), since the validator leaves their errors to this reading
+  // (`loweredDefineStatementOf`). What stands on the header's own line is
+  // the header's, which its structure check reports.
+  const headerLine = ctx.lineNumber(nodeRef.node.from);
+  const inBody = (node: SyntaxNode) => ctx.lineNumber(node.from) !== headerLine;
   const content = findChildByName(nodeRef.node, "LuauDefine_content");
   const properties: DefineProperty[] = [];
   const methodNodes: { name: string; node: SyntaxNode }[] = [];
@@ -437,7 +464,8 @@ export function lowerLuauDefine(
     let child = content.firstChild;
     while (child) {
       if (child.name === "LuauPropertyDefinition") {
-        const prop = readPropertyDefinition(child, ctx);
+        // A define with no name lowers no member.
+        const prop = nameNode ? readPropertyDefinition(child, ctx) : null;
         if (prop) {
           properties.push(prop);
           const end = rangeOf(prop.value.expr.location, ctx).to;
@@ -446,7 +474,7 @@ export function lowerLuauDefine(
       } else if (isDefineMethodCall(child, (pos) => ctx.lineNumber(pos))) {
         // A line the grammar opened as a method, which took neither a line
         // below it nor an `end`: a statement of the body (`print("x")`).
-        if (structureErrors.length === 0) child = reportDefineStatement(child, ctx, true);
+        if (inBody(child)) child = reportDefineStatement(child, ctx, structureErrors, true);
       } else if (child.name === "LuauMethodDefinition") {
         const methodNameNode = getDescendent("LuauFunctionName", child);
         if (methodNameNode) {
@@ -466,18 +494,23 @@ export function lowerLuauDefine(
             name: ctx.read(fnNameNode.from, fnNameNode.to),
             node: child,
           });
-        } else if (structureErrors.length === 0) {
-          child = reportDefineStatement(child, ctx);
+        } else if (inBody(child)) {
+          child = reportDefineStatement(child, ctx, structureErrors);
         }
-      } else if (structureErrors.length === 0 && isDefineStatementStart(child, (pos) => ctx.lineNumber(pos))) {
+      } else if (inBody(child) && isDefineStatementStart(child, (pos) => ctx.lineNumber(pos))) {
         // An expression, a reassignment (`t.a = 1`), or a token no rule of
         // the body read (`!`, `a = 1 !`): the validator leaves its errors to
         // Luau's reading.
-        child = reportDefineStatement(child, ctx);
+        child = reportDefineStatement(child, ctx, structureErrors);
       }
       child = child.nextSibling;
     }
   }
+  if (!nameNode) return {};
+  const nameIdentifier = identifierAt(nameNode, ctx);
+
+  const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
+  const parentIdentifier = parentNode ? identifierAt(parentNode, ctx) : null;
 
   // ----- The runtime table: __def({ props, methods, modifier lists }, name, parent)
   const entries: ObjectExpressionEntry[] = [];
