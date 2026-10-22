@@ -998,41 +998,62 @@ class FormPlacer {
 
   // The body of a placed owner that a saved level names: by aligning the
   // owner's saved part listing with the owner's parts (section 2), or for a
-  // format 1 level, by its block when the owner is the statement it was.
-  protected bodyOf(owner: StatementPlacement, level: SavedLevel): SequenceRow | undefined {
+  // format 1 level, by its block when the owner is the statement it was;
+  // and whether the part that heads it was placed by its fingerprint.
+  protected bodyOf(
+    owner: StatementPlacement,
+    level: SavedLevel,
+  ): { value: SequenceRow | undefined; exact: boolean } {
     const chunk = owner.sequence.arrays.chunks[owner.entry];
     if (!chunk) {
-      return undefined;
+      return { value: undefined, exact: false };
     }
     if (level.p !== undefined && level.k !== undefined && level.i !== undefined) {
-      const saved = this._parts[level.p];
-      const now = chunkPartsOf(chunk)?.[level.k];
-      if (!saved || !now) {
-        return undefined;
-      }
-      const { pairs } = alignParts(now.map((part) => partPrint(part.fingerprint)), saved.l);
-      const j = pairs.indexOf(level.i);
-      const block = j >= 0 ? now[j]!.block : -1;
-      return block >= 0 ? this.root.body(chunk, block) : undefined;
+      const { index, exact } = this.partMatch(chunk, [level.p, level.k, level.i]);
+      const block = index >= 0 ? chunkPartsOf(chunk)![level.k][index]!.block : -1;
+      return { value: block >= 0 ? this.root.body(chunk, block) : undefined, exact };
     }
     // A format 1 level names its block by index. Format 1 hashed its
     // fingerprints before format 2 dropped the spacing between tokens, so
     // its statements are placed as edited ones, and its blocks are taken as
     // they stand.
     if (level.block !== undefined && level.block < blockCount(chunk)) {
-      return this.root.body(chunk, level.block);
+      return { value: this.root.body(chunk, level.block), exact: true };
     }
-    return undefined;
+    return { value: undefined, exact: false };
+  }
+
+  /** What `match` finds at the entry `placed` names, or at another entry
+   *  of the run of statements of one fingerprint that it stands in: the
+   *  first, from `placed` and then the nearest, that places a part by its
+   *  fingerprint, or else the first that places it at all. A line of a
+   *  script other than main that declares a global and writes a member
+   *  function is two such chunks of the script's declaration sequence, the
+   *  global's first, and a save taken before I-1438 names the write alone
+   *  (`topOf`), which the alignment places on the first of the run; the
+   *  global's chunk can pair a part of its own with the saved one by its
+   *  place alone (`alignParts`), and the write's holds it. */
+  protected alongRun<T>(
+    placed: StatementPlacement,
+    match: (at: StatementPlacement) => { value: T | undefined; exact: boolean },
+  ): { at: StatementPlacement; value: T } | undefined {
+    let found: { at: StatementPlacement; value: T } | undefined;
+    for (const entry of [placed.entry, ...this.sameRun(placed)]) {
+      const at = entry === placed.entry ? placed : { ...placed, entry };
+      const { value, exact } = match(at);
+      if (value === undefined) {
+        continue;
+      }
+      if (exact) {
+        return { at, value };
+      }
+      found ??= { at, value };
+    }
+    return found;
   }
 
   /** The other entries of the run of statements of one fingerprint that
-   *  `placed` stands in, the nearest first. A line of a script other than
-   *  main that declares a global and writes a member function is two such
-   *  chunks of the script's declaration sequence, the global's first, and a
-   *  save taken before I-1438 names the write alone (`topOf`), which the
-   *  alignment places on the first of the run: the level below it and the
-   *  symbol it names are looked for along the run (`placeLevels`,
-   *  `decodeSymbol`). */
+   *  `placed` stands in, the nearest first (`alongRun`). */
   protected sameRun(placed: StatementPlacement): number[] {
     const chunks = placed.sequence.arrays.chunks;
     const own = chunks[placed.entry];
@@ -1070,19 +1091,14 @@ class FormPlacer {
       if (i === 0) {
         sequence = this.topOf(level);
       } else {
+        // The owner's body, or that of another statement of the owner's
+        // run, which then owns the level (`alongRun`).
         const owner = out[i - 1];
-        sequence = owner ? this.bodyOf(owner, level) : undefined;
-        // An owner placed in a run of statements of its fingerprint whose
-        // chunk has no such body: the nearest of the run that has it
-        // (`sameRun`), which then owns the level.
-        for (const entry of owner && !sequence ? this.sameRun(owner) : []) {
-          const other = { ...owner!, entry };
-          sequence = this.bodyOf(other, level);
-          if (sequence) {
-            out[i - 1] = other;
-            break;
-          }
+        const found = owner ? this.alongRun(owner, (at) => this.bodyOf(at, level)) : undefined;
+        if (found) {
+          out[i - 1] = found.at;
         }
+        sequence = found?.value;
       }
       const placed = this.placeIn(sequence, level);
       if (placed?.moved && levels[0]?.flow !== undefined) {
@@ -1274,14 +1290,21 @@ class FormPlacer {
   // The ordinal among `chunk`'s parts of `ref`'s kind of the part `ref`
   // names in its saved listing, by aligning the two, or -1.
   protected partIndex(chunk: ProgramChunk, ref: PartRef): number {
+    return this.partMatch(chunk, ref).index;
+  }
+
+  // The same, and whether the part was paired by its fingerprint rather
+  // than by its place between matched parts (`alignParts`).
+  protected partMatch(chunk: ProgramChunk, ref: PartRef): { index: number; exact: boolean } {
     const [p, kind, ordinal] = ref;
     const saved = this._parts[p];
     const now = chunkPartsOf(chunk)?.[kind];
     if (!saved || !now) {
-      return -1;
+      return { index: -1, exact: false };
     }
-    const { pairs } = alignParts(now.map((part) => partPrint(part.fingerprint)), saved.l);
-    return pairs.indexOf(ordinal);
+    const { pairs, how } = alignParts(now.map((part) => partPrint(part.fingerprint)), saved.l);
+    const index = pairs.indexOf(ordinal);
+    return { index, exact: index >= 0 && how[index] !== "between" };
   }
 
   /**
@@ -1431,33 +1454,29 @@ class FormPlacer {
     if (!statement) {
       return undefined;
     }
-    // The part in the placed statement's chunk, or, when that chunk cannot
-    // place it, in the nearest chunk of its run of one fingerprint that can
-    // (`sameRun`).
-    const chunks = statement.placed.sequence.arrays.chunks;
-    for (const entry of [statement.placed.entry, ...this.sameRun(statement.placed)]) {
-      const chunk = chunks[entry];
-      const symbol = chunk ? this.partSymbol(chunk, form) : undefined;
-      if (symbol !== undefined) {
-        return symbol;
-      }
-    }
-    return undefined;
+    // The part in the placed statement's chunk, or in another chunk of its
+    // run (`alongRun`).
+    return this.alongRun(statement.placed, (at) => {
+      const chunk = at.sequence.arrays.chunks[at.entry];
+      return chunk ? this.partSymbol(chunk, form) : { value: undefined, exact: false };
+    })?.value;
   }
 
   /** The symbol of the part an anonymous symbol's form names in `chunk`, or
-   *  nothing when the chunk cannot place it. */
+   *  nothing when the chunk cannot place it, and whether it placed the part
+   *  by its fingerprint. */
   protected partSymbol(
     chunk: ProgramChunk,
     form: Extract<SavedSymbol, { st: SavedStatement }>,
-  ): number | undefined {
+  ): { value: number | undefined; exact: boolean } {
     const parts = chunkPartsOf(chunk)?.[form.k];
     if (!parts) {
-      return undefined;
+      return { value: undefined, exact: false };
     }
     let index = -1;
+    let exact = false;
     if (form.pl !== undefined) {
-      index = this.partIndex(chunk, [form.pl, form.k, form.i]);
+      ({ index, exact } = this.partMatch(chunk, [form.pl, form.k, form.i]));
     } else if (form.p !== undefined) {
       // Format 1: the part by its own hash, the nearest ordinal first, or,
       // since that hash predates format 2's normalization, the part at its
@@ -1470,12 +1489,13 @@ class FormPlacer {
           index = j;
         }
       });
+      exact = index >= 0;
       if (index < 0 && form.i < parts.length) {
         index = form.i;
       }
     }
     const symbol = index >= 0 ? parts[index]!.symbol : -1;
-    return symbol >= 0 ? symbol : undefined;
+    return { value: symbol >= 0 ? symbol : undefined, exact };
   }
 
   protected warn(sequence: SequenceRow, entry: number, why: string): void {
