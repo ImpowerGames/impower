@@ -24,6 +24,7 @@ import { asOneValue, containerValueNodes, lowerExpressionFromNodes } from "../ex
 import { lower } from "../lower";
 import { LUAU_STATEMENT_NODES, lowerLuauStatementNode } from "../lowerers/lowerLuauStatement";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
+import { wrapInScope } from "./wrapInScope";
 import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
 import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
@@ -263,13 +264,16 @@ const CONTINUATIONS = nodeNameSet([
  * continue it (`cycle | x .. y | 2 end`), each Luau statement, and a
  * `match` arm's value after its `=` (its pattern is a value before it). Two
  * nodes side by side are two values (`| second visit |`), as `lowerArms`
- * lowers them.
+ * lowers them. With `functionValues`, a function with no name
+ * (`| function() return 3 end`) is a value, as it is where an arm gives one
+ * (`valueArmBody`); otherwise it is read as the statement its node is.
  */
-function armParts(nodes: readonly SyntaxNode[]): { statement: boolean; nodes: SyntaxNode[] }[] {
+function armParts(nodes: readonly SyntaxNode[], functionValues = false): { statement: boolean; nodes: SyntaxNode[] }[] {
   const parts: { statement: boolean; nodes: SyntaxNode[] }[] = [];
   for (const node of nodes) {
     const last = parts[parts.length - 1];
     if (isArmAssignment(node)) parts.push({ statement: false, nodes: containerValueNodes(node) });
+    else if (functionValues && isFunctionValue(node)) parts.push({ statement: false, nodes: [node] });
     else if (LUAU_STATEMENTS.has(node.name)) parts.push({ statement: true, nodes: [node] });
     else if (CONTINUATIONS.has(node.name) && last && !last.statement) last.nodes.push(node);
     else parts.push({ statement: false, nodes: [node] });
@@ -289,7 +293,15 @@ function armParts(nodes: readonly SyntaxNode[]): { statement: boolean; nodes: Sy
  */
 function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext): ParsedObject[] {
   const body: ParsedObject[] = [];
-  const parts = armParts(nodes);
+  const parts = armParts(nodes, true);
+  // An arm that declares holds its locals for itself, as a `do` block does
+  // (`lowerLuauDoBlock`): the names they hide are the enclosing scope's
+  // again after it.
+  const scoped = parts.some((part) => part.statement);
+  if (scoped) {
+    ctx.blockEndStack?.push([]);
+    ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
+  }
   let value: Expression | null = null;
   for (const [k, part] of parts.entries()) {
     if (part.statement) {
@@ -312,7 +324,17 @@ function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext): ParsedOb
     }
   }
   body.push(value ?? new NullExpression());
-  return body;
+  if (!scoped) return body;
+  ctx.scopeDepth = (ctx.scopeDepth ?? 1) - 1;
+  ctx.blockEndStack?.pop()?.forEach((end) => end());
+  return wrapInScope(body);
+}
+
+/** Whether a node of an arm is a function with no name, a value (`| function() return 3 end`). */
+function isFunctionValue(node: SyntaxNode): boolean {
+  if (!isExplicitRuleName(node.name, "LuauFunctionDefinition")) return false;
+  const content = findChildByName(node, `${node.name}_content`);
+  return !content || !findChildByName(content, "LuauFunctionDeclarationName");
 }
 
 /**
@@ -478,7 +500,7 @@ export function alternatorPartsAst(candidate: SyntaxNode, text: string): AstNode
   const groups: AstNode[][] = [];
   const readParts = (nodes: readonly SyntaxNode[]) => {
     const group: AstNode[] = [];
-    for (const part of armParts(nodes)) {
+    for (const part of armParts(nodes, true)) {
       if (part.nodes.length === 0) continue;
       group.push(part.statement ? readLuauBlock(part.nodes, text).root : readLuauExpression(part.nodes, text).expr);
     }

@@ -104,6 +104,23 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
     expect(valuesOf(output)).toEqual(["1!", expect.stringMatching(/^table/), "x!"]);
   });
 
+  // Round 2, comment 6348779895: an arm's locals are its own, as a `do`
+  // block's are, and a function with no name is a value an arm gives.
+  test.each([
+    ["cycle, as a value", "  local v = cycle | local x = 3 x end", "  return tostring(v) .. tostring(x)", "Value 37."],
+    ["match, as a value", '  local v = match "a" | a = local x = 3 x end', "  return tostring(v) .. tostring(x)", "Value 37."],
+    ["cycle, as a statement", "  cycle | local x = 3 print(x) end", "  return tostring(x)", "Value 37."],
+  ])("%s: an arm's local is gone after the alternator", (_name, alternator, after, output) => {
+    expect(run(lines("function f(x)", alternator, after, "end", "Value {f(7)}."))).toEqual({ output: `${output}\n`, errors: [] });
+  });
+
+  test("an arm that is a function with no name gives that function", () => {
+    expect(run(lines("function f()", "  return cycle | function() return 3 end end", "end", "local g = f()", "Value {type(g)} {g()}."))).toEqual({
+      output: "Value function 3.\n",
+      errors: [],
+    });
+  });
+
   test("an empty arm gives nil", () => {
     const { output, errors } = run(lines("function f()", '  return cycle | "a" | | "c" end', "end", ...calls(3)));
     expect(errors).toEqual([]);
