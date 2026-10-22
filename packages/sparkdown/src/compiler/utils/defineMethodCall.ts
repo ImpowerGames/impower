@@ -4,11 +4,12 @@ import { isTrivia } from "../lint/luauTree";
 // Whether a line of a `define` body that begins with `name(` is a method's
 // header or a call is decided here, once, from the tree (I-1411). The grammar
 // opens `LuauMethodDefinition` at `name(`, since no pattern on that line can
-// see the next one, and ends it at the start of the first code line that is
-// not indented deeper than the header, unless that line is the method's own
-// `end` at the header's indentation. A method holds the lines indented below
-// its header or takes that `end`; a candidate that took neither is the line
-// it stands on, a statement of the define's body (`print("x")`), which Luau
+// see the next one, and ends it before a code line at the header's own
+// indentation that is not its `end`, or before an `end` written left of the
+// header (`LUAU_METHOD_LINE_AFTER_BODY`); any other line, a less indented one
+// included, stays in the method. A candidate that took no `end` and holds no
+// line below its header is the line it stands on, a statement of the
+// define's body (`print("x")`), which Luau
 // reads as one: no method, no missing `end` of its own, and no parameter list
 // to report. Which child holds the header's line break (a return type takes
 // it in) decides nothing: a body is any token on a later line.
