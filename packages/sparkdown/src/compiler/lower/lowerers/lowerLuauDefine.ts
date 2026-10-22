@@ -1,7 +1,13 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { luauStatementErrors, type LuauStatementError } from "../../utils/luauStatementError";
-import { defineStatementLast, defineStatementThrough, isDefineStatementStart, readsDefineStatement } from "../../utils/defineStatement";
+import {
+  defineReadingBoundary,
+  defineStatementLast,
+  defineStatementThrough,
+  isDefineStatementStart,
+  readsDefineStatement,
+} from "../../utils/defineStatement";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -170,13 +176,17 @@ function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = fal
   let errors: LuauStatementError[];
   for (;;) {
     const reading = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
-    const through = defineStatementThrough(last, reading.to, lineOf);
+    const through = defineStatementThrough(last, reading.to, read, lineOf);
     if (through === last) {
       errors = reading.errors;
       break;
     }
     last = through;
   }
+  // Past the start of a next line the validator reports (`there.`), what
+  // the reading finds is that line's report (`defineReadingBoundary`).
+  const boundary = defineReadingBoundary(last, read, lineOf);
+  if (boundary !== undefined) errors = errors.filter((error) => error.from <= boundary);
   for (const error of errors) {
     ctx.diagnostics?.push({
       message: error.message,

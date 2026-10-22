@@ -123,10 +123,6 @@ const BODIES: string[] = [
   "  t.f(1); t.a, t.b\n  f(1)\n  .g(2 +)\n",
   "  t.a, t.b\n  there.\n",
   "  t.a = 1 +\n  there.\n",
-  // A `.` no name follows is the reading's like any other error.
-  "  there.\n",
-  "  y = 1; there.\n",
-  "  t.f(1)\n  there.\n",
   // A statement after a property on its line (undirected 3).
   "  y = 1; t.f(2 +)\n",
   "  y = 1; t.f(1 2 3)\n",
@@ -148,6 +144,22 @@ describe("a define body statement reports every Luau error once (I-1489)", () =>
     test(JSON.stringify(body), () => {
       const text = define(body);
       expect(errors(text)).toEqual(official(body));
+      expectIncrementalEqualsCold(text);
+    });
+  }
+
+  // A line that begins with a `.` no name follows is the validator's
+  // (`LuauDanglingAccessor`), as on main, and a reading that reads on into
+  // it leaves it to that report: Luau's error at the token after the `.` is
+  // reported once. Luau's `Incomplete statement` before it is not reported
+  // there (I-1512).
+  for (const body of ["  there.\n", "  y = 1; there.\n", "  t.f(1)\n  there.\n", "  t.a, t.b\n  there.\n"]) {
+    test(`a dangling line once: ${JSON.stringify(body)}`, () => {
+      const text = define(body);
+      const reported = errors(text);
+      expect(new Set(reported).size, reported.join("\n")).toBe(reported.length);
+      const dot = official(body).find((e) => e.includes("Expected identifier, got 'end'"));
+      expect(reported).toContain(dot);
       expectIncrementalEqualsCold(text);
     });
   }
