@@ -818,6 +818,82 @@ describe("a save taken inside a scene of a script other than main", () => {
   });
 });
 
+// A line that declares a global and writes a member function is two chunks
+// of its script's declaration sequence from one source: the write's chunk
+// hashes its role with that source (`memberWriteFingerprint`), so a save
+// never takes the global's chunk, or a closure of its initializer, for the
+// write (round 4 of the review of I-1438).
+describe("a save of a member function written on a line that declares its table", () => {
+  const A = "file://proj/scripts/a.sd";
+  const menu = lines("Before.", "choose", "  * Go", "    Result {api.f()}.", "end");
+  const shared = lines("& store api = {}; function api.f() return 7 end");
+  const edits = {
+    "a global function added above the line, and a closure added to its table": lines(
+      "store added = function() return 101 end",
+      "& store api = { decoy = function() return 2 end }; function api.f() return 7 end",
+    ),
+    "a global added above the line, and a closure added to its table": lines(
+      "store added = 10",
+      "& store api = { decoy = function() return 2 end }; function api.f() return 7 end",
+    ),
+  };
+  const programOf = (script: string) =>
+    quiet(() =>
+      programCompiler({ [MAIN]: menu, [A]: script }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+    ).program;
+  /** A save at the menu of `story`, continued to it. */
+  const saveAtMenu = (story: ProgramStory) => {
+    story.keepBeatImages = true;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+    });
+    expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Go"]);
+    return story.toSave();
+  };
+  /** `save` loaded into the program of `script`, and Go taken: the write's
+   *  own function runs, from a place the load says it found exactly. */
+  const loadsTheWrite = (save: string, script: string) => {
+    const program = programOf(script);
+    expect(reported(program)).toEqual([]);
+    const loaded = new ProgramStory(program.chunks!);
+    loaded.keepBeatImages = true;
+    const errors: string[] = [];
+    loaded.onError = (message: string) => {
+      errors.push(message);
+    };
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    const run = storyRun(loaded, [0]);
+    expect({ exact: report.exact, warnings: report.warnings, beats: run.beats.map((beat) => beat.text) }).toEqual({
+      exact: true,
+      warnings: [],
+      beats: ["Go\n", "Result 7.\n"],
+    });
+    expect(run.errors).toEqual([]);
+    expect(errors).toEqual([]);
+  };
+
+  it.each(Object.entries(edits))(
+    "keeps the write's function when a save taken on this program loads after %s",
+    (_, edited) => {
+      loadsTheWrite(saveAtMenu(new ProgramStory(programOf(shared).chunks!)), edited);
+    },
+  );
+
+  it.each(Object.entries(edits))(
+    "keeps the write's function when a save taken before I-1438, loaded and saved again, loads after %s",
+    (_, edited) => {
+      const old = OLD_SAVES.find(
+        (c) => c.name === "a member function written on the line that declares its table",
+      )!;
+      const story = new ProgramStory(programOf(shared).chunks!);
+      story.onError = () => {};
+      story.loadSave(old.save);
+      loadsTheWrite(saveAtMenu(story), edited);
+    },
+  );
+});
+
 // Saves taken before I-1438, which name a member function's write of a
 // script other than main by the `$include:` flow its script's top level then
 // had. Each was written by `toSave` at ae10deabd, at the menu, for the

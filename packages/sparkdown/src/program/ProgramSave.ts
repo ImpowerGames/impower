@@ -318,6 +318,40 @@ const declaresGlobal = (chunk: ProgramChunk): boolean => {
   return false;
 };
 
+/** The member functions' writes of a declaration sequence, its chunks that
+ *  declare no global, as a sequence of their own, with the entry of each in
+ *  the declaration sequence. A save names a write among its script's writes
+ *  alone, as the `$include:` flow of a save taken before I-1438 named it
+ *  (`FormWriter.statementForm`, `FormPlacer.topOf`), so that a write and a
+ *  global, whose chunks can share a source and so a fingerprint, never pair. */
+const writesView = (
+  declarations: SequenceRow,
+): { view: SequenceRow; entries: number[] } => {
+  const entries: number[] = [];
+  declarations.arrays.chunks.forEach((chunk, entry) => {
+    if (!declaresGlobal(chunk)) {
+      entries.push(entry);
+    }
+  });
+  return {
+    view: {
+      ...declarations,
+      id: -1 - declarations.id,
+      arrays: {
+        chunks: entries.map((entry) => declarations.arrays.chunks[entry]!),
+        lineStarts: entries.map((entry) => declarations.arrays.lineStarts[entry]!),
+      },
+    },
+    entries,
+  };
+};
+
+/** The name a save gives the writes of the script `uri` (`writesView`):
+ *  `$include:` and the uri with each `.` written `%2E`, the name of the flow
+ *  that held them before I-1438. */
+const writesName = (uri: string): string =>
+  `${SAVED_INCLUDED_FLOW_PREFIX}${uri.replace(/\./g, "%2E")}`;
+
 /** Each `Choice` instruction of a chunk, in order: its offset and the
  *  offset of its entry. */
 const choiceInstructions = (
@@ -621,6 +655,13 @@ class FormWriter {
     let at = sequence;
     let e = entry;
     for (;;) {
+      if (at.owner < 0 && at.flow < 0 && !declaresGlobal(at.arrays.chunks[e]!)) {
+        // A member function's write: among its script's writes alone.
+        const writes = writesView(at);
+        const w = writes.entries.indexOf(e);
+        levels.unshift({ s: this.listing(writes.view, w), at: w, flow: writesName(at.uri) });
+        break;
+      }
       const level: SavedLevel = { s: this.listing(at, e), at: e };
       if (at.owner < 0) {
         if (at.flow >= 0) {
@@ -791,8 +832,8 @@ interface Placed {
 const SEARCH_SIDE = 8;
 const SEARCH_NEIGHBOURS = 2;
 
-/** How a save taken before I-1438 starts the name of the flow of a script's
- *  member functions' writes (`FormPlacer.topOf`). */
+/** How a save starts the name of a script's member functions' writes, the
+ *  name of the flow that held them before I-1438 (`writesName`). */
 const SAVED_INCLUDED_FLOW_PREFIX = "$include:";
 
 /** The longest run of `a[alo..ahi)` that `b[blo..bhi)` holds, the first of
@@ -991,13 +1032,12 @@ class FormPlacer {
     return this._renames;
   }
 
-  // The flow or declaration sequence a first level names. A save taken
-  // before I-1438 names a member function's write of a script other than
-  // main by the flow its script's top level then had, `$include:` and the
-  // script's uri with each `.` written `%2E`, which held that script's
-  // writes alone. The writes are statements of the script's declaration
-  // sequence now, beside its globals, and the level is placed among the
-  // writes alone (`writesOf`).
+  // The flow or declaration sequence a first level names. A save names a
+  // member function's write of a script other than main among that script's
+  // writes alone (`writesName`), as a save taken before I-1438 named it by
+  // the flow that held them then; the writes are statements of the script's
+  // declaration sequence, beside its globals, and the level is placed among
+  // the writes alone (`writesOf`).
   protected topOf(level: SavedLevel): SequenceRow | undefined {
     if (level.flow !== undefined) {
       const flow = this.root.flowNamed(this.renamed(level.flow));
@@ -1014,32 +1054,13 @@ class FormPlacer {
 
   // The member functions' writes of a declaration sequence, its chunks that
   // declare no global, as a sequence of their own whose entries stand for
-  // theirs in the declaration sequence (`placeLevels`). It is the
-  // `$include:` flow's listing that a save taken before I-1438 aligns with:
-  // aligned with the whole declaration sequence, an edited write would pair
-  // with whatever global stands at its place, and on a line that declares a
-  // global and writes a member function the global's chunk, of the write's
-  // fingerprint, stands first.
+  // theirs in the declaration sequence (`placeLevels`, `writesView`).
   protected writesOf(declarations: SequenceRow): SequenceRow {
     let writes = this._writes.get(declarations);
     if (!writes) {
-      const entries: number[] = [];
-      declarations.arrays.chunks.forEach((chunk, entry) => {
-        if (!declaresGlobal(chunk)) {
-          entries.push(entry);
-        }
-      });
-      const view: SequenceRow = {
-        ...declarations,
-        id: -1 - declarations.id,
-        arrays: {
-          chunks: entries.map((entry) => declarations.arrays.chunks[entry]!),
-          lineStarts: entries.map((entry) => declarations.arrays.lineStarts[entry]!),
-        },
-      };
-      writes = { view, entries };
+      writes = writesView(declarations);
       this._writes.set(declarations, writes);
-      this._writesOf.set(view, { real: declarations, entries });
+      this._writesOf.set(writes.view, { real: declarations, entries: writes.entries });
     }
     return writes.view;
   }
