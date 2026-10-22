@@ -245,6 +245,8 @@ describe("a nested alternator whose end stands against the outer bar reads as th
     const source = FORMS.find(([label]) => label === "a reading error in the first arm")![1];
     const errors = diagnosticsOf(source).filter((d: any) => d.severity === 1);
     expect(errors.map((d: any) => `${source.slice(d.from, d.to)}: ${d.message}`)).toEqual([
+      // The head the separator ends is no value (I-1446), reported once.
+      'match("x") | x = "a" end: A `cycle` takes no value before its first `|`; write its arms as `| ...`',
       "..: Expected identifier when parsing expression, got '..'",
       "end: Expected identifier when parsing expression, got 'end'",
     ]);

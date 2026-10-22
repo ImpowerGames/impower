@@ -973,14 +973,9 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │       │           ├─ StylingStringIdentifier [543..548]: "Arial"
  │   │   │   │       │       │   │   │       │           ├─ Separator [548..549]: " "
  │   │   │   │       │       │   │   │       │           ├─ NumberLiteral [549..550]: "1"
- │   │   │   │       │       │   │   │       │           └─ LuauLineComment [550..559]
- │   │   │   │       │       │   │   │       │               ├─ LuauLineComment_begin [550..552]
- │   │   │   │       │       │   │   │       │               │   ├─ LuauLineComment_begin_c1 550
- │   │   │   │       │       │   │   │       │               │   └─ LuauLineComment_begin_c2 [550..552]
- │   │   │   │       │       │   │   │       │               │       └─ LuauCommentMark [550..552]: "--"
- │   │   │   │       │       │   │   │       │               ├─ LuauLineComment_content [552..559]
- │   │   │   │       │       │   │   │       │               │   └─ LuauLineCommentContent [552..559]: "display"
- │   │   │   │       │       │   │   │       │               └─ LuauLineComment_end 559
+ │   │   │   │       │       │   │   │       │           ├─ UnquotedChar [550..551]: "-"
+ │   │   │   │       │       │   │   │       │           ├─ UnquotedChar [551..552]: "-"
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [552..559]: "display"
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 559
  │   │   │   │       │       │   │   │       ├─ StylingValue_c6 559
  │   │   │   │       │       │   │   │       └─ StylingValue_c7 559

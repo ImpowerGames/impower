@@ -1,0 +1,11 @@
+function f(c)
+while if c then
+false
+else true do
+end
+end
+function g(c)
+print(if c then
+1
+else 2)
+end
