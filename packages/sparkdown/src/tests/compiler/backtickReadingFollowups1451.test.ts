@@ -133,6 +133,60 @@ describe("an interpolation left open inside a call reads on from the line after 
   }
 });
 
+// Round 1's boundaries: a string read from text whose section holds a
+// Unicode escape or ends its line, and a string continued through another's
+// sections whose escape is malformed or whose interpolation the grammar
+// leaves open.
+describe("a backtick string's boundaries, as Luau reads them", () => {
+  const forms = [
+    "1 g(`a \\u{41} b`)",
+    "1 g(`a {x} \\u{41} b {y} c`)",
+    "1 g(`a {x} b",
+    "1 g(`a {x}",
+    "1 g(`a {x} b {y",
+    "1 g(`a {} b",
+    "1 g(`a {x} b, 2)",
+    "`a {1 `b {x} c\\x`} d`",
+    "`a {1 `b\\x {x} c`} d`",
+    "`a {1 `b {x} c\\x {y} e`} d`",
+    "`a {1 `b {x} c} d`",
+    "`a {1 `b {x} c} d` + 1",
+    "`a \\u{41} {x} b`",
+  ];
+  // A store ends at its line (its value too), and with an unclosed call its
+  // reading meets the end of its input where Luau's names the next line
+  // (`at line 1`, as for `store s = 1 g(x`, outside this change): those
+  // forms are compared up to that error.
+  const callEnd = /^\d+:\d+-1:0 Expected '\)' \(to close '\(' at /;
+  for (const value of forms) {
+    test(`store s = ${JSON.stringify(value)}`, () => {
+      const expected = official(`local s = ${value}\n`).filter((error) => !callEnd.test(error));
+      expect(sparkdownErrors(`store s = ${value}\n`).filter((error) => !callEnd.test(error))).toEqual(expected);
+    });
+  }
+  for (const value of [...forms, "1 g(`a \\z\n  {x} b`)"]) {
+    test(`a function's local s = ${JSON.stringify(value)}`, () => {
+      const luau = `function f()\nlocal s = ${value}\nend\n`;
+      expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(official(luau));
+    });
+  }
+  test("a read bounded inside a string's section reads what the text up to the bound gives", () => {
+    const source = "`a {x} tail`";
+    for (let to = 1; to <= source.length; to++) {
+      forgetLookups();
+      nextLuauToken(source.length, source);
+      const bounded = readLuauExpressionAfter(0, source, to);
+      forgetLookups();
+      expect(bounded.errors, `to ${to}`).toEqual(readLuauExpressionAfter(0, source.slice(0, to)).errors);
+    }
+  });
+});
+
+/** Empties the lookups' tokens, so the next lookup lexes the whole document. */
+function forgetLookups() {
+  nextLuauToken(0, "");
+}
+
 // The lookups' lexer keeps the tokens before an edit and lexes on from the
 // last of them, inside the interpolations it leaves open (round 1).
 describe("the lookups after an edit inside a backtick string's interpolation", () => {

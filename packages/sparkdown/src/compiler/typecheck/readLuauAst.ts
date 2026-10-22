@@ -1226,8 +1226,8 @@ class Tokenizer {
   }
 
   /** Splits text into Luau tokens: the text of a leaf, or text between a node's children. */
-  lex(from: number, to: number): void {
-    this.interpBraces = [];
+  lex(from: number, to: number, openInterpolations: readonly number[] = []): void {
+    this.interpBraces = [...openInterpolations];
     let i = from;
     while (i < to) i = this.lexOne(i, to);
   }
@@ -1319,7 +1319,18 @@ class Tokenizer {
  */
 function sectionEnd(text: string, at: number, to: number): { end: number; opens: boolean; finished: boolean } {
   let end = at + 1;
-  while (end < to && text[end] !== "`" && text[end] !== "{" && text[end] !== "\n") end += text[end] === "\\" ? 2 : 1;
+  while (end < to && text[end] !== "`" && text[end] !== "{" && text[end] !== "\n") {
+    if (text[end] !== "\\") end++;
+    // A `\u{` escape's brace opens no interpolation, and `\z` skips the
+    // whitespace after it, line breaks included (Luau's
+    // `readInterpolatedStringSection`, `readBackslashInString`).
+    else if (text.startsWith("u{", end + 1)) end += 3;
+    else if (text[end + 1] === "z") {
+      end += 2;
+      while (end < to && /\s/.test(text[end]!)) end++;
+    } else if (text.startsWith("\r\n", end + 1)) end += 3;
+    else end += 2;
+  }
   if (end >= to || text[end] === "\n") return { end: Math.min(end, to), opens: false, finished: false };
   return { end: end + 1, opens: text[end] === "{", finished: true };
 }
@@ -4052,11 +4063,14 @@ class Parser {
    * The parts of a string node: the text between its interpolations, and the
    * interpolations; `unclosed` when an interpolation is missing its closing
    * brace, after which the string's own end is not where the tree ends it.
+   * `start` is where Luau's string begins: the token's start, or an outer
+   * string's that goes on through the token's sections (I-1427).
    */
   private stringParts(
     token: Token,
     interpolation: string,
     after?: Token,
+    start = token.from,
   ): { strings: string[]; expressions: AstExpr[]; unclosed: boolean; segment: Location; rest?: Token[]; ended?: Location } | undefined {
     const node = token.node!;
     const strings: string[] = [];
@@ -4080,7 +4094,7 @@ class Parser {
         // sections after it are read after the string, as they are after a
         // stray token (I-1435).
         const end = child.from + (isShorthand ? 2 : 1);
-        expressions.push(this.reportStringError(this.locationOf(token.from, end), [], "Interpolated string literal contains malformed escape sequence"));
+        expressions.push(this.reportStringError(this.locationOf(start, end), [], "Interpolated string literal contains malformed escape sequence"));
         const { body } = this.interpolationTokens(child, isShorthand);
         const rest = this.stringRest(token, body, children.slice(i));
         return { strings, expressions, unclosed: false, segment: this.locationOf(section, end), rest };
@@ -4090,7 +4104,7 @@ class Parser {
       // The section after the last interpolation of a string with no closing
       // backtick is one Luau's lexer could not finish.
       const brokenNext = luau && i === children.length - 1 && !hasClosingBacktick(text, node);
-      const part = this.interpolation(child, isShorthand, segment, after, luau, brokenNext);
+      const part = this.interpolation(child, isShorthand, segment, after, luau, brokenNext, start);
       expressions.push(part.expr);
       if (part.continued) {
         strings.push(...part.continued.strings);
@@ -4130,7 +4144,7 @@ class Parser {
       // string's where the string has no interpolation (I-1435).
       if (hasClosingBacktick(text, node)) {
         const message = children.length === 0 ? "String literal contains malformed escape sequence" : "Interpolated string literal contains malformed escape sequence";
-        expressions.push(this.reportStringError(token.location, [], message));
+        expressions.push(this.reportStringError(this.locationOf(start, token.to), [], message));
         return { strings, expressions, unclosed: false, segment: this.locationOf(section, token.to), rest: [] };
       }
     }
@@ -4243,6 +4257,7 @@ class Parser {
     after?: Token,
     luau = false,
     brokenNext = false,
+    stringStart?: number,
   ): { expr: AstExpr; closed: boolean; stray?: Token[]; empty?: true; continued?: { strings: string[]; expressions: AstExpr[]; end?: number } } {
     const { body, opened, closed, closers } = this.interpolationTokens(node, shorthand);
     const location = new Location(this.ctx.index.position(node.from), this.ctx.index.position(node.to));
@@ -4285,17 +4300,26 @@ class Parser {
       if (body.length === 0) return own(() => this.reportExprError(location, [], "Malformed interpolated string, expected expression inside '{}'"));
       const e = this.parseExpr();
       const inner = this.current();
-      if (luau && segment && closed && inner.kind === "interp" && inner.node && stringPartNodes(inner.node, BACKTICK_INTERPOLATION).length > 0) {
+      if (luau && segment && inner.kind === "interp" && inner.node && stringPartNodes(inner.node, BACKTICK_INTERPOLATION).length > 0) {
         // A backtick string with interpolations after the expression
         // (`` `a {1 `b {x} c`} d` ``) begins with an interpolated string's
         // first section, which Luau's parser reads as the string's next
         // section (`parseInterpString`, I-1427): the string goes on through
-        // that string's sections and ends at its last, and what follows it
-        // is read after the string, as a stray token's rest is.
+        // that string's sections and ends at its last, whether or not a `}`
+        // follows for the tree to close the interpolation with
+        // (`` `a {1 `b {x} c} d` ``), and what follows it is read after the
+        // string, as a stray token's rest is.
         this.next();
-        const parts = this.stringParts(inner, BACKTICK_INTERPOLATION, this.current().kind === "eof" ? undefined : this.current());
+        const node = inner.node;
+        const parts = this.stringParts(inner, BACKTICK_INTERPOLATION, this.current().kind === "eof" ? undefined : this.current(), stringStart);
         if (parts) {
-          continued = { strings: parts.strings, expressions: parts.expressions, end: parts.rest || parts.unclosed ? undefined : inner.to };
+          let ends = !parts.rest && !parts.unclosed;
+          // A last section Luau's lexer could not finish ends the string at an error, as `parseInterpString` reports it.
+          if (ends && !hasClosingBacktick(this.ctx.text, node)) {
+            parts.expressions.push(this.reportStringError(parts.segment, [], "Malformed interpolated string; did you forget to add a '`'?"));
+            ends = false;
+          }
+          continued = { strings: parts.strings, expressions: parts.expressions, end: ends ? inner.to : undefined };
           stray = [...(parts.rest ?? []), ...body.slice(this.pos)];
           return e;
         }
@@ -4360,10 +4384,20 @@ class Parser {
       }
       expressions.push(this.parseExpr());
       const next = this.current();
+      // A section Luau's lexer could not finish (`} b` at the line's end)
+      // is the string's last, which Luau's parser reports as it.
+      if (isSection(next) && next.broken) {
+        this.next();
+        return this.reportStringError(next.location, expressions, "Malformed interpolated string; did you forget to add a '`'?");
+      }
       if (isBroken(next)) {
         this.next();
         return this.reportStringError(section.location, expressions, "Malformed interpolated string; did you forget to add a '}'?");
       }
+      // The input ends in the interpolation: Luau's lexer reads its end as
+      // the unfinished interpolation's, which its parser reports at the
+      // expression's last token.
+      if (next.kind === "eof") return this.reportStringError(this.previousLocation(), expressions, "Malformed interpolated string; did you forget to add a '}'?");
       if (!isSection(next)) return this.reportStringError(section.location, expressions, `Malformed interpolated string, got ${describe(next)}`);
     }
   }
@@ -5344,7 +5378,11 @@ export function readLuauExpressionAfter(from: number, documentText: string, to?:
     for (let at = start; at < tokens.length && tokens[at]!.from < to; at++) {
       const token = tokens[at]!;
       if (token.to <= to) tokenizer.tokens.push(place(token));
-      else { tokenizer.lex(token.from, to); break; }
+      else {
+        // Inside the interpolations the token before it leaves open, as the whole document's lex reads it.
+        tokenizer.lex(token.from, to, tokens[at - 1]?.openInterpolations);
+        break;
+      }
     }
     tokenizer.synthetic("eof", "", to);
   }
