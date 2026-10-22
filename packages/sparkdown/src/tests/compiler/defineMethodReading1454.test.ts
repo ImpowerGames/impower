@@ -152,6 +152,9 @@ const METHODS: [body: string, readings: string[]][] = [
   ["  f(): number\n    return 1\n  end\n", ["f:method"]],
   ["  f()\n    x = 1\n      end\n", ["f:method"]],
   ["f()\n  x = 1\nend\n", ["f:method"]],
+  // A body written less indented than its header is still the method's,
+  // which the formatter indents (fixture format/luau/define-methods).
+  ['  fly()\nprint("x")\nself.y = 1\n  end\n', ["fly:method"]],
 ];
 
 const STORY = "Hello.\n";
