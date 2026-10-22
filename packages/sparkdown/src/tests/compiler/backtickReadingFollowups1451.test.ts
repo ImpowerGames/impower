@@ -8,6 +8,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { lexLuauDocumentForTesting, nextLuauToken, noteLuauDocumentEdit, readLuauExpressionAfter } from "../../compiler/typecheck/readLuauAst";
 import { officialErrorList } from "./officialSyntax";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
@@ -130,4 +131,57 @@ describe("an interpolation left open inside a call reads on from the line after 
       expect(sparkdownErrors(`${luau}After {run()}.\n`)).toEqual(expected);
     });
   }
+});
+
+// The lookups' lexer keeps the tokens before an edit and lexes on from the
+// last of them, inside the interpolations it leaves open (round 1).
+describe("the lookups after an edit inside a backtick string's interpolation", () => {
+  const forget = () => nextLuauToken(0, "");
+  /** The next token a lex of the whole document gives, as `nextLuauToken` gives it. */
+  const fresh = (from: number, source: string) => {
+    const token = lexLuauDocumentForTesting(source).find((candidate) => candidate.from >= from);
+    if (!token) return null;
+    return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0], from: token.from };
+  };
+
+  test("an edit far into a long interpolation", () => {
+    const before = "local s = `a {" + "x + ".repeat(40) + "x} b`\n";
+    forget();
+    nextLuauToken(before.length, before);
+    const at = before.lastIndexOf("x}");
+    const after = before.slice(0, at) + "y" + before.slice(at + 1);
+    noteLuauDocumentEdit(before, after, at, at + 1, at + 1);
+    expect(nextLuauToken(at + 3, after)).toEqual(fresh(at + 3, after));
+    const cached = readLuauExpressionAfter(10, after);
+    forget();
+    expect(cached).toEqual(readLuauExpressionAfter(10, after));
+    expect(cached.errors).toEqual([]);
+  });
+
+  test("a chain of edits in and around interpolations", () => {
+    let seed = 1451;
+    const random = (n: number) => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % n;
+    };
+    const pieces = ["`", "{", "}", "{ ", " }", "\n", " ", "x", "1", "+", "`a {", "} b {", "} c`", "{1}", "--", "\\"];
+    let source = Array.from({ length: 30 }, (_, i) =>
+      i % 3 === 0 ? `local v${i} = \`a {${"x + ".repeat(20)}{ y = ${i} }} b {z} c\`\n` : i % 3 === 1 ? `f(\`a {g(\`b {${i}} c\`)} d\`)\n` : `-- ${"note ".repeat(16)}${i}\n`).join("");
+    forget();
+    for (let step = 0; step < 150; step++) {
+      const at = random(source.length + 1);
+      const removed = random(4) === 0 ? random(8) : 0;
+      const inserted = random(3) === 0 ? "" : pieces[random(pieces.length)]!;
+      const before = source;
+      source = source.slice(0, at) + inserted + source.slice(at + removed);
+      noteLuauDocumentEdit(before, source, at, Math.min(at + removed, before.length), at + inserted.length);
+      const probes = Array.from({ length: 4 }, (_, i) => i % 2 === 0 ? Math.min(source.length, at + random(80)) : random(source.length + 1));
+      const found = { tokens: probes.map((from) => nextLuauToken(from, source)), expression: readLuauExpressionAfter(probes[0]!, source) };
+      const tokens = probes.map((from) => fresh(from, source));
+      forget();
+      expect(found, `step ${step}`).toEqual({ tokens, expression: readLuauExpressionAfter(probes[0]!, source) });
+      // Carry the lookups' tokens on from this document, as an editing session does.
+      nextLuauToken(source.length, source);
+    }
+  });
 });

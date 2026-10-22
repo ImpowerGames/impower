@@ -542,6 +542,8 @@ interface Token {
   broken?: true;
   /** A section of a backtick string lexed from text (`Tokenizer.interpSection`), one of Luau's lexemes. */
   section?: true;
+  /** Not part of Luau: the lookups' lexer's interpolations open after the token (`AheadTokenizer`), where an edit's lex goes on from. */
+  openInterpolations?: number[];
   /** The implicit `function` of a function the author wrote without it (a `define` method, a handler's closure), read as Luau reads the function it stands for. */
   written?: true;
   /** A `store` that Luau code's `LuauVariableDefinition` begins, which is a name when no name or `function` follows it (see `parseStat`). */
@@ -782,7 +784,7 @@ class Tokenizer {
    * For each interpolation of a backtick string lexed from text that is
    * open (`lexOne`), innermost last: how many braces opened in it are open.
    */
-  private interpBraces: number[] = [];
+  protected interpBraces: number[] = [];
 
   constructor(
     readonly text: string,
@@ -5180,14 +5182,27 @@ const NO_LOCATION = new Location();
  * `readLuauExpressionAfter` places the tokens it parses.
  */
 class AheadTokenizer extends Tokenizer {
-  /** Lexes `text` on after `tokens`, which it takes over. */
+  /**
+   * Lexes `text` on after `tokens`, which it takes over, inside the
+   * interpolations the last of them leaves open (`Token.openInterpolations`).
+   */
   constructor(text: string, tokens: Token[]) {
     super(text, new LineIndex("", [0]));
     (this as { tokens: Token[] }).tokens = tokens;
+    this.interpBraces = [...(tokens[tokens.length - 1]?.openInterpolations ?? [])];
   }
 
   override location(): Location {
     return NO_LOCATION;
+  }
+
+  /** Reads as `Tokenizer.lexOne` does, recording on the token it pushes the interpolations open after it. */
+  override lexOne(i: number, to: number): number {
+    const count = this.tokens.length;
+    const end = super.lexOne(i, to);
+    const last = this.tokens[this.tokens.length - 1];
+    if (last && this.tokens.length > count && this.interpBraces.length > 0) last.openInterpolations = [...this.interpBraces];
+    return end;
   }
 }
 
