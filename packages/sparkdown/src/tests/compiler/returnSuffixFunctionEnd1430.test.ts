@@ -48,6 +48,15 @@ const FORMS: [string, (line: string) => string][] = [
   ["a function in a table", (line) => `local t = {function()\n${line}\nend}\n`],
   ["a function on one line", (line) => `function f() ${line} end\n`],
   ["a nested block before a later statement", (line) => `function f()\nif true then\n${line}\nend\nprint(1)\nend\n`],
+  // A later return, which Luau reads in the block around the one it ended
+  // (round 1 of the review).
+  ["a function with a second return", (line) => `function f()\n${line}\nreturn 2 a b\nend\n`],
+  ["a function with a second return of one token", (line) => `function f()\n${line}\nreturn 2 a\nend\n`],
+  ["a function with a second bare return", (line) => `function f()\n${line}\nreturn\nend\n`],
+  ["a nested block with a second return", (line) => `function f()\nif true then\n${line}\nreturn 2 a b\nend\nend\n`],
+  ["a nested block before a second return", (line) => `function f()\nif true then\n${line}\nend\nreturn 2 a b\nend\n`],
+  ["a repeat loop before a second return", (line) => `function f()\nrepeat\n${line}\nuntil true\nreturn 2 a b\nend\n`],
+  ["a function with a second return before a later function", (line) => `function f()\n${line}\nreturn 2 a b\nend\nfunction g()\nreturn 3\nend\n`],
 ];
 
 // Scripts whose function is never closed, which end at their Luau: a line

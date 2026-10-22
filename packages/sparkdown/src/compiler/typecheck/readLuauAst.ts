@@ -2439,8 +2439,19 @@ class Parser {
         while (this.current().kind === "break" && !this.current().story) this.next();
         const following = this.pos;
         if (this.current().kind === "mark") this.next();
-        if (!this.blockFollow(this.current())) {
-          this.expectMatchAndConsumeFail(closer, begin, "", "statement");
+        // Where Luau ended blocks at an error after an earlier `return`, this
+        // one is in a block further out, the chunk past every written one
+        // (`closeWrittenBlock`, I-1430).
+        let at = this.blockOpeners.length - 1;
+        for (let n = 0; n < this.unclosedBlocks && this.writtenOpener(this.blockOpeners[at]); n++) at--;
+        const block = this.writtenOpener(this.blockOpeners[at]) ? this.blockOpeners[at]! : undefined;
+        if (!this.blockFollow(this.current()) && !block) {
+          this.unclosedBlocks = 0;
+          this.report(this.current().location, `Expected <eof>, got ${describe(this.current())}`, "statement");
+          this.pastChunkEnd = this.current().location;
+        } else if (!this.blockFollow(this.current()) && block) {
+          const blockCloser = block === begin ? closer : block.text === "repeat" ? "until" : "end";
+          this.expectMatchAndConsumeFail(blockCloser, block, "", "statement");
           // Luau's recovery reads the closer only when it is the token after
           // the one it rejects (`return 1 x` before `end`, I-1400); otherwise
           // Luau's block ends at the error, so each closer after it closes
@@ -2448,11 +2459,11 @@ class Parser {
           // where Luau's chunk ends (`closeWrittenBlock`, I-1430).
           let after = this.pos + 1;
           while (this.tokens[after]?.kind === "break" && !this.tokens[after]!.story) after++;
-          if (!this.is(closer, this.tokens[after] ?? this.eof)) {
+          if (!this.is(blockCloser, this.tokens[after] ?? this.eof)) {
             this.unclosedBlocks++;
             // Luau reads a `repeat` loop's condition after its missing
             // `until`, and the statements after it in the block around.
-            repeatCondition = closer === "until" && this.pos === following;
+            repeatCondition = blockCloser === "until" && this.pos === following;
           }
         }
         this.pos = following;
