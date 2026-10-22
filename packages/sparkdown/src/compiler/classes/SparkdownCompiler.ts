@@ -5976,7 +5976,8 @@ export class SparkdownCompiler {
    * Reports a story `store` declaration's syntax errors as Luau reads the
    * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
    * I-1370), for a store no other reporter reported an error on, but at a
-   * name it declares (a name declared twice, I-1452). The type
+   * name it declares (a name declared twice, I-1452); an error in the story
+   * its line runs on into defers only to an error in that story. The type
    * checker leaves a store's errors to Sparkdown, which reports what the tree
    * marks missing or unread, in its own words and ranges; a store's errors
    * have one owner, as a story statement's do (#931, #1907), and Luau's
@@ -5996,7 +5997,8 @@ export class SparkdownCompiler {
       const errors = storeSyntaxErrors(tree, doc.read(0, doc.length));
       if (errors.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
-      const reported = new Map<string, boolean>();
+      const before = (a: Range["start"], b: Range["start"]) => a.line < b.line || (a.line === b.line && a.character < b.character);
+      const reported = new Map<string, { range: Range | undefined; declaration: boolean; story: boolean }>();
       for (const error of errors) {
         const key = `${error.store.from}:${error.store.to}`;
         let inError = reported.get(key);
@@ -6017,19 +6019,28 @@ export class SparkdownCompiler {
                 name.end.line === d.range.end.line &&
                 name.end.character === d.range.end.character,
             );
-          inError =
-            !range ||
-            diagnostics.some(
-              (d) =>
-                d.severity === DiagnosticSeverity.Error &&
-                d.range.start.line >= range.start.line &&
-                d.range.start.line <= range.end.line &&
-                !atName(d),
-            );
+          const others = range
+            ? diagnostics.filter(
+                (d) =>
+                  d.severity === DiagnosticSeverity.Error &&
+                  d.range.start.line >= range.start.line &&
+                  d.range.start.line <= range.end.line &&
+                  !atName(d),
+              )
+            : [];
+          // The story the declaration's line runs on into (`local a,, = 1
+          // 2`'s `2`) has no reader but the declaration's, so an error there
+          // defers only to an error in that story (I-1452).
+          inError = {
+            range,
+            declaration: !range || others.length > 0,
+            story: !range || others.some((d) => !before(d.range.start, range.end)),
+          };
           reported.set(key, inError);
         }
+        const inStory = inError.range !== undefined && !before(error.start, inError.range.end);
         // A backtick string's own error has no other reporter (I-1435).
-        if (inError && !error.ofString) continue;
+        if ((inStory ? inError.story : inError.declaration) && !error.ofString) continue;
         diagnostics.push({
           range: { start: error.start, end: error.end },
           code: "SyntaxError",

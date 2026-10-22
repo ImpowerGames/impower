@@ -193,8 +193,9 @@ export function lowerVariableDefinition(
     // the reading's syntax error and declares nothing: two of them would be
     // two globals of one name (I-1426).
     const declared = assignments.filter((_, i) => targets[i]!.name !== MISSING_NAME);
+    const declaredSet = new Set(declared);
     for (const assignment of declared) {
-      assignment.spreadTo = assignment.spreadTo.filter((a) => declared.includes(a));
+      assignment.spreadTo = assignment.spreadTo.filter((a) => declaredSet.has(a));
     }
     return wrapInWeave(declared);
   }
