@@ -23,6 +23,7 @@ import {
   programCompiler,
   rootChunks,
   storyBeats,
+  storyRun,
 } from "../program/programHarness";
 
 // The text a compiled story runs to, with the compile's error and warning
@@ -245,5 +246,64 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
     const { divergence: diff, outcome: result } = afterEdit(text, before, after);
     expect(diff).toBeUndefined();
     expect(result).toEqual({ text: expected, errors: [] });
+  });
+
+  // A statement served from its memo holds no objects, so a store through
+  // _G that one stood for would leave the story's global writes, and a call
+  // rebuilt by a later edit would jump to the function again. Edits around
+  // the store, in a block whose statements are memoized, must keep it.
+  const filler = (prefix: string) =>
+    Array.from({ length: 16 }, (_, i) => `    ${prefix} ${i}.`);
+  it.each([
+    ["_G[k] = g", "& _G[k] = g", "f is 2."],
+    ["rawset(_G, k, g)", "& rawset(_G, k, g)", "f is 2."],
+    ["assert(rawset(_G, k, g))", "& assert(rawset(_G, k, g))", "f is 2."],
+    ["_G.f = g", "& _G.f = g", "f is 2."],
+  ])("edits around a store %s in a memoized block keep the call through the global", (_name, store, expected) => {
+    let text = [
+      "function f() return 7 end",
+      "-> MAIN",
+      "scene MAIN",
+      "  choose",
+      "    + [Go]",
+      "      Go.",
+      "  then",
+      "    Warm line.",
+      "    & local k = 'f'",
+      "    & local g = function() return 2 end",
+      ...filler("Filler"),
+      `    ${store}`,
+      ...filler("More filler"),
+      "    f is {f()}.",
+      "    Tail.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
+    quiet(() => c.compile());
+    const edits = [
+      ["Warm line.", "Warm line!"],
+      ["Tail.", "Tail!"],
+      ["Warm line!", "Warm line?"],
+    ];
+    for (const [i, [before, after]] of edits.entries()) {
+      const at = text.indexOf(before!);
+      c.compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version: i + 2 },
+        contentChanges: [
+          {
+            range: { start: posAt(text, at), end: posAt(text, at + before!.length) },
+            text: after!,
+          },
+        ],
+      });
+      text = text.slice(0, at) + after + text.slice(at + before!.length);
+      const { program } = quiet(() => c.compile());
+      const run = storyRun(new ProgramStory(program.chunks!));
+      expect(run.errors).toEqual([]);
+      expect(run.beats.map((b) => b.text).join(""), `edit ${i}`).toContain(expected);
+      expect(divergence(surface(program), coldSurface(text)), `edit ${i}`).toBeUndefined();
+    }
   });
 });

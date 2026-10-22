@@ -2615,7 +2615,7 @@ export class ProgramResolver {
 /** Whether `obj`, or anything under it, is what the story's passes over the
  *  whole program take of a statement (`ProgramResolver.shapeOf`,
  *  `readFacts`): a declaration of any kind, a flow, a label, a return, an
- *  assignment or a function value. A statement served from its memo holds
+ *  assignment, a store through the globals table or a function value. A statement served from its memo holds
  *  no objects, so a statement that holds any of these is never remembered. */
 const holdsWhatTheStoryWalks = (
   obj: ParsedObject,
@@ -2637,7 +2637,12 @@ const holdsWhatTheStoryWalks = (
     obj instanceof ReturnType ||
     obj instanceof MultiReturnType ||
     ((obj instanceof Gather || obj instanceof Choice) && obj.identifier?.name != null) ||
-    (obj instanceof DivertTarget && obj.isFunctionValue)
+    (obj instanceof DivertTarget && obj.isFunctionValue) ||
+    // A store through the globals table is an assignment the story's
+    // global writes read (`isAssignmentFact`), one among a prepared builtin
+    // call's arguments too.
+    globalsTableWrite(obj) !== null ||
+    detachedGlobalsTableWrites(obj).length > 0
   ) {
     return true;
   }
