@@ -782,10 +782,10 @@ variables:
   # them. A candidate takes no `end` of its own, and its only children are
   # its head (`LuauAlternatorHead`) and its arms. The head never ends right
   # after an `end`: before the arms' `|` it ends only where an `end` does not
-  # stand against the `|`, or after the whitespace before it
-  # (`_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_`), keeping the arms inside it
-  # otherwise; on a line-start candidate it ends at the start of a later
-  # line; and anywhere else it ends where the candidate does. So the `end` this follows is the arms' own,
+  # stand against the `|`, after the whitespace before it, or after the `|`
+  # itself and the first arm's key (`_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_`);
+  # on a line-start candidate it ends at the start of a later line; and
+  # anywhere else it ends where the candidate does. So the `end` this follows is the arms' own,
   # never a comment's last word (`match n -- end`) or the `end` of an
   # alternator in the condition (`match match(x) | a = 1 end | b = 2 end`).
   # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
@@ -793,11 +793,24 @@ variables:
   # Where a candidate's head ends before its arms' `|`: right before it,
   # or after the whitespace before it, but never right after an `end`, which
   # would leave the candidate's end (`LUAU_AFTER_ALTERNATOR_ARMS`) to read
-  # that `end` as its own arms'. After an alternator in the condition that
-  # ends against the `|` (`match match(x) | a = 1 end| b = 2 end`), the head
-  # stays open and the arms open inside it, as its last child.
-  # lookaround: `LuauAlternatorArms` reads the `|`.
-  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+)(?=[|]))
+  # that `end` as its own arms'. Where an `end` stands against the `|` (an
+  # alternator in the condition, `match match(x) | a = 1 end| b = 2 end`),
+  # the head takes the `|` itself, as it takes the whitespace otherwise, with
+  # what `LuauAlternatorSeparator` takes after it (the whitespace, and the
+  # first arm's key, `b =`): the first arm's separator ends the head, and
+  # the arms open after it (`LUAU_AFTER_HEAD_SEPARATOR`).
+  # lookaround: `LuauAlternatorArms` reads the `|` the head leaves.
+  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+)(?=[|])|(?<=\bend)({{LUAU_HEAD_SEPARATOR}}))
+  # The first arm's separator as a head takes it: the `|`, and what
+  # `LuauAlternatorSeparator` reads after it.
+  LUAU_HEAD_SEPARATOR: (?:[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?)
+  # Right after the first arm's separator a head took
+  # (`_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_`). Nowhere else does a candidate go
+  # on after an `end` against a `|`: the `end` of its arms ends it. The key
+  # is any word here, since Oniguruma allows no lookahead in a lookbehind
+  # (`LUAU_IDENTIFIER` has one); the head's end already read it.
+  # lookaround: `LuauAlternatorHead`'s end consumed the separator.
+  LUAU_AFTER_HEAD_SEPARATOR: (?<=\bend[|]{{WS}}*(?:[a-zA-Z_][a-zA-Z0-9_]*{{WS}}*[=]{{WS}}*)?)
   # The start of a line that does not go on with a line-start candidate's
   # head: one that is neither blank nor a comment line.
   # lookaround: `LuauAlternatorArms` and the next statement read the line.
@@ -9622,7 +9635,6 @@ repository:
   LuauSparkdownExplicitAlternatorHead:
     begin: (?!{{WS}}*[|])
     patterns:
-      - { include: "#LuauSparkdownExplicitAlternatorArms" }
       - { include: "#LuauSparkdownExplicitConditionalAlternatorCondition" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
@@ -9631,11 +9643,14 @@ repository:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAlternatorSeparator" }
 
   # The bounded twin of `LuauAlternatorArms`, which ends at its line.
   LuauSparkdownExplicitAlternatorArms:
     # lookaround: LuauAlternatorSeparator reads the `|` this opens before.
-    begin: (?={{WS}}*[|])
+    begin: (?={{WS}}*[|])|{{LUAU_AFTER_HEAD_SEPARATOR}}
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
@@ -11770,13 +11785,13 @@ repository:
   # expression. It never ends right after its own text, so the candidate's
   # end never takes the head's last word for the arms' `end`
   # (`LUAU_AFTER_ALTERNATOR_ARMS`): before the arms' `|` it takes the
-  # whitespace, and anywhere else it ends where the candidate does.
+  # whitespace, or the first arm's separator where an `end` stands against
+  # the `|` (I-1408), and anywhere else it ends where the candidate does.
   # lookaround: `LuauAlternatorArms` opens at the `|` this yields before,
   # and the candidate's own end reads the closer, beat or line end.
   LuauAlternatorHead:
     begin: (?!{{WS}}*[|])
     patterns:
-      - { include: "#LuauAlternatorArms" }
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -11785,6 +11800,9 @@ repository:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAlternatorSeparator" }
 
   # A line-start candidate's head, which goes on past its line through the
   # blank and comment lines before its arms (`queue -- end`, a blank line,
@@ -11795,7 +11813,6 @@ repository:
   LuauAlternatorLineStartHead:
     begin: (?!{{WS}}*[|])
     patterns:
-      - { include: "#LuauAlternatorArms" }
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -11805,6 +11822,9 @@ repository:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAlternatorSeparator" }
 
   # A candidate alternator's arms, from its first `|` at the word's own
   # level to the `end` they take. The candidate is an alternator only when
@@ -11814,7 +11834,7 @@ repository:
   # always an arm separator.
   LuauAlternatorArms:
     # lookaround: LuauAlternatorSeparator reads the `|` this opens before.
-    begin: (?={{WS}}*[|])
+    begin: (?={{WS}}*[|])|{{LUAU_AFTER_HEAD_SEPARATOR}}
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauBlockBody" }

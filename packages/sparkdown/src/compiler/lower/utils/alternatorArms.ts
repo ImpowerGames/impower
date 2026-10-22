@@ -32,7 +32,7 @@ import {
   type AstNode,
 } from "../../typecheck/Ast";
 import { containsUnreadToken } from "../../utils/unreadTokens";
-import { ALTERNATOR_CANDIDATES, alternatorArms, alternatorHeadNodes } from "../../utils/alternatorDecision";
+import { ALTERNATOR_CANDIDATES, alternatorArms, alternatorHeadNodes, headSeparator } from "../../utils/alternatorDecision";
 
 // The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
 // a literal, a name or path, a parenthesized value, a table, a divert
@@ -117,15 +117,22 @@ export function lowerArms(
     reportArmReading(armNodes, ctx, false);
     armNodes = [];
   };
+  const startArm = (separator: SyntaxNode): AlternatorArm => {
+    const keyNode = getDescendent("LuauAlternatorAssignmentName", separator);
+    const arm = { key: keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : null, body: [] };
+    arms.push(arm);
+    return arm;
+  };
+  // The head took the first arm's separator where an `end` stands against
+  // its `|` (I-1408), and the arms begin with that arm's body.
+  const lead = armsNode && candidate ? headSeparator(candidate) : null;
+  if (lead) current = startArm(lead);
 
   let child = content.firstChild;
   while (child) {
     if (child.name === "LuauAlternatorSeparator") {
       reportArm();
-      const keyNode = getDescendent("LuauAlternatorAssignmentName", child);
-      const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : null;
-      current = { key, body: [] };
-      arms.push(current);
+      current = startArm(child);
     } else if (
       current &&
       (child.name === "LuauSparkdownInlineGluedAlternatorArm" ||
@@ -357,7 +364,9 @@ export function reportAlternatorValue(candidate: SyntaxNode, ctx: LowerContext):
   const armsNode = ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
   const content = armsNode ? (armsNode.getChild(`${armsNode.name}_content`) ?? armsNode) : findChildByName(candidate, `${candidate.name}_content`);
   let nodes: SyntaxNode[] = [];
-  let inArm = false;
+  // The arms begin with the first arm's body where the head took its
+  // separator (I-1408).
+  let inArm = !!armsNode && headSeparator(candidate) !== null;
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (child.name === "LuauAlternatorSeparator") {
       reportArmReading(nodes, ctx, true);

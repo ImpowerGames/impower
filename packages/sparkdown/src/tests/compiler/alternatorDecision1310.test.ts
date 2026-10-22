@@ -199,18 +199,16 @@ describe("where a candidate ends", () => {
     expect(owners).toEqual(["arms", "arms"]);
   });
 
-  // Documented divergence, I-1408: a head that holds its candidate's arms
-  // (an alternator in the condition ending against the outer `|`) does not
-  // end after them, so a statement later on the line is read into the
-  // alternator. With a space before the outer `|` it is the function's. This
-  // pins today's behaviour so that the sub-issue's repair changes it on
-  // purpose.
-  test("a statement after the compact nested form on its line is read into the alternator (I-1408)", () => {
+  // The head takes the outer `|` an alternator in the condition ends
+  // against, as it takes the whitespace before it, so the candidate ends
+  // after its own arms and a statement later on the line is the function's
+  // in both spellings (I-1408, `compactNestedAlternator1408.test.ts`).
+  test("a statement after the compact nested form on its line is the function's (I-1408)", () => {
     const compact = 'function f()\n  local v = match match("x") | x = "mage" end| mage = "yes" end local after = 7\n  return after\nend\nValue {f()}.\n';
-    expect(run(compact)).toMatchObject({ errors: [], output: "Value nil.\n" });
-    expect(run(compact).warnings.join("\n")).toContain("after");
+    expect(run(compact)).toMatchObject({ errors: [], output: "Value 7.\n" });
+    expect(run(compact).warnings.join("\n")).not.toContain("after");
     const spaced = compact.replace("end| mage", "end | mage");
-    expect(run(spaced)).toMatchObject({ errors: [], output: "Value 7.\n" });
+    expect(run(spaced)).toEqual(run(compact));
   });
 
   // A nested condition's own `end` followed by more of the head (a comment,

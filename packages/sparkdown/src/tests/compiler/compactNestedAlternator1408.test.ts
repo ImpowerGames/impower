@@ -1,0 +1,244 @@
+// An alternator in a candidate's head whose `end` stands against the outer
+// `|` (`match match(x) | a = 1 end| b = 2 end`) leaves the outer candidate
+// the same reading the spaced spelling (`end | b`) gives it (I-1408): the
+// head takes the `|`, with the first arm's key, as it takes the whitespace
+// otherwise, so the candidate ends after its own arms' `end` and the code
+// after it on the line is the code around it.
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import type { SyntaxNode } from "@lezer/common";
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
+import { isTrivia } from "../../compiler/lint/luauTree";
+import { ALTERNATOR_CANDIDATES, alternatorArms } from "../../compiler/utils/alternatorDecision";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { getParser } from "./grammarSnapshot";
+import { compareEnginesFull, formatDivergences, vscodeScopeStacksPerChar } from "./scopeEquality";
+
+const URI = "inmemory:///main.sd";
+
+const run = (text: string) => {
+  const ctx = makeRuntimeStoryFromSource(text);
+  return { errors: ctx.errorMessages, warnings: ctx.warningMessages, output: ctx.story.ContinueMaximally() };
+};
+
+// The offsets of the compact spelling where the spaced one has a space: the
+// `|` each `end` stands against.
+const gapsOf = (compact: string): number[] => [...compact.matchAll(/\bend(?=\|)/g)].map((m) => m.index! + 3);
+const spacedOf = (compact: string) => compact.replace(/\bend\|/g, "end |");
+// Where the character at a compact offset stands in the spaced spelling,
+// and where a range ending at a compact offset ends there.
+const startIn = (gaps: number[], offset: number) => offset + gaps.filter((gap) => gap <= offset).length;
+const endIn = (gaps: number[], offset: number) => (offset === 0 ? 0 : startIn(gaps, offset - 1) + 1);
+
+const offsetAt = (text: string, position: { line: number; character: number }) => {
+  const lines = text.split("\n");
+  return lines.slice(0, position.line).reduce((sum, line) => sum + line.length + 1, 0) + position.character;
+};
+
+/** Every diagnostic a full compile reports, as offsets. */
+const diagnosticsOf = (text: string) => {
+  const c = new SparkdownCompiler();
+  c.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
+  return (program.diagnostics?.[URI] ?? [])
+    .map((d: any) => ({
+      from: offsetAt(text, d.range.start),
+      to: offsetAt(text, d.range.end),
+      severity: d.severity,
+      message: typeof d.message === "string" ? d.message : d.message.value,
+    }))
+    .sort((a: any, b: any) => a.from - b.from || a.to - b.to || a.message.localeCompare(b.message));
+};
+
+/**
+ * Each candidate's arms as `lowerArms` and `reportAlternatorValue` read
+ * them: the first arm from the separator its head took, when it took one,
+ * and each later one from its separator in the arms.
+ */
+const armsOf = (source: string): string[] => {
+  const view: string[] = [];
+  getParser().parse(source).iterate({
+    enter: (ref) => {
+      if (!ALTERNATOR_CANDIDATES.has(ref.name)) return;
+      const armsNode = alternatorArms(ref.node);
+      if (!armsNode) return void view.push("none");
+      const arms: string[] = [];
+      const open = (separator: SyntaxNode) => {
+        const key = getDescendent("LuauAlternatorAssignmentName", separator);
+        arms.push(key ? `${source.slice(key.from, key.to)} =` : "");
+      };
+      // The separator the head took, read from the tree as written.
+      let head = ref.node.getChild(`${ref.name}_content`)?.firstChild ?? null;
+      while (head && !/AlternatorLineStartHead$|AlternatorHead$/.test(head.name)) head = head.nextSibling;
+      const headEnd = head?.getChild(`${head.name}_end`) ?? null;
+      const found = headEnd ? getDescendent("LuauAlternatorSeparator", headEnd) : undefined;
+      // `getDescendent` also visits a node that begins where its parent ends.
+      const lead = found && headEnd && found.to <= headEnd.to ? found : null;
+      if (lead) open(lead);
+      const content = armsNode.getChild(`${armsNode.name}_content`);
+      for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+        if (child.name === "LuauAlternatorSeparator") open(child);
+        else if (!isTrivia(child) && arms.length > 0) arms[arms.length - 1] += ` ${source.slice(child.from, child.to).trim()}`;
+      }
+      view.push(arms.map((arm) => arm.trim()).join(" | "));
+    },
+  });
+  return view;
+};
+
+const semanticsOf = (text: string) => {
+  const registry = new SparkdownDocumentRegistry(["semantics"]);
+  registry.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
+  const tokens: { from: number; to: number; type: string }[] = [];
+  for (const cur = registry.annotations(URI)!.semantics.iter(); cur.value; cur.next()) {
+    tokens.push({ from: cur.from, to: cur.to, type: JSON.stringify(cur.value.type) });
+  }
+  return tokens;
+};
+
+// Cold equal to incremental, as `alternatorDecisionIncremental1310` checks it.
+const sets = ["declarations", "references", "semantics"] as const;
+function open(text: string) {
+  const registry = new SparkdownDocumentRegistry([...sets]);
+  registry.add({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
+  return registry;
+}
+function position(text: string, offset: number) {
+  const prefix = text.slice(0, offset).split("\n");
+  return { line: prefix.length - 1, character: prefix.at(-1)!.length };
+}
+function snapshot(registry: SparkdownDocumentRegistry) {
+  return sets.flatMap((key) => {
+    const result: string[] = [];
+    const iter = registry.annotations(URI)![key]!.iter();
+    while (iter.value) {
+      result.push(`${key}:${iter.from}:${iter.to}:${JSON.stringify(iter.value.type)}`);
+      iter.next();
+    }
+    return result;
+  });
+}
+function expectParity(registry: SparkdownDocumentRegistry, text: string, label: string) {
+  const cold = open(text);
+  expect(registry.tree(URI)!.toString(), `${label}: parse trees`).toBe(cold.tree(URI)!.toString());
+  const actual = snapshot(registry);
+  const expected = snapshot(cold);
+  expect({ extra: actual.filter((value) => !expected.includes(value)), missing: expected.filter((value) => !actual.includes(value)) }, label).toEqual({ extra: [], missing: [] });
+}
+class Editor {
+  version = 2;
+  constructor(public registry: SparkdownDocumentRegistry, public text: string) {}
+  replace(from: number, to: number, insert: string) {
+    const range = { start: position(this.text, from), end: position(this.text, to) };
+    this.registry.update({ textDocument: { uri: URI, version: this.version++ }, contentChanges: [{ range, text: insert }] });
+    this.text = this.text.slice(0, from) + insert + this.text.slice(to);
+  }
+}
+
+// Each form in its compact spelling, the story's output (base's for the
+// spaced spelling, which this change leaves as it was), and its arms.
+const FORMS: [string, string, string, string[]][] = [
+  [
+    "a function body's local, with a statement after it",
+    'function f()\n  local v = match match("x") | x = "mage" end| mage = "yes" end local after = 7\n  return after\nend\nValue {f()}.\n',
+    "Value 7.\n",
+    ['mage = "yes"', 'x = "mage"'],
+  ],
+  [
+    "a function value whose end stands against the bar",
+    "function f()\n  match function() return 1 end| other = print(2) end local after = 7\n  return after\nend\nValue {f()}.\n",
+    "Value 7.\n",
+    ["other = print(2)"],
+  ],
+  ["story braces, with a keyed first arm", 'Value {match match("x") | x = "mage" end| mage = "yes" end}.\n', "Value .\n", ['mage = "yes"', 'x = "mage"']],
+  ["story braces, with an unkeyed first arm", 'Value {cycle match("x") | x = "a" end| "b" end}.\n', "Value b.\n", ['"b"', 'x = "a"']],
+  ["story braces, with no space after the bar", 'Value {cycle match("x") | x = "a" end|"b" end}.\n', "Value b.\n", ['"b"', 'x = "a"']],
+  [
+    "story braces, nested twice",
+    'Value {cycle cycle match("x") | x = "a" end| "b" end| "c" end}.\n',
+    "Value c.\n",
+    ['"c"', '"b"', 'x = "a"'],
+  ],
+  ["a store's value", 'store s = cycle match("x") | x = "a" end| "b" end\nValue {s}.\n', "Value nil.\n", ['"b"', 'x = "a"']],
+  ["a narrative statement's local, in the bounded rules", '& local v = match match("x") | x = 1 end| mage = 2 end\nDone.\n', "Done.\n", ["mage = 2", "x = 1"]],
+  [
+    "a story if's condition, in the bounded rules",
+    'if cycle match("x") | x = "a" end| "b" end == "b" then\n  Yes.\nend\nAfter.\n',
+    "After.\n",
+    ['"b"', 'x = "a"'],
+  ],
+  [
+    "a block form whose arms go on below",
+    'function f()\n  match match("x") | x = print(1) end| mage = print(2)\n    | other = print(3)\n  end\n  return 3\nend\nValue {f()}.\n',
+    "Value 3.\n",
+    ["mage = print(2) | other = print(3)", "x = print(1)"],
+  ],
+  ["a reading error in the first arm", 'Value {cycle match("x") | x = "a" end| "b" .. end}.\n', "Value b.\n", ['"b" ..', 'x = "a"']],
+];
+
+describe("a nested alternator whose end stands against the outer bar reads as the spaced spelling (I-1408)", () => {
+  describe.each(FORMS)("%s", (_, compact, output, arms) => {
+    const spaced = spacedOf(compact);
+    const gaps = gapsOf(compact);
+
+    test("the story prints what the spaced spelling prints", () => {
+      expect(run(compact)).toEqual(run(spaced));
+      expect(run(compact).output).toBe(output);
+    });
+
+    test("the arms are the spaced spelling's", () => {
+      expect(armsOf(compact)).toEqual(arms);
+      expect(armsOf(spaced)).toEqual(arms);
+    });
+
+    test("the diagnostics are the spaced spelling's, at the same text", () => {
+      const moved = diagnosticsOf(compact).map((d: any) => ({ ...d, from: startIn(gaps, d.from), to: endIn(gaps, d.to) }));
+      expect(moved).toEqual(diagnosticsOf(spaced));
+    });
+
+    test("both engines agree on both spellings", async () => {
+      for (const source of [compact, spaced]) {
+        const result = await compareEnginesFull(source);
+        expect(result.divergences, formatDivergences(source, result.divergences)).toEqual([]);
+      }
+    });
+
+    test("the editor's scopes and semantic tokens are the spaced spelling's", async () => {
+      const compactScopes = await vscodeScopeStacksPerChar(compact);
+      const spacedScopes = await vscodeScopeStacksPerChar(spaced);
+      for (let i = 0; i < compact.length; i++) {
+        if (compact[i] === "\n") continue;
+        expect(compactScopes[i], `${JSON.stringify(compact[i])} at ${i}`).toEqual(spacedScopes[startIn(gaps, i)]);
+      }
+      const moved = semanticsOf(compact).map((t) => ({ ...t, from: startIn(gaps, t.from), to: endIn(gaps, t.to) }));
+      expect(moved).toEqual(semanticsOf(spaced));
+    });
+
+    test("removing and restoring the space keeps cold equal to incremental", () => {
+      const editor = new Editor(open(spaced), spaced);
+      for (const gap of [...gaps].reverse()) {
+        const at = startIn(gaps.filter((g) => g < gap), gap);
+        editor.replace(at, at + 1, "");
+        expectParity(editor.registry, editor.text, `space before offset ${gap} removed`);
+      }
+      expect(editor.text).toBe(compact);
+      for (const gap of [...gaps].reverse()) {
+        editor.replace(gap, gap, " ");
+        expectParity(editor.registry, editor.text, `space before offset ${gap} restored`);
+      }
+      expect(editor.text).toBe(spaced);
+    });
+  });
+
+  test("each error of the first arm's reading is reported once", () => {
+    const source = FORMS.find(([label]) => label === "a reading error in the first arm")![1];
+    const errors = diagnosticsOf(source).filter((d: any) => d.severity === 1);
+    expect(errors.map((d: any) => `${source.slice(d.from, d.to)}: ${d.message}`)).toEqual([
+      "..: Expected identifier when parsing expression, got '..'",
+      "end: Expected identifier when parsing expression, got 'end'",
+    ]);
+  });
+});

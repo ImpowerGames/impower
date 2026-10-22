@@ -29,20 +29,29 @@ const HEADS: ReadonlySet<string> = new Set(
   ["LuauAlternatorHead", "LuauAlternatorLineStartHead"].flatMap(explicitRuleNames),
 );
 
-/**
- * A candidate's arms, or null when it holds none: its content's arms, or its
- * head's, which hold them when an alternator in the condition ends against
- * the `|` (`match match(x) | a = 1 end| b = 2 end`).
- */
+/** A candidate's arms, or null when it holds none. */
 export function alternatorArms(node: SyntaxNode): SyntaxNode | null {
   const content = node.getChild(`${node.name}_content`);
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (ARMS.has(child.name)) return child;
-    if (HEADS.has(child.name)) {
-      const head = child.getChild(`${child.name}_content`);
-      for (let part = head?.firstChild ?? null; part; part = part.nextSibling) {
-        if (ARMS.has(part.name)) return part;
-      }
+  }
+  return null;
+}
+
+/**
+ * The separator of a candidate's first arm where its head took it, or null.
+ * A head whose last text is an `end` against the `|` (an alternator in the
+ * condition, `match match(x) | a = 1 end| b = 2 end`) ends with the `|` and
+ * the arm's key, and the arms open after them (I-1408).
+ */
+export function headSeparator(node: SyntaxNode): SyntaxNode | null {
+  const content = node.getChild(`${node.name}_content`);
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (!HEADS.has(child.name)) continue;
+    const end = child.getChild(`${child.name}_end`);
+    for (let part = end?.firstChild ?? null; part; part = part.nextSibling) {
+      const separator = part.getChild("LuauAlternatorSeparator");
+      if (separator) return separator;
     }
   }
   return null;
@@ -59,7 +68,7 @@ export function alternatorHeadNodes(node: SyntaxNode): SyntaxNode[] {
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (!HEADS.has(child.name)) continue;
     const head = child.getChild(`${child.name}_content`);
-    for (let part = head?.firstChild ?? null; part && !ARMS.has(part.name); part = part.nextSibling) nodes.push(part);
+    for (let part = head?.firstChild ?? null; part; part = part.nextSibling) nodes.push(part);
   }
   return nodes;
 }
