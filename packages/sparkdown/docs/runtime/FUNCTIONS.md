@@ -167,27 +167,27 @@ it did before, a pointer at the global of each name, which the binding
 replaces: a closure of the method that an older save holds passes the same
 parameters.
 
-**A closure** (a function value, `local function` in a function, `function
-t.f`) is built where it is written and captures there the locals it reads,
-as Luau's does (#822). Built in the root frame, it captures a `local` that
-scope declares more than once through the slot of the declaration in scope
-where it is written, so a scene's `local` of the name, which runs before
-the closure is built, is not the one it captures; and a name the scope
-declares only where
-it is not in scope (another scene's `local`) at the global. A loop's variable or a block's `local`, which a later statement
-of the block reads, is captured as the block's local, whatever the root
-frame's scope declares of its name or whether it names a stdlib entry. A name a
-`store`, a `const`, a top-level function or a stdlib entry would answer,
-which a closure does not capture, is bound at its entry as a top-level
-function binds it, to the cell the closure kept of that local where it was
-built (`__closure_roots`), so a closure built before its scene runs again
+**A closure** (a function value, `local function` in a function,
+`function t.f`) is built where it is written and captures there the
+locals it reads, as Luau's does (#822). Built in the root frame, it
+captures a `local` that scope declares more than once through the slot
+of the declaration in scope where it is written, so a scene's `local` of
+the name, which runs before the closure is built, is not the one it
+captures; and a name the scope declares only where it is not in scope
+(another scene's `local`) at the global. A loop's variable or a block's
+`local`, which a later statement of the block reads, is captured as the
+block's local, whatever the root frame's scope declares of its name or
+whether it names a stdlib entry. A name a `store`, a `const`, a
+top-level function or a stdlib entry would answer, which a closure does
+not capture, is bound at its entry as a top-level function binds it, to
+the cell the closure kept of that local where it was built
+(`__closure_roots`), so a closure built before its scene runs again
 keeps the local it was built over: a closure written after a `local` of
-the name reads the local (I-1365), and one written before it reads what the
-name names there. A closure a save written before kept no such cell, and
-its entry binds the local as it runs.
-A top-level `local` beside a `store` of its name stays a compile error
-(I-767), so the `local` that shadows a `store` or a `const` is a scene's,
-a branch's or a choice's.
+the name reads the local (I-1365), and one written before it reads what
+the name names there. A closure a save written before kept no such cell,
+and its entry binds the local as it runs. A top-level `local` beside a
+`store` of its name stays a compile error (I-767), so the `local` that
+shadows a `store` or a `const` is a scene's, a branch's or a choice's.
 
 Where a script's control flow differs from its text, the text decides. A
 closure written in a scene captures a top-level `local` above the scene
