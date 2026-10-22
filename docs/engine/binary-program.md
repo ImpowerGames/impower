@@ -166,7 +166,7 @@ Values are the engine's value classes, and a pushed constant is a value object c
 | `MakeTable` | arg: pairs | pops 2 × pairs, pushes the table, with `EndObject`'s rules for a nil value and for a last entry that is a multiple value | | | |
 | `Dup`, `Pop` | | duplicates or discards the top | | | |
 | `Pack`, `Unpack` | arg: n | as `PackTuple` and `UnpackTuple` | | | |
-| `DeclareValue` | arg: global index | | | | in a declaration chunk's own frame, names the global (its index in the chunk) whose initializer runs next, for the declarations' error and warning sites; elsewhere nothing (I-1409) |
+| `DeclareValue` | arg: global index | | | | in a declaration chunk's own frame, names the global (its index in the chunk) whose initializer runs next, for the declarations' error and warning sites; elsewhere nothing (I-1409). A program an earlier compiler emitted holds none and runs unchanged: its declaration chunks declare each global after its value, and the count of declaring `SetVar`s, which the story keeps, names the global whose value runs |
 | `Index` | | pops key and base, each taken as one value (a multiple value's first, nil for a call that returned none), pushes the member, through `__index` on a miss | | | |
 | `StoreIndex` | | pops value, key and base, each taken as one value | | | |
 | `GetVar` | arg: name | pushes the value, with `VariableReference`'s fallbacks: `_G`, a dotted name walked through tables, a flow's name as a symbol value, a builtin's name as its marker, nil | | | |
