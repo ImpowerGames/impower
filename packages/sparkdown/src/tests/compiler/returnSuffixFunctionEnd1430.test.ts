@@ -82,6 +82,11 @@ const FORMS: [string, (line: string) => string][] = [
   ["two shifts before a recovered until", (line) => `function f()\nrepeat\nrepeat\nif true then\n${line}\nreturn 2 a\nend\nuntil true\nuntil true\nend\n`],
   ["two shifts before a recovered end", (line) => `function f()\nwhile true do\nrepeat\nif true then\n${line}\nreturn 2 a\nuntil true\nend\nend\nend\n`],
   ["a later return after a shifted repeat", (line) => `function f()\nrepeat\nif true then\ndo\n${line}\nend\nuntil true\nreturn 2 a\nend\n`],
+  // A later return whose recovery Luau ends with a closer of a block
+  // around the one it is read in (round 4's undirected review).
+  ["a later return recovered in an outer block", (line) => `function f()\nif true then\ndo\n${line}\nreturn 2 a\nend\nreturn 3 a\nend\nend\n`],
+  ["a later return recovered in an outer loop", (line) => `function f()\nwhile true do\nrepeat\n${line}\nreturn 2 a\nuntil true\nreturn 3 a\nend\nend\n`],
+  ["a later return recovered in its own block", (line) => `function f()\nif true then\n${line}\nend\nreturn 2 a\nend\nreturn 3 a\n`],
   ["a misindented end before a missing until", (line) => `function f()\n  while true do\n    repeat\n      if true then\n        ${line}\n    end\n  end\n  local a = 1\nend\n`],
 ];
 
@@ -97,6 +102,7 @@ const UNCLOSED: [string, (line: string) => string][] = [
   ["an if opened after the return with no end", (line) => `function f()\n${line}\nif true then\nprint(1)\n`],
   ["a repeat opened after the return with no until", (line) => `function f()\n${line}\nrepeat\nprint(1)\n`],
   ["a block opened after the return, closed, with no end", (line) => `function f()\n${line}\ndo\nprint(1)\nend\n`],
+  ["a later return recovered in an outer block with no end", (line) => `function f()\nif true then\ndo\n${line}\nreturn 2 a\nend\n`],
   ["an indented nested block before a later block", (line) => `function f()\n  while true do\n    if true then\n      ${line}\n      end\n  end\n  if true then\n    local a = 1\nend\n`],
   ["a nested function", (line) => `function f()\nlocal function g()\n${line}\nend\nreturn g\nend\n`],
 ];

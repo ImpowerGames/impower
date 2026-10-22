@@ -2279,9 +2279,10 @@ class Parser {
     if (this.is(text)) {
       // Where Luau ended the block already, the closer closes the block
       // Luau reads it in (`closeWrittenBlock`, I-1430).
+      // A closer Luau's recovery read (`luauClosed`) notes no suspect.
       const closed = this.closedBlockOf(begin);
       if (closed?.ended) this.closeWrittenBlock(closed);
-      else this.noteEndMismatchSuspect(begin);
+      else if (!this.luauClosed.has(this.current())) this.noteEndMismatchSuspect(begin);
       this.nextExpected();
       return true;
     }
@@ -2514,11 +2515,18 @@ class Parser {
           // (`closeWrittenBlock`, I-1430).
           let after = this.pos + 1;
           while (this.tokens[after]?.kind === "break" && !this.tokens[after]!.story) after++;
-          if (!this.is(luauCloser, this.tokens[after] ?? this.eof)) {
+          const next = this.tokens[after] ?? this.eof;
+          if (!this.is(luauCloser, next)) {
             luauBlock.ended = true;
             // Luau reads a `repeat` loop's condition after its missing
             // `until`, and the statements after it in the block around.
             repeatCondition = luauCloser === "until" && this.pos === following;
+          } else {
+            // Luau's recovery reads the closer and closes its block with it,
+            // ending a block around this one for Luau; the block that meets
+            // the closer here reads it as read already.
+            if (luauBlock !== block) luauBlock.ended = true;
+            this.luauClosed.add(next);
           }
         }
         this.pos = following;
