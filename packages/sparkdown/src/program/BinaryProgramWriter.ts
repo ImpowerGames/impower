@@ -309,17 +309,20 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return this.finish(input);
   }
 
-  /** A declaration statement's chunk: each global's initializer, then its
-   *  declaration as a global under the name the object engine's `global
-   *  decl` container assigns it. The values after a store's last name
-   *  (`discarded`) are evaluated after its own and popped. A store's call that spreads to the names
-   *  after it (`spreadTo`) is evaluated once and unpacked, and its values
-   *  declare its own global and then each of those names, in order; a name
-   *  the statement does not declare (one the story refused as a duplicate)
-   *  drops its value. */
+  /** A declaration statement's chunk: every global's initializer, left to
+   *  right, and only then each declaration as a global under the name the
+   *  object engine's `global decl` container assigns it, so a later value
+   *  that reads an earlier name sees it unassigned, as in Luau. The values
+   *  after a store's last name (`discarded`) are evaluated after its own and
+   *  popped. A store's call that spreads to the names after it (`spreadTo`)
+   *  is evaluated once and unpacked, and its values declare its own global
+   *  and then each of those names; a name the statement does not declare
+   *  (one the story refused as a duplicate) drops its value. Each value
+   *  group leaves its first value on top, so the groups bind last first. */
   writeDeclaration(input: DeclarationInput): EmittedStatement {
     this.begin(input);
     const { globals } = input;
+    const groups: (string | null)[][] = [];
     for (let i = 0; i < globals.length; i += 1) {
       const { name, assignment } = globals[i]!;
       if (!assignment.expression) {
@@ -334,21 +337,26 @@ export class BinaryProgramWriter implements ProgramEmitter {
       if (spread.length > 0) {
         this.emit(Op.Unpack, spread.length + 1);
       }
-      this.emit(Op.SetVar, this.variable(name), 0, SET_DECLARE | SET_GLOBAL);
+      const group: (string | null)[] = [name];
       for (const target of spread) {
         const next = globals[i + 1];
         if (next?.assignment === target) {
-          this.emit(
-            Op.SetVar,
-            this.variable(next.name),
-            0,
-            SET_DECLARE | SET_GLOBAL,
-          );
+          group.push(next.name);
           i += 1;
         } else if (globals.some((g) => g.assignment === target)) {
           this.unsupported("a store whose names its call gives values to are apart");
         } else {
+          group.push(null);
+        }
+      }
+      groups.push(group);
+    }
+    for (let g = groups.length - 1; g >= 0; g -= 1) {
+      for (const name of groups[g]!) {
+        if (name === null) {
           this.emit(Op.Pop);
+        } else {
+          this.emit(Op.SetVar, this.variable(name), 0, SET_DECLARE | SET_GLOBAL);
         }
       }
     }
