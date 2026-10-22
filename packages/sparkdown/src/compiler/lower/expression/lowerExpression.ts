@@ -827,11 +827,13 @@ function lowerMethodCall(
     // before the target), and read the temp for the index lookup —
     // `a:add(10):add(20)` must not run `add(10)` twice (calls.luau line
     // 47). The temp is named after the call's `:`, which no other call
-    // shares.
+    // shares. The call names its method, so a receiver that lacks it
+    // reports the method and the receiver's type, as Luau does.
     const tempName = `__mcall_${syntheticId(offsetAt(func.opPosition, ctx), ctx)}`;
     return new CallValueExpression(
       new IndexExpression(new StashedTempReadExpression(tempName), key),
       [new StashAndRereadExpression(receiver, tempName), ...args],
+      methodName,
     );
   }
   return new CallValueExpression(new IndexExpression(receiver, key), args);

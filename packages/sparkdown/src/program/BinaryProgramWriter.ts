@@ -35,6 +35,7 @@ import { UnsupportedConstruct } from "./ProgramEmitter";
 import { FACT_KIND } from "./ProgramFacts";
 import {
   AUX_MAX,
+  CALL_METHOD,
   CHOICE_CONDITION,
   CHOICE_DECISION,
   CHOICE_INVISIBLE_DEFAULT,
@@ -2191,7 +2192,9 @@ export const describeInstruction = (
     case Op.Done:
       return flags & DONE_HOLD ? `${name} hold` : name;
     case Op.CallValue:
-      return `${name} ${aux}`;
+      return flags & CALL_METHOD
+        ? `${name} ${aux} method ${JSON.stringify(table.strings[arg])}`
+        : `${name} ${aux}`;
     case Op.Leave:
       return flags & LEAVE_CONTINUE ? `${name} continue` : name;
     case Op.Const:
