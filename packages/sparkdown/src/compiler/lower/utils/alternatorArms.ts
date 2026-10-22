@@ -2,7 +2,6 @@ import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
-import { ErrorType } from "../../../runtime/Error";
 import { statementSource } from "./statementSource";
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";

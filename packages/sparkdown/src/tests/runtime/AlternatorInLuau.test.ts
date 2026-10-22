@@ -94,7 +94,7 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
   test("the ticket's function: the arm after the first `|` (a head is no arm, I-1446)", () => {
     expect(run(lines("function f()", '  local line = cycle "a" | "b" end', "  return line", "end", "Value {f()}."))).toEqual({
       output: "Value b.\n",
-      errors: [],
+      errors: ["A `cycle` takes no value before its first `|`; write its arms as `| ...`"],
     });
   });
 
@@ -289,7 +289,8 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
   ])("%s, which nothing reads, keeps nothing alive in a save", (_name, body) => {
     const source = lines("function make(y)", body, "end", 'local g = make(string.rep("unused-marker", 100))', "Value {g()}.");
     const { story, errorMessages } = makeRuntimeStoryFromSource(source);
-    expect(errorMessages).toEqual([]);
+    // A head is an error, and runs as no head (I-1446).
+    expect(errorMessages).toEqual(_name.includes("head") ? ["A `cycle` takes no value before its first `|`; write its arms as `| ...`"] : []);
     expect(runToEnd(story)).toBe("Value 3.\n");
     expect(story.state.toJson().includes("unused-marker")).toBe(false);
   });
