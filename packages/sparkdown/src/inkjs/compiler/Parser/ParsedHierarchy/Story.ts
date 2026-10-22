@@ -43,9 +43,10 @@ import { VariableReference } from "./Variable/VariableReference";
  *  globals that could have jumped. */
 export const globalsTableWrite = (obj: ParsedObject): string | null => {
   if (obj instanceof StorePropertyAssignment) {
+    const target = obj.writtenTarget;
     return StorePropertyAssignment.globalWrittenAt(
-      obj.baseExpression,
-      obj.keyExpression,
+      target?.base ?? obj.baseExpression,
+      target?.key ?? obj.keyExpression,
     );
   }
   if (obj instanceof FunctionCall && obj.name === "rawset") {

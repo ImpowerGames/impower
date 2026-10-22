@@ -37,6 +37,11 @@ export class StorePropertyAssignment extends ParsedObject {
    *  (`function api.f()`, `function api:f()`), which writes the function
    *  into its table. */
   public definesFunction = false;
+  /** The target's table and key as the author wrote them, when the lowering
+   *  stashed them in temporaries the store reads instead (a multiple
+   *  assignment's `_G[k], x = g, 1`, a compound `_G[k] += 1`): which global
+   *  the store writes is read from these (`globalWrittenAt`). */
+  public writtenTarget: { base: Expression; key: Expression } | null = null;
 
   constructor(base: Expression, key: Expression, value: Expression) {
     super();
@@ -54,9 +59,12 @@ export class StorePropertyAssignment extends ParsedObject {
    *  the global `f` itself: the key's name when it is a string literal
    *  (I-1091), {@link ANY_GLOBAL} for a key the compiler cannot name
    *  (`_G[k]`, `_G[key()]`), whichever global it names when it runs
-   *  (I-1394), and null for an empty literal key or any other table. A plain
-   *  assignment of that name writes the same global, so a call of a
-   *  top-level function `f` calls what it holds. */
+   *  (I-1394), and null for any other table. A plain assignment of that name
+   *  writes the same global, so a call of a top-level function `f` calls
+   *  what it holds. A literal key no name spells (empty, {@link ANY_GLOBAL}
+   *  itself, or one starting with `*`, the resolver's keys for whole tables)
+   *  writes a global no call reads, and is left out too, so that it stands
+   *  for none of those. */
   static globalWrittenAt(
     table: Expression | undefined,
     key: Expression | undefined,
@@ -70,7 +78,8 @@ export class StorePropertyAssignment extends ParsedObject {
       return null;
     }
     if (key instanceof StringExpression && key.isSingleString) {
-      return key.toString() || null;
+      const name = key.toString();
+      return !name || name === ANY_GLOBAL || name.startsWith("*") ? null : name;
     }
     return ANY_GLOBAL;
   }

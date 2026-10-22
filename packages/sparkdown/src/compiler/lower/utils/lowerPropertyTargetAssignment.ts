@@ -150,6 +150,7 @@ export function propertyStore(
     refKeyForWrite,
     computedValue,
   );
+  store.writtenTarget = { base: baseExpr, key: keyExpr };
 
   return [baseTempDecl, keyTempDecl, store];
 }

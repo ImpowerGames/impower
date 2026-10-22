@@ -74,6 +74,21 @@ const cases: [string, string, string][] = [
     "before 7.\nafter 2.\n",
   ],
   [
+    "a dynamic write through _G in a multiple assignment rebinds the global",
+    "function f() return 7 end\n& local k = 'f'\n& _G[k], x = function() return 2 end, 1\nf is {f()}, x is {x}.\n",
+    "f is 2, x is 1.\n",
+  ],
+  [
+    "a dynamic write through _G in a multiple assignment inside a function rebinds the global",
+    "function f() return 7 end\nfunction swap(k, x) _G[k], x = function() return 3 end, 1 end\n& swap('f', 0)\nf is {f()}.\n",
+    "f is 3.\n",
+  ],
+  [
+    "a literal-key write through _G in a multiple assignment rebinds the global",
+    "function f() return 7 end\n& _G.f, x = function() return 2 end, 1\nf is {f()}.\n",
+    "f is 2.\n",
+  ],
+  [
     "a dynamic write of another name leaves the function alone",
     "function f() return 7 end\n& local k = 'g'\n& _G[k] = function() return 2 end\nf is {f()}.\n",
     "f is 7.\n",
@@ -135,6 +150,15 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
       "a dynamic-key store into another table",
       "function f() return 7 end\n& local t = {}\n& local k = 'f'\n& t[k] = 2\nf is {f()}.\n",
     ],
+    [
+      "dynamic-key multiple and compound stores into another table",
+      "function f() return 7 end\n& local t = {f = 1}\n& local k = 'f'\n& t[k], x = 2, 3\n& t[k] += 1\nf is {f()}.\n",
+    ],
+    // A literal key no name spells writes a global no call reads, and
+    // stands for no dynamic store.
+    ["a literal key spelling the dynamic store's mark", "function f() return 7 end\n& _G['_G[]'] = 1\nf is {f()}.\n"],
+    ["a rawset of a literal key spelling the dynamic store's mark", "function f() return 7 end\n& rawset(_G, '_G[]', 1)\nf is {f()}.\n"],
+    ["a literal key spelling a whole table's mark", "function f() return 7 end\n& _G['*vars'] = 1\n& _G['*'] = 1\nf is {f()}.\n"],
   ])("%s keeps the direct call", (_name, text) => {
     const { program } = compileScript(text);
     expect(outcome({ program })).toEqual({ text: "f is 7.\n", errors: [] });
@@ -146,6 +170,14 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
       "function f() return 7 end\nfunction h() return 5 end\n& local k = 'f'\n& _G[k] = function() return 2 end\nf is {f()}, h is {h()}.\n",
     );
     expect(outcome({ program })).toEqual({ text: "f is 2, h is 5.\n", errors: [] });
+    expect(callsThroughVariable(program.chunks!)).toBe(true);
+  });
+
+  it("a compound store through _G with a dynamic key sends calls through their globals", () => {
+    const { program } = compileScript(
+      "function f() return 7 end\n& local k = 'n'\n& n = 1\n& _G[k] += 1\nf is {f()}, n is {n}.\n",
+    );
+    expect(outcome({ program })).toEqual({ text: "f is 7, n is 2.\n", errors: [] });
     expect(callsThroughVariable(program.chunks!)).toBe(true);
   });
 
