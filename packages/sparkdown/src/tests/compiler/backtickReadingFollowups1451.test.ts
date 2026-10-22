@@ -153,6 +153,12 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
     "`a {1 `b {x} c} d` + 1",
     "`a {1 `b {x} c {} e`} d`",
     "`a {1 `b {x} c {`e {y} f`} g`} d`",
+    "`a {1 `b {x :: `a {y} b`} c`} d`",
+    "1 g(`a {x :: `b {y} c`} d`)",
+    "`a {1 `b {x} c",
+    "`a {x} b {1 `b {x} c",
+    "`a {1 `b {x} c {y} d",
+    "1 `a {1 `b {x} c",
     "`a \\u{41} {x} b`",
   ];
   // A store ends at its line (its value too), and with an unclosed call its
@@ -172,7 +178,7 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
   // end (`` `a {1 `b {x} c `` and then `` } d` ``) leaves the outer
   // interpolation open in Luau's lexer across lines where the tree ends the
   // string at its line (I-1318), which is not part of this change.
-  for (const value of [...forms, "`a {1 `b {x +} c`} d`", "1 g(`a \\z\n  {x} b`)", "`a {1 `b {x\n} c`} d`"]) {
+  for (const value of [...forms, "`a {1 `b {x +} c`} d`", "1 g(`a \\z\n  {x} b`)", "`a {1 `b {x\n} c`} d`", "`a {1 `b {x} c\nlocal z = {x = 1}", "`a {1 `b {x} c\nlocal z = 1"]) {
     test(`a function's local s = ${JSON.stringify(value)}`, () => {
       const luau = `function f()\nlocal s = ${value}\nend\n`;
       expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(official(luau));

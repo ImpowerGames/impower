@@ -3462,6 +3462,11 @@ class Parser {
       this.parseInterpString();
       return { type: this.reportTypeError(location, [], "Interpolated string literals cannot be used as types") };
     }
+    // So is one lexed from text as Luau's lexemes (`Tokenizer.interpSection`), from its first.
+    if (token.kind === "interp" && token.section && token.text.startsWith("`")) {
+      this.parseLexedInterpString();
+      return { type: this.reportTypeError(start, [], "Interpolated string literals cannot be used as types") };
+    }
     if (this.isName()) {
       let prefix: string | undefined;
       let prefixLocation: Location | undefined;
@@ -4325,7 +4330,7 @@ class Parser {
           const lexed = tokenizer.tokens.map((t): Token => ({ ...t, source: inner.source, unread: true, authoredIsland: inner.authoredIsland }));
           const stringEnd = this.locationOf(string.to, string.to);
           this.withTokens(lexed, stringEnd, () => {
-            const value = this.parseLexedInterpString(this.locationOf(string.from, string.from));
+            const value = this.parseLexedInterpString(this.locationOf(string.from, string.from), true);
             const ended = value instanceof AstExprInterpString;
             continued = ended ? { strings: value.strings, expressions: value.expressions, end: this.tokens[this.pos - 1]!.to } : { strings: [], expressions: [value] };
             stray = this.tokens.slice(this.pos);
@@ -4369,8 +4374,11 @@ class Parser {
    * `start` is where Luau's string begins: the first section's, or an outer
    * string's that goes on through these sections (I-1427).
    */
-  private parseLexedInterpString(start = this.current().location): AstExpr {
+  private parseLexedInterpString(start = this.current().location, continued = false): AstExpr {
     const begin = { location: start };
+    // Whether the sections being read go on from an outer string's, inside
+    // its interpolation, which Luau's lexer keeps open (I-1427).
+    let nested = continued;
     const strings: string[] = [];
     const expressions: AstExpr[] = [];
     const isSection = (token: Token) => token.kind === "interp" && token.section === true;
@@ -4396,10 +4404,14 @@ class Parser {
       expressions.push(this.parseExpr());
       const next = this.current();
       // A section Luau's lexer could not finish (`} b` at the line's end)
-      // is the string's last, which Luau's parser reports as it.
+      // is the string's last, which Luau's parser reports as it: a missing
+      // backtick, or, inside an outer string's interpolation, that
+      // interpolation's missing `}`, unless a `}` closing it is the next
+      // thing Luau reads (`} d`` on the next line).
       if (isSection(next) && next.broken) {
         this.next();
-        return this.reportStringError(next.location, expressions, "Malformed interpolated string; did you forget to add a '`'?");
+        const missing = nested && !closingBraceFollows(this.ctx.text, next.to) ? "}" : "`";
+        return this.reportStringError(next.location, expressions, `Malformed interpolated string; did you forget to add a '${missing}'?`);
       }
       if (isBroken(next)) {
         this.next();
@@ -4410,6 +4422,8 @@ class Parser {
       // expression's last token.
       if (next.kind === "eof") return this.reportStringError(this.previousLocation(), expressions, "Malformed interpolated string; did you forget to add a '}'?");
       if (!isSection(next)) return this.reportStringError(section.location, expressions, `Malformed interpolated string, got ${describe(next)}`);
+      // A string's first section after the expression goes on from this one.
+      if (next.text.startsWith("`")) nested = true;
     }
   }
 
@@ -4464,6 +4478,20 @@ interface ContinuedString {
   strings: string[];
   expressions: AstExpr[];
   end?: number;
+}
+
+/**
+ * Whether the next thing Luau's lexer reads from `at`, inside an open
+ * interpolation, past whitespace and comments, is a `}` closing it.
+ */
+function closingBraceFollows(text: string, at: number): boolean {
+  let i = at;
+  while (i < text.length) {
+    if (/\s/.test(text[i]!)) i++;
+    else if (text.startsWith("--", i)) i = skipComment(text, i, text.length);
+    else return text[i] === "}";
+  }
+  return false;
 }
 
 /** Whether a backtick string's node ends in its closing backtick: its own end's, not a backtick inside it. */
