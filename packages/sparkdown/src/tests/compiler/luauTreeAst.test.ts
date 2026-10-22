@@ -518,9 +518,10 @@ describe("Unfinished and boundary input", () => {
   });
 
   test("a plain Luau return reports the required block closer at the following token (#1298)", () => {
+    // The function ends there, and its `end` is met where the chunk ends (I-1430).
     const { tree, luau } = preludeErrors("function f()\n  return 1\n  x = 2\nend\n");
-    expect(tree).toEqual(["2:2 Expected 'end' (to close 'function' at line 1), got 'x'"]);
-    expect(tree[0]).toBe(luau[0]);
+    expect(luau).toEqual(["2:2 Expected 'end' (to close 'function' at line 1), got 'x'", "3:0 Expected <eof>, got 'end'"]);
+    expect(tree).toEqual(luau);
   });
 
   test("an interpolation missing its closing brace is an error where Luau reports it", () => {

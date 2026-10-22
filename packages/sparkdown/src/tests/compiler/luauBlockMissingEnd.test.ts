@@ -161,10 +161,9 @@ describe("Luau block without `end`", () => {
     const lines = ["function f()", "  type function F(t)", "    return t", "  local a = 1", "end"];
     const { diags } = compile([...lines, ...TAIL].join("\n"));
     expect(missingEndErrors(diags)).toEqual([]);
-    expect(luauEndErrors(diags)).toEqual([
-      [3, "Expected 'end' (to close 'function' at line 2), got 'local'"],
-      [7, "Expected 'end' (to close 'function' at line 1), got <eof>; did you forget to close 'function' at line 2?"],
-    ]);
+    // Luau ends the type function at that error, after its `return`, so
+    // the `end` closes `f` and the end of input is the chunk's (I-1430).
+    expect(luauEndErrors(diags)).toEqual([[3, "Expected 'end' (to close 'function' at line 2), got 'local'"]]);
     expect(officialEndMessages(lines.join("\n"))).toEqual(["Expected 'end' (to close 'function' at line 2), got 'local'"]);
   });
 
