@@ -99,9 +99,11 @@ import {
   type LuauSource,
 } from "../utils/luauAst";
 import { reportValueInVain } from "../utils/lineContinuation";
+import { lookupGlobalStdLibBuiltin } from "../../../runtime/StdLib";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
 import {
+  localHidesStdLib,
   makeGlobalFunctionCall,
   recordSiblingRead,
   resolveCallableBinding,
@@ -663,11 +665,9 @@ function lowerCall(
   // knot or a variadic sibling function) holds a value: the call
   // dispatches through it, which handles closures, `__call` metamethods
   // and `__stdlib_fn` markers. A static `FunctionCall` would divert to a
-  // knot of the name, which does not exist.
-  if (
-    resolveCallableBinding(name, ctx, offsetAt(call.location.begin, ctx)) ===
-    "local"
-  ) {
+  // knot of the name, which does not exist. So does a stdlib name a local
+  // in scope hides, a top-level one included (I-1372).
+  if (callsLocal(name, args.length, offsetAt(call.location.begin, ctx), ctx)) {
     return new CallValueExpression(
       new VariableReference([new Identifier(name)]),
       args,
@@ -687,6 +687,24 @@ function lowerCall(
   // function's parameters (I-1428).
   functionCall.proxyDivert.argumentsMalformed = call.malformed;
   return functionCall;
+}
+
+// Whether a call of the bare `name` written at `at` dispatches through a
+// local's value (`resolveCallableBinding`): a stdlib name, which would
+// otherwise reach the builtin (`makeGlobalFunctionCall`), asks whether a
+// local in scope hides it (`localHidesStdLib`).
+function callsLocal(
+  name: string,
+  argCount: number,
+  at: number,
+  ctx: LowerContext,
+): boolean {
+  const binding = resolveCallableBinding(name, ctx, at);
+  if (binding !== null) return binding === "local";
+  return (
+    lookupGlobalStdLibBuiltin(name, argCount) !== null &&
+    localHidesStdLib(name, ctx, at)
+  );
 }
 
 // The libraries the grammar reads as stdlib namespaces
@@ -713,8 +731,29 @@ function lowerMethodCall(
   // call with the args alone — no receiver-threading.
   const receiverNames = pathNames(func.expr);
   let stdlibMember: Identifier | null = null;
-  if (receiverNames?.length === 1) {
-    const receiverName = receiverNames[0]!.name;
+  // A dot call through a local in scope that hides the library calls the
+  // local's field, as any table's dot call does (I-1372).
+  const receiverName = receiverNames?.length === 1 ? receiverNames[0]!.name : null;
+  if (
+    receiverName !== null &&
+    !isColonForm &&
+    (mapStdLibCallToBuiltin(receiverName, methodName, args.length) ||
+      STDLIB_NAMESPACES.has(receiverName)) &&
+    localHidesStdLib(
+      receiverName,
+      ctx,
+      offsetAt(receiverNames![0]!.location.begin, ctx),
+    )
+  ) {
+    const receiver = lowerExpression(func.expr, source, ctx);
+    return receiver
+      ? new CallValueExpression(
+          new IndexExpression(receiver, new StringExpression([new Text(methodName)])),
+          args,
+        )
+      : null;
+  }
+  if (receiverName !== null) {
     const builtin = mapStdLibCallToBuiltin(receiverName, methodName, args.length);
     if (builtin) {
       // Editor-side strikethrough for deprecated stdlib calls (e.g.
@@ -744,7 +783,7 @@ function lowerMethodCall(
       if (!isColonForm) {
         return new CallValueExpression(
           new VariableReference([
-            astIdentifier(receiverNames[0]!, ctx),
+            astIdentifier(receiverNames![0]!, ctx),
             astIdentifier(method, ctx),
           ]),
           args,
@@ -837,7 +876,7 @@ function coerceFunctionCallShorthand(
     const path = expr.pathIdentifiers;
     if (path.length === 1 && path[0]?.name) {
       const nameStr = path[0].name;
-      if (resolveCallableBinding(nameStr, ctx, range.from) === "local") {
+      if (callsLocal(nameStr, 0, range.from, ctx)) {
         return new CallValueExpression(
           new VariableReference([new Identifier(nameStr)]),
           [],
