@@ -1334,7 +1334,8 @@ function sectionEnd(text: string, at: number, to: number): { end: number; opens:
     else if (text.startsWith("u{", end + 1)) end += 3;
     else if (text[end + 1] === "z") {
       end += 2;
-      while (end < to && /\s/.test(text[end]!)) end++;
+      // Luau's whitespace: a space or `\t` through `\r`, not a Unicode space.
+      while (end < to && /[ \t-\r]/.test(text[end]!)) end++;
     } else if (text.startsWith("\r\n", end + 1)) end += 3;
     else end += 2;
   }

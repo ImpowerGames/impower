@@ -170,6 +170,16 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
       expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(official(luau));
     });
   }
+  // `\z` skips only Luau's whitespace, so a no-break space after it leaves
+  // the line break to end the string (round 2).
+  test("a \\z escape before a no-break space and a line break", () => {
+    const source = "`a \\z\u00a0\n   b`";
+    // The string ends at the line break, and `b` is the next line's.
+    expect(readLuauExpressionAfter(0, source).errors[0]?.message).toBe("Malformed string; did you forget to finish it?");
+    forgetLookups();
+    expect(nextLuauToken(7, source)).toEqual({ text: "b", from: source.indexOf("b") });
+  });
+
   test("a read bounded inside a string's section reads what the text up to the bound gives", () => {
     const source = "`a {x} tail`";
     for (let to = 1; to <= source.length; to++) {
