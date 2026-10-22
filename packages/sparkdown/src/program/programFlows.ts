@@ -464,7 +464,28 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   }
   // The member functions' writes run after every global initializes, as
   // they ran when the top level ran them first: a write into a table another
-  // script declares finds it (`memberWrites`).
+  // script declares finds it (`memberWrites`). A write's statement can also
+  // declare a global (`& store api = { make = function() … end }; function
+  // api.f() … end`), whose initializer's functions are bodies of the global's
+  // declaration: the write leaves them out, so it does not plan their
+  // symbols after the global and take the global's functions for its own
+  // (`ChunkStore.planFunctions` gives a function the symbol of the last
+  // statement planned with it).
+  const globalFunctions = new Set<ParsedObject>();
+  for (const declaration of out.declarations) {
+    for (const body of declaration.bodies ?? []) {
+      if (body.fn) {
+        globalFunctions.add(body.fn);
+      }
+    }
+  }
+  for (const write of writes) {
+    if (write.bodies?.some((body) => body.fn && globalFunctions.has(body.fn))) {
+      (write as { bodies?: BodySource[] }).bodies = write.bodies.filter(
+        (body) => !body.fn || !globalFunctions.has(body.fn),
+      );
+    }
+  }
   out.declarations.push(...writes);
   return out;
 };

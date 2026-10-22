@@ -1001,6 +1001,65 @@ describe("a save of a closure a global's function made, in a script that writes 
   });
 });
 
+// A line that declares a global and writes a member function: a closure the
+// global's initializer's function makes is the global's, named by the
+// global's declaration level, as main names it, never through the write
+// (round 6 of the review of I-1438).
+describe("a save of a closure a shared line's initializer function made", () => {
+  const A = "file://proj/scripts/a.sd";
+  const menu = lines("store g = 0", "& g = api.make()", "Before.", "choose", "  * Go", "    Result {g()}.", "end");
+  const line = (made: number, written: number) =>
+    lines(
+      `& store api = { make = function() return function() return ${made} end end }; function api.f() return function() return ${written} end end`,
+    );
+  const programOf = (text: string) =>
+    quiet(() =>
+      programCompiler({ [MAIN]: menu, [A]: text }, { seedBuiltinsIntoStory: true }).compile(MAIN),
+    ).program;
+  const saveAtMenu = () => {
+    const story = new ProgramStory(programOf(line(2, 7)).chunks!);
+    story.keepBeatImages = true;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+    });
+    expect(story.currentChoices.map((choice) => choice.text)).toEqual(["Go"]);
+    return story.toSave();
+  };
+  const load = (save: string, text: string) => {
+    const program = programOf(text);
+    expect(reported(program)).toEqual([]);
+    const loaded = new ProgramStory(program.chunks!);
+    loaded.keepBeatImages = true;
+    loaded.onError = () => {};
+    loaded.loadSave(save);
+    const report = loaded.loadedSaveReport!;
+    const run = quiet(() => storyRun(loaded, [0]));
+    expect(run.errors).toEqual([]);
+    return { exact: report.exact, warnings: report.warnings, beats: run.beats.map((beat) => beat.text) };
+  };
+
+  it("names it by the global's declaration level", () => {
+    const g = JSON.parse(JSON.parse(saveAtMenu()).beats.at(-1).globals.g.obj.__closure_fn["^symsave"]);
+    expect(g.st.levels[0]).toMatchObject({ decl: A });
+  });
+
+  it("keeps the global's function's closure when the member function is edited", () => {
+    expect(load(saveAtMenu(), line(2, 8))).toEqual({
+      exact: true,
+      warnings: [],
+      beats: ["Go\n", "Result 2.\n"],
+    });
+  });
+
+  it("follows the global's edited function, never the member function, when the global's is edited", () => {
+    const loaded = load(saveAtMenu(), line(3, 7));
+    expect(loaded.beats[1]).not.toBe("Result 7.\n");
+    if (loaded.warnings.length === 0) {
+      expect(loaded.beats).toEqual(["Go\n", "Result 3.\n"]);
+    }
+  });
+});
+
 // Saves taken before I-1438, which name a member function's write of a
 // script other than main by the `$include:` flow its script's top level then
 // had. Each was written by `toSave` at ae10deabd, at the menu, for the
