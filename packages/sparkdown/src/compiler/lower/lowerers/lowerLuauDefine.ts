@@ -168,9 +168,11 @@ function reportDefineStatement(
   readFrom: number,
   whole = false,
 ): { last: SyntaxNode; readTo: number } {
+  // A node the reading before consumed is skipped alone: a statement later
+  // on its line (`1 + 2; t.f(1 +)`) begins one of its own.
+  if (start.from < readFrom) return { last: start, readTo: readFrom };
   const last = defineStatementLast(start, whole);
   const read = (from: number, to: number) => ctx.read(from, to);
-  if (start.from < readFrom) return { last, readTo: readFrom };
   if (!readsDefineStatement(start, read)) return { last, readTo: last.to };
   const { errors, to } = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
   for (const error of errors) {

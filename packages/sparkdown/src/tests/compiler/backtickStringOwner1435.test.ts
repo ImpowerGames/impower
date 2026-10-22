@@ -12,7 +12,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
-import { officialErrorList } from "./officialSyntax";
+import { inPositionOrder, officialErrorList } from "./officialSyntax";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
@@ -254,11 +254,18 @@ describe("a string the statement rejects reports the statement's error, none of 
     expectIncrementalEqualsCold(text);
   });
   // A define's value reports a statement's first error from the tree
-  // (`validateAssignmentValue`), where Luau goes on to `got } b``.
+  // (`validateAssignmentValue`); the string after it begins a statement of
+  // the body, whose reading goes on to Luau's `got } b``, as the official
+  // parser does (I-1489).
   test("a define's value s = 1 `a {} b`", () => {
     const text = "define Thing with\n  s = 1 `a {} b`\nend\n";
-    expect(sparkdownErrors(text)).toEqual(["1:8-1:12 Expected identifier when parsing expression, got `a {"]);
-    expect(official("local s = 1 `a {} b`\n", 1, -4)).toContain("1:8-1:12 Expected identifier when parsing expression, got `a {");
+    const both = [
+      "1:8-1:12 Expected identifier when parsing expression, got `a {",
+      "1:12-1:16 Expected identifier when parsing expression, got } b`",
+    ];
+    expect(inPositionOrder(sparkdownErrors(text))).toEqual(both);
+    expect(inPositionOrder(official("local s = 1 `a {} b`\n", 1, -4))).toEqual(both);
+    expectIncrementalEqualsCold(text);
   });
 });
 

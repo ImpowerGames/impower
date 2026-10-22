@@ -108,6 +108,16 @@ const BODIES: string[] = [
   // The same, from a later statement on the line (round 1, gc 3).
   "  t.f(1); t.a, t.b\n  1 + 2\n",
   "  Hello Hi, Bob\n  1 + 2\n",
+  // A statement later on a line the reading before consumed begins one of
+  // its own (round 1, undirected 1), and read-ahead follows the statement
+  // that takes the next token, not the line's first (undirected 2).
+  "  t.a, t.b\n  1 + 2; t.f(1 +)\n",
+  "  Hello\n  Hi, Bob\n  1 + 2; t.f(1 +)\n",
+  "  t.a, t.b\n  1 + 2; Hello\n",
+  "  t.f(1); t.a, t.b\n  f(\n    1 +)\n",
+  // A statement after a property on its line (undirected 3).
+  "  y = 1; t.f(2 +)\n",
+  "  y = 1; t.f(1 2 3)\n",
   // Lines that continue a statement are its own (round 1, gc 2).
   "  t.f(1 +)\n  .g(2 +)\n",
   "  t.f(1 +)\n  :g(2 +)\n",

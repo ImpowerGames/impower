@@ -73,9 +73,10 @@ export function defineStatementLast(start: SyntaxNode, whole = false): SyntaxNod
  * The start of the define body statement a node is in, where the reading
  * reads it (`readsDefineStatement`). A statement begins at the first node of
  * its line, past trivia, and runs to the line's end and through the lines
- * that continue it (`defineStatementLast`). Null for a node of a member, of
- * the define's header, of a line that a member begins or that continues
- * one, and outside a define's content.
+ * that continue it (`defineStatementLast`), or, on a line a property begins,
+ * at the first node after it that begins a statement. Null for a node of a
+ * member, of the define's header, of a line that another member begins or
+ * that continues one, and outside a define's content.
  */
 export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
   let top = node;
@@ -87,6 +88,16 @@ export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: n
     while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
     if (!prev) return null;
     start = lineFirst(prev);
+  }
+  // After a property on its line, a statement begins at the next node that
+  // begins one (`y = 1; t.f(2 +)`), as the lowerer reads it past the value.
+  if (start.name === "LuauPropertyDefinition") {
+    let next = start.nextSibling;
+    while (next && next.from <= top.from && !DEFINE_STATEMENT_STARTS.has(next.name) && !REASSIGNMENT_NAMES.has(next.name)) {
+      next = next.nextSibling;
+    }
+    if (!next || next.from > top.from) return null;
+    start = next;
   }
   // Lines are counted from the start, the only line a method call compares.
   const first = start;

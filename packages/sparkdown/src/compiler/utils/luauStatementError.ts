@@ -80,11 +80,13 @@ export function luauStatementErrors(
         errors.push(found);
         continue;
       }
-      // The error is past the next token. When the statement ended before
-      // that token, the error is the next statement's, which the text read
-      // cuts short (a `do` opened on that line is unclosed).
-      const first = result.root.body[0];
-      if (!first || locate({ message: "", location: first.location }, documentText).to <= next.from) {
+      // The error is past the next token. When the last statement the
+      // statement's lines hold ended before that token, the error is the
+      // next statement's, which the text read cuts short (a `do` opened on
+      // that line is unclosed). An earlier one on the line, ended
+      // (`t.f(1); t.a, t.b` then `f(`), decides nothing.
+      const last = lastStatementBefore(result.root.body, nodeEnd, documentText);
+      if (!last || locate({ message: "", location: last.location }, documentText).to <= next.from) {
         continue;
       }
       // The statement took the next token; its error at the end of the text
@@ -127,6 +129,15 @@ function statementHolding<T extends { location: { begin: { line: number; column:
     }
   }
   return holding;
+}
+
+/** The last of `statements` that starts before the offset `end`. */
+function lastStatementBefore<T extends { location: Location }>(statements: T[], end: number, documentText: string): T | null {
+  let last: T | null = null;
+  for (const statement of statements) {
+    if (locate({ message: "", location: statement.location }, documentText).from < end) last = statement;
+  }
+  return last;
 }
 
 /** Whether position `a` is before position `b`. */
