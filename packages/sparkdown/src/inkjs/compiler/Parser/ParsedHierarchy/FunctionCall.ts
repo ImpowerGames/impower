@@ -177,7 +177,8 @@ export class FunctionCall extends Expression {
         arg.PrepareIntoContainer();
       }
     } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
-      this.CheckNativeArity(NativeFunctionCall.CallWithName(this.name));
+      // The check of its number of arguments waits for resolution
+      // (`ResolveWith`), which knows the story's assignments.
       for (let ii = 0; ii < this.args.length; ii += 1) {
         this.args[ii]!.PrepareIntoContainer();
       }
@@ -234,15 +235,24 @@ export class FunctionCall extends Expression {
     }
   }
 
-  /** The check of a native call's number of arguments, which preparation
+  /** The check of a native call's number of arguments, which resolution
    *  makes. */
-  protected CheckNativeArity(nativeCall: NativeFunctionCall): void {
+  protected CheckNativeArity(
+    nativeCall: NativeFunctionCall,
+    story: Story,
+  ): void {
     // Variadic natives (currently the `__method_*` builtin-method
     // family) validate arity at runtime inside the method impl, so
-    // skip the compile-time assertion for those.
+    // skip the compile-time assertion for those. A namespace member
+    // (`math.abs`) whose namespace the story assigns globally
+    // (`math = { abs = ... }`) calls the replacement's member when the
+    // replacement holds one (`callNativeFunction`), and Luau types the
+    // namespace from the assignment, so no arity of the native's
+    // describes the call (I-1375).
     if (
       !nativeCall.isVariadic &&
-      nativeCall.numberOfParameters !== this.args.length
+      nativeCall.numberOfParameters !== this.args.length &&
+      !this.namespaceAssigned(story)
     ) {
       let msg = `${this.name} should take ${nativeCall.numberOfParameters} parameter`;
       if (nativeCall.numberOfParameters > 1) {
@@ -260,6 +270,14 @@ export class FunctionCall extends Expression {
       // does.
       this.Error(msg, this, true);
     }
+  }
+
+  /** Whether a plain assignment anywhere in the story writes the global
+   *  namespace of a namespace member's native (`math` of `math.abs`,
+   *  `Story.assignsGlobally`). */
+  protected namespaceAssigned(story: Story): boolean {
+    const dot = this.name.indexOf(".");
+    return dot > 0 && story.assignsGlobally(this.name.slice(0, dot));
   }
 
   // A call of a builtin the program engine dispatches: its arguments, then
@@ -346,6 +364,19 @@ export class FunctionCall extends Expression {
       for (const arg of this.args) {
         resolveChild(arg, context);
       }
+    }
+
+    // A native call, as preparation classified it.
+    if (
+      !this.isTurnsSince &&
+      !this.isReadCount &&
+      !this.isListRange &&
+      !this.isListRandom &&
+      !this.isListBuiltin &&
+      !this.isStateAwareStdLib &&
+      NativeFunctionCall.CallExistsWithName(this.name)
+    ) {
+      this.CheckNativeArity(NativeFunctionCall.CallWithName(this.name), context);
     }
 
     if (this._divertTargetToCount) {
