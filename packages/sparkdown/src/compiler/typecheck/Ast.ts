@@ -967,23 +967,33 @@ export class AstExprSparkdownRegex extends AstExpr {
   }
 }
 
-/** A conditional alternator used as a value. */
+/**
+ * A conditional alternator used as a value. `visibleLocals` are the locals in scope where it is
+ * read, by name, which its head and arms, read on their own, read as globals
+ * (`alternatorPartsAst`).
+ */
 export class AstExprSparkdownConditionalAlternator extends AstExpr {
   readonly kind = "SparkdownConditionalAlternator";
   constructor(
     location: Location,
     public source: SparkdownSource,
+    public visibleLocals: ReadonlyMap<string, AstLocal> = new Map(),
   ) {
     super(location);
   }
 }
 
-/** A sequential alternator used as a value. */
+/**
+ * A sequential alternator used as a value. `visibleLocals` are the locals in scope where it is
+ * read, by name, which its head and arms, read on their own, read as globals
+ * (`alternatorPartsAst`).
+ */
 export class AstExprSparkdownSequentialAlternator extends AstExpr {
   readonly kind = "SparkdownSequentialAlternator";
   constructor(
     location: Location,
     public source: SparkdownSource,
+    public visibleLocals: ReadonlyMap<string, AstLocal> = new Map(),
   ) {
     super(location);
   }

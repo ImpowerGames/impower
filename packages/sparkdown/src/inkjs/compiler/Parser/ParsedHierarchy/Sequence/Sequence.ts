@@ -6,10 +6,13 @@ import type {
   ProgramEmitter,
   ProgramLabel,
 } from "../../../../../program/ProgramEmitter";
-import { Op } from "../../../../../program/ProgramInstructions";
+import { ConstValue, Op } from "../../../../../program/ProgramInstructions";
 
 export class Sequence extends ParsedObject {
   public sequenceElements: ParsedObject[];
+  // Whether each arm pushes a value (an alternator Luau code uses as a value,
+  // `AlternatorExpression`), so that a queue played through pushes nil.
+  public valued = false;
 
   constructor(
     elementContentLists: ContentList[],
@@ -93,6 +96,8 @@ export class Sequence extends ParsedObject {
       emitter.emit(Op.Pop);
       if (arm < elements) {
         emitter.emitObject(this.sequenceElements[arm]!);
+      } else if (this.valued) {
+        emitter.emit(Op.Const, 0, ConstValue.Nil);
       }
       emitter.jumpBack(Op.Jump, end);
       emitter.bind(next);

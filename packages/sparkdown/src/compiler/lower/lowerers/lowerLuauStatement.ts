@@ -62,6 +62,8 @@ import {
 import { makeSource } from "../utils/validateDefineStructure";
 import { validateStatementNode } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { armRunAlternator } from "../utils/alternatorArms";
+import { soleLocalAlternators } from "../utils/alternatorValue";
 import { lowerExplicitStatement } from "./lowerExplicitStatement";
 import { lowerLuauBreakStatement, lowerLuauContinueStatement } from "./lowerLuauBreakContinue";
 import { lowerLuauDoBlock } from "./lowerLuauDoBlock";
@@ -230,11 +232,14 @@ export function readStatements(
  * Lowers a statement node on its own: a top-level node of a scene or of the
  * document, or a child of a block that lowers its children one by one (a
  * `choose` block, an alternator's arm). A `repeat` loop's `until` line is a
- * node of its own after it, which the loop reads with it.
+ * node of its own after it, which the loop reads with it. Without `report`,
+ * the reading's errors are another reading's to report (the arm of an
+ * alternator Luau code uses as a value, `reportAlternatorValue`).
  */
 export function lowerLuauStatementNode(
   node: SyntaxNode,
   ctx: LowerContext,
+  report = true,
 ): CompiledBlock {
   const nodes = [node];
   if (node.name === "LuauRepeatLoop" || node.name === "LuauSparkdownRepeatLoop") {
@@ -245,7 +250,7 @@ export function lowerLuauStatementNode(
   if (!reading) return {};
   // A backtick string's own errors, where no other reading reads the
   // statement (an alternator's arm), are this reading's (I-1435).
-  reportReadingErrors(reading.source.errors, node, ctx, "string");
+  if (report) reportReadingErrors(reading.source.errors, node, ctx, "string");
   return lowerLuauStatementsAt(
     node,
     readStatements(node, reading.unit.statements, reading.source, ctx),
@@ -349,6 +354,10 @@ export function lowerLuauStatement(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
+  // An alternator this statement runs with nothing waiting on the
+  // evaluation stack may leave its loop or function from an arm.
+  const runs = armRunAlternator(stat);
+  if (runs) soleLocalAlternators.add(runs);
   if (stat instanceof AstStatSparkdownExplicit) {
     return lowerExplicitStatement(stat, site, ctx);
   }
