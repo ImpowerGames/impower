@@ -174,6 +174,11 @@ const FORMS: [string, string, string, string[]][] = [
     ["", 'x = "a"'],
   ],
   ["a narrative statement's local with an empty arm at its line's end", '& local v = match match("x") | x = 1 end|\nDone.\n', "Done.\n", ["", "x = 1"]],
+  // The bounded arms end before a branch keyword or `until`, as the Luau
+  // arms do (round 2, review comment 6340950796).
+  ["a bounded `else` after an empty arm", '& if true then local v = cycle match("x") | x = "a" end|else end\nDone.\n', "Done.\n", ["", 'x = "a"']],
+  ["a bounded `elseif` after an empty arm", '& if true then local v = cycle match("x") | x = "a" end|elseif false then end\nDone.\n', "Done.\n", ["", 'x = "a"']],
+  ["a bounded `until` after an empty arm", '& repeat local v = cycle match("x") | x = "a" end|until true\nDone.\n', "Done.\n", ["", 'x = "a"']],
   ["a reading error in the first arm", 'Value {cycle match("x") | x = "a" end| "b" .. end}.\n', "Value b.\n", ['"b" ..', 'x = "a"']],
 ];
 

@@ -12,7 +12,7 @@ import { explicitRuleNames } from "./explicitRuleNames";
 // head took as the first arm's separator counts as arms (`headSeparator`).
 // The converter, the lowerers, the annotators and the lints all ask this.
 
-/** The rules a structural word opens in Luau code, each an alternator only when it holds its arms. */
+/** The rules a structural word opens in Luau code, each an alternator only when it holds an arm separator (`opensAlternator`). */
 export const ALTERNATOR_CANDIDATES: ReadonlySet<string> = new Set(
   [
     "LuauConditionalAlternatorBlock",
@@ -94,7 +94,7 @@ export function candidateOfWord(keyword: SyntaxNode): SyntaxNode | null {
   return rule && ALTERNATOR_CANDIDATES.has(rule.name) ? rule : null;
 }
 
-/** Whether a keyword node is a structural word that names a value: its candidate holds no arms. */
+/** Whether a keyword node is a structural word that names a value: its candidate holds no arm separator. */
 export function namesValue(keyword: SyntaxNode): boolean {
   const candidate = candidateOfWord(keyword);
   return !!candidate && !opensAlternator(candidate);

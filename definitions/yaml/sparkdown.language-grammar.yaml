@@ -754,9 +754,10 @@ variables:
   # an expression or an arm can begin with (`{cycle "a" | "b" end}`,
   # `queue | a | b`, `match(x) | 1 = "a"`, `queue("a|b")`). Whether it is an
   # alternator or a name is not decided here: the candidate is an alternator
-  # only when it holds its arms (`LuauAlternatorArms`), which open at a `|`
-  # at the word's own level, and the converter reads it as Luau otherwise
-  # (`opensAlternator`, I-1310). A token that carries a name on (an
+  # only when it holds an arm separator, in its arms (`LuauAlternatorArms`),
+  # which open at a `|` at the word's own level, or as the first arm's
+  # separator its head took (`_LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_`), and the
+  # converter reads it as Luau otherwise (`opensAlternator`, I-1310, I-1408). A token that carries a name on (an
   # operator, a separator, a closer, a reserved word, a member's `.` or
   # `:`, an `=`), a line end or a comment leaves the word a plain name
   # (`local y = queue`, `queue :: number | string`, `if match then`, #984).
@@ -9683,14 +9684,17 @@ repository:
           - { include: "#LuauAlternatorSeparator" }
           - { include: "#ExtraWhitespace" }
 
-  # The bounded twin of `LuauAlternatorArms`, which ends at its line.
+  # The bounded twin of `LuauAlternatorArms`, which ends at its line. Like
+  # it, the arms end before a branch keyword or `until` (`& if c then local
+  # v = cycle | 1 | else end`), which the block around them owns.
   LuauSparkdownExplicitAlternatorArms:
     # lookaround: LuauAlternatorSeparator reads the `|` this opens before.
     begin: (?={{WS}}*[|])|{{LUAU_AFTER_HEAD_SEPARATOR}}
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|$
+    # lookaround: the block around reads the branch keyword or `until`.
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})|$
     endCaptures:
       1:
         emit: true
