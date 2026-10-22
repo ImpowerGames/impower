@@ -146,6 +146,12 @@ export const Op = {
    *  it reads from a `local` of that scope in scope where it is written
    *  (I-1374), so it reaches that local as Luau's upvalue does. */
   BindRoot: 50,
+  /** Leaves the stack as it is. In a declaration chunk, where a `store` with
+   *  several names evaluates every value before it declares any of them
+   *  (I-1409), it marks where the value of the global `arg` (its index in
+   *  the chunk) starts, so an issue its value raises is reported on that
+   *  global. A value the declarations before it already count needs none. */
+  DeclareValue: 51,
 } as const;
 
 export type Opcode = (typeof Op)[keyof typeof Op];

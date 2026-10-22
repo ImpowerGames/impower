@@ -181,6 +181,10 @@ export function lowerVariableDefinition(
         stat.values.length,
       );
     }
+    // Every value is evaluated before any name binds (I-1409).
+    for (const assignment of assignments) {
+      assignment.statementGlobals = assignments;
+    }
     // The values after the last name are evaluated and dropped (#1333).
     assignments[assignments.length - 1]!.Discard(
       expressions.slice(targets.length),
