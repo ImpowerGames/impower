@@ -1,6 +1,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../lower/utils/findOwnDeclarationName";
+import { isLineContinuation } from "../lower/utils/significantLeaf";
 import { followsDanglingDot, followsMissingValue, TRIVIA_BEFORE_STATEMENT } from "../lower/utils/statementBefore";
 import { isDefineMethodCall } from "./defineMethodCall";
 import { nodeNameSet } from "./nodeNameSet";
@@ -51,21 +52,60 @@ export function readsDefineStatement(start: SyntaxNode, read: (from: number, to:
 }
 
 /**
+ * The last node of the define body statement `start` begins: the last node
+ * of its line, or the start itself when it holds its whole line (`whole`),
+ * and then the last node of each line that continues it
+ * (`isLineContinuation`: `.g(2)`, `:g(2)`, `[1]`), which Luau reads as part
+ * of it.
+ */
+export function defineStatementLast(start: SyntaxNode, whole = false): SyntaxNode {
+  let last = start;
+  if (!whole) last = lineLast(start);
+  for (;;) {
+    let next = last.nextSibling;
+    while (next && TRIVIA_BEFORE_STATEMENT.has(next.name)) next = next.nextSibling;
+    if (!next || !isLineContinuation(next)) return last;
+    last = lineLast(next);
+  }
+}
+
+/**
  * The start of the define body statement a node is in, where the reading
  * reads it (`readsDefineStatement`). A statement begins at the first node of
- * its line, past trivia, and runs to the line's end. Null for a node of a
- * member, of the define's header, of a line that a member or a line
- * continuation begins, and outside a define's content.
+ * its line, past trivia, and runs to the line's end and through the lines
+ * that continue it (`defineStatementLast`). Null for a node of a member, of
+ * the define's header, of a line that a member begins or that continues
+ * one, and outside a define's content.
  */
 export function loweredDefineStatementOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
   let top = node;
   while (top?.parent && top.parent.name !== DEFINE_CONTENT) top = top.parent;
   if (!top?.parent) return null;
-  let start = top;
-  for (let prev = top.prevSibling; prev && prev.name !== "Newline"; prev = prev.prevSibling) start = prev;
-  while (start !== top && TRIVIA_BEFORE_STATEMENT.has(start.name)) start = start.nextSibling!;
+  let start = lineFirst(top);
+  while (isLineContinuation(start)) {
+    let prev = start.prevSibling;
+    while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
+    if (!prev) return null;
+    start = lineFirst(prev);
+  }
   // Lines are counted from the start, the only line a method call compares.
-  const lineOf = (pos: number) => (pos <= start.from ? 0 : read(start.from, pos).split("\n").length - 1);
+  const first = start;
+  const lineOf = (pos: number) => (pos <= first.from ? 0 : read(first.from, pos).split("\n").length - 1);
   if (!isDefineStatementStart(start, lineOf)) return null;
   return readsDefineStatement(start, read) ? start : null;
+}
+
+/** The first node of the line a sibling is on, past trivia, or the sibling itself. */
+function lineFirst(node: SyntaxNode): SyntaxNode {
+  let first = node;
+  for (let prev = node.prevSibling; prev && prev.name !== "Newline"; prev = prev.prevSibling) first = prev;
+  while (first !== node && TRIVIA_BEFORE_STATEMENT.has(first.name)) first = first.nextSibling!;
+  return first;
+}
+
+/** The last node of the line a sibling begins, before its line break. */
+function lineLast(node: SyntaxNode): SyntaxNode {
+  let last = node;
+  for (let next: SyntaxNode | null = node; next && next.name !== "Newline"; next = next.nextSibling) last = next;
+  return last;
 }

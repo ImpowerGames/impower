@@ -105,6 +105,17 @@ const BODIES: string[] = [
   // Expressions, one a `.` that no name follows.
   "  Hello there.\n",
   "  Hello\n  1 + 2\n",
+  // The same, from a later statement on the line (round 1, gc 3).
+  "  t.f(1); t.a, t.b\n  1 + 2\n",
+  "  Hello Hi, Bob\n  1 + 2\n",
+  // Lines that continue a statement are its own (round 1, gc 2).
+  "  t.f(1 +)\n  .g(2 +)\n",
+  "  t.f(1 +)\n  :g(2 +)\n",
+  "  t.f(1 +)\n  .g(2 +)\n  .h(3 +)\n",
+  "  print(1 2)\n  .g(2 +)\n",
+  // Errors the tree checks of a pure-Luau body would report (round 1, gc 1).
+  "  t.a = if true then 1\n",
+  "  t.a = t:do()\n",
   // A type where a statement's value stands.
   "  t.f(x :: )\n",
   "  print(x :: )\n",

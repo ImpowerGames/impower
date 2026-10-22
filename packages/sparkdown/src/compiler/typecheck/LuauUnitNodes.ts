@@ -151,13 +151,14 @@ export function inLuauFunction(node: SyntaxNode | null): boolean {
  * file (`uri`, the document's), whose whole text is Luau, or it is Luau the
  * checker reads (`isCheckedLuau`) in a function's own Luau
  * (`inLuauFunction`); or a lowerer's, where it is in the body of a define's
- * method or a Sparkle handler's closure (`loweredLuauBodyOf`, I-1368).
+ * method or a Sparkle handler's closure (`loweredLuauBodyOf`, I-1368), or
+ * in a define body's statement (`loweredDefineStatementOf`, I-1489).
  * There a validator or lowerer reports none of Luau's own syntax errors
  * from the tree.
  */
 export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, to: number) => string, uri?: string): boolean {
   if (uri !== undefined && isLuauDocument(uri)) return true;
-  if (loweredLuauBodyOf(node)) return true;
+  if (loweredLuauBodyOf(node) || loweredDefineStatementOf(node, read)) return true;
   return inLuauFunction(node) && isCheckedLuau(node, read);
 }
 

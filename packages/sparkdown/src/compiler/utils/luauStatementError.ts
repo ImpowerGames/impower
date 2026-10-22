@@ -22,8 +22,9 @@ export interface LuauStatementError {
  * turn, and so on. The text read is cut from its block, so an error that
  * only the cut makes is no error of the statement's. `errors` is empty when
  * Luau reads the statement without an error. `to` is where Luau's reading
- * of the statement ends, past `nodeEnd` when it reads on into the lines
- * after it (`Hi, Bob` then `1 + 2`, which are the assignment's values).
+ * of the statements its lines hold ends, past `nodeEnd` when it reads on
+ * into the lines after them (`Hi, Bob` then `1 + 2`, which are the
+ * assignment's values).
  */
 export function luauStatementErrors(
   node: SyntaxNode,
@@ -95,9 +96,15 @@ export function luauStatementErrors(
       lineEnd = to;
       continue read;
     }
-    const first = result.root.body[0];
-    const end = first ? locate({ message: "", location: first.location }, documentText).to : nodeEnd;
-    return { errors, to: Math.max(nodeEnd, end) };
+    // Every statement that starts in the text the statement's own lines
+    // hold is read from there (`t.f(1); t.a, t.b` then `1 + 2`, the
+    // assignment's values); the reading ends where the last of them does.
+    let end = nodeEnd;
+    for (const statement of result.root.body) {
+      const span = locate({ message: "", location: statement.location }, documentText);
+      if (span.from < nodeEnd) end = Math.max(end, span.to);
+    }
+    return { errors, to: end };
   }
 }
 

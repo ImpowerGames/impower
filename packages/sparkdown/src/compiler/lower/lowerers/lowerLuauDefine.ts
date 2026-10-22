@@ -1,7 +1,7 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { luauStatementErrors } from "../../utils/luauStatementError";
-import { isDefineStatementStart, readsDefineStatement } from "../../utils/defineStatement";
+import { defineStatementLast, isDefineStatementStart, readsDefineStatement } from "../../utils/defineStatement";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -157,7 +157,8 @@ const DEFINE_MEMBER_NAMES = nodeNameSet([
 // report (`readsDefineStatement`); a later one on the line (`Hello there.`)
 // is a statement of its own. A call the grammar opened as a method
 // (`isDefineMethodCall`) holds its whole line, line break included, so it
-// is the statement alone (`whole`). A statement that Luau's reading of the
+// is the statement alone (`whole`). The lines that continue a statement
+// (`.g(2)`) are its own (`defineStatementLast`). A statement that Luau's reading of the
 // statement before it reads on into (`Hi, Bob` then `1 + 2`, the
 // assignment's values), before `readFrom`, is that reading's. Returns the
 // statement's last node and where the reading of it ends.
@@ -167,8 +168,7 @@ function reportDefineStatement(
   readFrom: number,
   whole = false,
 ): { last: SyntaxNode; readTo: number } {
-  let last = start;
-  if (!whole) for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) last = node;
+  const last = defineStatementLast(start, whole);
   const read = (from: number, to: number) => ctx.read(from, to);
   if (start.from < readFrom) return { last, readTo: readFrom };
   if (!readsDefineStatement(start, read)) return { last, readTo: last.to };

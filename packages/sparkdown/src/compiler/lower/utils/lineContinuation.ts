@@ -11,7 +11,7 @@ import {
 import { REASSIGNMENT_NAMES } from "../../utils/reassignmentNames";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import { findOwnDeclarationName } from "./findOwnDeclarationName";
-import { CONTINUATION_BRIDGE, SKIPPABLE, lastSignificantLeaf } from "./significantLeaf";
+import { CONTINUATION_BRIDGE, LINE_CONTINUATION, SKIPPABLE, isLineContinuation, lastSignificantLeaf } from "./significantLeaf";
 import {
   AstExpr,
   AstExprBinary,
@@ -49,16 +49,7 @@ import { enclosingNode, offsetAt, type LuauSource } from "./luauAst";
 // line that no statement before it takes is reported here, as the line it
 // continues does not end in a value it can continue.
 
-const LINE_CONTINUATION = nodeNameSet([
-  "LuauLineContinuation",
-  "LuauMinusLineContinuation",
-  "LuauIndexerLineContinuation",
-]);
-
-// Whether `node` is a line that continues the line before it.
-export function isLineContinuation(node: { name: string }): boolean {
-  return LINE_CONTINUATION.has(node.name);
-}
+export { isLineContinuation };
 
 // The lines at the start of a function body that qualify the name its return
 // type ends with (`function f(): types` then `.Button`), with that return
