@@ -1516,7 +1516,10 @@ export const getFormatting = (
         if (bodyHasContent) return;
         if (signatureEnd == null) signatureEnd = contentNode.from;
         const replaceFrom = signatureEnd;
-        const replaceTo = endNode.from;
+        // An `_end` capture can hold the indentation before its `end` (a
+        // define's method): that whitespace is part of the gap too.
+        const endText = document.read(endNode.from, endNode.to);
+        const replaceTo = endNode.from + endText.length - endText.trimStart().length;
         if (replaceFrom >= replaceTo) return;
         const text = document.read(replaceFrom, replaceTo);
         if (text === " ") return; // already compact

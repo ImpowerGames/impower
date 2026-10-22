@@ -28,4 +28,11 @@ describe("formatter · a define's call lines (I-1454)", () => {
     expect(formatted.startsWith("define X with\n  print(1,\n"), formatted).toBe(true);
     expect(formatted.endsWith("\n  y = 2\nend\n"), formatted).toBe(true);
   });
+
+  // A method's `end` capture holds the indentation before it, which the
+  // compaction takes in with the gap.
+  test("an empty method compacts onto one line", () => {
+    expect(formatSource("define X with\n  f()\n\n  end\nend\n")).toBe("define X with\n  f() end\nend\n");
+    expect(formatSource("define X with\n  f()\n  end\nend\n")).toBe("define X with\n  f() end\nend\n");
+  });
 });
