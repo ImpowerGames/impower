@@ -412,7 +412,7 @@ export function lowerLuauDefine(
           const end = rangeOf(prop.value.expr.location, ctx).to;
           while (child.nextSibling && child.nextSibling.from < end) child = child.nextSibling;
         }
-      } else if (isDefineMethodCall(child)) {
+      } else if (isDefineMethodCall(child, (pos) => ctx.lineNumber(pos))) {
         // A line the grammar opened as a method, which took neither a line
         // below it nor an `end`: a statement of the body (`print("x")`).
         if (structureErrors.length === 0) reportDefineStatement(child, ctx, true);
@@ -693,7 +693,7 @@ export function defineMethodReads(
     const declName =
       child.name === "LuauFunctionDefinition" ? findOwnDeclarationName(child) : null;
     const isMethod =
-      (child.name === "LuauMethodDefinition" && !isDefineMethodCall(child) && !!getDescendent("LuauFunctionName", child)) ||
+      (child.name === "LuauMethodDefinition" && !isDefineMethodCall(child, (pos) => ctx.lineNumber(pos)) && !!getDescendent("LuauFunctionName", child)) ||
       (!!declName && !!getDescendent("LuauFunctionName", declName));
     const body = isMethod ? getFunctionBodyContent(child) : null;
     if (!body) continue;

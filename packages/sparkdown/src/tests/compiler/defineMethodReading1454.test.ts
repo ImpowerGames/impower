@@ -76,7 +76,7 @@ function methodReadings(text: string): string[] {
     const node: SyntaxNode = cursor.node;
     const name = node.getChild("LuauMethodDefinition_begin");
     const header = text.slice(name?.from ?? node.from, name?.to ?? node.from).trim();
-    readings.push(`${header}:${isDefineMethodCall(node) ? "call" : "method"}`);
+    readings.push(`${header}:${isDefineMethodCall(node, (pos) => text.slice(0, pos).split("\n").length - 1) ? "call" : "method"}`);
   } while (cursor.next());
   return readings;
 }
@@ -114,6 +114,9 @@ const OPEN_METHODS: [before: string, method: string, after: string, readings: st
   ["", "  f(a)\n    for i = 1, a do\n      x = i\n  end\n", "", ["f:method"]],
   // A method with no `end` at all.
   ["", "  f(a)\n    x = a\n", "", ["f:method"]],
+  // A return type takes the header's line break in: the line below is still
+  // the method's body.
+  ["", '  greet(): string\n    return "hello"\n', "", ["greet:method"]],
   // An open method before a member: the member's line ends it.
   ["", "  f()\n    if c then\n    end\n", "  y = 2\n", ["f:method"]],
   ["  y = 2\n", "  f()\n    if c then\n  end\n", "  g()\n    return 1\n  end\n", ["f:method", "g:method"]],
@@ -168,6 +171,17 @@ describe("a define's method left open reports Luau's error for its function (I-1
       expectIncrementalEqualsCold(text);
     });
   }
+});
+
+// A return type's missing type takes the header's line break in too. The
+// missing type's range ends with the operator's line, as I-1453 decided, so
+// the messages are Luau's and the method's body is still its own.
+test("an open method whose return type is missing reports Luau's messages for its function", () => {
+  const method = "  f():\n    return 1\n";
+  const text = `define X with\n${method}end\n${STORY}`;
+  const message = (e: string) => e.replace(/^\S+ /, "");
+  expect(errors(text).map(message)).toEqual(methodFunctionErrors(method, 1).sort().map(message));
+  expect(methodReadings(text)).toEqual(["f:method"]);
 });
 
 describe("a call written as a line of a define body is a statement (I-1411)", () => {

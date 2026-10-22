@@ -10,18 +10,34 @@ import { isTrivia } from "../lint/luauTree";
 // its header or takes that `end`; a candidate that took neither is the line
 // it stands on, a statement of the define's body (`print("x")`), which Luau
 // reads as one: no method, no missing `end` of its own, and no parameter list
-// to report.
+// to report. Which child holds the header's line break (a return type takes
+// it in) decides nothing: a body is any token on a later line.
 
-/** Whether `node` is a `LuauMethodDefinition` that is a statement line of its define's body, not a method. */
-export function isDefineMethodCall(node: SyntaxNode): boolean {
+/** Whether `node`'s subtree holds a `LuauEndKeyword`. */
+function holdsEndKeyword(node: SyntaxNode): boolean {
+  const cursor = node.cursor();
+  while (cursor.next() && cursor.from < node.to) {
+    if (cursor.name === "LuauEndKeyword") return true;
+  }
+  return false;
+}
+
+/**
+ * Whether `node` is a `LuauMethodDefinition` that is a statement line of its
+ * define's body, not a method; `lineOf` gives a document position's line.
+ */
+export function isDefineMethodCall(node: SyntaxNode, lineOf: (pos: number) => number): boolean {
   if (node.name !== "LuauMethodDefinition") return false;
   const end = node.getChild("LuauMethodDefinition_end");
-  if (end?.getChild("LuauMethodDefinition_end_c2")?.getChild("LuauEndKeyword")) return false;
+  if (end && holdsEndKeyword(end)) return false;
   const content = node.getChild("LuauMethodDefinition_content");
-  let lineBroken = false;
-  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
-    if (child.name === "Newline") lineBroken = true;
-    else if (lineBroken && !isTrivia(child)) return false;
+  if (!content) return true;
+  // A token of the content on a later line than the header is the body's.
+  const headerLine = lineOf(node.from);
+  const cursor = content.cursor();
+  while (cursor.next() && cursor.from < content.to) {
+    if (cursor.node.firstChild || isTrivia(cursor.node)) continue;
+    if (lineOf(cursor.from) > headerLine) return false;
   }
   return true;
 }
