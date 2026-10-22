@@ -10,7 +10,8 @@
 
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
-import { compileScript, describeRoot, programSession } from "../program/programHarness";
+import { ProgramStory } from "../../program/ProgramStory";
+import { compileScript, describeRoot, errorsOf, programSession, storyRun } from "../program/programHarness";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
 const lines = (...parts: string[]) => parts.join("\n") + "\n";
@@ -281,6 +282,14 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
     expect(
       run(lines(...TRAIL, "function f()", "  for i = 1, 3 do", "    cycle", '      | add("a")', '      | add("b")', "    end", "  end", "end", "& f()", "& f()", "Log {trail}.")),
     ).toEqual({ output: "Log ababab.\n", errors: [] });
+  });
+
+  test("a scene's `&` statement runs one arm each time the line runs", () => {
+    const { program } = compileScript(
+      lines(...TRAIL, "scene main", "  label top", '  & cycle | add("a") | add("b") end', "  if #trail < 3 then", "    -> top", "  end", "  Log {trail}.", "end"),
+    );
+    expect(errorsOf(program)).toEqual([]);
+    expect(storyRun(new ProgramStory(program.chunks!), [], { from: "main" }).beats.map((beat) => beat.text)).toEqual(["Log aba.\n"]);
   });
 
   test("in a `do` block", () => {
