@@ -57,6 +57,17 @@ const FORMS: [string, (line: string) => string][] = [
   ["a nested block before a second return", (line) => `function f()\nif true then\n${line}\nend\nreturn 2 a b\nend\n`],
   ["a repeat loop before a second return", (line) => `function f()\nrepeat\n${line}\nuntil true\nreturn 2 a b\nend\n`],
   ["a function with a second return before a later function", (line) => `function f()\n${line}\nreturn 2 a b\nend\nfunction g()\nreturn 3\nend\n`],
+  // A block opened after the return, which Luau opens and reads as any
+  // other (round 2 of the review).
+  ["a function opened after the return", (line) => `function f()\n${line}\nlocal function g()\nreturn 2 a b\nend\nend\n`],
+  ["a function value opened after the return", (line) => `function f()\n${line}\nlocal g = function()\nreturn 2 a b\nend\nend\n`],
+  ["an if opened after the return", (line) => `function f()\n${line}\nif true then\nreturn 2 a b\nend\nend\n`],
+  ["a do opened after the return", (line) => `function f()\n${line}\ndo\nreturn 2 a b\nend\nend\n`],
+  ["a while opened after the return", (line) => `function f()\n${line}\nwhile true do\nreturn 2 a b\nend\nend\n`],
+  ["a repeat opened after the return", (line) => `function f()\n${line}\nrepeat\nreturn 2 a b\nuntil true\nend\n`],
+  ["a block opened after the return and closed", (line) => `function f()\n${line}\ndo\nlocal a = 1\nend\nend\n`],
+  ["an if with else opened after the return", (line) => `function f()\n${line}\nif true then\nlocal a = 1\nelse\nreturn 2 a b\nend\nend\n`],
+  ["a nested block's return before a block opened after it", (line) => `function f()\nif true then\n${line}\ndo\nreturn 2 a b\nend\nend\nend\n`],
 ];
 
 // Scripts whose function is never closed, which end at their Luau: a line
@@ -66,6 +77,11 @@ const UNCLOSED: [string, (line: string) => string][] = [
   ["a nested block with one end", (line) => `function f()\nif true then\n${line}\nend\n`],
   ["a nested block with no end", (line) => `function f()\nif true then\n${line}\n`],
   ["a repeat loop with no until", (line) => `function f()\nrepeat\n${line}\nend\n`],
+  ["a function opened after the return with no end", (line) => `function f()\n${line}\nlocal function g()\nprint(1)\n`],
+  ["a do opened after the return with no end", (line) => `function f()\n${line}\ndo\nprint(1)\n`],
+  ["an if opened after the return with no end", (line) => `function f()\n${line}\nif true then\nprint(1)\n`],
+  ["a repeat opened after the return with no until", (line) => `function f()\n${line}\nrepeat\nprint(1)\n`],
+  ["a block opened after the return, closed, with no end", (line) => `function f()\n${line}\ndo\nprint(1)\nend\n`],
   ["a nested function", (line) => `function f()\nlocal function g()\n${line}\nend\nreturn g\nend\n`],
 ];
 
