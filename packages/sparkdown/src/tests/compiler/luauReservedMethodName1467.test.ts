@@ -139,6 +139,14 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: T | : --[[c]] end", "end"],
     ["local t = {}\n  local b = t :: T | : --[=========[c]=========] end", "end"],
     ["local t = {}\n  local b = t :: T | :function", "function"],
+    // `do` and `then` past a long comment at a stray `:` are the method's
+    // name outside a header, and the header's in one (round 2, `undirected`
+    // finding 2).
+    ["local x: T | : --[=========[c]=========] do", "do"],
+    ["local x: T | : --[=========[c]=========] then", "then"],
+    ["local t = {}\n  local b = t :: T | : --[=========[c]=========] do", "do"],
+    ["local t = {}\n  while t :: T | : --[=========[c]=========] do end", null],
+    ["local t = {}\n  if t :: T | : --[=========[c]=========] then end", null],
   ],
   "after a block comment of level 9 or more (I-1459)": [
     ["local t = {}\n  local b = (t): --[=========[c]=========] end", "end"],
@@ -198,6 +206,10 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  if t: --[=========[c\n  ]=========] end", null],
     ["local t = {}\n  local b = (t): --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = (t): --[=========[c\n  ]=========] end"],
     ["local t = {}\n  local b = t: --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = t: --[=========[c\n  ]=========] end"],
+    // A `:` and a close of another level in the comment's text are no line
+    // of the `:` (round 2, `undirected` finding 1).
+    ["local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end"],
+    ["local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end"],
   ],
   // A `:` that is a type's is no method's: a declaration's or a `for`
   // variable's annotation, which misses its type, as Luau reads it, so the
