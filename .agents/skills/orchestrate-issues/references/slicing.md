@@ -19,7 +19,8 @@ Mis-grouping is the costly failure. A Bug that does not belong holds every other
 - A slice holds at least two Bugs. A lone Bug is already its own slice, so it is never wrapped in a Task.
 - Never re-parent a Bug that has a PR, worktree, writer or pending start. That work stays with its own ticket.
 - The slice's Effort is the Effort of its hardest Bug, since it sets the writer's effort. A Bug with no Effort is estimated first, as [issue fields](../../references/issue-fields.md) describes.
-- The slice is `blocked_by` the current tail of the serial chain for the file set it edits: the last undelivered ticket in the parent's tree whose fix edits those files. No two slices on one file set are then eligible at once. A slice on a file set with no chain yet starts one and has no such blocker.
+- The slice is `blocked_by` the current tail of the serial chain for the file set it edits, chosen outside its own Bugs. The tail is the last undelivered ticket in the parent's tree whose fix edits those files, other than a Bug the slice will hold or a ticket that waits, directly or through others, on one of those Bugs. A slice blocked by one of its own Bugs never dispatches, because the planner keeps a slice's own blockers (`undelivered` in `issue-run.mjs`) and only the slice's merge can deliver that Bug. With the tail chosen this way, no two slices on one file set are eligible at once. A slice with no such ticket on its file set starts the chain and has no such blocker.
+- Never group two Bugs when a ticket outside the slice sits between them, waiting on one and blocking the other. The planner moves the second Bug's blocker onto the slice, so the slice waits on that ticket while that ticket waits on the slice's merge. Leave such Bugs in separate slices, or as their own tickets.
 
 ## Filing and re-parenting
 

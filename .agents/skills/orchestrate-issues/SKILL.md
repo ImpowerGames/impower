@@ -27,7 +27,7 @@ Read the parent in full: its body, as its template structures it, is the design 
 
 ## 2. Group loose Bugs into slices
 
-Two or more open Bugs directly under the parent, or under a container in its tree, with no PR, worktree, writer or pending start, are grouped into Task slices as [slicing](references/slicing.md) describes; an already sliced parent skips this step. Group only on a mechanism or file set the code behind each Bug shows they share, never on titles; a sub-agent may read it. File each slice through the [filing routes](../references/runner-filing.md), re-parent its Bugs, give it its hardest Bug's Effort and make it `blocked_by` the tail of its file set's serial chain, then rerun `snapshot`.
+Two or more open Bugs directly under the parent, or under a container in its tree, with no PR, worktree, writer or pending start, are grouped into Task slices as [slicing](references/slicing.md) describes; an already sliced parent skips this step. Group only on a mechanism or file set the code behind each Bug shows they share, never on titles; a sub-agent may read it. File each slice through the [filing routes](../references/runner-filing.md), re-parent its Bugs, give it its hardest Bug's Effort and make it `blocked_by` the tail of its file set's serial chain outside its own Bugs, then rerun `snapshot`.
 
 A slice is one reviewable PR of Bugs only, since only an all-Bug slice delivers. Never wrap a lone Bug in a Task, re-parent a Bug with a PR, worktree, writer or pending start, or add a Bug to a dispatched slice, whose brief fixed what its PR delivers, so its PR would leave it open; a Bug arriving mid-run gets a new slice, or stays its own ticket when alone.
 
