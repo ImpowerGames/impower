@@ -9,10 +9,11 @@ import { isTrivia } from "../lint/luauTree";
 // header (`LUAU_METHOD_LINE_AFTER_BODY`); any other line, a less indented one
 // included, stays in the method. A candidate that took no `end` and holds no
 // line below its header is the line it stands on, a statement of the
-// define's body (`print("x")`), which Luau
-// reads as one: no method, no missing `end` of its own, and no parameter list
-// to report. Which child holds the header's line break (a return type takes
-// it in) decides nothing: a body is any token on a later line.
+// define's body (`print("x")`), which Luau reads as one: no method, no
+// missing `end` of its own, and no parameter list to report. Which child
+// holds the header's line break (a return type takes it in) decides nothing:
+// a body is any token on a later line outside the parameter list and the
+// return type, which a call's arguments can carry onto later lines.
 
 /** Whether `node`'s subtree holds a `LuauEndKeyword`. */
 function holdsEndKeyword(node: SyntaxNode): boolean {
