@@ -111,7 +111,10 @@ describe("a store name list with an empty slot before its end (I-1426)", () => {
 // A declaration with errors of its own reports the story its line runs on
 // into too, whose only reader is the declaration's (round 1).
 describe("a declaration with its own errors whose line runs on into story", () => {
-  for (const line of ["local a,, = 1 2", "local , = 1 2", "local a, = 1 Hello", "local a = {1 2} 3", "store a,, = 1 2", "store , = 1 Hello"]) {
+  // Errors of the declaration and of its story in the same words are two
+  // errors (`{1 ? 2} 2`, round 2).
+  const sameWords = ["local a = {1 ? 2} 2", "store a = {1 ? 2} 2", "local a = {1 ? 2} 2 2", "local a,, = {1 ? 2} 2"];
+  for (const line of ["local a,, = 1 2", "local , = 1 2", "local a, = 1 Hello", "local a = {1 2} 3", "store a,, = 1 2", "store , = 1 Hello", ...sameWords]) {
     pinLine(line, line.replace(/^store/, "local"));
   }
 });

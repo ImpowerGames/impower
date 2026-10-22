@@ -6031,13 +6031,20 @@ export class SparkdownCompiler {
           // The story the declaration's line runs on into (`local a,, = 1
           // 2`'s `2`, `StoreSyntaxError.inStory`) has no reader but the
           // declaration's, so an error there defers only to an error in that
-          // story, after the declaration's end, or to a report of the same
-          // error elsewhere on the line (`store a = 1, return`, whose
-          // `return` the validator names at the comma) (I-1452).
+          // story, after the declaration's end, or to another reporter's
+          // report of the same error elsewhere on the line (`store a = 1,
+          // return`, whose `return` the validator names at the comma). A
+          // report where the reading finds an error of its own in the same
+          // words (`local a = {1 ? 2} 2`'s first `2`) is that error (I-1452).
+          const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
+          const readingsOwn = (d: SparkDiagnostic) =>
+            error.lineErrors.some(
+              (e) => e.message === wordsOf(d) && e.start.line === d.range.start.line && e.start.character === d.range.start.character,
+            );
           inError = {
             declaration: !range || others.length > 0,
             story: !range || others.some((d) => !before(d.range.start, range.end)),
-            messages: new Set(others.map((d) => (typeof d.message === "string" ? d.message : d.message.value))),
+            messages: new Set(others.filter((d) => !readingsOwn(d)).map(wordsOf)),
           };
           reported.set(key, inError);
         }
