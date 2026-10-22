@@ -79,7 +79,7 @@ import {
   rootLocalAnswer,
   rootSlotName,
 } from "../utils/rootLocalReads";
-import { ROOT_NONE } from "../../utils/rootLocals";
+import { ROOT_BLOCK, ROOT_NONE } from "../../utils/rootLocals";
 import { followsLineEndingComma } from "../utils/lineContinuation";
 import { statementSource } from "../utils/statementSource";
 import {
@@ -524,6 +524,8 @@ export function freeVariables(
   const free: string[] = [];
   const seen = new Set<string>();
   const rootSeen = new Set<string>();
+  // The names a block around the read binds (`ROOT_BLOCK`), read as locals.
+  const blockLocals = new Set<string>();
   // Where a read lands: the list returned, or `defineReads` for the reads
   // only a define's methods make.
   let into = free;
@@ -548,9 +550,15 @@ export function freeVariables(
       // scope of its name.
       if (!readsLocal && !isShadowedLocal(name) && !rootSeen.has(name)) {
         rootSeen.add(name);
-        rootReads?.push({ name, answer: declared ?? rootLocalAnswer(name, at, ctx) });
+        const answer = declared ?? rootLocalAnswer(name, at, ctx);
+        // A loop's variable or a block's local, which a later statement of
+        // the block reads as a global, is a local of the block: never a
+        // binding of the root frame's own scope, and captured whatever its
+        // name.
+        if (answer === ROOT_BLOCK) blockLocals.add(name);
+        else rootReads?.push({ name, answer });
       }
-      if (!isShadowedLocal(name) && !readsLocal) {
+      if (!isShadowedLocal(name) && !readsLocal && !blockLocals.has(name)) {
         if (isGlobalCallable(name)) return;
         if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) return;
       }

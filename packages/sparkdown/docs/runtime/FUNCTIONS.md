@@ -174,7 +174,9 @@ scope declares more than once through the slot of the declaration in scope
 where it is written, so a scene's `local` of the name, which runs before
 the closure is built, is not the one it captures; and a name the scope
 declares only where
-it is not in scope (another scene's `local`) at the global. A name a
+it is not in scope (another scene's `local`) at the global. A loop's variable or a block's `local`, which a later statement
+of the block reads, is captured as the block's local, whatever the root
+frame's scope declares of its name or whether it names a stdlib entry. A name a
 `store`, a `const`, a top-level function or a stdlib entry would answer,
 which a closure does not capture, is bound at its entry as a top-level
 function binds it, to the cell the closure kept of that local where it was

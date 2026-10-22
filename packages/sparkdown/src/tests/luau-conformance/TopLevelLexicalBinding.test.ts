@@ -406,6 +406,28 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 1 2."));
   });
 
+  // A later statement of a loop's body reads the loop's variable as a
+  // global; it is the loop's local, whatever the root frame's own scope
+  // declares of its name.
+  test.each([
+    ["a numeric loop's variable over a redeclared top-level local", "for a = 2, 2 do", ["local a = 1"], ["local a = 3"]],
+    ["a generic loop's variable over a redeclared top-level local", "for _, a in {2} do", ["local a = 1"], ["local a = 3"]],
+    ["a numeric loop's variable where only a scene below declares the name", "for a = 2, 2 do", [], ["-> T", "scene T", "  local a = 9", "end"]],
+  ])("reads %s", (_, header, before, after) => {
+    expect(
+      run([...before, header, "  local f = function() return a end", "  Got {f()}.", "end", ...after]),
+    ).toEqual(got("Got 2."));
+  });
+
+  test.each([
+    ["numeric", "for print = 2, 2 do"],
+    ["generic", "for _, print in {2} do"],
+  ])("reads a %s loop's stdlib-named variable", (_, header) => {
+    expect(
+      run([header, "  local f = function() return print end", "  Got {tostring(f())}.", "end"]),
+    ).toEqual(got("Got 2."));
+  });
+
   // A choice's body declares in the root frame's own scope too, whatever
   // another scene declares there.
   test("reads a local of the choice body it is written in, though another scene declares the name", () => {
