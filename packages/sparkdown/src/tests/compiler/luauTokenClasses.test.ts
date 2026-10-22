@@ -361,7 +361,9 @@ describe("a structural word is a name outside its shape (#984)", () => {
 
   test.each(["queue -- note", "shuffle cycle --[[ note ]]"])("a block-form head %j with a comment after it still opens its block", (head) => {
     const source = `function f()\n  ${head}\n    | print(1)\n    | print(2)\n  end\n  return 3\nend\nValue {f()}.\n`;
-    expect(run(source)).toMatchObject({ errors: [], output: "Value 3.\n" });
+    // One arm's call runs, writing its number before the line (I-1397); a
+    // shuffle may take either arm.
+    expect(run(source)).toMatchObject({ errors: [], output: expect.stringMatching(/^Value [12]3\.\n$/) });
     expect(stripAnsi(dumpTree(source))).toMatch(/─ LuauSequentialAlternatorLineStart \[/);
     expect(stripAnsi(dumpTree(source))).toMatch(/─ LuauAlternatorArms \[/);
   });

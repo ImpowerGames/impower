@@ -129,6 +129,41 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
   });
 });
 
+describe("an arm's last call gives one value, as an if expression's arm does (round 1, comment 6346619040)", () => {
+  const PAIR = ['function pair() return "a", "b" end', "function none() end"];
+
+  test.each([
+    ["cycle", "cycle | pair() end", "cycle | none() end"],
+    ["match", 'match "k" | k = pair() end', 'match "k" | k = none() end'],
+    ["plural", "plural(1) | one = pair() | other = 0 end", "plural(1) | one = none() | other = 0 end"],
+  ])("%s: a call's values are cut to its first, and none is nil", (_name, several, none) => {
+    const { output, errors } = run(
+      lines(
+        ...PAIR,
+        "function f()",
+        `  return select("#", (${several})) .. " " .. select("#", ${several}) .. " " .. tostring(${several})`,
+        "end",
+        "function g()",
+        `  return select("#", (${none})) .. " " .. select("#", ${none}) .. " " .. tostring(${none})`,
+        "end",
+        "Several {f()}.",
+        "None {g()}.",
+      ),
+    );
+    expect(errors).toEqual([]);
+    expect(output).toBe("Several 1 1 a.\nNone 1 1 nil.\n");
+    const all = run(lines(...PAIR, "function f()", `  local a, b, c = ${several}`, "  return tostring(a) .. tostring(b) .. tostring(c)", "end", "Values {f()}."));
+    expect(all).toEqual({ output: "Values anilnil.\n", errors: [] });
+  });
+
+  test("a keyed table field takes one value", () => {
+    expect(run(lines(...PAIR, "function f()", "  local t = { [1] = cycle | pair() end }", "  return tostring(t[1]) .. tostring(t[2])", "end", "Fields {f()}."))).toEqual({
+      output: "Fields anil.\n",
+      errors: [],
+    });
+  });
+});
+
 describe("a conditional alternator used as a value in a function (I-1284)", () => {
   test("match gives the matching arm's value, and nil where none matches", () => {
     const { output, errors } = run(

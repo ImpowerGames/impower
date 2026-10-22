@@ -20,7 +20,7 @@ import { Tag as RuntimeTag } from "../../../runtime/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
+import { asOneValue, containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lower } from "../lower";
 import { LUAU_STATEMENT_NODES, lowerLuauStatementNode } from "../lowerers/lowerLuauStatement";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
@@ -280,7 +280,8 @@ function armParts(nodes: readonly SyntaxNode[]): { statement: boolean; nodes: Sy
 /**
  * What a valued arm runs (`lowerArms`): each statement it holds and each call
  * it holds before its last value, whose result is discarded, then its last
- * value, or nil where it holds none (an empty arm, or one that ends with a
+ * value adjusted to one value (`asOneValue`), as an if expression's arm is,
+ * or nil where it holds none (an empty arm, or one that ends with a
  * statement), as an empty displayed arm shows nothing. A value before the
  * last that is no call has nothing to run, and nothing reads it. Its errors
  * are reported by the reading of the Luau code that holds the alternator
@@ -304,7 +305,7 @@ function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext): ParsedOb
     const expr = lowerExpressionFromNodes(part.nodes, ctx, null, tokenAfter(part.nodes, ctx));
     if (!expr) continue;
     if (k === parts.length - 1) {
-      value = expr;
+      value = asOneValue(expr);
     } else if (expr instanceof FunctionCall || expr instanceof CallValueExpression) {
       expr.shouldPopReturnedValue = true;
       body.push(expr);
