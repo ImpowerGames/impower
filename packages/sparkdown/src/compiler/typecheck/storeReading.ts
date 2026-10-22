@@ -39,9 +39,11 @@ export function storeReadingErrors(
  * (`storeReadingErrors`), but those at a token that is Sparkdown's own
  * (`LuauSyntaxError.sparkdown`), one past the end of the chunk
  * (`pastChunkEnd`), and one at an end of input the reading meets before a
- * token of its line, and whether it reads on through story.
+ * token of its line, and whether it reads on through story. With
+ * `storyOnly`, a declaration whose line does not run on into story is not
+ * read, and has none.
  */
-function readDeclarationLine(declaration: SyntaxNode, documentText: string): { story: boolean; errors: LuauSyntaxError[] } {
+function readDeclarationLine(declaration: SyntaxNode, documentText: string, storyOnly = false): { story: boolean; errors: LuauSyntaxError[] } {
   const found = documentText[declaration.to - 1] === "\n" ? declaration.to : documentText.indexOf("\n", declaration.to);
   const lineEnd = found < 0 ? documentText.length : found;
   // Where the tree reads the rest of the line as story (`store a, b = 1 2`,
@@ -54,6 +56,7 @@ function readDeclarationLine(declaration: SyntaxNode, documentText: string): { s
     storyEnd = Math.min(n.to, lineEnd);
   }
   const story = /\S/.test(documentText.slice(declaration.to, storyEnd));
+  if (storyOnly && !story) return { story, errors: [] };
   const readTo = story ? storyEnd : declaration.to;
   // Where the tree ends the reading before a token on its line (`store a,
   // const = 1, 2`, whose `const` the tree begins a statement at), the
@@ -79,8 +82,7 @@ function readDeclarationLine(declaration: SyntaxNode, documentText: string): { s
  * declaration's own errors are its statement's reading's.
  */
 function storyLocalRunOnErrors(local: SyntaxNode, documentText: string): LuauSyntaxError[] {
-  const { story, errors } = readDeclarationLine(local, documentText);
-  if (!story) return [];
+  const { errors } = readDeclarationLine(local, documentText, true);
   return errors.filter((error) => luauPositionOffset(error.location.begin, documentText) >= local.to);
 }
 

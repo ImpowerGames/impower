@@ -101,7 +101,7 @@ describe("a story local with a second value and no comma before it (I-1424)", ()
 });
 
 describe("a bare local with no name (I-1425)", () => {
-  pinLine("local", "local");
+  for (const line of ["local", "local -- note"]) pinLine(line, line);
 });
 
 describe("a store name list with an empty slot before its end (I-1426)", () => {
