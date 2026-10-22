@@ -1775,11 +1775,11 @@ class Parser {
   // opener and whether Luau's parser has ended it while this reading reads
   // on to its closer: at an error after a `return` in it, or at a closer
   // it read for a block it had ended already (see `parseBlockNoScope`,
-  // `closeWrittenBlock`, I-1430). The block read last, and the closer
-  // Luau's parser read already for a block this reading reads on.
+  // `closeWrittenBlock`, I-1430). The block read last, and the closers
+  // Luau's parser read already for blocks this reading reads on.
   private readonly blocks: OpenBlock[] = [];
   private closedBlock: OpenBlock | undefined;
-  private luauClosedAt: Token | undefined;
+  private readonly luauClosed = new Set<Token>();
   // Not part of Luau: how many attribute lists (`@[...]`) are being read;
   // every error met in one is the list's (`MalformedConstruct` "attribute").
   private attributeListDepth = 0;
@@ -2216,14 +2216,14 @@ class Parser {
    * in the innermost block around it that Luau still reads in. That block
    * takes the token if it is one of its own closers, which ends it for
    * Luau while this reading reads on to its closer; otherwise Luau reports
-   * its missing closer there and ends it too, unless its own closer comes
-   * next, which Luau's recovery reads and this reading does not follow. A
+   * its missing closer there and ends it too, or, when its own closer comes
+   * next, Luau's recovery reads both tokens and closes it with them. A
    * token met outside every written block is met where Luau's chunk ends,
    * which reports it and stops, as `parseChunk` does, unless it is the end
-   * of input.
+   * of input. A token Luau has read already is not read again.
    */
   private closeWrittenBlock(closed: OpenBlock | undefined): void {
-    if (!closed?.ended || this.current() === this.luauClosedAt) return;
+    if (!closed?.ended || this.luauClosed.has(this.current())) return;
     for (let at = this.blocks.length - 1; ; ) {
       const index = this.luauBlockFrom(at);
       if (index < 0) {
@@ -2237,12 +2237,13 @@ class Parser {
       if (this.is(closer) || (begin.text === "then" && (this.is("else") || this.is("elseif")))) {
         if (this.is(closer)) this.noteEndMismatchSuspect(begin);
         // The blocks around read this token again where Luau has read it.
-        this.luauClosedAt = this.current();
+        this.luauClosed.add(this.current());
         return;
       }
       this.expectMatchAndConsumeFail(closer, begin, this.endMismatchSuggestion(begin));
       if (this.is(closer, this.lookahead())) {
-        for (const each of this.blocks) each.ended = false;
+        this.luauClosed.add(this.current());
+        this.luauClosed.add(this.lookahead());
         return;
       }
       at = index - 1;
@@ -2290,10 +2291,14 @@ class Parser {
     // and other keyword-closer diagnostics under their existing ownership.
     const misplacedElseBranch = begin.authoredIsland !== undefined && !this.currentFunction().luau && begin.from < begin.to && begin.text === "else" && (this.is("else") || this.is("elseif")) && this.current().from < this.current().to;
     // Where Luau ended the block already, a block further out reads the
-    // token instead (`closeWrittenBlock`, I-1430).
+    // token instead, and this block's own recovery reads nothing Luau's
+    // reading does not (`closeWrittenBlock`, I-1430).
     const closed = this.closedBlockOf(begin);
-    if (closed?.ended) this.closeWrittenBlock(closed);
-    else this.expectMatchAndConsumeFail(text, begin, this.endMismatchSuggestion(begin), misplacedElseBranch ? "statement" : undefined);
+    if (closed?.ended) {
+      this.closeWrittenBlock(closed);
+      return false;
+    }
+    this.expectMatchAndConsumeFail(text, begin, this.endMismatchSuggestion(begin), misplacedElseBranch ? "statement" : undefined);
     if (this.current().kind === "unfinishedComment") {
       this.next();
       return false;
@@ -2501,7 +2506,7 @@ class Parser {
           const luauBlock = this.blocks[index]!;
           const luauBegin = luauBlock.begin!;
           const luauCloser = luauBlock === block ? closer : luauBegin.text === "repeat" ? "until" : "end";
-          this.expectMatchAndConsumeFail(luauCloser, luauBegin, "", "statement");
+          this.expectMatchAndConsumeFail(luauCloser, luauBegin, this.endMismatchSuggestion(luauBegin), "statement");
           // Luau's recovery reads the closer only when it is the token after
           // the one it rejects (`return 1 x` before `end`, I-1400); otherwise
           // Luau's block ends at the error, and each closer after it is read

@@ -8,6 +8,8 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { officialErrorList } from "./officialSyntax";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
+import { parseSource } from "./grammarSnapshot";
+import { readLuauUnits } from "../../compiler/typecheck/readLuauAst";
 
 const URI = "inmemory:///main.sd";
 
@@ -74,6 +76,12 @@ const FORMS: [string, (line: string) => string][] = [
   ["a nested block in a repeat", (line) => `function f()\nrepeat\nif true then\n${line}\nend\nuntil true\nend\n`],
   ["an indented nested block in a repeat", (line) => `function f()\n  repeat\n    if true then\n      ${line}\n    end\n  until true\nend\n`],
   ["a misindented end after a nested block's return", (line) => `function f()\n  repeat\n    do\n      if true then\n        ${line}\n    end\n      end\n  until true\nend\n`],
+  // Luau's recovery reading a wrong token and the closer after it, a
+  // closer Luau took before the textual block's own, and the suggestion
+  // at a later return (round 4 of the review).
+  ["two shifts before a recovered until", (line) => `function f()\nrepeat\nrepeat\nif true then\n${line}\nreturn 2 a\nend\nuntil true\nuntil true\nend\n`],
+  ["two shifts before a recovered end", (line) => `function f()\nwhile true do\nrepeat\nif true then\n${line}\nreturn 2 a\nuntil true\nend\nend\nend\n`],
+  ["a later return after a shifted repeat", (line) => `function f()\nrepeat\nif true then\ndo\n${line}\nend\nuntil true\nreturn 2 a\nend\n`],
   ["a misindented end before a missing until", (line) => `function f()\n  while true do\n    repeat\n      if true then\n        ${line}\n    end\n  end\n  local a = 1\nend\n`],
 ];
 
@@ -133,6 +141,21 @@ describe("a function's return followed by two or more tokens reports Luau's erro
     const shifted = officialErrorList(second).map((e) => e.replace(/^(\d+):(\d+)-(\d+):(\d+)/, (_, sl, sc, el, ec) => `${+sl + 3}:${sc}-${+el + 3}:${ec}`));
     expect(sparkdownErrors(`${first}${second}Go.\n`)).toEqual([...officialErrorList(first), ...shifted].sort());
   });
+
+  // A repeat whose `end` Luau gives the function, so that Luau's chunk ends
+  // at the `until` after it (round 4 of the review). The reading reports
+  // Luau's list; a stray token after a top-level function is the grammar's
+  // to report in a `.sd` document, so this pins the reading itself.
+  for (const line of SUFFIXES) {
+    test(`${JSON.stringify(line)} in a repeat whose end Luau gives the function`, () => {
+      const luau = `function f()\nrepeat\n${line}\nend\nuntil true\nend\n`;
+      const read = (readLuauUnits(parseSource(luau), luau).prelude?.errors ?? [])
+        .filter((error) => !error.pastChunkEnd)
+        .map((error) => `${error.location.begin.line}:${error.location.begin.column}-${error.location.end.line}:${error.location.end.column} ${error.message}`)
+        .sort();
+      expect(read).toEqual(officialErrorList(luau).sort());
+    });
+  }
 
   test("the ticket's reproduction", () => {
     const text = "function f()\nreturn 1 x y\nend\nGo {f()}.\n";
