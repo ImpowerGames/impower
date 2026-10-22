@@ -8,8 +8,9 @@ import { explicitRuleNames } from "./explicitRuleNames";
 // the word's own level. A `|` there is never valid Luau, which has `|` only
 // in a type, and the grammar reads a type, a string, a comment and a bracket
 // whole, so a candidate that holds arms is an alternator and one that holds
-// none is Luau whatever the scope: `match(1)` is a call of `match`. The
-// converter, the lowerers, the annotators and the lints all ask this.
+// none is Luau whatever the scope: `match(1)` is a call of `match`. A `|` its
+// head took as the first arm's separator counts as arms (`headSeparator`).
+// The converter, the lowerers, the annotators and the lints all ask this.
 
 /** The rules a structural word opens in Luau code, each an alternator only when it holds its arms. */
 export const ALTERNATOR_CANDIDATES: ReadonlySet<string> = new Set(
@@ -42,7 +43,10 @@ export function alternatorArms(node: SyntaxNode): SyntaxNode | null {
  * The separator of a candidate's first arm where its head took it, or null.
  * A head whose last text is an `end` against the `|` (an alternator in the
  * condition, `match match(x) | a = 1 end| b = 2 end`) ends with the `|` and
- * the arm's key, and the arms open after them (I-1408).
+ * the arm's key, and the arms open after them (I-1408). Where that arm is
+ * empty and a closer, a separator or the bounded line's end follows it
+ * (`{cycle match(x) | a end|}`), the candidate ends there and holds no arms:
+ * arms that opened there would end where they opened.
  */
 export function headSeparator(node: SyntaxNode): SyntaxNode | null {
   const content = node.getChild(`${node.name}_content`);
@@ -74,11 +78,12 @@ export function alternatorHeadNodes(node: SyntaxNode): SyntaxNode[] {
 }
 
 /**
- * Whether a node opens an alternator: a candidate that holds its arms, or
- * any other node (a story alternator, which its word always opens).
+ * Whether a node opens an alternator: a candidate that holds its arms or
+ * whose head took its first arm's separator (`headSeparator`), or any other
+ * node (a story alternator, which its word always opens).
  */
 export function opensAlternator(node: SyntaxNode): boolean {
-  return !ALTERNATOR_CANDIDATES.has(node.name) || alternatorArms(node) !== null;
+  return !ALTERNATOR_CANDIDATES.has(node.name) || alternatorArms(node) !== null || headSeparator(node) !== null;
 }
 
 /** The candidate a structural word's keyword node begins, or null for any other keyword. */

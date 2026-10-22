@@ -811,6 +811,44 @@ variables:
   # (`LUAU_IDENTIFIER` has one); the head's end already read it.
   # lookaround: `LuauAlternatorHead`'s end consumed the separator.
   LUAU_AFTER_HEAD_SEPARATOR: (?<=\bend[|]{{WS}}*(?:[a-zA-Z_][a-zA-Z0-9_]*{{WS}}*[=]{{WS}}*)?)
+  # Right after the first arm's separator a head took, where that arm is
+  # empty: before the arms' own `end` (`match match(x) | a end| end`), or
+  # before the line's end, past which a candidate's arms go on to the lines
+  # below. A candidate never ends there, before the arms it took the
+  # separator for open: its end would read that `end` as a closer it does
+  # not own, or end at the line, where the spaced spelling's arms open.
+  # lookaround: `LuauAlternatorArms` opens there and takes the `end`.
+  LUAU_EMPTY_ARM_AFTER_HEAD_SEPARATOR: (?:{{LUAU_AFTER_HEAD_SEPARATOR}}(?={{WS}}*(?:end{{LUAU_NAME_END}}|$)))
+  # As `LUAU_EMPTY_ARM_AFTER_HEAD_SEPARATOR`, for the bounded twins, whose
+  # arms end at their line: before the line's end their candidate ends, since
+  # arms that opened there would end where they opened.
+  # lookaround: `LuauSparkdownExplicitAlternatorArms` opens there and takes
+  # the `end`.
+  LUAU_EMPTY_BOUNDED_ARM_AFTER_HEAD_SEPARATOR: (?:{{LUAU_AFTER_HEAD_SEPARATOR}}(?={{WS}}*end{{LUAU_NAME_END}}))
+  # Where a candidate alternator ends wherever its word stands: at a beat,
+  # right after the `end` its arms took (`LUAU_AFTER_ALTERNATOR_ARMS`), or
+  # before a separator, a bracket's closer or a closer it does not own.
+  # lookaround: the separator, the bracket's closer and the closer are their
+  # owners' (`LuauAlternatorSeparator`, the bracket rules, the block around).
+  LUAU_CANDIDATE_BOUNDARY: (?:(?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}}))
+  # As `LUAU_CANDIDATE_BOUNDARY`, or at the candidate's line.
+  LUAU_CANDIDATE_LINE_BOUNDARY: (?:{{LUAU_CANDIDATE_BOUNDARY}}|$|^)
+  # Where a candidate alternator in an expression ends
+  # (`LUAU_CANDIDATE_LINE_BOUNDARY`), but never before the empty arm whose
+  # separator its head took (`LUAU_EMPTY_ARM_AFTER_HEAD_SEPARATOR`).
+  # lookaround: `LuauAlternatorArms` opens before the empty arm.
+  LUAU_CANDIDATE_END: (?:(?!{{LUAU_EMPTY_ARM_AFTER_HEAD_SEPARATOR}}){{LUAU_CANDIDATE_LINE_BOUNDARY}})
+  # As `LUAU_CANDIDATE_END`, for a candidate whose word begins its line, which
+  # goes on past its line to arms on the lines below and ends at the first
+  # line that holds none (`LUAU_LINE_WITHOUT_ALTERNATOR_ARMS`).
+  # lookaround: as for `LUAU_CANDIDATE_END`.
+  LUAU_LINE_START_CANDIDATE_END: (?:(?!{{LUAU_EMPTY_ARM_AFTER_HEAD_SEPARATOR}})(?:{{LUAU_CANDIDATE_BOUNDARY}}|{{LUAU_LINE_WITHOUT_ALTERNATOR_ARMS}}))
+  # As `LUAU_CANDIDATE_END`, for the bounded twins, whose arms end at their
+  # line, so only an empty arm's `end` keeps them open
+  # (`LUAU_EMPTY_BOUNDED_ARM_AFTER_HEAD_SEPARATOR`).
+  # lookaround: `LuauSparkdownExplicitAlternatorArms` opens before the empty
+  # arm.
+  LUAU_BOUNDED_CANDIDATE_END: (?:(?!{{LUAU_EMPTY_BOUNDED_ARM_AFTER_HEAD_SEPARATOR}}){{LUAU_CANDIDATE_LINE_BOUNDARY}})
   # The start of a line that does not go on with a line-start candidate's
   # head: one that is neither blank nor a comment line.
   # lookaround: `LuauAlternatorArms` and the next statement read the line.
@@ -9628,7 +9666,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitAlternatorArms" }
       - { include: "#LuauSparkdownExplicitAlternatorHead" }
-    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: "{{LUAU_BOUNDED_CANDIDATE_END}}"
 
   # The bounded twin of `LuauAlternatorHead`.
   # lookaround: as for `LuauAlternatorHead`.
@@ -9690,7 +9728,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitAlternatorArms" }
       - { include: "#LuauSparkdownExplicitAlternatorHead" }
-    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: "{{LUAU_BOUNDED_CANDIDATE_END}}"
 
   LuauSparkdownExplicitFunctionCallShorthand:
     tag: meta
@@ -11944,7 +11982,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorArms" }
       - { include: "#LuauAlternatorHead" }
-    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: "{{LUAU_CANDIDATE_END}}"
 
   # A candidate conditional alternator whose word begins its line, in a body
   # or an expression. Its arms may begin on the lines below (`match n`, then
@@ -11966,7 +12004,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorArms" }
       - { include: "#LuauAlternatorLineStartHead" }
-    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_WITHOUT_ALTERNATOR_ARMS}}
+    end: "{{LUAU_LINE_START_CANDIDATE_END}}"
 
   # lookaround: the lookbehind opens the condition once, after the `match` or
   # `plural` its parent's begin took (see `LuauIfBlockCondition`). The
@@ -12127,7 +12165,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorArms" }
       - { include: "#LuauAlternatorHead" }
-    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|$|^
+    end: "{{LUAU_CANDIDATE_END}}"
 
   # A candidate sequential alternator whose word begins its line
   # (`queue -- note`, then `| print(1)` lines and `end`), as
@@ -12156,7 +12194,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorArms" }
       - { include: "#LuauAlternatorLineStartHead" }
-    end: (?={{BEAT}})|{{LUAU_AFTER_ALTERNATOR_ARMS}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_CLOSER}})|{{LUAU_LINE_WITHOUT_ALTERNATOR_ARMS}}
+    end: "{{LUAU_LINE_START_CANDIDATE_END}}"
 
   # ----------------------------------------------------------------------------
   # Flow Statements

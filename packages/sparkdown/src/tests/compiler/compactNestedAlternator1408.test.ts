@@ -65,12 +65,6 @@ const armsOf = (source: string): string[] => {
     enter: (ref) => {
       if (!ALTERNATOR_CANDIDATES.has(ref.name)) return;
       const armsNode = alternatorArms(ref.node);
-      if (!armsNode) return void view.push("none");
-      const arms: string[] = [];
-      const open = (separator: SyntaxNode) => {
-        const key = getDescendent("LuauAlternatorAssignmentName", separator);
-        arms.push(key ? `${source.slice(key.from, key.to)} =` : "");
-      };
       // The separator the head took, read from the tree as written.
       let head = ref.node.getChild(`${ref.name}_content`)?.firstChild ?? null;
       while (head && !/AlternatorLineStartHead$|AlternatorHead$/.test(head.name)) head = head.nextSibling;
@@ -78,8 +72,14 @@ const armsOf = (source: string): string[] => {
       const found = headEnd ? getDescendent("LuauAlternatorSeparator", headEnd) : undefined;
       // `getDescendent` also visits a node that begins where its parent ends.
       const lead = found && headEnd && found.to <= headEnd.to ? found : null;
+      if (!armsNode && !lead) return void view.push("none");
+      const arms: string[] = [];
+      const open = (separator: SyntaxNode) => {
+        const key = getDescendent("LuauAlternatorAssignmentName", separator);
+        arms.push(key ? `${source.slice(key.from, key.to)} =` : "");
+      };
       if (lead) open(lead);
-      const content = armsNode.getChild(`${armsNode.name}_content`);
+      const content = armsNode?.getChild(`${armsNode.name}_content`) ?? null;
       for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
         if (child.name === "LuauAlternatorSeparator") open(child);
         else if (!isTrivia(child) && arms.length > 0) arms[arms.length - 1] += ` ${source.slice(child.from, child.to).trim()}`;
@@ -138,6 +138,42 @@ const FORMS: [string, string, string, string[]][] = [
     "Value 3.\n",
     ["mage = print(2) | other = print(3)", "x = print(1)"],
   ],
+  // An empty arm right after the separator the head took: the candidate's
+  // end does not read the arm's `end` as a closer, nor end at its line, before
+  // its arms open (round 1, review comment 6340004336).
+  ["story braces, with an empty unkeyed arm", 'Value {cycle match("x") | x = "a" end| end}.\n', "Value .\n", ["", 'x = "a"']],
+  ["story braces, with an empty keyed arm", 'Value {match match("x") | x = "a" end|other= end}.\n', "Value .\n", ["other =", 'x = "a"']],
+  ["story braces, with an empty arm against its end", 'Value {cycle match("x") | x = "a" end|end}.\n', "Value .\n", ["", 'x = "a"']],
+  [
+    "a block form with an empty arm at its line's end",
+    'function f()\n  match match("x") | x = print(1) end|\n    | other = print(3)\n  end\n  return 3\nend\nValue {f()}.\n',
+    "Value 3.\n",
+    [" | other = print(3)", "x = print(1)"],
+  ],
+  ["a narrative statement's local with an empty arm, in the bounded rules", '& local v = match match("x") | x = 1 end| end\nDone.\n', "Done.\n", ["", "x = 1"]],
+  // An empty last arm before a closer, a separator or the bounded line's end,
+  // with no `end`: the candidate ends there and its head's separator is its
+  // one arm (`headSeparator`).
+  ["story braces, with an empty arm before the brace's end", 'Value {cycle match("x") | x = "a" end|}.\n', "Value .\n", ["", 'x = "a"']],
+  [
+    "a parenthesized value with an empty arm before its closer",
+    'function f()\n  return (cycle match("x") | x = "a" end|)\nend\nValue {f()}.\n',
+    "Value .\n",
+    ["", 'x = "a"'],
+  ],
+  [
+    "a table field with an empty arm before its separator",
+    'function f()\n  local t = { cycle match("x") | x = "a" end|, 2 }\n  return #t\nend\nValue {f()}.\n',
+    "Value 1.\n",
+    ["", 'x = "a"'],
+  ],
+  [
+    "a branch keyword after an empty arm",
+    'function f(c)\n  if c then local v = cycle match("x") | x = "a" end| else end\n  return 3\nend\nValue {f(true)}.\n',
+    "Value 3.\n",
+    ["", 'x = "a"'],
+  ],
+  ["a narrative statement's local with an empty arm at its line's end", '& local v = match match("x") | x = 1 end|\nDone.\n', "Done.\n", ["", "x = 1"]],
   ["a reading error in the first arm", 'Value {cycle match("x") | x = "a" end| "b" .. end}.\n', "Value b.\n", ['"b" ..', 'x = "a"']],
 ];
 
