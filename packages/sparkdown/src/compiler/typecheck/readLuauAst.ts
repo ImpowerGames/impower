@@ -1810,7 +1810,15 @@ class Parser {
     const last = tokens[tokens.length - 1];
     const end = eofAt ?? (last ? last.location.end : previous.end);
     this.eof = { kind: "eof", text: "", from: last?.to ?? 0, to: last?.to ?? 0, location: new Location(end, end), source: -1 };
+    this.unitTokens = tokens;
   }
+
+  /**
+   * Not part of Luau: the unit's own tokens, which a look past the tokens
+   * being read reads (`closingBraceFollows`), so that it reads nothing a
+   * bounded read leaves out, nor story the unit does not hold.
+   */
+  private readonly unitTokens: readonly Token[];
 
   // -- Tokens --------------------------------------------------------------
 
@@ -4410,7 +4418,7 @@ class Parser {
       // thing Luau reads (`} d`` on the next line).
       if (isSection(next) && next.broken) {
         this.next();
-        const missing = nested && !closingBraceFollows(this.ctx.text, next.to) ? "}" : "`";
+        const missing = nested && !closingBraceFollows(this.unitTokens, next.to) ? "}" : "`";
         return this.reportStringError(next.location, expressions, `Malformed interpolated string; did you forget to add a '${missing}'?`);
       }
       if (isBroken(next)) {
@@ -4481,17 +4489,20 @@ interface ContinuedString {
 }
 
 /**
- * Whether the next thing Luau's lexer reads from `at`, inside an open
- * interpolation, past whitespace and comments, is a `}` closing it.
+ * Whether the unit's next token from `at`, which Luau's lexer reads next
+ * inside an open interpolation, is a `}` closing it (a `}` symbol, or a
+ * string section it begins).
  */
-function closingBraceFollows(text: string, at: number): boolean {
-  let i = at;
-  while (i < text.length) {
-    if (/\s/.test(text[i]!)) i++;
-    else if (text.startsWith("--", i)) i = skipComment(text, i, text.length);
-    else return text[i] === "}";
+function closingBraceFollows(tokens: readonly Token[], at: number): boolean {
+  let lo = 0;
+  let hi = tokens.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (tokens[mid]!.from < at) lo = mid + 1;
+    else hi = mid;
   }
-  return false;
+  const next = tokens[lo];
+  return !!next && next.from < next.to && next.text.startsWith("}");
 }
 
 /** Whether a backtick string's node ends in its closing backtick: its own end's, not a backtick inside it. */

@@ -206,6 +206,30 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
     expect(errors[0]).toMatch(/^0:21-0:24 Malformed interpolated string; /);
   });
 
+  // Whether a `}` closing the outer interpolation follows a broken inner
+  // section is read from the unit's own next token: nothing a bounded read
+  // leaves out, nor story the unit does not hold (round 4).
+  test("a broken inner section's words, read no further than the bound", () => {
+    const source = "`a {1 `b {x} c} d`";
+    const bounded = readLuauExpressionAfter(0, source, 14);
+    forgetLookups();
+    expect(bounded.errors).toEqual(readLuauExpressionAfter(0, source.slice(0, 14)).errors);
+    expect(bounded.errors[0]?.message).toBe("Malformed interpolated string; did you forget to add a '}'?");
+  });
+
+  test("a broken inner section's words in a story local, after an edit on the next line", () => {
+    const text = "scene start\n  local s = `a {1 `b {x} c\n  x d`\n  Hello.\nend\n";
+    const at = text.indexOf("x d");
+    const compiler = newCompiler(text);
+    compiler.compile({ textDocument: { uri: URI } } as never);
+    compiler.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [{ range: { start: { line: 2, character: 2 }, end: { line: 2, character: 3 } }, text: "}" }],
+    } as never);
+    const edited = text.slice(0, at) + "}" + text.slice(at + 1);
+    expect(compileErrors(compiler)).toEqual(sparkdownErrors(edited));
+  });
+
   test("a read bounded inside a string's section reads what the text up to the bound gives", () => {
     const source = "`a {x} tail`";
     for (let to = 1; to <= source.length; to++) {
