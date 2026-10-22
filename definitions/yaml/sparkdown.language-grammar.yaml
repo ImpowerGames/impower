@@ -26,19 +26,21 @@ variables:
   # lookaround: LuauFunctionAccessor owns a colon followed by a method call; LuauAccessPath must leave that suffix to it.
   LUAU_SHARED_PATH_NO_METHOD_CALL: "(?!{{WS}}*[:]{{WS}}*{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_TRIVIA}}*{{LUAU_FUNCTION_CALL_START}})"
   # lookaround: LuauForLoop owns binding names before its condition; LuauAccessPath must finish each binding there.
-  # A binding is a name in the list right after `for`, each name with its
-  # type, the list's names joined by commas (`for k: number, v in t`), so a
-  # name after a comma past the header's `in` or `=` is a value's
-  # (`for k in a, b:end do`, `for i = 1, n:end do`, I-1448), whose `:` is a
-  # method's. A type is read as `LUAU_TYPE_BEHIND` reads it, so a type with a
-  # comma or a `:` in it (`for k: {a: T}, v in t`) ends the list.
-  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_FOR_BINDING_BEFORE_COMMA_BEHIND}}*{{LUAU_NAME_BEHIND}})"
-  # A `for` loop's variable, with its type, and the comma after it.
+  # A binding is a name right after `for`, or after a comma in the binding
+  # list before the header's `in` or `=`, whatever types and comments the
+  # earlier names carry (`for k: {a: T} --[[c]], v: nil in t`). A name after
+  # a comma past the header's `in` or `=` is a value's (`for k in a, b:end
+  # do`, `for i = 1, n:end do`, I-1448), whose `:` is a method's. A
+  # lookbehind holds no lookaround, so the list is read as text with no `=`
+  # and no `in` standing as a word (`LUAU_FOR_BINDING_LIST_BEHIND`); an `in`
+  # inside a comment of that list ends it too.
+  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_NAME_BEHIND}}|\\bfor\\b{{LUAU_FOR_BINDING_LIST_BEHIND}}[,]{{WS}}*{{LUAU_NAME_BEHIND}})"
+  # Text of a `for` header with no `=` and no `in` standing as a word: a
+  # character other than `=`, `i` or a line break, an `i` inside a word or
+  # ending one, an `i` before a character other than `n` or `=`, or `in`
+  # before a word character.
   # lookaround: read only in lookbehinds, with no lookaround of its own (VS Code's regex engine refuses one inside a lookbehind).
-  LUAU_FOR_BINDING_BEFORE_COMMA_BEHIND: (?:{{LUAU_NAME_BEHIND}}{{LUAU_FOR_BINDING_TYPE_BEHIND}}?{{WS}}*[,]{{WS}}*)
-  # A `for` loop's variable's type annotation.
-  # lookaround: read only in lookbehinds, with no lookaround of its own.
-  LUAU_FOR_BINDING_TYPE_BEHIND: (?:{{WS}}*[:]{{WS}}*{{LUAU_TYPE_BEHIND}})
+  LUAU_FOR_BINDING_LIST_BEHIND: (?:[^\n\r=i]|\Bi|i\b|i[^n\n\r=]|in\w)*
   # lookaround: LuauChainedPropertyAccess and LuauChainedFunctionCall keep member and call continuations inside the path.
   # A name goes on the path only right after its accessor: after whitespace
   # it begins the next statement (`Hello there`), which no path reads on to.

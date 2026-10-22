@@ -129,6 +129,7 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local a = {}\n  for k in a, a:end do end", "end"],
     ["local a, b = {}, {}\n  for k in a, b:function do end", "function"],
     ["local n = 1\n  for i = 1, n:end do end", "end"],
+    ["local n = 1\n  for i=1, n:end do end", "end"],
     ["local a, b = {}, {}\n  for k, v in a, b:end do end", "end"],
   ],
   "after a type operator with no right operand (I-1450)": [
@@ -204,6 +205,13 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["for a, b in pairs({}) do end", null],
     ["for k: number, v: string in pairs({}) do end", null],
     ["for k: {a: number}, v: number in pairs({}) do end", null],
+    // A later binding after comments or a deeply nested type (round 4, `bc`
+    // finding 1), and a one-letter first binding.
+    ["for k --[[c]], v: nil in pairs({}) do end", null],
+    ["for k: number --[[c]], v: nil in pairs({}) do end", null],
+    ["for k: --[[c]] number, v: nil in pairs({}) do end", null],
+    ["for k: {a: {b: {c: {d: number}}}}, v: nil in pairs({}) do end", null],
+    ["for i, v: nil in pairs({}) do end", null],
     ["for i: number = 1, 3 do end", null],
     ["local t = {}\n  for k, v in pairs(t), t do end", null],
     ["local t = {}\n  local b = (t)\n    :foo()", null],
@@ -269,7 +277,11 @@ describe("a reserved word read as a method's name (I-1467)", () => {
         });
         test(`${JSON.stringify(form)}: Luau's errors at Luau's ranges`, () => {
           if (word === null) {
-            if (name.startsWith("well-formed")) expect(official).toEqual([]);
+            if (name.startsWith("well-formed")) {
+              expect(official).toEqual([]);
+              // No word of well-formed code is read as an invalid method name.
+              expect(stripAnsi(dumpTree(text))).not.toContain("LuauKeywordMethodName");
+            }
           } else {
             expect(official.some((e) => e.endsWith(METHOD_NAME(word))), official.join("\n")).toBe(true);
           }
