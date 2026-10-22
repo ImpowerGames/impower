@@ -32,7 +32,7 @@ import {
   type AstNode,
 } from "../../typecheck/Ast";
 import { containsUnreadToken } from "../../utils/unreadTokens";
-import { ALTERNATOR_CANDIDATES, alternatorArms, alternatorHeadNodes } from "../../utils/alternatorDecision";
+import { ALTERNATOR_CANDIDATES, alternatorArms, alternatorHeadNodes, headSeparator } from "../../utils/alternatorDecision";
 
 // The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
 // a literal, a name or path, a parenthesized value, a table, a divert
@@ -106,9 +106,12 @@ export function lowerArms(
   if (!content) return arms;
   // A candidate in Luau code holds its separators and arms in its
   // `LuauAlternatorArms` (I-1310); a story alternator holds them itself.
-  const candidate = content.parent;
-  const armsNode = candidate && ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
-  if (armsNode) content = armsNode.getChild(`${armsNode.name}_content`) ?? armsNode;
+  const candidate = content.parent && ALTERNATOR_CANDIDATES.has(content.parent.name) ? content.parent : null;
+  const armsNode = candidate ? alternatorArms(candidate) : null;
+  // Where the head took the first arm's separator and that arm is empty
+  // (I-1408), the arms hold no content (`end| end`), or the candidate holds
+  // no arms at all (`end|}`).
+  const armsContent = candidate ? (armsNode?.getChild(`${armsNode.name}_content`) ?? null) : content;
   let current: AlternatorArm | null = null;
   // The current arm's Luau nodes, for its errors (`reportArmReading`):
   // not a line of story or a divert, which lower as Sparkdown's own.
@@ -117,15 +120,22 @@ export function lowerArms(
     reportArmReading(armNodes, ctx, false);
     armNodes = [];
   };
+  const startArm = (separator: SyntaxNode): AlternatorArm => {
+    const keyNode = getDescendent("LuauAlternatorAssignmentName", separator);
+    const arm = { key: keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : null, body: [] };
+    arms.push(arm);
+    return arm;
+  };
+  // The head took the first arm's separator where an `end` stands against
+  // its `|` (I-1408), and the arms begin with that arm's body.
+  const lead = candidate ? headSeparator(candidate) : null;
+  if (lead) current = startArm(lead);
 
-  let child = content.firstChild;
+  let child = armsContent?.firstChild ?? null;
   while (child) {
     if (child.name === "LuauAlternatorSeparator") {
       reportArm();
-      const keyNode = getDescendent("LuauAlternatorAssignmentName", child);
-      const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : null;
-      current = { key, body: [] };
-      arms.push(current);
+      current = startArm(child);
     } else if (
       current &&
       (child.name === "LuauSparkdownInlineGluedAlternatorArm" ||
@@ -354,10 +364,15 @@ export function tokenAfter(nodes: readonly SyntaxNode[], ctx: LowerContext): num
  */
 export function reportAlternatorValue(candidate: SyntaxNode, ctx: LowerContext): void {
   reportAlternatorHead(candidate, ctx);
-  const armsNode = ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
-  const content = armsNode ? (armsNode.getChild(`${armsNode.name}_content`) ?? armsNode) : findChildByName(candidate, `${candidate.name}_content`);
+  const isCandidate = ALTERNATOR_CANDIDATES.has(candidate.name);
+  const armsNode = isCandidate ? alternatorArms(candidate) : null;
+  // An empty first arm whose separator the head took leaves no content, or
+  // no arms (`lowerArms`).
+  const content = isCandidate ? (armsNode?.getChild(`${armsNode.name}_content`) ?? null) : findChildByName(candidate, `${candidate.name}_content`);
   let nodes: SyntaxNode[] = [];
-  let inArm = false;
+  // The arms begin with the first arm's body where the head took its
+  // separator (I-1408).
+  let inArm = isCandidate && headSeparator(candidate) !== null;
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (child.name === "LuauAlternatorSeparator") {
       reportArmReading(nodes, ctx, true);
