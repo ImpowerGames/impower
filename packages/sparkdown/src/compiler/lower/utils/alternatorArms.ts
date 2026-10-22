@@ -16,15 +16,22 @@ import { Tag as RuntimeTag } from "../../../runtime/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromNodes } from "../expression/lowerExpression";
+import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lower } from "../lower";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
-import { reportSyntaxErrors } from "../expression/lowerFunction";
-import { readExpressionAst } from "./luauAst";
+import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
+import { readBlockAst, readExpressionAst } from "./luauAst";
+import { isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
+import {
+  AstExprSparkdownConditionalAlternator,
+  AstExprSparkdownSequentialAlternator,
+  visitAst,
+  type AstNode,
+} from "../../typecheck/Ast";
 import { containsUnreadToken } from "../../utils/unreadTokens";
-import { ALTERNATOR_CANDIDATES, alternatorArms } from "../../utils/alternatorDecision";
+import { ALTERNATOR_CANDIDATES, alternatorArms, alternatorHeadNodes } from "../../utils/alternatorDecision";
 
 // The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
 // a literal, a name or path, a parenthesized value, a table, a divert
@@ -102,23 +109,18 @@ export function lowerArms(
   const armsNode = candidate && ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
   if (armsNode) content = armsNode.getChild(`${armsNode.name}_content`) ?? armsNode;
   let current: AlternatorArm | null = null;
-  // The nodes of the current arm. The type checker reads an alternator as a
-  // value of any type, not its arms, so an arm holding a token no rule read
-  // (`cycle "a" | ! end`, `cycle "a" | (!b) end`) has the errors of its
-  // reading as an expression.
+  // The current arm's Luau nodes, for its errors (`reportArmReading`):
+  // not a line of story or a divert, which lower as Sparkdown's own.
   let armNodes: SyntaxNode[] = [];
-  const reportUnreadArm = () => {
-    if (armNodes.some(containsUnreadToken)) {
-      reportSyntaxErrors(readExpressionAst(armNodes, ctx)?.source.errors ?? [], ctx);
-    }
+  const reportArm = () => {
+    reportArmReading(armNodes, ctx, false);
     armNodes = [];
   };
 
   let child = content.firstChild;
   while (child) {
-    if (current && child.name !== "LuauAlternatorSeparator" && !isTrivia(child)) armNodes.push(child);
     if (child.name === "LuauAlternatorSeparator") {
-      reportUnreadArm();
+      reportArm();
       const keyNode = getDescendent("LuauAlternatorAssignmentName", child);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : null;
       current = { key, body: [] };
@@ -189,6 +191,7 @@ export function lowerArms(
         continue;
       }
 
+      if (isLuauNodeName(child.name)) armNodes.push(child);
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       // A statement can lower to diagnostics alone, such as an empty divert.
       forwardBlockDiagnostics(block, ctx);
@@ -202,9 +205,10 @@ export function lowerArms(
         // expression and mark `outputWhenComplete` so its result emits
         // into the surrounding output stream — same behavior as a normal
         // `{expr}` interpolation, just nested inside the alternator's
-        // chosen arm.
+        // chosen arm. Its errors are the reading of the value it begins,
+        // with the operations that continue it (`reportArmReading`).
         const expr = ARM_VALUES.has(child.name)
-          ? lowerExpressionFromNodes([child], ctx)
+          ? lowerExpressionFromNodes([child], ctx, null)
           : null;
         if (expr) {
           expr.outputWhenComplete = true;
@@ -214,8 +218,140 @@ export function lowerArms(
     }
     child = child.nextSibling;
   }
-  reportUnreadArm();
+  reportArm();
   return arms;
+}
+
+// The operations that continue the value before them in an arm (`x .. y`,
+// `x + 1`), which the grammar gives nodes of their own.
+const CONTINUATIONS = nodeNameSet([
+  "LuauArithmeticOperation",
+  "LuauCompareOperation",
+  "LuauConcatOperation",
+  "LuauLogicalOperation",
+  "LuauTypeCastOperation",
+]);
+
+/**
+ * What an arm holds as it runs: each value, a node with the operations that
+ * continue it (`cycle | x .. y | 2 end`), each Luau statement, and a
+ * `match` arm's value after its `=` (its pattern is a value before it). Two
+ * nodes side by side are two values (`| second visit |`), as `lowerArms`
+ * lowers them.
+ */
+function armParts(nodes: readonly SyntaxNode[]): { statement: boolean; nodes: SyntaxNode[] }[] {
+  const parts: { statement: boolean; nodes: SyntaxNode[] }[] = [];
+  for (const node of nodes) {
+    const last = parts[parts.length - 1];
+    if (isArmAssignment(node)) parts.push({ statement: false, nodes: containerValueNodes(node) });
+    else if (LUAU_STATEMENTS.has(node.name)) parts.push({ statement: true, nodes: [node] });
+    else if (CONTINUATIONS.has(node.name) && last && !last.statement) last.nodes.push(node);
+    else parts.push({ statement: false, nodes: [node] });
+  }
+  return parts;
+}
+
+/**
+ * Reports the errors of an alternator's arm. The type checker reads an
+ * alternator as a value of any type, not its arms, so an arm holding a
+ * token no rule read (`cycle "a" | ! end`, `cycle "a" | (!b) end`) has every
+ * error of its reading as an expression (I-1310). Otherwise each value the
+ * arm holds (`armParts`) has its reading's errors by form
+ * (`reportReadingErrors` "expression"): a backtick string's own (I-1435),
+ * and `cycle | (1 2) | 3 end`'s. A statement in the arm is read where it is
+ * lowered (`lowerLuauStatementNode`); in an arm nobody lowers
+ * (`unlowered`, `reportAlternatorValue`), it is read here for its
+ * string's errors. Each alternator a part holds is read in turn by the
+ * part's reading (`readExpressionAst`).
+ */
+function reportArmReading(nodes: readonly SyntaxNode[], ctx: LowerContext, unlowered: boolean): void {
+  if (nodes.length === 0) return;
+  if (nodes.some(containsUnreadToken)) {
+    reportSyntaxErrors(readExpressionAst(nodes, ctx)?.source.errors ?? [], ctx);
+    return;
+  }
+  for (const part of armParts(nodes)) {
+    if (part.nodes.length === 0) continue;
+    if (part.statement) {
+      if (!unlowered) continue;
+      const reading = readBlockAst(part.nodes, ctx);
+      if (reading) reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "string");
+      continue;
+    }
+    const reading = readExpressionAst(part.nodes, ctx);
+    if (!reading) continue;
+    reportReadingErrors(reading.source.errors, part.nodes[0]!, ctx, "expression", reading.expr);
+  }
+}
+
+/**
+ * Reports the errors of each alternator a lowerer's reading holds
+ * (`reportAlternatorValue`), which the reading reads as one opaque value,
+ * whether or not lowering reaches it: `(cycle | 1 | 2 end) .. (cycle | ... end)`
+ * lowers no further than its first alternator, and an alternator in another's
+ * head or arm or in a tag's braces is not lowered at all. The reading funnel
+ * calls it (`readExpressionAst`, `readBlockAst`, `closureBodyAst`).
+ */
+export function reportNestedAlternators(expr: AstNode, ctx: LowerContext): void {
+  const report = (node: AstExprSparkdownSequentialAlternator | AstExprSparkdownConditionalAlternator) => {
+    const candidate = node.source.node as SyntaxNode | undefined;
+    if (candidate) reportAlternatorValue(candidate, ctx);
+    return false;
+  };
+  visitAst(expr, { visit: () => true, visitSparkdownSequentialAlternator: report, visitSparkdownConditionalAlternator: report });
+}
+
+// A `match` arm's `= value`, and the alternators whose head holds what an
+// arm holds rather than a condition.
+const ARM_ASSIGNMENTS = nodeNameSet(["LuauAssignmentOperation", "LuauSparkdownAssignmentOperation"]);
+const SEQUENTIAL_ALTERNATORS = nodeNameSet(["LuauSequentialAlternatorBlock", "LuauSequentialAlternatorLineStart", "LuauSparkdownSequentialAlternatorBlock"]);
+
+/** Whether a node of an arm is a `match` arm's `= value`. */
+function isArmAssignment(node: SyntaxNode): boolean {
+  return ARM_ASSIGNMENTS.has(node.name);
+}
+
+/**
+ * Reports the errors of an alternator's head, what stands between its word
+ * and its first `|` (`cycle `a {} b` | 1 end`, a `match`'s condition),
+ * read as an expression by form (`reportReadingErrors` "expression"),
+ * where no lowerer lowers it: a sequential alternator's head, and any head
+ * of an alternator Luau code uses as a value. A backtick string's errors in
+ * it are the reading's to report, as everywhere (I-1435).
+ */
+export function reportAlternatorHead(candidate: SyntaxNode, ctx: LowerContext): void {
+  const nodes = alternatorHeadNodes(candidate).filter((node) => !isTrivia(node));
+  if (nodes.length === 0) return;
+  // A sequential alternator's head holds what an arm holds; a `match`'s
+  // is its one condition.
+  if (SEQUENTIAL_ALTERNATORS.has(candidate.name)) return reportArmReading(nodes, ctx, true);
+  const reading = readExpressionAst(nodes, ctx);
+  if (!reading) return;
+  reportReadingErrors(reading.source.errors, nodes[0]!, ctx, "expression", reading.expr);
+}
+
+/**
+ * Reports the errors of an alternator that Luau code uses as a value
+ * (`store s = cycle | `a {} b` | 2 end`), which no lowerer lowers: its
+ * head's and each arm's, as `lowerArms` reports an arm's for one it
+ * lowers, and those of each alternator they hold.
+ */
+export function reportAlternatorValue(candidate: SyntaxNode, ctx: LowerContext): void {
+  reportAlternatorHead(candidate, ctx);
+  const armsNode = ALTERNATOR_CANDIDATES.has(candidate.name) ? alternatorArms(candidate) : null;
+  const content = armsNode ? (armsNode.getChild(`${armsNode.name}_content`) ?? armsNode) : findChildByName(candidate, `${candidate.name}_content`);
+  let nodes: SyntaxNode[] = [];
+  let inArm = false;
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (child.name === "LuauAlternatorSeparator") {
+      reportArmReading(nodes, ctx, true);
+      nodes = [];
+      inArm = true;
+    } else if (inArm && !isTrivia(child)) {
+      nodes.push(child);
+    }
+  }
+  reportArmReading(nodes, ctx, true);
 }
 
 // A single-line block arm is a display line of its own: a `display({ text })`

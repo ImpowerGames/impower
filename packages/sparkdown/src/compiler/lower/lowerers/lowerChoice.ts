@@ -482,7 +482,10 @@ function appendNodeContent(
   for (const m of markers) {
     flushText(m.node.from);
     if (m.kind === "expr") {
-      const expr = lowerExpressionFromContainer(m.node, ctx);
+      // Choice text's braces report their reading's errors by form, as story
+      // text's do (`reportReadingErrors`).
+      const scope = isExplicitRuleName(m.node.name, "LuauInterpolatedStringExpression") ? "expression" : "string";
+      const expr = lowerExpressionFromContainer(m.node, ctx, scope);
       if (expr) {
         expr.outputWhenComplete = true;
         list.AddContent(expr);

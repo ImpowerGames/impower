@@ -64,6 +64,7 @@ import {
   freeVariables,
   readBodyAst,
   reportBodySyntaxErrors,
+  reportReadingErrors,
 } from "../expression/lowerFunction";
 import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
@@ -870,6 +871,41 @@ function findAssignmentValueNode(
   return null;
 }
 
+/**
+ * Reports the errors of a property's value that is dropped with its key
+ * (one that does not lower), which nothing else reads: a backtick string's
+ * own (I-1435), and those of each alternator it holds.
+ */
+function reportUnreadValueErrors(propNode: SyntaxNode, ctx: LowerContext): void {
+  const { consumed } = propertyValueNodes(propNode, ctx);
+  const reading = consumed.length > 0 ? readExpressionAst(consumed, ctx) : null;
+  if (!reading) return;
+  reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
+}
+
+/**
+ * A property's `=` operation and the nodes its value is read from: the
+ * operation's own, or those of the lines after it the value runs on into
+ * (call sugar, a value after a line-ending `=`), as the shared reader
+ * decides.
+ */
+function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: SyntaxNode | undefined; consumed: SyntaxNode[] } {
+  const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
+  const valueNodes = opNode ? containerValueNodes(opNode) : [];
+  const candidates = [...valueNodes];
+  for (let next = propNode.nextSibling; next; next = next.nextSibling) {
+    // A bracket-key property's operation is a sibling of its key node.
+    // Its value nodes are already present above.
+    if (opNode && next.to <= opNode.to) continue;
+    if (DEFINE_MEMBER_NAMES.has(next.name)) break;
+    candidates.push(next);
+  }
+  const continued = readExpressionAst(candidates, ctx);
+  const end = continued ? rangeOf(continued.expr.location, ctx).to : propNode.to;
+  const consumed = end <= propNode.to ? valueNodes : candidates.filter((node) => node.from < end);
+  return { opNode, consumed };
+}
+
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
@@ -884,12 +920,18 @@ function readPropertyDefinition(
       "LuauTableIndexDeclaration",
       bracketAssignment,
     );
-    if (!indexNode) return null;
+    if (!indexNode) {
+      reportUnreadValueErrors(propNode, ctx);
+      return null;
+    }
     // Only STRING-LITERAL keys are representable in the compile-time struct;
     // a computed key (`[expr]`) is runtime-only: the __def table carries it as
     // an expression key evaluated at init, and the context never sees it. The
     // key is the string's value, its escapes read.
     const key = readExpressionAst(containerValueNodes(indexNode), ctx);
+    // A backtick string's own errors in the key are its reading's to
+    // report, whether or not the key lowers (I-1435).
+    if (key) reportReadingErrors(key.source.errors, indexNode, ctx, "string");
     if (
       key?.expr instanceof AstExprConstantString &&
       key.expr.quoteStyle !== QuoteStyle.QuotedRaw
@@ -903,7 +945,10 @@ function readPropertyDefinition(
         name = "";
       }
     }
-    if (name == null) return null;
+    if (name == null) {
+      reportUnreadValueErrors(propNode, ctx);
+      return null;
+    }
   } else {
     // A key spelled as a reserved word is in the property's own begin,
     // before its `LuauAssignmentOperation`, whose value may hold
@@ -916,26 +961,18 @@ function readPropertyDefinition(
     const nameNode = keywordKey ?? (variableAssignment
       ? getDescendent("LuauVariableName", variableAssignment)
       : null);
-    if (!nameNode) return null;
+    if (!nameNode) {
+      reportUnreadValueErrors(propNode, ctx);
+      return null;
+    }
     name = ctx.read(nameNode.from, nameNode.to);
   }
 
-  const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
-  const valueNodes = opNode ? containerValueNodes(opNode) : [];
   // Let the shared reader decide how much of the following lines belongs
   // to the value (including call sugar and a value after a line-ending `=`).
-  const candidates = [...valueNodes];
-  for (let next = propNode.nextSibling; next; next = next.nextSibling) {
-    // A bracket-key property's operation is a sibling of its key node.
-    // Its value nodes are already present above.
-    if (opNode && next.to <= opNode.to) continue;
-    if (DEFINE_MEMBER_NAMES.has(next.name)) break;
-    candidates.push(next);
-  }
-  const continued = readExpressionAst(candidates, ctx);
-  const end = continued ? rangeOf(continued.expr.location, ctx).to : propNode.to;
-  const consumed = end <= propNode.to ? valueNodes : candidates.filter((node) => node.from < end);
+  const { opNode, consumed } = propertyValueNodes(propNode, ctx);
   const reading = readExpressionAst(consumed, ctx);
+  if (reading) reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
   if (opNode && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
   const expr = reading
     ? lowerExpression(reading.expr, reading.source, ctx)
