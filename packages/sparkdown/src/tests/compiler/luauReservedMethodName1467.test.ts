@@ -136,7 +136,6 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: T | :end", "end"],
     ["local t = {}\n  local b = t :: () -> :end", "end"],
     ["local t = {}\n  local b = t :: T & :end", "end"],
-    ["local t = {}\n  local b = t :: T & :do", "do"],
     ["local t = {}\n  local b = t :: T | : --[[c]] end", "end"],
     ["local t = {}\n  local b = t :: T | : --[=========[c]=========] end", "end"],
     ["local t = {}\n  local b = t :: T | :function", "function"],
@@ -144,11 +143,11 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     // name outside a header, and the header's in one (round 2, `undirected`
     // finding 2).
     ["local x: T | : --[=========[c]=========] do", "do"],
-    // A type alias's type hands the `:` to the alias, which reads it as a
-    // method's (round 4 preparation).
-    ["type A = T | :do", "do"],
+    // A type alias's complete type hands the `:` to the alias, which reads
+    // it as a method's (round 4 preparation). After a type operator with no
+    // operand, `:do` and `:then` keep base's reading (round 4 `undirected`
+    // finding 2: a header's bracket may hold them).
     ["type A = T:do", "do"],
-    ["export type A = T | :do", "do"],
     ["type A = T: --[=========[c]=========] end", "end"],
     ["local x: T | : --[=========[c]=========] then", "then"],
     ["local t = {}\n  local b = t :: T | : --[=========[c]=========] do", "do"],
@@ -212,6 +211,14 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["for k: --[[c]] number, v: nil in pairs({}) do end", null],
     ["for k: {a: {b: {c: {d: number}}}}, v: nil in pairs({}) do end", null],
     ["for i, v: nil in pairs({}) do end", null],
+    // `in` or `=` inside a comment or a string of the binding list (round 4,
+    // `undirected` finding 1).
+    ["for k --[=[c]=], v: nil in pairs({}) do end", null],
+    ["for k --[[in]], v: nil in pairs({}) do end", null],
+    ["for k --[[=]], v: nil in pairs({}) do end", null],
+    ['for k: "in", v: nil in pairs({}) do end', null],
+    ['for k: "=", v: nil in pairs({}) do end', null],
+    ['for k: {a: "="}, v: nil in pairs({}) do end', null],
     ["for i: number = 1, 3 do end", null],
     ["local t = {}\n  for k, v in pairs(t), t do end", null],
     ["local t = {}\n  local b = (t)\n    :foo()", null],
@@ -237,6 +244,16 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     // of the `:` (round 2, `undirected` finding 1).
     ["local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end"],
     ["local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end"],
+  ],
+  // A header's `do` or `then` after a stray `:` in a bracket or an if
+  // expression's arm reads as on base (round 4, `undirected` findings 2 and
+  // 3): the header or the arm keeps the keyword.
+  "a stray colon before a header's keyword": [
+    ["local t = {}\n  while t :: {a: T | :do end", null],
+    ["local t = {}\n  while t :: {a: T | : --[=========[c]=========] do end", null],
+    ["local t = {}\n  if t :: {a: T | :then end", null],
+    ["local t = {}\n  local x = if t then t :: T | :then else a", null],
+    ["local t = {}\n  while t :: {a: T:do end", null],
   ],
   // A `:` that is a type's is no method's: a declaration's or a `for`
   // variable's annotation, which misses its type, as Luau reads it, so the
