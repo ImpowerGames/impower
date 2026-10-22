@@ -62,6 +62,11 @@ const BODY_FORMS = [
   "local w: number &\n  local z = 1",
   "type F = () ->\n  local z = 1",
   "type F = () -> --[[c]]\n  local z = 1",
+  // A comment of a longer level, whose level a lookahead must not capture:
+  // textmate-grammar-tree requires a match's captures to cover the match.
+  "local w: number & --[==[c]==]\n  local z = 1",
+  "local w: --[=========[c]=========]\n  local z = 1",
+  "local w: --[==[c]==] = 1",
   // Controls: a type on the next line is the annotation's.
   "local w:\n    number = 1",
   "local w: --[[c]]\n    number = 1",
@@ -75,7 +80,18 @@ const BODY_FORMS = [
 const STORY_LUAU_TAIL = "\nlocal v = 1\n";
 const STORY_TAIL = `${STORY_LUAU_TAIL}Narrative.\n`;
 const STORY_FORMS: [form: string, luau: (form: string) => string][] = [
-  ...["local w: number | --[[c]]", "local w: number | -- line", "local w: --[[c]]", "local w: number |", "local w:"].map(
+  ...[
+    "local w: number | --[[c]]",
+    "local w: number | -- line",
+    "local w: --[[c]]",
+    "local w: number |",
+    "local w:",
+    "local w: number & -- line",
+    "local w: number & --[==[c]==]",
+    "local w: --[=========[c]=========]",
+    "local w: number || --[[c]]",
+    "local w: --[[c]] = 1",
+  ].map(
     (form): [string, (form: string) => string] => [form, (f) => `${f}\n`],
   ),
   ...["type F = number | --[[c]]", "type F = () -> --[[c]]", "type F = () ->", "type F = number |"].map(

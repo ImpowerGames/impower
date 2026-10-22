@@ -1664,10 +1664,10 @@ variables:
   # block's `end` begins. Same capture-group rule.
   _LUAU_EXPRESSION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,)\]}]|(?<![-+*/%^.<>~=])=(?!=)|{{LUAU_NON_EXPRESSION_KEYWORDS}}))
   # Whitespace and block comments that close on their line, which every
-  # tokenizer reads from the line alone. Same capture-group rule.
-  # lookaround: LuauBlockComment closes a comment only at brackets of its
-  # own level (`\4`), so a `]]` inside `--[=[a]]b]=]` is the comment's text.
-  _LUAU_LINE_TRIVIA_AHEAD_: (?:{{WS}}|--\[(=*)\[(?:[^\]\r\n]|\](?!\4\]))*\]\4\])*
+  # tokenizer reads from the line alone. It holds no capture: textmate-grammar-tree
+  # requires a match's captures to cover the match exactly, so a level captured
+  # inside a lookahead (`--[==[c]==]`) would throw.
+  LUAU_LINE_TRIVIA_AHEAD: (?:{{WS}}*{{LUAU_ANY_LEVEL_BLOCK_COMMENT}}*)
   # A token that cannot start the type that must follow a type annotation's
   # `:` or a type's `|`, `&` or `->`: a `;`, `,` or `=` (not `==`), a closing
   # bracket or `>`, or a keyword that cannot start a type, which is where the
@@ -1679,11 +1679,10 @@ variables:
   # judged by its own line in both engines (I-1453): the type after it takes
   # the line break, and where the next line leaves it empty (`local w:` then
   # `local z = 1`), the converter reports the missing type from the tree.
-  # Same capture-group rule.
-  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_LINE_TRIVIA_AHEAD_}}{{LUAU_TYPE_ANNOTATION_END_TOKEN}})
+  LUAU_TYPE_ANNOTATION_END_AHEAD: (?:{{LUAU_LINE_TRIVIA_AHEAD}}{{LUAU_TYPE_ANNOTATION_END_TOKEN}})
   # The same in a story statement, which ends at its line, so its line's end,
-  # after any line comment, ends the type too. Same capture-group rule.
-  _LUAU_SPARKDOWN_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_LINE_TRIVIA_AHEAD_}}{{LUAU_LINE_COMMENT_TO_LINE_END}}?(?:$|{{LUAU_TYPE_ANNOTATION_END_TOKEN}}))
+  # after any line comment, ends the type too.
+  LUAU_SPARKDOWN_TYPE_ANNOTATION_END_AHEAD: (?:{{LUAU_LINE_TRIVIA_AHEAD}}{{LUAU_LINE_COMMENT_TO_LINE_END}}?(?:$|{{LUAU_TYPE_ANNOTATION_END_TOKEN}}))
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
@@ -10459,14 +10458,14 @@ repository:
     name: invalid.illegal.luau
     # lookaround: LuauExpression and LuauTypeLiteral own valid operands; this diagnostic matches only a bounded end or a terminator, excluding member words and divert arrows.
     # See bounded-invalid-token rationale above for the structural alternatives.
-    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_SPARKDOWN_TYPE_ANNOTATION_END_AHEAD_}})
+    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{LUAU_SPARKDOWN_TYPE_ANNOTATION_END_AHEAD}})
 
   LuauSparkdownExplicitTypeBinaryOperatorMissingType:
     tag: invalid
     name: invalid.illegal.luau
     # lookaround: LuauExpression and LuauTypeLiteral own valid operands; this diagnostic matches only a bounded end or a terminator, excluding member words and divert arrows.
     # See bounded-invalid-token rationale above for the structural alternatives.
-    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END}}{{WS}}*)[-][>])({{WS}}*)(?={{_LUAU_SPARKDOWN_TYPE_ANNOTATION_END_AHEAD_}})
+    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END}}{{WS}}*)[-][>])({{WS}}*)(?={{LUAU_SPARKDOWN_TYPE_ANNOTATION_END_AHEAD}})
 
   # The bounded twin of `LuauThenOperator`, with the same two begin
   # alternatives; it never reads past its line.
@@ -13951,14 +13950,14 @@ repository:
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
+    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_END_AHEAD}})
 
   # The same for a function's return type (`function g():` then `return 1`,
   # `function g(a: number): end`), which follows the parameter list's `)`.
   LuauFunctionReturnMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: (?<=[)]{{WS}}*)({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
+    match: (?<=[)]{{WS}}*)({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_END_AHEAD}})
 
   # A `::` after a declaration's target (`local x :: number`), where a type
   # annotation takes a single `:`. Luau rejects it; without this token the
@@ -14946,7 +14945,7 @@ repository:
   LuauTypeBinaryOperatorMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END}}{{WS}}*)[-][>])({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
+    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END}}{{WS}}*)[-][>])({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_END_AHEAD}})
 
   LuauTypeBinaryOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_BINARY_OPERATORS}})({{WS}}*)
