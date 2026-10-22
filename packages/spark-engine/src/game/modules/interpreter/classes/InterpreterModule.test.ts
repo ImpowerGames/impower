@@ -224,12 +224,46 @@ describe("InterpreterModule text tags", () => {
       expect(render("Trailing<wait>").text).toBe("Trailing");
     });
 
-    it("drops an unrecognised tag", () => {
-      expect(render("Un<bogus> here.").text).toBe("Un here.");
+    it("removes the pitch and wait shorthands", () => {
+      expect(render("Short<p:2> pitch<w> and<w:1> wait.").text).toBe(
+        "Short pitch and wait.",
+      );
     });
 
-    it("drops an empty tag", () => {
-      expect(render("Un<> here.").text).toBe("Un here.");
+    // Only the control tags above and parseRichText's vocabulary are markup;
+    // any other closed `<...>` stays on screen as written (I-1404).
+    it("keeps an unrecognised tag as literal text", () => {
+      expect(render("Un<bogus> here.").text).toBe("Un<bogus> here.");
+    });
+
+    it("keeps an empty tag as literal text", () => {
+      expect(render("Un<> here.").text).toBe("Un<> here.");
+    });
+
+    it("keeps a function value's anonymous label", () => {
+      expect(render("Value function: make.<anonymous>.").text).toBe(
+        "Value function: make.<anonymous>.",
+      );
+    });
+
+    it("keeps an unknown word a string interpolated into the line", () => {
+      // The interpreter sees a line after interpolation, so `{s}` holding
+      // 'a <b2> c' reaches it as this text.
+      expect(render("Str a <b2> c end.").text).toBe("Str a <b2> c end.");
+    });
+
+    it("keeps an unknown tag with a value as literal text", () => {
+      expect(render("Un<bogus=2> here.").text).toBe("Un<bogus=2> here.");
+    });
+
+    it("keeps an unknown tag with words after its name as literal text", () => {
+      expect(render("Un<not a tag> here.").text).toBe("Un<not a tag> here.");
+    });
+
+    it("removes a control tag's closing form and one with more after its name", () => {
+      expect(render("Speed<speed:2> up</speed>.").text).toBe("Speed up.");
+      expect(render("Wait<wait x> here</wait>.").text).toBe("Wait here.");
+      expect(render("Pitch<p:1> up</p>.").text).toBe("Pitch up.");
     });
 
     // An unterminated tag is not a tag -- it stays on screen as authored,
@@ -237,6 +271,63 @@ describe("InterpreterModule text tags", () => {
     // *emphasis markers* behave differently on purpose; see below.)
     it("keeps an unterminated tag as literal text", () => {
       expect(render("Un<speed here.").text).toBe("Un<speed here.");
+    });
+  });
+
+  // The interpreter consumes parseRichText's tags in a line, as it did before
+  // unknown tags were kept; this records that behaviour (I-1404).
+  describe("rich-text tags", () => {
+    const flags = [
+      "b",
+      "i",
+      "u",
+      "s",
+      "uppercase",
+      "allcaps",
+      "lowercase",
+      "smallcaps",
+      "nobr",
+      "sub",
+      "sup",
+      "noparse",
+    ];
+    for (const tag of flags) {
+      it(`removes <${tag}> and </${tag}>`, () => {
+        expect(render(`A <${tag}>word</${tag}> here.`).text).toBe(
+          "A word here.",
+        );
+      });
+    }
+    const values = [
+      "color",
+      "mark",
+      "size",
+      "align",
+      "alpha",
+      "font-weight",
+      "line-height",
+      "cspace",
+      "voffset",
+      "indent",
+    ];
+    for (const tag of values) {
+      it(`removes <${tag}=...> and </${tag}>`, () => {
+        expect(render(`A <${tag}=1>word</${tag}> here.`).text).toBe(
+          "A word here.",
+        );
+      });
+    }
+    it("removes <br>", () => {
+      expect(render("A<br> here.").text).toBe("A here.");
+    });
+    it("matches rich-text tag names without case", () => {
+      expect(render("A <B>word</B> here.").text).toBe("A word here.");
+    });
+    it("removes a rich-text tag with more after its name", () => {
+      expect(render("A <b x>word</b> here.").text).toBe("A word here.");
+      expect(render("A <color:red>word</color> here.").text).toBe(
+        "A word here.",
+      );
     });
   });
 
