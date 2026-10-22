@@ -693,6 +693,7 @@
     "LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT": "(?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\\[=*\\[))",
     "LUAU_FUNCTION_BODY_AT_LINE_BREAK": "(?<={{LUAU_TYPE_END}}){{WS}}*\\n",
     "LUAU_FUNCTION_BODY_AT_LINE_START": "^(?!{{BEAT}}|{{WS}}*\\bend\\b)(?={{WS}}*[\\w\"'`(\\[{&\\-@#:;.])",
+    "LUAU_METHOD_LINE_AFTER_BODY": "^(?!\\1{{WS}}|\\1end\\b)(?={{WS}}*(?:[^\\s-]|[-][^-]))",
     "LUAU_NOT_END_OR_COMMENT_AHEAD": "(?!end\\b|{{LUAU_COMMENT_START}})",
     "LUAU_NOT_END_COMMENT_OR_RETURN_TYPE_AHEAD": "(?!end\\b|{{LUAU_COMMENT_START}}|{{LUAU_SINGLE_COLON}}|[<])",
     "LUAU_SINGLE_COLON": "[:](?![:])",
@@ -5887,7 +5888,7 @@
           "include": "#LuauUnreadToken"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|^(?!\\1(?:[^\\S\\n\\r])|\\1end\\b)(?=(?:[^\\S\\n\\r])*(?:[^\\s-]|[-][^-]))|((?:[^\\S\\n\\r])*)(end)\\b",
       "endCaptures": {
         "1": {
           "emit": true,

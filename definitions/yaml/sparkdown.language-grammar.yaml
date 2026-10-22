@@ -1543,6 +1543,17 @@ variables:
   LUAU_FUNCTION_BODY_AT_LINE_BREAK: (?<={{LUAU_TYPE_END}}){{WS}}*\n
   # The start of a line that does not close the function and begins a statement.
   LUAU_FUNCTION_BODY_AT_LINE_START: ^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+  # The start of a code line a define's method does not hold (I-1454): one
+  # indented no deeper than the method's header that is not the method's
+  # `end` at the header's indentation, and holds code (after its indentation
+  # a character other than `-`, or a `-` that begins no `--` comment), so a
+  # blank or comment line decides nothing. `\1` is `LuauMethodDefinition`'s
+  # begin capture, the header's indentation. It matches no text: the line
+  # is the define's.
+  # lookaround: a deeper line is the method's body (LuauBlockBody), and the
+  # method's own `end` is the end's last alternative; neither can be told
+  # from this line by order, since all three begin at the line start.
+  LUAU_METHOD_LINE_AFTER_BODY: ^(?!\1{{WS}}|\1end\b)(?={{WS}}*(?:[^\s-]|[-][^-]))
   # Not `end` or a comment.
   LUAU_NOT_END_OR_COMMENT_AHEAD: (?!end\b|{{LUAU_COMMENT_START}})
   # Not `end`, a comment, a return type's `:` or generics' `<`.
@@ -5140,8 +5151,26 @@ repository:
   # top level (where bare `name()` is a function-call expression statement).
   # The lookahead `(?={{WS}}*[(])` prevents this rule from swallowing property
   # names that don't have a parameter list.
+  #
+  # No pattern on the header's line can see the next one, so a call written
+  # as a line of the body (`print("x")`) opens this rule too (I-1411). The
+  # method holds the lines indented below its header, and takes an `end` at
+  # the header's indentation or deeper: it ends before the first code line
+  # that is neither (`LUAU_METHOD_LINE_AFTER_BODY`), so an `end` written left
+  # of the header is the define's, and a method its body leaves open (an
+  # `if` its `end` closes) ends there without one and reports Luau's error
+  # for its function (I-1402). One that holds no line below it and takes no
+  # `end` is a call, a statement of the define's body (`isDefineMethodCall`
+  # in `compiler/utils/defineMethodCall.ts`). The end's back-reference is
+  # the header's indentation, the begin's first capture.
   # ----------------------------------------------------------------------------
 
+  # lookaround: the begin's `(?=[(])` leaves a name without a parameter list
+  # to LuauPropertyDefinition and LuauBlockBody. The end's line-start
+  # alternative leaves a line indented deeper than the header to the
+  # method's body (LuauBlockBody), and the method's own `end` at the
+  # header's indentation to the end's last alternative; any other code line
+  # is the define's (its `end`, LuauPropertyDefinition, this rule again).
   LuauMethodDefinition:
     tag: meta
     name: meta.function.luau
@@ -5165,7 +5194,7 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|{{LUAU_METHOD_LINE_AFTER_BODY}}|({{WS}}*)(end)\b
     endCaptures:
       1:
         emit: true
