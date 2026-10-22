@@ -5982,7 +5982,9 @@ export class SparkdownCompiler {
    * reading is theirs where Sparkdown's syntax reads the value token by token
    * and reports nothing (`store t = {1 2}`). A backtick string's own
    * errors (`LuauSyntaxError.ofString`) are reported whatever else is: the
-   * store's reading is their one owner (I-1435).
+   * store's reading is their one owner (I-1435). A story `local` whose line
+   * runs on into story (`local a = 1 2`) reports the errors of that story
+   * the same way, which no statement of Luau's there reports (I-1424).
    */
   validateStores(program: SparkProgram) {
     for (const scriptUri of Object.keys(program.scripts)) {
