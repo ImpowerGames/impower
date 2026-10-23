@@ -120,3 +120,12 @@ test("a comma before a brace in story text is not a table's trailing comma", () 
 test("a regex literal is compared exactly", () => {
   expect(tokenChange(fn("  return @/a  b/"), fn("  return @/a b/"))).toMatch(/changed/);
 });
+
+test("a run path is compared exactly, and is not unescaped as a Luau string is", () => {
+  expect(tokenChange("run 'a\\'b'\n", "run \"a'b\"\n")).toMatch(/changed/);
+  expect(tokenChange("run a  b\n", "run a b\n")).toMatch(/changed/);
+});
+
+test("a comma added to an empty table is a token change", () => {
+  expect(tokenChange(fn("  return {}"), fn("  return {,}"))).toMatch(/changed/);
+});

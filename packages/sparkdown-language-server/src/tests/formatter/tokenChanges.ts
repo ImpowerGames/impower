@@ -55,6 +55,7 @@ const LITERALS = new Set([
   "StringLiteral",
   "LuauRegexLiteral",
   "RunQuotedPath",
+  "RunUnquotedPath",
   "LuauComment",
   "LuauLineComment",
   "LuauBlockComment",
@@ -93,6 +94,8 @@ interface Unit {
   boundary: boolean;
   // A table's trailing comma: a `,` the table's own `}` follows.
   trailingComma?: boolean;
+  // The node a literal unit is read from.
+  node?: string;
 }
 
 // The units of a text and its parse.
@@ -123,18 +126,18 @@ function luauCode(tree: Tree, pos: number): number {
 // A stretch of literal text: where it ends, whether it begins and ends at
 // its literal's own edges, where the node may hold whitespace around it (a
 // string holds the space after its closing quote), rather than at an
-// interpolation, and whether it is a comment, whose whitespace is no value.
+// interpolation, and the literal's node.
 interface LiteralRange {
   to: number;
   atStart: boolean;
   atEnd: boolean;
-  comment: boolean;
+  node: string;
 }
 
 // The literal the walk is in, and where its current stretch began, or an
 // interpolation in it.
 type Frame =
-  | { kind: "literal"; start: number; atStart: boolean; comment: boolean }
+  | { kind: "literal"; start: number; atStart: boolean; node: string }
   | { kind: "hole"; literal: { start: number; atStart: boolean } };
 
 // The literal text of the parse, by where each stretch begins.
@@ -149,7 +152,7 @@ function literalRanges(tree: Tree): Map<number, LiteralRange> {
           kind: "literal",
           start: node.from,
           atStart: true,
-          comment: node.name.includes("Comment"),
+          node: node.name,
         });
       } else if (top?.kind === "literal" && HOLES.has(node.name)) {
         if (node.from > top.start) {
@@ -157,7 +160,7 @@ function literalRanges(tree: Tree): Map<number, LiteralRange> {
             to: node.from,
             atStart: top.atStart,
             atEnd: false,
-            comment: top.comment,
+            node: top.node,
           });
         }
         stack.push({ kind: "hole", literal: top });
@@ -172,7 +175,7 @@ function literalRanges(tree: Tree): Map<number, LiteralRange> {
             to: node.to,
             atStart: top.atStart,
             atEnd: true,
-            comment: top.comment,
+            node: top.node,
           });
         }
         stack.pop();
@@ -210,7 +213,7 @@ function units(text: string): Units {
       }
       // A comment may be re-indented, but text it gains or loses counts
       // (`if s -- note` with `then` joined onto it).
-      if (range.comment) literal = literal.replace(/\s+/g, " ");
+      if (range.node.includes("Comment")) literal = literal.replace(/\s+/g, " ");
       list.push({
         text: literal,
         literal: true,
@@ -218,6 +221,7 @@ function units(text: string): Units {
         broken: gap.includes("\n"),
         from: i,
         boundary: true,
+        node: range.node,
       });
       i = range.to;
       // Whitespace the literal's node held after it.
@@ -246,12 +250,13 @@ function units(text: string): Units {
   return { list, tree };
 }
 
-// The double-quoted form the formatter writes a closed single-quoted string
-// in, or the text itself.
+// The double-quoted form the formatter writes a closed single-quoted Luau
+// string in, or the text itself. Only a Luau string unescapes `\'`; a quoted
+// `run` path keeps its backslash.
 function quoted(unit: Unit): string {
   const { text } = unit;
   if (
-    unit.literal &&
+    unit.node === "LuauSingleQuotedString" &&
     text.length >= 2 &&
     text.startsWith("'") &&
     text.endsWith("'") &&
@@ -269,9 +274,13 @@ function withoutTrailingCommas(list: Unit[]): Unit[] {
 
 const TABLE = /^Luau(?:SparkdownExplicit)?Table$/;
 
-// Whether the `,` at `at` is a table's trailing comma: the next character
-// after whitespace is the `}` that closes a table around the comma.
+// Whether the `,` at `at` is a table's trailing comma: a field comes before
+// it, and the next character after whitespace is the `}` that closes a table
+// around the comma.
 function isTrailingComma(tree: Tree, text: string, at: number): boolean {
+  let before = at - 1;
+  while (before >= 0 && /\s/.test(text[before]!)) before--;
+  if (text[before] === "{") return false;
   const close = text.slice(at + 1).search(/\S/);
   if (close < 0 || text[at + 1 + close] !== "}") return false;
   const brace = at + 1 + close;
