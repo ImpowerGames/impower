@@ -93,7 +93,7 @@ describe("comments between `=` and a value are not a value", () => {
     ["threeIf", "--[[ c ]] --[[ d ]] --[==[ e ]==] if c then 1 else 2", "w", "1"],
     ["levelFourIf", "--[====[ c ]====] --[[ d ]] if c then 1 else 2", "w", "1"],
     ["levelFiveBracketIf", "--[=====[a ] b]=====] --[[ d ]] if c then 1 else 2", "w", "1"],
-    ["levelNineForeignCloseIf", "--[=========[a]==========]b]=========] --[[ d ]] if c then 1 else 2", "w", "1"],
+    ["levelNineDashAfterForeignCloseIf", "--[=========[a]==========]-- x]=========] --[[ d ]] if c then 1 else 2", "w", "1"],
   ])("%s", (_name, value, read, expected) => {
     const source = `function f(c)\n  local w = ${value}\n  return ${read}\nend\nValue {f(true)}.\n`;
     const result = play(source);
@@ -128,7 +128,7 @@ describe("comments between `=` and a value are not a value", () => {
     ["store", "--[====[a ] b]====] --[[ d ]]"],
     ["store", "--[====[a]=====]b]====] --[[ d ]]"],
     ["store", "--[=====[a]====]b]=====] --[[ d ]]"],
-    ["store", "--[=========[a]==========]b]=========] --[[ d ]]"],
+    ["store", "--[=========[a]==========]-- x]=========] --[[ d ]]"],
   ])("a story-scope `%s` declaration with `%s`", (modifier, comments) => {
     const result = play(
       `${modifier} w = ${comments} if true then 1 else 2\nValue {w}.\n`,

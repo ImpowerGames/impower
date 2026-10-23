@@ -7,7 +7,6 @@
 * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import type { MatchRuleDefinition } from "../../types/GrammarDefinition";
 import type { Rule } from "../../types/Rule";
-import { LOOKAROUND_GROUP } from "../../utils/analyzeCaptureGroups";
 import { createID } from "../../utils/createID";
 import { isSwitchRuleDefinition } from "../../utils/isSwitchRuleDefinition";
 import { GrammarNode } from "../GrammarNode";
@@ -125,12 +124,14 @@ export class MatchRule implements Rule {
   }
 
   /**
-   * Places each capture at its group's own position in the match, as
-   * vscode-textmate does. A group nested in another group with a capture is
-   * that capture's child, or, when that capture reads its text with
-   * patterns, is left to those patterns; a group in a lookaround is not part
-   * of the match and is not placed. Text of the match or of a capture that no
-   * capture covers stays in it as a node-less span.
+   * Places each capture at its group's own position in the match, nesting
+   * them as vscode-textmate does: a capture that begins before the latest
+   * open capture ends is inside it, and one inside a capture read with
+   * patterns is left to those patterns. A group in a lookaround is placed
+   * the same way when its text lies within the match; text outside the match
+   * cannot be a node inside it, so such a group is not placed. Text of the
+   * match or of a capture that no capture covers stays in it as a node-less
+   * span.
    */
   private placeFromIndices(
     matched: Matched,
@@ -140,50 +141,50 @@ export class MatchRule implements Rule {
   ) {
     const parents = this.matcher.groupParents;
     const captures = this.captures;
-    // The capture made for each group, which the groups nested in it join.
-    const made: Matched[] = [];
+    const end = matched.from + matched.length;
+    // The captures still open at the current group, innermost last, with
+    // whether each is read with patterns.
+    const open: { matched: Matched; patterns: boolean }[] = [];
     const hosts = new Set<Matched>([matched]);
     // Where the next group of the match itself begins: an unmatched one is
     // placed there, as when the groups are placed by their lengths.
     let pos = matched.from;
-    const capture0 = captures[0];
-    if (capture0) {
-      made[0] = this.capture(capture0, result[0], matched.from);
-      matched.children = [made[0]];
-    }
-    for (let i = 1; i < result.length; i++) {
-      const parent = parents[i] ?? 0;
-      if (parent === LOOKAROUND_GROUP) {
-        continue;
-      }
-      const range = indices[i];
+    for (let i = 0; i < result.length; i++) {
+      const parent = i === 0 ? 0 : (parents[i] ?? 0);
+      const range: [number, number] | undefined =
+        i === 0 ? [matched.from - lineStart, end - lineStart] : indices[i];
       if (!range && parent !== 0) {
         continue;
       }
       const start = range ? lineStart + range[0] : pos;
-      if (parent === 0) {
-        pos = range ? lineStart + range[1] : pos;
+      const stop = range ? lineStart + range[1] : pos;
+      if (i > 0 && parent === 0) {
+        pos = stop;
       }
       const capture = captures[i];
-      if (!capture) {
+      if (!capture || start < matched.from || stop > end) {
         continue;
       }
-      // The nearest enclosing group that has a capture.
-      let owner = parent;
-      while (owner > 0 && !captures[owner]) {
-        owner = parents[owner] ?? 0;
+      while (open.length > 0 && endOf(open.at(-1)!.matched) <= start) {
+        open.pop();
       }
-      const host = owner > 0 || capture0 ? made[owner] : matched;
-      if (!host || captures[owner] instanceof SwitchRule) {
+      const owner = open.at(-1);
+      if (owner?.patterns) {
+        continue;
+      }
+      const host = owner?.matched ?? matched;
+      if (stop > endOf(host) || start < host.from) {
+        // Overlapping its host without nesting in it: no node can hold it.
         continue;
       }
       const captureMatched = this.capture(capture, result[i], start);
-      made[i] = captureMatched;
       host.children ??= [];
       host.children.push(captureMatched);
       hosts.add(host);
+      open.push({ matched: captureMatched, patterns: capture instanceof SwitchRule });
     }
     for (const host of hosts) {
+      host.children?.sort((a, b) => a.from - b.from);
       fillGaps(host);
     }
   }
@@ -244,6 +245,8 @@ export class MatchRule implements Rule {
     );
   }
 }
+
+const endOf = (matched: Matched) => matched.from + matched.length;
 
 /**
  * Covers the text of a match or capture that its child captures leave with

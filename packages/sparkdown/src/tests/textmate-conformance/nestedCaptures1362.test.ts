@@ -119,6 +119,33 @@ describe("capture positions match vscode-textmate", () => {
       line: "--[==[a]=]b]==]end",
     },
     {
+      name: "a group in a lookahead over text the match takes",
+      grammar: grammarOf({
+        name: "rule",
+        match: "(?=(a))a",
+        captures: { "1": { name: "first" } },
+      }),
+      line: "a",
+    },
+    {
+      name: "a group in a lookbehind over text the match takes",
+      grammar: grammarOf({
+        name: "rule",
+        match: "a(?<=(a))",
+        captures: { "1": { name: "first" } },
+      }),
+      line: "a",
+    },
+    {
+      name: "a group after a lookahead group over the same text",
+      grammar: grammarOf({
+        name: "rule",
+        match: "(?=(ab))(a)(b)",
+        captures: { "1": { name: "ahead" }, "2": { name: "a" }, "3": { name: "b" } },
+      }),
+      line: "ab",
+    },
+    {
       name: "a group nested in a capture read with patterns",
       grammar: grammarOf(
         {
