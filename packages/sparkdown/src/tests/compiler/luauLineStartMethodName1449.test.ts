@@ -110,6 +110,11 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t) -- local x\n    :end", "end"],
     ["local b = f() -- local x\n    :function", "function"],
     ["local t = {}\n  local b = (t) -- store x\n    :end", "end"],
+    // And so is a function header inside one (round 2, `gc` finding 1).
+    ["local b = f() -- function fake()\n    :end", "end"],
+    ["local t = {}\n  local b = (t) -- local function g()\n    :end", "end"],
+    ["local t = {}\n  local b = (t) --[[c]] -- local x\n    :end", "end"],
+    ['local s = "a" local b = (t) -- local x\n    :end', "end"],
     // In brackets, conditions and blocks.
     ["local t = {}\n  local b = {t\n    :end}", "end"],
     ["local t = {}\n  while t\n    :end do end", "end"],
@@ -156,6 +161,14 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local function f()\n    -- c\n    : end\n  end", null, "local function f()\n    -- c\n    : end\n  end"],
     ["local function f()\n    : --[=========[c]=========] end\n  end", null, "local function f()\n    : --[=========[c]=========] end\n  end"],
     ["local function f(a: (number) -> number)\n    : end\n  end", null, "local function f(a: (number) -> number)\n    : end\n  end"],
+    // Deeper brackets in a parameter's type, and comments and strings before
+    // the header (round 2, `gc` findings 1 and 2).
+    ["local function f(a: ((number) -> number) -> number)\n    : end\n  end", null, "local function f(a: ((number) -> number) -> number)\n    : end\n  end"],
+    ["local function f(a: (((number) -> number) -> number) -> number)\n    : end\n  end", null, "local function f(a: (((number) -> number) -> number) -> number)\n    : end\n  end"],
+    ["local --[[c]] function k(x: number)\n    : end\n  end", null, "local --[[c]] function k(x: number)\n    : end\n  end"],
+    ['local s = "--" local function f()\n    : end\n  end', null, 'local s = "--" local function f()\n    : end\n  end'],
+    ['local s = "--" local x\n  : end', null, 'local s = "--" local x\n  : end'],
+    ["local b = (t) --[[c]] local x\n  : end", null, "local b = (t) --[[c]] local x\n  : end"],
     ["local x\n  : end", null, "local x\n  : end"],
     ["local a,\n    b\n  : end", null, "local a,\n    b\n  : end"],
     ["local x, y\n  : end", null, "local x, y\n  : end"],
@@ -168,6 +181,25 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["for k\n  : in pairs({}) do end", null],
   ],
 };
+
+// The carriers' begins read back along their line past comments; a comment
+// that could run on past its own close would make a lookbehind that fails
+// try every way of grouping the comments (round 2, CI on 575bf3a18).
+describe("many comments on a line the carriers read back along parse quickly", () => {
+  const comments = "--[[a]]    ".repeat(30);
+  test.each([
+    ["before a declaration's value", `function g()\n  local ${comments}x = 1\nend\n`],
+    ["after a declaration's target", `function g()\n  local x ${comments}\n  : end\nend\n`],
+    ["between a declaration's targets", `function g()\n  local a, ${comments}b ${comments}\nend\n`],
+    ["after a header's parameter list", `function g() ${comments}\n  print(1)\nend\n`],
+    ["before a header", `function g()\n  local ${comments}function k(x)\n  end\nend\n`],
+    ["after a body line", `function g()\n  print(t) ${comments}\n  print(t)\nend\n`],
+  ])("%s", (_name, source) => {
+    const started = performance.now();
+    parseSource(source);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+});
 
 describe("a reserved word read as a method's name on the line after its receiver (I-1449)", () => {
   for (const [name, forms] of Object.entries(CASES)) {

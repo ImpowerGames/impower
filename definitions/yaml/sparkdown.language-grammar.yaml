@@ -1597,24 +1597,38 @@ variables:
   # the lookbehind reads back along the target's line to the declaration's
   # keyword, which no rule that reads the target can know once the target
   # has ended; the lookahead keeps the rule to a target that ends its line.
-  LUAU_TARGET_LINE_BREAK_START: (?=$)(?<={{LUAU_TARGET_LINE_END_BEHIND}})
+  LUAU_TARGET_LINE_BREAK_START: (?=$)(?<=\w{{LUAU_LINE_END_TRIVIA_BEHIND}})(?<={{LUAU_TARGET_LINE_END_BEHIND}})
   # The line up to that end, inside a lookbehind, with no lookaround of its
   # own: `LuauVariableDefinition` does not end at the line's end there.
-  LUAU_TARGET_LINE_END_BEHIND: (?:{{LUAU_BEFORE_TARGET_BEHIND}}{{LUAU_NAME_BEHIND}}{{WS}}*{{LUAU_LINE_COMMENT_BEHIND}}?)
+  LUAU_TARGET_LINE_END_BEHIND: (?:{{LUAU_BEFORE_TARGET_BEHIND}}{{LUAU_NAME_BEHIND}}{{LUAU_LINE_END_TRIVIA_BEHIND}})
   # What stands before a target on its line: the declaration's keyword, the
   # keyword and the targets before it and a comma, or the line's indent.
   # The keyword is read from the line's start through code with no comment
   # opening before it, so a keyword in a comment (`local b = (t) -- local x`)
   # is no declaration's.
   LUAU_BEFORE_TARGET_BEHIND: (?:^{{LUAU_CODE_BEFORE_COMMENT_BEHIND}}\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+|^{{LUAU_CODE_BEFORE_COMMENT_BEHIND}}\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}\b{{LUAU_DECLARATION_LIST_BEHIND}}[,]{{WS}}*|^{{WS}}*)
-  # Text from a line's start with no `--` in it, inside a lookbehind.
-  LUAU_CODE_BEFORE_COMMENT_BEHIND: (?:[^\n\r-]|-[^\n\r-])*
-  # A line comment to the line's end, inside a lookbehind.
-  LUAU_LINE_COMMENT_BEHIND: (?:--[^\n\r]*)
+  # Text from a line's start with no `--` in it outside its strings and its
+  # block comments that close on the line, which are read whole
+  # (`local s = "--"`, `local --[[c]] function k()`), inside a lookbehind.
+  # Each comment is `LUAU_PLAIN_BLOCK_COMMENT`, which closes only at its own
+  # level, so the text has one reading and a lookbehind that fails after it
+  # fails at once (`local --[[a]] --[[a]] … x = 1`), as one whose comment could
+  # run on past its close would not.
+  LUAU_CODE_BEFORE_COMMENT_BEHIND: (?:{{LUAU_QUOTED_STRING_BEHIND}}|{{LUAU_PLAIN_BLOCK_COMMENT}}|[^\n\r"'`-]|-[^\n\r-])*
+  # A line comment to the line's end, which no block comment begins, inside
+  # a lookbehind.
+  LUAU_LINE_COMMENT_BEHIND: (?:--(?:{{LUAU_LINE_COMMENT_TEXT_BEHIND}}|{{LUAU_LINE_COMMENT_BRACKET_TEXT_BEHIND}})?)
+  # A line comment's text that does not begin with `[`.
+  LUAU_LINE_COMMENT_TEXT_BEHIND: (?:[^\n\r\[][^\n\r]*)
+  # A line comment's text that begins with `[` and `=`s that no `[` follows.
+  LUAU_LINE_COMMENT_BRACKET_TEXT_BEHIND: (?:\[=*(?:[^\n\r\[=][^\n\r]*)?)
+  # Spaces, block comments that close on the line and a line comment at the
+  # end of a line, inside a lookbehind.
+  LUAU_LINE_END_TRIVIA_BEHIND: (?:(?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{WS}}*){{LUAU_LINE_COMMENT_BEHIND}}?)
   # Text of a declaration's target list with no `=` outside its strings and
   # block comments, which are read whole (`local a: "=", b`), and no line
   # comment.
-  LUAU_DECLARATION_LIST_BEHIND: (?:{{LUAU_QUOTED_STRING_BEHIND}}|{{LUAU_LEVEL_BLOCK_COMMENT_BEHIND}}|[^\n\r="'`-]|-[^\n\r-])*
+  LUAU_DECLARATION_LIST_BEHIND: (?:{{LUAU_QUOTED_STRING_BEHIND}}|{{LUAU_PLAIN_BLOCK_COMMENT}}|[^\n\r="'`-]|-[^\n\r-])*
   # The end of a function header's line whose parameter list ends it, with
   # only spaces and comments after the `)` (`function f()`, `function f() --
   # c`), where a `:` that begins a later line is the function's return type
@@ -1624,15 +1638,25 @@ variables:
   # it as a method's; the lookahead keeps the rule to the line's end, and the
   # lookbehind reads back along the line to the header, since any `)` in the
   # body may end a line (`print(t)`).
-  LUAU_FUNCTION_HEADER_LINE_BREAK_START: (?={{WS}}*$)(?<={{LUAU_HEADER_PARAMETERS_BEHIND}}{{LUAU_HEADER_TRIVIA_BEHIND}})
-  # A function header up to its parameter list's `)`, inside a lookbehind. A
-  # parameter's type may hold one level of brackets (`(a: (number) -> T)`).
-  LUAU_HEADER_PARAMETERS_BEHIND: (?:{{LUAU_FUNCTION_HEADER}}{{WS}}*[(]{{LUAU_PARAMETER_TEXT_BEHIND}}[)])
+  # The middle lookbehind, a `)` at the line's end, is a quick test that
+  # spares every other line of a body the read back to the header.
+  LUAU_FUNCTION_HEADER_LINE_BREAK_START: (?={{WS}}*$)(?<=[)]{{LUAU_LINE_END_TRIVIA_BEHIND}})(?<={{LUAU_HEADER_PARAMETERS_BEHIND}}{{LUAU_LINE_END_TRIVIA_BEHIND}})
+  # A function header up to its parameter list's `)`, read from the line's
+  # start through code with no comment opening before it, so a header in a
+  # comment (`f() -- function g()`) is no header, inside a lookbehind. A
+  # parameter's type may hold three levels of brackets
+  # (`(a: ((number) -> number) -> number)`). A list that spans lines is not
+  # seen from its closing line, which reads as the end of a call's arguments
+  # (`a: number)`), so after one the `:` line is a method's.
+  LUAU_HEADER_PARAMETERS_BEHIND: (?:^{{LUAU_CODE_BEFORE_COMMENT_BEHIND}}{{LUAU_FUNCTION_HEADER}}{{WS}}*[(]{{LUAU_PARAMETER_TEXT_BEHIND}}[)])
   # The text of a parameter list, inside a lookbehind.
-  LUAU_PARAMETER_TEXT_BEHIND: (?:[^()\n\r]|[(][^()\n\r]*[)])*
-  # Spaces, block comments that close on the line and a line comment after a
-  # header's `)`, inside a lookbehind.
-  LUAU_HEADER_TRIVIA_BEHIND: (?:{{LUAU_TRIVIA_ON_LINE_BEHIND}}{{LUAU_LINE_COMMENT_BEHIND}}?)
+  LUAU_PARAMETER_TEXT_BEHIND: (?:{{LUAU_PARAMETER_CHARACTER_BEHIND}}|{{LUAU_PARAMETER_BRACKETS_3_BEHIND}})*
+  # A character of a parameter list that is no bracket.
+  LUAU_PARAMETER_CHARACTER_BEHIND: "[^()\\n\\r]"
+  # A bracketed part of a parameter list, up to three levels deep.
+  LUAU_PARAMETER_BRACKETS_1_BEHIND: (?:[(]{{LUAU_PARAMETER_CHARACTER_BEHIND}}*[)])
+  LUAU_PARAMETER_BRACKETS_2_BEHIND: (?:[(](?:{{LUAU_PARAMETER_CHARACTER_BEHIND}}|{{LUAU_PARAMETER_BRACKETS_1_BEHIND}})*[)])
+  LUAU_PARAMETER_BRACKETS_3_BEHIND: (?:[(](?:{{LUAU_PARAMETER_CHARACTER_BEHIND}}|{{LUAU_PARAMETER_BRACKETS_2_BEHIND}})*[)])
   # Where `LuauTargetLineBreak` and `LuauFunctionHeaderLineBreak` end: at the
   # start of a line that is not blank, a line comment or a `:` and a reserved
   # word, and anywhere past the `:` such a line begins with but its end,
@@ -1885,12 +1909,14 @@ variables:
   LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT: (?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))
   # Before the line break after a parameter list that ends its line, which
   # the body's `LuauFunctionHeaderLineBreak` takes (I-1449), after a line
-  # comment that ends the header's line too.
+  # comment that ends the header's line too. In the definition's content the
+  # only `)` that ends a line is the parameter list's, since a return type
+  # takes in the line break after it, so the body opens here whether or not
+  # the carrier then sees the header, and always starts at the same place.
   # lookaround: `LUAU_FUNCTION_BODY_AT_LINE_BREAK` would take the line break
   # into the body's begin, where no pattern of the body can carry the header
-  # across it; the lookbehind reads back to the parameter list, as the
-  # carrier's begin does, and the lookahead keeps the opening to the line's end.
-  LUAU_FUNCTION_BODY_BEFORE_HEADER_LINE_BREAK: (?={{WS}}*$)(?<={{LUAU_HEADER_PARAMETERS_BEHIND}}{{LUAU_HEADER_LINE_COMMENT_BEHIND}}?)
+  # across it; the lookahead keeps the opening to the line's end.
+  LUAU_FUNCTION_BODY_BEFORE_HEADER_LINE_BREAK: (?={{WS}}*$)(?<=[)]{{LUAU_HEADER_LINE_COMMENT_BEHIND}}?)
   # The line comment after a header's `)`, inside a lookbehind.
   LUAU_HEADER_LINE_COMMENT_BEHIND: (?:{{WS}}*{{LUAU_LINE_COMMENT_BEHIND}})
   # The line break after the header.

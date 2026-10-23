@@ -78,9 +78,11 @@ describe("the two declaration rules", () => {
   });
 });
 
-// The text the target carrier's begin looks behind for
+// The text the target carrier's begin looks behind for last
 // (`LUAU_TARGET_LINE_END_BEHIND`), which the declaration's end steps aside at.
-const TARGET_LINE_END_BEHIND = repository["LuauTargetLineBreak"]!.begin!.replace(/^\(\?=\$\)\(\?<=/, "").replace(/\)$/, "");
+// The begin's earlier lookbehind is a quick test for a name at the line's end.
+const CARRIER_BEGIN = repository["LuauTargetLineBreak"]!.begin!;
+const TARGET_LINE_END_BEHIND = CARRIER_BEGIN.slice(CARRIER_BEGIN.lastIndexOf("(?<=") + "(?<=".length, -1);
 
 // A narrative declaration or reassignment ends at its line, so its `=` is
 // read by its own rules (#1906): `LuauSparkdownVariableAssignment` and

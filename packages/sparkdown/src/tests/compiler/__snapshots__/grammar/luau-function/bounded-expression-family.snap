@@ -500,8 +500,9 @@ sparkdown [0..297]
  │   │       │   │   │       │       │       │   │       └─ LuauFunctionParameters_end_c1 [173..174]
  │   │       │   │   │       │       │       │   │           └─ PunctuationParenClose [173..174]: ")"
  │   │       │   │   │       │       │       │   └─ LuauFunctionBody [174..186]
- │   │       │   │   │       │       │       │       ├─ LuauFunctionBody_begin [174..175]: "\n"
- │   │       │   │   │       │       │       │       ├─ LuauFunctionBody_content [175..186]
+ │   │       │   │   │       │       │       │       ├─ LuauFunctionBody_begin 174
+ │   │       │   │   │       │       │       │       ├─ LuauFunctionBody_content [174..186]
+ │   │       │   │   │       │       │       │       │   ├─ Newline [174..175]: "\n"
  │   │       │   │   │       │       │       │       │   ├─ LuauReturnStatement [175..185]
  │   │       │   │   │       │       │       │       │   │   ├─ LuauReturnStatement_begin [175..184]
  │   │       │   │   │       │       │       │       │   │   │   ├─ LuauReturnStatement_begin_c1 [175..177]
