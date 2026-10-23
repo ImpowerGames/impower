@@ -54,9 +54,11 @@ export function luauStatementErrors(
       // The text read is cut from a block, so the block's own `end`,
       // `else`, `elseif` or `until` is one Luau's parser expects no more of
       // (`print(1)` then `else`): the statements before it are whole, and
-      // Luau reads no further.
-      if (BLOCK_KEYWORD_PAST_END.test(error.message)) break;
+      // Luau reads no further. A closer in the statement's own text is no
+      // block's: the statement is a stray closer (`else`, or `x = 1 else`),
+      // and Luau's error at it is the statement's (I-1504).
       const found = locate(error, documentText);
+      if (BLOCK_KEYWORD_PAST_END.test(error.message) && found.from > from && found.from >= nodeEnd) break;
       // An error in a statement that starts after the one reported, which
       // the text read takes the start of and cuts short (`print(1); print(2)`
       // then `t`, whose `:m(1)` is on the line after), is that statement's.
