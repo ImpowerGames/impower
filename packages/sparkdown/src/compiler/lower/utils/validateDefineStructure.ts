@@ -2,10 +2,10 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
-import { nodeNameSet } from "../../utils/nodeNameSet";
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 import { UNREAD_TOKENS } from "../../utils/unreadTokens";
+import { DEFINE_MEMBERS } from "../../utils/defineStatement";
 
 // Structural checks for a `define` block, none of which is a parse error:
 //
@@ -95,12 +95,6 @@ export function lineTextSpan(
 
 
 const WITH_FORM = "`define hero as character with` … `end`";
-// The members a define reads, which may follow `with` on its header line.
-const DEFINE_MEMBERS = nodeNameSet([
-  "LuauPropertyDefinition",
-  "LuauMethodDefinition",
-  "LuauFunctionDefinition",
-]);
 const NAME_RULE =
   "Define names and `as` parents use only A–Z, a–z, 0–9 and `_`, and start with a letter or `_`.";
 

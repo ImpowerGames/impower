@@ -1,4 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
+import { lineBreakValues } from "../lower/utils/assignmentLineBreak";
 import { findOwnDeclarationName } from "../lower/utils/findOwnDeclarationName";
 import { isLineContinuation } from "../lower/utils/significantLeaf";
 import { followsDanglingDot, followsMissingValue, TRIVIA_BEFORE_STATEMENT } from "../lower/utils/statementBefore";
@@ -26,13 +27,35 @@ const DEFINE_STATEMENT_STARTS = nodeNameSet([
 const DEFINE_CONTENT = "LuauDefine_content";
 
 /**
+ * The members a define body reads: its properties, methods and functions.
+ * They may follow `with` on the header line (`validateDefineStructure`).
+ */
+export const DEFINE_MEMBERS = nodeNameSet(["LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition"]);
+
+/** Whether a node is a function definition with no name of its own (`function() … end`), an expression. */
+function isAnonymousFunction(node: SyntaxNode): boolean {
+  return node.name === "LuauFunctionDefinition" && !findOwnDeclarationName(node);
+}
+
+/**
+ * Whether a child of a define's content is a member the define reads, where
+ * a property's value on the lines after it stops (`propertyValueNodes`,
+ * `readsDefineProperty`). A function with no name of its own is a value
+ * (`y =` then `function() … end`, I-1536), as it begins a statement
+ * (`isDefineStatementStart`).
+ */
+export function isDefineMember(child: SyntaxNode): boolean {
+  return DEFINE_MEMBERS.has(child.name) && !isAnonymousFunction(child);
+}
+
+/**
  * Whether a child of a define's content begins a statement of the body: an
  * expression or reassignment, an unread token, a function definition with
  * no name, or a `name(...)` line the grammar opened as a method that is a
  * call (`isDefineMethodCall`), which holds its whole line.
  */
 export function isDefineStatementStart(child: SyntaxNode, lineOf: (pos: number) => number): boolean {
-  if (child.name === "LuauFunctionDefinition") return !findOwnDeclarationName(child);
+  if (child.name === "LuauFunctionDefinition") return isAnonymousFunction(child);
   if (child.name === "LuauMethodDefinition") return isDefineMethodCall(child, lineOf);
   return DEFINE_STATEMENT_STARTS.has(child.name) || REASSIGNMENT_NAMES.has(child.name) || UNREAD_TOKENS.has(child.name);
 }
@@ -193,9 +216,22 @@ export function readsDefineProperty(property: SyntaxNode): boolean {
     }
     if (cursor.name === "LuauBracketKeyAssignment" || cursor.name === "LuauDefineKeywordKey" || cursor.name === "LuauAccessModifier") return false;
   } while (cursor.next() && cursor.from < property.to);
-  // A property with no value on its line (`name =`) keeps the missing
-  // value's report (`validateAssignmentValue`).
+  let lineBreak = false;
   for (let next = operator?.nextSibling ?? null; next; next = next.nextSibling) {
+    if (!PROPERTY_VALUE_TRIVIA.has(next.name) && !next.name.endsWith("Comment")) return true;
+    if (next.name === "LuauAssignmentLineBreak") {
+      // An if expression that begins a later line is the line break's own.
+      if (lineBreakValues(next).length > 0) return true;
+      lineBreak = true;
+    }
+  }
+  // An `=` that ends its line leaves any other value on a later line to the
+  // nodes after the property, up to the define's next member, which the
+  // lowerer reads as the value (`propertyValueNodes`, I-1536). A property
+  // with no value (`name =`, then a member or the define's `end`) keeps the
+  // missing value's report (`validateAssignmentValue`).
+  if (!lineBreak) return false;
+  for (let next = property.nextSibling; next && !isDefineMember(next); next = next.nextSibling) {
     if (!PROPERTY_VALUE_TRIVIA.has(next.name) && !next.name.endsWith("Comment")) return true;
   }
   return false;
