@@ -1023,7 +1023,10 @@ class Tokenizer {
     // A structural word's rule that holds no arms is read as Luau, through
     // its children: the word is a name (`match(1)` is a call, I-1310).
     if (isSparkdownExpression(node)) {
-      if (to > from) this.push("sparkdown", from, to, node);
+      // One the tree carries past an island's cut (an alternator whose
+      // `end` is a later line's) ends at the cut for the reading (I-1532).
+      const cut = this.islandCut ?? null;
+      if (to > from) this.push("sparkdown", from, cut !== null && to > cut ? cut : to, node);
       return;
     }
     if (name === "LuauNewExpression") {

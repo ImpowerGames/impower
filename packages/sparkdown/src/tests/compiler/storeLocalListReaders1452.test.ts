@@ -365,15 +365,20 @@ describe("a story store or local whose unclosed bracket the tree reads on into s
     }
     // An alternator's arms on the story lines after the cut are story: the
     // errors are those of the same line with no story after it.
-    // A store's dangling-dot arm reports its missing `)` at the scene's
-    // `end` even with no story after it, which the cut does not change.
-    for (const value of keyword === "store s" ? ["g(cycle | 1"] : ["g(cycle | 1", "g(cycle | x."]) {
+    for (const value of ["g(cycle | 1", "g(cycle | x."]) {
       const line = `${keyword} = ${value}`;
       test(`${JSON.stringify(line)} before story lines and a later arm`, () => {
         const text = `scene start\n  ${line}\n  Hello.\n  | (1 2)\nend\n`;
         expect(sparkdownErrors(text)).toEqual(sparkdownErrors(`scene start\n  ${line}\nend\n`));
         expectIncrementalEqualsCold(text);
       });
+      // A store whose alternator takes the scene's `end` as its own still
+      // ends its reading at the line's end, where the `local` form's does.
+      if (keyword === "store s") {
+        test(`${JSON.stringify(line)} before the scene's end`, () => {
+          expect(sparkdownErrors(`scene start\n  ${line}\nend\n`)).toEqual(sparkdownErrors(`scene start\n  ${line.replace(/^store/, "local")}\nend\n`));
+        });
+      }
     }
   }
   pinLine("store s = g({1, (2", "local s = g({1, (2");
