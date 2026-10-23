@@ -778,29 +778,39 @@ function continuationAfterComments(
   return { end: document.lineCount, continues: false };
 }
 
-// The spans, from `scene` to its own `end`, of the scenes their author closes
-// with `end`. A scene's body lies at the tree's root beside its declaration
-// (GRAMMAR.md section 16), so a function or other declaration written inside
-// it is a root-level node too, and only the scene's `end` tells the two
-// apart. The root-level walk pairs `scene`, `branch` and `end` as the
-// compiler does (`validateOpenBlocks`): a `scene` sets aside every scene and
-// branch still open, a `branch` every branch, and an `end` closes the
-// innermost one.
-function closedSceneSpans(tree: Tree): { from: number; to: number }[] {
-  const spans: { from: number; to: number }[] = [];
+// The span of each scene, from `scene` to its own `end`, or to the next
+// `scene` or the end of the document when its author never closes it. A
+// scene's body lies at the tree's root beside its declaration (GRAMMAR.md
+// section 16), so a function or other declaration written inside it is a
+// root-level node too, and only the scene's `end` tells the two apart. The
+// root-level walk pairs `scene`, `branch` and `end` as the compiler does
+// (`validateOpenBlocks`): a `scene` sets aside every scene and branch still
+// open, a `branch` every branch, and an `end` closes the innermost one.
+function sceneSpans(
+  tree: Tree,
+): { from: number; to: number; closed: boolean }[] {
+  const spans: { from: number; to: number; closed: boolean }[] = [];
   const open: { kind: "scene" | "branch"; from: number }[] = [];
+  const setAsideScene = (to: number) => {
+    const scene = open.find((entry) => entry.kind === "scene");
+    if (scene) spans.push({ from: scene.from, to, closed: false });
+    open.length = 0;
+  };
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (node.name === "Scene") {
-      open.length = 0;
+      setAsideScene(node.from);
       open.push({ kind: "scene", from: node.from });
     } else if (node.name === "Branch") {
       while (open.length > 0 && open.at(-1)!.kind !== "scene") open.pop();
       open.push({ kind: "branch", from: node.from });
     } else if (node.name === "LuauEndKeyword") {
       const closed = open.pop();
-      if (closed?.kind === "scene") spans.push({ from: closed.from, to: node.to });
+      if (closed?.kind === "scene") {
+        spans.push({ from: closed.from, to: node.to, closed: true });
+      }
     }
   }
+  setAsideScene(tree.length);
   return spans;
 }
 
@@ -859,12 +869,13 @@ export const getFormatting = (
   // with `end` belongs to that scene's body (I-1544): the compiler closes a
   // scene only at its own `end`, so the declaration neither ends the body
   // nor starts a top-level construct. Read once, on the first such mark.
-  let sceneSpans: { from: number; to: number }[] | undefined;
-  const endsSceneBody = (pos: number) => {
-    if (!tree) return true;
-    sceneSpans ??= closedSceneSpans(tree);
-    return !sceneSpans.some((span) => span.from < pos && pos < span.to);
+  let scenes: { from: number; to: number; closed: boolean }[] | undefined;
+  const sceneAt = (pos: number) => {
+    if (!tree) return undefined;
+    scenes ??= sceneSpans(tree);
+    return scenes.find((span) => span.from < pos && pos < span.to);
   };
+  const endsSceneBody = (pos: number) => !sceneAt(pos)?.closed;
 
   // Track the enclosing struct body to reset display indentation state.
   let sparkleContentFrom: number | undefined = undefined;
@@ -994,6 +1005,13 @@ export const getFormatting = (
             });
           }
         };
+        // The body's own level, past the scene and branch that hold its
+        // declaration (a `style` written inside a scene, I-1544).
+        const bodyLevel =
+          computeBlockIndent(stack) +
+          1 +
+          (sceneActive ? 1 : 0) +
+          (branchActive ? 1 : 0);
         // Reset cached brace and continuation levels for each body.
         if (sparkleContentFrom !== sparkleContentNode.from) {
           sparkleContentFrom = sparkleContentNode.from;
@@ -1042,7 +1060,7 @@ export const getFormatting = (
                   n?.name === "LuauSparkleElementContinuation",
               ))
           ) {
-            const base = lastElementLevel ?? computeBlockIndent(stack) + 1;
+            const base = lastElementLevel ?? bodyLevel;
             braceLineLevels.set(braceLine.from, base);
             emitLevel(base + depth);
             return;
@@ -1053,7 +1071,6 @@ export const getFormatting = (
           emitLevel(lastElementLevel + 1);
           return;
         }
-        const bodyLevel = computeBlockIndent(stack) + 1;
         if (braceLine) braceLineLevels.set(braceLine.from, bodyLevel);
         if (!isCommentLine) lastElementLevel = bodyLevel;
         emitLevel(bodyLevel);
@@ -1158,7 +1175,13 @@ export const getFormatting = (
   // state — `sceneActive` / `branchActive` — resets at every
   // `scene_begin` boundary and every `top_level_begin` outside a closed
   // scene (`endsSceneBody`), and per-line indent is
-  // computed position-locally from the tree. So starting the scan AT the
+  // computed position-locally from the tree. Whether a declaration ends a
+  // scene's body depends on an `end` after it, which an edit anywhere in
+  // the scene can add or remove, so a declaration is a boundary only
+  // outside every scene, closed or not, and only when it already starts
+  // its line: the text there is the last format's output, which writes a
+  // declaration inside a scene indented, so one at column 0 was a reset
+  // point for the last format too. So starting the scan AT the
   // nearest such boundary ≤ the dirty start (with the same fresh initial
   // state the function already begins with) yields byte-for-byte the same
   // output as a full format for that span — while skipping the untouched
@@ -1182,7 +1205,10 @@ export const getFormatting = (
     while (b.value) {
       if (
         b.value.type === "scene_begin" ||
-        (b.value.type === "top_level_begin" && endsSceneBody(b.from))
+        (b.value.type === "top_level_begin" &&
+          !sceneAt(b.from) &&
+          document.positionAt(b.from).character === 0 &&
+          !/\s/.test(document.read(b.from, b.from + 1)))
       ) {
         boundaries.push(b.from);
       }
