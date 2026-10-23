@@ -1,0 +1,38 @@
+text.source.sparkdown [0..47]
+ ├─ meta.function.luau [0..13]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..10]: "f"
+ │   └─ meta.parameter.luau [10..13]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       ├─ variable.parameter.function.luau [11..12]: "c"
+ │       └─ punctuation.definition.template-expression.end.sd [12..13]: ")"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.function.luau [14..28]
+ │   └─ meta.function.body.luau [14..28]
+ │       ├─ punctuation.whitespace.optional.sd [14..16]: "  "
+ │       ├─ keyword.control.for.luau [16..19]: "for"
+ │       ├─ punctuation.whitespace.optional.sd [19..20]: " "
+ │       ├─ variable.other.readwrite.luau [20..21]: "i"
+ │       ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │       ├─ keyword.operator.assignment.luau [22..23]: "="
+ │       ├─ punctuation.whitespace.optional.sd [23..24]: " "
+ │       ├─ constant.numeric.decimal.luau [24..25]: "1"
+ │       ├─ keyword.operator.comma.luau [25..26]: ","
+ │       ├─ punctuation.whitespace.optional.sd [26..27]: " "
+ │       └─ variable.other.readwrite.luau [27..28]: "c"
+ ├─ Newline [28..29]: "\n"
+ ├─ meta.function.luau [29..36]
+ │   └─ meta.function.body.luau [29..36]
+ │       ├─ invalid.illegal.unread.luau [29..33]: "else"
+ │       ├─ punctuation.whitespace.optional.sd [33..34]: " "
+ │       └─ keyword.control.do.luau [34..36]: "do"
+ ├─ Newline [36..37]: "\n"
+ ├─ meta.function.luau [37..42]
+ │   └─ meta.function.body.luau [37..42]
+ │       ├─ punctuation.whitespace.optional.sd [37..39]: "  "
+ │       └─ keyword.control.end.luau [39..42]: "end"
+ ├─ Newline [42..43]: "\n"
+ ├─ meta.function.luau [43..46]
+ │   └─ keyword.control.end.luau [43..46]: "end"
+ └─ Newline [46..47]: "\n"

@@ -1,0 +1,5 @@
+function f(c)
+  for i = 1, c
+else do
+  end
+end

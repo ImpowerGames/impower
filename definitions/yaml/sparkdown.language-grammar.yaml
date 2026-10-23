@@ -6173,8 +6173,11 @@ repository:
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
+    # No comment, as in `StylingValueContent`: these parameters are part of a
+    # value's text, from which `StylingValue` has already split a comment
+    # after whitespace, so a `--` here (`var(--gap)`) is the argument and the
+    # `)` after it closes the function.
     patterns:
-      - { include: "#LuauComment" }
       - { include: "#CalcOperator" }
       - { include: "#StylingValuePart" }
       - { include: "#ParameterStringIdentifier" }
@@ -9106,8 +9109,9 @@ repository:
       - { include: "#RequiredWhitespace" }
       - { include: "#Newline" }
     # End just before `do` (allowing a leading WS run, but NOT bare
-    # whitespace alone) so multi-line for-in headers parse.
-    end: (?={{BEAT}}|{{END}}|[)\]}])|(?={{WS}}*do\b)
+    # whitespace alone) so multi-line for-in headers parse. Any closer ends
+    # it, not only `end`, as in `LuauWhileCondition`.
+    end: (?={{BEAT}}|{{WS}}*{{LUAU_CLOSER}}|[)\]}])|(?={{WS}}*do\b)
 
   # ----------------------------------------------------------------------------
   # While Loop
@@ -10192,13 +10196,16 @@ repository:
     # `;` alternative: `return f(x); end`-style one-liners close the
     # return statement before the separator (`;` no longer parses
     # inside `LuauExpression`).
+    #
+    # Unread-character alternative: as in `LuauReturnStatement`, the return
+    # closes before a character no expression reads (`& return x名`).
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownExplicitExpression" }
     # lookaround: LuauIfBlock and LuauRepeatLoop own their closing keywords; this return yields before written closers while retaining same-line values and owned opaque/function spans.
     # See bounded-exit rationale above for the structural alternatives.
-    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
+    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;|[$@!?\\]|[^\x00-\x7F])|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
 
   LuauSparkdownExplicitTernaryExpression:
     begin: "{{LUAU_SHARED_TERNARY_CONTEXT}}({{WS}}*)(if)\\b({{WS}}*)"
@@ -12461,9 +12468,10 @@ repository:
     # return statement before the separator (`;` no longer parses
     # inside `LuauExpression`).
     #
-    # Non-ASCII alternative: Luau reads a non-ASCII character only inside a
-    # string or comment, which are rules of their own, so the return can
-    # never read one (`return x名`). It closes before it, and the body reads
+    # Unread-character alternative: Luau reads a non-ASCII character, or
+    # `$ @ ! ?` or a backslash, only inside a string or comment, which are
+    # rules of their own, so the return can never read one (`return x名`,
+    # `return x$`). It closes before it, and the body reads
     # the character as an unread token in both engines; without it
     # vscode-textmate passes over the character inside the return and the
     # tree closes the return incomplete there (GRAMMAR.md §17.2).
@@ -12472,7 +12480,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;|[^\x00-\x7F])|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
+    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;|[$@!?\\]|[^\x00-\x7F])|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
 
   # A line that continues the line before it (`LuauLineContinuation`, or a
   # `[` line) is not the returned value, so the break ends at its start and

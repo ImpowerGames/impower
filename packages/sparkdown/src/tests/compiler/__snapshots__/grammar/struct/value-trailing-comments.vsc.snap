@@ -142,9 +142,11 @@ text.source.sparkdown [0..386]
  │   ├─ markup.raw.whitespace.separator.optional.sd [232..233]: " "
  │   ├─ entity.name.function.sd [233..236]: "var"
  │   ├─ punctuation.definition.template-expression.begin.sd [236..237]: "("
- │   └─ comment.line.double-dash.luau [237..249]
- │       ├─ comment.luau [237..239]: "--"
- │       ├─ punctuation.definition.comment.content.sd [239..241]: "x)"
+ │   ├─ keyword.other.calc.operator.sd [237..238]: "-"
+ │   ├─ keyword.other.calc.operator.sd [238..239]: "-"
+ │   ├─ string.unquoted.identifier.sd [239..240]: "x"
+ │   ├─ punctuation.definition.template-expression.end.sd [240..241]: ")"
+ │   └─ comment.line.double-dash.luau [241..249]
  │       ├─ punctuation.whitespace.sd [241..242]: " "
  │       ├─ comment.luau [242..244]: "--"
  │       └─ punctuation.definition.comment.content.sd [244..249]: " note"

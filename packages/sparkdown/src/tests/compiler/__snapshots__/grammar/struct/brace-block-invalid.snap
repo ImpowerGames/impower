@@ -596,18 +596,14 @@ sparkdown [0..673]
  │   │   │   │   │   │       │               │       │   ├─ StylingFunctionParameters_begin_c1 [287..288]
  │   │   │   │   │   │       │               │       │   │   └─ PunctuationParenOpen [287..288]: "("
  │   │   │   │   │   │       │               │       │   └─ StylingFunctionParameters_begin_c2 288
- │   │   │   │   │   │       │               │       ├─ StylingFunctionParameters_content [288..294]
- │   │   │   │   │   │       │               │       │   └─ LuauLineComment [288..294]
- │   │   │   │   │   │       │               │       │       ├─ LuauLineComment_begin [288..290]
- │   │   │   │   │   │       │               │       │       │   ├─ LuauLineComment_begin_c1 288
- │   │   │   │   │   │       │               │       │       │   └─ LuauLineComment_begin_c2 [288..290]
- │   │   │   │   │   │       │               │       │       │       └─ LuauCommentMark [288..290]: "--"
- │   │   │   │   │   │       │               │       │       ├─ LuauLineComment_content [290..294]
- │   │   │   │   │   │       │               │       │       │   └─ LuauLineCommentContent [290..294]: "gap)"
- │   │   │   │   │   │       │               │       │       └─ LuauLineComment_end 294
- │   │   │   │   │   │       │               │       └─ StylingFunctionParameters_end 294
- │   │   │   │   │   │       │               │           ├─ StylingFunctionParameters_end_c1 294
- │   │   │   │   │   │       │               │           └─ StylingFunctionParameters_end_c2 294
+ │   │   │   │   │   │       │               │       ├─ StylingFunctionParameters_content [288..293]
+ │   │   │   │   │   │       │               │       │   ├─ CalcOperator [288..289]: "-"
+ │   │   │   │   │   │       │               │       │   ├─ CalcOperator [289..290]: "-"
+ │   │   │   │   │   │       │               │       │   └─ ParameterStringIdentifier [290..293]: "gap"
+ │   │   │   │   │   │       │               │       └─ StylingFunctionParameters_end [293..294]
+ │   │   │   │   │   │       │               │           ├─ StylingFunctionParameters_end_c1 293
+ │   │   │   │   │   │       │               │           └─ StylingFunctionParameters_end_c2 [293..294]
+ │   │   │   │   │   │       │               │               └─ PunctuationParenClose [293..294]: ")"
  │   │   │   │   │   │       │               └─ StylingFunction_end 294
  │   │   │   │   │   │       ├─ StylingValue_c5 294
  │   │   │   │   │   │       ├─ StylingValue_c6 294
