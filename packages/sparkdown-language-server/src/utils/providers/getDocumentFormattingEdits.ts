@@ -778,6 +778,32 @@ function continuationAfterComments(
   return { end: document.lineCount, continues: false };
 }
 
+// The spans, from `scene` to its own `end`, of the scenes their author closes
+// with `end`. A scene's body lies at the tree's root beside its declaration
+// (GRAMMAR.md section 16), so a function or other declaration written inside
+// it is a root-level node too, and only the scene's `end` tells the two
+// apart. The root-level walk pairs `scene`, `branch` and `end` as the
+// compiler does (`validateOpenBlocks`): a `scene` sets aside every scene and
+// branch still open, a `branch` every branch, and an `end` closes the
+// innermost one.
+function closedSceneSpans(tree: Tree): { from: number; to: number }[] {
+  const spans: { from: number; to: number }[] = [];
+  const open: { kind: "scene" | "branch"; from: number }[] = [];
+  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+    if (node.name === "Scene") {
+      open.length = 0;
+      open.push({ kind: "scene", from: node.from });
+    } else if (node.name === "Branch") {
+      while (open.length > 0 && open.at(-1)!.kind !== "scene") open.pop();
+      open.push({ kind: "branch", from: node.from });
+    } else if (node.name === "LuauEndKeyword") {
+      const closed = open.pop();
+      if (closed?.kind === "scene") spans.push({ from: closed.from, to: node.to });
+    }
+  }
+  return spans;
+}
+
 const isInRange = (
   document: SparkdownDocument,
   innerRange: Range,
@@ -829,6 +855,16 @@ export const getFormatting = (
   //     prev-siblings (see `countChoiceBodies`). No state needed.
   let sceneActive = false;
   let branchActive = false;
+  // A top-level Luau declaration written inside a scene its author closes
+  // with `end` belongs to that scene's body (I-1544): the compiler closes a
+  // scene only at its own `end`, so the declaration neither ends the body
+  // nor starts a top-level construct. Read once, on the first such mark.
+  let sceneSpans: { from: number; to: number }[] | undefined;
+  const endsSceneBody = (pos: number) => {
+    if (!tree) return true;
+    sceneSpans ??= closedSceneSpans(tree);
+    return !sceneSpans.some((span) => span.from < pos && pos < span.to);
+  };
 
   // Track the enclosing struct body to reset display indentation state.
   let sparkleContentFrom: number | undefined = undefined;
@@ -1120,7 +1156,8 @@ export const getFormatting = (
 
   // Incremental (delta) formatting. The only cross-line formatting
   // state — `sceneActive` / `branchActive` — resets at every
-  // `scene_begin` / `top_level_begin` boundary, and per-line indent is
+  // `scene_begin` boundary and every `top_level_begin` outside a closed
+  // scene (`endsSceneBody`), and per-line indent is
   // computed position-locally from the tree. So starting the scan AT the
   // nearest such boundary ≤ the dirty start (with the same fresh initial
   // state the function already begins with) yields byte-for-byte the same
@@ -1145,7 +1182,7 @@ export const getFormatting = (
     while (b.value) {
       if (
         b.value.type === "scene_begin" ||
-        b.value.type === "top_level_begin"
+        (b.value.type === "top_level_begin" && endsSceneBody(b.from))
       ) {
         boundaries.push(b.from);
       }
@@ -1279,10 +1316,12 @@ export const getFormatting = (
         // New branch declaration. Branches sit inside a scene body
         // (sceneActive stays as-is). Reset any prior branch state.
         branchActive = false;
-      } else if (aheadCur.value.type === "top_level_begin") {
-        // Top-level Luau decl (function / define) ends any implicit
-        // scene/branch body — they have no explicit terminator in
-        // the grammar.
+      } else if (
+        aheadCur.value.type === "top_level_begin" &&
+        endsSceneBody(aheadCur.from)
+      ) {
+        // Top-level Luau decl (function / define) ends a scene/branch
+        // body that has no `end` of its own.
         sceneActive = false;
         branchActive = false;
       }
@@ -1426,7 +1465,7 @@ export const getFormatting = (
       sceneActive = true;
       ensureBlankLineBefore(cur.from);
     } else if (cur.value.type === "top_level_begin") {
-      ensureBlankLineBefore(cur.from);
+      if (endsSceneBody(cur.from)) ensureBlankLineBefore(cur.from);
     } else if (cur.value.type === "branch_begin") {
       branchActive = true;
     } else if (cur.value.type === "newline") {

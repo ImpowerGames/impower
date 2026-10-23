@@ -326,6 +326,26 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
+    // A line that starts at column 0 with a token gets its `indent` from the
+    // first node entered at its start (I-1545). A block's begin capture can
+    // take the line break before it (`LuauFunctionBody_begin` holds the `\n`
+    // after `function g(c)`), so such a line has neither a `Newline` node nor
+    // a whitespace node at its start to carry the mark.
+    if (
+      nodeRef.from > this.processedLineFrom &&
+      (nodeRef.from === 0 || this.read(nodeRef.from - 1, nodeRef.from) === "\n")
+    ) {
+      const firstChar = this.read(nodeRef.from, nodeRef.from + 1);
+      if (firstChar !== "" && !/\s/.test(firstChar)) {
+        this.processedLineFrom = nodeRef.from;
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("indent").range(
+            nodeRef.from,
+            nodeRef.from,
+          ),
+        );
+      }
+    }
     // Universal whitespace dispatch keyed on POSITION first, then name.
     // Any whitespace-class node — `Whitespace`, `ExtraWhitespace`,
     // `RequiredWhitespace`, `OptionalWhitespace` — gets the same
