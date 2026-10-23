@@ -50,6 +50,12 @@ const FORMS: [statements: string, methods: string, readings: string[]][] = [
   ["", "  f()\n    x = 1\n  end\n", ["f:method"]],
   ["", "  --[[c]] f()\n    x = 1\n  end\n", ["f:method"]],
   ["", "  --[[a]] --[==[b]==] f(a)\n    x = a\n  end\n", ["f:method"]],
+  // A comment of level four or more that holds a `]`, alone, holding a
+  // shorter close, after a shorter comment, and before one.
+  ["", "  --[====[a]b]====] f()\n    x = 1\n  end\n", ["f:method"]],
+  ["", "  --[=====[a]====]b]=====] f()\n    x = 1\n  end\n", ["f:method"]],
+  ["", "  --[[a]] --[====[a]b]====] f()\n    x = 1\n  end\n", ["f:method"]],
+  ["", "  --[====[a]b]====] --[[c]] f()\n    x = 1\n  end\n", ["f:method"]],
   ["  print(1 2)\n  y = 2\n", "", ["print:call"]],
 ];
 
