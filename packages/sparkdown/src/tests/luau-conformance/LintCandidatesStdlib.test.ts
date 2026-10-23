@@ -91,9 +91,10 @@ string.packsize("=!1bbbI3c42")
 
 // Luau: FormatStringMatch (adapted)
 // Sparkdown's runtime runs `%q` and `%,`, an escape of a character that is
-// not a class or magic, as that character, so their five warnings are dropped.
+// not a class or magic, as that character, and runs `[%1]` as a set holding
+// `1`, as Luau does, so their six warnings are dropped.
 describe("malformed match patterns", () => {
-  test("nine bad patterns", () => {
+  test("eight bad patterns", () => {
     expect(
       lintMessagesInFunction(`
 local s = ...
@@ -124,7 +125,6 @@ string.match(s, "[A-Z]+(%d)%1")
 `),
     ).toEqual([
       "Invalid match pattern: unfinished character class",
-      "Invalid match pattern: sets can not contain capture references",
       "Invalid match pattern: invalid capture reference, must be 1-9",
       "Invalid match pattern: invalid capture reference, must refer to a valid capture",
       "Invalid match pattern: missing brace characters for balanced match",
@@ -168,10 +168,11 @@ string.match(s, "((a)%3)")
 });
 
 // Luau: FormatStringMatchSets (adapted)
-// Sparkdown's runtime runs `[%a-b]` (letters, `-` and `b`), `[%q]` and
-// `[%;]`, so their three warnings are dropped.
+// Sparkdown's runtime runs `[%a-b]` (letters, `-` and `b`), `[a-%b]`, `[%q]`,
+// `[%;]` and `[%1]` (which matches `1`, as in Luau), so their five warnings
+// are dropped.
 describe("malformed sets in match patterns", () => {
-  test("four bad sets", () => {
+  test("two bad sets", () => {
     expect(
       lintMessagesInFunction(`
 local s = ...
@@ -204,8 +205,6 @@ string.match(s, "[^]|'[]")
     ).toEqual([
       UNCLOSED_SET,
       UNCLOSED_SET,
-      "Invalid match pattern: character range can't include character sets",
-      "Invalid match pattern: sets can not contain capture references",
     ]);
   });
 });
