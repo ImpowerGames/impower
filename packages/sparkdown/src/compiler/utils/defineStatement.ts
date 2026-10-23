@@ -1,4 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
+import { lineBreakValues } from "../lower/utils/assignmentLineBreak";
 import { findOwnDeclarationName } from "../lower/utils/findOwnDeclarationName";
 import { isLineContinuation } from "../lower/utils/significantLeaf";
 import { followsDanglingDot, followsMissingValue, TRIVIA_BEFORE_STATEMENT } from "../lower/utils/statementBefore";
@@ -193,9 +194,22 @@ export function readsDefineProperty(property: SyntaxNode): boolean {
     }
     if (cursor.name === "LuauBracketKeyAssignment" || cursor.name === "LuauDefineKeywordKey" || cursor.name === "LuauAccessModifier") return false;
   } while (cursor.next() && cursor.from < property.to);
-  // A property with no value on its line (`name =`) keeps the missing
-  // value's report (`validateAssignmentValue`).
+  let lineBreak = false;
   for (let next = operator?.nextSibling ?? null; next; next = next.nextSibling) {
+    if (!PROPERTY_VALUE_TRIVIA.has(next.name) && !next.name.endsWith("Comment")) return true;
+    if (next.name === "LuauAssignmentLineBreak") {
+      // An if expression that begins a later line is the line break's own.
+      if (lineBreakValues(next).length > 0) return true;
+      lineBreak = true;
+    }
+  }
+  // An `=` that ends its line leaves any other value on a later line to the
+  // nodes after the property, up to the define's next member, which the
+  // lowerer reads as the value (`propertyValueNodes`, I-1536). A property
+  // with no value (`name =`, then a member or the define's `end`) keeps the
+  // missing value's report (`validateAssignmentValue`).
+  if (!lineBreak) return false;
+  for (let next = property.nextSibling; next && !DEFINE_MEMBERS.has(next.name); next = next.nextSibling) {
     if (!PROPERTY_VALUE_TRIVIA.has(next.name) && !next.name.endsWith("Comment")) return true;
   }
   return false;
@@ -205,6 +219,10 @@ export function readsDefineProperty(property: SyntaxNode): boolean {
 const PROPERTY_VALUE_TRIVIA = nodeNameSet([
   "ExtraWhitespace", "Whitespace", "OptionalWhitespace", "RequiredWhitespace", "Newline", "LuauAssignmentLineBreak",
 ]);
+
+// The members of a define body, where a property's value stops
+// (`propertyValueNodes`).
+const DEFINE_MEMBERS = nodeNameSet(["LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition"]);
 
 /** The statement start or property whose reading reads a define body node (`loweredDefineStatementOf`, `loweredDefinePropertyOf`). */
 function defineReadingOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
