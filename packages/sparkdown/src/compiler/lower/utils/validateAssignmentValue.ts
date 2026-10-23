@@ -21,7 +21,7 @@ import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
 import { isUnreadTokenAt } from "../../utils/unreadTokens";
 import { LUAU_STATEMENT_KEYWORDS } from "../../utils/luauStatementKeywords";
-import { enclosingUnclosedIslandEnd, storyIslandEnd } from "../../utils/storyIslands";
+import { enclosingUnclosedIslandEnd, storyIslandEnd, unclosedIslandEnd } from "../../utils/storyIslands";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
 // declaration: a value missing after `=` or after a comma, a second `=`, a
@@ -71,6 +71,11 @@ export function validateStatementNode(
   continuation: readonly SyntaxNode[],
   ctx: LowerContext,
 ): void {
+  // A statement in a story statement cut at its unclosed bracket's line,
+  // or that statement itself, is its reading's to report (`cutIslands`,
+  // I-1532): the tree's nodes run on past the cut into story.
+  const text = ctx.documentText?.();
+  if (text !== undefined && (unclosedIslandEnd(node, text) ?? enclosingUnclosedIslandEnd(node, text)) !== undefined) return;
   if (REASSIGNMENT_NAMES.has(node.name)) {
     const parts = reassignmentParts(node);
     const isOperation = (part: SyntaxNode) => isExplicitRuleName(part.name, "LuauAssignmentOperation");

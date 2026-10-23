@@ -1362,7 +1362,17 @@ class Tokenizer {
     }
     if (ch === '"' || ch === "'") {
       let end = i + 1;
-      while (end < to && text[end] !== ch && text[end] !== "\n") end += text[end] === "\\" ? 2 : 1;
+      while (end < to && text[end] !== ch && text[end] !== "\n") {
+        if (text[end] !== "\\") end++;
+        // `\z` skips the whitespace after it, line breaks included, and a
+        // `\` before `\r\n` escapes both, as in a backtick string's section
+        // (`sectionEnd`, Luau's `readBackslashInString`).
+        else if (text[end + 1] === "z") {
+          end += 2;
+          while (end < to && /[ \t-\r]/.test(text[end]!)) end++;
+        } else if (text.startsWith("\r\n", end + 1)) end += 3;
+        else end += 2;
+      }
       end = Math.min(to, text[end] === ch ? end + 1 : end);
       this.push("string", i, end);
       return end;
