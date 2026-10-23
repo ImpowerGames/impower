@@ -37,6 +37,72 @@ function isWordChar(c: string): boolean {
   return /[a-zA-Z0-9_]/.test(c);
 }
 
+// Character pairs that begin a longer token when nothing separates them:
+// `- -x` would become the comment `--x`, `t[ [[s]] ]` a long string.
+const JOINING_PAIRS = new Set([
+  "--",
+  "..",
+  "==",
+  "~=",
+  "<=",
+  ">=",
+  "//",
+  "::",
+  "->",
+  "[[",
+  "[=",
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "%=",
+  "^=",
+  ".=",
+]);
+
+// A name or number character in any script, so `ñandú x` is two words.
+const NAME_CHAR_REGEX = /[\p{L}\p{N}_]/u;
+
+// The grammar's number literals (`LuauNumericDecimal`, `LuauNumericHex`,
+// ... and their captures), as opposed to a name that ends in a digit
+// (`text2`, `text-2`, `t.a1`).
+const NUMBER_NODE_REGEX = /^(?:LuauNumeric[A-Za-z]*|NumberLiteral|NumberValue)(?:_|$)/;
+
+// Whether the token that ends at `offset` is a number literal (`5`, `1.`,
+// `-1.`, `0xFF`), read from the syntax tree.
+function endsNumberAt(tree: Tree | undefined, offset: number): boolean {
+  const node = tree?.resolveInner(offset, -1);
+  return Boolean(
+    node &&
+      (NUMBER_NODE_REGEX.test(node.name) ||
+        (node.parent != null && NUMBER_NODE_REGEX.test(node.parent.name))),
+  );
+}
+
+// Whether removing all the whitespace between `prevChar` and `nextChar`
+// would join the tokens either side into one (`5 print` → `5print`,
+// `match match` → `matchmatch`), which changes what the script means.
+// After a number (`afterNumber`) a `.` or name character would read as
+// part of it (`1. print` → `1.print`, `5 .x` → `5.x`). A word after a
+// closing `)` or `]` also keeps its space (`]] print(1)`, a statement
+// after a block comment), so a second statement on the line is not glued
+// to the first.
+function mustKeepSpaceBetween(
+  prevChar: string,
+  nextChar: string,
+  afterNumber: boolean,
+): boolean {
+  const nextIsName = NAME_CHAR_REGEX.test(nextChar);
+  if (
+    nextIsName &&
+    (NAME_CHAR_REGEX.test(prevChar) || prevChar === ")" || prevChar === "]")
+  ) {
+    return true;
+  }
+  if (afterNumber && (nextIsName || nextChar === ".")) return true;
+  return JOINING_PAIRS.has(prevChar + nextChar);
+}
+
 function shouldInsertSpaceBetween(
   prevChar: string,
   nextChar: string,
@@ -1014,13 +1080,48 @@ export const getFormatting = (
     };
   }
 
-  const cur = annotations.formatting.iter(iterStart);
-  const aheadCur = annotations.formatting.iter(iterStart);
   const formattingTo = formattingRange
     ? "end" in formattingRange
       ? document.offsetAt(formattingRange.end)
       : document.length
     : undefined;
+
+  // A zero-width `keyword_separator` inserts a space of its own (before
+  // the `..` in `5 .. x`), so a span that starts or ends at one may go
+  // without joining anything; keeping it too would write two spaces.
+  const insertsSpaceAt = new Set<number>();
+  const insertCur = annotations.formatting.iter(iterStart);
+  while (insertCur.value) {
+    if (formattingTo != null && insertCur.from > formattingTo) break;
+    if (
+      insertCur.value.type === "keyword_separator" &&
+      insertCur.from === insertCur.to
+    ) {
+      insertsSpaceAt.add(insertCur.from);
+    }
+    insertCur.next();
+  }
+  // Whether the whitespace from `from` to `to` must keep one space so the
+  // tokens either side are not joined.
+  const keepsJoiningSpace = (from: number, to: number) => {
+    if (from === to || insertsSpaceAt.has(from) || insertsSpaceAt.has(to)) {
+      return false;
+    }
+    // Whole code points, so a letter outside the BMP (`𐐀`) is not read as
+    // half of a surrogate pair.
+    const nextChar = Array.from(document.read(to, to + 2))[0] ?? "";
+    const prevChar =
+      Array.from(document.read(Math.max(0, from - 2), from)).pop() ?? "";
+    return mustKeepSpaceBetween(
+      prevChar,
+      nextChar,
+      (NAME_CHAR_REGEX.test(nextChar) || nextChar === ".") &&
+        endsNumberAt(tree, from),
+    );
+  };
+
+  const cur = annotations.formatting.iter(iterStart);
+  const aheadCur = annotations.formatting.iter(iterStart);
   aheadCur.next();
 
   while (cur.value) {
@@ -1093,9 +1194,13 @@ export const getFormatting = (
       } else {
         const nextChar = document.read(cur.to, cur.to + 1);
         const prevChar = document.read(cur.from - 1, cur.from);
-        expectedText = shouldInsertSpaceBetween(prevChar, nextChar)
-          ? " "
-          : "";
+        // Collapsing existing spaces keeps one where the tokens either
+        // side would otherwise join.
+        expectedText =
+          shouldInsertSpaceBetween(prevChar, nextChar) ||
+          keepsJoiningSpace(cur.from, cur.to)
+            ? " "
+            : "";
       }
       // Skip the no-op zero-width insert (avoid creating a useless
       // empty-text edit).
@@ -1130,7 +1235,9 @@ export const getFormatting = (
       }
     } else if (cur.value.type === "extra") {
       const text = document.getText(range);
-      const expectedText = "";
+      // Extra whitespace goes, except one space where its removal would
+      // join the tokens either side into one.
+      const expectedText = keepsJoiningSpace(cur.from, cur.to) ? " " : "";
       if (text !== expectedText) {
         pushIfInRange({
           lineNumber: range.start.line + 1,
