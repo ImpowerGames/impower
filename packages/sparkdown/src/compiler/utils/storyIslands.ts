@@ -55,9 +55,14 @@ export function lastLineEnd(text: string, to: number): number {
  * statement ends on, so a token later on that line (`local a = 1 +;`) is
  * still one Luau's reading meets. A marked statement already spans its
  * line. A genuine function inside it keeps Luau's own multiline reading, so
- * a node in one has none.
+ * a node in one has none, unless the statement is cut at its unclosed
+ * bracket's line (`unclosedIslandEnd`), which ends the function too.
  */
 export function storyIslandEnd(node: SyntaxNode, text: string): number | undefined {
+  // A statement cut at its unclosed bracket's line ends there, a function
+  // in it included (`unclosedIslandEnd`, I-1532).
+  const cut = enclosingUnclosedIslandEnd(node, text);
+  if (cut !== undefined) return cut;
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
     if (n.name === "LuauFunctionBody") return undefined;
     if (n.name === "LuauSparkdownExplicitStatement") return n.to;

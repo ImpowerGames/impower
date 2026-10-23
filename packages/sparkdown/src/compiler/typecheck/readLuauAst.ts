@@ -1,5 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
-import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd, pastStoryIslandEnd, unclosedIslandEnd } from "../utils/storyIslands";
+import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, enclosingUnclosedIslandEnd, lastLineEnd, unclosedIslandEnd } from "../utils/storyIslands";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -895,13 +895,30 @@ class Tokenizer {
     this.tokens.push({ kind, text, from: at, to: at, location: this.location(at, at), source: this.source, ...(written && { written }) });
   }
 
+  /**
+   * Not part of Luau: where the story statement island being read was cut
+   * at its unclosed bracket's line (`unclosedIslandEnd`, I-1532), null where
+   * it was not, and undefined outside a reading. The story lines the tree
+   * reads into such a bracket are story, not the statement's Luau, in every
+   * reading of a node in it, so no node past the cut is read. Found once
+   * where a reading begins, from the node's ancestors, and set where the
+   * reading enters an island.
+   */
+  private islandCut: number | null | undefined;
+
   /** Reads the tokens of a node and everything under it. */
   read(node: SyntaxNode): void {
+    if (this.islandCut === undefined) {
+      this.islandCut = enclosingUnclosedIslandEnd(node, this.text) ?? null;
+      try {
+        this.read(node);
+      } finally {
+        this.islandCut = undefined;
+      }
+      return;
+    }
+    if (this.islandCut !== null && node.from >= this.islandCut) return;
     const name = node.name;
-    // The story lines the tree reads into a story statement's bracket that
-    // never closes are story, not its Luau (`pastStoryIslandEnd`, I-1532), in
-    // every reading of a node in the statement.
-    if (pastStoryIslandEnd(node, this.text)) return;
     if (isExplicitRuleName(name, "LuauReturnStatement")) {
       const suffix = returnSuffixSpan(this.text, this.index, node.to);
       this.returnSourceLines.push(this.location(node.from, suffix.to));
@@ -1028,8 +1045,14 @@ class Tokenizer {
     // lines the tree reads into the bracket are not its Luau (I-1532).
     if (isStoryStatementIsland(node)) {
       const first = this.tokens.length;
-      this.readChildren(node);
       const unclosed = unclosedIslandEnd(node, this.text);
+      const outerCut = this.islandCut;
+      this.islandCut = unclosed ?? null;
+      try {
+        this.readChildren(node);
+      } finally {
+        this.islandCut = outerCut;
+      }
       const end = unclosed ?? lastLineEnd(this.text, node.to);
       const loop = isStoryHeaderOnlyLoop(node);
       for (let i = first; i < this.tokens.length; i++) {
@@ -1987,8 +2010,10 @@ class Parser {
     // A marked narrative statement owns its missing value/closer at its
     // authored EOF. The following prose only supplies a synthetic break;
     // delegating this error to story grammar would drop it entirely.
-    // Genuine Luau functions keep their existing multiline recovery.
-    const boundedStoryEnd = !this.currentFunction().luau && this.current().kind === "break" && this.current().authoredEnd === true;
+    // Genuine Luau functions keep their existing multiline recovery, but
+    // one a story statement cut at its unclosed bracket's line opens meets
+    // its end of input there, Luau's own (`unclosedEnd`, I-1532).
+    const boundedStoryEnd = (!this.currentFunction().luau || this.current().unclosedEnd === true) && this.current().kind === "break" && this.current().authoredEnd === true;
     // An error met in an attribute list is the list's, and Luau's attribute
     // errors are Luau's own even in a `store` declaration's value, since
     // Sparkdown's syntax does not read an attribute's meaning.
@@ -2170,7 +2195,8 @@ class Parser {
     this.expectMatchAndConsumeFail(text, begin, "", construct);
     if (searchForMissing) {
       const line = this.previousLocation().end.line;
-      while (this.current().kind !== "eof" && this.current().location.begin.line === line && !this.is(text) && !this.is("end")) this.next();
+      // Not part of Luau: nothing after an `unclosedEnd` is on the line (I-1532).
+      while (this.current().kind !== "eof" && !this.current().unclosedEnd && this.current().location.begin.line === line && !this.is(text) && !this.is("end")) this.next();
       if (this.is(text)) {
         this.nextExpected();
         return true;

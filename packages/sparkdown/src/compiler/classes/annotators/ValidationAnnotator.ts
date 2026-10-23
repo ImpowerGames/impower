@@ -15,7 +15,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
-import { isStoryCondition, pastStoryIslandEnd } from "../../utils/storyIslands";
+import { enclosingUnclosedIslandEnd, isStoryCondition, pastStoryIslandEnd } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -1786,8 +1786,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         const eof = authoredEnd ?? this.tree?.length ?? nodeRef.to;
         // A story header's `<eof>` is its line break, as for a story
-        // statement.
-        const eofEnd = authoredEnd !== undefined && isStoryCondition(nodeRef.node) ? this.lineBreakEnd(eof) : eof;
+        // statement, and so is that of a statement cut at its unclosed
+        // bracket's line (I-1532).
+        const eofEnd =
+          authoredEnd !== undefined && (isStoryCondition(nodeRef.node) || enclosingUnclosedIslandEnd(nodeRef.node, this.statementDocumentText()) === authoredEnd)
+            ? this.lineBreakEnd(eof)
+            : eof;
         this.error(
           annotations,
           `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
