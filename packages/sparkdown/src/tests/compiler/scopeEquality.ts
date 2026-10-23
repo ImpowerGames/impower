@@ -11,8 +11,10 @@
 // computes at column N must match the node ancestry textmate-grammar-tree
 // builds at column N (after mapping tree nodes back to their TextMate scope
 // names). When they disagree, syntax highlighting and semantic features drift
-// apart — and because vscode-textmate is the engine we ship to users and
-// cannot patch, ANY disagreement is a grammar bug we must fix in the grammar.
+// apart. vscode-textmate is the reference engine and is never changed, so a
+// disagreement where the tree reads the grammar differently is fixed in
+// textmate-grammar-tree; only one that remains once both engines read the
+// grammar the same way is a grammar bug, fixed in the grammar.
 //
 // This module runs a source through both engines and produces a per-character
 // scope-stack comparison. See packages/sparkdown/docs/compiler/GRAMMAR.md §17.
