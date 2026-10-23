@@ -14,17 +14,14 @@
 // `{n,}`), sits in a repeated group, or has more pattern after it before
 // its lookahead or the whole pattern ends. A class whose match can only be
 // the line's own break (`(?=[^{])`) passes, and so does a class inside a
-// lookbehind, which reads backwards. A variable that reads past the line
-// on purpose carries a `# reads-past-line:` comment saying why, and the
-// classes it brings into a pattern are not reported.
+// lookbehind, which reads backwards. No variable is exempt: since I-1283
+// neither engine lets a pattern read past its line.
 
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
-import { getGrammarIndex, type GrammarIndex, markedComment } from "../utils/grammar-index.ts";
+import { getGrammarIndex, type GrammarIndex } from "../utils/grammar-index.ts";
 import { isScalar, isSequence, rangeInScalar, type YAMLNode } from "../utils/yaml-ast.ts";
 import { type RegexGroup, regexGroups, scanRegex } from "../utils/regex-scan.ts";
 import { siteLabel } from "./lookaround-needs-rival-comment.ts";
-
-export const EXEMPT_MARKER = "reads-past-line:";
 
 interface CharClass {
   start: number;
@@ -197,15 +194,11 @@ const { rule, find } = defineBaselinedRule(
         "Disallow a negated character class that lets a pattern read past its line's break; add `\\r\\n` to the class.",
     },
     messages: {
-      crosses: `{{site}}: \`{{cls}}\`{{from}} matches a line break and the pattern reads on past it, into the next line, which VS Code and the editor never show it and an incremental reparse does not redo. Add \`\\r\\n\` to the class, or give a variable that reads past the line on purpose a \`# ${EXEMPT_MARKER}\` comment saying why. See GRAMMAR.md §11.5.${BASELINE_NOTE}`,
+      crosses: `{{site}}: \`{{cls}}\`{{from}} matches a line break and the pattern reads on past it, into the next line, which VS Code and the editor never show it and an incremental reparse does not redo. Add \`\\r\\n\` to the class. See GRAMMAR.md §11.5.${BASELINE_NOTE}`,
     },
   },
   (context) => {
     const index = getGrammarIndex(context);
-    const exempt = (name: string) => {
-      const pair = index.variables.get(name);
-      return pair !== undefined && markedComment(index, [pair.loc.start.line], EXEMPT_MARKER) !== null;
-    };
     const findings: Finding[] = [];
     for (const site of index.patternSites) {
       // A variable is checked where a rule uses it, with the pattern around it.
@@ -214,7 +207,6 @@ const { rule, find } = defineBaselinedRule(
       const groups = regexGroups(expanded.text);
       for (const cls of charClasses(expanded.text)) {
         const chain = expanded.variables[cls.start]!;
-        if (chain.some(exempt)) continue;
         if (!crossesLine(expanded.text, cls, groups)) continue;
         const raw = expanded.rawOffset[cls.start]!;
         findings.push({
