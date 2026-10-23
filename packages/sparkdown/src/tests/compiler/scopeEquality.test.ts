@@ -17,9 +17,10 @@ import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 // mid-line and then matched an `^`-anchored rule at a non-line-start).
 //
 // This test asserts ZERO per-character scope-stack divergence between the two
-// engines, and FAILS THE BUILD on any divergence. Because vscode-textmate is
-// the reference we ship to users and cannot patch, every divergence is a
-// grammar bug to fix in the grammar (see
+// engines, and FAILS THE BUILD on any divergence. vscode-textmate is the
+// reference we ship to users and cannot patch: a divergence where the tree
+// reads the grammar differently is fixed in textmate-grammar-tree, and one
+// that remains once both engines read it the same way is a grammar bug (see
 // packages/sparkdown/docs/compiler/GRAMMAR.md §17).
 //
 // Coverage = a set of hand-written targeted fixtures (below) + every `.sd`
@@ -33,6 +34,23 @@ const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
 // colon, blank-line-separated content, and comment-line-separated content.
 // Newlines are explicit `\n` so the fixtures are immune to CRLF checkout.
 const TARGETED: Record<string, string> = {
+  // An assignment whose `=` ends its line (I-1283): the missing operand's
+  // lookahead must not read the next line, as vscode-textmate cannot.
+  "assign-trailing-space-in-function":
+    "function greet()\n    x = \n    local z = 1\nend\n",
+  "assign-no-trailing-space-in-function":
+    "function greet()\n    x =\n    local z = 1\nend\n",
+  // Any operator that ends its line reads only that line: the tree scoped
+  // this `+` as a missing operand by reading `local` on the next line.
+  "operator-at-line-end-before-statement":
+    "function f(t)\n  store x = 1 +\n  local y = 2 +;\nend\n",
+  // A doc tag at column 0 in a block comment (I-1105): `LuauDocParamModifier`'s
+  // whitespace lookbehind must not see the line break above it.
+  "doc-param-tag-at-column-0":
+    "function f()\n  --[[\n\\param x the value\n  ]]\n  return 1\nend\n",
+  // A story statement ends at its line (GRAMMAR.md §11.5), so this agreed
+  // before the line bound too; it guards the top-level reading.
+  "assign-trailing-space-top-level": "x = \nlocal z = 1\n",
   // A method's name past the trivia after its `:` (I-1322), and the token
   // that is no name where a comment leaves the reading.
   "next-line-method-trivia":

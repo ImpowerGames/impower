@@ -66,8 +66,12 @@ export class MatchRule implements Rule {
       return null; // Detected infinite recursion
     }
     state.enter(this.id, from);
-    const str = state.str;
-    const result = this.matcher.match(str, from);
+    // Match against the current line only, as vscode-textmate does.
+    state.line(from);
+    const result = this.matcher.match(
+      state.lineText,
+      from - state.lineStart,
+    );
     if (!result) {
       state.exit(this.id, from);
       return null;
