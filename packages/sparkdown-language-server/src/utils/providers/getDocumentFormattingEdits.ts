@@ -430,11 +430,23 @@ function isCommaContinuationLine(
   return false;
 }
 const LINE_TRIVIA = new Set(["Newline", "ExtraWhitespace", "Whitespace", "OptionalWhitespace"]);
-// What the continued-list test reads: the document's text, and, by each
-// reassignment's offset, where the statement that begins at it ends.
+// What the continued-list test reads: the document's text, by each
+// reassignment's offset where the statement that begins at it ends, and by
+// a block's start and end its lines parsed once, indented (`readIndented`).
 interface ListSource {
   text: string;
   lists: Map<number, number>;
+  blocks: Map<string, IndentedReading>;
+}
+
+// Source lines parsed again, indented, in a function body: the tree, each
+// line's start in the source and in the indented text, and the statements the
+// body holds, by the line they begin at the start of.
+interface IndentedReading {
+  tree: Tree;
+  sourceStarts: number[];
+  indentedStarts: number[];
+  statements: Map<number, SyntaxNode>;
 }
 
 let listParser: TextmateGrammarParser | undefined;
@@ -470,22 +482,64 @@ function functionHeaderName(node: SyntaxNode): SyntaxNode | null {
 // body, and the statement's end is mapped back. Deciding with the same
 // grammar that reads the formatted text is what keeps a second format from
 // moving these lines again.
+//
+// The block is parsed once, from its first statement, and shared by the
+// reassignments in it. One that the indented block holds as a statement at
+// the start of its line is read exactly as a parse beginning at it would
+// read it: the grammar tells lines apart by whether they start at column 0,
+// which no indented line does, so the parser stands in the function body at
+// that line's start either way and reads the same lines after it. Any other
+// reassignment, one that starts partway through a line or that the indented
+// block reads into an earlier statement's list, parses the rest of its block
+// on its own.
 function listEnd(reassignment: SyntaxNode, source: ListSource): number {
   const cached = source.lists.get(reassignment.from);
   if (cached !== undefined) return cached;
+  let blockStart = reassignment.from;
+  for (let prev = reassignment.prevSibling; prev; prev = prev.prevSibling) blockStart = prev.from;
   let blockEnd = reassignment.to;
   for (let next = reassignment.nextSibling; next; next = next.nextSibling) blockEnd = next.to;
-  // The whole rest of the block: a list can run on through any number of
-  // lines (comment lines, values), so no shorter read can say where it ends.
-  const lines = source.text.slice(reassignment.from, blockEnd).split("\n");
-  // Each line's start in the source and in the indented text.
-  const prefix = "function __list()\n";
+  const key = `${blockStart}:${blockEnd}`;
+  let block = source.blocks.get(key);
+  if (!block) {
+    block = readIndented(source.text, blockStart, blockEnd);
+    source.blocks.set(key, block);
+  }
+  let reading = block;
+  let reassigned = sharedStatement(reassignment, source.text, block);
+  if (!reassigned) {
+    if (reassignment.from !== blockStart) reading = readIndented(source.text, reassignment.from, blockEnd);
+    reassigned = firstNodeNamed(reading, reassignment.name);
+  }
+  let end = reassignment.to;
+  if (reassigned) {
+    // The source offset of the indented text's offset `at`.
+    const { sourceStarts, indentedStarts } = reading;
+    let line = indentedStarts.length - 1;
+    while (line > 0 && indentedStarts[line]! > reassigned.to) line -= 1;
+    end = Math.max(end, sourceStarts[line]! + Math.max(0, reassigned.to - indentedStarts[line]!));
+  }
+  source.lists.set(reassignment.from, end);
+  return end;
+}
+
+const LIST_PREFIX = "function __list()\n";
+
+// The source from `from` to `to` parsed in a function body with every line
+// after the first indented, and the first too when it starts at column 0:
+// the whole rest of the block, since a list can run on through any number of
+// lines (comment lines, values), so no shorter read can say where it ends.
+function readIndented(text: string, from: number, to: number): IndentedReading {
+  const lines = text.slice(from, to).split("\n");
   const sourceStarts: number[] = [];
   const indentedStarts: number[] = [];
-  let sourceAt = reassignment.from;
-  let indented = prefix;
+  // Each line's start in the indented text, before its added indentation.
+  const lineStarts = new Map<number, number>();
+  let sourceAt = from;
+  let indented = LIST_PREFIX;
   lines.forEach((line, i) => {
     sourceStarts.push(sourceAt);
+    lineStarts.set(indented.length, i);
     const added = i === 0 ? (/^\s/.test(line) ? "" : " ") : line.trim() ? "  " : "";
     indentedStarts.push(indented.length + added.length);
     indented += added + line + "\n";
@@ -493,28 +547,49 @@ function listEnd(reassignment: SyntaxNode, source: ListSource): number {
   });
   indented += "end\n";
   listParser ??= createSparkdownParser();
-  let end = reassignment.to;
   const tree = listParser.parse(indented);
+  const statements = new Map<number, SyntaxNode>();
+  const body = tree.topNode
+    .getChild("LuauFunctionDefinition")
+    ?.getChild("LuauFunctionDefinition_content")
+    ?.getChild("LuauFunctionBody")
+    ?.getChild("LuauFunctionBody_content");
+  for (let child = body?.firstChild ?? null; child; child = child.nextSibling) {
+    const line = lineStarts.get(child.from);
+    if (line !== undefined) statements.set(line, child);
+  }
+  return { tree, sourceStarts, indentedStarts, statements };
+}
+
+// The statement that `reassignment` is in a block's shared reading: the one
+// of its name at the start of the line it begins, when nothing but
+// whitespace stands before it on that line, so that a parse beginning at it
+// would read the same line.
+function sharedStatement(reassignment: SyntaxNode, text: string, block: IndentedReading): SyntaxNode | null {
+  const { sourceStarts } = block;
+  let line = sourceStarts.length - 1;
+  while (line > 0 && sourceStarts[line]! > reassignment.from) line -= 1;
+  if (line === 0 && reassignment.from !== sourceStarts[0]) return null;
+  if (text.slice(sourceStarts[line]!, reassignment.from).trim()) return null;
+  const statement = block.statements.get(line);
+  return statement?.name === reassignment.name ? statement : null;
+}
+
+// The first node of `name` after the function header in a reading that
+// begins at the reassignment.
+function firstNodeNamed(reading: IndentedReading, name: string): SyntaxNode | null {
   let found: SyntaxNode | null = null;
-  tree.iterate({
+  reading.tree.iterate({
     enter(node) {
       if (found) return false;
-      if (node.name === reassignment.name && node.from >= prefix.length) {
+      if (node.name === name && node.from >= LIST_PREFIX.length) {
         found = node.node;
         return false;
       }
       return undefined;
     },
   });
-  const reassigned = found as SyntaxNode | null;
-  if (reassigned) {
-    // The source offset of the indented text's offset `at`.
-    let line = indentedStarts.length - 1;
-    while (line > 0 && indentedStarts[line]! > reassigned.to) line -= 1;
-    end = Math.max(end, sourceStarts[line]! + Math.max(0, reassigned.to - indentedStarts[line]!));
-  }
-  source.lists.set(reassignment.from, end);
-  return end;
+  return found;
 }
 
 // The statements whose list an unindented line can carry on.
@@ -808,7 +883,7 @@ export const getFormatting = (
     });
   };
 
-  const listSource: ListSource = { text: document.getText(), lists: new Map() };
+  const listSource: ListSource = { text: document.getText(), lists: new Map(), blocks: new Map() };
 
   const processIndent = (from: number, to: number) => {
     // Zero-width indent at end-of-doc — skip so we don't emit a
