@@ -161,7 +161,7 @@ interface ScopedDeclaredLocals extends ReadonlySet<string> {
  * in scope: `bindings` are the function's parameters, locals, local
  * functions and loop variables with the ranges they bind over
  * (`functionBindings`), and `bodyWide` the names it declares for the whole
- * body (a `function NAME`, hoisted to the body, and a `store`). A frame
+ * body (a `store`). A frame
  * without a record, and a name `bindings` does not hold, is in scope
  * everywhere in the body.
  *

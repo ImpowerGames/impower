@@ -290,24 +290,6 @@ export interface LowerContext {
    */
   declaredLocalsStack?: Set<string>[];
   /**
-   * Stack of per-enclosing-function-scope buffers for HOISTED local
-   * declarations. Each entry holds the `local NAME = nil` pre-declarations
-   * that need to land at the top of an enclosing function's body —
-   * specifically the bindings for nested `function NAME(...) end` (without
-   * a `local` prefix). Luau treats those as `NAME = function() end`, which
-   * is visible across `do`/`while`/`for`/`if` block boundaries within the
-   * enclosing function. Emitting the `VariableAssignment` in place inside a
-   * block would scope it to that block (BeginScope/EndScope discards it on
-   * exit). Instead, the in-place site emits a REASSIGNMENT to a NAME that
-   * was pre-declared at function-body level; this stack holds those
-   * pre-declarations until the enclosing function-definition lowerer
-   * prepends them to its body.
-   *
-   * Parallel to `functionScopeStack`: each function-definition lowerer
-   * pushes one buffer on entry and pops on exit.
-   */
-  hoistedNestedFnDeclsStack?: ParsedObject[][];
-  /**
    * Stack of per-enclosing-function-scope sibling-subflow frames. A
    * nested function statement, variadic or not, lowers as a closure
    * assigned to a local (`lowerNestedNamedFunction`), so no lowerer
@@ -315,7 +297,7 @@ export interface LowerContext {
    * names an assignment rebinds (`lowerReassignment`), whose calls
    * dispatch through the variable (`SiblingSubFlowInfo.rebound`).
    *
-   * Parallel to `functionScopeStack` / `hoistedNestedFnDeclsStack`:
+   * Parallel to `functionScopeStack`:
    * each function-definition lowerer pushes one frame on entry and
    * pops on exit.
    */
