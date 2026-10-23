@@ -3,7 +3,8 @@
 // story local with a second value and no comma before it (I-1424), a bare
 // local with no name (I-1425), a store name list with an empty slot before
 // its end (I-1426), and a story store whose run-on value leaves a call open
-// to the end of its line (I-1477). A store reports what the declaration
+// to the end of its line (I-1477), and a story store or local whose own value
+// leaves a bracket open to the end of its line (I-1490). A store reports what the declaration
 // spelled with `local`, as wide as `store`, does.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -74,8 +75,12 @@ function official(text: string, line = 0, shift = 0): string[] {
     .sort();
 }
 
-/** Pins a line's errors before a scene, ending the document, with no line break after it and in a scene, cold and incremental. */
-function pinLine(line: string, luau: string): void {
+/**
+ * Pins a line's errors before a scene, ending the document, with no line
+ * break after it and (unless `inScene` is false) in a scene, cold and
+ * incremental.
+ */
+function pinLine(line: string, luau: string, inScene = true): void {
   const expected = official(`${luau}\n`);
   test(`${JSON.stringify(line)} before a scene`, () => {
     expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
@@ -89,6 +94,7 @@ function pinLine(line: string, luau: string): void {
   test(`${JSON.stringify(line)} with no line break after it`, () => {
     expect(sparkdownErrors(line)).toEqual(official(luau));
   });
+  if (!inScene) return;
   test(`${JSON.stringify(line)} in a scene`, () => {
     const text = `scene start\n  ${line}\n  Hello.\nend\n`;
     expect(sparkdownErrors(text)).toEqual(official(`${luau}\n`, 1, 2));
@@ -246,5 +252,21 @@ describe("a declaration's span at its edges", () => {
 describe("a story store whose run-on value leaves a call open to its line's end (I-1477)", () => {
   for (const line of ["store s = 1 g(x", "store s = 1 g(", "store s = 1 g(x, y", "store s = 1 g(x -- note", "local s = 1 g(x"]) {
     pinLine(line, line.replace(/^store/, "local"));
+  }
+});
+
+// A story store or local whose own value leaves a bracket open to the end of
+// its line names the opener by line, as Luau, whose end of input is on the
+// next line, does (I-1490). In a scene the next story line is read on into
+// (I-1532), and a store's comment after the value moves its range (I-1533).
+describe("a story store or local whose value leaves a bracket open to its line's end (I-1490)", () => {
+  for (const value of ["g(x", "{1", "(1", "g(x, y", "{1, 2"]) {
+    pinLine(`store s = ${value}`, `local s = ${value}`, false);
+    pinLine(`local s = ${value}`, `local s = ${value}`, false);
+  }
+  pinLine("local s = (1 -- note", "local s = (1 -- note", false);
+  // A bracket the line goes on past keeps naming its opener by column.
+  for (const line of ["store s = g(x y)", "store s = {1 2}", "local s = g(x y)"]) {
+    pinLine(line, line.replace(/^store/, "local"), false);
   }
 });
