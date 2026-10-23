@@ -606,6 +606,24 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           ),
         );
       }
+      // Glued to the operand after it too (`...then'b'`), the keyword ends
+      // its if expression's condition and has no whitespace slot after it;
+      // spaced on its left it reads as the arm's operator, whose slot the
+      // separator rule fills. The same zero-width separator here decides
+      // that gap the same way in both readings.
+      const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
+      if (
+        nextChar !== "" &&
+        !/\s/.test(nextChar) &&
+        !isInsideAnyInlineAlternator(nodeRef, (from, to) => this.read(from, to))
+      ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("separator").range(
+            nodeRef.to,
+            nodeRef.to,
+          ),
+        );
+      }
     }
     // A one-line table constructor or table type is spaced inside its
     // braces (`{ a = 1 }`, `{ number }`). The separator rule tightens after
@@ -783,6 +801,13 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
         return annotations;
       if (isInStructBlockKey(nodeRef.node)) return annotations;
+      // Text a prop's value cannot hold is reported as written: removing
+      // its spaces would make it read as more of the value (`f(...)
+      // { text "body" }` past the nesting limit as `f(...){text"body"}`),
+      // which the next format then spaces as a table.
+      if (ancestorNamed(nodeRef.node, "LuauSparkleValueOverflow")) {
+        return annotations;
+      }
       annotations.push(
         SparkdownAnnotation.mark<FormatType>(
           isSpacedBraceEdge(nodeRef.node, (from, to) => this.read(from, to))
