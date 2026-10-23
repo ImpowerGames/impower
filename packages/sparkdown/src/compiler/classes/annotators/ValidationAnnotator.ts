@@ -1,4 +1,5 @@
 import { explicitRuleNames, isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { LUAU_STATEMENT_KEYWORDS } from "../../utils/luauStatementKeywords";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { documentString } from "../../utils/documentString";
@@ -167,11 +168,6 @@ const MISSING_EXPRESSION = "Expected identifier when parsing expression";
 const LINE_BREAK_BINARY_OPERATORS = new Set(
   ["LuauArithmeticOperator", "LuauCompareOperator", "LuauConcatOperator", "LuauLogicalOperator"].flatMap(explicitRuleNames),
 );
-// Luau's reserved words that begin a statement or close a block and begin no
-// expression, which Luau reports as the expression it found missing.
-const LUAU_STATEMENT_KEYWORDS = new Set([
-  "break", "do", "else", "elseif", "end", "for", "local", "repeat", "return", "then", "until", "while",
-]);
 // Worded like the missing-`end` message of a define (validateDefineStructure).
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";

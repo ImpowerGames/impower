@@ -1,9 +1,9 @@
-// A binary operator that ends its line in a `store` declaration in a
+// A binary operator or `=` that ends its line in a `store` declaration in a
 // function, before a line that begins with a statement keyword, reports the
-// keyword as the missing operand, as Luau reports it for the same
-// declaration spelled with `local` (I-1283). The type checker does not read
-// a store; once no grammar pattern could see the next line, nothing else
-// reported it.
+// keyword as the missing operand at the keyword, as Luau reports it for the
+// same declaration spelled with `local` (I-1283). The type checker does not
+// read a store; once no grammar pattern could see the next line, nothing
+// reported an operator's, and the `=`'s moved to the `=`.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -24,17 +24,19 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-const OPERATORS = ["+", "..", "==", "and", "or"];
+// The value's beginning and the operator after it; a bare `=` has no value
+// before its line break, and its error is at the keyword too.
+const LINE_ENDS = ["= 1 +", "= 1 ..", "= 1 ==", "= 1 and", "= 1 or", "="];
 // The line after the operator's, and the `end` of the function alone.
 const NEXT_LINES = ["local y = 2", "return 1", "do end", "for i = 1, 2 do end", "while true do end", "repeat until true", "break", ""];
 
 describe("a line-end operator in a store before a statement keyword (I-1283)", () => {
-  for (const operator of OPERATORS) {
+  for (const lineEnd of LINE_ENDS) {
     for (const next of NEXT_LINES) {
       const body = `${next ? `  ${next}\n` : ""}end\n`;
-      const source = `function f(t)\n  store x = 1 ${operator}\n${body}`;
+      const source = `function f(t)\n  store x ${lineEnd}\n${body}`;
       test(JSON.stringify(source), () => {
-        const official = officialErrorList(`function f(t)\n  local x = 1 ${operator}\n${body}`).slice().sort();
+        const official = officialErrorList(`function f(t)\n  local x ${lineEnd}\n${body}`).slice().sort();
         expect(official).toHaveLength(1);
         expect(sparkdownErrors(source)).toEqual(official);
       });
