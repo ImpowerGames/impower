@@ -43,6 +43,12 @@ export class ScopedRule implements Rule {
   constructor(repo: GrammarRepository, def: ScopedRuleDefinition) {
     this.repo = repo;
 
+    // Refused before anything is registered, so a refusal leaves no type
+    // index without its node (the repository's eager resolution catches it).
+    if ("while" in def) {
+      throw new Error("while rules are not currently supported");
+    }
+
     let id = def.id ?? createID();
     this.id = id;
     this.node = new GrammarNode(
@@ -64,10 +70,6 @@ export class ScopedRule implements Rule {
       closedBy: (def.closedBy ?? def.brackets) ? endId : undefined,
     };
     this.beginRule = repo.add(beginRuleItem, beginId);
-
-    if ("while" in def) {
-      throw new Error("while rules are not currently supported");
-    }
 
     // end
     const endRuleItem: MatchRuleDefinition = {

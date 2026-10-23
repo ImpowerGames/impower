@@ -82,6 +82,10 @@ export class Grammar {
       this.rules = this.repository.getRules(definition.patterns, "");
     }
 
+    // Resolve every pattern list now, so rules written inline in them have
+    // their nodes in the node set below.
+    this.repository.resolveAll();
+
     // Cache ordered Nodes
     const noneNode = new GrammarNode(
       NodeID.none,

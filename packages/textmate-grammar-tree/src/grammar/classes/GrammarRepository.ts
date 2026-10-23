@@ -53,6 +53,28 @@ export class GrammarRepository {
       .sort((a, b) => a.typeIndex - b.typeIndex);
   }
 
+  /**
+   * Resolves the patterns of every {@link SwitchRule} (a capture's patterns
+   * and a scoped rule's content), so a rule written inline in them has its
+   * node in {@link nodes} before the grammar's node set is built. A rule a
+   * resolution adds is visited by the same pass, so inline rules nested in
+   * inline rules resolve too. A pattern list that cannot resolve (an include
+   * the tree does not support, or an unsupported rule in it) is left to
+   * resolve where a match first reaches it, which reports the error there,
+   * so a grammar still loads when its tokenizing never reaches that list.
+   */
+  resolveAll() {
+    for (const obj of this.map.values()) {
+      if (obj instanceof SwitchRule) {
+        try {
+          obj.resolve();
+        } catch {
+          // Left unresolved: `resolve` runs again, and throws, at first match.
+        }
+      }
+    }
+  }
+
   /** Returns a fresh ID for use by a {@link GrammarNode}. */
   nextTypeIndex() {
     const id = this.curID;
