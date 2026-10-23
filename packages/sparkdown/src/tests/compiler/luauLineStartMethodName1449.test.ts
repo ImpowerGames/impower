@@ -93,6 +93,7 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  return (t)\n    :end", "end"],
     ["local t = {}\n  f(t\n    :end)", "end"],
     ["local t = {}\n  print(t)\n    :end", "end"],
+    ["local t = {}\n  (t)\n    :end", "end"],
     // Other words that open or close a block, and the access going on.
     ["local t = {}\n  local b = t\n    :if", "if"],
     ["local t = {}\n  local b = t\n    :end()", "end"],
@@ -121,6 +122,7 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t)\n    :foo()", null],
     ["local t = {}\n  local b = t\n    :foo()", null],
     ["local t = {}\n  print(t)\n    :foo()", null],
+    ["local t = {}\n  (t)\n    :foo()", null],
     ["local t = {}\n  local b = (t)\n    : --[=========[c]=========] foo()", null],
     ["local x\n  : number = 1", null],
     ["local function f()\n    : number\n    return 1\n  end", null],
