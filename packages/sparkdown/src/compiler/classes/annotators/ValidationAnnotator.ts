@@ -15,7 +15,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
-import { isStoryCondition } from "../../utils/storyIslands";
+import { cutIslands, isStoryCondition } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -600,11 +600,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   // (`loweredLuauBodyOf`), by its range, the errors its reading reports.
   private loweredReadings = new Map<string, readonly { message: string; from: number; to: number }[]>();
 
+  // The tree's story islands cut at their unclosed bracket's line
+  // (`cutIslands`), found once per tree.
+  private cutIslandRanges?: { tree: Tree; islands: readonly { from: number; to: number }[] };
+
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
     this.unreadReadings.clear();
     this.loweredReadings.clear();
     super.update(tree, text, uri);
+  }
+
+  /** Whether an offset is in a story island cut at its unclosed bracket's line. */
+  private inCutIsland(at: number): boolean {
+    const tree = this.tree;
+    if (!tree) return false;
+    if (this.cutIslandRanges?.tree !== tree) this.cutIslandRanges = { tree, islands: cutIslands(tree, this.statementDocumentText()) };
+    return this.cutIslandRanges.islands.some((island) => at >= island.from && at < island.to);
   }
 
   /**
@@ -1288,6 +1300,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    // A story declaration whose bracket never closes ends with its opener's
+    // line, and the tree reads the story lines after it into the bracket
+    // (`cutIslands`, I-1532). The checker's reading of the line alone
+    // reports every error of its Luau, so no Luau check reports in it: one
+    // here would read the tree's run-on, which is story.
+    if (nodeRef.name.startsWith("Luau") && this.inCutIsland(nodeRef.from)) {
+      return annotations;
+    }
     // Before the unread reading's ownership: that reading's errors are the
     // checker's, and this check reports only where the checker does not read.
     this.validateLineEndOperator(annotations, nodeRef);

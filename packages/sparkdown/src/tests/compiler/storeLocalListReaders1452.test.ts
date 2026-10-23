@@ -257,16 +257,154 @@ describe("a story store whose run-on value leaves a call open to its line's end 
 
 // A story store or local whose own value leaves a bracket open to the end of
 // its line names the opener by line, as Luau, whose end of input is on the
-// next line, does (I-1490). In a scene the next story line is read on into
-// (I-1532), and a store's comment after the value moves its range (I-1533).
-describe("a story store or local whose value leaves a bracket open to its line's end (I-1490)", () => {
+// next line, does (I-1490). In a scene the value ends at its line too, and
+// the story line after it is not read on into (I-1532). A store's comment
+// after the value moves its range (I-1533).
+describe("a story store or local whose value leaves a bracket open to its line's end (I-1490, I-1532)", () => {
   for (const value of ["g(x", "{1", "(1", "g(x, y", "{1, 2"]) {
-    pinLine(`store s = ${value}`, `local s = ${value}`, false);
-    pinLine(`local s = ${value}`, `local s = ${value}`, false);
+    pinLine(`store s = ${value}`, `local s = ${value}`);
+    pinLine(`local s = ${value}`, `local s = ${value}`);
   }
   pinLine("local s = (1 -- note", "local s = (1 -- note", false);
   // A bracket the line goes on past keeps naming its opener by column.
   for (const line of ["store s = g(x y)", "store s = {1 2}", "local s = g(x y)"]) {
-    pinLine(line, line.replace(/^store/, "local"), false);
+    pinLine(line, line.replace(/^store/, "local"));
+  }
+});
+
+/** Pins a document's errors, cold and incremental, to the official parser's for `luau` moved down `line` lines and right `shift` characters. */
+function pinText(name: string, text: string, luau: string, line: number, shift: number): void {
+  test(name, () => {
+    expect(sparkdownErrors(text)).toEqual(official(luau, line, shift));
+    expectIncrementalEqualsCold(text);
+  });
+}
+
+// A bracket a story declaration never closes carried nothing on: its value
+// ends at the end of the outermost unclosed opener's line, and the story
+// lines the tree reads into the bracket after it are not read as its Luau
+// (I-1532). A bracket closed on a later line still carries the value on.
+describe("a story store or local whose unclosed bracket the tree reads on into story lines (I-1532)", () => {
+  const values = ["g(x", "{1", "(1", "g(x, y", "{1, 2"];
+  for (const value of values) {
+    for (const keyword of ["store", "local"]) {
+      pinText(`"${keyword} s = ${value}" before a story line`, `${keyword} s = ${value}\nHello.\n${SCENE}`, `local s = ${value}\n`, 0, 0);
+    }
+  }
+  pinText('"store s = {1," before a line it would continue in a scene', "scene start\n  store s = {1,\n  2\nend\n", "local s = {1,\n", 1, 2);
+  pinText('"store s = {1," before a line it would continue', "store s = {1,\n2\n" + SCENE, "local s = {1,\n", 0, 0);
+  // The story lines after the bracket, however they read, are story: one
+  // with no trailing dot, one that looks like dangling or unfinished Luau,
+  // and two or more of them.
+  const stories = [["Hello there"], ["Hello:"], ["a.b("], ["Hello.", "Goodbye."], ["Hello there", "a.b(", "Goodbye"]];
+  for (const lines of stories) {
+    for (const line of ["store s = g(x", "local s = {1"]) {
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      const story = JSON.stringify(lines.join(" / "));
+      pinText(`"${line}" before ${story} in a scene`, `scene start\n  ${line}\n${lines.map((l) => `  ${l}\n`).join("")}end\n`, luau, 1, 2);
+      pinText(`"${line}" before ${story}`, `${line}\n${lines.map((l) => `${l}\n`).join("")}${SCENE}`, luau, 0, 0);
+    }
+  }
+  // A function the unclosed bracket's line opens ends with that line too: its
+  // body on the story lines after it is story, so its `end` is missing there.
+  const functionLines = ["store s = g(function()", "local s = g(function()", "store s = g(function() if x then", "store s = {function()", "s = g(function()"];
+  // A block the function opens on that line, missing what Luau expects next.
+  for (const block of ["while x", "if x", "for i = 1, 2", "for k in t", "repeat", "while x do", "return", "return {1", "return g(", "do", "if x then else", "for i = 1, 2 do"]) {
+    functionLines.push(`local s = g(function() ${block}`, `store s = g(function() ${block}`, `s = g(function() ${block}`);
+  }
+  for (const line of functionLines) {
+    const luau = `${line.replace(/^store/, "local")}\n`;
+    pinText(`"${line}" before its body in a scene`, `scene start\n  ${line}\n  return 1\n  end\n  Hello.\nend\n`, luau, 1, 2);
+    pinText(`"${line}" before its body`, `${line}\nreturn 1\nend\nHello.\n${SCENE}`, luau, 0, 0);
+    // With only story after it, no `end` in the tree closes what it opens.
+    pinText(`"${line}" before a story line in a scene`, `scene start\n  ${line}\n  Hello.\nend\n`, luau, 1, 2);
+    pinText(`"${line}" before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
+  }
+  pinLine("store s = g(function() return 1 end", "local s = g(function() return 1 end");
+  // What a check of Sparkdown's own reads after a construct that begins on
+  // the cut line is the story after it, not the construct's Luau: a dangling
+  // `.`, an unfinished condition, an if expression and an empty assignment.
+  for (const value of ["g(x.", "g(function() local a =", "g(function() return if x then 1", "g(function() if x and", "g(function() if x then elseif y and", "g(if x", "g(if x then 1"]) {
+    for (const keyword of ["store s", "local s", "s"]) {
+      const line = `${keyword} = ${value}`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`"${line}" before a story line in a scene`, `scene start\n  ${line}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`"${line}" before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+  }
+  // A string's own error in the bracket is reported once, and a string the
+  // line continues with `\` is read up to the line's end, as Luau reads the
+  // line alone; the braces of a string are not brackets.
+  for (const keyword of ["store s", "local s", "s"]) {
+    const backtick = `${keyword} = g(\`a {} b\``;
+    pinText(`"${backtick}" before a story line in a scene`, `scene start\n  ${backtick}\n  Hello.\nend\n`, `${backtick.replace(/^store/, "local")}\n`, 1, 2);
+    pinText(`"${backtick}" before a story line`, `${backtick}\nHello.\n${SCENE}`, `${backtick.replace(/^store/, "local")}\n`, 0, 0);
+    for (const quote of ['"', "'", "`"]) {
+      const line = `${keyword} = g(${quote}abc\\`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`${JSON.stringify(line)} continued on a story line in a scene`, `scene start\n  ${line}\n  continued${quote}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`${JSON.stringify(line)} continued on a story line`, `${line}\ncontinued${quote}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+  }
+  // A function the bracket opens whose line ends with a comment, where the
+  // tree closes the function with the scene's `end`: the flow's closer
+  // stands after the cut, so the reading meets its end of input first.
+  for (const keyword of ["store s", "local s", "s"]) {
+    for (const value of ["g(function() return -- note", "g(function() return 1 -- note", "g(function() return 1 --[[note]]", "g(function() return 1; -- note"]) {
+      const line = `${keyword} = ${value}`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`${JSON.stringify(line)} before a story line in a scene`, `scene start\n  ${line}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`${JSON.stringify(line)} before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+  }
+  // Round 4: an unfinished `\u{` escape, whose brace the tree reads as a
+  // double-quoted string's interpolation; a list a function in the bracket
+  // leaves open; and a string continued with `\z`, which skips the line
+  // break, read as Luau reads the line alone.
+  for (const keyword of ["store s", "local s", "s"]) {
+    for (const value of ['g("abc\\u{', "g(function() a,", "g(function() local a,"]) {
+      const line = `${keyword} = ${value}`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`${JSON.stringify(line)} before a story line in a scene`, `scene start\n  ${line}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`${JSON.stringify(line)} before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+    for (const quote of ['"', "'"]) {
+      const line = `${keyword} = g(${quote}abc\\z`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`${JSON.stringify(line)} continued on a story line in a scene`, `scene start\n  ${line}\n  continued${quote}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`${JSON.stringify(line)} continued on a story line`, `${line}\ncontinued${quote}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+    // An alternator's arms on the story lines after the cut are story: the
+    // errors are those of the same line with no story after it.
+    for (const value of ["g(cycle | 1", "g(cycle | x."]) {
+      const line = `${keyword} = ${value}`;
+      test(`${JSON.stringify(line)} before story lines and a later arm`, () => {
+        const text = `scene start\n  ${line}\n  Hello.\n  | (1 2)\nend\n`;
+        expect(sparkdownErrors(text)).toEqual(sparkdownErrors(`scene start\n  ${line}\nend\n`));
+        expectIncrementalEqualsCold(text);
+      });
+      // A store whose alternator takes the scene's `end` as its own still
+      // ends its reading at the line's end, where the `local` form's does.
+      if (keyword === "store s") {
+        test(`${JSON.stringify(line)} before the scene's end`, () => {
+          expect(sparkdownErrors(`scene start\n  ${line}\nend\n`)).toEqual(sparkdownErrors(`scene start\n  ${line.replace(/^store/, "local")}\nend\n`));
+        });
+      }
+    }
+  }
+  pinLine("store s = g({1, (2", "local s = g({1, (2");
+  pinLine("local s = g({1, (2", "local s = g({1, (2");
+  // The outermost unclosed opener's line ends the value, even where a bracket inside it closes on a later line.
+  pinText('"store s = g(x, {" closing only its table on the next line', "scene start\n  store s = g(x, {\n  1}\n  Hello.\nend\n", "local s = g(x, {\n", 1, 2);
+  for (const [name, text] of [
+    ["a multi-line table in a scene", "scene start\n  store t = {\n    1,\n  }\n  Hello.\nend\n"],
+    ["a multi-line table at the top level", `store t = {\n  1,\n}\n${SCENE}`],
+    ["a multi-line call in a scene", "scene start\n  store s = math.max(1,\n    2)\n  Hello.\nend\n"],
+    ["a multi-line local call in a scene", "scene start\n  local s = math.max(1,\n    2)\n  Hello.\nend\n"],
+  ]) {
+    test(`${name} reads on with no error`, () => {
+      expect(sparkdownErrors(text!)).toEqual([]);
+      expectIncrementalEqualsCold(text!);
+    });
   }
 });

@@ -34,6 +34,7 @@ import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
 import { reportReadingErrors, reportSyntaxErrors } from "../expression/lowerFunction";
 import { documentText, offsetAt, readBlockAst, readExpressionAst } from "./luauAst";
+import { enclosingUnclosedIslandEnd } from "../../utils/storyIslands";
 import { nextLuauToken, readLuauBlock, readLuauExpression } from "../../typecheck/readLuauAst";
 import { enclosingAlternator, isLuauNodeName, LUAU_STATEMENTS } from "../../typecheck/LuauUnitNodes";
 import {
@@ -583,7 +584,11 @@ export function tokenAfter(nodes: readonly SyntaxNode[], ctx: LowerContext): num
   if (!last) return undefined;
   const alternator = enclosingAlternator(last.parent);
   if (!alternator) return undefined;
-  return nextLuauToken(last.to, documentText(ctx), alternator.to)?.from;
+  // In a story statement cut at its unclosed bracket's line, the reading
+  // ends at the cut (`enclosingUnclosedIslandEnd`, I-1532).
+  const text = documentText(ctx);
+  const cut = enclosingUnclosedIslandEnd(alternator, text);
+  return nextLuauToken(last.to, text, cut !== undefined ? Math.min(cut, alternator.to) : alternator.to)?.from;
 }
 
 /**
@@ -594,11 +599,11 @@ export function tokenAfter(nodes: readonly SyntaxNode[], ctx: LowerContext): num
  */
 export function reportAlternatorValue(candidate: SyntaxNode, ctx: LowerContext): void {
   reportAlternatorHead(candidate, ctx);
-  for (const nodes of armNodesOf(candidate)) reportArmReading(nodes, ctx, true);
+  for (const nodes of armNodesOf(candidate, documentText(ctx))) reportArmReading(nodes, ctx, true);
 }
 
 /** The nodes each arm of an alternator holds, trivia left out, in order. */
-function armNodesOf(candidate: SyntaxNode): SyntaxNode[][] {
+function armNodesOf(candidate: SyntaxNode, text: string): SyntaxNode[][] {
   const isCandidate = ALTERNATOR_CANDIDATES.has(candidate.name);
   const armsNode = isCandidate ? alternatorArms(candidate) : null;
   // An empty first arm whose separator the head took leaves no content, or
@@ -609,7 +614,11 @@ function armNodesOf(candidate: SyntaxNode): SyntaxNode[][] {
   // The arms begin with the first arm's body where the head took its
   // separator (I-1408).
   let inArm = isCandidate && headSeparator(candidate) !== null;
+  // The arms the tree reads on the story lines after a story statement's
+  // unclosed bracket are story, not the alternator's (I-1532).
+  const cut = enclosingUnclosedIslandEnd(candidate, text);
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (cut !== undefined && child.from >= cut) break;
     if (child.name === "LuauAlternatorSeparator") {
       if (inArm) arms.push(nodes);
       nodes = [];
@@ -676,7 +685,7 @@ export function alternatorPartsAst(candidate: SyntaxNode, text: string): Alterna
     const condition = valuedConditionNodes(candidate);
     if (condition.length > 0) readParts(condition);
   }
-  for (const nodes of armNodesOf(candidate)) readParts(nodes);
+  for (const nodes of armNodesOf(candidate, text)) readParts(nodes);
   return groups;
 }
 
