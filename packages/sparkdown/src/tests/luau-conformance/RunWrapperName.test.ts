@@ -241,6 +241,11 @@ done
       define: "local inner = function()",
       call: "inner()",
     },
+    {
+      shape: "a function inside another function",
+      define: "local function outer()\n  local function inner()",
+      call: "  inner()\nend\nouter()",
+    },
   ])(
     "shows $shape the file defines under the file's name",
     ({ define, call }) => {
@@ -258,6 +263,45 @@ done
       expect(shown).not.toContain("__run_");
       expect(shown).toContain("my helper");
       expect(recorded[0]).not.toContain("__run_");
+    },
+  );
+
+  // Only where a function is defined says that it is the file's: an
+  // author's function spelled like the wrapper, inside another function or
+  // at the top level, keeps its name (round 1, comment 6354742003).
+  test.each([
+    {
+      shape: "inside an author's function",
+      hold: "local function outer()\n  local function WRAPPER()",
+      call: "  WRAPPER()\nend\nouter()",
+      label: "outer.WRAPPER",
+    },
+    {
+      shape: "at the top level of a run file",
+      hold: "local function WRAPPER()",
+      call: "WRAPPER()",
+      label: "WRAPPER",
+    },
+  ])(
+    "keeps the name of an author's function spelled like the wrapper $shape",
+    ({ hold, call, label }) => {
+      const wrapper = "__run_file_3a_2f_2f_2fC_3a_2fproj_2fhelper_2eluau__";
+      const named = (text: string) => text.split("WRAPPER").join(wrapper);
+      const { recorded, paths } = probe([
+        {
+          uri: "file:///C:/proj/main.sd",
+          text: `${EXTERNALS}run helper\nrun shadow\ndone\n`,
+        },
+        { uri: "file:///C:/proj/helper.luau", text: `harness_record(1)\n` },
+        {
+          uri: "file:///C:/proj/shadow.luau",
+          text: named(
+            `${hold}\n  harness_record(debug.info(1, "n"))\n  harness_probe()\nend\n${call}\n`,
+          ),
+        },
+      ]);
+      expect(recorded).toEqual([1, wrapper]);
+      expect(paths[0]![paths[0]!.length - 2]).toBe(`shadow.${named(label)}`);
     },
   );
 

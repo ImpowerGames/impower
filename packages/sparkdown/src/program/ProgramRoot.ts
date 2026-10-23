@@ -562,8 +562,9 @@ export class ProgramRoot {
 
   /** The name an author reads a symbol by in a stack trace, `debug.info`,
    *  the frames view or a function value: a `run` file's wrapper by its
-   *  file (`runFileOf`), a function the file defines with the file in place
-   *  of the wrapper's part of its label, and any other as its label reads
+   *  file (`runFileOf`), a function the file defines (one whose definition
+   *  stands in the wrapper's flow) with the file in place of the wrapper's
+   *  leading part of its label, and any other as its label reads
    *  (`readableSymbolLabel`). It is only shown; the label stays the
    *  symbol's identity. */
   shownLabelOf(symbol: number): string {
@@ -571,23 +572,17 @@ export class ProgramRoot {
     if (file) {
       return file.label;
     }
-    const label = this.labelOf(symbol);
+    const label = readableSymbolLabel(this.labelOf(symbol));
     if (this._runFiles.size === 0) {
-      return readableSymbolLabel(label);
+      return label;
     }
-    this._runFileNames ??= new Map(
-      [...this._runFiles].map(([id, run]) => [this.table.symbols[id]!, run]),
-    );
-    return label
-      .split(".")
-      .map(
-        (part) => this._runFileNames!.get(part)?.label ?? readableSymbolLabel(part),
-      )
-      .join(".");
+    const flow = this.place(symbol)?.sequence.flow;
+    const holder = flow === undefined ? undefined : this._runFiles.get(flow);
+    const wrapper = holder ? this.table.symbols[flow!] : undefined;
+    return holder && wrapper && label.startsWith(`${wrapper}.`)
+      ? `${holder.label}${label.slice(wrapper.length)}`
+      : label;
   }
-
-  /** The record of the `run` file wrappers by their names. */
-  protected _runFileNames?: Map<string, RunFile>;
 
   /** The sequence that holds a chunk and the chunk's entry in it, searched
    *  for outward from `near` when one is given, or nothing when this root
