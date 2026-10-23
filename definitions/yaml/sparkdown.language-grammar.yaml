@@ -1851,6 +1851,40 @@ variables:
   # comment that spans lines still hides the name, since a lookbehind sees
   # no further back than its line in VS Code.
   LUAU_HEADER_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}})
+  # Block comments that begin a line and close on it, for a lookbehind that
+  # starts at `^` (`LuauMethodDefinition`, I-1506). Besides
+  # `LUAU_PLAIN_BLOCK_COMMENTS`, a comment of level four or more may hold a
+  # `]` (`--[====[a]b]====]`): its text runs to the last close of level four
+  # or more before the position, so the reading stays as it was before the
+  # header's begin was anchored to its line. The cost: two such comments with
+  # code between them pass over that code (`--[====[a]====] y = 1;
+  # --[====[b]====] f()`).
+  LUAU_LINE_LEADING_BLOCK_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*{{LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE}}{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*)
+  # A define's header up to its `with` and the whitespace or block comments
+  # after it (`define X with`, `define X as Y with --[[c]]`), for a
+  # lookbehind: a method written there (`define X with f() return 1 end
+  # end`) opens as one written at a line's start does (I-1506). It is the
+  # header's own shape, `define`, a name, any `as` and parent clauses
+  # (`LuauInheritanceOperation` reads each), then `with`, so a `with` that
+  # is a value in the body (`z = with f()`) is no header's, and a define
+  # nested in a one-line block (`if c then define X with f() …`) is. The
+  # line before `define` holds code and closed block comments only
+  # (`LUAU_CODE_BEFORE_DEFINE_HEADER`), so header-shaped text in a comment
+  # (`y = 1; --[[define Fake with --[[c]] print(1)`) is no header. The cost:
+  # a `--` in a string before the header (`s = "--"; define X with f() …`)
+  # hides the header-line method.
+  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_CODE_BEFORE_DEFINE_HEADER}}\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}*{{LUAU_DEFINE_HEADER_GAP}}with\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
+  # The line's start up to such a header: characters that open no comment,
+  # and block comments that close on the line.
+  LUAU_CODE_BEFORE_DEFINE_HEADER: (?:^{{LUAU_CODE_CHAR_OR_CLOSED_COMMENT}}*)
+  LUAU_CODE_CHAR_OR_CLOSED_COMMENT: (?:[^\-\r\n]|-[^\-\r\n]|{{LUAU_PLAIN_BLOCK_COMMENT}})
+  # An `as` and parent name of such a header.
+  LUAU_DEFINE_HEADER_PARENT: (?:{{LUAU_DEFINE_HEADER_GAP}}as{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}})
+  # Whitespace or block comments between the words of such a header.
+  LUAU_DEFINE_HEADER_GAP: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{WS}}+)
+  # A comment of level four or more, whose text runs to the last close of
+  # level four or more on its line, `]` included.
+  LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE: --\[====+\[[^\r\n]*\]====+\]
   # The start of the line a header keyword begins, with the attributes and
   # modifiers a declaration's keyword may follow (`@native local function`,
   # `export type function`).
@@ -5408,7 +5442,23 @@ repository:
   # ----------------------------------------------------------------------------
 
   # lookaround: the begin's `(?=[(])` leaves a name without a parameter list
-  # to LuauPropertyDefinition and LuauBlockBody. The end's line-start
+  # to LuauPropertyDefinition and LuauBlockBody. The begin's `^`, or its
+  # lookbehind over block comments that begin the line (`--[[c]] f()`,
+  # comments being trivia, `LUAU_LINE_LEADING_BLOCK_COMMENTS`), or right
+  # after the define header's `with` (`LUAU_DEFINE_HEADER_TO_WITH`), leaves a
+  # `name(` after code on its line (`y = 1; print(1)`) to LuauBlockBody,
+  # which reads it as a call statement of the define's body: `LuauDefine`
+  # tries its patterns again at every position of its body, so without it a
+  # call after a `;` opened this rule and took the define's `end` (I-1506).
+  # Ordering cannot decide it: LuauBlockBody tried first reads every
+  # header's `name(` as a call too, and tried after, as here, it is reached
+  # only where this rule declines. Splitting the rule cannot either, since a
+  # header and a call share their whole prefix; the define's end cannot
+  # decide where a child opens; and the name pattern cannot see what came
+  # before it on the line. Only the position is left, which the `^` and the
+  # lookbehind read. A comment that spans lines still hides the header,
+  # since a lookbehind sees no further back than its line. The end's
+  # line-start
   # alternative leaves any line but a code line at the header's indentation
   # and an `end` left of it to the method's body (LuauBlockBody), and the
   # method's own `end` to the end's last alternative; those two lines are
@@ -5416,7 +5466,7 @@ repository:
   LuauMethodDefinition:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
+    begin: (?:^|(?<=^{{LUAU_LINE_LEADING_BLOCK_COMMENTS}})|(?<={{LUAU_DEFINE_HEADER_TO_WITH}}))({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
