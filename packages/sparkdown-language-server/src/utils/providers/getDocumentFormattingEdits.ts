@@ -768,8 +768,6 @@ export const getFormatting = (
     null;
 
   let tempIndentLevel: number | undefined = undefined;
-  // The level of the last line with text that the tree indented.
-  let previousLineLevel: number | undefined = undefined;
   let matchNextIndentLevel: { from: number; to: number } | undefined =
     undefined;
   let indentsToProcessLater: { from: number; to: number }[] = [];
@@ -1028,18 +1026,6 @@ export const getFormatting = (
           newIndentLevel = frontMatterFieldContentNode ? 1 : 0;
         }
       }
-
-      // A closer no block took (`LuauStrayCloser`) is read where the
-      // grammar stopped reading the expression before it: an `else` at
-      // column 0 after an if expression's arm at column 0 in a call's
-      // arguments. Luau reads it as part of that expression, as the
-      // grammar does once the arm is indented, so it lines up with the
-      // line before it rather than at the body's level, which the next
-      // format would move it from.
-      if (leaf?.name === "LuauStrayCloser" && previousLineLevel != null) {
-        newIndentLevel = Math.max(newIndentLevel, previousLineLevel);
-      }
-      previousLineLevel = Math.max(0, newIndentLevel);
     }
 
     const validIndentLevel = Math.max(0, newIndentLevel);
