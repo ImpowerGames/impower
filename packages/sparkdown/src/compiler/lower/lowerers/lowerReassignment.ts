@@ -8,8 +8,11 @@ import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHi
 import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
+import { type SyntaxNode } from "@lezer/common";
 import {
   AstExpr,
+  AstExprSparkdownConditionalAlternator,
+  AstExprSparkdownSequentialAlternator,
   AstStatAssign,
   AstStatCompoundAssign,
   AstStatExpr,
@@ -28,6 +31,7 @@ import {
   storeTarget,
   targetIdentifier,
 } from "../utils/lowerPropertyTargetAssignment";
+import { lowerAlternatorValue } from "../utils/alternatorValue";
 import { offsetAt } from "../utils/luauAst";
 import { publishesConst, reassignedConstName, reportReassignedConst } from "../utils/publishesConst";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -99,6 +103,13 @@ export function lowerCallStatement(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
+  // An alternator written as a statement runs its selected arm, whose
+  // value is discarded (I-1397).
+  if (stat.expr instanceof AstExprSparkdownSequentialAlternator || stat.expr instanceof AstExprSparkdownConditionalAlternator) {
+    const node = stat.expr.source.node as SyntaxNode | undefined;
+    const alternator = node ? lowerAlternatorValue(node, ctx, true) : null;
+    return alternator ? wrapInWeave([alternator]) : {};
+  }
   const call = lowerExpression(stat.expr, site.source, ctx);
   if (call instanceof FunctionCall || call instanceof CallValueExpression) {
     call.shouldPopReturnedValue = true;

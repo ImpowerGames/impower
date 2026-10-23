@@ -359,7 +359,7 @@ describe("each error has one reader", () => {
     expect(officialErrors("local f = function() @ x = (if c) end\n")).toEqual(luau(21).sort());
     const shifted = (line: number, at: number) => luau(at).map((e) => e.replace(/^0:(\d+)-0:/, `${line}:$1-${line}:`)).sort();
     expect(read("layout main with\n  button @click={ @ x = (if c) }\nend\n").errors).toEqual(shifted(1, 18));
-    expect(read('Value {cycle "a" | function() @ x = (if c) end | "b" end}.\n').errors).toEqual(shifted(0, 30));
+    expect(read('Value {cycle | function() @ x = (if c) end | "b" end}.\n').errors).toEqual(shifted(0, 26));
   });
 
   it("a sparkle closure's body is read as a function's body", () => {

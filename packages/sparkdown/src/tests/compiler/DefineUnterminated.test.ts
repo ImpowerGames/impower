@@ -7,6 +7,7 @@
 // them. See issue #836.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { officialErrorList } from "./officialSyntax";
 
 interface Diag {
   message: string;
@@ -235,8 +236,13 @@ describe("define header the grammar cannot read", () => {
   test("text the header cannot read after `with` is not blamed on the name", () => {
     const errs = errors("define X with )\nHi.\n");
     // The body goes on past the `)` it leaves unread (#1905), so `Hi.` is a
-    // line of the body, whose `.` no name follows.
-    expect(errs.map((e) => [e.startLine, e.startCharacter])).toEqual([[0, 0], [1, 2]]);
+    // line of the body, whose `.` no name follows. The body is read in a
+    // define of any structure (I-1489), so the line reports Luau's
+    // incomplete statement too, as the official parser does, and the
+    // validator the `.`.
+    expect(errs.map((e) => [e.startLine, e.startCharacter])).toEqual([[0, 0], [1, 0], [1, 2]]);
+    expect(errs[1]!.message).toContain("Incomplete statement");
+    expect(officialErrorList("do\nHi.\n").map((e) => e.split(" ", 1)[0]!.split("-", 1)[0])).toContain("1:0");
     expect(errs[0]!.message).toContain("cannot be read past `define X with`");
     expect(errs[0]!.message).not.toContain("name");
     expect(errs[0]!.startLine).toBe(0);

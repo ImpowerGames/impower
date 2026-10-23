@@ -5671,14 +5671,18 @@ repository:
 
   # The text of a `StylingValue` that is not a lone literal. A quoted run in it
   # is read whole, as the value's boundary reads it, so a `--` inside the
-  # quotes is not colored as a comment.
+  # quotes is not colored as a comment. It holds no comment: a comment after
+  # text begins after whitespace, which `StylingValue` splits off, so a `--`
+  # with no whitespace before it (`gap = --gap`, `Arial 1--display`) is part
+  # of the value, which the lowerers read whole (`structValueNode`). A `--`
+  # right after a lone literal (`gap = 1--x`) is `StylingValue`'s literal
+  # branch and stays a comment (GRAMMAR.md §11.7).
   StylingValueContent:
     match: (.+)
     captures:
       1:
         patterns:
           - { include: "#InlinePropQuotedValue" }
-          - { include: "#LuauComment" }
           - { include: "#StylingValuePart" }
           - { include: "#StylingStringIdentifier" }
           - { include: "#UnquotedChar" }
@@ -9014,7 +9018,12 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}}|{{END}}|[)\]}])|(?={{WS}}*do\b)
+    # Any closer ends the condition, not only `end`: the condition reads no
+    # keyword, so at a closer it has not read (a column-0 `else` after an if
+    # expression's then-arm ended) it would otherwise stay open, and
+    # vscode-textmate would pass over the closer's first letter and read the
+    # rest as a name.
+    end: (?={{BEAT}}|{{WS}}*{{LUAU_CLOSER}}|[)\]}])|(?={{WS}}*do\b)
 
   # ----------------------------------------------------------------------------
   # Repeat Loop
@@ -12284,12 +12293,19 @@ repository:
     # `;` alternative: `return f(x); end`-style one-liners close the
     # return statement before the separator (`;` no longer parses
     # inside `LuauExpression`).
+    #
+    # Non-ASCII alternative: Luau reads a non-ASCII character only inside a
+    # string or comment, which are rules of their own, so the return can
+    # never read one (`return x名`). It closes before it, and the body reads
+    # the character as an unread token in both engines; without it
+    # vscode-textmate passes over the character inside the return and the
+    # tree closes the return incomplete there (GRAMMAR.md §17.2).
     patterns:
       - { include: "#LuauReturnLineBreak" }
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
+    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;|[^\x00-\x7F])|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
 
   # A line that continues the line before it (`LuauLineContinuation`, or a
   # `[` line) is not the returned value, so the break ends at its start and

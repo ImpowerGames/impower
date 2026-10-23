@@ -698,7 +698,6 @@ describe("a function's `const` reassigned from a body read on its own", () => {
   test.each([
     ["a define's property", "  const a = 1\n  define box with\n    sum = function() a = 2; return a end\n  end\n  return box.sum()"],
     ["a define's method", "  const a = 1\n  define box with\n    sum()\n      a = 2\n      return a\n    end\n  end\n  return 1"],
-    ["a Sparkle handler", "  const a = 1\n  layout form with\n    button \"Go\" @click={ a = 2 }\n  end\n  return a"],
     ["a nested function in a define's property", "  const a = 1\n  define box with\n    sum = function() local g = function() a = 2 end; g(); return a end\n  end\n  return 1"],
     ["a nested function in a define's method", "  const a = 1\n  define box with\n    sum()\n      local g = function() a = 2 end\n      g()\n      return a\n    end\n  end\n  return 1"],
     ["a compound assignment in a define's property", "  const a = 1\n  define box with\n    sum = function() a += 2; return a end\n  end\n  return 1"],
@@ -707,14 +706,20 @@ describe("a function's `const` reassigned from a body read on its own", () => {
     expect([...ctx.errorMessages]).toEqual([REASSIGNED]);
   });
 
+  // The layout is itself an error, written in a function (I-1405), and its
+  // handler is still read.
   test.each([
+    ["an assignment", "a = 2"],
     ["a nested function", "local g = function() a = 2 end g()"],
     ["a local function", "local function g() a = 2 end g()"],
   ])("from %s in a Sparkle handler is Luau's error, once", (_label, handler) => {
     const ctx = makeRuntimeStoryFromSource(
       fn(`  const a = 1\n  layout form with\n    button "Go" @click={ ${handler} }\n  end\n  return a`),
     );
-    expect([...ctx.errorMessages]).toEqual([REASSIGNED]);
+    expect([...ctx.errorMessages]).toEqual([
+      "'layout' is a top-level declaration and cannot be written inside a function",
+      REASSIGNED,
+    ]);
   });
 
   test.each([
