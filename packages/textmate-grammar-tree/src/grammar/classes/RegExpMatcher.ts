@@ -147,7 +147,9 @@ export class RegExpMatcher implements Matcher {
    * group's `[start, end)`.
    */
   private execIndices(str: string, pos: number) {
-    this.indicesRegexp ??= new RegExp(this.regexp.source, this._flags + "d");
+    this.indicesRegexp ??= this.regexp.hasIndices
+      ? this.regexp
+      : new RegExp(this.regexp.source, this._flags + "d");
     this.indicesRegexp.lastIndex = pos;
     return this.indicesRegexp.exec(str);
   }

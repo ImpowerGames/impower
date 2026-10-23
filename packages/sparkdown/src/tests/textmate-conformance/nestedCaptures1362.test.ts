@@ -119,6 +119,18 @@ describe("capture positions match vscode-textmate", () => {
       line: "--[==[a]=]b]==]end",
     },
     {
+      // A rule may give its own flags, `d` among them; the indices regex
+      // keeps them as they are.
+      name: "a nested group in a rule whose flags hold `d`",
+      grammar: grammarOf({
+        name: "rule",
+        match: "(a())",
+        flags: "dmuy",
+        captures: { "1": { name: "outer" } },
+      }),
+      line: "a",
+    },
+    {
       name: "a group in a lookahead over text the match takes",
       grammar: grammarOf({
         name: "rule",
