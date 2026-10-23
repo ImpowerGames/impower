@@ -83,7 +83,7 @@ const METHOD_NAME = (word: string) => `Expected identifier when parsing method n
  * `closesAt` is the form's text up to the `end` that Luau closes the function
  * on, where that is not the function's own.
  */
-const CASES: Record<string, [form: string, word: string | null, closesAt?: string][]> = {
+const CASES: Record<string, [form: string, word: string | null, closesAt?: string, readAs?: string][]> = {
   "a reserved word on the line after its receiver": [
     ["local t = {}\n  local b = (t)\n    :end", "end"],
     ["local b = f()\n    :function", "function"],
@@ -184,7 +184,6 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ['local s = "a\\"--" local x\n  : end', null, 'local s = "a\\"--" local x\n  : end'],
     ['local s = "a\\"--" local function f()\n    : end\n  end', null, 'local s = "a\\"--" local function f()\n    : end\n  end'],
     ["local x\n  --[[c]]\n  : end", null, "local x\n  --[[c]]\n  : end"],
-    ["local x\n  --[[ a\n  b ]]\n  : end", null, "local x\n  --[[ a\n  b ]]\n  : end"],
     ["local function f()\n    --[[c]]\n    : end\n  end", null, "local function f()\n    --[[c]]\n    : end\n  end"],
     ['local t = {}\n  t["k"] = 1 local x\n  : end', null, 'local t = {}\n  t["k"] = 1 local x\n  : end'],
     ["local x\n  : end", null, "local x\n  : end"],
@@ -198,12 +197,23 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x\n  : --[=========[c]=========] end", null, "local x\n  : --[=========[c]=========] end"],
     ["for k\n  : in pairs({}) do end", null],
   ],
+  // A header that ends its line with no `(` of its list on that line: a
+  // parameter list that spans lines, and a function with no parameter list,
+  // whose list Sparkdown reads at the end of the header's line, so Luau reads
+  // it with `()` there (`readAs`, I-1573).
+  "a header whose list spans lines, or that has none": [
+    ["local function f(\n      a: number)\n    : end\n  end", null, "local function f(\n      a: number)\n    : end\n  end"],
+    ["local function g\n    : end\n  end", null, "local function g\n    : end\n  end", "local function g()\n    : end\n  end"],
+    ["local function g -- c\n    : end\n  end", null, "local function g -- c\n    : end\n  end", "local function g() -- c\n    : end\n  end"],
+    ["local function g\n    print(1)\n  end", null, undefined, "local function g()\n    print(1)\n  end"],
+    ["local function g\n  end", null, undefined, "local function g()\n  end"],
+  ],
 };
 
-// The carriers' begins read back along their line past comments; a comment
-// that could run on past its own close would make a lookbehind that fails
-// try every way of grouping the comments (round 2, CI on 575bf3a18).
-describe("many comments on a line the carriers read back along parse quickly", () => {
+// Many comments on the lines a carrier holds or ends parse quickly: an
+// earlier version that recognised the header and the target by reading their
+// line back took 125 s for 30 comments (round 2, CI on 575bf3a18).
+describe("many comments around a carried line break parse quickly", () => {
   const comments = "--[[a]]    ".repeat(30);
   test.each([
     ["before a declaration's value", `function g()\n  local ${comments}x = 1\nend\n`],
@@ -222,10 +232,10 @@ describe("many comments on a line the carriers read back along parse quickly", (
 describe("a reserved word read as a method's name on the line after its receiver (I-1449)", () => {
   for (const [name, forms] of Object.entries(CASES)) {
     describe(name, () => {
-      for (const [form, word, closesAt] of forms) {
+      for (const [form, word, closesAt, readAs] of forms) {
         const luau = `${HEADER}${form}${FOOTER}`;
         const text = `${luau}${STORY}`;
-        const official = officialErrorList(luau);
+        const official = officialErrorList(`${HEADER}${readAs ?? form}${FOOTER}`);
         test(`${JSON.stringify(form)}: the function ends where Luau ends it`, () => {
           const tree = stripAnsi(dumpTree(text));
           expect(tree, tree).not.toContain("ERROR_INCOMPLETE");

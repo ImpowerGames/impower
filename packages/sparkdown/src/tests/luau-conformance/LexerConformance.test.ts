@@ -141,10 +141,11 @@ describe("comments", () => {
   test("comment_skipped: `--  `", () => {
     const body = "--  ";
     expect(onlyNode(body, "LuauLineComment").text).toBe("--  ");
-    // The body's content begins with the header's line break, which its
-    // `LuauFunctionHeaderLineBreak` carries (I-1449).
-    const content = onlyNode(body, "LuauFunctionBody_content");
+    // The header's line break carries the comment-only line (I-1449), so
+    // the function holds it there and opens no body.
+    const content = onlyNode(body, "LuauFunctionHeaderLineBreak_content");
     expect(content.text).toBe("\n--  \n");
+    expect(findNodes(body, "LuauFunctionBody")).toEqual([]);
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 

@@ -205,14 +205,14 @@ sparkdown [0..122]
  │   │   │   └─ LuauFunctionParameters_end [69..70]
  │   │   │       └─ LuauFunctionParameters_end_c1 [69..70]
  │   │   │           └─ PunctuationParenClose [69..70]: ")"
- │   │   └─ LuauFunctionBody [70..118]
- │   │       ├─ LuauFunctionBody_begin 70
- │   │       ├─ LuauFunctionBody_content [70..118]
- │   │       │   ├─ LuauFunctionHeaderLineBreak [70..71]
- │   │       │   │   ├─ LuauFunctionHeaderLineBreak_begin 70
- │   │       │   │   ├─ LuauFunctionHeaderLineBreak_content [70..71]
- │   │       │   │   │   └─ Newline [70..71]: "\n"
- │   │       │   │   └─ LuauFunctionHeaderLineBreak_end 71
+ │   │   ├─ LuauFunctionHeaderLineBreak [70..71]
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_begin 70
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_content [70..71]
+ │   │   │   │   └─ Newline [70..71]: "\n"
+ │   │   │   └─ LuauFunctionHeaderLineBreak_end 71
+ │   │   └─ LuauFunctionBody [71..118]
+ │   │       ├─ LuauFunctionBody_begin 71
+ │   │       ├─ LuauFunctionBody_content [71..118]
  │   │       │   ├─ LuauIfBlock [71..117]
  │   │       │   │   ├─ LuauIfBlock_begin [71..76]
  │   │       │   │   │   ├─ LuauIfBlock_begin_c1 [71..73]

@@ -63,26 +63,9 @@ describe("the two declaration rules", () => {
       captures(luau),
     );
     expect(captures(narrative)[3]!.patterns[0]).toEqual({ include: "#LuauComment" });
-    // The Luau end is the narrative one with one exception: at the end of a
-    // line that a target ends, `LuauTargetLineBreak` carries the line break
-    // (I-1449), so the end at the line's end steps aside there.
-    const lineEnds = String.raw`(?=^|$|[;)\]}])`;
-    const [before, after, ...more] = narrative.end!.split(lineEnds);
-    expect(more).toEqual([]);
-    const exception = `${before}${String.raw`(?=^|[;)\]}])|(?=$)(?<!`}`;
-    expect(luau.end!.startsWith(exception)).toBe(true);
-    const rest = luau.end!.slice(exception.length);
-    const behindEnd = rest.indexOf(`)${after}|(?<=`);
-    expect(behindEnd).toBeGreaterThan(0);
-    expect(rest.slice(0, behindEnd)).toBe(TARGET_LINE_END_BEHIND);
+    expect(luau.end!.startsWith(`${narrative.end!}|(?<=`)).toBe(true);
   });
 });
-
-// The text the target carrier's begin looks behind for last
-// (`LUAU_TARGET_LINE_END_BEHIND`), which the declaration's end steps aside at.
-// The begin's earlier lookbehind is a quick test for a name at the line's end.
-const CARRIER_BEGIN = repository["LuauTargetLineBreak"]!.begin!;
-const TARGET_LINE_END_BEHIND = CARRIER_BEGIN.slice(CARRIER_BEGIN.lastIndexOf("(?<=") + "(?<=".length, -1);
 
 // A narrative declaration or reassignment ends at its line, so its `=` is
 // read by its own rules (#1906): `LuauSparkdownVariableAssignment` and
@@ -94,16 +77,26 @@ describe("the narrative assignment rules", () => {
   test("a narrative name assignment is the Luau one but for its operation and its end at a later line's first token", () => {
     const luau = repository["LuauVariableAssignment"]!;
     const narrative = repository["LuauSparkdownVariableAssignment"]!;
-    expect(narrative.begin).toBe(luau.begin);
+    // The Luau target's begin also leaves a mark when the bare name ends its
+    // line (`_LUAU_TARGET_ENDS_LINE_MARK_`, its third capture), where its end
+    // steps aside at the line's end and `LuauTargetLineBreak` carries the
+    // line break (I-1449); a narrative declaration ends at its line.
+    expect(luau.begin!.startsWith(narrative.begin!)).toBe(true);
+    const mark = luau.begin!.slice(narrative.begin!.length);
+    expect(mark.startsWith("(?=") && mark.endsWith("(\\n)|)")).toBe(true);
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
+    expect(luau.patterns![0]).toEqual({ include: "#LuauTargetLineBreak" });
     expect(
-      luau.patterns!.map((p) => p.include === "#LuauAssignmentOperation" ? { include: "#LuauSparkdownAssignmentOperation" } : bounded(p)),
+      luau.patterns!.slice(1).map((p) => p.include === "#LuauAssignmentOperation" ? { include: "#LuauSparkdownAssignmentOperation" } : bounded(p)),
     ).toEqual(narrative.patterns);
     // The narrative target also ends after a comment that spans lines,
     // before a statement glued to its close.
     const afterComment = narrative.end!.lastIndexOf("|(?<=\\]=*\\])");
     expect(afterComment).toBeGreaterThan(0);
-    expect(luau.end!.startsWith(`${narrative.end!.slice(0, afterComment)}|(?<=^`)).toBe(true);
+    const lineEnd = "|(?=$)(?=\\3\\n)";
+    expect(luau.end!).toContain(lineEnd);
+    const luauEnd = luau.end!.replace(lineEnd, "").replace("(?=^|(?:", "(?=^|$|(?:");
+    expect(luauEnd.startsWith(`${narrative.end!.slice(0, afterComment)}|(?<=^`)).toBe(true);
   });
 
   test("a narrative assignment operation is the Luau one without the line break and its ends", () => {
