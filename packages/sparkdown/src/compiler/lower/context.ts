@@ -273,7 +273,8 @@ export interface LowerContext {
   /**
    * Stack of per-enclosing-function-scope local declarations. Each
    * frame holds the names declared via `local` / `store` / `const`
-   * (and nested `function NAME(...) end` declarations) in that
+   * (and nested `local function NAME(...) end` declarations; a plain
+   * `function NAME` assigns and declares nothing, I-1422) in that
    * function's immediate body. `lowerLuauFunctionDefinition` pushes
    * a frame before lowering its body and pops after; the body's
    * recursive lowering of nested functions can then consult the stack
@@ -290,32 +291,16 @@ export interface LowerContext {
    */
   declaredLocalsStack?: Set<string>[];
   /**
-   * Stack of per-enclosing-function-scope buffers for HOISTED local
-   * declarations. Each entry holds the `local NAME = nil` pre-declarations
-   * that need to land at the top of an enclosing function's body —
-   * specifically the bindings for nested `function NAME(...) end` (without
-   * a `local` prefix). Luau treats those as `NAME = function() end`, which
-   * is visible across `do`/`while`/`for`/`if` block boundaries within the
-   * enclosing function. Emitting the `VariableAssignment` in place inside a
-   * block would scope it to that block (BeginScope/EndScope discards it on
-   * exit). Instead, the in-place site emits a REASSIGNMENT to a NAME that
-   * was pre-declared at function-body level; this stack holds those
-   * pre-declarations until the enclosing function-definition lowerer
-   * prepends them to its body.
-   *
-   * Parallel to `functionScopeStack`: each function-definition lowerer
-   * pushes one buffer on entry and pops on exit.
-   */
-  hoistedNestedFnDeclsStack?: ParsedObject[][];
-  /**
    * Stack of per-enclosing-function-scope sibling-subflow frames. A
    * nested function statement, variadic or not, lowers as a closure
-   * assigned to a local (`lowerNestedNamedFunction`), so no lowerer
-   * registers a subflow here any more (I-1360); the frames hold the
-   * names an assignment rebinds (`lowerReassignment`), whose calls
-   * dispatch through the variable (`SiblingSubFlowInfo.rebound`).
+   * declared as a local (`local function`) or assigned to the variable
+   * its name resolves to (`function NAME`, I-1422)
+   * (`lowerNestedNamedFunction`), so no lowerer registers a subflow here
+   * any more (I-1360); the frames hold the names an assignment or a
+   * function statement rebinds (`recordRebind`), whose calls dispatch
+   * through the variable (`SiblingSubFlowInfo.rebound`).
    *
-   * Parallel to `functionScopeStack` / `hoistedNestedFnDeclsStack`:
+   * Parallel to `functionScopeStack`:
    * each function-definition lowerer pushes one frame on entry and
    * pops on exit.
    */

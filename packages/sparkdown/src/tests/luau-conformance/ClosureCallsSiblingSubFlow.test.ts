@@ -1,9 +1,10 @@
 // A closure that calls a function declared with `...` in the same function
 // passes that function the locals it captures, whether or not the closure
 // reads them itself (I-817). Since I-1360 the function lowers as a closure
-// assigned to a local of the function around it, which captures the locals
-// it reads where it is defined, and a closure that calls it captures that
-// local (`lowerNestedNamedFunction`).
+// assigned to the variable its name resolves to (since I-1422, the global
+// when no local of the name is in scope), which captures the locals it reads
+// where it is defined, and a closure that calls it reads that variable
+// (`lowerNestedNamedFunction`).
 
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";

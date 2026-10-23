@@ -5,6 +5,7 @@ import {
   danglingDots,
   defineStatementLast,
   defineStatementThrough,
+  isDefineMember,
   isDefineStatementStart,
   readsDefineProperty,
   readsDefineStatement,
@@ -154,10 +155,6 @@ interface DefineValue {
   /** The nodes the value was read from, comments and whitespace left out. */
   nodes: SyntaxNode[];
 }
-
-const DEFINE_MEMBER_NAMES = nodeNameSet([
-  "LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition",
-]);
 
 // Define bodies lower members only, but still report the statements that
 // Luau cannot read, every error of each (I-1489), as their one owner
@@ -903,7 +900,6 @@ function lowerDefineMethod(
   // captures one whatever its name (a stdlib name too, `freeVariables`).
   ctx.declaredLocalsStack?.push(declaredLocalsFrame(["self", ...params], bodyAst, bindings, ctx));
   const hoistedDecls: ParsedObject[] = [];
-  ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
@@ -921,7 +917,6 @@ function lowerDefineMethod(
     reportBodySyntaxErrors(errors, ctx, reportFrom);
   }
   ctx.siblingSubFlowNamesStack?.pop();
-  ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.functionBindingsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
@@ -1036,7 +1031,7 @@ function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: 
     // A bracket-key property's operation is a sibling of its key node.
     // Its value nodes are already present above.
     if (opNode && next.to <= opNode.to) continue;
-    if (DEFINE_MEMBER_NAMES.has(next.name)) break;
+    if (isDefineMember(next)) break;
     candidates.push(next);
   }
   const continued = readExpressionAst(candidates, ctx);

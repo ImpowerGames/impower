@@ -1,6 +1,6 @@
 // A function declared with `...` inside another function is a closure
-// assigned to a local of that function, hoisted to its body, as a function
-// without `...` is (`lowerNestedNamedFunction`). Before I-1360 it lowered as
+// assigned to the variable its name resolves to, as a function without
+// `...` is (`lowerNestedNamedFunction`, I-1422). Before I-1360 it lowered as
 // a subflow registered by name in lexical order, whose calls passed the
 // locals it closes over as pointers named where the call was written. These
 // cases hold it to Luau's scoping:
@@ -63,8 +63,12 @@ describe("a closure written before a variadic function statement (I-1360)", () =
   });
 
   test("a call before the statement runs fails as Luau's does", () => {
+    // `foo` is a declared local of `run`, which the statement assigns, so
+    // the call reads a nil local. The call message of a nil global, or of a
+    // nil top-level local, is I-1559's.
     const source = lines(
       "function run()",
+      "  local foo",
       "  local bar = function()",
       "    return foo()",
       "  end",
