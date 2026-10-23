@@ -150,8 +150,8 @@ describe("a function's return followed by two or more tokens reports Luau's erro
 
   // A repeat whose `end` Luau gives the function, so that Luau's chunk ends
   // at the `until` after it (round 4 of the review). The reading reports
-  // Luau's list; a stray token after a top-level function is the grammar's
-  // to report in a `.sd` document, so this pins the reading itself.
+  // Luau's list, and so does the compile: the stray `until`'s error is the
+  // reading's, and nothing after it is reported (I-1514).
   for (const line of SUFFIXES) {
     test(`${JSON.stringify(line)} in a repeat whose end Luau gives the function`, () => {
       const luau = `function f()\nrepeat\n${line}\nend\nuntil true\nend\n`;
@@ -160,6 +160,7 @@ describe("a function's return followed by two or more tokens reports Luau's erro
         .map((error) => `${error.location.begin.line}:${error.location.begin.column}-${error.location.end.line}:${error.location.end.column} ${error.message}`)
         .sort();
       expect(read).toEqual(officialErrorList(luau).sort());
+      expect(sparkdownErrors(`${luau}Go.\n`)).toEqual(officialErrorList(luau).sort());
     });
   }
 
