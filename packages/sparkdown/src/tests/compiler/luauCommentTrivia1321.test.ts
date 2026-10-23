@@ -112,25 +112,78 @@ describe("an error at an assignment's operator keeps its range", () => {
   });
 });
 
-// Known gap, I-1362: between a scope modifier and `function` and after
-// `end`, levels up to eight close at their own level, but a comment of level
-// nine or more ends at the first close of nine or more `=`, so one holding
-// another such close ends early (GRAMMAR.md 11.5, DIVERGENCES.md). These
-// fail until the engine places captures from match indices; `test.fails`
-// turns red once the gap closes, so remove it then.
-describe("known gap: a level-nine comment holding another level-nine close", () => {
+// A comment of level nine or more closes at the close of its own level at
+// every trivia position, so one holding the close of another such level is
+// one comment (I-1362): its level is a group the close matches, which the
+// engine places from the match's indices (GRAMMAR.md 11.5).
+describe("a level-nine comment holding another level-nine close", () => {
   const comment = "--[=========[a]==========]b]=========]";
-  test.fails("between a scope modifier and `function`", () => {
+  test("between a scope modifier and `function`", () => {
     const source = `local ${comment} function k() return 5 end\nValue {k()}.\n`;
     const top = parseSource(source).topNode.firstChild!;
     expect(top.name).toBe("LuauFunctionDefinition");
     expect([top.from, top.to]).toEqual([0, source.indexOf("\n")]);
   });
-  test.fails("after a closing `end`", () => {
+  test("after a closing `end`", () => {
     const source = `function k() return 5 end ${comment}\nValue {k()}.\n`;
     const top = parseSource(source).topNode.firstChild!;
     expect(top.name).toBe("LuauFunctionDefinition");
     expect([top.from, top.to]).toEqual([0, source.indexOf("\n")]);
+  });
+  // Every block that closes with `end` at story scope takes the comments
+  // after its `end` (GRAMMAR.md 11.5).
+  test.each([
+    ["if true then\nend", "LuauSparkdownIfBlock"],
+    ["do\nend", "LuauSparkdownDoBlock"],
+    ["while false do\nend", "LuauSparkdownDoBlock"],
+    ["choose\n  + [One]\n    Picked.\nend", "LuauSparkdownChooseBlock"],
+    ["& if true then local x = 1 end", "LuauSparkdownExplicitIfBlock"],
+    ["& do local x = 1 end", "LuauSparkdownExplicitDoBlock"],
+    ["define D with\nend", "LuauDefine"],
+    ["style S with\nend", "LuauStyle"],
+    ["animation A with\nend", "LuauAnimation"],
+    ["theme T with\nend", "LuauTheme"],
+    ["morph M with\nend", "LuauMorph"],
+    ["layout L with\nend", "LuauLayout"],
+    ["screen C with\nend", "LuauScreen"],
+    ["component P with\nend", "LuauComponent"],
+  ])("after the `end` of %j", (block, name) => {
+    const source = `${block} ${comment}\nStory.\n`;
+    const { tree } = read(source);
+    const end = source.indexOf("\nStory.");
+    const nodes: string[] = [];
+    parseSource(source).iterate({
+      enter: (node) => {
+        if (node.name === name && node.to === end) nodes.push(node.name);
+      },
+    });
+    expect(nodes, tree).toEqual([name]);
+  });
+  // After an assignment operator with code after the comments, they are the
+  // operator's, and the value after them reads as Luau reads it. The
+  // operator decides that by where the comments end, so its comment holds a
+  // `--` right after the other level's close: closing there would leave a
+  // line comment, which ends the line, and the operator would end at once.
+  const dashComment = "--[=========[a]==========]-- x]=========]";
+  test.each([
+    `local w = ${dashComment} 5`,
+    `local w = ${dashComment} --[[c]] if true then 1 else 2`,
+    `w = ${dashComment} --[[c]] if true then 1 else 2`,
+  ])("after an assignment operator: %s", (statement) => {
+    const luau = `function f()\n  local w = 0\n  ${statement}\nend\n`;
+    expect(sparkdownErrors(`${luau}Story.\n`)).toEqual(luauErrors(luau));
+    const { tree } = read(luau);
+    expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+    expect(tree, tree).not.toContain("ERROR_UNRECOGNIZED");
+    const commentEnd = luau.indexOf(dashComment) + dashComment.length;
+    const operators: number[] = [];
+    parseSource(luau).iterate({
+      enter: (node) => {
+        if (node.name === "LuauAssignmentOperator" && node.from > luau.indexOf("\n", 14)) operators.push(node.to);
+      },
+    });
+    expect(operators.length, tree).toBe(1);
+    expect(operators[0], tree).toBeGreaterThan(commentEnd);
   });
   // The type-operator position reads the comment with `LuauComment`, so
   // there it closes at its own level now.

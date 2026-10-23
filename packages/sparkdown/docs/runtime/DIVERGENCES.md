@@ -755,18 +755,6 @@ A write keeps its `@`:
 
 `@` elsewhere in a story line (`Mail me @ home`) stays story.
 
-### A long comment of level nine or more may end early where no value has begun
-
-A Luau comment is trivia wherever it stands (I-1321), including where no value or type has begun:
-- between `local`, `store` or `const` and `function`;
-- between `=` and the value;
-- after a type's `->`, `:` or `=`;
-- after a block's closing `end` on the same line.
-
-At three of these positions (before `function`, after `=` and after `end`), a long comment (`--[==[ ... ]==]`) closes at its own level only up to level eight. A comment of level nine or more there ends at the first close of nine or more `=` in its text. So a comment of level nine or more whose text holds the close of a different level of nine or more ends early, as in `local --[=========[a]==========]b]=========] function k()`. Its remaining text is then read as code or story: the function is not declared, the rest of the comment shows as a story line, or the value after `=` is read as a new statement. Luau reads the whole comment. After a type's `->`, `:` or `=`, every level closes at its own.
-
-The reason is the grammar engine. textmate-grammar-tree places each capture after the summed lengths of all the groups before it, so a nested backreference group cannot tie a comment's close to its opening level without moving the captures after it. A block's `end` pattern also reads a backreference as its begin's capture, in VS Code too. The repair, an engine change and a scoped rule for a block's trailing comments, is I-1362. To avoid the case, write such a comment with a level of eight or less, or put it on its own line.
-
 ### Regex literals: `@/pattern/flags`
 
 Not a Luau form at all. A regex literal is raw, so a pattern keeps single

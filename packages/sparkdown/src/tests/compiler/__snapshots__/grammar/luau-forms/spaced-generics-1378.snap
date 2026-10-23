@@ -5,10 +5,10 @@ sparkdown [0..58]
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauFunctionDefinition_begin_c2 0
  │   │   ├─ LuauFunctionDefinition_begin_c3 0
- │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
+ │   │   ├─ LuauFunctionDefinition_begin_c5 [0..8]
  │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
- │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
- │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │   └─ LuauFunctionDefinition_begin_c6 [8..9]
+ │   │       └─ LuauFunctionDefinition_begin_c6 [8..9]
  │   │           └─ OptionalWhitespace [8..9]: " "
  │   ├─ LuauFunctionDefinition_content [9..54]
  │   │   ├─ LuauFunctionDeclarationName [9..10]
@@ -39,10 +39,10 @@ sparkdown [0..58]
  │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c3 [20..21]
  │   │       │   │   │   │   └─ LuauFunctionDefinition_begin_c3 [20..21]
  │   │       │   │   │   │       └─ OptionalWhitespace [20..21]: " "
- │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c4 [21..29]
+ │   │       │   │   │   ├─ LuauFunctionDefinition_begin_c5 [21..29]
  │   │       │   │   │   │   └─ LuauFunctionKeyword [21..29]: "function"
- │   │       │   │   │   └─ LuauFunctionDefinition_begin_c5 [29..30]
- │   │       │   │   │       └─ LuauFunctionDefinition_begin_c5 [29..30]
+ │   │       │   │   │   └─ LuauFunctionDefinition_begin_c6 [29..30]
+ │   │       │   │   │       └─ LuauFunctionDefinition_begin_c6 [29..30]
  │   │       │   │   │           └─ OptionalWhitespace [29..30]: " "
  │   │       │   │   ├─ LuauFunctionDefinition_content [30..49]
  │   │       │   │   │   ├─ LuauFunctionDeclarationName [30..32]
@@ -169,7 +169,7 @@ sparkdown [0..58]
  │   │       │   │       ├─ LuauFunctionDefinition_end_c2 [50..53]
  │   │       │   │       │   └─ LuauEndKeyword [50..53]: "end"
  │   │       │   │       ├─ LuauFunctionDefinition_end_c3 53
- │   │       │   │       └─ LuauFunctionDefinition_end_c4 53
+ │   │       │   │       └─ LuauFunctionDefinition_end_c5 53
  │   │       │   └─ Newline [53..54]: "\n"
  │   │       └─ LuauFunctionBody_end 54
  │   └─ LuauFunctionDefinition_end [54..57]
@@ -179,5 +179,5 @@ sparkdown [0..58]
  │       ├─ LuauFunctionDefinition_end_c2 [54..57]
  │       │   └─ LuauEndKeyword [54..57]: "end"
  │       ├─ LuauFunctionDefinition_end_c3 57
- │       └─ LuauFunctionDefinition_end_c4 57
+ │       └─ LuauFunctionDefinition_end_c5 57
  └─ Newline [57..58]: "\n"

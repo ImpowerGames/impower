@@ -131,10 +131,10 @@ exports[`the .luau root's tree and scopes > the tree 1`] = `
  │   │       │   ├─ LuauFunctionDefinition_begin_c3 [52..53]
  │   │       │   │   └─ LuauFunctionDefinition_begin_c3 [52..53]
  │   │       │   │       └─ OptionalWhitespace [52..53]: " "
- │   │       │   ├─ LuauFunctionDefinition_begin_c4 [53..61]
+ │   │       │   ├─ LuauFunctionDefinition_begin_c5 [53..61]
  │   │       │   │   └─ LuauFunctionKeyword [53..61]: "function"
- │   │       │   └─ LuauFunctionDefinition_begin_c5 [61..62]
- │   │       │       └─ LuauFunctionDefinition_begin_c5 [61..62]
+ │   │       │   └─ LuauFunctionDefinition_begin_c6 [61..62]
+ │   │       │       └─ LuauFunctionDefinition_begin_c6 [61..62]
  │   │       │           └─ OptionalWhitespace [61..62]: " "
  │   │       ├─ LuauFunctionDefinition_content [62..111]
  │   │       │   ├─ LuauFunctionDeclarationName [62..65]
@@ -293,7 +293,7 @@ exports[`the .luau root's tree and scopes > the tree 1`] = `
  │   │           ├─ LuauFunctionDefinition_end_c2 [111..114]
  │   │           │   └─ LuauEndKeyword [111..114]: "end"
  │   │           ├─ LuauFunctionDefinition_end_c3 114
- │   │           └─ LuauFunctionDefinition_end_c4 114
+ │   │           └─ LuauFunctionDefinition_end_c5 114
  │   └─ LuauFunctionAttributes_end 114
  ├─ Newline [114..115]: "\\n"
  ├─ LuauFileSparkdownWord [115..121]

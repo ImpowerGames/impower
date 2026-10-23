@@ -5,10 +5,10 @@ sparkdown [0..146]
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauFunctionDefinition_begin_c2 0
  │   │   ├─ LuauFunctionDefinition_begin_c3 0
- │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
+ │   │   ├─ LuauFunctionDefinition_begin_c5 [0..8]
  │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
- │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
- │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │   └─ LuauFunctionDefinition_begin_c6 [8..9]
+ │   │       └─ LuauFunctionDefinition_begin_c6 [8..9]
  │   │           └─ OptionalWhitespace [8..9]: " "
  │   ├─ LuauFunctionDefinition_content [9..32]
  │   │   ├─ LuauFunctionDeclarationName [9..10]
@@ -78,7 +78,7 @@ sparkdown [0..146]
  │       ├─ LuauFunctionDefinition_end_c2 [32..35]
  │       │   └─ LuauEndKeyword [32..35]: "end"
  │       ├─ LuauFunctionDefinition_end_c3 35
- │       └─ LuauFunctionDefinition_end_c4 35
+ │       └─ LuauFunctionDefinition_end_c5 35
  ├─ Newline [35..36]: "\n"
  ├─ Newline [36..37]: "\n"
  ├─ LuauFunctionDefinition [37..112]
@@ -87,10 +87,10 @@ sparkdown [0..146]
  │   │   │   └─ OptionalWhitespace 37
  │   │   ├─ LuauFunctionDefinition_begin_c2 37
  │   │   ├─ LuauFunctionDefinition_begin_c3 37
- │   │   ├─ LuauFunctionDefinition_begin_c4 [37..45]
+ │   │   ├─ LuauFunctionDefinition_begin_c5 [37..45]
  │   │   │   └─ LuauFunctionKeyword [37..45]: "function"
- │   │   └─ LuauFunctionDefinition_begin_c5 [45..46]
- │   │       └─ LuauFunctionDefinition_begin_c5 [45..46]
+ │   │   └─ LuauFunctionDefinition_begin_c6 [45..46]
+ │   │       └─ LuauFunctionDefinition_begin_c6 [45..46]
  │   │           └─ OptionalWhitespace [45..46]: " "
  │   ├─ LuauFunctionDefinition_content [46..109]
  │   │   ├─ LuauFunctionDeclarationName [46..47]
@@ -212,7 +212,7 @@ sparkdown [0..146]
  │       ├─ LuauFunctionDefinition_end_c2 [109..112]
  │       │   └─ LuauEndKeyword [109..112]: "end"
  │       ├─ LuauFunctionDefinition_end_c3 112
- │       └─ LuauFunctionDefinition_end_c4 112
+ │       └─ LuauFunctionDefinition_end_c5 112
  ├─ Newline [112..113]: "\n"
  ├─ Newline [113..114]: "\n"
  ├─ Scene [114..121]

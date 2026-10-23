@@ -40,7 +40,7 @@ sparkdown [0..1006]
  │   │   │   │       │       ├─ LuauSparkleElementBlock_content [31..408]
  │   │   │   │       │       │   ├─ Newline [31..32]: "\n"
  │   │   │   │       │       │   ├─ Whitespace [32..36]: "    "
- │   │   │   │       │       │   ├─ LuauStructInvalidHeader [39..40]
+ │   │   │   │       │       │   ├─ LuauStructInvalidHeader [36..40]
  │   │   │   │       │       │   │   └─ LuauStructInvalidHeader_c2 [39..40]
  │   │   │   │       │       │   │       └─ LuauStructInvalidColon [39..40]: ":"
  │   │   │   │       │       │   ├─ Newline [40..41]: "\n"

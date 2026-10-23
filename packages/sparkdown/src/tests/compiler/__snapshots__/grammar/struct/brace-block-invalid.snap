@@ -350,7 +350,7 @@ sparkdown [0..673]
  │   │   │   │       │       ├─ LuauStructBlockBody_content [170..198]
  │   │   │   │       │       │   ├─ Newline [170..171]: "\n"
  │   │   │   │       │       │   ├─ Whitespace [171..175]: "    "
- │   │   │   │       │       │   ├─ LuauStructInvalidHeader [182..183]
+ │   │   │   │       │       │   ├─ LuauStructInvalidHeader [175..183]
  │   │   │   │       │       │   │   └─ LuauStructInvalidHeader_c2 [182..183]
  │   │   │   │       │       │   │       └─ LuauStructInvalidColon [182..183]: ":"
  │   │   │   │       │       │   ├─ Newline [183..184]: "\n"
@@ -433,7 +433,7 @@ sparkdown [0..673]
  │   │   │   │       │       │   │           └─ LuauStructBlockClose [220..221]: "}"
  │   │   │   │       │       │   ├─ LuauStructBlockSeparator [221..222]: ";"
  │   │   │   │       │       │   ├─ Whitespace [222..223]: " "
- │   │   │   │       │       │   ├─ LuauStructInvalidHeader [230..231]
+ │   │   │   │       │       │   ├─ LuauStructInvalidHeader [223..231]
  │   │   │   │       │       │   │   └─ LuauStructInvalidHeader_c2 [230..231]
  │   │   │   │       │       │   │       └─ LuauStructInvalidColon [230..231]: ":"
  │   │   │   │       │       │   ├─ Whitespace [231..232]: " "
@@ -1004,7 +1004,7 @@ sparkdown [0..673]
  │   │   │   │       │       ├─ LuauStructBlockBody_content [574..639]
  │   │   │   │       │       │   ├─ Newline [574..575]: "\n"
  │   │   │   │       │       │   ├─ Whitespace [575..579]: "    "
- │   │   │   │       │       │   ├─ LuauStructInvalidHeader [598..599]
+ │   │   │   │       │       │   ├─ LuauStructInvalidHeader [579..599]
  │   │   │   │       │       │   │   └─ LuauStructInvalidHeader_c2 [598..599]
  │   │   │   │       │       │   │       └─ LuauStructInvalidColon [598..599]: ":"
  │   │   │   │       │       │   ├─ Newline [599..600]: "\n"
@@ -1095,7 +1095,7 @@ sparkdown [0..673]
  │   │   │   ├─ LuauStructBlockLine_begin 641
  │   │   │   ├─ LuauStructBlockLine_content [641..650]
  │   │   │   │   ├─ Whitespace [641..643]: "  "
- │   │   │   │   └─ LuauStructInvalidHeader [649..650]
+ │   │   │   │   └─ LuauStructInvalidHeader [643..650]
  │   │   │   │       └─ LuauStructInvalidHeader_c2 [649..650]
  │   │   │   │           └─ LuauStructInvalidColon [649..650]: ":"
  │   │   │   └─ LuauStructBlockLine_end 650

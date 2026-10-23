@@ -42,6 +42,8 @@ describe("a comment between a modifier and `function` keeps the function", () =>
     ["a level-four comment holding a level-five close", "local", "local --[====[a]=====]b]====]"],
     ["a level-five comment holding a level-four close", "local", "local --[=====[a]====]b]=====]"],
     ["a level-nine comment holding a level-four close", "local", "local --[=========[a]====]b]=========]"],
+    // I-1362: a level of nine or more closes at its own level too.
+    ["a level-nine comment holding a level-ten close", "local", "local --[=========[a]==========]b]=========]"],
   ])("%s", (_name, plain, commented) => {
     for (const head of [plain, commented]) {
       const source = `${head} function k(x: number)\n  return x\nend\nValue {k(5)}.\n`;
@@ -60,6 +62,26 @@ describe("a comment between a modifier and `function` keeps the function", () =>
   });
 });
 
+// I-1362: a comment of level nine or more holding the close of another such
+// level is one comment before `function` and after `end`.
+describe("a level-nine comment holding a level-ten close", () => {
+  const comment = "--[=========[a]==========]b]=========]";
+  // The comment plays nothing: the lines are those of the story without it.
+  const control = play(`function k() return 5 end\nValue {k()}.\n`);
+  test("before `function`", () => {
+    const result = play(`local ${comment} function k() return 5 end\nValue {k()}.\n`);
+    expect(result.errors).toEqual([]);
+    expect(result.lines[0]).toBe("Value 5.\n");
+    expect(result.lines).toEqual(control.lines);
+  });
+  test("after `end`", () => {
+    const result = play(`function k() return 5 end ${comment}\nValue {k()}.\n`);
+    expect(result.errors).toEqual([]);
+    expect(result.lines[0]).toBe("Value 5.\n");
+    expect(result.lines).toEqual(control.lines);
+  });
+});
+
 // I-1298: comments between `=` and a value that begins with a statement word.
 describe("comments between `=` and a value are not a value", () => {
   test.each([
@@ -71,6 +93,7 @@ describe("comments between `=` and a value are not a value", () => {
     ["threeIf", "--[[ c ]] --[[ d ]] --[==[ e ]==] if c then 1 else 2", "w", "1"],
     ["levelFourIf", "--[====[ c ]====] --[[ d ]] if c then 1 else 2", "w", "1"],
     ["levelFiveBracketIf", "--[=====[a ] b]=====] --[[ d ]] if c then 1 else 2", "w", "1"],
+    ["levelNineDashAfterForeignCloseIf", "--[=========[a]==========]-- x]=========] --[[ d ]] if c then 1 else 2", "w", "1"],
   ])("%s", (_name, value, read, expected) => {
     const source = `function f(c)\n  local w = ${value}\n  return ${read}\nend\nValue {f(true)}.\n`;
     const result = play(source);
@@ -105,6 +128,7 @@ describe("comments between `=` and a value are not a value", () => {
     ["store", "--[====[a ] b]====] --[[ d ]]"],
     ["store", "--[====[a]=====]b]====] --[[ d ]]"],
     ["store", "--[=====[a]====]b]=====] --[[ d ]]"],
+    ["store", "--[=========[a]==========]-- x]=========] --[[ d ]]"],
   ])("a story-scope `%s` declaration with `%s`", (modifier, comments) => {
     const result = play(
       `${modifier} w = ${comments} if true then 1 else 2\nValue {w}.\n`,
@@ -188,7 +212,7 @@ describe("a comment after a closing `end` at story scope is not story text", () 
       "end",
     ],
   ];
-  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c", "--[====[ c ]====]", "--[====[a ] b]====]", "--[====[a]=====]b]====]"]) {
+  for (const comment of ["--[[ c ]]", "-- c", "--[[ a ]] --[=[ b ]=] -- c", "--[====[ c ]====]", "--[====[a ] b]====]", "--[====[a]=====]b]====]", "--[=========[a]==========]b]=========]"]) {
     test.each(blocks)(`%s, then \`${comment}\``, (_name, block, line) => {
       const controlSource = `${block}\n${line}\n`;
       const control = play(controlSource);
