@@ -15,7 +15,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
-import { isStoryCondition } from "../../utils/storyIslands";
+import { isStoryCondition, pastStoryIslandEnd } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -1288,6 +1288,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    // The story lines the tree reads into a story declaration's bracket that
+    // never closes are story, not its Luau (`pastStoryIslandEnd`, I-1532):
+    // the checker's reading ends at the opener's line, and no Luau check
+    // reports on them.
+    if (nodeRef.name.startsWith("Luau") && pastStoryIslandEnd(nodeRef.node, this.statementDocumentText())) {
+      return annotations;
+    }
     // Before the unread reading's ownership: that reading's errors are the
     // checker's, and this check reports only where the checker does not read.
     this.validateLineEndOperator(annotations, nodeRef);
