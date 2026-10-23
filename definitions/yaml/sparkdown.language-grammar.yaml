@@ -736,8 +736,10 @@ variables:
   # them: a closing bracket, a quote, a backtick, the vararg `...`, or the
   # closing `/` and flags of a regex literal (`else (x)then`, `else ...then`,
   # `else @/x/gthen`). The flags are bounded so the lookbehind stays one
-  # Oniguruma accepts.
-  AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
+  # Oniguruma accepts. `LUAU_GLUEABLE_OPERAND_END` is the operand's end
+  # itself, for use inside a lookbehind (`LUAU_GLUED_THEN_BEHIND`).
+  LUAU_GLUEABLE_OPERAND_END: (?:[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
+  AFTER_LUAU_GLUEABLE_OPERAND: (?<={{LUAU_GLUEABLE_OPERAND_END}})
   # A `then` that ends just behind the current position, for use inside a
   # lookbehind: a word-bounded `then`, or one glued to a regex literal's
   # flags, where no word boundary precedes it. An if expression's
@@ -747,7 +749,7 @@ variables:
   # A `then` glued to the operand before it (`AFTER_LUAU_GLUEABLE_OPERAND`),
   # for use inside a lookbehind: the `then` an if expression's condition
   # takes (`LuauThenNextLineArm`).
-  LUAU_GLUED_THEN_BEHIND: (?:(?:[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})then)
+  LUAU_GLUED_THEN_BEHIND: (?:{{LUAU_GLUEABLE_OPERAND_END}}then)
   # What begins a statement rather than a value when it begins a line: the
   # keywords `LuauReturnStatement` stops at, a `;`, and a named
   # function declaration (a `function` literal is a value).
