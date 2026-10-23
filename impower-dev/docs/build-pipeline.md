@@ -95,7 +95,9 @@ server reads `PORT` (default 8080) and binds `0.0.0.0` only under Cloud Run
 
 The three external workers — `sparkdown-language-server`, `opfs-workspace`,
 `sparkdown-screenplay-pdf` — live in sibling packages and are bundled by their
-own `esbuild.js` (with esbuild's `--watch` for dev). The app loads them as
+own `esbuild.js`. In dev, `--watch` rebuilds them from file-change events
+(`scripts/esbuild-watch.mjs`) rather than esbuild's `ctx.watch()`, which polls
+every file of the build graph. The app loads them as
 `new Worker("/<name>.js")`. They're a separate bundler from Vite on purpose:
 they're reusable packages with their own build, also consumed by the VS Code
 extension.
