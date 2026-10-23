@@ -4,7 +4,7 @@
 
 import type { SyntaxNode } from "@lezer/common";
 import { ALTERNATOR_CANDIDATES, opensAlternator } from "../utils/alternatorDecision";
-import { loweredDefineStatementOf } from "../utils/defineStatement";
+import { loweredDefinePropertyOf, loweredDefineStatementOf } from "../utils/defineStatement";
 import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
@@ -373,12 +373,14 @@ export function endsStatementBefore(name: string, previousToken: string | undefi
  * included, which the reading names where it closes the closure
  * (`closureReadingErrors`). A define body's statement is read by its
  * lowerer (`loweredDefineStatementOf`), on to the token after it, as Luau
- * reads it, and that reading reports every error of it (I-1489).
+ * reads it, and that reading reports every error of it (I-1489), as a
+ * define body property's reading reports every error of its key and value
+ * (`loweredDefinePropertyOf`, I-1500).
  */
 export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined, read: (from: number, to: number) => string): boolean {
   const lowered = loweredLuauBodyOf(node);
   if (lowered) return tokenFrom === undefined || (tokenFrom < lowered.to && readingCarriesOnTo(node, tokenFrom, read));
-  if (loweredDefineStatementOf(node, read)) return tokenFrom === undefined || readingCarriesOnTo(node, tokenFrom, read);
+  if (loweredDefineStatementOf(node, read) || loweredDefinePropertyOf(node, read)) return tokenFrom === undefined || readingCarriesOnTo(node, tokenFrom, read);
   if (!isCheckedLuau(node, read)) {
     const expression = loweredExpressionOf(node);
     return !!expression && (tokenFrom === undefined || tokenFrom < expression.to || unclosedBrace(expression));
