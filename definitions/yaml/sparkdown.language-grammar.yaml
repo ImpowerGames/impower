@@ -87,6 +87,11 @@ variables:
   # lookaround: LuauIfBlock and LuauLineContinuation own following clauses and expression continuations respectively.
   LUAU_SHARED_THEN_NEXT_LINE_GUARD: "(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}})"
   LUAU_SHARED_THEN_ARM_END: "(?:else\\b|elseif\\b|[)}\\],;])"
+  # What a then arm ends before on its line, for use inside a lookahead: a
+  # BEAT, its clause keyword or closer, or the `then` or `do` of the statement
+  # whose condition the if expression is, after whitespace, glued to the
+  # value or after a `:` (`LuauThenExpression`, `LuauThenNextLineArm`).
+  LUAU_SHARED_THEN_ARM_CLOSER: "(?:{{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})"
   # lookaround: LuauExpression owns value keywords; LuauTypeLiteral accepts only names that can introduce a type.
   LUAU_SHARED_TYPE_KEYWORD_GUARD: "(?!{{LUAU_NON_TYPE_KEYWORDS}})"
   LUAU_SHARED_PATH_OR_CALL_CONTINUATION: "(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_DANGLING_ACCESSOR_START}}|{{LUAU_FUNCTION_CALL_START}}|\\[|{{LUAU_LINE_CONTINUATION_OPERATOR}})"
@@ -750,6 +755,17 @@ variables:
   # for use inside a lookbehind: the `then` an if expression's condition
   # takes (`LuauThenNextLineArm`).
   LUAU_GLUED_THEN_BEHIND: (?:{{LUAU_GLUEABLE_OPERAND_END}}then)
+  # Just after a glued `then` that is code: one with no comment start before
+  # it on its line, so the text of a comment that ends in `)then` is not one
+  # (`LuauThenNextLineArm`).
+  # lookaround: `LuauComment` reads a comment to its line's end and leaves the
+  # then arm open there, so the arm's patterns meet the position after its
+  # last word; only the line before that position tells code from comment.
+  # The rule that would claim the position first, the arm's own `then`, has
+  # already been taken by the condition, so no ordering of the arm's patterns
+  # can tell the two apart. A `--` inside a string before the `then` also
+  # stops it, and the line then reads as it did before `LuauThenNextLineArm`.
+  AFTER_LUAU_GLUED_THEN: (?<={{LUAU_GLUED_THEN_BEHIND}})(?<!{{LUAU_COMMENT_START}}.*)
   # What begins a statement rather than a value when it begins a line: the
   # keywords `LuauReturnStatement` stops at, a `;`, and a named
   # function declaration (a `function` literal is a value).
@@ -11890,8 +11906,9 @@ repository:
     # `LUAU_COLON_BEFORE_HEADER_END`). Read as the arm's operator, it would
     # take the next line as the arm's value (`LuauThenNextLineArm`). The
     # arm's own `then` is never one of these: a glued one is the
-    # condition's, and the arm opens after it.
-    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    # condition's, and the arm opens after it. `LUAU_SHARED_THEN_ARM_CLOSER`
+    # holds these ends on a line, which `LuauThenNextLineArm` shares.
+    end: "(?={{LUAU_SHARED_THEN_ARM_CLOSER}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # A then arm whose `then` ends its line, optionally with a comment, takes
   # its value from the next line, wherever that value begins, as Luau reads
@@ -11914,15 +11931,15 @@ repository:
   # where the arm's end would already have closed the arm: so this rule
   # opens at the `then`, whose line it sees whole. The second alternative is
   # a `then` glued to its condition, which the condition took (see
-  # `LuauThenExpression`); it asks for a glueable operand before the `then`
-  # so that a comment ending with the word `then` does not open it. A glued
-  # `then` that ends its line puts this rule at that line's end as it opens,
-  # where `LuauThenOperator` has yet to read the line break, so the end's
-  # `(?<!…)` keeps it from closing there. Ending at the end of the value's
-  # line, this rule never reaches a later line's start, where the arm's end
-  # decides as before.
+  # `LuauThenExpression`), found behind the position (`AFTER_LUAU_GLUED_THEN`)
+  # as code, not as the end of a comment's text. A glued `then` that ends its
+  # line puts this rule at that line's end as it opens, where
+  # `LuauThenOperator` has yet to read the line break, so the end's `(?!…)`
+  # keeps it from closing there. Ending at the end of the value's line, this
+  # rule never reaches a later line's start, where the arm's end decides as
+  # before.
   LuauThenNextLineArm:
-    begin: (?=then\b{{WS}}*(?:--.*)?$)|(?<={{LUAU_GLUED_THEN_BEHIND}})(?={{WS}}*(?:--.*)?$)
+    begin: (?=then\b{{WS}}*(?:--.*)?$)|{{AFTER_LUAU_GLUED_THEN}}(?={{WS}}*(?:--.*)?$)
     patterns:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
@@ -11930,7 +11947,7 @@ repository:
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})|(?<!{{LUAU_GLUED_THEN_BEHIND}})(?=$)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
+    end: "(?={{LUAU_SHARED_THEN_ARM_CLOSER}})|(?!{{AFTER_LUAU_GLUED_THEN}})(?=$)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
 
   # The `then` of an if expression's then arm and the whitespace and line
   # break after it. The second `begin` alternative is the arm's own `then`

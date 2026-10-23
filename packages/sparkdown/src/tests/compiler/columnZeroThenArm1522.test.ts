@@ -69,6 +69,7 @@ const VALUE_CASES = [
   ["a call argument", "function b(c)", "else 2)"],
   ["a returned value", "function d(c)", "else 2"],
   ["a value after a comment and a blank line", "function e(c)", "else 2"],
+  ["a value after a `then` glued to its condition", "function n(c)", "else 2"],
 ] as const;
 
 function functionText(open: string): string {
@@ -119,6 +120,20 @@ describe("an if expression's then-arm value at column 0 after a `then` that ends
     expect(treeRulesAt(at)).not.toContain("LuauTernaryExpression");
     const keyword = offsetOf(line, line) + line.search(/(?:then|do)$/);
     expect(treeRulesAt(keyword)).not.toContain("LuauTernaryExpression");
+  });
+
+  // A comment whose text ends like a glued `then` is not one: the arm, whose
+  // value is already behind it, ends at the next line's start as before.
+  test.each([
+    "local y = if c then 1 -- )then",
+    "local z = if c then 1 -- ]then",
+    'local u = if c then 1 -- "then',
+    "local t = if c then 1 -- ...then",
+    "local s = if c then 1 -- /gthen",
+    "false -- f(x)then",
+  ])("leaves the next line outside the arm after %j", (line) => {
+    const at = offsetOf(line, "\nprint(c)") + 1;
+    expect(treeRulesAt(at)).not.toContain("LuauTernaryExpression");
   });
 
   test.each([
