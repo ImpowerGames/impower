@@ -4812,13 +4812,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("table.find: index out of range");
         return null;
       }
-      // Lua's `__eq` rule, as in equality ops: both operands tables,
-      // both metatables carry __eq, and the handlers are the same
-      // value — then the handler decides (tables.luau lines 418-455).
+      // Lua's `__eq` rule, as in equality ops: both operands tables (or
+      // both userdata), both metatables carry __eq, and the handlers are
+      // the same value — then the handler decides (tables.luau lines
+      // 418-455).
       const eqViaMetamethod = (a: any, b: any): boolean => {
         if (!(a instanceof ObjectValue) || !(b instanceof ObjectValue)) {
           return false;
         }
+        if (luauTypeOf(a) !== luauTypeOf(b)) return false;
         const handlerOf = (o: ObjectValue) =>
           o.metatable instanceof ObjectValue
             ? ((o.metatable.value as Map<string, AbstractValue>)?.get(
@@ -5094,8 +5096,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (typeof av === "string" && typeof bv === "string") return av < bv;
         // Lua's `<`: tables compare through their `__lt` metamethod
         // (sort.luau line 112 sorts metatabled records with the
-        // DEFAULT comparator).
-        const mt = (a as { metatable?: any })?.metatable;
+        // DEFAULT comparator). Values of two different types never do.
+        const mt =
+          luauTypeOf(a) === luauTypeOf(b)
+            ? (a as { metatable?: any })?.metatable
+            : null;
         const ltFn =
           mt != null && mt.value instanceof Map ? mt.value.get("__lt") : null;
         if (ltFn != null && !(ltFn instanceof NullValue)) {

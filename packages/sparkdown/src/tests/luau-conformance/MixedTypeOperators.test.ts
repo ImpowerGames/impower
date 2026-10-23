@@ -133,4 +133,30 @@ check(function() return a == true end, "true|false")
 check(function() return a < 1 end, "false|attempt to compare table < number")
 done()`);
   });
+
+  // A table and a userdata are both ObjectValues in the runtime, but two
+  // Luau types: a comparison handler they share never runs between them.
+  test("a table and a userdata sharing comparison handlers stay apart", () => {
+    passes(`${CHECK}
+local u = newproxy(true)
+local mt = getmetatable(u)
+mt.__eq = function() error("__eq ran") end
+mt.__lt = function() return true end
+mt.__le = function() return true end
+mt.__add = function() return "add" end
+local t = setmetatable({}, mt)
+local u2 = newproxy(true)
+getmetatable(u2).__lt = mt.__lt
+check(function() return u == t end, "true|false")
+check(function() return t ~= u end, "true|true")
+check(function() return t < u end, "false|attempt to compare table < userdata")
+check(function() return u <= t end, "false|attempt to compare userdata <= table")
+check(function() return t > u end, "false|attempt to compare userdata < table")
+check(function() return t + u end, "true|add")
+check(function() return u < u2 end, "true|true")
+check(function() return table.find({t}, u) end, "true|nil")
+check(function() return table.find({u}, u) end, "true|1")
+check(function() return (pcall(table.sort, {t, u})) end, "true|false")
+done()`);
+  });
 });
