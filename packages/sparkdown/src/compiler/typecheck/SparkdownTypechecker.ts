@@ -33,7 +33,7 @@ import {
   type LuauUnit,
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
-import { luauReadingReportsAllAt, storyStoreOf } from "./LuauUnitNodes";
+import { isCheckedLuauAt, luauReadingReportsAllAt, storyStoreOf } from "./LuauUnitNodes";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { withMessageLines } from "./messageLines";
 import { syntaxErrorEnd } from "./syntaxErrorRange";
@@ -59,6 +59,14 @@ export interface TypecheckDiagnostic {
 // Syntax Sparkdown adds to Luau's, which the reading does not know: a label
 // (`::name::`) and a `goto` statement, which the grammar names.
 const SPARKDOWN_SYNTAX = new Set(["LuauLabel", "LuauGotoStatement"]);
+
+// Luau's error for a block whose closer its reading never met, named by its
+// header's keyword: in a story statement, whose reading's input ends where
+// the tree ends the block's Luau, a block the story holds, whose missing
+// closer Sparkdown names (`validateBlockEnds`), or the function a flow's
+// lines are read in. A closer Luau's recovery leaves missing after a
+// malformed header (`while (1 2) do`'s, `to close number`) names no keyword.
+const MISSING_BLOCK_CLOSER = /^Expected '(?:end|until)' \(to close '(?:then|do|repeat|function|else|elseif)' at [^)]*\), got <eof>/;
 
 /** A message with each line it names (`withMessageLines`) named as the document's line it stands on. */
 function inDocumentLines(unit: LuauUnit, message: string): string {
@@ -178,11 +186,18 @@ export class SparkdownTypechecker {
       }
       return false;
     };
+    // Whether an error at a document position is in a story `store`
+    // declaration (`storyStoreOf`), one at its line's end (`got <eof>` after
+    // its last token) included.
+    const inStoryStore = (position: { line: number; character: number }) => {
+      const offset = offsetOf(position);
+      if (storyStoreOf(tree.resolveInner(offset, 1), read)) return true;
+      const atLineEnd = offset >= text.length || text[offset] === "\n" || text[offset] === "\r";
+      return atLineEnd && !!storyStoreOf(tree.resolveInner(offset, -1), read);
+    };
+    const reported = new Set<string>();
     const report = (entry: CachedUnit, unit: LuauUnit, pureLuau: boolean) => {
       checks.push(entry.check);
-      // In a story statement's Luau, which ends at its line, the tokens a
-      // syntax error has been reported at, each once.
-      const reportedTokens = new Set<string>();
       const parseErrors = entry.check.sourceModule.parseErrors;
       for (const error of entry.check.errors) {
         const parseError = parseErrors.indexOf(error);
@@ -198,16 +213,22 @@ export class SparkdownTypechecker {
           // In a pure-Luau body (a `.luau` or `run` file, a function's own
           // Luau) every error of Luau's reading is reported, in Luau's words
           // at Luau's range, its recovery's included (I-1322). Elsewhere the
-          // Luau is a story statement's, bounded by its line, whose errors
-          // have one owner each (#931, #1907): the reading's for a construct
-          // only it finds malformed (`LuauSyntaxError.malformed`), for a
+          // Luau is a story statement's, bounded by its line, and its
+          // reading is the one owner of the errors it finds in the Luau it
+          // reads (I-1515, as I-1435 and I-1445 rule for a backtick string
+          // and a story brace), but three: a story `store`'s, which its
+          // reading of the declaration alone reports (`validateStores`); a
+          // block's closer missing at the end of the reading's input, where
+          // the block is story's and Sparkdown's block checks name it (I-1322,
+          // `validateBlockEnds`); and one at a token the checker does not read
+          // as Luau (a line of story an open bracket carried the reading on
+          // into), which Sparkdown's own syntax reports, but for a construct
+          // only the reading finds malformed (`LuauSyntaxError.malformed`), a
           // statement that holds a token the grammar left unread
-          // (`LuauSyntaxError.unread`), for a backtick string's own errors
-          // (`LuauSyntaxError.ofString`) and for an error at a token inside a
-          // backtick string, where Luau gave up on the string and no tree
-          // check names a token (`if `a {1 2} b` == "x" then`'s `Expected
-          // 'then' ..., got '2'`, I-1463), Sparkdown's own syntax's for the
-          // rest.
+          // (`LuauSyntaxError.unread`), a backtick string's own errors
+          // (`LuauSyntaxError.ofString`) and a token inside a backtick string,
+          // where Luau gave up on the string and no tree check names a token
+          // (I-1463).
           const inPureLuau = pureLuau || inFunction(start);
           // Luau's parser stops at the end of the chunk, and what the reading
           // reads on after it is none of Luau's: in a `.luau` or `run` file
@@ -218,16 +239,16 @@ export class SparkdownTypechecker {
           const stoppedAt = syntaxError?.pastChunkEnd;
           if (stoppedAt && (pureLuau || topLevelAt(start) === topLevelAt(documentPosition(unit, stoppedAt.begin)))) continue;
           if (!inPureLuau) {
-            // A backtick string's own error is the reading's wherever the
-            // string stands (I-1435), but in a story `store`, whose reading
-            // of the declaration alone reports it (`validateStores`).
-            if (syntaxError?.ofString) {
-              if (storyStoreOf(tree.resolveInner(offsetOf(start), 1), read)) continue;
-            } else if (!syntaxError?.malformed && !syntaxError?.unread && !inBacktickString(start)) continue;
-            const token = `${end.line}:${end.character}`;
-            if (reportedTokens.has(token)) continue;
-            reportedTokens.add(token);
+            if (inStoryStore(start)) continue;
+            if (MISSING_BLOCK_CLOSER.test(message)) continue;
+            const owned = syntaxError?.malformed || syntaxError?.unread || syntaxError?.ofString || inBacktickString(start);
+            if (!owned && !isCheckedLuauAt(tree.topNode, offsetOf(start), read)) continue;
           }
+          // Each error once, told apart by its range and words, not by its
+          // token alone: Luau may report two errors at one token (I-1492).
+          const key = `${start.line}:${start.character}-${end.line}:${end.character} ${message}`;
+          if (reported.has(key)) continue;
+          reported.add(key);
           diagnostics.push({ start, end, code: "SyntaxError", message: inDocumentLines(unit, message), syntax: true, ...(syntaxError?.ofString ? { ofString: true as const } : {}) });
           continue;
         }

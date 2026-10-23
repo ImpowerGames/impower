@@ -371,6 +371,9 @@ type OpenEntry =
   // A scene or branch, and the last block an `end` closed while it was open.
   | { kind: "scene" | "branch"; lastClosed?: Block };
 
+// Root-level nodes that begin no statement: line breaks, space and comments.
+const ROOT_TRIVIA = /^(?:Newline|\w*Whitespace|\w*Comment\w*)$/;
+
 // Checks, over the root-level nodes of a whole document, the blocks that
 // chunks leave open for a later root-level `end` to close, whether the chunk
 // is itself a block or holds one (a function value in a `store`), and warns
@@ -417,7 +420,12 @@ export function validateOpenBlocks(
       reportEntry(open.pop()!);
     }
   };
+  // Whether the root-level tokens since the last statement are a stray
+  // closer and the line breaks and comments after it.
+  let afterStrayCloser = false;
   for (let node = top.firstChild; node; node = node.nextSibling) {
+    if (node.name === "LuauStrayUntilStatement" && open.length === 0) afterStrayCloser = true;
+    else if (node.name !== "LuauEndKeyword" && !ROOT_TRIVIA.test(node.name)) afterStrayCloser = false;
     if (node.name === "Scene") {
       closeAbove(() => false);
       open.push({ kind: "scene" });
@@ -432,7 +440,11 @@ export function validateOpenBlocks(
       // meets in place of its `until` is that loop's missing `until`. In a
       // `.luau` or `run` file Luau's reading reports it, and nothing after
       // it, where Luau's parser stops (`luauReportsOpenBlock`).
-      if (open.length === 0 && !luauReportsOpenBlock(ctx)) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
+      // Luau's parser stops at the first stray closer (`until` included,
+      // which Luau's reading of its line reports), so a stray `end` right
+      // after one, with no statement between, is none of Luau's (I-1514).
+      if (open.length === 0 && !luauReportsOpenBlock(ctx) && !afterStrayCloser) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
+      if (open.length === 0) afterStrayCloser = true;
       // An `end` cannot close a `repeat`, so a `repeat` still open inside the
       // block it reaches is left without its `until`.
       closeAbove(

@@ -94,14 +94,17 @@ describe("written island syntax diagnostics own authored tokens", () => {
     const suffix = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";
     const body = "local n = t:";
     const island = `& ${body}`;
-    const native = parseOfficialTree(`  ${body}`).errors[0]!;
+    const natives = parseOfficialTree(`  ${body}`).errors;
+    const native = natives[0]!;
     expect(native.message).toContain("when parsing method name, got <eof>");
     const source = `${prefix}${island}\nThe village waits.\n& math.abs(5)\n${suffix}`;
     const published = syntaxErrors(source);
-    expect(published.map(message)).toEqual([native.message]);
-    expect(published[0]!.range.start).toEqual({ line: prefix.split("\n").length - 1, character: island.length });
+    // Every error Luau reports, the call's after the method name's (I-1515).
+    expect(published.map(message).sort()).toEqual(natives.map(e => e.message).sort());
+    const own = published.find(d => message(d) === native.message)!;
+    expect(own.range.start).toEqual({ line: prefix.split("\n").length - 1, character: island.length });
     // Published EOF ranges include the line break, never the following word.
-    expect(published[0]!.range.end).toEqual({ line: prefix.split("\n").length, character: 0 });
+    expect(published.every(d => d.range.end.line === prefix.split("\n").length && d.range.end.character === 0)).toBe(true);
     expect(publishedErrors(source).every(d => d.range.start.line <= prefix.split("\n").length - 1)).toBe(true);
     expect(treeScopeStackAt(parseSource(source), source.indexOf("The village"))).toContain("string.display.text.chunk.sd");
   });
@@ -114,12 +117,15 @@ describe("written island syntax diagnostics own authored tokens", () => {
   ])("missing token after a semicolon owns the authored EOF: %s", async body => {
     // An open bracket carries the statement on to the next header (#1907).
     const source = `& ${body}\n${body.endsWith("(") ? NEXT_HEADER.file : "The village waits.\n"}`;
-    const native = parseOfficialTree(`  ${body}`).errors[0]!;
+    const natives = parseOfficialTree(`  ${body}`).errors;
+    const native = natives[0]!;
     expect(native.message).toContain("got <eof>");
     const published = syntaxErrors(source);
-    expect(published.map(message)).toEqual([native.message]);
-    expect(published[0]!.range.start).toEqual({ line: 0, character: body.length + 2 });
-    expect(published[0]!.range.end).toEqual({ line: 1, character: 0 });
+    // Every error Luau reports (`voice:`'s call's after its method name's, I-1515).
+    expect(published.map(message).sort()).toEqual(natives.map(e => e.message).sort());
+    const own = published.find(d => message(d) === native.message)!;
+    expect(own.range.start).toEqual({ line: 0, character: body.length + 2 });
+    expect(published.every(d => d.range.end.line === 1 && d.range.end.character === 0)).toBe(true);
     expect(treeScopeStackAt(parseSource(source), source.indexOf("The village"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
