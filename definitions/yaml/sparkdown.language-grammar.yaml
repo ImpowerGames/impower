@@ -1864,12 +1864,21 @@ variables:
   # after it (`define X with`, `define X as Y with --[[c]]`), for a
   # lookbehind: a method written there (`define X with f() return 1 end
   # end`) opens as one written at a line's start does (I-1506). It is the
-  # header's own shape, `define`, a name, an optional `as` and parent, then
-  # `with`, so a `with` that is a value in the body (`z = with f()`) is no
-  # header's, and a define nested in a one-line block (`if c then define X
-  # with f() …`) is.
-  LUAU_DEFINE_HEADER_TO_WITH: (?:\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}?{{LUAU_DEFINE_HEADER_GAP}}with\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
-  # The `as` and parent name of such a header.
+  # header's own shape, `define`, a name, any `as` and parent clauses
+  # (`LuauInheritanceOperation` reads each), then `with`, so a `with` that
+  # is a value in the body (`z = with f()`) is no header's, and a define
+  # nested in a one-line block (`if c then define X with f() …`) is. The
+  # line before `define` holds code and closed block comments only
+  # (`LUAU_CODE_BEFORE_DEFINE_HEADER`), so header-shaped text in a comment
+  # (`y = 1; --[[define Fake with --[[c]] print(1)`) is no header. The cost:
+  # a `--` in a string before the header (`s = "--"; define X with f() …`)
+  # hides the header-line method.
+  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_CODE_BEFORE_DEFINE_HEADER}}\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}*{{LUAU_DEFINE_HEADER_GAP}}with\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
+  # The line's start up to such a header: characters that open no comment,
+  # and block comments that close on the line.
+  LUAU_CODE_BEFORE_DEFINE_HEADER: (?:^{{LUAU_CODE_CHAR_OR_CLOSED_COMMENT}}*)
+  LUAU_CODE_CHAR_OR_CLOSED_COMMENT: (?:[^\-\r\n]|-[^\-\r\n]|{{LUAU_PLAIN_BLOCK_COMMENT}})
+  # An `as` and parent name of such a header.
   LUAU_DEFINE_HEADER_PARENT: (?:{{LUAU_DEFINE_HEADER_GAP}}as{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}})
   # Whitespace or block comments between the words of such a header.
   LUAU_DEFINE_HEADER_GAP: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{WS}}+)

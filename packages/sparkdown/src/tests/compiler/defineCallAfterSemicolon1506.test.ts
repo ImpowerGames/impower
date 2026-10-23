@@ -47,6 +47,8 @@ const FORMS: [statements: string, methods: string, readings: string[]][] = [
   ["  y = 1; print(1)\n  z = 2\n", "", []],
   // A call after a `;`, with a method below it.
   ["  y = 1; print(1 2)\n", "  g()\n    return 1\n  end\n", ["g:method"]],
+  // A call after header-shaped text in a comment (round 4, undirected).
+  ["  y = 1; --[[define Fake with --[[c]] print(1 2 3)\n", "", []],
   // A call after a `;` on a line that block comments begin.
   ["  --[[c]] y = 1; print(1 2)\n", "", []],
   // Controls: a method header at the line's start, after block comments
@@ -115,6 +117,8 @@ const HEADER_LINE_METHODS: [text: string, readings: string[]][] = [
   ["define X with --[====[a]b]====] f() return 1 end end\n", ["f:method"]],
   ["define X with f() return 1 end\n  g()\n    return 2\n  end\nend\n", ["f:method", "g:method"]],
   ["define --[[a]] X with f() return 1 end end\n", ["f:method"]],
+  // Repeated `as` clauses, which the header reads (round 4, undirected).
+  ["define X as Y as Z with f() return 1 end end\n", ["f:method"]],
   // A define nested in a one-line block (round 3, undirected).
   ["if true then define X with f() return 1 end end end\n", ["f:method"]],
   ["function outer() define X with f() return 1 end end end\n", ["f:method"]],
