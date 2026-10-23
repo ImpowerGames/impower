@@ -88,7 +88,9 @@ describe("FormatString in Sparkdown", () => {
   });
 
   // The runtime runs `%` before a character that is not a class as that
-  // character, so the pattern is not reported.
+  // character, so the pattern is not reported. Since I-1398 a letter after
+  // `%` also means the letter; this space is not a letter and keeps its
+  // escape, so the reading is unchanged.
   test("a match pattern with a space outside ASCII after an escape is not reported", () => {
     expect(inFunction(` print(string.match(s, "%\\z${NBSP}d"))`)).toEqual([]);
   });
