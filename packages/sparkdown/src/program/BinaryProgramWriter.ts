@@ -2100,7 +2100,8 @@ const endOfString = (s: string, i: number): number => {
     if (d === "\\") {
       j += 2;
       if (!regex && s[j - 1] === "z") {
-        while (j < s.length && /\s/.test(s[j]!)) j += 1;
+        // Luau's whitespace: a space or `\t` through `\r`, not a Unicode space.
+        while (j < s.length && /[ \t-\r]/.test(s[j]!)) j += 1;
       }
     } else if ((c === "`" || c === '"') && d === "{") {
       j = endOfLuau(s, j + 1, c === '"' ? c : undefined);
