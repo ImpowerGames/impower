@@ -6,8 +6,20 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import type { Matcher } from "../types/Matcher";
+import { analyzeCaptureGroups } from "../utils/analyzeCaptureGroups";
 import { escapeRegExpPattern } from "../utils/escapeRegExpPattern";
 import { hasCapturingGroups } from "../utils/hasCapturingGroups";
+
+/**
+ * The groups of a match, with each group's `[start, end)` in the matched
+ * string when the groups do not simply follow one another through the match.
+ */
+export type RegExpMatchResult = (string | undefined)[] & {
+  indices?: ([number, number] | undefined)[];
+};
+
+/** A back-reference in an `end` pattern, read as vscode-textmate reads it. */
+const BACK_REFERENCE = /\\(\d+)/g;
 
 /**
  * `RegExp` wrapper class. Designed to improve performance by implementing
@@ -25,10 +37,29 @@ export class RegExpMatcher implements Matcher {
   declare regexp: RegExp;
 
   /**
+   * The same `RegExp` with the `d` flag, made when a match first needs the
+   * positions of its groups.
+   */
+  declare private indicesRegexp: RegExp | undefined;
+
+  /**
    * True if the source `RegExp` has an capturing groups. Used to short
    * circuit the `match` method's behavior, and improve performance.
    */
   declare private hasCapturingGroups: boolean;
+
+  /**
+   * Where each capturing group sits (`analyzeCaptureGroups`): the group
+   * enclosing it, 0 for none, or -1 inside a lookaround.
+   */
+  declare readonly groupParents: number[];
+
+  /**
+   * True if no capturing group is nested in another or in a lookaround, so
+   * groups whose lengths add up to the match's follow one another through it
+   * and need no indices.
+   */
+  declare private flatGroups: boolean;
 
   declare protected _pattern: string;
 
@@ -42,21 +73,32 @@ export class RegExpMatcher implements Matcher {
 
   set backReferences(value) {
     this._backReferences = value;
-    let escapedPattern = this._pattern;
-    this._backReferences.forEach((capture, index) => {
-      const escapedCapture = escapeRegExpPattern(capture);
-      escapedPattern = escapedPattern.replaceAll(`\\${index}`, escapedCapture);
-    });
-    if (escapedPattern !== this._pattern) {
-      this.regexp = new RegExp(escapedPattern, this._flags);
+    // As vscode-textmate does, every `\N` is the begin's group N, and the
+    // empty string when the begin has no such group.
+    const escapedPattern = this._pattern.replace(BACK_REFERENCE, (_, n) =>
+      escapeRegExpPattern(value[parseInt(n, 10)] ?? ""),
+    );
+    if (escapedPattern !== this._source) {
+      this._source = escapedPattern;
+      this.indicesRegexp = undefined;
+      try {
+        this.regexp = new RegExp(escapedPattern, this._flags);
+      } catch {
+        // As in the constructor, a malformed source fails when it is used.
+        this.regexp = undefined!;
+      }
     }
   }
+
+  /** The source {@link regexp} was made from. */
+  declare protected _source: string;
 
   /**
    * @param pattern - The source `RegExp` to wrap.
    */
   constructor(pattern: string, flags = "muy") {
     this._pattern = pattern;
+    this._source = pattern;
     this._flags = flags;
     try {
       const regexp = new RegExp(pattern, flags);
@@ -65,6 +107,10 @@ export class RegExpMatcher implements Matcher {
     this.hasCapturingGroups = this.regexp
       ? hasCapturingGroups(this.regexp)
       : false;
+    this.groupParents = this.hasCapturingGroups
+      ? analyzeCaptureGroups(pattern)
+      : [0];
+    this.flatGroups = this.groupParents.every((parent) => parent === 0);
   }
 
   /**
@@ -97,13 +143,23 @@ export class RegExpMatcher implements Matcher {
   }
 
   /**
+   * Performs `RegExp.exec` with the `d` flag, so the result holds each
+   * group's `[start, end)`.
+   */
+  private execIndices(str: string, pos: number) {
+    this.indicesRegexp ??= new RegExp(this.regexp.source, this._flags + "d");
+    this.indicesRegexp.lastIndex = pos;
+    return this.indicesRegexp.exec(str);
+  }
+
+  /**
    * Returns the results of attempting to match a string against this
    * regular expression.
    *
    * @param str - The string to match.
    * @param pos - The position to start matching at.
    */
-  match(str: string, pos: number): (string | undefined)[] | null {
+  match(str: string, pos: number): RegExpMatchResult | null {
     // if we don't have any capturing groups, we can cheat a little bit,
     // and only use the `test` method, which is much faster
     if (!this.hasCapturingGroups) {
@@ -122,27 +178,26 @@ export class RegExpMatcher implements Matcher {
     // and most of the time a regexp doesn't match anything, so it's not worth
     // trying a full match first
     if (this.test(str, pos)) {
-      const match = this.exec(str, pos);
-      if (match) {
-        const total = match[0];
-        const result = match.slice();
-
-        // capturing groups can be undefined if an entire group was marked as optional
-        // so we'll replace those with an empty string to keep the interface consistent
-        if (result) {
+      if (this.flatGroups) {
+        const match = this.exec(str, pos);
+        if (match) {
+          // capturing groups can be undefined if an entire group was marked
+          // as optional. Groups that follow one another through the whole
+          // match are placed by their lengths alone; any other match (a gap
+          // between groups, or a group repeated) needs their indices.
           let capturedLength = 0;
-          for (let i = 1; i < result.length; i++) {
-            capturedLength += result[i]?.length ?? 0;
+          for (let i = 1; i < match.length; i++) {
+            capturedLength += match[i]?.length ?? 0;
           }
-          // parser only accepts regexps that have their capturing groups
-          // consist of contiguous ranges covering the entirety of the match
-          if (capturedLength !== total.length) {
-            throw new Error(
-              `Invalid capturing group lengths: ${this.regexp.source}`,
-            );
+          if (capturedLength === match[0].length) {
+            return match.slice();
           }
         }
-
+      }
+      const match = this.execIndices(str, pos);
+      if (match) {
+        const result: RegExpMatchResult = match.slice();
+        result.indices = match.indices!.slice();
         return result;
       }
     }

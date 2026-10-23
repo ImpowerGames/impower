@@ -45,8 +45,8 @@ import { describe, expect, it } from "vitest";
 //     baz            <- content
 //   end              <- Block closes (consuming `end`)
 //
-// Every MatchRule's capturing groups contiguously cover the whole match
-// (RegExpMatcher throws otherwise). Capture node ids must NOT collide with
+// Every MatchRule's capturing groups contiguously cover the whole match, as
+// the grammar's do. Capture node ids must NOT collide with
 // repository rule names (a match-less capture def would overwrite the rule).
 // ---------------------------------------------------------------------------
 

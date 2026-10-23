@@ -259,15 +259,13 @@ export class ScopedRule implements Rule {
   }
 
   begin(state: GrammarState, from: number) {
-    let beginMatched = this.beginRule.match(state, from);
-    if (!beginMatched) {
+    const begun = this.beginRule.matchGroups(state, from);
+    if (!begun) {
       return null;
     }
-    const captures = [""];
-    beginMatched.children?.forEach((c) => {
-      captures.push(state.str.slice(c.from, c.from + c.length));
-    });
-    beginMatched = beginMatched.wrap(this.node, Wrapping.BEGIN);
+    // The end's `\N` is the begin's group N, as in vscode-textmate.
+    const captures = begun.groups.map((group) => group ?? "");
+    const beginMatched = begun.matched.wrap(this.node, Wrapping.BEGIN);
     this.contentRule.resolve();
     state.stack.push(this.node, captures);
     return beginMatched;
