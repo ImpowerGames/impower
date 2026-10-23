@@ -8,7 +8,8 @@
 
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compileScript, errorsOf, storyBeats } from "../program/programHarness";
+import type { ProgramRoot } from "../../program/ProgramRoot";
+import { compileScript, errorsOf, programSession, storyBeats } from "../program/programHarness";
 
 const quiet = <T>(run: () => T): T => {
   const { warn, error } = console;
@@ -21,12 +22,16 @@ const quiet = <T>(run: () => T): T => {
   }
 };
 
+const shown = (root: ProgramRoot) => {
+  const { beats, errors } = storyBeats(new ProgramStory(root));
+  return { texts: beats.map((b) => b.text.trim()), errors };
+};
+
 const run = (lines: string[]) =>
   quiet(() => {
     const { program } = compileScript([...lines, ""].join("\n"));
     expect(errorsOf(program)).toEqual([]);
-    const { beats, errors } = storyBeats(new ProgramStory(program.chunks!));
-    return { texts: beats.map((b) => b.text.trim()), errors };
+    return shown(program.chunks!);
   });
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
@@ -149,6 +154,36 @@ describe("a function statement in a top-level function naming a top-level local"
     ).toEqual(got("Got 3."));
   });
 
+  test("assigns the declaration in scope of a name declared twice", () => {
+    expect(
+      run([
+        "local g = 1",
+        "function first() return g end",
+        "local g = 2",
+        "function change()",
+        "  function g() return 3 end",
+        "end",
+        "& change()",
+        "Got {first()} {g()}.",
+      ]),
+    ).toEqual(got("Got 1 3."));
+  });
+
+  test("a define's method assigns the local", () => {
+    expect(
+      run([
+        "local g = 1",
+        "define thing with",
+        "  function m()",
+        "    function g() return 3 end",
+        "  end",
+        "end",
+        "& thing.m()",
+        "Got {g()}.",
+      ]),
+    ).toEqual(got("Got 3."));
+  });
+
   test("a closure written at the top level assigns the local", () => {
     expect(
       run([
@@ -216,10 +251,48 @@ describe("a function statement in a top-level function naming a story's global",
     ).toEqual(got("Got 3."));
   });
 
+  test("a name the story declares nowhere stays a local of the function", () => {
+    expect(
+      run([
+        "function change()",
+        "  function g() return 3 end",
+        "  return g()",
+        "end",
+        "Got {change()} {tostring(g)}.",
+      ]),
+    ).toEqual(got("Got 3 nil."));
+  });
+
   test("reports reassigning a top-level const, as an assignment does", () => {
     const { program } = quiet(() =>
       compileScript(["const g = 1", "function change()", "  function g() return 3 end", "end", ""].join("\n")),
     );
     expect(errorsOf(program)).toEqual([[2, "Cannot re-assign the const `g`."]]);
+  });
+});
+
+// Whether the statement assigns depends on the lines above the function, so
+// an edit there lowers the function again.
+describe("an incremental compile of a function statement naming a top-level name", () => {
+  test.each([
+    ["the local added above it", "store b = 0", "store b = 0\nlocal g = 1", "Got 3 3."],
+    ["the local removed", "store b = 0\nlocal g = 1", "store b = 0", "Got 3 nil."],
+    ["a top-level function added", "store b = 0", "store b = 0\nfunction g() return 1 end", "Got 3 3."],
+    ["the top-level function removed", "store b = 0\nfunction g() return 1 end", "store b = 0", "Got 3 nil."],
+  ])("shows what a cold compile shows after %s", (_, before, after, expected) => {
+    const lines = [
+      before,
+      "function change()",
+      "  function g() return 3 end",
+      "  return g()",
+      "end",
+      "Got {change()} {tostring(g and g())}.",
+      "",
+    ];
+    const session = programSession(lines.join("\n"));
+    const root = session.edit(before, after);
+    const cold = run([session.text]);
+    expect(quiet(() => shown(root))).toEqual(cold);
+    expect(cold.texts).toEqual([expected]);
   });
 });
