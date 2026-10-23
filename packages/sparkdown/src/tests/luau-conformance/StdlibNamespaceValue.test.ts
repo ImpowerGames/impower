@@ -217,4 +217,17 @@ describe("a stdlib namespace read as a value", () => {
       .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
     expect(messages.filter((m) => m.includes("Cannot find"))).toEqual([]);
   });
+
+  test("still reports a name that is no library", () => {
+    const { program } = quiet(() =>
+      compileScript(["Got {type(maths)} {type(string2)}.", ""].join("\n")),
+    );
+    const messages = Object.values(program.diagnostics ?? {})
+      .flat()
+      .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+    expect(messages.filter((m) => m.includes("Cannot find"))).toEqual([
+      "Cannot find variable named `maths`",
+      "Cannot find variable named `string2`",
+    ]);
+  });
 });
