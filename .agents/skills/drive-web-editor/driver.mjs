@@ -567,10 +567,18 @@ async function pickPorts() {
   die("could not find 3 consecutive free ports");
 }
 
-// Boot `npm run web:dev` detached, on ports WE chose.
+// Boot the `npm run web:dev` launcher, scripts/dev-preview.mjs, detached, on
+// ports WE chose.
 //
 // Detached matters: the agent runs each command as a separate short-lived
 // process, so the servers must outlive `up`.
+//
+// The launcher runs under node directly rather than through npm. On Windows
+// that makes it the detached wrapper's own child, which libuv's kill-on-close
+// job ends whenever the wrapper ends, and the launcher's job then ends the
+// servers. Through npm the wrapper's child was only the cmd.exe npm runs in,
+// so a wrapper killed without its tree left npm, the launcher and both
+// servers running, and `down` found the record stale and stopped nothing.
 //
 // Do NOT try to scrape the launcher's "✓ Live preview ready → URL" line: a
 // detached child on Windows does not flush its stdio into an inherited file
@@ -611,8 +619,8 @@ export async function up(args) {
   const url = `http://localhost:${ports.editor}`;
 
   const child = spawnDetached(
-    "npm",
-    ["run", mode === "cross-origin" ? "web:dev:cross-origin" : "web:dev"],
+    process.execPath,
+    [path.join(REPO_ROOT, "scripts", "dev-preview.mjs"), "--mode", mode],
     {
       cwd: REPO_ROOT,
       env: {
@@ -622,7 +630,6 @@ export async function up(args) {
         HMR_PORT: String(ports.hmr),
       },
       stdio: "ignore",
-      shell: true, // npm is npm.cmd on Windows; Node 23 refuses to spawn .cmd directly
       linger: true, // `down` stops this tree with taskkill /T from the pid recorded below
     },
   );

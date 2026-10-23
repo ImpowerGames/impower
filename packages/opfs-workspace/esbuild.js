@@ -69,17 +69,20 @@ const config = {
   mainFields: ["module", "main"],
   external: ["commonjs"],
   plugins: [rawPlugin, esbuildProblemMatcher()],
+  metafile: WATCH,
 };
 
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    // esbuild's native watch already tracks this worker's full input graph —
-    // its own src AND its @impower deps (imported via /src/ subpaths, so they
-    // resolve to source). The old extra chokidar on its OWN src was redundant
-    // and, lacking error handling, crashed the whole watcher on any build error
-    // (e.g. a syntax error mid-edit) — silently ending hot-reload.
-    await ctx.watch();
+    // The helper watches this worker's full input graph — its own src AND its
+    // @impower deps (imported via /src/ subpaths, so they resolve to source) —
+    // from change notifications, where ctx.watch() polls those files. A failed
+    // rebuild (e.g. a syntax error mid-edit) is logged and watching continues.
+    const { watchBuild } = await import("../../scripts/esbuild-watch.mjs");
+    await watchBuild(ctx, {
+      onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();

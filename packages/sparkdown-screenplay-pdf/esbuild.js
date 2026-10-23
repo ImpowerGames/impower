@@ -90,12 +90,17 @@ if (typeof self !== "undefined") { self.global = {}; };
 `.trim(),
   },
   plugins: [rawPlugin, esbuildProblemMatcher()],
+  metafile: WATCH,
 };
 
 async function main() {
   const ctx = await context(config);
   if (WATCH) {
-    await ctx.watch();
+    // Not ctx.watch(), which polls the build graph's files; see the helper.
+    const { watchBuild } = await import("../../scripts/esbuild-watch.mjs");
+    await watchBuild(ctx, {
+      onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();
