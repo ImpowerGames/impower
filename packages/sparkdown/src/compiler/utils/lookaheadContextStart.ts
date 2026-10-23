@@ -2,18 +2,16 @@
  * Where a reparse after an edit at `pos` has to begin in `text`, the
  * document before the edit (the same as the document after it up to `pos`).
  *
- * Grammar lookaheads read past the end of their own line: an operator at the
- * end of a line checks whether the next line begins a value, and an operator
- * with no operand is told apart from one whose operand is on a later line by
- * skipping blank lines and comments to the next token
- * (`_LUAU_TRIVIA_AHEAD_`). A token's node therefore depends on the text up
- * to the first line after it that holds anything but whitespace or a
- * comment. The incremental parser keeps every token before the point it
- * restarts from, so the reparse begins at the start of the last such line
- * before the edit: the tokens on it can read up to the edit, and a lookahead
- * from before it that skips blank lines and comments stops at that line. A
- * lookahead that scans on across a line of code (an interpolated string
- * field looking for its `{`) can still read past it.
+ * No grammar regex reads past its own line: both engines match each one
+ * against its line and line break only (I-1283). A rule left open at a line's
+ * end still decides at a later line: an operator at the end of a line keeps
+ * its rule open through blank lines and comments, and the first line after it
+ * that holds anything but whitespace or a comment either carries its operand
+ * or closes it. A token's node therefore depends on the text up to that line.
+ * The incremental parser keeps every token before the point it restarts from,
+ * so the reparse begins at the start of the last such line before the edit,
+ * and a rule left open on it across the skipped lines is decided again from
+ * the edited text.
  *
  * A line counts as skippable when it is blank, starts with `--` (a Luau
  * comment, or a story line Luau reads as one), or lies inside a comment
