@@ -40,6 +40,12 @@ const TARGETED: Record<string, string> = {
     "function greet()\n    x = \n    local z = 1\nend\n",
   "assign-no-trailing-space-in-function":
     "function greet()\n    x =\n    local z = 1\nend\n",
+  // Any operator that ends its line reads only that line: the tree scoped
+  // this `+` as a missing operand by reading `local` on the next line.
+  "operator-at-line-end-before-statement":
+    "function f(t)\n  store x = 1 +\n  local y = 2 +;\nend\n",
+  // A story statement ends at its line (GRAMMAR.md §11.5), so this agreed
+  // before the line bound too; it guards the top-level reading.
   "assign-trailing-space-top-level": "x = \nlocal z = 1\n",
   // A method's name past the trivia after its `:` (I-1322), and the token
   // that is no name where a comment leaves the reading.
