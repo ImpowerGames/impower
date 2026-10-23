@@ -103,3 +103,20 @@ test("lost, added, moved or changed text is a token change", () => {
 test("an end the formatter drops without folding an else-if is a token change", () => {
   expect(tokenChange(fn("  if s then\n  end"), fn("  if s then\n"))).toMatch(/changed/);
 });
+
+test("folding an else that holds more than its if is a token change", () => {
+  expect(
+    tokenChange(
+      fn("  if s then\n  else\n    if t then\n      s = 1\n    end\n    s = 2\n  end"),
+      fn("  if s then\n  elseif t then\n      s = 1\n    s = 2\n  end"),
+    ),
+  ).toMatch(/joined|changed/);
+});
+
+test("a comma before a brace in story text is not a table's trailing comma", () => {
+  expect(tokenChange("Hello,}\n", "Hello}\n")).toMatch(/changed/);
+});
+
+test("a regex literal is compared exactly", () => {
+  expect(tokenChange(fn("  return @/a  b/"), fn("  return @/a b/"))).toMatch(/changed/);
+});

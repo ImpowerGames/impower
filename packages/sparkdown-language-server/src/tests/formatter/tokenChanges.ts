@@ -4,8 +4,9 @@
 // the code its interpolations hold; a comment is compared whole with its
 // whitespace collapsed. The formatter's own rewrites
 // are allowed where they apply: a closed single-quoted string written with
-// double quotes, a table's trailing comma before its `}`, and `else if …
-// end end` folded to `elseif … end`. Two characters a space kept apart must
+// double quotes, a parsed table's trailing comma before its own `}`, and an
+// `else` whose body is one `if` folded to `elseif`, dropping that `if`'s own
+// `end`. Two characters a space kept apart must
 // not be written together (`-> two then` → `-> twothen`, `- -x` → `--x`), a
 // token of the parse must not be written apart (`12` → `1 2`, `==` →
 // `= =`), and a line break may go or come only inside Luau code (two story
@@ -52,6 +53,8 @@ const LITERALS = new Set([
   "StringFieldValue",
   "StringFieldValueInterpolated",
   "StringLiteral",
+  "LuauRegexLiteral",
+  "RunQuotedPath",
   "LuauComment",
   "LuauLineComment",
   "LuauBlockComment",
@@ -88,6 +91,8 @@ interface Unit {
   // Where the unit begins, and whether a token of the parse begins there.
   from: number;
   boundary: boolean;
+  // A table's trailing comma: a `,` the table's own `}` follows.
+  trailingComma?: boolean;
 }
 
 // The units of a text and its parse.
@@ -232,6 +237,7 @@ function units(text: string): Units {
         broken: gap.includes("\n"),
         from: i,
         boundary: before.to <= i || after.from >= i,
+        trailingComma: char === "," && isTrailingComma(tree, text, i),
       });
       gap = "";
     }
@@ -258,10 +264,67 @@ function quoted(unit: Unit): string {
 
 // The units without a table's trailing comma: a `,` before a `}`.
 function withoutTrailingCommas(list: Unit[]): Unit[] {
-  return list.filter(
-    (unit, i) =>
-      unit.literal || unit.text !== "," || list[i + 1]?.text !== "}",
-  );
+  return list.filter((unit) => !unit.trailingComma);
+}
+
+const TABLE = /^Luau(?:SparkdownExplicit)?Table$/;
+
+// Whether the `,` at `at` is a table's trailing comma: the next character
+// after whitespace is the `}` that closes a table around the comma.
+function isTrailingComma(tree: Tree, text: string, at: number): boolean {
+  const close = text.slice(at + 1).search(/\S/);
+  if (close < 0 || text[at + 1 + close] !== "}") return false;
+  const brace = at + 1 + close;
+  for (let n: SyntaxNode | null = tree.resolveInner(at, 1); n; n = n.parent) {
+    if (TABLE.test(n.name)) return n.to === brace + 1;
+  }
+  return false;
+}
+
+const ELSE_BLOCKS: Record<string, string> = {
+  LuauElseBlock: "LuauIfBlock",
+  LuauSparkdownElseBlock: "LuauSparkdownIfBlock",
+};
+
+const INSIGNIFICANT = new Set([
+  "Newline",
+  "Whitespace",
+  "ExtraWhitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "TrailingWhitespace",
+]);
+
+// The else blocks the formatter may fold into `elseif`: an `else` whose body
+// is one `if` and nothing else, by where that `if` keyword begins, each with
+// where the inner `if`'s own `end` begins, the one the fold drops.
+function foldableElses(tree: Tree): Map<number, number> {
+  const folds = new Map<number, number>();
+  tree.iterate({
+    enter(node) {
+      const inner = ELSE_BLOCKS[node.name];
+      if (!inner) return;
+      const body = node.node.getChild(`${node.name}_content`);
+      let ifBlock: SyntaxNode | null = null;
+      for (let child = body?.firstChild ?? null; child; child = child.nextSibling) {
+        if (INSIGNIFICANT.has(child.name)) continue;
+        if (child.name !== inner || ifBlock) return;
+        ifBlock = child;
+      }
+      let ifFrom = -1;
+      ifBlock?.getChild(`${inner}_begin`)?.cursor().iterate((n) => {
+        if (n.name === "LuauIfKeyword") ifFrom = n.from;
+        return ifFrom < 0;
+      });
+      let endFrom = -1;
+      ifBlock?.getChild(`${inner}_end`)?.cursor().iterate((n) => {
+        if (n.name === "LuauEndKeyword") endFrom = n.from;
+        return endFrom < 0;
+      });
+      if (ifFrom >= 0 && endFrom >= 0) folds.set(ifFrom, endFrom);
+    },
+  });
+  return folds;
 }
 
 // Whether the units from `i` spell the whole word `word`.
@@ -298,6 +361,32 @@ export function tokenChange(before: string, after: string): string | undefined {
   const source = units(before);
   const a = withoutTrailingCommas(source.list);
   const b = withoutTrailingCommas(units(after).list);
+  // `else if` folded to `elseif` where the source's else holds only that if.
+  // Each fold drops the inner if's `end`, which reads like the `end`s after
+  // it, so the folds a comparison finds are taken out of the source and the
+  // comparison runs again, until it finds no new one.
+  const foldable = foldableElses(source.tree);
+  const dropped = new Set<number>();
+  for (;;) {
+    const kept = a.filter(
+      (unit) => ![...dropped].some((end) => unit.from >= end && unit.from < end + 3),
+    );
+    const { change, folds } = compare(kept, b, source.tree, foldable);
+    const found = folds.filter((end) => !dropped.has(end));
+    if (found.length === 0) return change;
+    for (const end of found) dropped.add(end);
+  }
+}
+
+// The first token change from the units `a` to `b`, and the inner `end`s of
+// the else-if folds it met.
+function compare(
+  a: Unit[],
+  b: Unit[],
+  tree: Tree,
+  foldable: Map<number, number>,
+): { change: string | undefined; folds: number[] } {
+  const folds: number[] = [];
   const context = (list: Unit[], i: number) =>
     JSON.stringify(
       list
@@ -305,55 +394,51 @@ export function tokenChange(before: string, after: string): string | undefined {
         .map((u) => (u.spaced ? " " : "") + u.text)
         .join(""),
     );
-  // `else if` folded to `elseif`, each of which leaves one `end` to drop.
-  let folds = 0;
+  const changed = (change: string) => ({ change, folds });
   let i = 0;
   let j = 0;
   while (i < a.length && j < b.length) {
     const x = a[i]!;
     const y = b[j]!;
     if (x.literal !== y.literal || quoted(x) !== quoted(y)) {
-      if (folds > 0 && wordAt(a, i, "end")) {
-        folds--;
-        i += 3;
-        continue;
-      }
-      return `text changed: ${context(a, i)} → ${context(b, j)}`;
+      return changed(`text changed: ${context(a, i)} → ${context(b, j)}`);
     }
     if (i > 0 && j > 0) {
       const prev = a[i - 1]!;
       const fold =
-        x.spaced && !y.spaced && wordAt(a, i, "if") && wordAt(a, i - 4, "else");
+        x.spaced &&
+        !y.spaced &&
+        foldable.has(x.from) &&
+        wordAt(a, i, "if") &&
+        wordAt(a, i - 4, "else");
       if (fold) {
-        folds++;
+        folds.push(foldable.get(x.from)!);
       } else if (x.broken !== y.broken) {
         // A line break goes or comes only inside Luau code, where it is a
         // space; elsewhere a line is a beat of the story.
-        const code = luauCode(source.tree, prev.from);
-        if (code < 0 || code !== luauCode(source.tree, x.from)) {
-          return `line ${x.broken ? "joined" : "broken"}: ${context(a, i)} → ${context(b, j)}`;
+        const code = luauCode(tree, prev.from);
+        if (code < 0 || code !== luauCode(tree, x.from)) {
+          return changed(
+            `line ${x.broken ? "joined" : "broken"}: ${context(a, i)} → ${context(b, j)}`,
+          );
         }
       }
       if (!fold && !x.literal && !prev.literal) {
         if (x.spaced && !y.spaced && joins(prev.text, x.text)) {
-          return `tokens joined: ${context(a, i)} → ${context(b, j)}`;
+          return changed(`tokens joined: ${context(a, i)} → ${context(b, j)}`);
         }
         // Written apart where the parse reads one token (`==`, `1.5`, a
         // name).
         if (!x.spaced && y.spaced && !x.boundary) {
-          return `token split: ${context(a, i)} → ${context(b, j)}`;
+          return changed(`token split: ${context(a, i)} → ${context(b, j)}`);
         }
       }
     }
     i++;
     j++;
   }
-  while (folds > 0 && wordAt(a, i, "end")) {
-    folds--;
-    i += 3;
-  }
   if (i < a.length || j < b.length) {
-    return `text changed at the end: ${context(a, i)} → ${context(b, j)}`;
+    return changed(`text changed at the end: ${context(a, i)} → ${context(b, j)}`);
   }
-  return undefined;
+  return { change: undefined, folds };
 }
