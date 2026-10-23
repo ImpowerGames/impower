@@ -115,6 +115,8 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t) -- local function g()\n    :end", "end"],
     ["local t = {}\n  local b = (t) --[[c]] -- local x\n    :end", "end"],
     ['local s = "a" local b = (t) -- local x\n    :end', "end"],
+    ["local t = {}\n  local b = t[1]\n    :end", "end"],
+    ["local t = {}\n  local s = [[x]] local b = (t)\n    :end", "end"],
     // In brackets, conditions and blocks.
     ["local t = {}\n  local b = {t\n    :end}", "end"],
     ["local t = {}\n  while t\n    :end do end", "end"],
@@ -139,6 +141,9 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x = 1\n  local y\n  print(x)", null],
     ["local function f()\n\n    print(1)\n  end", null],
     ["local function f()\n    -- c\n    print(1)\n  end", null],
+    ["local x\n  --[[c]] print(1)\n  print(2)", null],
+    ["local function f()\n    --[[c]] print(1)\n  end", null],
+    ["local x\n  --[[ a\n  b ]] print(1)\n  print(2)", null],
   ],
   // A header's `do` or `then` stays the header's, as on base.
   "a header's keyword after a line-start colon": [
@@ -169,6 +174,19 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ['local s = "--" local function f()\n    : end\n  end', null, 'local s = "--" local function f()\n    : end\n  end'],
     ['local s = "--" local x\n  : end', null, 'local s = "--" local x\n  : end'],
     ["local b = (t) --[[c]] local x\n  : end", null, "local b = (t) --[[c]] local x\n  : end"],
+    // A parameter list's comments, strings and deeper brackets, long and
+    // escaped strings before the code, and a block-comment line before the
+    // `:` line (round 2, `undirected` findings 1 to 3).
+    ["local function f(a --[[ ( ]] )\n    : end\n  end", null, "local function f(a --[[ ( ]] )\n    : end\n  end"],
+    ['local function f(a: ")")\n    : end\n  end', null, 'local function f(a: ")")\n    : end\n  end'],
+    ["local function f(a: ((((number) -> number) -> number) -> number) -> number)\n    : end\n  end", null, "local function f(a: ((((number) -> number) -> number) -> number) -> number)\n    : end\n  end"],
+    ["local s = [[--]] local x\n  : end", null, "local s = [[--]] local x\n  : end"],
+    ['local s = "a\\"--" local x\n  : end', null, 'local s = "a\\"--" local x\n  : end'],
+    ['local s = "a\\"--" local function f()\n    : end\n  end', null, 'local s = "a\\"--" local function f()\n    : end\n  end'],
+    ["local x\n  --[[c]]\n  : end", null, "local x\n  --[[c]]\n  : end"],
+    ["local x\n  --[[ a\n  b ]]\n  : end", null, "local x\n  --[[ a\n  b ]]\n  : end"],
+    ["local function f()\n    --[[c]]\n    : end\n  end", null, "local function f()\n    --[[c]]\n    : end\n  end"],
+    ['local t = {}\n  t["k"] = 1 local x\n  : end', null, 'local t = {}\n  t["k"] = 1 local x\n  : end'],
     ["local x\n  : end", null, "local x\n  : end"],
     ["local a,\n    b\n  : end", null, "local a,\n    b\n  : end"],
     ["local x, y\n  : end", null, "local x, y\n  : end"],
