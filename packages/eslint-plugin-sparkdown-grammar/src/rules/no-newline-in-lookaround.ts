@@ -112,9 +112,11 @@ function findHits(source: string, exempt: (offset: number) => boolean): Hit[] {
       // class with `\s` in a lookbehind is reported when it repeats there
       // (`(?<=[\s]{2})`), which reads past the character before the
       // position into the line above. Read once, it reads only that
-      // character, which can be the previous line's break only at the start
-      // of a line (`LuauSparkleEventClosureAttribute` and
-      // `LuauDocParamModifier` use one; #1661 tracks them).
+      // character, and at the start of a line there is none in either
+      // engine: textmate-grammar-tree matches each regex against its own
+      // line, as vscode-textmate does, so a single `\s` lookbehind never
+      // reads the line above (`LuauSparkleEventClosureAttribute` and
+      // `LuauDocParamModifier` use one).
       let close = i + 1;
       while (close < tokens.length && !(tokens[close]!.text === "]" && tokens[close]!.inCharClass)) close++;
       const closeToken = tokens[close];

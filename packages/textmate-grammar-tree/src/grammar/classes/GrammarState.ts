@@ -26,6 +26,18 @@ export class GrammarState {
 
   protected _matchDepth: number = 0;
 
+  /** Start of the cached line in `str` (see {@link line}). */
+  protected _lineStart = 0;
+
+  /** End of the cached line in `str`, after its line break. */
+  protected _lineEnd = -1;
+
+  /** Text of the cached line, its line break included. */
+  protected _lineText = "";
+
+  /** Length of `str` when the cached line was read. */
+  protected _lineStrLength = -1;
+
   constructor(
     str: string,
     next?: (absolutePos: number) => string,
@@ -42,6 +54,61 @@ export class GrammarState {
     }
     const next = this.next(this.absolutePos + this.str.length);
     this.str += next;
+  }
+
+  /**
+   * Reads the line of `str` that holds `from`, with its line break (`\r\n`,
+   * `\r` or `\n`), into {@link lineStart} and {@link lineText}. Rules match each regex against this text only, as
+   * vscode-textmate does, so no match, lookahead or lookbehind sees or
+   * consumes another line, however much of the document `str` holds.
+   * A position just after a line break starts the next line.
+   */
+  line(from: number) {
+    const str = this.str;
+    if (
+      from >= this._lineStart &&
+      (from < this._lineEnd ||
+        (from === this._lineEnd && this._lineEnd === this._lineStart)) &&
+      str.length === this._lineStrLength
+    ) {
+      return;
+    }
+    let start = from;
+    while (start > 0) {
+      const c = str.charCodeAt(start - 1);
+      if (c === 10 /* \n */) {
+        break;
+      }
+      if (c === 13 /* \r */ && str.charCodeAt(start) !== 10) {
+        break;
+      }
+      start--;
+    }
+    let end = from;
+    while (end < str.length) {
+      const c = str.charCodeAt(end);
+      end++;
+      if (c === 10 /* \n */) {
+        break;
+      }
+      if (c === 13 /* \r */ && str.charCodeAt(end) !== 10) {
+        break;
+      }
+    }
+    this._lineStart = start;
+    this._lineEnd = end;
+    this._lineText = str.slice(start, end);
+    this._lineStrLength = str.length;
+  }
+
+  /** Start in `str` of the line last read by {@link line}. */
+  get lineStart() {
+    return this._lineStart;
+  }
+
+  /** Text of the line last read by {@link line}, its line break included. */
+  get lineText() {
+    return this._lineText;
   }
 
   possibleStackOverflow(ruleId: string, position: number): boolean {
