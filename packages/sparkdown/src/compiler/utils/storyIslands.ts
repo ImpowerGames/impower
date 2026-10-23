@@ -127,6 +127,9 @@ function unclosedOpener(island: SyntaxNode): SyntaxNode | null {
       }
     }
     if (!next) return null;
+    // A backtick string's braces are the string's: one it leaves unfinished
+    // runs on as the string does, not as a bracket.
+    if (next.name.startsWith("LuauInterpolatedString")) return null;
     // A bracket's rule begins with its opener (`(`, `{`, `[`), where a
     // block's begins with its keyword (`function(x)`, ended by `end`).
     const begin = next.getChild(`${next.name}_begin`);
@@ -186,20 +189,20 @@ export function enclosingUnclosedIslandEnd(node: SyntaxNode, text: string): numb
 let enclosingEnds: { text: string; byParent: Map<string, number | null> } = { text: "", byParent: new Map() };
 
 /**
- * The story lines after each story island's unclosed bracket in a tree
- * (`unclosedIslandEnd`): from the island's cut to its end. A node that
- * begins in one is story, not the statement's Luau.
+ * The ranges of the story islands in a tree that are cut at their unclosed
+ * bracket's line (`unclosedIslandEnd`), the story lines the tree reads into
+ * the bracket included. The reading of the island's line alone reports
+ * every error of its Luau.
  */
-export function unclosedIslandCuts(tree: Tree, text: string): { from: number; to: number }[] {
-  const cuts: { from: number; to: number }[] = [];
+export function cutIslands(tree: Tree, text: string): { from: number; to: number }[] {
+  const islands: { from: number; to: number }[] = [];
   tree.iterate({
     enter: (ref) => {
       if (ref.name !== "LuauSparkdownVariableDefinition" && ref.name !== "LuauSparkdownReassignment") return;
-      const end = unclosedIslandEnd(ref.node, text);
-      if (end !== undefined) cuts.push({ from: end, to: ref.to });
+      if (unclosedIslandEnd(ref.node, text) !== undefined) islands.push({ from: ref.from, to: ref.to });
     },
   });
-  return cuts;
+  return islands;
 }
 
 /** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */

@@ -321,6 +321,17 @@ describe("a story store or local whose unclosed bracket the tree reads on into s
     pinText(`"${line}" before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
   }
   pinLine("store s = g(function() return 1 end", "local s = g(function() return 1 end");
+  // What a check of Sparkdown's own reads after a construct that begins on
+  // the cut line is the story after it, not the construct's Luau: a dangling
+  // `.`, an unfinished condition, an if expression and an empty assignment.
+  for (const value of ["g(x.", "g(function() local a =", "g(function() return if x then 1", "g(function() if x and", "g(function() if x then elseif y and", "g(if x", "g(if x then 1"]) {
+    for (const keyword of ["store s", "local s", "s"]) {
+      const line = `${keyword} = ${value}`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`"${line}" before a story line in a scene`, `scene start\n  ${line}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`"${line}" before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+  }
   pinLine("store s = g({1, (2", "local s = g({1, (2");
   pinLine("local s = g({1, (2", "local s = g({1, (2");
   // The outermost unclosed opener's line ends the value, even where a bracket inside it closes on a later line.

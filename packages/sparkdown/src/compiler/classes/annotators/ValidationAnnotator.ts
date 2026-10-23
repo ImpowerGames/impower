@@ -15,7 +15,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
-import { enclosingUnclosedIslandEnd, isStoryCondition, unclosedIslandCuts } from "../../utils/storyIslands";
+import { cutIslands, isStoryCondition } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -600,9 +600,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   // (`loweredLuauBodyOf`), by its range, the errors its reading reports.
   private loweredReadings = new Map<string, readonly { message: string; from: number; to: number }[]>();
 
-  // The tree's story lines after each story island's unclosed bracket
-  // (`unclosedIslandCuts`), found once per tree.
-  private islandCuts?: { tree: Tree; cuts: readonly { from: number; to: number }[] };
+  // The tree's story islands cut at their unclosed bracket's line
+  // (`cutIslands`), found once per tree.
+  private cutIslandRanges?: { tree: Tree; islands: readonly { from: number; to: number }[] };
 
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
@@ -611,12 +611,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     super.update(tree, text, uri);
   }
 
-  /** Whether an offset is on the story lines after a story island's unclosed bracket. */
-  private inIslandCut(at: number): boolean {
+  /** Whether an offset is in a story island cut at its unclosed bracket's line. */
+  private inCutIsland(at: number): boolean {
     const tree = this.tree;
     if (!tree) return false;
-    if (this.islandCuts?.tree !== tree) this.islandCuts = { tree, cuts: unclosedIslandCuts(tree, this.statementDocumentText()) };
-    return this.islandCuts.cuts.some((cut) => at >= cut.from && at < cut.to);
+    if (this.cutIslandRanges?.tree !== tree) this.cutIslandRanges = { tree, islands: cutIslands(tree, this.statementDocumentText()) };
+    return this.cutIslandRanges.islands.some((island) => at >= island.from && at < island.to);
   }
 
   /**
@@ -1300,11 +1300,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
-    // The story lines the tree reads into a story declaration's bracket that
-    // never closes are story, not its Luau (`unclosedIslandCuts`, I-1532):
-    // the checker's reading ends at the opener's line, and no Luau check
-    // reports on them.
-    if (nodeRef.name.startsWith("Luau") && this.inIslandCut(nodeRef.from)) {
+    // A story declaration whose bracket never closes ends with its opener's
+    // line, and the tree reads the story lines after it into the bracket
+    // (`cutIslands`, I-1532). The checker's reading of the line alone
+    // reports every error of its Luau, so no Luau check reports in it: one
+    // here would read the tree's run-on, which is story.
+    if (nodeRef.name.startsWith("Luau") && this.inCutIsland(nodeRef.from)) {
       return annotations;
     }
     // Before the unread reading's ownership: that reading's errors are the
@@ -1798,12 +1799,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         const eof = authoredEnd ?? this.tree?.length ?? nodeRef.to;
         // A story header's `<eof>` is its line break, as for a story
-        // statement, and so is that of a statement cut at its unclosed
-        // bracket's line (I-1532).
-        const eofEnd =
-          authoredEnd !== undefined && (isStoryCondition(nodeRef.node) || enclosingUnclosedIslandEnd(nodeRef.node, this.statementDocumentText()) === authoredEnd)
-            ? this.lineBreakEnd(eof)
-            : eof;
+        // statement.
+        const eofEnd = authoredEnd !== undefined && isStoryCondition(nodeRef.node) ? this.lineBreakEnd(eof) : eof;
         this.error(
           annotations,
           `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
