@@ -54,6 +54,18 @@ describe("percent-escaped letters that are not classes", () => {
   });
 });
 
+// The sweep below found `%c` missing DEL, which C `iscntrl` (and so Luau)
+// counts as a control character.
+describe("%c matches DEL", () => {
+  const DEL = String.fromCharCode(0x7f);
+  test.each(["%c", "[%c]"])("%s", (p) => {
+    expect(run(p, "x" + DEL)!.index).toBe(1);
+  });
+  test.each(["%C", "[%C]"])("%s", (p) => {
+    expect(run(p, DEL)).toBeNull();
+  });
+});
+
 describe("agrees with Lua on every alphanumeric escape", () => {
   // Outside a set `%b`, `%f` and the digits are pattern items with their own
   // tests; everything else is a class or the character itself.
