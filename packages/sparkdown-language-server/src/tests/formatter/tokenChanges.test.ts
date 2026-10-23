@@ -59,6 +59,27 @@ test("two characters that read as one longer token are a token change", () => {
 test("a token written apart is a token change", () => {
   expect(tokenChange(fn("  local x = 12"), fn("  local x = 1 2"))).toMatch(/split/);
   expect(tokenChange(fn("  if ready then\n  end"), fn("  if rea dy then\n  end"))).toMatch(/split/);
+  expect(tokenChange(fn("  return s == t"), fn("  return s = = t"))).toMatch(/split/);
+  expect(tokenChange(fn("  return s .. t"), fn("  return s . . t"))).toMatch(/split/);
+  expect(tokenChange(fn("  return 1.5"), fn("  return 1 .5"))).toMatch(/split/);
+  expect(tokenChange(fn("  return 1 .5"), fn("  return 1.5"))).toMatch(/joined/);
+});
+
+test("joining a Luau header or compacting an empty body is no token change", () => {
+  expect(tokenChange(fn("  if t\n    [2] then\n  end"), fn("  if t[2] then\n  end"))).toBeUndefined();
+  expect(tokenChange("function f()\n\nend\n", "function f() end\n")).toBeUndefined();
+});
+
+test("two story lines written as one are a token change", () => {
+  expect(
+    tokenChange("scene main\n  Hello\n  world\n  done\nend\n", "scene main\n  Hello world\n  done\nend\n"),
+  ).toMatch(/line joined/);
+});
+
+test("a comment in an interpolation leaves the rest of the string compared exactly", () => {
+  expect(
+    tokenChange(fn("  return `a {s --[[ note ]]} b  c`"), fn("  return `a {s --[[ note ]]} b c`")),
+  ).toMatch(/changed/);
 });
 
 test("a string or a comment changed inside is a token change", () => {

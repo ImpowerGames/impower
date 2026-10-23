@@ -6,12 +6,14 @@
 // are allowed where they apply: a closed single-quoted string written with
 // double quotes, a table's trailing comma before its `}`, and `else if …
 // end end` folded to `elseif … end`. Two characters a space kept apart must
-// not be written together (`-> two then` → `-> twothen`, `- -x` → `--x`),
-// and a name or number must not be written apart (`12` → `1 2`).
+// not be written together (`-> two then` → `-> twothen`, `- -x` → `--x`), a
+// token of the parse must not be written apart (`12` → `1 2`, `==` →
+// `= =`), and a line break may go or come only inside Luau code (two story
+// lines joined are one beat).
 
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
-import type { Tree } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 
 // Character pairs that read as one longer token when nothing separates them.
 const JOINING_PAIRS = new Set([
@@ -76,14 +78,41 @@ const HOLES = new Set([
 let parser: TextmateGrammarParser | undefined;
 
 // One token of the comparison: a stretch of literal text whole, or any other
-// character on its own, and whether whitespace came before it.
+// character on its own, whether whitespace came before it, and whether that
+// whitespace held a line break.
 interface Unit {
   text: string;
   literal: boolean;
   spaced: boolean;
+  broken: boolean;
   // Where the unit begins, and whether a token of the parse begins there.
   from: number;
   boundary: boolean;
+}
+
+// The units of a text and its parse.
+interface Units {
+  list: Unit[];
+  tree: Tree;
+}
+
+// The constructs that hold only Luau, where a line break is a space: the
+// formatter joins a block's header (`if t` then `[2] then`) and compacts an
+// empty body there. Anywhere else a line can be a beat of the story.
+const LUAU_CODE = new Set([
+  "LuauFunctionDefinition",
+  "LuauMethodDefinition",
+  "LuauDefine",
+  "LuauFunctionTypeDeclaration",
+]);
+
+// Where the outermost Luau-only construct around `pos` begins, or -1.
+function luauCode(tree: Tree, pos: number): number {
+  let from = -1;
+  for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) {
+    if (LUAU_CODE.has(n.name)) from = n.from;
+  }
+  return from;
 }
 
 // A stretch of literal text: where it ends, whether it begins and ends at
@@ -97,90 +126,118 @@ interface LiteralRange {
   comment: boolean;
 }
 
+// The literal the walk is in, and where its current stretch began, or an
+// interpolation in it.
+type Frame =
+  | { kind: "literal"; start: number; atStart: boolean; comment: boolean }
+  | { kind: "hole"; literal: { start: number; atStart: boolean } };
+
 // The literal text of the parse, by where each stretch begins.
 function literalRanges(tree: Tree): Map<number, LiteralRange> {
   const ranges = new Map<number, LiteralRange>();
-  // The literal the walk is in, or a hole in it, innermost last.
-  const stack: ("literal" | "hole")[] = [];
-  let start = -1;
-  let atStart = true;
-  let comment = false;
+  const stack: Frame[] = [];
   tree.iterate({
     enter(node) {
-      const inLiteral = stack.at(-1) === "literal";
-      if (!inLiteral && LITERALS.has(node.name)) {
-        stack.push("literal");
-        start = node.from;
-        atStart = true;
-        comment = node.name.includes("Comment");
-      } else if (inLiteral && HOLES.has(node.name)) {
-        if (node.from > start) {
-          ranges.set(start, { to: node.from, atStart, atEnd: false, comment });
+      const top = stack.at(-1);
+      if (top?.kind !== "literal" && LITERALS.has(node.name)) {
+        stack.push({
+          kind: "literal",
+          start: node.from,
+          atStart: true,
+          comment: node.name.includes("Comment"),
+        });
+      } else if (top?.kind === "literal" && HOLES.has(node.name)) {
+        if (node.from > top.start) {
+          ranges.set(top.start, {
+            to: node.from,
+            atStart: top.atStart,
+            atEnd: false,
+            comment: top.comment,
+          });
         }
-        stack.push("hole");
+        stack.push({ kind: "hole", literal: top });
       }
       return undefined;
     },
     leave(node) {
       const top = stack.at(-1);
-      if (top === "literal" && LITERALS.has(node.name)) {
-        if (node.to > start) {
-          ranges.set(start, { to: node.to, atStart, atEnd: true, comment });
+      if (top?.kind === "literal" && LITERALS.has(node.name)) {
+        if (node.to > top.start) {
+          ranges.set(top.start, {
+            to: node.to,
+            atStart: top.atStart,
+            atEnd: true,
+            comment: top.comment,
+          });
         }
         stack.pop();
-      } else if (top === "hole" && HOLES.has(node.name)) {
+      } else if (top?.kind === "hole" && HOLES.has(node.name)) {
         stack.pop();
-        start = node.to;
-        atStart = false;
+        // The literal's text goes on after the interpolation.
+        top.literal.start = node.to;
+        top.literal.atStart = false;
       }
     },
   });
   return ranges;
 }
 
-function units(text: string): Unit[] {
+function units(text: string): Units {
   parser ??= new TextmateGrammarParser(GRAMMAR_DEFINITION as any);
   const tree = parser.parse(text);
   const ranges = literalRanges(tree);
-  const result: Unit[] = [];
-  let spaced = false;
+  const list: Unit[] = [];
+  let gap = "";
   for (let i = 0; i < text.length; ) {
     const range = ranges.get(i);
     if (range) {
       let literal = text.slice(i, range.to);
       if (range.atStart) {
         const trimmed = literal.trimStart();
-        if (trimmed.length < literal.length) spaced = true;
+        gap += literal.slice(0, literal.length - trimmed.length);
         literal = trimmed;
       }
-      if (range.atEnd) literal = literal.trimEnd();
+      let held = "";
+      if (range.atEnd) {
+        const trimmed = literal.trimEnd();
+        held = literal.slice(trimmed.length);
+        literal = trimmed;
+      }
       // A comment may be re-indented, but text it gains or loses counts
       // (`if s -- note` with `then` joined onto it).
       if (range.comment) literal = literal.replace(/\s+/g, " ");
-      result.push({ text: literal, literal: true, spaced, from: i, boundary: true });
+      list.push({
+        text: literal,
+        literal: true,
+        spaced: gap.length > 0,
+        broken: gap.includes("\n"),
+        from: i,
+        boundary: true,
+      });
       i = range.to;
       // Whitespace the literal's node held after it.
-      spaced = range.atEnd && /\s$/.test(text.slice(i - 1, i));
+      gap = held;
       continue;
     }
     const char = String.fromCodePoint(text.codePointAt(i)!);
     if (/\s/.test(char)) {
-      spaced = true;
+      gap += char;
     } else {
       const before = tree.resolveInner(i, -1);
       const after = tree.resolveInner(i, 1);
-      result.push({
+      list.push({
         text: char,
         literal: false,
-        spaced,
+        spaced: gap.length > 0,
+        broken: gap.includes("\n"),
         from: i,
         boundary: before.to <= i || after.from >= i,
       });
-      spaced = false;
+      gap = "";
     }
     i += char.length;
   }
-  return result;
+  return { list, tree };
 }
 
 // The double-quoted form the formatter writes a closed single-quoted string
@@ -223,8 +280,14 @@ function wordAt(list: Unit[], i: number, word: string): boolean {
   return bounded(before, first.spaced) && bounded(after, after?.spaced ?? true);
 }
 
+// Whether `prev` and `next` read as one token once nothing separates them:
+// two name characters, a name after a closing bracket, a joining pair, or a
+// number and the point next to it (`1 .5` → `1.5`).
 function joins(prev: string, next: string): boolean {
   if (NAME_CHAR.test(next) && (NAME_CHAR.test(prev) || prev === ")" || prev === "]")) {
+    return true;
+  }
+  if ((/\d/.test(prev) && next === ".") || (prev === "." && /\d/.test(next))) {
     return true;
   }
   return JOINING_PAIRS.has(prev + next);
@@ -232,8 +295,9 @@ function joins(prev: string, next: string): boolean {
 
 /** The first token change from `before` to `after`, or undefined. */
 export function tokenChange(before: string, after: string): string | undefined {
-  const a = withoutTrailingCommas(units(before));
-  const b = withoutTrailingCommas(units(after));
+  const source = units(before);
+  const a = withoutTrailingCommas(source.list);
+  const b = withoutTrailingCommas(units(after).list);
   const context = (list: Unit[], i: number) =>
     JSON.stringify(
       list
@@ -256,22 +320,29 @@ export function tokenChange(before: string, after: string): string | undefined {
       }
       return `text changed: ${context(a, i)} → ${context(b, j)}`;
     }
-    if (i > 0 && j > 0 && !x.literal && !a[i - 1]!.literal) {
-      const prev = a[i - 1]!.text;
-      if (x.spaced && !y.spaced) {
-        if (wordAt(a, i, "if") && wordAt(a, i - 4, "else")) {
-          folds++;
-        } else if (joins(prev, x.text)) {
+    if (i > 0 && j > 0) {
+      const prev = a[i - 1]!;
+      const fold =
+        x.spaced && !y.spaced && wordAt(a, i, "if") && wordAt(a, i - 4, "else");
+      if (fold) {
+        folds++;
+      } else if (x.broken !== y.broken) {
+        // A line break goes or comes only inside Luau code, where it is a
+        // space; elsewhere a line is a beat of the story.
+        const code = luauCode(source.tree, prev.from);
+        if (code < 0 || code !== luauCode(source.tree, x.from)) {
+          return `line ${x.broken ? "joined" : "broken"}: ${context(a, i)} → ${context(b, j)}`;
+        }
+      }
+      if (!fold && !x.literal && !prev.literal) {
+        if (x.spaced && !y.spaced && joins(prev.text, x.text)) {
           return `tokens joined: ${context(a, i)} → ${context(b, j)}`;
         }
-      } else if (
-        !x.spaced &&
-        y.spaced &&
-        !x.boundary &&
-        NAME_CHAR.test(prev) &&
-        NAME_CHAR.test(x.text)
-      ) {
-        return `token split: ${context(a, i)} → ${context(b, j)}`;
+        // Written apart where the parse reads one token (`==`, `1.5`, a
+        // name).
+        if (!x.spaced && y.spaced && !x.boundary) {
+          return `token split: ${context(a, i)} → ${context(b, j)}`;
+        }
       }
     }
     i++;
