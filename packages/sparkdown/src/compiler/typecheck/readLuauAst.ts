@@ -5355,7 +5355,12 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
     tokenizer.tokens[tokenizer.tokens.length - 1]!.story = true;
   } else {
     const last = tokenizer.tokens[tokenizer.tokens.length - 1]!;
-    tokenizer.synthetic("keyword", "end", last.to);
+    // The wrapper's closer stands after the cut of a story statement that
+    // ends the flow's tokens, outside its island, whose function the tree
+    // may have closed with the scene's `end` (I-1532).
+    let at = last.to;
+    for (const island of tokenizer.storyIslandEnds) if (island.unclosed && island.end > at) at = island.end;
+    tokenizer.synthetic("keyword", "end", at);
   }
   insertStoryBreaks(tokenizer, tree);
   const start = new Position(index.lineAt(flow.header.from), 0);

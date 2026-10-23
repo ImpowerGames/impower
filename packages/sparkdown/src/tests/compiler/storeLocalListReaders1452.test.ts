@@ -346,6 +346,17 @@ describe("a story store or local whose unclosed bracket the tree reads on into s
       pinText(`${JSON.stringify(line)} continued on a story line`, `${line}\ncontinued${quote}\nHello.\n${SCENE}`, luau, 0, 0);
     }
   }
+  // A function the bracket opens whose line ends with a comment, where the
+  // tree closes the function with the scene's `end`: the flow's closer
+  // stands after the cut, so the reading meets its end of input first.
+  for (const keyword of ["store s", "local s", "s"]) {
+    for (const value of ["g(function() return -- note", "g(function() return 1 -- note", "g(function() return 1 --[[note]]", "g(function() return 1; -- note"]) {
+      const line = `${keyword} = ${value}`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`${JSON.stringify(line)} before a story line in a scene`, `scene start\n  ${line}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`${JSON.stringify(line)} before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+  }
   // Round 4: an unfinished `\u{` escape, whose brace the tree reads as a
   // double-quoted string's interpolation; a list a function in the bracket
   // leaves open; and a string continued with `\z`, which skips the line
