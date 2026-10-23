@@ -1,0 +1,206 @@
+sparkdown [0..98]
+ ├─ LuauStyle [0..97]
+ │   ├─ LuauStyle_begin [0..6]
+ │   │   ├─ LuauStyle_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauStyle_begin_c2 [0..5]
+ │   │   │   └─ LuauStyleKeyword [0..5]: "style"
+ │   │   └─ LuauStyle_begin_c3 [5..6]
+ │   │       └─ LuauStyle_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauStyle_content [6..94]
+ │   │   ├─ LuauStyleNameAndInheritance [6..15]
+ │   │   │   ├─ LuauStyleNameAndInheritance_begin [6..10]
+ │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [6..10]
+ │   │   │   │       └─ LuauDefineName [6..10]: "card"
+ │   │   │   └─ LuauStyleNameAndInheritance_end [10..15]
+ │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [10..11]
+ │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [10..11]
+ │   │   │       │       └─ OptionalWhitespace [10..11]: " "
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [11..15]
+ │   │   │           └─ LuauWithKeyword [11..15]: "with"
+ │   │   ├─ Newline [15..16]: "\n"
+ │   │   ├─ LuauStructBlockLine [16..34]
+ │   │   │   ├─ LuauStructBlockLine_begin 16
+ │   │   │   ├─ LuauStructBlockLine_content [16..34]
+ │   │   │   │   ├─ Whitespace [16..18]: "  "
+ │   │   │   │   └─ LuauStructBlockProperty [18..34]
+ │   │   │   │       ├─ LuauStructBlockProperty_c1 [18..21]
+ │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [18..21]
+ │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [18..21]
+ │   │   │   │       │           └─ DeclarationScalarPropertyKey [18..21]: "gap"
+ │   │   │   │       ├─ LuauStructBlockProperty_c2 [21..24]
+ │   │   │   │       │   └─ AssignEqualOperator [21..24]
+ │   │   │   │       │       ├─ AssignEqualOperator_c1 [21..22]
+ │   │   │   │       │       │   └─ AssignEqualOperator_c1 [21..22]
+ │   │   │   │       │       │       └─ OptionalSeparator [21..22]: " "
+ │   │   │   │       │       ├─ AssignEqualOperator_c2 [22..23]
+ │   │   │   │       │       │   └─ EqualOperator [22..23]: "="
+ │   │   │   │       │       └─ AssignEqualOperator_c3 [23..24]
+ │   │   │   │       │           └─ AssignEqualOperator_c3 [23..24]
+ │   │   │   │       │               └─ OptionalSeparator [23..24]: " "
+ │   │   │   │       ├─ LuauStructBlockProperty_c3 [24..34]
+ │   │   │   │       │   └─ StylingValue [24..34]
+ │   │   │   │       │       ├─ StylingValue_c1 24
+ │   │   │   │       │       ├─ StylingValue_c2 24
+ │   │   │   │       │       ├─ StylingValue_c3 24
+ │   │   │   │       │       ├─ StylingValue_c4 [24..34]
+ │   │   │   │       │       │   └─ StylingValueContent [24..34]
+ │   │   │   │       │       │       └─ StylingValueContent_c1 [24..34]
+ │   │   │   │       │       │           └─ StylingFunction [24..34]
+ │   │   │   │       │       │               ├─ StylingFunction_begin [24..27]
+ │   │   │   │       │       │               │   ├─ StylingFunction_begin_c1 [24..27]
+ │   │   │   │       │       │               │   │   └─ StylingFunctionName [24..27]: "var"
+ │   │   │   │       │       │               │   └─ StylingFunction_begin_c2 27
+ │   │   │   │       │       │               ├─ StylingFunction_content [27..34]
+ │   │   │   │       │       │               │   └─ StylingFunctionParameters [27..34]
+ │   │   │   │       │       │               │       ├─ StylingFunctionParameters_begin [27..28]
+ │   │   │   │       │       │               │       │   ├─ StylingFunctionParameters_begin_c1 [27..28]
+ │   │   │   │       │       │               │       │   │   └─ PunctuationParenOpen [27..28]: "("
+ │   │   │   │       │       │               │       │   └─ StylingFunctionParameters_begin_c2 28
+ │   │   │   │       │       │               │       ├─ StylingFunctionParameters_content [28..33]
+ │   │   │   │       │       │               │       │   ├─ CalcOperator [28..29]: "-"
+ │   │   │   │       │       │               │       │   ├─ CalcOperator [29..30]: "-"
+ │   │   │   │       │       │               │       │   └─ ParameterStringIdentifier [30..33]: "gap"
+ │   │   │   │       │       │               │       └─ StylingFunctionParameters_end [33..34]
+ │   │   │   │       │       │               │           ├─ StylingFunctionParameters_end_c1 33
+ │   │   │   │       │       │               │           └─ StylingFunctionParameters_end_c2 [33..34]
+ │   │   │   │       │       │               │               └─ PunctuationParenClose [33..34]: ")"
+ │   │   │   │       │       │               └─ StylingFunction_end 34
+ │   │   │   │       │       ├─ StylingValue_c5 34
+ │   │   │   │       │       ├─ StylingValue_c6 34
+ │   │   │   │       │       └─ StylingValue_c7 34
+ │   │   │   │       └─ LuauStructBlockProperty_c4 34
+ │   │   │   └─ LuauStructBlockLine_end 34
+ │   │   ├─ Newline [34..35]: "\n"
+ │   │   ├─ LuauStructBlockLine [35..64]
+ │   │   │   ├─ LuauStructBlockLine_begin 35
+ │   │   │   ├─ LuauStructBlockLine_content [35..64]
+ │   │   │   │   ├─ Whitespace [35..37]: "  "
+ │   │   │   │   └─ LuauStructBlockProperty [37..64]
+ │   │   │   │       ├─ LuauStructBlockProperty_c1 [37..43]
+ │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [37..43]
+ │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [37..43]
+ │   │   │   │       │           └─ DeclarationScalarPropertyKey [37..43]: "margin"
+ │   │   │   │       ├─ LuauStructBlockProperty_c2 [43..46]
+ │   │   │   │       │   └─ AssignEqualOperator [43..46]
+ │   │   │   │       │       ├─ AssignEqualOperator_c1 [43..44]
+ │   │   │   │       │       │   └─ AssignEqualOperator_c1 [43..44]
+ │   │   │   │       │       │       └─ OptionalSeparator [43..44]: " "
+ │   │   │   │       │       ├─ AssignEqualOperator_c2 [44..45]
+ │   │   │   │       │       │   └─ EqualOperator [44..45]: "="
+ │   │   │   │       │       └─ AssignEqualOperator_c3 [45..46]
+ │   │   │   │       │           └─ AssignEqualOperator_c3 [45..46]
+ │   │   │   │       │               └─ OptionalSeparator [45..46]: " "
+ │   │   │   │       ├─ LuauStructBlockProperty_c3 [46..64]
+ │   │   │   │       │   └─ StylingValue [46..64]
+ │   │   │   │       │       ├─ StylingValue_c1 46
+ │   │   │   │       │       ├─ StylingValue_c2 46
+ │   │   │   │       │       ├─ StylingValue_c3 46
+ │   │   │   │       │       ├─ StylingValue_c4 [46..56]
+ │   │   │   │       │       │   └─ StylingValueContent [46..56]
+ │   │   │   │       │       │       └─ StylingValueContent_c1 [46..56]
+ │   │   │   │       │       │           └─ StylingFunction [46..56]
+ │   │   │   │       │       │               ├─ StylingFunction_begin [46..49]
+ │   │   │   │       │       │               │   ├─ StylingFunction_begin_c1 [46..49]
+ │   │   │   │       │       │               │   │   └─ StylingFunctionName [46..49]: "var"
+ │   │   │   │       │       │               │   └─ StylingFunction_begin_c2 49
+ │   │   │   │       │       │               ├─ StylingFunction_content [49..56]
+ │   │   │   │       │       │               │   └─ StylingFunctionParameters [49..56]
+ │   │   │   │       │       │               │       ├─ StylingFunctionParameters_begin [49..50]
+ │   │   │   │       │       │               │       │   ├─ StylingFunctionParameters_begin_c1 [49..50]
+ │   │   │   │       │       │               │       │   │   └─ PunctuationParenOpen [49..50]: "("
+ │   │   │   │       │       │               │       │   └─ StylingFunctionParameters_begin_c2 50
+ │   │   │   │       │       │               │       ├─ StylingFunctionParameters_content [50..55]
+ │   │   │   │       │       │               │       │   ├─ CalcOperator [50..51]: "-"
+ │   │   │   │       │       │               │       │   ├─ CalcOperator [51..52]: "-"
+ │   │   │   │       │       │               │       │   └─ ParameterStringIdentifier [52..55]: "gap"
+ │   │   │   │       │       │               │       └─ StylingFunctionParameters_end [55..56]
+ │   │   │   │       │       │               │           ├─ StylingFunctionParameters_end_c1 55
+ │   │   │   │       │       │               │           └─ StylingFunctionParameters_end_c2 [55..56]
+ │   │   │   │       │       │               │               └─ PunctuationParenClose [55..56]: ")"
+ │   │   │   │       │       │               └─ StylingFunction_end 56
+ │   │   │   │       │       ├─ StylingValue_c5 [56..64]
+ │   │   │   │       │       │   └─ LuauLineComment [56..64]
+ │   │   │   │       │       │       ├─ LuauLineComment_begin [56..59]
+ │   │   │   │       │       │       │   ├─ LuauLineComment_begin_c1 [56..57]
+ │   │   │   │       │       │       │   │   └─ Whitespace [56..57]: " "
+ │   │   │   │       │       │       │   └─ LuauLineComment_begin_c2 [57..59]
+ │   │   │   │       │       │       │       └─ LuauCommentMark [57..59]: "--"
+ │   │   │   │       │       │       ├─ LuauLineComment_content [59..64]
+ │   │   │   │       │       │       │   └─ LuauLineCommentContent [59..64]: " note"
+ │   │   │   │       │       │       └─ LuauLineComment_end 64
+ │   │   │   │       │       ├─ StylingValue_c6 64
+ │   │   │   │       │       └─ StylingValue_c7 64
+ │   │   │   │       └─ LuauStructBlockProperty_c4 64
+ │   │   │   └─ LuauStructBlockLine_end 64
+ │   │   ├─ Newline [64..65]: "\n"
+ │   │   ├─ LuauStructBlockLine [65..93]
+ │   │   │   ├─ LuauStructBlockLine_begin 65
+ │   │   │   ├─ LuauStructBlockLine_content [65..93]
+ │   │   │   │   ├─ Whitespace [65..67]: "  "
+ │   │   │   │   └─ LuauStructBlockProperty [67..93]
+ │   │   │   │       ├─ LuauStructBlockProperty_c1 [67..74]
+ │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [67..74]
+ │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [67..74]
+ │   │   │   │       │           └─ DeclarationScalarPropertyKey [67..74]: "padding"
+ │   │   │   │       ├─ LuauStructBlockProperty_c2 [74..77]
+ │   │   │   │       │   └─ AssignEqualOperator [74..77]
+ │   │   │   │       │       ├─ AssignEqualOperator_c1 [74..75]
+ │   │   │   │       │       │   └─ AssignEqualOperator_c1 [74..75]
+ │   │   │   │       │       │       └─ OptionalSeparator [74..75]: " "
+ │   │   │   │       │       ├─ AssignEqualOperator_c2 [75..76]
+ │   │   │   │       │       │   └─ EqualOperator [75..76]: "="
+ │   │   │   │       │       └─ AssignEqualOperator_c3 [76..77]
+ │   │   │   │       │           └─ AssignEqualOperator_c3 [76..77]
+ │   │   │   │       │               └─ OptionalSeparator [76..77]: " "
+ │   │   │   │       ├─ LuauStructBlockProperty_c3 [77..93]
+ │   │   │   │       │   └─ StylingValue [77..93]
+ │   │   │   │       │       ├─ StylingValue_c1 77
+ │   │   │   │       │       ├─ StylingValue_c2 77
+ │   │   │   │       │       ├─ StylingValue_c3 77
+ │   │   │   │       │       ├─ StylingValue_c4 [77..85]
+ │   │   │   │       │       │   └─ StylingValueContent [77..85]
+ │   │   │   │       │       │       └─ StylingValueContent_c1 [77..85]
+ │   │   │   │       │       │           └─ StylingFunction [77..85]
+ │   │   │   │       │       │               ├─ StylingFunction_begin [77..81]
+ │   │   │   │       │       │               │   ├─ StylingFunction_begin_c1 [77..81]
+ │   │   │   │       │       │               │   │   └─ StylingFunctionName [77..81]: "calc"
+ │   │   │   │       │       │               │   └─ StylingFunction_begin_c2 81
+ │   │   │   │       │       │               ├─ StylingFunction_content [81..85]
+ │   │   │   │       │       │               │   └─ StylingFunctionParameters [81..85]
+ │   │   │   │       │       │               │       ├─ StylingFunctionParameters_begin [81..82]
+ │   │   │   │       │       │               │       │   ├─ StylingFunctionParameters_begin_c1 [81..82]
+ │   │   │   │       │       │               │       │   │   └─ PunctuationParenOpen [81..82]: "("
+ │   │   │   │       │       │               │       │   └─ StylingFunctionParameters_begin_c2 82
+ │   │   │   │       │       │               │       ├─ StylingFunctionParameters_content [82..85]
+ │   │   │   │       │       │               │       │   └─ UnitValue [82..85]
+ │   │   │   │       │       │               │       │       ├─ UnitValue_c1 [82..83]: "1"
+ │   │   │   │       │       │               │       │       └─ UnitValue_c2 [83..85]: "px"
+ │   │   │   │       │       │               │       └─ StylingFunctionParameters_end 85
+ │   │   │   │       │       │               │           ├─ StylingFunctionParameters_end_c1 85
+ │   │   │   │       │       │               │           └─ StylingFunctionParameters_end_c2 85
+ │   │   │   │       │       │               └─ StylingFunction_end 85
+ │   │   │   │       │       ├─ StylingValue_c5 [85..93]
+ │   │   │   │       │       │   └─ LuauLineComment [85..93]
+ │   │   │   │       │       │       ├─ LuauLineComment_begin [85..88]
+ │   │   │   │       │       │       │   ├─ LuauLineComment_begin_c1 [85..86]
+ │   │   │   │       │       │       │   │   └─ Whitespace [85..86]: " "
+ │   │   │   │       │       │       │   └─ LuauLineComment_begin_c2 [86..88]
+ │   │   │   │       │       │       │       └─ LuauCommentMark [86..88]: "--"
+ │   │   │   │       │       │       ├─ LuauLineComment_content [88..93]
+ │   │   │   │       │       │       │   └─ LuauLineCommentContent [88..93]: " note"
+ │   │   │   │       │       │       └─ LuauLineComment_end 93
+ │   │   │   │       │       ├─ StylingValue_c6 93
+ │   │   │   │       │       └─ StylingValue_c7 93
+ │   │   │   │       └─ LuauStructBlockProperty_c4 93
+ │   │   │   └─ LuauStructBlockLine_end 93
+ │   │   └─ Newline [93..94]: "\n"
+ │   └─ LuauStyle_end [94..97]
+ │       ├─ LuauStyle_end_c1 94
+ │       │   └─ LuauStyle_end_c1 94
+ │       │       └─ OptionalWhitespace 94
+ │       ├─ LuauStyle_end_c2 [94..97]
+ │       │   └─ LuauEndKeyword [94..97]: "end"
+ │       └─ LuauStyle_end_c3 97
+ └─ Newline [97..98]: "\n"

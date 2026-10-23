@@ -1,0 +1,4 @@
+& return x名
+scene main
+  & return x名
+  Hello 名.

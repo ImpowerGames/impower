@@ -139,9 +139,10 @@ text.source.sparkdown [0..386]
  │   ├─ markup.raw.whitespace.separator.optional.sd [256..257]: " "
  │   ├─ entity.name.function.sd [257..260]: "var"
  │   ├─ punctuation.definition.template-expression.begin.sd [260..261]: "("
- │   └─ comment.line.double-dash.luau [261..267]
- │       ├─ comment.luau [261..263]: "--"
- │       └─ punctuation.definition.comment.content.sd [263..267]: "gap)"
+ │   ├─ keyword.other.calc.operator.sd [261..262]: "-"
+ │   ├─ keyword.other.calc.operator.sd [262..263]: "-"
+ │   ├─ string.unquoted.identifier.sd [263..266]: "gap"
+ │   └─ punctuation.definition.template-expression.end.sd [266..267]: ")"
  ├─ Newline [267..268]: "\n"
  ├─ meta.theme.luau [268..271]
  │   ├─ punctuation.whitespace.sd [268..270]: "  "
