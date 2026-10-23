@@ -270,9 +270,10 @@ Images of this state (whole keyframes and deltas, for route search nodes, checkp
 
 - `and` and `or` return one of their operands by Luau truthiness (only nil and false are falsy); `not` returns a boolean by the same rule. The compiler short-circuits `and` and `or` with `JumpIfKeep`.
 - `..` concatenates strings and numbers (numbers formatted as Luau formats them); any other operand raises "attempt to concatenate ...".
-- `==` and `~=` with a nil operand compare nil-ness. Arithmetic or a comparison with a nil, table, function or userdata operand raises Luau's message: "attempt to perform arithmetic (add) on nil and number", "attempt to compare table < table" (Luau runs `a > b` as `b < a` and names the operands in that order).
+- `==` and `~=` with a nil operand compare nil-ness, and operands of two different Luau types are never equal and never converted (`1 == "1"` is false, `{} ~= "x"` is true).
+- Arithmetic takes numbers and strings; a boolean, nil, table, function or userdata operand raises Luau's message: "attempt to perform arithmetic (add) on boolean and number". A comparison takes two numbers or two strings; any other pair, two booleans included, raises "attempt to compare number < string" (Luau runs `a > b` as `b < a` and names the operands in that order).
 - Arithmetic converts a numeric string operand (`"2" + 3`); a non-numeric string raises the same arithmetic error.
-- Otherwise the operands are coerced to the highest `ValueType` among them (an int and a float make floats) and the operation registered for that type runs: `AddIntBinaryOp`, `AddFloatBinaryOp`, `AddStringBinaryOp`, `AddObjectUnaryOp` and the like, in `GenerateNativeFunctionsIfNecessary`. `#` (`LEN`) is registered for strings and tables.
+- Otherwise the operands, now of one Luau type, are coerced to the highest `ValueType` among them (an int and a float make floats) and the operation registered for that type runs: `AddIntBinaryOp`, `AddFloatBinaryOp`, `AddStringBinaryOp`, `AddObjectUnaryOp` and the like, in `GenerateNativeFunctionsIfNecessary`. `#` (`LEN`) is registered for strings and tables.
 
 **Methods.** `obj:method(args)` lowers to a call with `obj` as the first argument. A builtin method (`__method_<name>`) dispatches on the receiver's type in `runtime/MethodDispatch.ts`; a `define`'s method dispatches through the table's `__index` chain like any other member.
 
