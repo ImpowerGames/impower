@@ -76,13 +76,12 @@ function functionValueSite(
 // their content joins it after all of it and is outside every block, so the
 // first object after it bounds it, and a flow written inside a top-level `do`
 // block keeps its place among the block's objects, so the object it followed
-// bounds it. It is exact too for a function nested in a function outside
-// every block of it (`_outsideBlocks`).
+// bounds it.
 //
-// A function nested in a function inside a block of it also joins the
-// content after all of it, and a conditional's position covers only its
-// first line, so nothing shows whether the flow is in the conditional or
-// after it. Such a flow is placed just after the last object that ends
+// A function nested in a function joins the content after all of it, and a
+// conditional's position covers only its first line, so nothing shows
+// whether the flow is in the conditional or after it. Such a flow is placed
+// just after the last object that ends
 // before it, entering every conditional and every object that encloses its
 // position. When the flow comes right after an `if` or loop statement that
 // declared the local, with no statement between, the local then counts as in
@@ -110,7 +109,7 @@ function definitionSite(
   const position = (obj: ParsedObject) =>
     obj.ownDebugMetadata ?? obj.identifier?.debugMetadata;
 
-  if (parentFlow.isFunction && !flow._outsideBlocks) {
+  if (parentFlow.isFunction) {
     let lastBefore = null as ParsedObject | null;
     let passed = false;
     const visit = (obj: ParsedObject) => {
@@ -327,10 +326,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // as a top-level statement joins the content after all of it, so this is
   // the last object of the weave. See `definitionSite`.
   public _definedAfter: ParsedObject | null = null;
-  // Set by the lowering on a function nested in another function when it is
-  // written directly in that function's body, outside every block of it.
-  // See `definitionSite`.
-  public _outsideBlocks = false;
   // The name a function statement nested in another function is written
   // with (`function foo`, `local function foo`), set by the lowering on the
   // function it builds under a generated name: what its frames and its

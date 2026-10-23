@@ -48,6 +48,20 @@ export class GrammarState {
     this.absolutePos = absolutePos;
   }
 
+  /**
+   * A state over `str`, which is part of one line, with no line break but at
+   * its end, so {@link line} reads it as that line without searching for
+   * where it starts.
+   */
+  static ofLine(str: string) {
+    const state = new GrammarState(str);
+    state._lineStart = 0;
+    state._lineEnd = str.length;
+    state._lineText = str;
+    state._lineStrLength = str.length;
+    return state;
+  }
+
   advance() {
     if (!this.next) {
       return;
@@ -68,7 +82,10 @@ export class GrammarState {
     if (
       from >= this._lineStart &&
       (from < this._lineEnd ||
-        (from === this._lineEnd && this._lineEnd === this._lineStart)) &&
+        (from === this._lineEnd &&
+          (this._lineEnd === this._lineStart ||
+            // The end of `str`, on a line no break has ended yet.
+            (this._lineEnd === str.length && !endsWithBreak(this._lineText))))) &&
       str.length === this._lineStrLength
     ) {
       return;
@@ -136,3 +153,8 @@ export class GrammarState {
     if (idx >= 0) this.visited.splice(idx, 1);
   }
 }
+
+const endsWithBreak = (text: string) => {
+  const c = text.charCodeAt(text.length - 1);
+  return c === 10 /* \n */ || c === 13 /* \r */;
+};

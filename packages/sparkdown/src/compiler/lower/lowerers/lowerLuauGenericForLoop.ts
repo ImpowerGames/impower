@@ -16,7 +16,6 @@ import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarch
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { AstStatForIn } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
-import { shadowSiblingSubFlow } from "../expression/bindings";
 import { lowerExpression } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
@@ -164,20 +163,12 @@ export function lowerLuauGenericForLoop(
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );
-  // The loop's variables are locals of its body: each hides a variadic
-  // function of its name there (`shadowSiblingSubFlow`), from a block of
-  // their own that ends with the body.
-  ctx.blockEndStack?.push([]);
-  for (const name of loopVarNames) {
-    shadowSiblingSubFlow(name, ctx);
-  }
   const bodyStatements = lowerStatements(
     bodyContent,
     ctx,
     FOR_IN_BODY_SKIP,
     body,
   );
-  ctx.blockEndStack?.pop()?.forEach((end) => end());
   ctx.loopStack?.pop();
   ctx.scopeDepth--;
 

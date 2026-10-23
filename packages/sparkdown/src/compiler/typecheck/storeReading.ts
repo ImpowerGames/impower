@@ -2,6 +2,7 @@ import type { SyntaxNode, Tree } from "@lezer/common";
 import { inLuauFunction, luauReadingReportsAllAt, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY, storyStoreOf } from "./LuauUnitNodes";
 import { luauPositionOffset, readLuauBlock, readLuauStatementCandidate, type LuauSyntaxError } from "./readLuauAst";
 import { lineCountOf, syntaxErrorEnd } from "./syntaxErrorRange";
+import { unclosedIslandEnd } from "../utils/storyIslands";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
 /**
@@ -22,12 +23,16 @@ export function storeReadingErrors(
   let root = store;
   while (root.parent) root = root.parent;
   const { story, errors, lineErrors, readTo } = readDeclarationLine(store, documentText);
+  // A store cut at its unclosed bracket's line is Luau whose reading of the
+  // line alone reports every error in it; no check of Sparkdown's own
+  // reports in it (`cutIslands`, I-1532).
+  const cut = unclosedIslandEnd(store, documentText) !== undefined;
   const own = errors.filter((error) => {
     const from = luauPositionOffset(error.location.begin, documentText);
     // A double-quoted string that holds an interpolation is Sparkdown's
     // own: Luau reads it as one string, the interpolation's text and its
     // backtick strings' escapes included, which report their own errors.
-    if (holdsDoubleQuotedInterpolation(root, from, luauPositionOffset(error.location.end, documentText))) return false;
+    if (!cut && holdsDoubleQuotedInterpolation(root, from, luauPositionOffset(error.location.end, documentText))) return false;
     // The story it reads on through is the declaration's.
     if (story && from >= store.to) return true;
     // The token the error is at, or, at the end of the declaration (a value

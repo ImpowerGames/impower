@@ -239,8 +239,9 @@ export function recordLowering(
   };
   // The length of each array of the context the lowering pushed onto or
   // took from, before it first did: a read of its length after that reads
-  // what the lowering made of that one, which is its input (a loop pushes a
-  // block onto `blockEndStack` and then reads the stack's top).
+  // what the lowering made of that one, which is its input (a loop pushes
+  // its labels onto `loopStack` and a `break` in its body then reads the
+  // stack's top).
   const lengths = new Map<object, number>();
   const recordOnce = (key: string, read: ContextRead) => {
     if (!recorded.has(key)) {
@@ -251,8 +252,8 @@ export function recordLowering(
   const proxies = new WeakMap<object, object>();
   // The objects the lowering itself made and wrote into the context, which a
   // read returns as themselves, unrecorded: what the lowering made is no
-  // input of it, and a lowering compares what it reads back with what it
-  // wrote (`shadowSiblingSubFlow`'s `frame.get(name) === shadow`). An
+  // input of it (the entry a rebind writes, which a later call of the name
+  // in the same statement reads back, `recordRebind`). An
   // object of the context the lowering writes back (a save and restore
   // around a block) is written as itself but stays an input: a read of it
   // returns the proxy it was read as, recording its members as before.

@@ -122,8 +122,13 @@ describe("a rejected backtick string in a story statement is read as Luau's lexe
   // compared where nothing follows them or in a function.
   const unfinished = ["s = (1 `a {} b)", "s = (1\n  `a {x} b)"];
   for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}", "s = (1 `a {} b`)", "s = (1\n  `a {} b`)", "s = {1,\n  2 `a {} b`}", "s = (\n  `a {} b`)", "s = x.`a {} b`", ...unfinished]) {
-    for (const [form, text, expected] of placements(rest)) {
+    for (const [form, text, luauExpected] of placements(rest)) {
       if (unfinished.includes(rest) && form === "a scene-level local") continue;
+      // A story statement's bracket that never closes ends with its line,
+      // and the line after it is story (I-1532): Luau's errors are the
+      // first line's alone.
+      const unclosed = rest === "s = (1\n  `a {x} b)" && form.startsWith("store");
+      const expected = unclosed ? official(`local ${rest.slice(0, rest.indexOf("\n"))}\n`) : luauExpected;
       test(`${form} ${rest}`, () => {
         expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
         expect(sparkdownErrors(text)).toEqual(expected);
