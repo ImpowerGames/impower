@@ -81,7 +81,8 @@ export class MatchRule implements Rule {
     // Match against the current line only, as vscode-textmate does.
     state.line(from);
     const lineStart = state.lineStart;
-    const result = this.matcher.match(state.lineText, from - lineStart);
+    const lineText = state.lineText;
+    const result = this.matcher.match(lineText, from - lineStart);
     if (!result) {
       state.exit(this.id, from);
       return null;
@@ -94,7 +95,13 @@ export class MatchRule implements Rule {
     const matched = Matched.create(this.node, from, total.length);
     if (this.captures) {
       if (result.indices) {
-        this.placeFromIndices(matched, result, result.indices, lineStart);
+        this.placeFromIndices(
+          matched,
+          result,
+          result.indices,
+          lineStart,
+          lineText,
+        );
       } else {
         // The groups follow one another through the whole match.
         let pos = from;
@@ -103,7 +110,9 @@ export class MatchRule implements Rule {
           const capture = this.captures?.[resultIndex];
           if (capture) {
             matched.children ??= [];
-            matched.children.push(this.capture(capture, resultStr, pos));
+            matched.children.push(
+              this.capture(capture, resultStr, pos, lineStart, lineText),
+            );
           } else if (resultIndex > 0 && resultStr) {
             uncovered = true;
           }
@@ -138,6 +147,7 @@ export class MatchRule implements Rule {
     result: RegExpMatchResult,
     indices: ([number, number] | undefined)[],
     lineStart: number,
+    lineText: string,
   ) {
     const parents = this.matcher.groupParents;
     const captures = this.captures;
@@ -177,7 +187,13 @@ export class MatchRule implements Rule {
         // Overlapping its host without nesting in it: no node can hold it.
         continue;
       }
-      const captureMatched = this.capture(capture, result[i], start);
+      const captureMatched = this.capture(
+        capture,
+        result[i],
+        start,
+        lineStart,
+        lineText,
+      );
       host.children ??= [];
       host.children.push(captureMatched);
       hosts.add(host);
@@ -189,17 +205,30 @@ export class MatchRule implements Rule {
     }
   }
 
-  /** Makes the node of one capture, whose text begins at `pos`. */
+  /**
+   * Makes the node of one capture, whose text begins at `pos` in the line
+   * `lineText` that begins at `lineStart`.
+   *
+   * A capture read with patterns is tokenized as vscode-textmate's
+   * `handleCaptures` does: on the line up to the capture's end, from the
+   * capture's start, so a lookbehind, `^` or `\b` in its patterns sees the
+   * text before the capture, and nothing reads past its end.
+   */
   private capture(
     capture: GrammarNode | SwitchRule,
     resultStr: string | undefined,
     pos: number,
+    lineStart: number,
+    lineText: string,
   ) {
     const resultStrLength = resultStr?.length ?? 0;
     if (!(capture instanceof SwitchRule)) {
       return Matched.create(capture, pos, resultStrLength);
     }
-    const state = new GrammarState(resultStr ?? "");
+    const start = pos - lineStart;
+    const state = new GrammarState(
+      lineText.slice(0, start + resultStrLength),
+    );
     const children: Matched[] = [];
     // Zero-width capture: try to match the inner patterns
     // once against the empty string. Patterns that can match
@@ -210,7 +239,7 @@ export class MatchRule implements Rule {
     // zero-width (e.g. `RequiredWhitespace` with `+`) return
     // null and nothing is pushed.
     if (resultStr != null && resultStr.length === 0) {
-      const matched = capture.match(state, 0);
+      const matched = capture.match(state, start);
       if (matched) {
         matched.offset(pos);
         children.push(matched);
@@ -218,7 +247,7 @@ export class MatchRule implements Rule {
     }
     let i = 0;
     while (i < resultStrLength) {
-      const matched = capture.match(state, i);
+      const matched = capture.match(state, start + i);
       if (matched?.length) {
         matched.offset(pos + i);
         children.push(matched);

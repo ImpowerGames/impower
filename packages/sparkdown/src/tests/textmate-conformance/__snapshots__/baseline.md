@@ -4,8 +4,8 @@ Total cases: 95
 
 ## Summary by axis
 
-- pass: 2
-- mismatch: 2
+- pass: 3
+- mismatch: 1
 - incomplete: 14
 - capture-model: 0
 - while-rule: 18
@@ -16,12 +16,12 @@ Total cases: 95
 
 ## Per-case
 
-### pass (2)
+### pass (3)
 - first-mate#2 [fixtures/coffee-script.json] TEST #5
 - first-mate#10 [fixtures/coffee-script.json] TEST #13
+- first-mate#38 [fixtures/nested-captures.json] TEST #44
 
-### mismatch (2)
-- first-mate#38 [fixtures/nested-captures.json] TEST #44 — line 1 "ab": token[0] ("ab") scopes got ["nested","text"] want ["nested","text","a"]
+### mismatch (1)
 - suite1#19 [fixtures/147.grammar.json] Issue #147 — line 1 "Function": token[0] ("Function") scopes got ["source.test","storage.type.$0 keyword.declaration.$0"] want ["source.test","storage.type.Function","keyword.declaration.Function"]
 
 ### incomplete (14)

@@ -3,56 +3,8 @@
 // after a nested one, and text between groups land where vscode-textmate
 // scopes them. Each grammar here runs through both engines, and the scope
 // stack of every character must agree.
-import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import onig from "vscode-oniguruma";
-import vstm from "vscode-textmate";
 import { describe, expect, test } from "vitest";
-
-const { OnigScanner, OnigString, loadWASM } = onig;
-const { Registry, INITIAL } = vstm;
-
-let wasm: Promise<void> | undefined;
-
-/** Each character's scopes as vscode-textmate tokenizes `line` with `grammar`. */
-async function vscodeScopes(grammar: any, line: string): Promise<string[]> {
-  wasm ??= loadWASM(readFileSync(createRequire(import.meta.url).resolve("vscode-oniguruma/release/onig.wasm")));
-  await wasm;
-  const registry = new Registry({
-    onigLib: Promise.resolve({
-      createOnigScanner: (patterns: string[]) => new OnigScanner(patterns),
-      createOnigString: (s: string) => new OnigString(s),
-    }),
-    loadGrammar: async () => grammar,
-  });
-  const loaded = (await registry.loadGrammar(grammar.scopeName))!;
-  const scopes: string[] = [];
-  for (const token of loaded.tokenizeLine(line, INITIAL).tokens) {
-    for (let i = token.startIndex; i < token.endIndex; i++) {
-      scopes[i] = token.scopes.join(" ");
-    }
-  }
-  return scopes;
-}
-
-/** Each character's scopes as textmate-grammar-tree parses `line` with `grammar`. */
-function treeScopes(grammar: any, line: string): string[] {
-  const parser = new TextmateGrammarParser(structuredClone(grammar));
-  const names = new Map<number, string>();
-  for (const node of (parser as any).grammar.nodes) {
-    if (node?.props?.name) names.set(node.typeIndex, node.props.name);
-  }
-  const scopes: string[] = new Array(line.length).fill(grammar.scopeName);
-  const walk = (node: any, chain: string) => {
-    const name = names.get(node.type.id);
-    const own = name ? `${chain} ${name}` : chain;
-    for (let i = node.from; i < node.to; i++) scopes[i] = own;
-    for (let child = node.firstChild; child; child = child.nextSibling) walk(child, own);
-  };
-  walk(parser.parse(line).topNode, grammar.scopeName);
-  return scopes;
-}
+import { treeScopes, vscodeScopes } from "./engineScopes";
 
 const grammarOf = (rule: object, repository: object = {}) => ({
   scopeName: "source.nested",

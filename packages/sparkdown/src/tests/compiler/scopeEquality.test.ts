@@ -213,6 +213,18 @@ const TARGETED: Record<string, string> = {
   // reads it as an unread token of the body.
   "unread-character-in-open-statement":
     "function f()\n  x = 1 @@ 2\n  y = $5\nend\ndefine X with\n  b = $5\nend\nlayout main with\n  button @click={ x = 1 @@ 2 }\nend\n",
+  // A capture's patterns read the line before the capture (I-1566): a
+  // lookbehind, `^` or `\b` in them sees what vscode-textmate sees, as at
+  // `TrailingWhitespace`'s `(?<!^)`, `LuauDocParamModifier`'s lookbehind
+  // and the access path's line-start keyword test. These sites agreed in
+  // scope before I-1566 too (only the tree's structure changed, at the
+  // access path); they guard that agreement.
+  "capture-context-trailing-whitespace-1566":
+    "BUNNY:   \nHello there.   \n@ ACE  \n  Hi.  \n(quietly)  \nscene main\n  BUNNY:  \n  Hello.  \n  (beat)  \nend\n",
+  "capture-context-doc-param-1566":
+    "function f(x)\n  --[[ @param x the value ]]\n  -- @param y other\n  return x\nend\n",
+  "capture-context-luau-names-1566":
+    "local x: number? = 1\nfunction f(a: string?, b: {number}?): number?\n  scene = a\n  branch += 1\n  return nil\nend\nfunction a.b:c()\nend\n",
 };
 
 interface Fixture {
