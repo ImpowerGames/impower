@@ -97,8 +97,8 @@ const LUA_WS = " \\t\\n\\v\\f\\r";
 // JS regex's POSIX class portability quirks.
 const LUA_PUNCT = "\\x21-\\x2f\\x3a-\\x40\\x5b-\\x60\\x7b-\\x7e";
 
-// Lua's control chars (`%c`) — 0x00-0x1f.
-const LUA_CTRL = "\\x00-\\x1f";
+// Lua's control chars (`%c`, C `iscntrl`) — 0x00-0x1f and DEL (0x7f).
+const LUA_CTRL = "\\x00-\\x1f\\x7f";
 
 // Per-letter class translation. Both the lowercase form (positive)
 // and uppercase form (negative complement) are listed.
@@ -568,15 +568,14 @@ function handleEscape(
   if (next === undefined) {
     throw new LuaPatternError("malformed pattern (ends with '%')");
   }
-  // `%b` is handled by the segmenting pass in `luaPatternToJs`
-  // before this function ever sees it. If we land here with `%b`,
-  // it means a `%b` slipped into a context where the splitter
-  // couldn't see it (e.g. inside a `[...]` set — which is invalid
-  // anyway). Error explicitly.
-  if (next === "b") {
-    throw new LuaPatternError(
-      "`%b` balanced-match cannot appear inside a character set.",
-    );
+  // Inside a set, Lua reads `%` followed by anything that is not a
+  // class as that character: `[%b]`, `[%f]` and `[%1]` match `b`, `f`
+  // and `1`. Outside a set the splitter in `luaPatternToJs` takes
+  // `%b`, and the chunk translator takes the digits, before this
+  // function sees them.
+  if (inSet && !CLASS_TO_JS[next]) {
+    emit(literalEscape(next));
+    return i + 2;
   }
   // `%f[set]` — frontier pattern. Matches at a position where the
   // next char is in `set` and the previous one is not. Lua treats
@@ -592,11 +591,6 @@ function handleEscape(
   // Membership is probed directly against the translated class
   // (pm.luau exercises `%f[%z]`, `%f[%l%z]`, `%f[^\1-\255]`, ...).
   if (next === "f") {
-    if (inSet) {
-      throw new LuaPatternError(
-        "`%f` frontier pattern cannot appear inside a character set.",
-      );
-    }
     if (pattern[i + 2] !== "[") {
       throw new LuaPatternError("missing '[' after '%f' in pattern");
     }
@@ -614,11 +608,6 @@ function handleEscape(
   }
   // `%1`..`%9` — capture backreference inside a pattern.
   if (/[1-9]/.test(next)) {
-    if (inSet) {
-      throw new LuaPatternError(
-        "Capture backreferences (`%1` … `%9`) cannot appear inside a character set.",
-      );
-    }
     emit("\\" + next);
     return i + 2 + advanceForQuantifier(pattern, i + 2, emit);
   }
@@ -641,10 +630,17 @@ function handleEscape(
     emit("[" + CLASS_TO_JS[next] + "]");
     return i + 2 + advanceForQuantifier(pattern, i + 2, emit);
   }
-  // `%` followed by punctuation / magic char → literal escape.
-  emit("\\" + next);
-  if (inSet) return i + 2;
+  // Any other character matches itself.
+  emit(literalEscape(next));
   return i + 2 + advanceForQuantifier(pattern, i + 2, emit);
+}
+
+// `%x` for an `x` that is not a class or pattern item matches `x`. A
+// letter or digit is emitted bare: behind a backslash JavaScript reads
+// `\t`, `\B`, `\0` and others as escapes of its own. Anything else
+// keeps the backslash, which JavaScript reads as the character itself.
+function literalEscape(c: string): string {
+  return /[A-Za-z0-9]/.test(c) ? c : "\\" + c;
 }
 
 // Translate a `[set]` character class. Returns the emitted JS regex
