@@ -4,7 +4,8 @@
 // official parser reports for the body's statements in a `do` block, and a
 // `name(` at the start of a line keeps its method-versus-call reading
 // (I-1454). Both TextMate engines read each form alike, and an incremental
-// compile reports what a cold one does.
+// compile reports what a cold one does. A method written right after the
+// define header's `with` is a method, as on main.
 import { describe, expect, test } from "vitest";
 import { errors, expectIncrementalEqualsCold, methodReadings } from "./defineReadings";
 import { officialErrorList } from "./officialSyntax";
@@ -83,7 +84,45 @@ describe("a call after a `;` in a define body is a statement of the body (I-1506
       expectIncrementalEqualsCold(text);
     });
   }
+  // A call after a `;` on the define's header line is a call too (its
+  // errors, missing on that line, are another ticket's).
+  test("a call after a `;` on the define's header line is no method", () => {
+    const text = `define X with y = 1; print(1 2 3) end\n${STORY}`;
+    expect(methodReadings(text)).toEqual([]);
+    expect(nodeNames(text), stripAnsi(dumpTree(text))).toContain("LuauDefine_end");
+  });
   test("the ticket's form reports Luau's three errors", () => {
     expect(official("  y = 1; print(1 2 3)\n").length, "the official parser reports the form").toBe(3);
   });
+});
+
+// [the define, the method readings]. A method written right after the
+// define header's `with` opens as one at a line's start does, and reads as
+// it does on main: a method, reporting nothing.
+const HEADER_LINE_METHODS: [text: string, readings: string[]][] = [
+  ["define X with f() return 1 end end\n", ["f:method"]],
+  ["define X as Y with f(a) return a end end\n", ["f:method"]],
+  ["define X with f() return 1 end\n  g()\n    return 2\n  end\nend\n", ["f:method", "g:method"]],
+];
+
+describe("a method on the define's header line reads as a method (I-1506)", () => {
+  for (const [define, readings] of HEADER_LINE_METHODS) {
+    const text = `${define}${STORY}`;
+    test(`${JSON.stringify(define)}: reports nothing`, () => {
+      expect(errors(text), stripAnsi(dumpTree(text))).toEqual([]);
+    });
+    test(`${JSON.stringify(define)}: the define keeps its end`, () => {
+      expect(nodeNames(text), stripAnsi(dumpTree(text))).toContain("LuauDefine_end");
+    });
+    test(`${JSON.stringify(define)}: the method reading`, () => {
+      expect(methodReadings(text)).toEqual(readings);
+    });
+    test(`${JSON.stringify(define)}: engines agree`, async () => {
+      const result = await compareEnginesFull(text);
+      expect(result.divergences, formatDivergences(text, result.divergences)).toEqual([]);
+    });
+    test(`${JSON.stringify(define)}: an incremental compile reports what a cold one does`, () => {
+      expectIncrementalEqualsCold(text);
+    });
+  }
 });

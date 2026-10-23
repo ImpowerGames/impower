@@ -1838,6 +1838,12 @@ variables:
   # code between them pass over that code (`--[====[a]====] y = 1;
   # --[====[b]====] f()`).
   LUAU_LINE_LEADING_BLOCK_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*{{LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE}}{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*)
+  # A define's header line up to its `with` and the whitespace after it
+  # (`define X with`, `define X as Y with`), for a lookbehind: a method
+  # written there (`define X with f() return 1 end end`) opens as one written
+  # at a line's start does (I-1506). The text between `define` and `with`
+  # is not read further, since the header's own rules read it.
+  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_HEADER_LINE_START}}define\b[^\r\n]*\bwith{{WS}}*)
   # A comment of level four or more, whose text runs to the last close of
   # level four or more on its line, `]` included.
   LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE: --\[====+\[[^\r\n]*\]====+\]
@@ -5400,7 +5406,8 @@ repository:
   # lookaround: the begin's `(?=[(])` leaves a name without a parameter list
   # to LuauPropertyDefinition and LuauBlockBody. The begin's `^`, or its
   # lookbehind over block comments that begin the line (`--[[c]] f()`,
-  # comments being trivia, `LUAU_LINE_LEADING_BLOCK_COMMENTS`), leaves a
+  # comments being trivia, `LUAU_LINE_LEADING_BLOCK_COMMENTS`), or right
+  # after the define header's `with` (`LUAU_DEFINE_HEADER_TO_WITH`), leaves a
   # `name(` after code on its line (`y = 1; print(1)`) to LuauBlockBody,
   # which reads it as a call statement of the define's body: `LuauDefine`
   # tries its patterns again at every position of its body, so without it a
@@ -5421,7 +5428,7 @@ repository:
   LuauMethodDefinition:
     tag: meta
     name: meta.function.luau
-    begin: (?:^|(?<=^{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}))({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
+    begin: (?:^|(?<=^{{LUAU_LINE_LEADING_BLOCK_COMMENTS}})|(?<={{LUAU_DEFINE_HEADER_TO_WITH}}))({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
