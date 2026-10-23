@@ -24,8 +24,8 @@ text.source.sparkdown [0..101]
  ├─ Newline [35..36]: "\n"
  ├─ meta.function.luau [36..48]
  │   └─ meta.function.body.luau [36..48]
- │       ├─ invalid.illegal.unread.luau [36..40]: "else"
- │       ├─ punctuation.whitespace.extra.sd [40..41]: " "
+ │       ├─ keyword.control.else.luau [36..40]: "else"
+ │       ├─ punctuation.whitespace.optional.sd [40..41]: " "
  │       ├─ constant.language.boolean.luau [41..45]: "true"
  │       ├─ punctuation.whitespace.optional.sd [45..46]: " "
  │       └─ keyword.control.do.luau [46..48]: "do"
@@ -63,11 +63,12 @@ text.source.sparkdown [0..101]
  │           └─ constant.numeric.decimal.luau [87..88]: "1"
  ├─ Newline [88..89]: "\n"
  ├─ meta.function.luau [89..96]
- │   ├─ meta.function.body.luau [89..95]
- │   │   ├─ invalid.illegal.unread.luau [89..93]: "else"
- │   │   ├─ punctuation.whitespace.extra.sd [93..94]: " "
- │   │   └─ constant.numeric.decimal.luau [94..95]: "2"
- │   └─ meta.function.body.luau [95..96]: ")"
+ │   └─ meta.function.body.luau [89..96]
+ │       └─ meta.parameter.luau [89..96]
+ │           ├─ keyword.control.else.luau [89..93]: "else"
+ │           ├─ punctuation.whitespace.optional.sd [93..94]: " "
+ │           ├─ constant.numeric.decimal.luau [94..95]: "2"
+ │           └─ punctuation.definition.template-expression.end.sd [95..96]: ")"
  ├─ Newline [96..97]: "\n"
  ├─ meta.function.luau [97..100]
  │   └─ keyword.control.end.luau [97..100]: "end"
