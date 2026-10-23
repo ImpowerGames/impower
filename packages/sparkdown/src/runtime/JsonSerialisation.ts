@@ -15,6 +15,11 @@ import {
 import { ControlCommand } from "./ControlCommand";
 import { VariableAssignment } from "./VariableAssignment";
 import { NativeFunctionCall } from "./NativeFunctionCall";
+import {
+  isStdLibNamespaceName,
+  stdLibNamespaceOf,
+  stdLibNamespaceTable,
+} from "./StdLib";
 import { Void } from "./Void";
 import { Tag } from "./Tag";
 import { InkObject } from "./Object";
@@ -668,6 +673,15 @@ export class JsonSerialisation {
     }
 
     let objVal = asOrNull(obj, ObjectValue);
+    // A library table (`local m = math`) is written by its name, and a load
+    // reads it as the library table, so it stays the one `math` reads.
+    const library = objVal ? stdLibNamespaceOf(objVal) : null;
+    if (library !== null) {
+      writer.WriteObjectStart();
+      writer.WriteProperty("^lib", library);
+      writer.WriteObjectEnd();
+      return;
+    }
     if (objVal) {
       // Reference-ID table serialization (pickle-memo style). Each
       // DISTINCT table writes its full contents once, tagged with a
@@ -923,6 +937,13 @@ export class JsonSerialisation {
     if (typeof token === "object" && !Array.isArray(token)) {
       let obj = token as Record<string, any>;
       let propValue;
+
+      // A library table, by its name; nil when no such library exists.
+      if (typeof obj["^lib"] === "string") {
+        return isStdLibNamespaceName(obj["^lib"])
+          ? stdLibNamespaceTable(obj["^lib"])
+          : new NullValue();
+      }
 
       // A binary program's function value, as a durable save names it.
       if (typeof obj["^symsave"] === "string") {

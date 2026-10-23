@@ -32,6 +32,8 @@ import {
   luauStringToBytes,
   luauTypeOf,
   lookupAnyStdLib,
+  readGlobalOrLibrary,
+  stdLibNamespaceTable,
   stdLibRequiredArgs,
   stepBuiltinIterator,
   unwrapArgsForPureStdLibFn,
@@ -1711,10 +1713,7 @@ export function indexValue(
     indexBase instanceof ObjectValue &&
     indexBase.value?.has(GLOBALS_PROXY_TAG)
   ) {
-    return (
-      story.state.variablesState.GetGlobalVariableValue(keyStr) ??
-      new NullValue()
-    );
+    return readGlobalOrLibrary(story, keyStr) ?? new NullValue();
   }
   // Lua's index-type rule: indexing nil / a boolean / a
   // number / a function raises (trappable via pcall) —
@@ -1825,7 +1824,8 @@ export function storeIndex(
 /** The value of the variable `name`, as a `VariableReference` that names no
  *  read count reads it: `_G`, a global or temporary, a dotted name walked
  *  through tables, a function's name as a function value, a builtin's name
- *  as its marker, and otherwise nil, or the index error Lua raises. */
+ *  as its marker, a library's name as its table, and otherwise nil, or the
+ *  index error Lua raises. */
 export function readVariable(story: any, name: string | null): InkObject {
   let foundValue: InkObject | null = null;
   // `_G` — Luau's global environment table. A bare reference
@@ -1877,7 +1877,7 @@ export function readVariable(story: any, name: string | null): InkObject {
     let walkStart = 1;
     let cur: unknown;
     if (segs[0] === "_G" && segs.length > 1) {
-      cur = story.state.variablesState.GetGlobalVariableValue(segs[1]!);
+      cur = readGlobalOrLibrary(story, segs[1]!);
       walkStart = 2;
       if (cur == null) {
         // `_G.x` of an ABSENT global is nil (Luau: the env
@@ -1984,6 +1984,11 @@ export function readVariable(story: any, name: string | null): InkObject {
     const marker = new Map<string, AbstractValue>();
     marker.set("__stdlib_fn", new StringValue(name));
     foundValue = new ObjectValue(marker);
+  }
+
+  // A stdlib namespace no global replaced reads as its library table.
+  if (foundValue == null && name && isStdLibNamespaceName(name)) {
+    foundValue = stdLibNamespaceTable(name);
   }
 
   if (foundValue == null) {
