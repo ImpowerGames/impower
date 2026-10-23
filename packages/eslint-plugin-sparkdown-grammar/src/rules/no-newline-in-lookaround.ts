@@ -32,24 +32,14 @@
 //    line alone.
 //
 // A negated class such as `[^)]`, which matches a line break without
-// naming one, is `no-line-crossing-class`'s to report. A variable that
-// reads past the line on purpose carries a `# reads-past-line:` comment
-// saying why, and the line breaks it brings into a pattern are not
-// reported.
+// naming one, is `no-line-crossing-class`'s to report.
 
 import { defineBaselinedRule, BASELINE_NOTE, type Finding } from "../utils/baseline.ts";
-import { getGrammarIndex, markedComment } from "../utils/grammar-index.ts";
+import { getGrammarIndex } from "../utils/grammar-index.ts";
 import { regexGroups, scanRegex, type RegexGroup } from "../utils/regex-scan.ts";
 import { rangeInScalar } from "../utils/yaml-ast.ts";
 import { siteLabel } from "./lookaround-needs-rival-comment.ts";
-import {
-  EXEMPT_MARKER,
-  expand,
-  isLookahead,
-  isLookbehind,
-  readsOnAfter,
-  repeats,
-} from "./no-line-crossing-class.ts";
+import { expand, isLookahead, isLookbehind, readsOnAfter, repeats } from "./no-line-crossing-class.ts";
 
 interface Hit {
   // Offset and length in the expanded pattern.
@@ -60,19 +50,17 @@ interface Hit {
 
 const isLineBreakEscape = (text: string) => text === "\\n" || text === "\\r";
 
-// The hits in an expanded pattern, leaving out the line breaks at the
-// offsets `exempt` names (those a `# reads-past-line:` variable brings in).
-function findHits(source: string, exempt: (offset: number) => boolean): Hit[] {
+// The hits in an expanded pattern.
+function findHits(source: string): Hit[] {
   const hits: Hit[] = [];
   const groups = regexGroups(source);
   const enclosing = (at: number) => groups.filter((g) => g.start < at && g.end > at);
   const tokens = [...scanRegex(source)];
-  // One hit per lookaround: `{{NL}}` alone holds three line breaks. An
-  // exempt line break takes no slot, so it cannot hide a later one.
+  // One hit per lookaround: `{{NL}}` alone holds three line breaks.
   const reported = new Set<number>();
   const lineBreak = (start: number, end: number, label: string, within: RegexGroup[]) => {
     const lookaround = within.filter((g) => isLookahead(g) || isLookbehind(g)).sort((a, b) => b.start - a.start)[0];
-    if (!lookaround || reported.has(lookaround.start) || exempt(start)) return;
+    if (!lookaround || reported.has(lookaround.start)) return;
     if (within.some(isLookbehind)) {
       hits.push({ start, length: end - start, label: `${label} inside a lookbehind` });
       reported.add(lookaround.start);
@@ -92,7 +80,7 @@ function findHits(source: string, exempt: (offset: number) => boolean): Hit[] {
     if (tok.inCharClass) continue;
     const within = enclosing(tok.index);
     if (tok.text === "\\s") {
-      if (within.some((g) => isLookahead(g) || isLookbehind(g)) && !exempt(tok.index)) {
+      if (within.some((g) => isLookahead(g) || isLookbehind(g))) {
         hits.push({ start: tok.index, length: 2, label: "`\\s` (matches `\\n`) inside a lookaround" });
       }
       continue;
@@ -151,17 +139,12 @@ const { rule, find } = defineBaselinedRule(
   },
   (context) => {
     const index = getGrammarIndex(context);
-    const exempt = (name: string) => {
-      const pair = index.variables.get(name);
-      return pair !== undefined && markedComment(index, [pair.loc.start.line], EXEMPT_MARKER) !== null;
-    };
     const findings: Finding[] = [];
     for (const site of index.patternSites) {
       // A variable is checked where a rule uses it, with the pattern around it.
       if (site.owner.kind === "variable") continue;
       const expanded = expand(site.source, index);
-      const exemptAt = (offset: number) => expanded.variables[offset]!.some(exempt);
-      for (const hit of findHits(expanded.text, exemptAt)) {
+      for (const hit of findHits(expanded.text)) {
         const chain = expanded.variables[hit.start]!;
         const raw = expanded.rawOffset[hit.start]!;
         findings.push({
