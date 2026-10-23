@@ -6,6 +6,7 @@ import {
   defineStatementLast,
   defineStatementThrough,
   isDefineStatementStart,
+  readsDefineProperty,
   readsDefineStatement,
 } from "../../utils/defineStatement";
 import { nextLuauToken } from "../../typecheck/readLuauAst";
@@ -190,6 +191,56 @@ function reportDefineStatement(
     }
     last = through;
   }
+  reportStatementErrors(start, last, errors, ctx, structureErrors);
+  return last;
+}
+
+// A property keyed by a name (`readsDefineProperty`) is read as Luau's
+// statement `name = value`, as far as its value runs on
+// (`propertyValueNodes`), and that reading reports every syntax error of
+// the value, in Luau's words at Luau's range, once (I-1500), in a define of
+// any structure: the validator leaves them to it
+// (`loweredDefinePropertyOf`). A statement after the value on its line is
+// its own (`reportDefineStatement`). A property with no value keeps the
+// missing value's report (`validateAssignmentValue`), and one whose value
+// Luau reads whole, while Sparkdown's reading of it does not (an
+// alternator's arm), keeps that reading's. Returns where the property's
+// nodes end when the reading reported it, or null.
+function reportDefineProperty(
+  propNode: SyntaxNode,
+  ctx: LowerContext,
+  structureErrors: InkDiagnostic[],
+): number | null {
+  if (!readsDefineProperty(propNode)) return null;
+  const { opNode, consumed } = propertyValueNodes(propNode, ctx);
+  const last = consumed[consumed.length - 1];
+  // A property with no value keeps the missing value's report.
+  if (!last || (!findAssignmentValueNode(opNode ?? null) && last.to <= propNode.to)) return null;
+  const value = readExpressionAst(consumed, ctx);
+  // A value Sparkdown's reading reads without an error has none for Luau's
+  // to report, and Luau's reading reads on past the define, which would
+  // make the define's lowering depend on the text after it (I-1500 round 1:
+  // its chunk is no longer kept across an edit elsewhere).
+  if (value && value.source.errors.length === 0) return null;
+  const end = Math.max(propNode.to, last.to);
+  const read = (from: number, to: number) => ctx.read(from, to);
+  const { errors } = luauStatementErrors(propNode, propNode.from, read, end, ctx.documentText);
+  if (errors.length === 0 && value) return null;
+  // A value's nodes on the lines after the property are its siblings.
+  reportStatementErrors(propNode, last.from >= propNode.to ? last : propNode, errors, ctx, structureErrors);
+  return end;
+}
+
+// Reports the errors Luau's reading gave for the define body nodes from
+// `start` to `last`, past those another report owns.
+function reportStatementErrors(
+  start: SyntaxNode,
+  last: SyntaxNode,
+  errors: LuauStatementError[],
+  ctx: LowerContext,
+  structureErrors: InkDiagnostic[],
+): void {
+  const read = (from: number, to: number) => ctx.read(from, to);
   // A `.` no name follows has its own error reported by the validator, in a
   // define of any structure (`danglingDots`): Luau's `Expected identifier,
   // got …` at the token after it is left to that report, and the
@@ -233,7 +284,6 @@ function reportDefineStatement(
     if (structureErrors.some((reported) => sameRange(reported.source, source))) continue;
     ctx.diagnostics?.push({ message: error.message, severity: ErrorType.Error, source });
   }
-  return last;
 }
 
 /** Whether two diagnostic sources span the same range. */
@@ -471,11 +521,14 @@ export function lowerLuauDefine(
     let child = content.firstChild;
     while (child) {
       if (child.name === "LuauPropertyDefinition") {
-        // A define with no name lowers no member.
-        const prop = nameNode ? readPropertyDefinition(child, ctx) : null;
-        if (prop) {
-          properties.push(prop);
-          const end = rangeOf(prop.value.expr.location, ctx).to;
+        // A property's reading reports its value's errors whether or not
+        // it lowers; one on the header's line is the header's. A define
+        // with no name lowers no member.
+        const readEnd = inBody(child) ? reportDefineProperty(child, ctx, structureErrors) : null;
+        const prop = nameNode ? readPropertyDefinition(child, ctx, readEnd !== null) : null;
+        if (prop) properties.push(prop);
+        const end = prop ? rangeOf(prop.value.expr.location, ctx).to : readEnd;
+        if (end !== null) {
           while (child.nextSibling && child.nextSibling.from < end) child = child.nextSibling;
         }
       } else if (isDefineMethodCall(child, (pos) => ctx.lineNumber(pos))) {
@@ -995,6 +1048,8 @@ function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: 
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
+  // Whether the property's reading reported its value (`reportDefineProperty`).
+  reported = false,
 ): DefineProperty | null {
   // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
   // plain identifier (`name = …`).
@@ -1007,7 +1062,7 @@ function readPropertyDefinition(
       bracketAssignment,
     );
     if (!indexNode) {
-      reportUnreadValueErrors(propNode, ctx);
+      if (!reported) reportUnreadValueErrors(propNode, ctx);
       return null;
     }
     // Only STRING-LITERAL keys are representable in the compile-time struct;
@@ -1032,7 +1087,7 @@ function readPropertyDefinition(
       }
     }
     if (name == null) {
-      reportUnreadValueErrors(propNode, ctx);
+      if (!reported) reportUnreadValueErrors(propNode, ctx);
       return null;
     }
   } else {
@@ -1048,7 +1103,7 @@ function readPropertyDefinition(
       ? getDescendent("LuauVariableName", variableAssignment)
       : null);
     if (!nameNode) {
-      reportUnreadValueErrors(propNode, ctx);
+      if (!reported) reportUnreadValueErrors(propNode, ctx);
       return null;
     }
     name = ctx.read(nameNode.from, nameNode.to);
@@ -1058,8 +1113,8 @@ function readPropertyDefinition(
   // to the value (including call sugar and a value after a line-ending `=`).
   const { opNode, consumed } = propertyValueNodes(propNode, ctx);
   const reading = readExpressionAst(consumed, ctx);
-  if (reading) reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
-  if (opNode && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
+  if (reading && !reported) reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
+  if (opNode && !reported && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
   const expr = reading
     ? lowerExpression(reading.expr, reading.source, ctx)
     : null;
