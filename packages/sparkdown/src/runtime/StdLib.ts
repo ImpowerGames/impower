@@ -3080,13 +3080,27 @@ export const STDLIB: Record<string, StdLibEntry> = {
 
   // `count.turns()` (0-arg form) — total turns elapsed since
   // story start. Maps to `state.currentTurnIndex + 1`.
-  // The 1-arg form `count.turns(-> target)` (TURNS_SINCE) still
-  // routes through the legacy per-function ControlCommand path
-  // because it needs compile-time DivertTarget container-counting
-  // setup that doesn't fit the generic dispatcher.
+  // A direct `count.turns(-> target)` lowers to `TURNS_SINCE`
+  // (`INK_BUILTIN_ALIASES`); the function `count.turns` read as a
+  // value (`local c = count; c.turns(-> target)`) takes the target
+  // here and reads the same count (`countOfTarget`, I-1441).
   "count.turns": {
-    arity: 0,
-    fn: (story) => story.state.currentTurnIndex + 1,
+    arity: -1,
+    fn: (story, [target]) =>
+      target === undefined || target instanceof Void
+        ? story.state.currentTurnIndex + 1
+        : story.countOfTarget(target, true),
+  },
+  // `count.visits(-> target)` and `count.visited(-> target)` read as
+  // values: a direct call lowers to `READ_COUNT`, and the function
+  // read through `count`'s table reads the same count.
+  "count.visits": {
+    arity: 1,
+    fn: (story, [target]) => story.countOfTarget(target, false),
+  },
+  "count.visited": {
+    arity: 1,
+    fn: (story, [target]) => story.countOfTarget(target, false) > 0,
   },
 
   // `math.clamp(x, min, max)` — Luau-only.
@@ -6556,9 +6570,10 @@ export function isStdLibNamespaceName(name: string): boolean {
 }
 
 // The library tables, built on the first read of each, so every read of
-// `math` is the same table (`rawequal(math, math)`). Nothing can change a
-// library table, so every story shares it, and a save writes it by name
-// (`stdLibNamespaceOf`).
+// `math` is the same table (`rawequal(math, math)`). A library table and
+// each function marker it holds are frozen, so nothing a script does can
+// change them; every story shares them, and a save writes a library table
+// by name (`stdLibNamespaceOf`).
 const namespaceTables = new Map<string, ObjectValue>();
 const namespaceNames = new WeakMap<object, string>();
 
@@ -6580,7 +6595,11 @@ export function stdLibNamespaceTable(name: string): ObjectValue {
       if (key === null) continue;
       const marker = new Map<string, AbstractValue>();
       marker.set("__stdlib_fn", new StringValue(fullName));
-      entries.set(key, new ObjectValue(marker));
+      // Every story shares the marker, so nothing may change it either
+      // (`table.clear(math.abs)` would empty `math.abs` for all of them).
+      const fn = new ObjectValue(marker);
+      fn.Freeze();
+      entries.set(key, fn);
     }
     for (const [fullName, value] of Object.entries(STDLIB_CONSTANTS)) {
       const key = member(fullName);

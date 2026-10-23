@@ -140,6 +140,38 @@ describe("a stdlib namespace read as a value", () => {
     ).toEqual(got("Got function true."));
   });
 
+  test("calls count's functions through the table as the direct calls read", () => {
+    expect(
+      run([
+        "-> start",
+        "",
+        "scene start",
+        "  local c = count",
+        "  Got {c.turns(-> later) == count.turns(-> later)} {c.turns(-> later)} {c.visits(-> start) == count.visits(-> start)} {c.visits(-> start)} {c.visited(-> later)} {c.visited(-> start)} {c.turns() == count.turns()} {type(c.visits)} {type(c.visited)}.",
+        "end",
+        "",
+        "scene later",
+        "  Later.",
+        "end",
+      ]),
+    ).toEqual(got("Got true -1 true 1 false true true function function."));
+  });
+
+  test("keeps its functions from one story's changes in every other story", () => {
+    const first = run([
+      "local m = math",
+      "local cleared = pcall(table.clear, m.abs)",
+      "local set = pcall(rawset, m.abs, '__stdlib_fn', 'math.floor')",
+      "local inserted = pcall(table.insert, m.abs, 1)",
+      "local linked = pcall(setmetatable, m.abs, {})",
+      "Got {cleared} {set} {inserted} {linked} {type(m.abs)}.",
+    ]);
+    expect(first).toEqual(got("Got false false false false function."));
+    expect(run(["local m = math", "Got {type(m.abs)} {m.abs(-3.5)}."])).toEqual(
+      got("Got function 3.5."),
+    );
+  });
+
   test("is hidden by a local of its name", () => {
     expect(
       run([
