@@ -59,14 +59,13 @@ export function lastLineEnd(text: string, to: number): number {
  * bracket's line (`unclosedIslandEnd`), which ends the function too.
  */
 export function storyIslandEnd(node: SyntaxNode, text: string): number | undefined {
-  // A statement cut at its unclosed bracket's line ends there, a function
-  // in it included (`unclosedIslandEnd`, I-1532).
-  const cut = enclosingUnclosedIslandEnd(node, text);
-  if (cut !== undefined) return cut;
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
-    if (n.name === "LuauFunctionBody") return undefined;
+    // A statement cut at its unclosed bracket's line ends there, a function
+    // in it included (`unclosedIslandEnd`, I-1532): above a function, only
+    // the island it may be in is looked for (`enclosingUnclosedIslandEnd`).
+    if (n.name === "LuauFunctionBody") return enclosingUnclosedIslandEnd(n, text);
     if (n.name === "LuauSparkdownExplicitStatement") return n.to;
-    if (STORY_STATEMENTS.has(n.name)) return lastLineEnd(text, n.to);
+    if (STORY_STATEMENTS.has(n.name)) return unclosedIslandEnd(n, text) ?? lastLineEnd(text, n.to);
     if (isStoryCondition(n)) return lastLineEnd(text, n.to);
     if (n.name === "LuauSparkdownExplicitUntilCondition" && isStoryUntilCondition(n)) return lastLineEnd(text, n.to);
   }
@@ -157,15 +156,34 @@ export function unclosedIslandEnd(node: SyntaxNode, text: string): number | unde
   return opener ? lastLineEnd(text, opener.to) : undefined;
 }
 
-/** The `unclosedIslandEnd` of the story island a node is inside, if it has one. */
+/**
+ * The `unclosedIslandEnd` of the story island a node is inside, if it has
+ * one. Every node between an island and a node in it is a rule of its Luau,
+ * so the search stops at the first that is not. Every reading of a node
+ * asks where it begins (`Tokenizer.read`), and nodes with one parent share
+ * the answer, which is kept for the document by that parent.
+ */
 export function enclosingUnclosedIslandEnd(node: SyntaxNode, text: string): number | undefined {
-  for (let n = node.parent; n; n = n.parent) {
+  const parent = node.parent;
+  if (!parent) return undefined;
+  if (enclosingEnds.text !== text) enclosingEnds = { text, byParent: new Map() };
+  const key = `${parent.name}:${parent.from}:${parent.to}`;
+  const known = enclosingEnds.byParent.get(key);
+  if (known !== undefined) return known ?? undefined;
+  let end: number | undefined;
+  for (let n: SyntaxNode | null = parent; n && n.name.startsWith("Luau"); n = n.parent) {
     if ((n.name === "LuauSparkdownVariableDefinition" || n.name === "LuauSparkdownReassignment") && isStoryStatementIsland(n)) {
-      return unclosedIslandEnd(n, text);
+      end = unclosedIslandEnd(n, text);
+      break;
     }
   }
-  return undefined;
+  enclosingEnds.byParent.set(key, end ?? null);
+  return end;
 }
+
+// The `enclosingUnclosedIslandEnd` of the nodes under each parent, by the
+// parent's rule and range, for the document last asked about.
+let enclosingEnds: { text: string; byParent: Map<string, number | null> } = { text: "", byParent: new Map() };
 
 /**
  * The story lines after each story island's unclosed bracket in a tree
