@@ -1,7 +1,8 @@
-// An operator at the end of a line is read as missing its operand or not by
-// a lookahead into the lines after it, past blank lines and comments, to the
-// next token. An edit to that token has to reparse the operator's line too,
-// or the incremental tree keeps the node the old text gave it (#1580).
+// An operator at the end of a line leaves its rule open across the blank
+// lines and comments after it, and the next token decides whether the
+// operator is missing its operand. No regex reads past its own line (I-1283).
+// An edit to that token has to reparse the operator's line too, or the
+// incremental tree keeps the node the old text gave it (#1580).
 
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { TreeFragment } from "@lezer/common";
