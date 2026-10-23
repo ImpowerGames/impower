@@ -161,7 +161,7 @@ interface ScopedDeclaredLocals extends ReadonlySet<string> {
  * in scope: `bindings` are the function's parameters, locals, local
  * functions and loop variables with the ranges they bind over
  * (`functionBindings`), and `bodyWide` the names it declares for the whole
- * body (a `function NAME`, hoisted to the body, and a `store`). A frame
+ * body (a `store`). A frame
  * without a record, and a name `bindings` does not hold, is in scope
  * everywhere in the body.
  *
@@ -269,6 +269,35 @@ export function shadowSiblingSubFlow(name: string, ctx: LowerContext): void {
     if (frame.get(name) === shadow) {
       frame.set(name, hidden);
     }
+  });
+}
+
+/**
+ * Records that an assignment written at `at` rebinds `name` to a runtime
+ * value (`name = <expr>`, and a function statement, Lua's sugar for it,
+ * I-1422). For a name that is not a local in scope there (a global, a
+ * builtin, a former sibling subflow), the sibling registry, consulted in
+ * lexical order, drops any stale subflow entry, so a later `name(...)` does
+ * not statically divert to an old knot, and marks the name `rebound`, so a
+ * later call value-dispatches through the variable (`CallValueExpression`
+ * carries the call-site arg count the runtime needs to pack `...` args)
+ * while still suppressing upval capture: a closure referencing a
+ * bare-assigned global (`self = 20` then `function a.y (x) return x+self
+ * end`, calls.luau line 34) reads the global, it doesn't capture a pointer.
+ * A local's calls value-dispatch already, and registering it here would
+ * wrongly suppress its capture. A local whose block has ended is no local
+ * here (`isLocalAt`).
+ */
+export function recordRebind(name: string, at: number, ctx: LowerContext): void {
+  if (isLocalAt(name, ctx, at) || !ctx.siblingSubFlowNamesStack) return;
+  for (const frame of ctx.siblingSubFlowNamesStack) {
+    frame.delete(name);
+  }
+  ctx.siblingSubFlowNamesStack.at(-1)?.set(name, {
+    upvals: [],
+    arity: -1,
+    knotName: name,
+    rebound: true,
   });
 }
 

@@ -903,7 +903,6 @@ function lowerDefineMethod(
   // captures one whatever its name (a stdlib name too, `freeVariables`).
   ctx.declaredLocalsStack?.push(declaredLocalsFrame(["self", ...params], bodyAst, bindings, ctx));
   const hoistedDecls: ParsedObject[] = [];
-  ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
@@ -921,7 +920,6 @@ function lowerDefineMethod(
     reportBodySyntaxErrors(errors, ctx, reportFrom);
   }
   ctx.siblingSubFlowNamesStack?.pop();
-  ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.functionBindingsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
