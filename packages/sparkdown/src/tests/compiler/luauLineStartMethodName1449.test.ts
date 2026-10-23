@@ -12,7 +12,7 @@ import { describe, expect, test } from "vitest";
 import type { SyntaxNode } from "@lezer/common";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
-import { inPositionOrder, officialErrorList } from "./officialSyntax";
+import { inPositionOrder, officialErrorList, officialErrorsInReportOrder } from "./officialSyntax";
 import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
@@ -116,6 +116,10 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t) --[[c]] -- local x\n    :end", "end"],
     ['local s = "a" local b = (t) -- local x\n    :end', "end"],
     ["local t = {}\n  local b = t[1]\n    :end", "end"],
+    // A function whose first line is no statement (round 3, `undirected`
+    // finding 2): the body opens there, and the header carries nothing more.
+    [")\n    :function", "function"],
+    [")\n    :end", "end"],
     ["local t = {}\n  local s = [[x]] local b = (t)\n    :end", "end"],
     // In brackets, conditions and blocks.
     ["local t = {}\n  local b = {t\n    :end}", "end"],
@@ -144,6 +148,8 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x\n  --[[c]] print(1)\n  print(2)", null],
     ["local function f()\n    --[[c]] print(1)\n  end", null],
     ["local x\n  --[[ a\n  b ]] print(1)\n  print(2)", null],
+    ["local function f() --[====[c]====] print(1)\n  end", null],
+    ["local function f() --[[a\n b]] print(1)\n  end", null],
   ],
   // A header's `do` or `then` stays the header's, as on base.
   "a header's keyword after a line-start colon": [
@@ -184,6 +190,14 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ['local s = "a\\"--" local x\n  : end', null, 'local s = "a\\"--" local x\n  : end'],
     ['local s = "a\\"--" local function f()\n    : end\n  end', null, 'local s = "a\\"--" local function f()\n    : end\n  end'],
     ["local x\n  --[[c]]\n  : end", null, "local x\n  --[[c]]\n  : end"],
+    // Block comments of level four or more, and ones that close on a later
+    // line, after the header or the target (round 3, `undirected` finding 1).
+    ["local function f() --[====[c]====]\n    : end\n  end", null, "local function f() --[====[c]====]\n    : end\n  end"],
+    ["local function f() --[[a\n b]]\n    : end\n  end", null, "local function f() --[[a\n b]]\n    : end\n  end"],
+    ["local function f()\n    --[====[c]====]\n    : end\n  end", null, "local function f()\n    --[====[c]====]\n    : end\n  end"],
+    ["local x --[====[c]====]\n  : end", null, "local x --[====[c]====]\n  : end"],
+    ["local x --[[a\n b]]\n  : end", null, "local x --[[a\n b]]\n  : end"],
+    ["local x\n  --[====[c]====]\n  : end", null, "local x\n  --[====[c]====]\n  : end"],
     ["local function f()\n    --[[c]]\n    : end\n  end", null, "local function f()\n    --[[c]]\n    : end\n  end"],
     ['local t = {}\n  t["k"] = 1 local x\n  : end', null, 'local t = {}\n  t["k"] = 1 local x\n  : end'],
     ["local x\n  : end", null, "local x\n  : end"],
@@ -253,7 +267,13 @@ describe("a reserved word read as a method's name on the line after its receiver
           } else {
             expect(official.some((e) => e.endsWith(METHOD_NAME(word))), official.join("\n")).toBe(true);
           }
-          expect(errorsOf(newCompiler(text)), stripAnsi(dumpTree(text))).toEqual(official);
+          const errors = errorsOf(newCompiler(text));
+          expect(errors, stripAnsi(dumpTree(text))).toEqual(official);
+          // Luau's first reported error is among Sparkdown's; Sparkdown lists
+          // its errors in position order, so a later error Luau reports while
+          // recovering may stand before it (round 3, `undirected` finding 3).
+          const first = officialErrorsInReportOrder(`${HEADER}${readAs ?? form}${FOOTER}`)[0];
+          if (first !== undefined) expect(errors).toContain(first);
         });
         test(`${JSON.stringify(form)}: engines agree`, async () => {
           const result = await compareEnginesFull(text);

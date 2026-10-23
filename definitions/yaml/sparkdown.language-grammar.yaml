@@ -1605,7 +1605,7 @@ variables:
   # `LuauAssignmentOperation` or `LuauTypeAnnotationOperation` would take it
   # in; the empty alternative keeps the begin matching where the mark is not
   # left. The capture is the begin's third (`LUAU_AT_LINE_END_UNLESS_TARGET_ENDS_IT`).
-  _LUAU_TARGET_ENDS_LINE_MARK_: (?={{WS}}*{{LUAU_BLOCK_COMMENT_ON_LINE}}*(?:{{LUAU_LINE_COMMENT_START}}[^\n\r]*)?(\n)|)
+  _LUAU_TARGET_ENDS_LINE_MARK_: (?={{LUAU_COMMENTS_TO_LINE_END}}[^\n\r]*(\n)|)
   # `LuauVariableAssignment`'s end at its line's end, which the mark turns
   # off: with the third capture empty this is `(?=$)(?=\n)`, the line's end,
   # and with it the line break this asks for two line breaks, which no line
@@ -1633,7 +1633,17 @@ variables:
   LUAU_CARRIED_LINE: (?:{{WS}}*(?:$|{{LUAU_LINE_COMMENT_START}}|{{LUAU_COMMENT_ONLY_BLOCK_COMMENTS}}|{{LUAU_LINE_START_KEYWORD_METHOD}}))
   # Block comments that close on their line, then the line's end or a line
   # comment.
-  LUAU_COMMENT_ONLY_BLOCK_COMMENTS: (?:{{LUAU_BLOCK_COMMENT_ON_LINE}}+(?:$|{{LUAU_LINE_COMMENT_START}}))
+  LUAU_COMMENT_ONLY_BLOCK_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}(?:$|{{LUAU_LINE_COMMENT_START}}))
+  # What may follow a target or a header to the end of its line: block
+  # comments that close on it, at any level (`LUAU_PLAIN_BLOCK_COMMENT`), then
+  # the line's end, a line comment, or a block comment that closes on a later
+  # line, which Luau reads past to the next token as it reads any trivia.
+  LUAU_COMMENTS_TO_LINE_END: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*(?:$|{{LUAU_LINE_COMMENT_START}}|{{LUAU_UNCLOSED_BLOCK_COMMENT_START}}))
+  # The opening of a block comment that does not close on its line.
+  # lookaround: `LuauComment` reads the comment across its lines; the
+  # lookahead tells it from one that closes on the line, which
+  # `LUAU_PLAIN_BLOCK_COMMENTS` reads and code may follow.
+  LUAU_UNCLOSED_BLOCK_COMMENT_START: (?:{{LUAU_COMMENT_START}}\[=*\[(?![^\n\r]*\]=*\]))
   # lookaround: once `LuauTypeAnnotationOperation` has read the `:` line's
   # colon, the carrier ends at whatever follows it on the line, which only
   # the text before it shows, and leaves the line's end to the line rule.
@@ -1881,14 +1891,16 @@ variables:
   # would otherwise read into the header; the negative lookahead leaves
   # comments that end the line to that `LuauComment` and the line break to
   # `LuauFunctionHeaderLineBreak`, since no rule of the body can carry it.
-  LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT: (?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))(?!{{LUAU_COMMENT_ONLY_BLOCK_COMMENTS}})
+  LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT: (?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))(?!{{LUAU_COMMENTS_TO_LINE_END}})
   # The line break after the header.
   LUAU_FUNCTION_BODY_AT_LINE_BREAK: (?<={{LUAU_TYPE_END}}){{WS}}*\n
-  # The start of a line that does not close the function and begins a
-  # statement, or a `|` line, which continues a type as a union member
-  # (`LuauTypeOperatorLineContinuation`) and the body reports when no type
-  # ends the line before it.
-  LUAU_FUNCTION_BODY_AT_LINE_START: ^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.|])
+  # The start of a line that does not close the function and holds anything
+  # but spaces. The body reads every token (`LuauStrayCloser`,
+  # `LuauUnreadToken`), so a line that begins with no statement (a stray `)`,
+  # a `|` that continues no type) is the body's too, and the header's line
+  # break, which `LuauFunctionHeaderLineBreak` carries only before the body
+  # opens, is never carried again after it (I-1449).
+  LUAU_FUNCTION_BODY_AT_LINE_START: ^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*\S)
   # A code line at a define's method header's own indentation that is not
   # the method's `end`: the define's next member, or the line after a call
   # (I-1454). After the indentation comes a character other than whitespace
