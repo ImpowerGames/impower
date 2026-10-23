@@ -152,7 +152,7 @@ function lowerSingleAssignment(
   // vararg.luau line 155 reassigns the twice-defined `f` to a fresh
   // function value), which later calls dispatch through
   // (`recordRebind`).
-  recordRebind(variableName, offsetAt(target.location.begin, ctx), ctx);
+  recordRebind(variableName, ctx);
 
   const expr =
     opText === "="

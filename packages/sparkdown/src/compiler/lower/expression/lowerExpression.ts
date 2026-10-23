@@ -107,12 +107,9 @@ import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
 import {
   localHidesStdLib,
   makeGlobalFunctionCall,
-  recordSiblingRead,
   resolveCallableBinding,
-  siblingSubFlowInfo,
-  withSiblingSubFlowUpvalArgs,
 } from "./bindings";
-import { buildClosureExpression, lowerFunctionExpression, reportReadingErrors, type ReadingErrorScope } from "./lowerFunction";
+import { lowerFunctionExpression, reportReadingErrors, type ReadingErrorScope } from "./lowerFunction";
 import { lowerTable } from "./lowerTable";
 import { lowerAlternatorValue, soleLocalAlternators } from "../utils/alternatorValue";
 import { numberLiteralValue } from "../../utils/numberLiteralValue";
@@ -526,51 +523,14 @@ export function astIdentifier(
 
 // A dotted path (`a`, `a.b.c`) as a value. A path is one
 // `VariableReference`, so ink's hierarchical name resolution (knot and
-// stitch lookup, function parameters) keeps working; a variadic sibling
-// function referenced by its name is a value of its own, and a path naming
-// a stdlib constant (`math.pi`, `_VERSION`) is that constant.
+// stitch lookup, function parameters) keeps working; a path naming a stdlib
+// constant (`math.pi`, `_VERSION`) is that constant.
 function lowerNamePath(
   names: PathName[],
   location: Location,
   ctx: LowerContext,
 ): Expression {
   const identifiers = names.map((name) => astIdentifier(name, ctx));
-  // Sibling variadic subflow referenced as a VALUE (`call(c12, ...)`,
-  // `local h = c12`, `type(c12)`): variadic nested fns stay
-  // knot-form subflows of the enclosing function (see
-  // lowerLuauFunctionDefinition) — there's no local variable
-  // holding a closure, so a VariableReference would read nil and
-  // the runtime Knot fallback only checks TOP-LEVEL knots. No
-  // captures → a bare DivertTarget (the runtime value-call path
-  // packs `...` args for those). With captures → a closure-shaped
-  // value whose upval pointers snapshot the enclosing frame's
-  // cells at REFERENCE time, exactly like anonymous closures —
-  // `extractClosurePath` re-threads them below the user args at
-  // call time (vararg.luau line 74: `call(f, a)` where f captures
-  // `lim`).
-  if (
-    identifiers.length === 1 &&
-    resolveCallableBinding(
-      identifiers[0]!.name,
-      ctx,
-      offsetAt(location.begin, ctx),
-    ) === "sibling"
-  ) {
-    const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
-    const knotName = info?.knotName ?? identifiers[0]!.name;
-    if (info) {
-      // The subflow's definition decides the pointers the value holds and
-      // the arity it records.
-      recordSiblingRead(
-        ctx,
-        `value:${identifiers[0]!.name}=${info.upvals.join(",")}/${info.arity}`,
-      );
-    }
-    if (info && info.upvals.length > 0) {
-      return buildClosureExpression(knotName, info.upvals, info.arity);
-    }
-    return new DivertTarget(new Divert([new Identifier(knotName)]), true);
-  }
   // Stdlib constant short-circuit: when the dotted path matches a
   // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
   // emit the value directly instead of a `VariableReference` that
@@ -673,8 +633,8 @@ function lowerCall(
     const callee = lowerExpression(func, source, ctx);
     return callee ? new CallValueExpression(callee, args) : null;
   }
-  // A name that is a local of an enclosing function (not a stdlib name, a
-  // knot or a variadic sibling function) holds a value: the call
+  // A name that is a local of an enclosing function, or that an assignment
+  // rebound (not a stdlib name or a knot), holds a value: the call
   // dispatches through it, which handles closures, `__call` metamethods
   // and `__stdlib_fn` markers. A static `FunctionCall` would divert to a
   // knot of the name, which does not exist. So does a stdlib name a local
@@ -685,12 +645,9 @@ function lowerCall(
       args,
     );
   }
-  // Sibling subflows dispatch against their CONTAINER name — mangled when
-  // the source name was redefined (see SiblingSubFlowInfo.knotName).
-  const callName = siblingSubFlowInfo(name, ctx)?.knotName ?? name;
   const functionCall = makeGlobalFunctionCall(
-    new Identifier(callName),
-    withSiblingSubFlowUpvalArgs(name, args, ctx),
+    new Identifier(name),
+    args,
     rangeOf(call.location, ctx),
     ctx,
   );
@@ -711,8 +668,7 @@ function callsLocal(
   at: number,
   ctx: LowerContext,
 ): boolean {
-  const binding = resolveCallableBinding(name, ctx, at);
-  if (binding !== null) return binding === "local";
+  if (resolveCallableBinding(name, ctx) === "local") return true;
   return (
     lookupGlobalStdLibBuiltin(name, argCount) !== null &&
     localHidesStdLib(name, ctx, at)
@@ -896,10 +852,9 @@ function coerceFunctionCallShorthand(
           [],
         );
       }
-      const callName = siblingSubFlowInfo(nameStr, ctx)?.knotName ?? nameStr;
       return makeGlobalFunctionCall(
-        new Identifier(callName),
-        withSiblingSubFlowUpvalArgs(nameStr, [], ctx),
+        new Identifier(nameStr),
+        [],
         range,
         ctx,
       );
