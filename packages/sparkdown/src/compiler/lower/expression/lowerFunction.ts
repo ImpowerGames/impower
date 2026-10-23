@@ -53,7 +53,7 @@ import { withMessageLines } from "../../typecheck/messageLines";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import {
   functionBindings,
-  resolveFunctionBinding,
+  functionStatementAssigns,
   type FunctionBinding,
 } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
@@ -313,10 +313,11 @@ function walk(root: AstNode, enter: (node: AstNode) => boolean): void {
 // The name a function statement declares: a `local function`'s, or a plain
 // `function NAME`'s that no local binds where it is written. A name the
 // converter binds to a local, of the same function (#415) or of an
-// enclosing one (#1349), or that a function lowering around the statement
-// binds there (`resolveFunctionBinding`), is that local, which the
-// definition assigns (`lowerLuauFunctionDefinition`'s `assignsLocal`); a
-// field (`function a.f`) or method (`function a:m`) declares nothing.
+// enclosing one (#1349), that a function lowering around the statement
+// binds there, or that a top-level `local` in scope where the function is
+// written binds (`functionStatementAssigns`, I-1422), is that local, which
+// the definition assigns (`lowerLuauFunctionDefinition`'s `assignsLocal`);
+// a field (`function a.f`) or method (`function a:m`) declares nothing.
 function declaredFunctionName(
   stat: AstStatFunction | AstStatLocalFunction,
   ctx: LowerContext,
@@ -325,7 +326,7 @@ function declaredFunctionName(
   if (!(stat.name instanceof AstExprGlobal)) return null;
   const name = stat.name.name;
   const at = offsetAt(stat.name.location.begin, ctx);
-  return resolveFunctionBinding(name, at, ctx) === undefined ? name : null;
+  return functionStatementAssigns(name, at, ctx) ? null : name;
 }
 
 // The names the function statements (`function f`, not `local function f`)

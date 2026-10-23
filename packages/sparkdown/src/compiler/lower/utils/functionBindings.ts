@@ -14,6 +14,7 @@ import {
 import { alternatorScopesOf } from "./alternatorArms";
 import type { LowerContext } from "../context";
 import { offsetAt } from "./luauAst";
+import { answersDeclaration, rootLocalAnswer } from "./rootLocalReads";
 
 /**
  * A name a function's body binds: a parameter, a `local`, a `const`, a local
@@ -149,4 +150,24 @@ export function resolveFunctionBinding(
     if (found) return found;
   }
   return undefined;
+}
+
+/**
+ * Whether a function statement (`function NAME`, no `local`) written in a
+ * function at `at` assigns a variable rather than declaring a local of the
+ * function, as `NAME = function ... end` would: a local an enclosing
+ * function binds there (`resolveFunctionBinding`, I-1349); else a `local` of
+ * the root frame's own scope in scope where the function is written
+ * (`rootLocalAnswer`), which the function's entry binds as it binds a read
+ * of the name (`RootBinding`); else a function of the story, a top-level
+ * `function` or `local function` (`globalCallableNames`, I-1422).
+ */
+export function functionStatementAssigns(
+  name: string,
+  at: number,
+  ctx: LowerContext,
+): boolean {
+  if (resolveFunctionBinding(name, at, ctx) !== undefined) return true;
+  if (answersDeclaration(rootLocalAnswer(name, at, ctx))) return true;
+  return ctx.globalCallableNames?.has(name) ?? false;
 }

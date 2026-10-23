@@ -41,7 +41,7 @@ import {
 import { lowerStoreBase } from "../utils/lowerPropertyTargetAssignment";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { reportReassignedConst } from "../utils/publishesConst";
-import { resolveFunctionBinding } from "../utils/functionBindings";
+import { functionStatementAssigns } from "../utils/functionBindings";
 import { offsetAt } from "../utils/luauAst";
 import { syntheticId } from "../utils/documentTag";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
@@ -119,17 +119,18 @@ export function lowerLuauFunctionDefinition(
     // captured it, a call inside either body and a later `NAME = <expr>`
     // all see the same value. The variable is a local in scope where the
     // definition is written (a parameter, a `local`, a local function, an
-    // enclosing function's local: `assignsLocal`). A statement read on its
-    // own can see a parameter's name as a global, so the scope is asked by
-    // position as well (`resolveFunctionBinding`).
+    // enclosing function's local, a top-level `local` the function's entry
+    // binds: `assignsLocal`). A statement read on its own can see a
+    // parameter's name as a global, so the scope is asked by position as
+    // well (`functionStatementAssigns`).
     const assignsLocal =
       stat instanceof AstStatFunction &&
       (stat.name instanceof AstExprLocal ||
-        resolveFunctionBinding(
+        functionStatementAssigns(
           identifier.name ?? "",
           offsetAt(stat.name.location.begin, ctx),
           ctx,
-        ) !== undefined);
+        ));
     return lowerNestedNamedFunction(
       func,
       node,
