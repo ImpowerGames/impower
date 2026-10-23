@@ -104,6 +104,19 @@ describe("an if expression's then-arm value at column 0 after a `then` that ends
     expect(storyBeats(new ProgramStory(program.chunks!)).beats.map((beat) => beat.text)).toEqual([text]);
   });
 
+  // The `then` or `do` that ends such a line after the arm's value is the
+  // keyword of the statement whose condition the expression is, not the
+  // arm's own `then`, so the next line is that statement's body.
+  test.each([
+    ["an if statement's `then`", "if if c then c then"],
+    ["a while loop's `do`", "while if c then c do"],
+  ])("leaves %s to the statement and its body outside the arm", (_, line) => {
+    const at = offsetOf(line, "\nprint(c)") + 1;
+    expect(treeRulesAt(at)).not.toContain("LuauTernaryExpression");
+    const keyword = offsetOf(line, line) + line.lastIndexOf(" ") + 1;
+    expect(treeRulesAt(keyword)).not.toContain("LuauTernaryExpression");
+  });
+
   test.each([
     ["a local declaration", "function g(c)", "local z = 1", "Expected identifier when parsing expression, got 'local'"],
     ["a return", "function h(c)", "return y", "Expected identifier when parsing expression, got 'return'"],

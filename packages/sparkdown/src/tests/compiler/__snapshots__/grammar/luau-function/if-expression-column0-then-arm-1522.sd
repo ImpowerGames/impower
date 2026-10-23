@@ -29,3 +29,11 @@ function h(c)
 local y = if c then
 return y
 end
+function k(c)
+if if c then c then
+print(c)
+end
+while if c then c do
+print(c)
+end
+end

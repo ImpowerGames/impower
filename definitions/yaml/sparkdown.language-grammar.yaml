@@ -11881,14 +11881,22 @@ repository:
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    # A `then` or `do` after whitespace in the arm is not the arm's own
+    # `then`, which opens it, but the keyword of the statement whose
+    # condition the expression is (`if if c then a then`), so the arm ends
+    # before it and `LuauTernaryExpression`'s end leaves it to that
+    # condition; read as the arm's operator, it would take the next line as
+    # the arm's value (`LuauThenNextLineArm`).
+    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_THEN_NEXT_LINE_GUARD}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # A then arm whose `then` ends its line, optionally with a comment, takes
   # its value from the next line, wherever that value begins, as Luau reads
   # it (`then` then `false` at column 0, I-1522). `LuauThenOperator` reads
   # the `then` and the line break, and this rule reads the value up to the
   # end of its line, after which `LuauThenExpression` reads on as after any
-  # value. A next line that begins a statement, a clause keyword or a closer
+  # value. It ends where the arm does, before a clause keyword, a closer or
+  # the `then` or `do` of the statement around the expression. A next line
+  # that begins a statement, a clause keyword or a closer
   # ends this rule empty, and `LuauThenExpression` with it; so does a
   # reassignment at column 0, as it ends an `else` arm (`LuauElseExpression`).
   # `ValidationAnnotator` and the lowerer read this rule's parts as the arm's
@@ -11918,7 +11926,7 @@ repository:
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}})|(?<!{{LUAU_GLUED_THEN_BEHIND}})(?=$)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
+    end: "(?={{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<!{{LUAU_GLUED_THEN_BEHIND}})(?=$)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
 
   # The `then` of an if expression's then arm and the whitespace and line
   # break after it. The second `begin` alternative is the arm's own `then`
