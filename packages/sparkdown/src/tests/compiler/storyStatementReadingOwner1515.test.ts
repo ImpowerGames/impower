@@ -195,7 +195,13 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
   // A story block's missing closer is Sparkdown's block checks' to name
   // (I-1322), and the reading, whose input ends with the block's Luau, does
   // not name it again.
-  for (const text of ["if true then\n  Hi.\n", "while true do\n  Hi.\n", "repeat\n  Hi.\n", "scene start\n  if true then\n    Hi.\n  Ho.\n"]) {
+  for (const text of [
+    "if true then\n  Hi.\n",
+    "while true do\n  Hi.\n",
+    "repeat\n  Hi.\n",
+    "scene start\n  if true then\n    Hi.\n  Ho.\n",
+    "repeat\n  if true then\n    Hi.\nuntil true\n",
+  ]) {
     test(`a story block's missing closer is reported once ${JSON.stringify(text)}`, () => {
       const errors = sparkdownErrors(text);
       expect(errors).toHaveLength(1);

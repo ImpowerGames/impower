@@ -526,7 +526,8 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     const source =
       'type function example(t)\n  Hello\n  1 + 2\n  "This is not a statement"\n  return t\nend\nAfter the function.\n';
     expect(errorsOf(source)).toContainEqual(luauFirstError(source.replace("After the function.\n", "")));
-    expect(errorsOf(source).map((d) => d.start!.line)).toEqual([1, 2, 3]);
+    // Luau reports `1 + 2` once per token (I-1515).
+    expect(errorsOf(source).map((d) => d.start!.line)).toEqual([1, 2, 2, 2, 3]);
     expect(playedLines(source)).toEqual(["After the function.\n"]);
   });
 

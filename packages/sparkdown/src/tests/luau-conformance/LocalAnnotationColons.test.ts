@@ -96,19 +96,32 @@ describe("an annotation written with two separate colons (#1168)", () => {
 
 // `checkLuau` compiles its snippet as a function body. In a narrative body
 // (a script's top level or a scene) the declaration ends at its line, so
-// these check every error the compiled script reports there.
+// these check every error the compiled script reports there: Luau's, its
+// recovery's included, as the statement's reading reports them (I-1515).
 describe("in a narrative body", () => {
   test.each([
-    ["local :: number", "Expected identifier when parsing variable name, got '::'"],
-    ["local : number", "Expected identifier when parsing variable name, got ':'"],
-    ["local a, :: number", "Expected identifier when parsing variable name, got '::'"],
-    ["store : number", "Expected identifier when parsing variable name, got ':'"],
-    ["local c : : number", "Expected type, got ':'"],
-    ["local c: : number = 1", "Expected type, got ':'"],
-    ["scene S\n  local :: number\nend", "Expected identifier when parsing variable name, got '::'"],
-    ["scene S\n  local c : : number\nend", "Expected type, got ':'"],
-  ])("%j reports the one error", (source, message) => {
-    expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([message]);
+    ["local :: number", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["local : number", ["Expected identifier when parsing variable name, got ':'"]],
+    ["local a, :: number", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["store : number", ["Expected identifier when parsing variable name, got ':'"]],
+    [
+      "local c: : number = 1",
+      ["Expected type, got ':'", "Expected identifier when parsing expression, got ':'", "Expected '(', '{' or <string> when parsing function call, got '='"],
+    ],
+    ["scene S\n  local :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+  ])("%j reports Luau's errors", (source, messages) => {
+    expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual(messages);
+  });
+
+  // Luau ends `local c : : number`'s method call at `number` with `Expected
+  // function call arguments after '('`; the reading meets the line's end
+  // there and words it as a call with no arguments at <eof> (TICKET-PENDING).
+  test.each(["local c : : number", "scene S\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
+    expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
+      "Expected type, got ':'",
+      "Expected identifier when parsing expression, got ':'",
+      "Expected '(', '{' or <string> when parsing function call, got <eof>",
+    ]);
   });
 
   // A function in the script is Luau code, where the comma continues the
