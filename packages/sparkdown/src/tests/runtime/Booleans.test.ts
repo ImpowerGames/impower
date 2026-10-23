@@ -14,12 +14,41 @@ describe("Booleans (ported from inkjs)", () => {
     expect(runToEnd(ctx.story)).toBe(expected);
   }
 
+  // Luau has no arithmetic on booleans, where ink counts true as 1
+  // (I-1413).
+  function expectRuntimeError(fixture: string, expected: string) {
+    const ctx = makeRuntimeStoryFromFile("booleans", fixture);
+    expect(ctx.errorMessages).toEqual([]);
+    const runtimeErrors: string[] = [];
+    (ctx.story as any).onError = (message: string) =>
+      runtimeErrors.push(message);
+    runToEnd(ctx.story);
+    expect(runtimeErrors.join("\n")).toContain(expected);
+  }
+
   test("true", () => expectOutput("true", "true\n"));
-  test("true + 1", () => expectOutput("true-plus-one", "2\n"));
-  test("2 + true", () => expectOutput("two-plus-true", "3\n"));
-  test("false + false", () => expectOutput("false-plus-false", "0\n"));
-  test("true + true", () => expectOutput("true-plus-true", "2\n"));
-  test("true == 1", () => expectOutput("true-equals-one", "true\n"));
+  test("true + 1", () =>
+    expectRuntimeError(
+      "true-plus-one",
+      "attempt to perform arithmetic (add) on boolean and number",
+    ));
+  test("2 + true", () =>
+    expectRuntimeError(
+      "two-plus-true",
+      "attempt to perform arithmetic (add) on number and boolean",
+    ));
+  test("false + false", () =>
+    expectRuntimeError(
+      "false-plus-false",
+      "attempt to perform arithmetic (add) on boolean",
+    ));
+  test("true + true", () =>
+    expectRuntimeError(
+      "true-plus-true",
+      "attempt to perform arithmetic (add) on boolean",
+    ));
+  // Values of different types are never equal in Luau.
+  test("true == 1", () => expectOutput("true-equals-one", "false\n"));
   test("not 1", () => expectOutput("not-one", "false\n"));
   test("not true", () => expectOutput("not-true", "false\n"));
   test("3 > 1", () => expectOutput("three-greater-than-one", "true\n"));

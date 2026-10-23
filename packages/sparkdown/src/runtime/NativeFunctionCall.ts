@@ -66,13 +66,12 @@ const COMPARISON_OP_NAMES: ReadonlySet<string> = new Set([
   ">=",
 ]);
 
-// The operand types no arithmetic or comparison takes once the
-// metamethods have had their turn (`tryBinaryMetamethod`).
-const NON_OPERAND_TYPES: ReadonlySet<string> = new Set([
-  "nil",
-  "table",
-  "function",
-  "userdata",
+// The operand types arithmetic takes once the metamethods have had their
+// turn (`tryBinaryMetamethod`): a string is converted by tonumber's rules
+// below, and anything else raises.
+const ARITHMETIC_OPERAND_TYPES: ReadonlySet<string> = new Set([
+  "number",
+  "string",
 ]);
 
 // Luau's error for arithmetic `op` on `operands`, named by their types:
@@ -100,15 +99,22 @@ function luauOrderError(op: string, a: InkObject, b: InkObject): StoryException 
   );
 }
 
-// Raises Luau's error when arithmetic or a comparison has an operand it
-// cannot take: nil, a table, a function or a userdata.
+// Raises Luau's error when arithmetic or a comparison has operands it
+// cannot take. Arithmetic takes numbers and strings; a comparison takes
+// two numbers or two strings, never a mix and never two booleans.
 function luauOperandCheck(op: string, operands: InkObject[]): void {
-  const arith = ARITHMETIC_OP_NAMES.has(op);
-  if (!arith && !COMPARISON_OP_NAMES.has(op)) return;
-  if (!operands.some((p) => NON_OPERAND_TYPES.has(luauTypeOf(p)))) return;
-  if (arith) throw luauArithError(op, operands);
-  if (operands.length === 2) {
-    throw luauOrderError(op, operands[0]!, operands[1]!);
+  if (ARITHMETIC_OP_NAMES.has(op)) {
+    if (!operands.every((p) => ARITHMETIC_OPERAND_TYPES.has(luauTypeOf(p)))) {
+      throw luauArithError(op, operands);
+    }
+    return;
+  }
+  if (COMPARISON_OP_NAMES.has(op) && operands.length === 2) {
+    const t1 = luauTypeOf(operands[0]);
+    const t2 = luauTypeOf(operands[1]);
+    if (t1 !== t2 || (t1 !== "number" && t1 !== "string")) {
+      throw luauOrderError(op, operands[0]!, operands[1]!);
+    }
   }
 }
 type UnaryOp<T> = (val: T) => any;
@@ -501,6 +507,19 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
+    // Luau equality never converts: values of different types are not
+    // equal, and comparing them never raises (`1 == "1"` is false,
+    // `{} ~= "x"` is true). Same-type operands fall through to the
+    // typed comparison below.
+    if (
+      parameters.length === 2 &&
+      (this.name === NativeFunctionCall.Equal ||
+        this.name === NativeFunctionCall.NotEquals) &&
+      luauTypeOf(parameters[0]) !== luauTypeOf(parameters[1])
+    ) {
+      return new BoolValue(this.name === NativeFunctionCall.NotEquals);
+    }
+
     // (set defined at module scope below the class — see
     // ARITHMETIC_OP_NAMES)
     // Lua arithmetic string coercion: numeric-string operands of the
@@ -508,7 +527,8 @@ export class NativeFunctionCall extends InkObject {
     // `-" 10  " == -10` (math.luau lines 5-10; whitespace-padded
     // strings included). `..`/comparisons/equality keep their own
     // string semantics, so only the arithmetic op names coerce.
-    // A table or a function operand raises Luau's error first.
+    // An operand the op cannot take (a boolean, a table, a function, or a
+    // number compared with a string) raises Luau's error first.
     luauOperandCheck(this.name, parameters);
     if (ARITHMETIC_OP_NAMES.has(this.name)) {
       const operands = [...parameters];
@@ -631,14 +651,18 @@ export class NativeFunctionCall extends InkObject {
         // is coerced to the the proper value type.
         //
         // Note that we also force all other unary operation to
-        // return the same value type, although this is only
-        // meaningful for numbers. See `Value.Create`.
+        // return the same value type when they return a number. A
+        // boolean result stays a boolean: forcing it made
+        // `math.isnan(math.huge)` the float 0, which only compared
+        // equal to false while equality cast across types (I-1413).
         if (this.name === NativeFunctionCall.Int) {
           return Value.Create(resultVal, ValueType.Int);
         } else if (this.name === NativeFunctionCall.Float) {
           return Value.Create(resultVal, ValueType.Float);
-        } else {
+        } else if (typeof resultVal === "number") {
           return Value.Create(resultVal, param1.valueType);
+        } else {
+          return Value.Create(resultVal);
         }
       }
     } else {
