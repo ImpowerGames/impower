@@ -257,16 +257,67 @@ describe("a story store whose run-on value leaves a call open to its line's end 
 
 // A story store or local whose own value leaves a bracket open to the end of
 // its line names the opener by line, as Luau, whose end of input is on the
-// next line, does (I-1490). In a scene the next story line is read on into
-// (I-1532), and a store's comment after the value moves its range (I-1533).
-describe("a story store or local whose value leaves a bracket open to its line's end (I-1490)", () => {
+// next line, does (I-1490). In a scene the value ends at its line too, and
+// the story line after it is not read on into (I-1532). A store's comment
+// after the value moves its range (I-1533).
+describe("a story store or local whose value leaves a bracket open to its line's end (I-1490, I-1532)", () => {
   for (const value of ["g(x", "{1", "(1", "g(x, y", "{1, 2"]) {
-    pinLine(`store s = ${value}`, `local s = ${value}`, false);
-    pinLine(`local s = ${value}`, `local s = ${value}`, false);
+    pinLine(`store s = ${value}`, `local s = ${value}`);
+    pinLine(`local s = ${value}`, `local s = ${value}`);
   }
   pinLine("local s = (1 -- note", "local s = (1 -- note", false);
   // A bracket the line goes on past keeps naming its opener by column.
   for (const line of ["store s = g(x y)", "store s = {1 2}", "local s = g(x y)"]) {
-    pinLine(line, line.replace(/^store/, "local"), false);
+    pinLine(line, line.replace(/^store/, "local"));
+  }
+});
+
+/** Pins a document's errors, cold and incremental, to the official parser's for `luau` moved down `line` lines and right `shift` characters. */
+function pinText(name: string, text: string, luau: string, line: number, shift: number): void {
+  test(name, () => {
+    expect(sparkdownErrors(text)).toEqual(official(luau, line, shift));
+    expectIncrementalEqualsCold(text);
+  });
+}
+
+// A bracket a story declaration never closes carried nothing on: its value
+// ends at the end of the outermost unclosed opener's line, and the story
+// lines the tree reads into the bracket after it are not read as its Luau
+// (I-1532). A bracket closed on a later line still carries the value on.
+describe("a story store or local whose unclosed bracket the tree reads on into story lines (I-1532)", () => {
+  const values = ["g(x", "{1", "(1", "g(x, y", "{1, 2"];
+  for (const value of values) {
+    for (const keyword of ["store", "local"]) {
+      pinText(`"${keyword} s = ${value}" before a story line`, `${keyword} s = ${value}\nHello.\n${SCENE}`, `local s = ${value}\n`, 0, 0);
+    }
+  }
+  pinText('"store s = {1," before a line it would continue in a scene', "scene start\n  store s = {1,\n  2\nend\n", "local s = {1,\n", 1, 2);
+  pinText('"store s = {1," before a line it would continue', "store s = {1,\n2\n" + SCENE, "local s = {1,\n", 0, 0);
+  // The story lines after the bracket, however they read, are story: one
+  // with no trailing dot, one that looks like dangling or unfinished Luau,
+  // and two or more of them.
+  const stories = [["Hello there"], ["Hello:"], ["a.b("], ["Hello.", "Goodbye."], ["Hello there", "a.b(", "Goodbye"]];
+  for (const lines of stories) {
+    for (const line of ["store s = g(x", "local s = {1"]) {
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      const story = JSON.stringify(lines.join(" / "));
+      pinText(`"${line}" before ${story} in a scene`, `scene start\n  ${line}\n${lines.map((l) => `  ${l}\n`).join("")}end\n`, luau, 1, 2);
+      pinText(`"${line}" before ${story}`, `${line}\n${lines.map((l) => `${l}\n`).join("")}${SCENE}`, luau, 0, 0);
+    }
+  }
+  pinLine("store s = g({1, (2", "local s = g({1, (2");
+  pinLine("local s = g({1, (2", "local s = g({1, (2");
+  // The outermost unclosed opener's line ends the value, even where a bracket inside it closes on a later line.
+  pinText('"store s = g(x, {" closing only its table on the next line', "scene start\n  store s = g(x, {\n  1}\n  Hello.\nend\n", "local s = g(x, {\n", 1, 2);
+  for (const [name, text] of [
+    ["a multi-line table in a scene", "scene start\n  store t = {\n    1,\n  }\n  Hello.\nend\n"],
+    ["a multi-line table at the top level", `store t = {\n  1,\n}\n${SCENE}`],
+    ["a multi-line call in a scene", "scene start\n  store s = math.max(1,\n    2)\n  Hello.\nend\n"],
+    ["a multi-line local call in a scene", "scene start\n  local s = math.max(1,\n    2)\n  Hello.\nend\n"],
+  ]) {
+    test(`${name} reads on with no error`, () => {
+      expect(sparkdownErrors(text!)).toEqual([]);
+      expectIncrementalEqualsCold(text!);
+    });
   }
 });

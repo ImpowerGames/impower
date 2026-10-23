@@ -1,5 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
-import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd } from "../utils/storyIslands";
+import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd, unclosedIslandEnd } from "../utils/storyIslands";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -1013,11 +1013,19 @@ class Tokenizer {
     // later on its line is still one Luau's reading meets, so the EOF stands
     // at the end of that line, where `insertStoryBreaks` puts it, unless a
     // statement that begins later on that line goes on past it, whose own
-    // end then ends the reading.
+    // end then ends the reading. A bracket the island never closes carried
+    // nothing on, so the island ends with its opener's line, and the story
+    // lines the tree reads into the bracket are not its Luau (I-1532).
     if (isStoryStatementIsland(node)) {
       const first = this.tokens.length;
       this.readChildren(node);
-      const end = lastLineEnd(this.text, node.to);
+      const unclosed = unclosedIslandEnd(node, this.text);
+      if (unclosed !== undefined) {
+        let kept = first;
+        while (kept < this.tokens.length && this.tokens[kept]!.from < unclosed) kept++;
+        this.tokens.length = kept;
+      }
+      const end = unclosed ?? lastLineEnd(this.text, node.to);
       const loop = isStoryHeaderOnlyLoop(node);
       for (let i = first; i < this.tokens.length; i++) {
         this.tokens[i]!.authoredIsland ??= end;

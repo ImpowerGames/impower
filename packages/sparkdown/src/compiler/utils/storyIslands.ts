@@ -83,6 +83,86 @@ export function continuesPastLine(node: SyntaxNode, text: string): boolean {
   return false;
 }
 
+const BRACKET_OPENER = /^Punctuation(?:Paren|Brace|Bracket)Open$/;
+const BRACKET_CLOSER = /^Punctuation(?:Paren|Brace|Bracket)Close$/;
+
+/** The first node with text and no children in a node's subtree. */
+function firstLeaf(node: SyntaxNode): SyntaxNode | null {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.from === child.to) continue;
+    return firstLeaf(child) ?? child;
+  }
+  return null;
+}
+
+/** The first node in a node's subtree, itself included, named as `pattern` matches. */
+function holds(node: SyntaxNode, pattern: RegExp): SyntaxNode | null {
+  if (pattern.test(node.name)) return node;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    const found = holds(child, pattern);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * The opener of the outermost bracket in a story declaration or
+ * reassignment island that has no closer, if one does. A bracket the tree
+ * never closes runs on to the island's end, so it is on the path of the
+ * nodes that end where the island does; a closed bracket on that path ends
+ * the search, as no bracket in it is outermost.
+ */
+function unclosedOpener(island: SyntaxNode): SyntaxNode | null {
+  let node = island;
+  for (;;) {
+    let next: SyntaxNode | null = null;
+    for (let child = node.lastChild; child && child.to === island.to; child = child.prevSibling) {
+      if (child.from < child.to) {
+        next = child;
+        break;
+      }
+    }
+    if (!next) return null;
+    // A bracket's rule begins with its opener (`(`, `{`, `[`), where a
+    // block's begins with its keyword (`function(x)`, ended by `end`).
+    const begin = next.getChild(`${next.name}_begin`);
+    const opener = begin && firstLeaf(begin);
+    if (opener && BRACKET_OPENER.test(opener.name)) {
+      const end = next.getChild(`${next.name}_end`);
+      return end && holds(end, BRACKET_CLOSER) ? null : opener;
+    }
+    node = next;
+  }
+}
+
+/**
+ * Where a story declaration or reassignment island ends when it leaves a
+ * bracket open (I-1532): the end of the line of its outermost unclosed
+ * bracket's opener. The tree reads the story lines after that bracket into
+ * it, up to whatever ends the statement's node, but a bracket that never
+ * closes carried nothing on (#1907), so those lines are story, and Luau's
+ * reading meets its end of input at the end of the opener's line, as it
+ * does for that line alone. Undefined for any other node, or an island
+ * with no unclosed bracket.
+ */
+export function unclosedIslandEnd(node: SyntaxNode, text: string): number | undefined {
+  if (node.name !== "LuauSparkdownVariableDefinition" && node.name !== "LuauSparkdownReassignment") return undefined;
+  if (!isStoryStatementIsland(node)) return undefined;
+  const opener = unclosedOpener(node);
+  return opener ? lastLineEnd(text, opener.to) : undefined;
+}
+
+/** Whether a node is on the story lines after a story island's unclosed bracket (`unclosedIslandEnd`). */
+export function pastStoryIslandEnd(node: SyntaxNode, text: string): boolean {
+  for (let n = node.parent; n; n = n.parent) {
+    if ((n.name === "LuauSparkdownVariableDefinition" || n.name === "LuauSparkdownReassignment") && isStoryStatementIsland(n)) {
+      const end = unclosedIslandEnd(n, text);
+      return end !== undefined && node.from >= end;
+    }
+  }
+  return false;
+}
+
 /** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */
 function inMarkedStatementOrFunction(node: SyntaxNode): boolean {
   for (let n = node.parent; n; n = n.parent) {
