@@ -1807,6 +1807,13 @@ export const getFormatting = (
               bb = bb.nextSibling;
             }
             if (bodyHasContent) break;
+          } else if (
+            cc.name === "LuauFunctionHeaderLineBreak" &&
+            !document.read(cc.from, cc.to).trim()
+          ) {
+            // The line break after a header that ends its line, which the
+            // grammar carries before the body (I-1449): nothing of the body
+            // when it holds only whitespace.
           } else if (!isInsignificant(cc.name) && signatureEnd != null) {
             bodyHasContent = true;
             break;

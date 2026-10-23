@@ -1263,14 +1263,17 @@ class Tokenizer {
    * A function Sparkdown declares with no parameter list (`function greet`
    * with its body on the lines after) is Luau's `function greet()`: the list
    * is read at the end of the header's line, or in place of a comment that
-   * ends it (`function greet -- note`), as the type checker reads it.
+   * ends it (`function greet -- note`), as the type checker reads it. The
+   * header's line break, which the grammar carries across before the body
+   * (`LuauFunctionHeaderLineBreak`), ends the header too, so the list is read
+   * before it, and a function with no body still has one.
    */
   private readFunctionDefinition(node: SyntaxNode): void {
     const content = node.getChild("LuauFunctionDefinition_content");
-    const body = content?.getChild("LuauFunctionBody");
+    const headerEnd = content?.getChild("LuauFunctionHeaderLineBreak") ?? content?.getChild("LuauFunctionBody");
     let listAt: number | undefined;
-    if (content && body && !content.getChild("LuauFunctionParameters")) {
-      let last = body.prevSibling;
+    if (content && headerEnd && !content.getChild("LuauFunctionParameters")) {
+      let last = headerEnd.prevSibling;
       while (last && NEUTRAL.test(last.name)) last = last.prevSibling;
       if (last) {
         const line = this.index.lineAt(Math.max(last.from, last.to - 1));
@@ -1289,7 +1292,7 @@ class Tokenizer {
     this.readChildren(node, (child) => {
       if (child.name !== "LuauFunctionDefinition_content") return false;
       this.readChildren(child, (part) => {
-        if (part.name === "LuauFunctionBody") {
+        if (part.name === headerEnd!.name) {
           this.synthetic("symbol", "(", at);
           this.synthetic("symbol", ")", at);
         }
@@ -5417,12 +5420,30 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
       break;
     }
   }
-  const body = wrapper?.getChild("LuauFunctionDefinition_content")?.getChild("LuauFunctionBody");
-  if (!wrapper || !body) return undefined;
+  // The file is what follows the wrapper's header: the header's line break,
+  // which the grammar carries with the file's leading blank and comment
+  // lines (`LuauFunctionHeaderLineBreak`, I-1449), the body, and anything
+  // the grammar leaves between them in the definition (a line the body
+  // cannot open on).
+  const content = wrapper?.getChild("LuauFunctionDefinition_content");
+  const headerEnd = content?.getChild("LuauFunctionHeaderLineBreak") ?? content?.getChild("LuauFunctionBody");
+  if (!wrapper || !content || !headerEnd) return undefined;
   const tokenizer = new Tokenizer(documentText, index);
   tokenizer.luauThroughout = true;
   const nodes: TreeNodeRef[] = [];
-  readBodyStatements(tokenizer, nodes, body);
+  let fileTo = headerEnd.from;
+  for (let part: SyntaxNode | null = headerEnd; part; part = part.nextSibling) {
+    if (part.from > fileTo) tokenizer.lex(fileTo, part.from);
+    if (part.name === "LuauFunctionHeaderLineBreak" || part.name === "LuauFunctionBody") {
+      readBodyStatements(tokenizer, nodes, part);
+    } else {
+      tokenizer.source = nodes.length;
+      nodes.push(ref(part));
+      tokenizer.read(part);
+      tokenizer.source = -1;
+    }
+    fileTo = Math.max(fileTo, part.to);
+  }
   // The file ends where its wrapper's last line begins, as Luau reads the
   // file's own end.
   const fileEnd = documentText.endsWith(RUN_WRAPPER_SUFFIX) ? documentText.length - RUN_WRAPPER_SUFFIX.length : undefined;
@@ -5430,7 +5451,7 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
   // the file's own, or at text it cannot read), the rest of the file is
   // still the file's Luau: the `end` it took, and the nodes after it.
   if (fileEnd !== undefined && wrapper.to < fileEnd) {
-    tokenizer.lex(body.to, wrapper.to);
+    tokenizer.lex(fileTo, wrapper.to);
     let at = wrapper.to;
     for (let node = wrapper.nextSibling; node && node.from < fileEnd; node = node.nextSibling) {
       if (node.from > at) tokenizer.lex(at, node.from);
@@ -5448,7 +5469,7 @@ export function readLuauRunFile(tree: Tree, documentText: string, options: ReadO
     tokenizer.tokens.length = 0;
     appendAll(tokenizer.tokens, inFile);
   }
-  return readUnit("file", tokenizer, nodes, 1, new Position(index.lineAt(body.from) + 1, 0), options, fileEnd);
+  return readUnit("file", tokenizer, nodes, 1, new Position(index.lineAt(headerEnd.from) + 1, 0), options, fileEnd);
 }
 
 /**
