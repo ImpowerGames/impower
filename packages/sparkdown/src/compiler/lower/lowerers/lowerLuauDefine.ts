@@ -217,10 +217,15 @@ function reportDefineProperty(
   // A property with no value keeps the missing value's report.
   if (!last || (!findAssignmentValueNode(opNode ?? null) && last.to <= propNode.to)) return null;
   const value = readExpressionAst(consumed, ctx);
+  // A value Sparkdown's reading reads without an error has none for Luau's
+  // to report, and Luau's reading reads on past the define, which would
+  // make the define's lowering depend on the text after it (I-1500 round 1:
+  // its chunk is no longer kept across an edit elsewhere).
+  if (value && value.source.errors.length === 0) return null;
   const end = Math.max(propNode.to, last.to);
   const read = (from: number, to: number) => ctx.read(from, to);
   const { errors } = luauStatementErrors(propNode, propNode.from, read, end, ctx.documentText);
-  if (errors.length === 0 && value && value.source.errors.length > 0) return null;
+  if (errors.length === 0 && value) return null;
   // A value's nodes on the lines after the property are its siblings.
   reportStatementErrors(propNode, last.from >= propNode.to ? last : propNode, errors, ctx, structureErrors);
   return end;

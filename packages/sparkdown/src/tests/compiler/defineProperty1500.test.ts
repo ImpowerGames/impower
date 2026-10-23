@@ -98,6 +98,18 @@ describe("a define body property reports every Luau error of its value once (I-1
     });
   }
 
+  // A call after the value on its line (round 1, undirected): the grammar
+  // reads `print(3 4)` as a method's header, which reports a missing `end`
+  // and its own error, so only the property's error is pinned here, once.
+  test("a property followed by a call on its line reports its value's error once", () => {
+    const body = "  y = print(1 2); print(3 4)\n";
+    const text = define(body);
+    const [error] = official(body);
+    expect(error).toBe("1:14-1:15 Expected ')' (to close '(' at column 12), got '2'");
+    expect(errors(text).filter((e) => e === error)).toEqual([error]);
+    expectIncrementalEqualsCold(text);
+  });
+
   // A define with a structure error still reads its properties: the
   // header's error is reported once, and the body lines report the official
   // parser's errors for the body, as in a well-formed define.
