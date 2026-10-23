@@ -110,10 +110,14 @@ describe("an if expression's then-arm value at column 0 after a `then` that ends
   test.each([
     ["an if statement's `then`", "if if c then c then"],
     ["a while loop's `do`", "while if c then c do"],
+    ["a `then` glued to the value", "if if c then (c)then"],
+    ["a `then` glued to a string value", 'if if c then "x"then'],
+    ["a `then` after a `:`", "if if c then c:then"],
+    ["a `do` after a `:`", "while if c then c:do"],
   ])("leaves %s to the statement and its body outside the arm", (_, line) => {
     const at = offsetOf(line, "\nprint(c)") + 1;
     expect(treeRulesAt(at)).not.toContain("LuauTernaryExpression");
-    const keyword = offsetOf(line, line) + line.lastIndexOf(" ") + 1;
+    const keyword = offsetOf(line, line) + line.search(/(?:then|do)$/);
     expect(treeRulesAt(keyword)).not.toContain("LuauTernaryExpression");
   });
 

@@ -36,4 +36,16 @@ end
 while if c then c do
 print(c)
 end
+if if c then (c)then
+print(c)
+end
+if if c then "x"then
+print(c)
+end
+if if c then c:then
+print(c)
+end
+while if c then c:do
+print(c)
+end
 end
