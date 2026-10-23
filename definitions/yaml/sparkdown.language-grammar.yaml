@@ -26,7 +26,27 @@ variables:
   # lookaround: LuauFunctionAccessor owns a colon followed by a method call; LuauAccessPath must leave that suffix to it.
   LUAU_SHARED_PATH_NO_METHOD_CALL: "(?!{{WS}}*[:]{{WS}}*{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_TRIVIA}}*{{LUAU_FUNCTION_CALL_START}})"
   # lookaround: LuauForLoop owns binding names before its condition; LuauAccessPath must finish each binding there.
-  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_NAME_BEHIND}}|\\bfor\\b[^\\n\\r]*[,]{{WS}}*{{LUAU_NAME_BEHIND}})"
+  # A binding is a name right after `for`, or after a comma in the binding
+  # list before the header's `in` or `=`, whatever types and comments the
+  # earlier names carry (`for k: {a: T} --[[c]], v: nil in t`). A name after
+  # a comma past the header's `in` or `=` is a value's (`for k in a, b:end
+  # do`, `for i = 1, n:end do`, I-1448), whose `:` is a method's. A
+  # lookbehind holds no lookaround, so the list is read as text with no `=`
+  # and no `in` standing as a word (`LUAU_FOR_BINDING_LIST_BEHIND`); an `in`
+  # inside a comment of that list ends it too.
+  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_NAME_BEHIND}}|\\bfor\\b{{LUAU_FOR_BINDING_LIST_BEHIND}}[,]{{WS}}*{{LUAU_NAME_BEHIND}})"
+  # Text of a `for` header with no `=` and no `in` standing as a word
+  # outside its strings and block comments, which are read whole
+  # (`for k --[[in]], v: "=" in t`): a string, a block comment that closes
+  # on the line, or a character other than a quote, `-`, `=`, `i` or a line
+  # break, a `-` that begins no comment, an `i` inside a word or ending one,
+  # an `i` before a character other than `n` or `=`, or `in` before a word
+  # character.
+  # lookaround: read only in lookbehinds, with no lookaround of its own (VS Code's regex engine refuses one inside a lookbehind).
+  LUAU_FOR_BINDING_LIST_BEHIND: (?:{{LUAU_QUOTED_STRING_BEHIND}}|{{LUAU_LEVEL_BLOCK_COMMENT_BEHIND}}|[^\n\r=i"'`-]|-[^\n\r-]|\Bi|i\b|i[^n\n\r=]|in\w)*
+  # A quoted string on one line, read back from its close.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_QUOTED_STRING_BEHIND: (?:"[^"\n\r]*"|'[^'\n\r]*'|`[^`\n\r]*`)
   # lookaround: LuauChainedPropertyAccess and LuauChainedFunctionCall keep member and call continuations inside the path.
   # A name goes on the path only right after its accessor: after whitespace
   # it begins the next statement (`Hello there`), which no path reads on to.
@@ -105,14 +125,148 @@ variables:
   # (`(t): --[====[c]====] end`), as Luau reads trivia there. Each closes
   # only at its own level (`LUAU_EXACT_LEVEL_BLOCK_COMMENT`), so a close of
   # another level inside one is its text and the word after the real close
-  # is the one decided on. A longer comment is never method trivia: a
+  # is the one decided on. A longer comment is never read by a lookahead: a
   # variable cannot match its close's level, and the approximate close of
   # `LUAU_ANY_LEVEL_BLOCK_COMMENT` would decide on a word inside the comment
-  # (`--[=========[a]==========] end ]=========] foo()`).
+  # (`--[=========[a]==========] end ]=========] foo()`). The rule that
+  # reads the `:` reads such a comment instead (I-1459), with
+  # `LuauBlockComment`, whose end matches its begin's level, and decides on
+  # the word after it (`LUAU_METHOD_TRIVIA_TO_LONG_COMMENT`).
   LUAU_METHOD_TRIVIA: (?:{{WS}}*{{LUAU_EXACT_LEVEL_BLOCK_COMMENT}}*)
   # A block comment of level up to eight that closes on its line at its own
   # level, with the whitespace after it.
   LUAU_EXACT_LEVEL_BLOCK_COMMENT: (?:{{LUAU_COMMENT_START}}\[(?:{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_BLOCK_COMMENT_LEVELS_4_TO_8_REST}}){{WS}}*)
+  # Method trivia that reaches a block comment of level nine or more on the
+  # `:`'s line (`(t): --[=========[c]=========] end`, I-1459), past which no
+  # lookahead sees the method's name. It decides as `do` and `then` do
+  # (`LUAU_COLON_BEFORE_LONG_COMMENT`): whatever holds the value before the
+  # `:` ends before it, and the rule around decides after reading the
+  # comment as `LuauBlockComment`, at its own level, and the word after it.
+  LUAU_METHOD_TRIVIA_TO_LONG_COMMENT: (?:{{LUAU_METHOD_TRIVIA}}{{LUAU_LONG_BLOCK_COMMENT_START}})
+  # A method's `:` whose trivia reaches such a comment. No lookahead sees
+  # whether a header's `do` or `then` follows it, so an access path and a
+  # complete type end before it, as before `LUAU_COLON_BEFORE_HEADER_END`,
+  # and the rule around decides: a loop's or an `if`'s condition reads the
+  # `:` and the comment and leaves its own keyword
+  # (`LuauLoopHeaderMethodColon`, `LuauIfHeaderMethodColon`), and an
+  # expression reads any reserved word after them as the method's name
+  # (`LuauExpressionKeywordMethodAccessor`).
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`; read only inside the `end:` lookaheads of the path and of a type, which hand the `:` to those rules (GRAMMAR.md §10.1, the end carrying the load).
+  LUAU_COLON_BEFORE_LONG_COMMENT: (?:[:](?![:]){{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
+  # A type operator whose right operand is missing before a `:`
+  # (`t :: T | :do`, `t :: :do`), where the `:` is a type's stray colon
+  # and a header's bracket may hold the word after it, which Luau's
+  # value operators never end with (`t + :do` is still a method's `:`).
+  # lookaround: read only in `LuauExpressionKeywordMethodAccessor`'s negative lookbehind, with no lookaround of its own.
+  LUAU_TYPE_OPERATOR_BEHIND: (?:(?:[|&:]|->){{WS}}*)
+  # The opening of a block comment of level nine or more.
+  LUAU_LONG_BLOCK_COMMENT_START: (?:{{LUAU_COMMENT_START}}\[={9,}\[)
+  # A reserved word no type can begin, or such a comment, after a method's
+  # `:` and its trivia (`LUAU_COLON_BEFORE_RESERVED_WORD`).
+  LUAU_NON_TYPE_KEYWORD_OR_LONG_COMMENT: (?:{{LUAU_NON_TYPE_KEYWORDS}}|{{LUAU_LONG_BLOCK_COMMENT_START}})
+  # Any reserved word on a method's `:`'s line, which the accessor that read
+  # the `:` and the trivia after it reads as the method's name. Past a block
+  # comment that closes on a later line, the word is no method's: Luau reads
+  # a reserved word as one only on the `:`'s line, and leaves it to the
+  # statement or block it begins there.
+  # lookaround: `LuauExpressionKeywordMethodAccessor`'s and the long-comment header rules' ends yield to their `LuauKeywordMethodName` only on the `:`'s line, which only the text the rule has read shows.
+  LUAU_KEYWORD_ON_COLON_LINE_AHEAD: (?:(?<={{LUAU_METHOD_COLON_LINE_BEHIND}}){{LUAU_KEYWORD}})
+  # A position after a method's `:` and the trivia that follows it on its
+  # line, which a rule that read the `:` has read: spaces and block comments
+  # that open and close on the line (`LUAU_TRIVIA_ON_LINE_BEHIND`). The
+  # rule's `LuauBlockComment` has already read each comment at its own level:
+  # this tells that no line break stands between the `:` and the position,
+  # so a reserved word there is on the `:`'s line. Each comment closes at
+  # the first close of its own level, exactly up to level sixteen and
+  # whatever its text holds (`LUAU_LEVEL_BLOCK_COMMENT_BEHIND`), so the text
+  # of a comment that opened on an earlier line, a `:` and a close of
+  # another level in it, never reads as that line (`--[=========[a` then
+  # `: --[[c ]=========] end`).
+  # lookaround: read only in lookbehinds, with no lookaround of its own (VS Code's regex engine refuses one inside a lookbehind).
+  LUAU_METHOD_COLON_LINE_BEHIND: (?:[:]{{LUAU_TRIVIA_ON_LINE_BEHIND}})
+  # Spaces and block comments that open and close on their line, each
+  # closing at the first close of its own level, whatever its text holds
+  # (`--[=========[a]b]=========]`), so a close of another level that ends
+  # an earlier line's comment never stands for one (`--[[c ]=========]`).
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TRIVIA_ON_LINE_BEHIND: (?:{{WS}}*(?:{{LUAU_LEVEL_BLOCK_COMMENT_BEHIND}}{{WS}}*)*)
+  # A block comment that opens and closes on its line at one level, read
+  # back from its close. A lookbehind holds no backreference, so each level
+  # up to sixteen is spelled out; a longer one closes at any close of
+  # seventeen or more.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_LEVEL_BLOCK_COMMENT_BEHIND: (?:--\[(?:\[[^\n\r]*?\]\]|=\[[^\n\r]*?\]=\]|==\[[^\n\r]*?\]==\]|===\[[^\n\r]*?\]===\]|={4}\[[^\n\r]*?\]={4}\]|={5}\[[^\n\r]*?\]={5}\]|={6}\[[^\n\r]*?\]={6}\]|={7}\[[^\n\r]*?\]={7}\]|={8}\[[^\n\r]*?\]={8}\]|={9}\[[^\n\r]*?\]={9}\]|={10}\[[^\n\r]*?\]={10}\]|={11}\[[^\n\r]*?\]={11}\]|={12}\[[^\n\r]*?\]={12}\]|={13}\[[^\n\r]*?\]={13}\]|={14}\[[^\n\r]*?\]={14}\]|={15}\[[^\n\r]*?\]={15}\]|={16}\[[^\n\r]*?\]={16}\]|={17,}\[[^\n\r]*?\]={17,}\]))
+  # A declaration's scope word and its targets up to an annotation's `:`,
+  # with no bracket, `:` or `=` between (`local x, y`), so the annotation
+  # test below holds only for a declaration's own annotation: a field's or a
+  # parameter's annotation inside a bracket keeps its old reading, where a
+  # header around the bracket may hold the `:do` (`while t :: {a: T | :do
+  # end`).
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_DECLARATION_TARGETS_BEHIND: (?:\b(?:local|store|const)\b[^\n\r(){}\[\]:=]*)
+  # A reserved word other than `do` and `then`, which only a header's colon
+  # rule or the expression's accessor reads after a `:` (a path ends before
+  # them, `LUAU_COLON_BEFORE_HEADER_END`; a type's stray `:` before them is
+  # `LuauTypeStrayColon`'s, as on base).
+  # lookaround: `LuauLoopHeaderMethodColon`, `LuauIfHeaderMethodColon` and `LuauExpressionKeywordMethodAccessor` read a `:` before `do` or `then`; `LuauKeywordMethodAccessor`, which a type tries before its stray-colon token, steps aside for them.
+  LUAU_KEYWORD_NOT_HEADER_END: (?:(?!{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}){{LUAU_KEYWORD}})
+  # A position after a type annotation's `:` and a complete type on its line
+  # (`local x: T`, `local x: {a: number}`, `local x: A | B?`), where a `:`
+  # that `do`, `then` or a comment of level nine or more follows is a
+  # method's, in error, and not another annotation's (I-1447). Before any
+  # other reserved word the type itself reads the `:` (`LuauTypeLiteral`),
+  # but it ends before these, which may be a header's, so the annotation
+  # must tell this `:` from its own. The type is a run of tokens with no
+  # space, comma, `;`, `=` or `:` in it outside its brackets, which nest
+  # three levels deep, joined by `|`, `&` or `->`, with block comments that
+  # close on the line around its tokens (`LUAU_TYPE_TOKEN_BEHIND`), so an
+  # annotation's own `:` never stands at a position it matches: that `:`
+  # follows a target's name, which a `,`, an unclosed `(` or `{` or a
+  # keyword comes before, never a `:` and a complete type. A type with
+  # brackets four levels deep, or with a word after a space that no type
+  # operator joins, leaves the `:` to the annotation, as before.
+  # lookaround: read only in lookbehinds, with no lookaround of its own (VS Code's regex engine refuses one inside a lookbehind).
+  LUAU_TYPE_AFTER_COLON_BEHIND: (?:{{LUAU_DECLARATION_TARGETS_BEHIND}}[:]{{LUAU_TRIVIA_ON_LINE_BEHIND}}{{LUAU_TYPE_BEHIND}}{{LUAU_TRIVIA_ON_LINE_BEHIND}})
+  # Such a type: its tokens joined by `|`, `&` or `->`. After an operator
+  # whose operand is missing (`T |`) the `:` stays the annotation's, as on
+  # base, since a header's bracket may hold it.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_BEHIND: (?:{{LUAU_TYPE_TOKEN_BEHIND}}{{LUAU_TYPE_OPERATOR_TOKEN_BEHIND}}*)
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_OPERATOR_TOKEN_BEHIND: (?:{{LUAU_TRIVIA_ON_LINE_BEHIND}}(?:[|&]|->){{LUAU_TRIVIA_ON_LINE_BEHIND}}{{LUAU_TYPE_TOKEN_BEHIND}})
+  # A `:` after such a type that `do` or `then` follows, which
+  # `LuauTypeAnnotationMissingType` leaves to the method accessor.
+  # lookaround: `LuauExpressionKeywordMethodAccessor` reads a `:` that `do` or `then` follows after an annotation's complete type, and only the text since the annotation's `:` shows that a type stands there; `LuauTypeAnnotationMissingType` steps aside for it.
+  # The lookahead goes first, so the lookbehind, which reads back along the
+  # line, runs only at such a `:`.
+  LUAU_METHOD_COLON_AFTER_TYPE_AHEAD: (?:(?={{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})(?<={{LUAU_TYPE_AFTER_COLON_BEHIND}}))
+  # One token of such a type: a run of characters with no space, comma, `;`,
+  # `=`, `:`, bracket, `|` or `&`, or a bracket pair, which may hold any of
+  # them and two more levels of brackets (`{a: number}`, `(a: T) -> U`,
+  # `Array<A, B>`, `{a: {b: {c: T}}}`).
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_TOKEN_BEHIND: (?:(?:[^\s,;=:(){}\[\]|&]|{{LUAU_TYPE_BRACKETS_BEHIND}})+)
+  # A bracket pair in a type, holding two more levels of brackets.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_BRACKETS_BEHIND: (?:[(]{{LUAU_TYPE_BRACKET_PART_BEHIND}}*[)]|[{]{{LUAU_TYPE_BRACKET_PART_BEHIND}}*[}]|\[{{LUAU_TYPE_BRACKET_PART_BEHIND}}*\]|[<]{{LUAU_TYPE_GENERIC_PART_BEHIND}}*[>])
+  # A character or inner bracket pair in such a pair.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_BRACKET_PART_BEHIND: (?:[^\n\r(){}\[\]]|{{LUAU_TYPE_INNER_BRACKETS_BEHIND}})
+  # The same in a generic's angle brackets, which hold no angle bracket.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_GENERIC_PART_BEHIND: (?:[^\n\r(){}\[\]<>]|{{LUAU_TYPE_INNER_BRACKETS_BEHIND}})
+  # A bracket pair inside one, holding one more level of brackets.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_INNER_BRACKETS_BEHIND: (?:[(]{{LUAU_TYPE_INNER_PART_BEHIND}}*[)]|[{]{{LUAU_TYPE_INNER_PART_BEHIND}}*[}]|\[{{LUAU_TYPE_INNER_PART_BEHIND}}*\]|[<]{{LUAU_TYPE_INNER_GENERIC_PART_BEHIND}}*[>])
+  # A character or innermost bracket pair in such a pair.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_INNER_PART_BEHIND: (?:[^\n\r(){}\[\]]|{{LUAU_TYPE_INNERMOST_BRACKETS_BEHIND}})
+  # The same in a generic's angle brackets.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_INNER_GENERIC_PART_BEHIND: (?:[^\n\r(){}\[\]<>]|{{LUAU_TYPE_INNERMOST_BRACKETS_BEHIND}})
+  # A bracket pair three levels in, holding no brackets.
+  # lookaround: read only in lookbehinds, with no lookaround of its own.
+  LUAU_TYPE_INNERMOST_BRACKETS_BEHIND: (?:[(][^\n\r(){}\[\]]*[)]|[{][^\n\r(){}\[\]]*[}]|\[[^\n\r(){}\[\]]*\]|[<][^\n\r(){}\[\]<>]*[>])
   # A `:` that `do` or `then` follows on its line, with no name between
   # (`while t: do`, `local b = a:  then`), where an access path ends. Either
   # keyword may end a header, so the rule around the path decides, as no
@@ -129,9 +283,12 @@ variables:
   # no name between (`t :: T:do`, `local x: T:end`). Luau's type ends before
   # the `:`, and the word is the name of a method called on the value before
   # it, in error, so a type ends there and the expression around it reads
-  # the `:` and the word (`LuauExpressionKeywordMethodAccessor`, I-1351).
+  # the `:` and the word (`LuauExpressionKeywordMethodAccessor`, I-1351). A
+  # comment of level nine or more decides as such a word does
+  # (`LUAU_METHOD_TRIVIA_TO_LONG_COMMENT`): no type goes on at a `:` after a
+  # complete type, so the type ends there whatever the comment hides.
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which is no method's `:`; the variable is read only inside a type's `end:` lookahead and an accessor's begin lookahead (GRAMMAR.md §10.1, the end carrying the load).
-  LUAU_COLON_BEFORE_RESERVED_WORD: (?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_NON_TYPE_KEYWORDS}})
+  LUAU_COLON_BEFORE_RESERVED_WORD: (?:[:](?![:]){{LUAU_METHOD_TRIVIA}}{{LUAU_NON_TYPE_KEYWORD_OR_LONG_COMMENT}})
   # The same `:` right after a complete type (`T:end`), where a type and the
   # operation and cast around it end. Only there does no type begin at it: a
   # `:` after a type operator begins the stray-colon type it did before
@@ -1548,8 +1705,10 @@ variables:
   LUAU_OPERATOR_COMMENTS_BEFORE_CODE: (?:{{LUAU_BLOCK_COMMENTS_ON_LINE}}(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))
   # What follows a block comment that ends a type: anything but a type
   # operator, the `?` suffix, a qualifier or generics, or what ends the type
-  # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
-  LUAU_TYPE_CODE_AHEAD: (?![|&?.<>=,;)\]}]|[-][>]|{{WS}}|$|{{LUAU_COMMENT_START}})
+  # anyway (a comma, `=`, a closing bracket, `;`, the line's end). A `:`
+  # that a reserved word follows is no code either: the type reads it as a
+  # method's after the comment (`local x: T --[[c]] :end`, I-1447).
+  LUAU_TYPE_CODE_AHEAD: (?![|&?.<>=,;)\]}]|[-][>]|{{WS}}|$|{{LUAU_COMMENT_START}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
   # What follows a block comment that ends a declaration or its assignment:
   # a word that begins a statement, not `and` or `or`.
   LUAU_STATEMENT_CODE_AHEAD: (?=(?!(?:and|or)\b)[A-Za-z_])
@@ -8365,8 +8524,11 @@ repository:
     # so does the `]` a trailing block comment spanning lines leaves before
     # code (`LuauTypeTrailingBlockCommentClose`). It also ends at another
     # token that cannot start the type, which leaves the return type empty
-    # (`function f(): end`, `function f(): = nil end`).
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|[;=,)\]}>]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # (`function f(): end`, `function f(): = nil end`). After a complete type
+    # it ends before a `:` that a reserved word follows, as the type does
+    # (`function f(): T:end`, `LUAU_COLON_BEFORE_RESERVED_WORD`), where the
+    # body's expression reads the `:` and the word as a method's (I-1447).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|[;=,)\]}>]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
 
   LuauFunctionName:
     tag: function(name)
@@ -8937,6 +9099,7 @@ repository:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauInKeyword" }
+      - { include: "#LuauLoopHeaderLongCommentMethodColon" }
       - { include: "#LuauLoopHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -9013,6 +9176,7 @@ repository:
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauLoopHeaderLongCommentMethodColon" }
       - { include: "#LuauLoopHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -10844,9 +11008,9 @@ repository:
     # A `for` loop variable's path is its name alone, and ends before the
     # `:` of the variable's type annotation (`for k: number | string, v in t`,
     # `for i: number = 1, 3`), which is then read as the type it is. The
-    # variable is the name right after `for`, or after a comma in the header
-    # (VS Code's regex engine refuses a lookaround inside a lookbehind, so
-    # the lookbehind does not stop at the header's `in`). A `:` after a name
+    # variable is a name in the list right after `for`, before the header's
+    # `in` or `=` (`LUAU_SHARED_FOR_BINDING_BEHIND`; a name after a comma
+    # past them is a value's, I-1448). A `:` after a name
     # followed by a method name and its arguments stays a method call, with
     # block comments before the arguments too (`t:m --[[c]] ()`).
     end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
@@ -11216,6 +11380,7 @@ repository:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauIfHeaderLongCommentMethodColon" }
       - { include: "#LuauIfHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -11271,6 +11436,7 @@ repository:
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauIfHeaderLongCommentMethodColon" }
       - { include: "#LuauIfHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -11343,6 +11509,7 @@ repository:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauIfHeaderLongCommentMethodColon" }
       - { include: "#LuauIfHeaderMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -11662,7 +11829,7 @@ repository:
     # It also ends before an `end` or `until` after its last arm, which
     # closes the block around it (`return if a then 2 else 3 end`), as its
     # `LuauSparkdownExplicitTernaryExpression` twin does.
-    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -11781,7 +11948,7 @@ repository:
     # help, since the end is tried before them; the parent's end cannot carry
     # the boundary while this arm is open; and the begin cannot take the
     # keyword, which `LuauElseOperator` reads with the line break after it.
-    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
+    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)
@@ -12534,14 +12701,14 @@ repository:
     # A `for` loop variable's path is its name alone, and ends before the
     # `:` of the variable's type annotation (`for k: number | string, v in t`,
     # `for i: number = 1, 3`), which is then read as the type it is. The
-    # variable is the name right after `for`, or after a comma in the header
-    # (VS Code's regex engine refuses a lookaround inside a lookbehind, so
-    # the lookbehind does not stop at the header's `in`). A `:` after a name
+    # variable is a name in the list right after `for`, before the header's
+    # `in` or `=` (`LUAU_SHARED_FOR_BINDING_BEHIND`; a name after a comma
+    # past them is a value's, I-1448). A `:` after a name
     # followed by a method name and its arguments stays a method call, with
     # block comments before the arguments too (`t:m --[[c]] ()`). A `:` that
     # a header's `do` or `then` follows on its line ends the path, so the
     # rule around it reads the `:` (`LUAU_COLON_BEFORE_HEADER_END`).
-    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
+    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{WS}}*{{LUAU_COLON_BEFORE_LONG_COMMENT}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
     endCaptures:
       1:
         emit: true
@@ -12635,7 +12802,7 @@ repository:
   # word (`a: --[[c]] end`), as in Luau; they are read inside the rule.
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, which this access never takes; the begin's lookahead and the end's lookbehind are `LuauExpressionKeywordMethodAccessor`'s, for the reasons given there.
   LuauKeywordMethodAccessor:
-    begin: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_KEYWORD}})
+    begin: ({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_KEYWORD_NOT_HEADER_END}})
     beginCaptures:
       1:
         patterns:
@@ -12657,8 +12824,14 @@ repository:
   # first before its own keyword (`LuauLoopHeaderMethodColon`,
   # `LuauIfHeaderMethodColon`); this reads the keyword everywhere else,
   # including the other header's keyword in a condition (`if t:do() then`)
-  # and after a value in brackets (`(t):do()`). The word opens no block, so
-  # the function keeps its own `end`. The spaces and block comments between
+  # and after a value in brackets (`(t):do()`). The `:` must not follow a
+  # type operator (`LUAU_TYPE_OPERATOR_BEHIND`): after one with no right operand
+  # (`t :: T | :do`) the stray-colon token reads it and the word is left to
+  # the rule around, as on base, since a header's condition (`while t ::
+  # {a: T | :do end`) or an if-expression's arm may hold it there. Before a
+  # comment of level nine or more the `:` must follow a value
+  # (`LUAU_TYPE_END`). The word opens no block,
+  # so the function keeps its own `end`. The spaces and block comments between
   # the `:` and the word, and the word, are read inside the rule, which ends
   # right after the word.
   #
@@ -12673,6 +12846,21 @@ repository:
   # (`for k: in t`, `LUAU_SHARED_FOR_BINDING_BEHIND`); `do` and `then` keep
   # the first alternative there, as before. `nil`, `true` and `false` are
   # types, so a type annotation reads them as it did.
+  #
+  # A block comment of level nine or more on the `:`'s line hides the word
+  # from the begin (I-1459), so there the begin takes the `:` before the
+  # comment (`LUAU_METHOD_TRIVIA_TO_LONG_COMMENT`), after any value an
+  # expression reads, a path and a complete type both ending before such a `:`
+  # (`LUAU_COLON_BEFORE_LONG_COMMENT`); a loop's or an `if`'s condition
+  # tries its own colon rule first, which leaves the header its keyword
+  # (`LuauLoopHeaderLongCommentMethodColon`). The patterns read the comment
+  # at its own level, and the end decides on the token after it: any
+  # reserved word is the name, `do` and `then` too, since no header holds
+  # the access here, and before a name or any other token the access ends,
+  # leaving it to be read as what it is (`(t): --[=========[c]=========] m()`,
+  # whose call the expression reads and the converter reads as the
+  # method's, as Luau does). In an annotation, the annotation's operator is
+  # tried before this rule, so the annotation's own `:` stays its own.
   #
   # lookaround: the begin's lookahead is what tells this `:` from the rivals
   # that begin at the same character (`LuauTypeAnnotationOperation`,
@@ -12700,7 +12888,7 @@ repository:
   # along the line, run only at a `:` and not at every character an
   # expression tries the rule at.
   LuauExpressionKeywordMethodAccessor:
-    begin: (?={{WS}}*{{LUAU_SINGLE_COLON}})(?:(?={{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}})|(?={{WS}}*{{LUAU_COLON_BEFORE_RESERVED_WORD}})(?<={{LUAU_TYPE_END}}{{WS}}*)(?!{{LUAU_SHARED_FOR_BINDING_BEHIND}}))({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_KEYWORD}})
+    begin: (?={{WS}}*{{LUAU_SINGLE_COLON}})(?:(?={{WS}}*{{LUAU_COLON_BEFORE_LONG_COMMENT}})(?<={{LUAU_TYPE_END}}{{WS}}*)|(?={{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}})(?<!{{LUAU_TYPE_OPERATOR_BEHIND}})|(?={{WS}}*{{LUAU_COLON_BEFORE_RESERVED_WORD}})(?<={{LUAU_TYPE_END}}{{WS}}*)(?!{{LUAU_SHARED_FOR_BINDING_BEHIND}}))({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA}}{{LUAU_KEYWORD}}|{{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
     beginCaptures:
       1:
         patterns:
@@ -12712,7 +12900,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauKeywordMethodName" }
-    end: (?<=[a-z])|$
+    end: (?<=[a-z])|$|(?!{{WS}}|{{LUAU_COMMENT_START}}|{{LUAU_KEYWORD_ON_COLON_LINE_AHEAD}})
 
   # The `:` of a method access whose name is missing before the keyword
   # that ends a loop's header (`while t: do`, `for k in t: do`). Luau reads
@@ -12761,6 +12949,49 @@ repository:
       2:
         patterns:
           - { include: "#LuauAccessorOperator" }
+
+  # A method's `:` in a loop's condition whose trivia reaches a block
+  # comment of level nine or more (`while t: --[=========[c]=========] do`,
+  # I-1459), which hides the word after it from every lookahead, so the
+  # access path ends before the `:` (`LUAU_COLON_BEFORE_LONG_COMMENT`) and
+  # this rule reads the `:` and the comments. It ends before the loop's
+  # `do`, which the header takes, as `LuauLoopHeaderMethodColon` leaves it
+  # when a lookahead sees it; it reads any other reserved word as the
+  # method's name, as Luau reads it, and ends before any other token, which
+  # the condition reads (a method's name and its call).
+  # lookaround: the end's lookahead is the header's own keyword, which the condition's `end:` reads (GRAMMAR.md §10.1, the end carrying the load); the begin's lookahead keeps the rule to a `:` that the path ended before, which only the trivia after it shows. Tried before `LuauLoopHeaderMethodColon` and the expression.
+  LuauLoopHeaderLongCommentMethodColon:
+    begin: (?!{{LUAU_SHARED_FOR_BINDING_BEHIND}})({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauKeywordMethodName" }
+    end: (?=do{{LUAU_NAME_END}})|(?<=[a-z])|$|(?!{{WS}}|{{LUAU_COMMENT_START}}|{{LUAU_KEYWORD_ON_COLON_LINE_AHEAD}})
+
+  # The same in an `if`'s, an `elseif`'s or an if expression's condition,
+  # before its `then`.
+  # lookaround: as `LuauLoopHeaderLongCommentMethodColon`'s, for `then`.
+  LuauIfHeaderLongCommentMethodColon:
+    begin: (?!{{LUAU_SHARED_FOR_BINDING_BEHIND}})({{WS}}*)([:](?![:]))(?={{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauKeywordMethodName" }
+    end: (?=then{{LUAU_NAME_END}})|(?<=[a-z])|$|(?!{{WS}}|{{LUAU_COMMENT_START}}|{{LUAU_KEYWORD_ON_COLON_LINE_AHEAD}})
 
   # A reserved word in a method's name (`LuauKeywordMethodAccessor`).
   LuauKeywordMethodName:
@@ -14066,10 +14297,14 @@ repository:
   # type from the next line; this rule does not read that line, so a next
   # line that starts with a statement keyword or `end` leaves the type empty
   # for the converter to report (`local w:` then `local z = 1`, I-1453).
+  # After an annotation's complete type, a `:` that a reserved word follows
+  # is a method's (`local x: T:end`, `LUAU_TYPE_AFTER_COLON_BEHIND`), which
+  # `LuauExpressionKeywordMethodAccessor`, tried next, reads (I-1447).
+  # lookaround: `LuauExpressionKeywordMethodAccessor` reads the `:` after an annotation's complete type (`LUAU_METHOD_COLON_AFTER_TYPE_AHEAD`). The annotation's own `:` and this one both follow a name (`local x:end`, `local x: T:end`), and `LuauTypeAnnotationOperation`, whose begin reads nothing, holds no state that tells them apart, so no order of its patterns can; its end cannot either, since `LuauVariableAssignment` would begin another annotation at the `:`.
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_END_AHEAD}})
+    match: ({{WS}}*)(?!{{LUAU_METHOD_COLON_AFTER_TYPE_AHEAD}})({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_END_AHEAD}})
 
   # The same for a function's return type (`function g():` then `return 1`,
   # `function g(a: number): end`), which follows the parameter list's `)`.
@@ -14178,7 +14413,7 @@ repository:
     # It ends before a glued keyword, and before a `:` that a header's `do`
     # or `then` follows (`while not t: do`), which the expression or
     # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})
 
   LuauArithmeticOperator:
     begin: ({{WS}}*)({{LUAU_ARITHMETIC_OPERATORS}})({{WS}}*)
@@ -14220,7 +14455,7 @@ repository:
     # It ends before a glued keyword, and before a `:` that a header's `do`
     # or `then` follows (`while not t: do`), which the expression or
     # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})
 
   LuauCompareOperator:
     begin: ({{WS}}*)({{LUAU_COMPARE_OPERATORS}})({{WS}}*)
@@ -14262,7 +14497,7 @@ repository:
     # It ends before a glued keyword, and before a `:` that a header's `do`
     # or `then` follows (`while not t: do`), which the expression or
     # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})
 
   LuauConcatOperator:
     begin: ({{WS}}*)({{LUAU_CONCAT_OPERATOR}})({{WS}}*)
@@ -14304,7 +14539,7 @@ repository:
     # It ends before a glued keyword, and before a `:` that a header's `do`
     # or `then` follows (`while not t: do`), which the expression or
     # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})
 
   LuauLengthOperator:
     begin: ({{WS}}*)({{LUAU_LENGTH_OPERATOR}})({{WS}}*)
@@ -14349,7 +14584,7 @@ repository:
     # It ends before a glued keyword, and before a `:` that a header's `do`
     # or `then` follows (`while not t: do`), which the expression or
     # condition around the operation reads (`LUAU_COLON_BEFORE_HEADER_END`).
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})
 
   LuauLogicalOperator:
     begin: ({{WS}}*)({{LUAU_LOGICAL_KEYWORDS}})({{WS}}*)
@@ -14681,9 +14916,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # A `:` that `do`, `then` or a comment of level nine or more follows
+    # after the alias's complete type, which the type ends before
+    # (`type A = T:do`, `type A = T: --[=========[c]=========] end`), is a
+    # method's, in error, as Luau reads it: no header holds an alias, so the
+    # expression's accessor reads it and the word here (I-1447, I-1459).
     patterns:
       - { include: "#LuauTypeOperatorComments" }
       - { include: "#LuauComment" }
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
@@ -14765,6 +15006,25 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeOptionalOperator" }
       - { include: "#LuauTypeStrayOptionalOperator" }
+      # A single `:` that a reserved word follows on its line, or a comment
+      # or the line's end, is a method's, whose name Luau reads in error,
+      # so the word opens and closes no block. That holds after a complete
+      # type (`t :: T:end`, `local x: {a: {b: T}}:end`, I-1447), which
+      # never goes on at a `:`, and where a type must begin
+      # (`t :: T | :end`, I-1450), where Luau first reports the missing type
+      # at the `:`. The method accessors read the `:` and the name as a
+      # path's do, tried before the stray-colon token, which reads any other
+      # `:` and every `::`. A `:` that `do`, `then` or a comment of level
+      # nine or more follows ends a complete type
+      # (`LUAU_COLON_BEFORE_HEADER_END`, `LUAU_COLON_BEFORE_LONG_COMMENT`),
+      # since a header may hold it, so the rule around decides; where a type
+      # must begin, the stray-colon token reads it, as on base. After a complete type the expression's accessor
+      # reads a reserved word no type can begin, as it did when the type
+      # ended before it, so the validator leaves that name to the checker
+      # as it does there (a define's method, `f(): T:end`).
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
+      - { include: "#LuauKeywordMethodAccessor" }
+      - { include: "#LuauNextLineMethodAccessor" }
       - { include: "#LuauTypeStrayColon" }
       - { include: "#LuauTypeBinaryOperation" }
       - { include: "#LuauTypeTableStruct" }
@@ -14798,10 +15058,14 @@ repository:
     # this type's own end must return it to LuauArithmeticOperation.
     # Tightening the shared value-operator variable would change values;
     # `<`, `->`, `::` and comments retain their existing type rules.
-    # A complete type also ends before a `:` that a reserved word no type
-    # can begin follows (`t :: T:do`, `LUAU_COLON_BEFORE_RESERVED_WORD`),
-    # which the expression around it reads as a method's (I-1351).
-    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
+    # A complete type also ends before a `:` that `do` or `then` follows
+    # (`while t :: T:do`, `LUAU_COLON_BEFORE_HEADER_END`), where a header
+    # may read the `:` alone before its own keyword, or else the rule around
+    # the type reads it as a method's (I-1351). Before any other reserved
+    # word, and before a comment, the type reads the `:` itself as a
+    # method's (`t :: T:end`, `local x: {a: number}:end`, I-1447): see the
+    # accessors among its patterns.
+    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_VALUE_OPERATOR_AFTER_TYPE}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})
 
   # A block comment right after a type that closes on a later line
   # (`local w: number --[[a` then `b]] print(1)`). No pattern on the
@@ -15129,16 +15393,28 @@ repository:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+    # A `:` that a reserved word follows after the annotation's complete
+    # type is a method's, in error (`local x: T:end`, I-1447): Luau ends the
+    # statement before it and reads the word as the name of a method called
+    # on nothing, so the word opens and closes no block. The type reads that
+    # `:` itself (`LuauTypeLiteral`), except before `do` or `then` or a
+    # comment of level nine or more, where it ends so that a header can
+    # decide. There the missing type's rule and the operator leave the `:`
+    # after a complete type (`LUAU_METHOD_COLON_AFTER_TYPE_AHEAD`), and the
+    # expression's accessor reads it and the word. At the annotation's own
+    # `:` the missing type's rule or the operator reads it first.
     patterns:
       - { include: "#LuauTypeAnnotationMissingType" }
       - { include: "#LuauTypeAnnotationOperator" }
+      - { include: "#LuauExpressionKeywordMethodAccessor" }
       - { include: "#LuauTypeOperatorComments" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
+  # lookaround: `LuauExpressionKeywordMethodAccessor` reads a `:` after the annotation's complete type that `do`, `then` or a comment of level nine or more follows (`LUAU_METHOD_COLON_AFTER_TYPE_AHEAD`, I-1447); the operator is tried before it, so that the accessor never takes the annotation's own `:`, and steps aside at that one `:`, which nothing but the text since the annotation's `:` tells from its own. The end's lookahead ends the operator at the type that follows it, past spaces and line breaks.
   LuauTypeAnnotationOperator:
-    begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)
+    begin: ({{WS}}*)(?!{{LUAU_METHOD_COLON_AFTER_TYPE_AHEAD}})({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
