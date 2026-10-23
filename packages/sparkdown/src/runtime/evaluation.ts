@@ -599,6 +599,16 @@ function tryBinaryMetamethod(
   if (!(lhs instanceof ObjectValue) && !(rhs instanceof ObjectValue)) {
     return null;
   }
+  // Luau compares operands of two different types before it looks for a
+  // comparison metamethod (`luaV_equalobj`, `luaV_lessthan`): a table and
+  // a userdata, which are both ObjectValues here, are unequal and do not
+  // order, whatever handlers they share. The native op gives that answer.
+  if (
+    (metaName === "__eq" || metaName === "__lt" || metaName === "__le") &&
+    luauTypeOf(lhs) !== luauTypeOf(rhs)
+  ) {
+    return null;
+  }
   // Comparison-symmetry: `a > b` → `__lt(b, a)`; `a >= b` → `__le(b, a)`.
   let callLhs = lhs;
   let callRhs = rhs;
