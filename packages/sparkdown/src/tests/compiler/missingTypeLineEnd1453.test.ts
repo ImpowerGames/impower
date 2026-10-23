@@ -62,8 +62,8 @@ const BODY_FORMS = [
   "local w: number &\n  local z = 1",
   "type F = () ->\n  local z = 1",
   "type F = () -> --[[c]]\n  local z = 1",
-  // A comment of a longer level, whose level a lookahead must not capture:
-  // textmate-grammar-tree requires a match's captures to cover the match.
+  // A comment of a longer level, which the lookahead reads without a
+  // capture.
   "local w: number & --[==[c]==]\n  local z = 1",
   "local w: --[=========[c]=========]\n  local z = 1",
   "local w: --[==[c]==] = 1",
