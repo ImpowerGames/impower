@@ -1450,6 +1450,41 @@ variables:
   # of it. These are not the `_STRING_TEXT` bodies above, which a header's
   # lookbehind holds and so take no lookahead.
   LUAU_UNFINISHED_LINE_STRING: (?:(?:"{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}|'{{LUAU_UNFINISHED_SINGLE_QUOTED_TEXT}}|`{{LUAU_UNFINISHED_BACKTICK_TEXT}})$)
+  # The expression of a `"` string's interpolation up to the string's
+  # closing quote, the first `"` outside brackets, when no other `"` follows
+  # that quote on its line (I-1342): then no string of the expression can
+  # open there, since one would close on the line (`"a {b" .. x)`,
+  # `store s = "a {b"`). A line with a later `"` keeps the reading without
+  # the rule, which a valid nested string always has (`"a {f"x"} y"`), and
+  # so does one where the author meant the first quote as the close
+  # (`"a {b" .. x) -- say "hi"`, `"a {b" .. "c")`): I-1318 bounds that
+  # reading to the line (round 4, decision 96eb2328).
+  # lookaround: `LuauFunctionCall` and the operations of `LuauExpression`
+  # would take that quote as the opening of a string of their own, and
+  # only the rest of the line tells no string can open there
+  # (`LuauDoubleQuotedInterpolationBeforeClose`).
+  LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE: (?:{{LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT}}+(?=["]{{LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT}}$))
+  # The text of that expression: a bracketed group, which may hold `"`
+  # strings, a single-quoted string, or text with no quote, backtick,
+  # bracket, comment or long string in it. A backtick string is not read,
+  # since a quote in its interpolation is no text of it (`` {`x {"`"}`} ``,
+  # round 2, `undirected` finding 1): the scan stops there and the rule does
+  # not apply.
+  LUAU_DOUBLE_QUOTED_INTERPOLATION_TEXT: (?:{{LUAU_INTERPOLATION_GROUP_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_INTERPOLATION_PLAIN_CHARACTER}})
+  # Brackets in an interpolation's text on its line, two levels deep.
+  # lookaround: `LuauMultilineString` owns a `[[` or `[=`, whose text runs
+  # to its own closer, so it is no indexer's `[` (as in
+  # `LUAU_INTERPOLATION_TEXT_ON_LINE`).
+  LUAU_INTERPOLATION_GROUP_ON_LINE: (?:[(]{{LUAU_INTERPOLATION_GROUP_ITEM}}*[)]|\[(?![\[=]){{LUAU_INTERPOLATION_GROUP_ITEM}}*\])
+  LUAU_INTERPOLATION_GROUP_ITEM: (?:{{LUAU_INTERPOLATION_GROUP_TEXT}}|{{LUAU_INTERPOLATION_INNER_GROUP_ON_LINE}})
+  # lookaround: as in `LUAU_INTERPOLATION_GROUP_ON_LINE`, `LuauMultilineString` owns a `[[` or `[=`.
+  LUAU_INTERPOLATION_INNER_GROUP_ON_LINE: (?:[(]{{LUAU_INTERPOLATION_GROUP_TEXT}}*[)]|\[(?![\[=]){{LUAU_INTERPOLATION_GROUP_TEXT}}*\])
+  LUAU_INTERPOLATION_GROUP_TEXT: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_INTERPOLATION_PLAIN_CHARACTER}})
+  # A character of an interpolation's text that is no bracket, quote, brace
+  # or the start of a comment.
+  # lookaround: `LuauComment` owns a `--`, whose text a quote or bracket in
+  # it does not end, so a `-` is text only when no `-` follows it.
+  LUAU_INTERPOLATION_PLAIN_CHARACTER: (?:[^{}()\[\]`"'\r\n-]|-(?!-))
   LUAU_UNFINISHED_DOUBLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^"\\\r\n])*)
   LUAU_UNFINISHED_SINGLE_QUOTED_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|[^'\\\r\n])*)
   LUAU_UNFINISHED_BACKTICK_TEXT: (?:(?:{{LUAU_ESCAPE_ON_LINE}}|{{LUAU_CLOSED_INTERPOLATION_ON_LINE}}|[^`{\\\r\n])*)
@@ -13979,6 +14014,7 @@ repository:
         patterns:
           - include: "#PunctuationBraceOpen"
     patterns:
+      - include: "#LuauDoubleQuotedInterpolationBeforeClose"
       - include: "#LuauExpression"
       - include: "#ExtraWhitespace"
       - include: "#Newline"
@@ -13989,6 +14025,27 @@ repository:
       "1":
         patterns:
           - include: "#PunctuationBraceClose"
+
+  # The expression of a `"` string's interpolation that does not close on
+  # its line (`"a {b"`), up to the string's closing quote, the first `"` in
+  # it outside brackets: it is read on its own, so no call or operation in
+  # it takes that quote as the opening of a string of its own (`b"` as a
+  # call with a string argument, `a .. "`), and the interpolation ends
+  # before the quote, which closes the string (I-1342). A `"` string in
+  # brackets is the expression's (`"a {f("x")"`), and so is one in an
+  # interpolation that closes on its line (`"a {f"x"}"`), as Luau's
+  # backtick strings read one.
+  # lookaround: the closing quote is past the expression's last token, which
+  # a call or an operation reads before the interpolation can end, and the
+  # expression's own rules cannot tell that quote from one that opens a
+  # string; only the interpolation sees the whole line.
+  LuauDoubleQuotedInterpolationBeforeClose:
+    match: ({{LUAU_DOUBLE_QUOTED_INTERPOLATION_BEFORE_CLOSE}})
+    captures:
+      1:
+        patterns:
+          - include: "#LuauExpression"
+          - include: "#ExtraWhitespace"
 
   LuauBacktickStringInterpolation:
     tag: meta
@@ -14079,6 +14136,7 @@ repository:
         patterns:
           - { include: "#PunctuationBraceOpen" }
     patterns:
+      - { include: "#LuauDoubleQuotedInterpolationBeforeClose" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
