@@ -245,7 +245,8 @@ Images of this state (whole keyframes and deltas, for route search nodes, checkp
 2. A dotted name (`hero.hp`) when no variable has that whole name: the first segment as a variable, then each later segment as a key, through `ObjectValue` entries and the `__index` chain. Indexing nil, a number or a function on the way raises Luau's "attempt to index nil with 'hp'" or its like, which `pcall` can trap; a missing last member is nil. `_G.x` reads the global `x` past any local of that name.
 3. A flow or function of that name, as a function value (`FlowValueNamed`), so `local f = double` works.
 4. A standard library function of that name, as a marker value.
-5. Otherwise nil. An undefined name is nil, not a runtime warning.
+5. A standard library namespace of that name (`math`, `string`, `count`), as its library table (`stdLibNamespaceTable` in `runtime/StdLib.ts`): one frozen table per library, shared by every story, holding its functions' markers, each frozen too, and its constants, so a write to it raises "attempt to modify a readonly table". `count`'s functions taken from its table (`local c = count; c.turns(-> t)`, `c.visits`, `c.visited`) read the counts the direct calls' `CountOf` reads (`ProgramStory.countOfTarget`). `_G.math` and `rawget(_G, "math")` read the same table where no global replaced it, and a save writes it by name (`{"^lib": "math"}`).
+6. Otherwise nil. An undefined name is nil, not a runtime warning.
 
 **Writing.** `SetVar name` pops a value and assigns it through `VariablesState.Assign`. Its flags (`program/ProgramInstructions.ts`) say how: `SET_DECLARE` declares the name in the current scope (a `local`, a parameter), `SET_GLOBAL` with it declares a global (a `store` or `const` in the declaration sequence), `SET_VARARGS` keeps a multiple value whole for `...`, and `SET_INITIALIZE` marks the assignment that completes a self-recursive `local function`. Without the declare flag the write goes to the innermost temporary of that name, or to the global when no temporary has it. A write to a member (`hero.hp = 5`) is `GetVar hero; Str "hp"; ...; StoreIndex`, never a `SetVar` of a dotted name.
 
@@ -287,7 +288,7 @@ A table is an `ObjectValue` (`runtime/Value.ts`), which wraps a `Map<string, Abs
 - `Index` pops a key and a base and pushes the member (`indexValue`): a key present in the map is returned directly, and a miss goes through `__index`. A string base is indexed by character, from 1.
 - `StoreIndex` pops a value, a key and a base and writes the member in place (`storeIndex`), through `__newindex` on a miss (a key absent from a frozen table included), and refuses a raw write to a frozen table.
 - The same `Map` is shared by every variable that holds the table, so a write through one is seen through all of them, as in Luau.
-- A save writes each table once and refers to it again by id (`objid` and `objref` in `runtime/JsonSerialisation.ts`), so aliasing, cycles and a `define`'s class table survive a load.
+- A save writes each table once and refers to it again by id (`objid` and `objref` in `runtime/JsonSerialisation.ts`), so aliasing, cycles and a `define`'s class table survive a load. A library table is written by its name instead (`^lib`), and loads as the library table itself.
 
 Sparkdown has no ink `LIST`: tables replace it, and a `LIST` declaration is a compile error ([section 9](../../../../docs/engine/binary-program.md#9-the-surfaces)).
 

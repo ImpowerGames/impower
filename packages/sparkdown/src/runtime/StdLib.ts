@@ -3080,13 +3080,27 @@ export const STDLIB: Record<string, StdLibEntry> = {
 
   // `count.turns()` (0-arg form) — total turns elapsed since
   // story start. Maps to `state.currentTurnIndex + 1`.
-  // The 1-arg form `count.turns(-> target)` (TURNS_SINCE) still
-  // routes through the legacy per-function ControlCommand path
-  // because it needs compile-time DivertTarget container-counting
-  // setup that doesn't fit the generic dispatcher.
+  // A direct `count.turns(-> target)` lowers to `TURNS_SINCE`
+  // (`INK_BUILTIN_ALIASES`); the function `count.turns` read as a
+  // value (`local c = count; c.turns(-> target)`) takes the target
+  // here and reads the same count (`countOfTarget`, I-1441).
   "count.turns": {
-    arity: 0,
-    fn: (story) => story.state.currentTurnIndex + 1,
+    arity: -1,
+    fn: (story, [target]) =>
+      target === undefined || target instanceof Void
+        ? story.state.currentTurnIndex + 1
+        : story.countOfTarget(target, true),
+  },
+  // `count.visits(-> target)` and `count.visited(-> target)` read as
+  // values: a direct call lowers to `READ_COUNT`, and the function
+  // read through `count`'s table reads the same count.
+  "count.visits": {
+    arity: 1,
+    fn: (story, [target]) => story.countOfTarget(target, false),
+  },
+  "count.visited": {
+    arity: 1,
+    fn: (story, [target]) => story.countOfTarget(target, false) > 0,
   },
 
   // `math.clamp(x, min, max)` — Luau-only.
@@ -3950,7 +3964,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // `_G` globals-table proxy — route the read to global variable
       // storage (the proxy's own map only holds the marker tag).
       if (map.has(GLOBALS_PROXY_TAG)) {
-        return story.state.variablesState.GetGlobalVariableValue(key) ?? null;
+        return readGlobalOrLibrary(story, key);
       }
       return map.get(key) ?? null;
     },
@@ -6553,6 +6567,73 @@ const STDLIB_NAMESPACES: Set<string> = (() => {
 })();
 export function isStdLibNamespaceName(name: string): boolean {
   return STDLIB_NAMESPACES.has(name);
+}
+
+// The library tables, built on the first read of each, so every read of
+// `math` is the same table (`rawequal(math, math)`). A library table and
+// each function marker it holds are frozen, so nothing a script does can
+// change them; every story shares them, and a save writes a library table
+// by name (`stdLibNamespaceOf`).
+const namespaceTables = new Map<string, ObjectValue>();
+const namespaceNames = new WeakMap<object, string>();
+
+// The stdlib namespace `name` as a value: a read-only table, as Luau's
+// library tables are, of each registered function under `name + "."`, as
+// its marker, and each constant there (`math.pi`) (I-1441). A write to it
+// raises `attempt to modify a readonly table`.
+export function stdLibNamespaceTable(name: string): ObjectValue {
+  let table = namespaceTables.get(name);
+  if (!table) {
+    const prefix = `${name}.`;
+    const member = (key: string) =>
+      key.startsWith(prefix) && !key.includes(".", prefix.length)
+        ? key.slice(prefix.length)
+        : null;
+    const entries = new Map<string, AbstractValue>();
+    for (const fullName of Object.keys(STDLIB)) {
+      const key = member(fullName);
+      if (key === null) continue;
+      const marker = new Map<string, AbstractValue>();
+      marker.set("__stdlib_fn", new StringValue(fullName));
+      // Every story shares the marker, so nothing may change it either
+      // (`table.clear(math.abs)` would empty `math.abs` for all of them).
+      const fn = new ObjectValue(marker);
+      fn.Freeze();
+      entries.set(key, fn);
+    }
+    for (const [fullName, value] of Object.entries(STDLIB_CONSTANTS)) {
+      const key = member(fullName);
+      if (key === null) continue;
+      entries.set(
+        key,
+        typeof value === "string"
+          ? new StringValue(value)
+          : typeof value === "boolean"
+            ? new BoolValue(value)
+            : Number.isInteger(value) && Number.isFinite(value)
+              ? new IntValue(value)
+              : new FloatValue(value),
+      );
+    }
+    table = new ObjectValue(entries);
+    table.Freeze();
+    namespaceTables.set(name, table);
+    namespaceNames.set(entries, name);
+  }
+  return table;
+}
+
+// The namespace whose library table `table` is, or null for any other.
+export function stdLibNamespaceOf(table: ObjectValue): string | null {
+  return table.value ? (namespaceNames.get(table.value) ?? null) : null;
+}
+
+// The global `name` as `_G` reads it: its binding, or the library a stdlib
+// namespace no global replaced reads as, or null.
+export function readGlobalOrLibrary(story: any, name: string): AbstractValue | null {
+  const value = story.state.variablesState.GetGlobalVariableValue(name);
+  if (value != null) return value;
+  return isStdLibNamespaceName(name) ? stdLibNamespaceTable(name) : null;
 }
 
 // True when `name` is a registered PURE stdlib op over numbers

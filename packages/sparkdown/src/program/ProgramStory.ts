@@ -3777,6 +3777,14 @@ export class ProgramStory implements StoryEngine {
   protected countOf(turns: boolean): void {
     const state = this._state;
     const target = state.PopEvaluationStack();
+    state.PushEvaluationStack(new IntValue(this.countOfTarget(target, turns)));
+  }
+
+  /** The visits of the flow the symbol value `target` names, or the turns
+   *  since its last visit (-1 for none), as `CountOf` reads them; `count`'s
+   *  functions read through its library table call it (I-1441). */
+  countOfTarget(target: InkObject | null, turns: boolean): number {
+    const state = this._state;
     if (!(target instanceof SymbolValue)) {
       const note =
         target instanceof IntValue
@@ -3802,7 +3810,7 @@ export class ProgramStory implements StoryEngine {
           target.ref.label,
       );
     }
-    state.PushEvaluationStack(new IntValue(count));
+    return count;
   }
 
   /** `ShuffleIndex`: pops the element count and the sequence's index and
