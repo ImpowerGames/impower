@@ -75,16 +75,22 @@ describe("FormatString in Sparkdown", () => {
     expect(inFunction(' print(os.date("%\\0"))')).toEqual(["Invalid date format: date format can not contain null characters"]);
   });
 
-  // After `\z` the runtime skips a space outside ASCII, which Luau keeps.
+  // After `\z` the runtime keeps a space outside ASCII, as Luau does (I-1396),
+  // so the two readings agree and the literal is reported.
   const NBSP = String.fromCharCode(0xa0);
   test.each([
-    ["string.format", ` print(string.format("%\\z${NBSP}d", 7))`],
-    ["string.pack", ` print(string.packsize("i\\z${NBSP}4"))`],
-    ["os.date", ` print(os.date("%\\z${NBSP}c"))`],
-    ["a gsub replacement", ` print(string.gsub(s, "(a)", "%\\z${NBSP}1"))`],
-    ["a match pattern", ` print(string.match(s, "%\\z${NBSP}d"))`],
-  ])("%s that only the runtime's reading of an escape makes valid is not reported", (_name, body) => {
-    expect(inFunction(body)).toEqual([]);
+    ["string.format", ` print(string.format("%\\z${NBSP}d", 7))`, "Invalid format string: invalid format specifier: must be a string format specifier or %"],
+    ["string.pack", ` print(string.packsize("i\\z${NBSP}4"))`, "Invalid pack format: unexpected character; must be a pack specifier or space"],
+    ["os.date", ` print(os.date("%\\z${NBSP}c"))`, "Invalid date format: unexpected replacement character; must be a date format specifier or %"],
+    ["a gsub replacement", ` print(string.gsub(s, "(a)", "%\\z${NBSP}1"))`, "Invalid match replacement: unexpected replacement character; must be a digit or %"],
+  ])("%s with a space outside ASCII after an escape is reported", (_name, body, message) => {
+    expect(inFunction(body)).toEqual([message]);
+  });
+
+  // The runtime runs `%` before a character that is not a class as that
+  // character, so the pattern is not reported.
+  test("a match pattern with a space outside ASCII after an escape is not reported", () => {
+    expect(inFunction(` print(string.match(s, "%\\z${NBSP}d"))`)).toEqual([]);
   });
 
   test("a literal both readings find malformed is reported with Luau's message", () => {
