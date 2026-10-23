@@ -102,6 +102,8 @@ describe("a call after a `;` in a define body is a statement of the body (I-1506
 const HEADER_LINE_METHODS: [text: string, readings: string[]][] = [
   ["define X with f() return 1 end end\n", ["f:method"]],
   ["define X as Y with f(a) return a end end\n", ["f:method"]],
+  ["define X with --[[c]] f() return 1 end end\n", ["f:method"]],
+  ["define X with --[====[a]b]====] f() return 1 end end\n", ["f:method"]],
   ["define X with f() return 1 end\n  g()\n    return 2\n  end\nend\n", ["f:method", "g:method"]],
 ];
 

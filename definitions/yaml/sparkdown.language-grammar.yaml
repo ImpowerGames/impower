@@ -1863,9 +1863,10 @@ variables:
   # A define's header line up to its `with` and the whitespace after it
   # (`define X with`, `define X as Y with`), for a lookbehind: a method
   # written there (`define X with f() return 1 end end`) opens as one written
-  # at a line's start does (I-1506). The text between `define` and `with`
+  # at a line's start does (I-1506), after block comments too
+  # (`define X with --[[c]] f() …`). The text between `define` and `with`
   # is not read further, since the header's own rules read it.
-  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_HEADER_LINE_START}}define\b[^\r\n]*\bwith{{WS}}*)
+  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_HEADER_LINE_START}}define\b[^\r\n]*\bwith{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
   # A comment of level four or more, whose text runs to the last close of
   # level four or more on its line, `]` included.
   LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE: --\[====+\[[^\r\n]*\]====+\]
