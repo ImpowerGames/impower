@@ -68,6 +68,111 @@ end
   );
 });
 
+test("joining a header keeps the space after a keyword or an operator, and before a spaced operator", () => {
+  expectFormatsTo(
+    `function f(s, t, ...)
+  if
+    (t) then
+  end
+  while
+    (t)
+  do
+  end
+  if not
+    (t) then
+  end
+  if s and
+    (t) then
+  end
+  if
+    [[x]] then
+  end
+  if ...
+    .. "x" then
+  end
+end
+`,
+    `function f(s, t, ...)
+  if (t) then
+  end
+  while (t) do
+  end
+  if not (t) then
+  end
+  if s and (t) then
+  end
+  if [[x]] then
+  end
+  if ... .. "x" then
+  end
+end
+`,
+  );
+});
+
+test("joining a header keeps what its strings and comments hold", () => {
+  expectFormatsTo(
+    `function f(s)
+  if s == "a . b"
+  then
+  end
+  if s == "a ( b )" or s == [[a . b]]
+  then
+  end
+  if s == [[a
+  b]]
+  then
+  end
+  if s --[[ a  b ]]
+  then
+  end
+end
+`,
+    `function f(s)
+  if s == "a . b" then
+  end
+  if s == "a ( b )" or s == [[a . b]] then
+  end
+  if s == [[a
+  b]] then
+  end
+  if s --[[ a  b ]] then
+  end
+end
+`,
+  );
+});
+
+test("a header is not joined onto a line comment", () => {
+  const source = `function f(s, t)
+  if s -- note
+  then
+  end
+end
+`;
+  expectFormatsTo(source, source);
+});
+
+test("the lines of a multi-line string keep their indentation", () => {
+  const source = `function f()
+  local s = [[a
+ b
+      c]]
+  local e = "a\\
+ b"
+  return s
+end
+`;
+  expectFormatsTo(source, source);
+});
+
+test("a document with nothing but whitespace formats the same on a second pass", () => {
+  for (const source of ["   ", "  \n  \n", "\n\n"]) {
+    const once = formatSource(source);
+    expect(formatSource(once)).toBe(once);
+  }
+});
+
 test("the vararg keeps its spaces like a name", () => {
   expectFormatsTo(
     `function f(c, ...)

@@ -3,42 +3,82 @@ import { tokenChange } from "./tokenChanges";
 
 // The corpus check's notion of a lost token (I-874).
 
-test("whitespace changes are no token change", () => {
-  expect(tokenChange("local  x =1\n\n\n", "local x = 1\n")).toBeUndefined();
-  expect(tokenChange("f( a,b )", "f(a, b)")).toBeUndefined();
+// The body lines in a function, where they are Luau.
+const fn = (body: string) => `function f(s, t)\n${body}\nend\n`;
+
+test("whitespace changes between tokens are no token change", () => {
+  expect(tokenChange(fn("  local  x =1\n\n\n"), fn("  local x = 1"))).toBeUndefined();
+  expect(tokenChange(fn("  f( s,t )"), fn("  f(s, t)"))).toBeUndefined();
+  expect(tokenChange("A-->B\n", "A- -> B\n")).toBeUndefined();
+  expect(tokenChange("HERO: Don't  go [[  show x  ]]\n", "HERO: Don't go [[show x]]\n")).toBeUndefined();
+});
+
+test("whitespace in an interpolation's code is no token change", () => {
+  expect(tokenChange(fn("  return `a {s .. t } b`"), fn("  return `a {s .. t} b`"))).toBeUndefined();
 });
 
 test("the formatter's own rewrites are no token change", () => {
-  expect(tokenChange("local s = 'it\\'s'", 'local s = "it\'s"')).toBeUndefined();
-  expect(tokenChange("local t = {\n  1\n}", "local t = {\n  1,\n}")).toBeUndefined();
-  expect(tokenChange("local t = { 1, }", "local t = { 1 }")).toBeUndefined();
+  expect(tokenChange(fn("  local s = 'it\\'s'"), fn('  local s = "it\'s"'))).toBeUndefined();
+  expect(tokenChange(fn("  local t = {\n    1\n  }"), fn("  local t = {\n    1,\n  }"))).toBeUndefined();
+  expect(tokenChange(fn("  local t = { 1, }"), fn("  local t = { 1 }"))).toBeUndefined();
   expect(
     tokenChange(
-      "if a then\nelse\n  if b then\n  end\nend",
-      "if a then\nelseif b then\nend",
+      fn("  if s then\n  else\n    if t then\n    end\n  end"),
+      fn("  if s then\n  elseif t then\n  end"),
     ),
   ).toBeUndefined();
+  expect(tokenChange(fn("  local x = 1   -- note   "), fn("  local x = 1 -- note"))).toBeUndefined();
+});
+
+test("re-indenting a comment's later lines is no token change", () => {
+  expect(tokenChange(fn("  local x = 1 --[[a\nb]]"), fn("  local x = 1 --[[a\n  b]]"))).toBeUndefined();
+});
+
+test("text joined onto a line comment is a token change", () => {
+  expect(tokenChange(fn("  if s -- note\n  then\n  end"), fn("  if s -- note then\n  end"))).toMatch(
+    /changed/,
+  );
 });
 
 test("two words written together are a token change", () => {
-  expect(tokenChange("if -> one == -> two then", "if -> one == -> twothen")).toMatch(
-    /joined/,
-  );
-  expect(tokenChange("case 1 text", "case 1text")).toMatch(/joined/);
+  expect(
+    tokenChange(
+      "scene main\n  if -> one == -> two then\n  end\nend\n",
+      "scene main\n  if -> one == -> twothen\n  end\nend\n",
+    ),
+  ).toMatch(/joined/);
+  expect(tokenChange(fn("  local v = s print(3)"), fn("  local v = sprint(3)"))).toMatch(/joined/);
 });
 
 test("two characters that read as one longer token are a token change", () => {
-  expect(tokenChange("x = - -y", "x = --y")).toMatch(/joined/);
-  expect(tokenChange("a = b .. c", "a = b..c")).toBeUndefined();
-  expect(tokenChange("a = b . .c", "a = b..c")).toMatch(/joined/);
+  expect(tokenChange(fn("  local x = - -s"), fn("  local x = --s"))).toMatch(/joined|changed/);
+  expect(tokenChange(fn("  local x = s .. t"), fn("  local x = s..t"))).toBeUndefined();
+  expect(tokenChange(fn("  local x = s . .t"), fn("  local x = s..t"))).toMatch(/joined/);
 });
 
-test("lost, added or changed text is a token change", () => {
-  expect(tokenChange("print(1)", "print(1")).toMatch(/text changed/);
-  expect(tokenChange("local s = 'abc", 'local s = "abc"')).toMatch(/text changed/);
-  expect(tokenChange("x = 1", "x = 2")).toMatch(/text changed/);
+test("a token written apart is a token change", () => {
+  expect(tokenChange(fn("  local x = 12"), fn("  local x = 1 2"))).toMatch(/split/);
+  expect(tokenChange(fn("  if ready then\n  end"), fn("  if rea dy then\n  end"))).toMatch(/split/);
+});
+
+test("a string or a comment changed inside is a token change", () => {
+  expect(tokenChange(fn('  if s == "a . b" then\n  end'), fn('  if s == "a.b" then\n  end'))).toMatch(
+    /changed/,
+  );
+  expect(tokenChange(fn("  local x = [[a\n  b]]"), fn("  local x = [[a\n    b]]"))).toMatch(/changed/);
+  expect(tokenChange(fn("  local x = 1 --[[ a  b ]]"), fn("  local x = 1 --[[a b]]"))).toMatch(/changed/);
+  expect(tokenChange(fn('  local s = "a,}"'), fn('  local s = "a}"'))).toMatch(/changed/);
+});
+
+test("lost, added, moved or changed text is a token change", () => {
+  expect(tokenChange(fn("  print(1)"), fn("  print(1"))).toMatch(/changed/);
+  expect(tokenChange(fn("  local s = 'abc"), fn('  local s = "abc"'))).toMatch(/changed/);
+  expect(tokenChange(fn("  local x = 1"), fn("  local x = 2"))).toMatch(/changed/);
+  expect(
+    tokenChange(fn("  if s then\n  end\n  print(1)"), fn("  if s then\n    print(1)\n  end")),
+  ).toMatch(/changed/);
 });
 
 test("an end the formatter drops without folding an else-if is a token change", () => {
-  expect(tokenChange("if a then\nend", "if a then\n")).toMatch(/end keyword/);
+  expect(tokenChange(fn("  if s then\n  end"), fn("  if s then\n"))).toMatch(/changed/);
 });

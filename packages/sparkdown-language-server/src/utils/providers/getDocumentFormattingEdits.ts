@@ -68,6 +68,19 @@ const NAME_CHAR_REGEX = /[\p{L}\p{N}_]/u;
 // (`text2`, `text-2`, `t.a1`).
 const NUMBER_NODE_REGEX = /^(?:LuauNumeric[A-Za-z]*|NumberLiteral|NumberValue)(?:_|$)/;
 
+// Strings, whose whitespace is part of their value, and comments.
+const STRING_NODE_REGEX = /String$/;
+const LITERAL_NODE_REGEX = /(?:String|Comment)$/;
+
+// Whether `pos` is inside a node that `regex` names and that begins before
+// `pos`.
+function insideNode(tree: Tree, pos: number, regex: RegExp): boolean {
+  for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) {
+    if (n.from < pos && regex.test(n.name)) return true;
+  }
+  return false;
+}
+
 // Whether the token that ends at `offset` is a number literal (`5`, `1.`,
 // `-1.`, `0xFF`), read from the syntax tree.
 function endsNumberAt(tree: Tree | undefined, offset: number): boolean {
@@ -834,6 +847,9 @@ export const getFormatting = (
         line: range.start.line + 1,
         character: 0,
       });
+      // A line inside a string begun on an earlier line (`[[a` then
+      // `  b]]`) is part of the string's value, its indentation too.
+      if (insideNode(tree, lineStart, STRING_NODE_REGEX)) return;
       const lineText = document.read(lineStart, lineEnd);
       const firstNonWs = lineText.search(/\S/);
       const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;
@@ -1391,9 +1407,9 @@ export const getFormatting = (
       document.length > 0
         ? document.read(document.length - 1, document.length)
         : "";
-    // An empty document stays empty: the newline it would gain is a blank
-    // last line, which `trimFinalNewlines` removes on the next format.
-    if (document.length > 0 && lastChar !== "\n" && lastChar !== "\r") {
+    // A document with no text gains no newline: it would end in a blank
+    // line, which `trimFinalNewlines` removes on the next format.
+    if (/\S/.test(document.getText()) && lastChar !== "\n" && lastChar !== "\r") {
       const editRange = {
         start: lastPosition,
         end: lastPosition,
@@ -1720,6 +1736,28 @@ export const getFormatting = (
     // its own line (separates choices from the result body). Skip
     // join when the keyword sits inside a `LuauSparkdownChooseThenClause`.
     const BLOCK_OPENER_KEYWORDS = nodeNameSet(["LuauDoKeyword", "LuauThenKeyword"]);
+    // Whether the token that ends at `pos` is a line comment (`-- note`), as
+    // opposed to a block comment (`--[[c]]`).
+    const afterLineComment = (pos: number) => {
+      for (let n: SyntaxNode | null = tree.resolveInner(pos, -1); n; n = n.parent) {
+        if (/Comment$/.test(n.name)) {
+          return !/^--\[=*\[/.test(document.read(n.from, n.to));
+        }
+      }
+      return false;
+    };
+    // Whether the token that ends at `from`, before the gap that ends at
+    // `to`, is a keyword or an operator (`if`, `not`, `and`, `==`).
+    const afterKeywordOrOperator = (from: number, to: number) => {
+      for (
+        let n: SyntaxNode | null = tree.resolveInner(from, -1);
+        n && n.to <= to;
+        n = n.parent
+      ) {
+        if (/(?:Keyword|Operator)$/.test(n.name)) return true;
+      }
+      return false;
+    };
     const LOOP_CONTENT_NAMES = nodeNameSet([
       "LuauSparkdownForLoop_content",
       "LuauSparkdownWhileLoop_content",
@@ -1919,21 +1957,31 @@ export const getFormatting = (
         const between = document.read(headerStart, kwFrom);
         if (!between.includes("\n")) return;
 
-        // Collapse every WS-or-newline run to what the joined line's
-        // spacing rules leave there: one space, or none where the
-        // tokens either side are written together (`t` then `[2]` joins
-        // as `t[2]`, as a second format would tighten `t [2]`). No
-        // trim — the outer slice already accounts for whatever
-        // boundary whitespace was actually present in the source,
-        // so collapsing in-place preserves single-line idempotency
-        // (`if cond then` round-trips identically).
-        const newText = between.replace(/\s+/g, (run, at: number) => {
-          const from = headerStart + at;
-          const to = from + run.length;
-          return insertsSeparatorSpace(from, to) || keepsJoiningSpace(from, to)
-            ? " "
-            : "";
-        });
+        // Each line break, with the whitespace around it, becomes the gap
+        // the joined line's spacing rules leave there, so a second format
+        // does not move it: one space, none where the tokens either side
+        // are written together (`t` then `[2]` joins as `t[2]`), and one
+        // after a keyword or an operator (`if (t)`, `and (t)`) or before
+        // a spaced operator (`... .. "x"`). Only the line breaks: the
+        // gaps on one line keep their own edits, and a line break inside
+        // a string or a comment is the author's text.
+        const breaks: { from: number; to: number; newText: string }[] = [];
+        for (const run of between.matchAll(/\s+/g)) {
+          if (!run[0].includes("\n")) continue;
+          const from = headerStart + run.index;
+          const to = from + run[0].length;
+          if (insideNode(tree, from, LITERAL_NODE_REGEX)) continue;
+          // A line comment runs to the end of its line, so joining the
+          // next line onto it would read that line as part of the comment.
+          if (afterLineComment(from)) return;
+          const spaced =
+            afterKeywordOrOperator(from, to) ||
+            ["..", "::"].includes(document.read(to, to + 2)) ||
+            insertsSeparatorSpace(from, to) ||
+            keepsJoiningSpace(from, to);
+          breaks.push({ from, to, newText: spaced ? " " : "" });
+        }
+        if (breaks.length === 0) return;
 
         // Line-length budget. If collapsing the whole header would
         // exceed the budget, keep it multi-line — the opener stays
@@ -1952,17 +2000,19 @@ export const getFormatting = (
           .replace(/\s+/g, " ");
         if (wouldBe.length > HEADER_LINE_BUDGET) return;
 
-        const range: Range = {
-          start: document.positionAt(headerStart),
-          end: document.positionAt(kwFrom),
-        };
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText,
-          type: "opener_join",
-        });
+        for (const { from, to, newText } of breaks) {
+          const range: Range = {
+            start: document.positionAt(from),
+            end: document.positionAt(to),
+          };
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText,
+            type: "opener_join",
+          });
+        }
       },
     });
     // Quote normalization. Convert single-quoted Luau strings
