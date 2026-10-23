@@ -1236,7 +1236,7 @@ So we accept the bill: a 200-line function re-parses on every keystroke inside i
 
 ## 17. Engine equality: the grammar must parse identically in both engines
 
-**The TL;DR:** the same grammar JSON drives two engines, and they must produce the **same scope at every character**. The most common way they silently drift is a `Scoped` rule that closes `ERROR_INCOMPLETE` partway across a line. The fix is always to **fully tile the line** so the rule reaches its `end` at a clean line boundary. A CI test (`scopeEquality.test.ts`) fails the build on any per-character divergence.
+**The TL;DR:** the same grammar JSON drives two engines, and they must produce the **same scope at every character**. vscode-textmate is the reference; where the tree reads the grammar differently, the tree is fixed (§17.1). The most common way they silently drift is a `Scoped` rule that closes `ERROR_INCOMPLETE` partway across a line. The fix is always to **fully tile the line** so the rule reaches its `end` at a clean line boundary. A CI test (`scopeEquality.test.ts`) fails the build on any per-character divergence.
 
 ### 17.1 Two engines, one grammar
 
@@ -1245,7 +1245,12 @@ We ship **one** generated grammar JSON to two consumers (see §1.3):
 - **vscode-textmate** (+ vscode-oniguruma) — VS Code's editor highlighter. We do **not** control this engine; it is the reference implementation and cannot be patched.
 - **textmate-grammar-tree** — our re-implementation, used by the language server, the screenplay-preview decorator, and the PDF exporter.
 
-The entire point of sharing a grammar is that the TextMate scope stack VS Code computes at column _N_ must match the node ancestry textmate-grammar-tree builds at column _N_. When they disagree, semantic features (preview, export, diagnostics) silently drift behind plausible-looking editor highlighting. **Because vscode-textmate is the engine we ship to users and cannot change, every divergence is a grammar bug to fix in the grammar** — never a "patch the tree to compensate."
+The entire point of sharing a grammar is that the TextMate scope stack VS Code computes at column _N_ must match the node ancestry textmate-grammar-tree builds at column _N_. When they disagree, semantic features (preview, export, diagnostics) silently drift behind plausible-looking editor highlighting. **vscode-textmate is the reference engine and is never changed.** textmate-grammar-tree must build a tree equivalent to vscode-textmate's for the same grammar and input, so a divergence has one of two causes, fixed in one place each:
+
+- **The tree reads the grammar differently from vscode-textmate** (a TextMate key it ignores, a capture it reads another way): fix it in textmate-grammar-tree. Never reshape the grammar's regexes so both engines happen to agree. The tree reads a begin/end rule's `captures` when it has no `beginCaptures` or `endCaptures`, and a capture scans on past a character its patterns cannot read, leaving it in the capture's scope, both as vscode-textmate does (I-1516).
+- **The grammar is wrong once both engines read it the same way:** fix it in the grammar, as its own ticket.
+
+One deliberate difference stays: in a rule body the tree closes the rule `ERROR_INCOMPLETE` where vscode-textmate gap-skips (§17.2), so the grammar tiles its lines rather than the tree gap-skipping (I-1244). Scanning on inside a capture is not gap-skipping: the capture's extent is fixed by the outer match.
 
 ### 17.2 Why they diverge — and the one rule that prevents it
 

@@ -59,7 +59,8 @@ export class ScopedRule implements Rule {
     const beginRuleItem: MatchRuleDefinition = {
       id: beginId,
       match: def.begin,
-      captures: def.beginCaptures,
+      // vscode-textmate falls back on `captures` (beginCaptures || captures)
+      captures: def.beginCaptures ?? def.captures,
       closedBy: (def.closedBy ?? def.brackets) ? endId : undefined,
     };
     this.beginRule = repo.add(beginRuleItem, beginId);
@@ -72,7 +73,8 @@ export class ScopedRule implements Rule {
     const endRuleItem: MatchRuleDefinition = {
       id: endId,
       match: def.end,
-      captures: def.endCaptures,
+      // vscode-textmate falls back on `captures` (endCaptures || captures)
+      captures: def.endCaptures ?? def.captures,
       openedBy: (def.openedBy ?? def.brackets) ? beginId : undefined,
     };
     this.endRule = repo.add(endRuleItem, endId);

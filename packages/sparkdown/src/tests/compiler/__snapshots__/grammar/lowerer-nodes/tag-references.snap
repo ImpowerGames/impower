@@ -1,6 +1,7 @@
 sparkdown [0..69]
  ├─ Tags [0..68]
  │   ├─ Tags_begin 0
+ │   │   └─ Tags_begin_c1 0
  │   ├─ Tags_content [0..68]
  │   │   └─ Tag [0..68]
  │   │       ├─ Tag_c1 0

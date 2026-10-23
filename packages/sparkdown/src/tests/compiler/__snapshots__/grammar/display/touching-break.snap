@@ -1143,6 +1143,7 @@ sparkdown [0..949]
  │   │   │   └─ LineEnd_end 362
  │   │   └─ Tags [362..371]
  │   │       ├─ Tags_begin 362
+ │   │       │   └─ Tags_begin_c1 362
  │   │       ├─ Tags_content [362..371]
  │   │       │   └─ Tag [362..371]
  │   │       │       ├─ Tag_c1 362
@@ -1291,6 +1292,7 @@ sparkdown [0..949]
  │   │   │   └─ LineEnd_end 403
  │   │   └─ Tags [403..410]
  │   │       ├─ Tags_begin 403
+ │   │       │   └─ Tags_begin_c1 403
  │   │       ├─ Tags_content [403..410]
  │   │       │   └─ Tag [403..410]
  │   │       │       ├─ Tag_c1 403
@@ -1556,6 +1558,7 @@ sparkdown [0..949]
  │   │   │       └─ BlockLineContinue_end_c1 490
  │   │   ├─ Tags [490..497]
  │   │   │   ├─ Tags_begin 490
+ │   │   │   │   └─ Tags_begin_c1 490
  │   │   │   ├─ Tags_content [490..497]
  │   │   │   │   └─ Tag [490..497]
  │   │   │   │       ├─ Tag_c1 490
