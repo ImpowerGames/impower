@@ -3970,11 +3970,15 @@ export class SparkdownCompiler {
     if (!tree || !doc) {
       return;
     }
+    let documentText: string | undefined;
     const ctx = {
       filePath: uri,
       read: (from: number, to: number) => doc.read(from, to),
       lineNumber: (pos: number) => doc.positionAt(pos).line,
       characterNumber: (pos: number) => doc.positionAt(pos).character,
+      // A block opened in a story statement cut at its unclosed bracket's
+      // line is Luau's reading's to report (`validateBlockEnds`, I-1532).
+      documentText: () => (documentText ??= doc.getText()),
     } as unknown as LowerContext;
     const emit = (diags: ReturnType<typeof validateScene>) => {
       for (const d of diags) {

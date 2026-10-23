@@ -309,13 +309,16 @@ describe("a story store or local whose unclosed bracket the tree reads on into s
   // body on the story lines after it is story, so its `end` is missing there.
   const functionLines = ["store s = g(function()", "local s = g(function()", "store s = g(function() if x then", "store s = {function()", "s = g(function()"];
   // A block the function opens on that line, missing what Luau expects next.
-  for (const block of ["while x", "if x", "for i = 1, 2", "for k in t", "repeat", "while x do", "return"]) {
+  for (const block of ["while x", "if x", "for i = 1, 2", "for k in t", "repeat", "while x do", "return", "return {1", "return g(", "do", "if x then else", "for i = 1, 2 do"]) {
     functionLines.push(`local s = g(function() ${block}`, `store s = g(function() ${block}`, `s = g(function() ${block}`);
   }
   for (const line of functionLines) {
     const luau = `${line.replace(/^store/, "local")}\n`;
     pinText(`"${line}" before its body in a scene`, `scene start\n  ${line}\n  return 1\n  end\n  Hello.\nend\n`, luau, 1, 2);
     pinText(`"${line}" before its body`, `${line}\nreturn 1\nend\nHello.\n${SCENE}`, luau, 0, 0);
+    // With only story after it, no `end` in the tree closes what it opens.
+    pinText(`"${line}" before a story line in a scene`, `scene start\n  ${line}\n  Hello.\nend\n`, luau, 1, 2);
+    pinText(`"${line}" before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
   }
   pinLine("store s = g(function() return 1 end", "local s = g(function() return 1 end");
   pinLine("store s = g({1, (2", "local s = g({1, (2");

@@ -920,9 +920,12 @@ class Tokenizer {
     if (this.islandCut !== null && node.from >= this.islandCut) return;
     const name = node.name;
     if (isExplicitRuleName(name, "LuauReturnStatement")) {
-      const suffix = returnSuffixSpan(this.text, this.index, node.to);
+      // A return the tree carries past an island's cut ends there (I-1532).
+      const cut = this.islandCut ?? null;
+      const end = cut !== null && node.to > cut ? cut : node.to;
+      const suffix = returnSuffixSpan(this.text, this.index, end);
       this.returnSourceLines.push(this.location(node.from, suffix.to));
-      this.returnTriviaSpans.push({ from: node.to, to: suffix.triviaEnd });
+      this.returnTriviaSpans.push({ from: end, to: suffix.triviaEnd });
     }
     if (isComment(node)) {
       this.comment(node);
