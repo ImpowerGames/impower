@@ -192,6 +192,22 @@ function isInsignificant(n: { name: string }): boolean {
   );
 }
 
+/**
+ * Whether a whitespace node is the begin capture of a mid-line `Tags` or
+ * `SparkdownExplicitTags` rule, the space right before its `#`.
+ */
+function isBeforeMidLineTag(
+  node: SyntaxNode,
+  read: (from: number, to: number) => string,
+): boolean {
+  const begin = node.parent?.parent;
+  return (
+    (begin?.name === "Tags_begin" ||
+      begin?.name === "SparkdownExplicitTags_begin") &&
+    read(node.to, node.to + 1) === "#"
+  );
+}
+
 function significantBefore(n: SyntaxNode | null): SyntaxNode | null {
   while (n && isInsignificant(n)) n = n.prevSibling;
   return n;
@@ -699,6 +715,17 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         this.read(nodeRef.from - 1, nodeRef.from) === ":" &&
         precedesLeadingGlue(nodeRef.node)
       ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+            nodeRef.from,
+            nodeRef.to,
+          ),
+        );
+        return annotations;
+      }
+      // The space before a mid-line tag's `#` (`Hello.   # greeting`) is one
+      // space; the separator rule would glue the `#` to a `.` before it.
+      if (isBeforeMidLineTag(nodeRef.node, read)) {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
             nodeRef.from,
