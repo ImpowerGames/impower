@@ -160,6 +160,17 @@ describe("a fingerprint", () => {
     expect(normalizeSource("&   s  =  [[a\nb]]  -- note")).toBe(none);
   });
 
+  // I-1396: `\z` carries a quoted string over a line end only through
+  // Luau's whitespace, a space or `\t` through `\r`. After a no-break space
+  // the string ends unfinished at the line end, as Luau's lexer ends it, so
+  // the next line's indent is not string text.
+  it("continues a quoted string after a z escape only over ASCII whitespace", () => {
+    const z = String.fromCharCode(92) + "z";
+    const nbsp = String.fromCharCode(0xa0);
+    expect(normalizeSource(`& s = "a${z} \n  b"`)).toContain("\n  b");
+    expect(normalizeSource(`& s = "a${z}${nbsp}\n  b"`)).not.toContain("\n  b");
+  });
+
   // Found adjudicating round 1's undirected report (6031983271), another
   // instance of its first finding: a line of a declaration that starts with
   // no mark of its own is logic, where `//` is floor division or the text

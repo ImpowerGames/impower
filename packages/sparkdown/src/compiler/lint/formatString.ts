@@ -227,9 +227,9 @@ function capturesOf(pattern: string): number {
  * Luau also checks a method on a value its type checker types as a string,
  * which needs types (`FormatStringTyped`).
  *
- * `runtimeValue` is the string the runtime holds for a literal, which can
- * differ from Luau's reading where an escape does (`\z` before a space
- * outside ASCII, which the runtime skips and Luau keeps). A literal is
+ * `runtimeValue` is the string the runtime holds for a literal, which
+ * should equal Luau's reading of its escapes (`\z` skips only ASCII
+ * whitespace in both since I-1396). A literal is
  * reported only when the runtime's reading is malformed too: for a pattern,
  * when the runtime's translator rejects it, and otherwise when the same
  * validator rejects the runtime's reading, since the runtime rejects every
