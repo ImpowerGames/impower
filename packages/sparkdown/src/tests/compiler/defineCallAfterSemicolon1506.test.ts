@@ -39,6 +39,9 @@ const FORMS: [statements: string, methods: string, readings: string[]][] = [
   // A call in the property's value, and another after the `;` (comment
   // 6354736903 on I-1506).
   ["  y = print(1 2); print(3 4)\n", "", []],
+  // A call left open, and one with `;` between its arguments.
+  ["  y = 1; print(1, 2, 3\n", "", []],
+  ["  y = 1; print(1; 2; 3)\n", "", []],
   // A call Luau reads, after a `;`, and a line below it.
   ["  y = 1; print(1)\n  z = 2\n", "", []],
   // A call after a `;`, with a method below it.
