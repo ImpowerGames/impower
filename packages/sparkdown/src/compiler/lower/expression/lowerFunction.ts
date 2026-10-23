@@ -89,11 +89,7 @@ import {
   closeFunctionBody,
   openFunctionBody,
 } from "../utils/statementShape";
-import {
-  localInScope,
-  recordCaptureRead,
-  scopeDeclaredLocals,
-} from "./bindings";
+import { recordCaptureRead, scopeDeclaredLocals } from "./bindings";
 
 // The nodes of a function definition's content that are its header, not
 // statements of its body.
@@ -518,37 +514,9 @@ export function freeVariables(
   });
   const isGlobalCallable = (name: string) =>
     ctx.globalCallableNames?.has(name) ?? false;
-  // Rebound entries (`f = <expr>` over a global/former subflow) are
-  // dispatch metadata only — they must NOT suppress upval capture
-  // decisions; the name resolves like any other reference here. A local
-  // of a function between the sibling's and the read, in scope where the
-  // name is read, hides the sibling (`resolveCallableBinding`).
-  const siblingSubFlowAt = (
-    name: string,
-    at: number,
-  ): SiblingSubFlowInfo | null => {
-    const stack = ctx.siblingSubFlowNamesStack;
-    if (!stack) return null;
-    let sibling = stack.length - 1;
-    while (sibling >= 0) {
-      const entry = stack[sibling]!.get(name);
-      if (entry !== undefined && !entry.rebound) break;
-      sibling -= 1;
-    }
-    if (sibling < 0) return null;
-    const locals = ctx.declaredLocalsStack ?? [];
-    for (let i = stack.length - 1; i > sibling; i--) {
-      const frame = locals[i];
-      if (
-        stack[i]!.get(name) === undefined &&
-        frame?.has(name) &&
-        localInScope(frame, name, at)
-      ) {
-        return null;
-      }
-    }
-    return stack[sibling]!.get(name)!;
-  };
+  // Rebound entries (`f = <expr>` over a global) are dispatch metadata
+  // only — they must NOT suppress upval capture decisions; the name
+  // resolves like any other reference here.
   const isShadowedLocal = (name: string) => {
     const stack = ctx.declaredLocalsStack;
     if (!stack) return false;
@@ -568,16 +536,6 @@ export function freeVariables(
   const readAt = (name: string, at: number, readsLocal = false, declared?: string) => {
     if (bound.has(name) || seen.has(name)) return;
     if (!unscoped) {
-      // A variadic sibling is the innermost binding and wins over a
-      // same-named local of an outer scope (`resolveCallableBinding`). A
-      // call to it, or its value, passes a pointer to each local it
-      // captures (`withSiblingSubFlowUpvalArgs`), which this function
-      // captures in turn so the pointer reaches the enclosing scope's cell.
-      const sibling = siblingSubFlowAt(name, at);
-      if (sibling) {
-        for (const upval of sibling.upvals) readAt(upval, at);
-        return;
-      }
       // A read the converter binds to a local of a block around the
       // function reads that local, never a local of the root frame's own
       // scope of its name.
@@ -824,24 +782,6 @@ export function bodyReferencesNameAsCall(
     return !found;
   });
   return found;
-}
-
-/**
- * The names the statements of `block` declare as locals themselves
- * (`local x`, `local function f`, and a `const` unless the story publishes
- * it, `publishesConst`), not those declared inside the blocks within it:
- * what a `repeat` loop's `until` condition sees of its body.
- */
-export function blockLocalNames(block: AstStatBlock, constsAreLocal: boolean): string[] {
-  const names: string[] = [];
-  for (const stat of block.body) {
-    if (stat instanceof AstStatLocal && (constsAreLocal || !stat.isConst)) {
-      names.push(...stat.vars.map((v) => v.name));
-    } else if (stat instanceof AstStatLocalFunction && (constsAreLocal || !stat.isConst)) {
-      names.push(stat.name.name);
-    }
-  }
-  return names;
 }
 
 // Build the closure-value `ObjectExpression`. The shape is recognized

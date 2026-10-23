@@ -21,11 +21,7 @@ import {
 } from "../../typecheck/Ast";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
-import {
-  recordCaptureRead,
-  recordRebind,
-  shadowSiblingSubFlow,
-} from "../expression/bindings";
+import { recordCaptureRead, recordRebind } from "../expression/bindings";
 import { astIdentifier, pathNames } from "../expression/lowerExpression";
 import {
   bodyReferencesNameAsCall,
@@ -200,7 +196,7 @@ function lowerNestedNamedFunction(
   // in its own body (a recursive call) and after it, dispatch through the
   // value NAME holds as they run, as after `NAME = <expr>`
   // (`recordRebind`), so the body is lowered after the rebind is recorded.
-  if (!isLocal) recordRebind(selfName, node.from, ctx);
+  if (!isLocal) recordRebind(selfName, ctx);
 
   // Its frames and its value are labelled by the name it is written with,
   // not the generated one (`functionLabel`).
@@ -243,9 +239,7 @@ function lowerNestedNamedFunction(
     ]);
   }
 
-  // A `local function`. The local hides a variadic function of its name
-  // for the rest of its block.
-  shadowSiblingSubFlow(selfName, ctx);
+  // A `local function`.
   if (isSelfReferential) {
     // The body calls the function by its name, so the name is declared
     // before the closure is built and the closure is assigned after. The
