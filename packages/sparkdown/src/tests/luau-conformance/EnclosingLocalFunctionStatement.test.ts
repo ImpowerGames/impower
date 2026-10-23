@@ -5,8 +5,8 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // assigns that local through an upvalue, as Luau's does: the definition is
 // `NAME = function ... end`, and NAME resolves to the enclosing local
 // (#1349). A NAME that is a local of the same function is assigned in place
-// (#415), and a NAME that is no local of any enclosing function keeps its
-// hoisted binding in the function that defines it.
+// (#415), and a NAME that is no local of any enclosing function is the
+// global NAME, which the definition assigns (I-1422).
 
 describe("function statement naming an enclosing function's local", () => {
   test("assigns the enclosing local", () => {
@@ -73,7 +73,7 @@ assert(g() == 3, tostring(g()))`);
     expect(r.returnedOK).toBe(true);
   });
 
-  test("a name no enclosing function declares stays in the defining function", () => {
+  test("a name no enclosing function declares is reachable after its block in the defining function", () => {
     const r = runConformanceSource(`local function f()
   do
     function h() return 5 end

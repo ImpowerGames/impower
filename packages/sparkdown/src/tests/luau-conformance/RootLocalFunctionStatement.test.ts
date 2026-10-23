@@ -311,6 +311,70 @@ describe("a function statement in a top-level function naming a global", () => {
   });
 });
 
+// A later call of the name dispatches through the value the statement
+// assigned, as after `g = function() ... end`, even where the name is a
+// builtin's, which a call would otherwise reach.
+describe("a call after a function statement named after a builtin", () => {
+  const forms = [
+    ["the function statement", "  function type(x) return 'replacement' end"],
+    ["the assignment", "  type = function(x) return 'replacement' end"],
+  ];
+
+  test.each(forms)("reaches the new function in the same function after %s", (_, def) => {
+    expect(run(["function change()", def, "  return type(1)", "end", "Got {change()}."])).toEqual(
+      got("Got replacement."),
+    );
+  });
+
+  test.each(forms)("reaches it after a block inside the function after %s", (_, def) => {
+    expect(
+      run(["function change()", "  do", `  ${def}`, "  end", "  return type(1)", "end", "Got {change()}."]),
+    ).toEqual(got("Got replacement."));
+  });
+
+  test.each(forms)("reaches it in a local function inside the function after %s", (_, def) => {
+    expect(
+      run([
+        "function change()",
+        "  local function inner()",
+        `  ${def}`,
+        "    return type(1)",
+        "  end",
+        "  return inner()",
+        "end",
+        "Got {change()}.",
+      ]),
+    ).toEqual(got("Got replacement."));
+  });
+
+  test.each(forms)("reaches it in a define's method after %s", (_, def) => {
+    expect(
+      run([
+        "define thing with",
+        "  function m()",
+        `  ${def}`,
+        "    return type(1)",
+        "  end",
+        "end",
+        "Got {thing.m()}.",
+      ]),
+    ).toEqual(got("Got replacement."));
+  });
+
+  test("a local of the name keeps the builtin for the global", () => {
+    expect(
+      run([
+        "function change()",
+        "  local type = nil",
+        "  function type(x) return 'replacement' end",
+        "  return type(1)",
+        "end",
+        "Got {change()} {type(1)}.",
+      ]),
+    ).toEqual(got("Got replacement number."));
+  });
+});
+
 // Which variable the statement assigns depends on the lines above the
 // function (the top-level `local` its entry binds, or the global), so an
 // edit there lowers the function again.

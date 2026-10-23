@@ -114,8 +114,8 @@ export interface LoopShape {
  * A function the lowering built, as the binary program's writer emits it
  * (docs/engine/binary-program.md, sections 1 and 10): its body is a body of
  * the statement that writes it, entered by the function's entry code, which
- * binds its parameters and declares the locals the lowering hoisted to the
- * top of its body.
+ * binds its parameters and runs what the lowering put at the top of its
+ * body (`hoisted`).
  */
 export interface FunctionShape {
   /** The function's body. */

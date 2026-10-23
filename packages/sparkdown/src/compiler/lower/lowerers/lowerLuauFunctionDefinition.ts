@@ -23,6 +23,7 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { LowerContext } from "../context";
 import {
   recordCaptureRead,
+  recordRebind,
   shadowSiblingSubFlow,
 } from "../expression/bindings";
 import { astIdentifier, pathNames } from "../expression/lowerExpression";
@@ -226,7 +227,10 @@ function lowerNestedNamedFunction(
   // is written, the innermost local of that name in scope (one the
   // function's entry binds to a top-level `local` included), else the
   // global, and declares nothing that would hide it from the lines before.
+  // Later calls of a name no local takes dispatch through the value it
+  // now holds, as after the assignment (`recordRebind`).
   if (!isLocal) {
+    recordRebind(selfName, node.from, ctx);
     return wrapInWeave([
       new VariableAssignment({
         variableIdentifier: identifier,
