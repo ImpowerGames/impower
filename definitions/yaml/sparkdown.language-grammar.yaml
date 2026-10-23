@@ -5386,12 +5386,15 @@ repository:
   # ----------------------------------------------------------------------------
 
   # lookaround: the begin's `(?=[(])` leaves a name without a parameter list
-  # to LuauPropertyDefinition and LuauBlockBody. The begin's `^` leaves a
-  # `name(` that does not start its line (`y = 1; print(1)`) to
-  # LuauBlockBody, which reads it as a call statement of the define's body:
-  # `LuauDefine` tries its patterns again at every position of its body, so
-  # without it a call after a `;` opened this rule and took the define's
-  # `end` (I-1506). The end's line-start
+  # to LuauPropertyDefinition and LuauBlockBody. The begin's `^`, or its
+  # lookbehind over block comments that begin the line (`--[[c]] f()`,
+  # comments being trivia), leaves a `name(` after code on its line
+  # (`y = 1; print(1)`) to LuauBlockBody, which reads it as a call statement
+  # of the define's body: `LuauDefine` tries its patterns again at every
+  # position of its body, so without it a call after a `;` opened this rule
+  # and took the define's `end` (I-1506). A comment that spans lines still
+  # hides the header, since a lookbehind sees no further back than its line.
+  # The end's line-start
   # alternative leaves any line but a code line at the header's indentation
   # and an `end` left of it to the method's body (LuauBlockBody), and the
   # method's own `end` to the end's last alternative; those two lines are
@@ -5399,7 +5402,7 @@ repository:
   LuauMethodDefinition:
     tag: meta
     name: meta.function.luau
-    begin: ^({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
+    begin: (?:^|(?<=^{{LUAU_PLAIN_BLOCK_COMMENTS}}))({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
