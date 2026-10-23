@@ -68,6 +68,19 @@ const NAME_CHAR_REGEX = /[\p{L}\p{N}_]/u;
 // (`text2`, `text-2`, `t.a1`).
 const NUMBER_NODE_REGEX = /^(?:LuauNumeric[A-Za-z]*|NumberLiteral|NumberValue)(?:_|$)/;
 
+// Strings, whose whitespace is part of their value, and comments.
+const STRING_NODE_REGEX = /String$/;
+const LITERAL_NODE_REGEX = /(?:String|Comment)$/;
+
+// Whether `pos` is inside a node that `regex` names and that begins before
+// `pos`.
+function insideNode(tree: Tree, pos: number, regex: RegExp): boolean {
+  for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) {
+    if (n.from < pos && regex.test(n.name)) return true;
+  }
+  return false;
+}
+
 // Whether the token that ends at `offset` is a number literal (`5`, `1.`,
 // `-1.`, `0xFF`), read from the syntax tree.
 function endsNumberAt(tree: Tree | undefined, offset: number): boolean {
@@ -448,13 +461,13 @@ function functionHeaderName(node: SyntaxNode): SyntaxNode | null {
   return null;
 }
 
-// Where the reassignment at `reassignment` would end if the lines after its
-// first were indented, which is how it reads them once they are formatted:
-// an indented line after a comma that ends the line is read into the
-// reassignment, which then ends where its grammar says, after its last
+// Where the reassignment or declaration at `reassignment` would end if the
+// lines after its first were indented, which is how it reads them once they
+// are formatted: an indented line after a comma that ends the line is read
+// into the statement, which then ends where its grammar says, after its last
 // value, at a statement, or on a line not carried on by a comma. The lines
 // up to the end of the block are parsed again, indented, in a function
-// body, and the reassignment's end is mapped back. Deciding with the same
+// body, and the statement's end is mapped back. Deciding with the same
 // grammar that reads the formatted text is what keeps a second format from
 // moving these lines again.
 function listEnd(reassignment: SyntaxNode, source: ListSource): number {
@@ -486,7 +499,7 @@ function listEnd(reassignment: SyntaxNode, source: ListSource): number {
   tree.iterate({
     enter(node) {
       if (found) return false;
-      if (node.name === "LuauReassignment" && node.from >= prefix.length) {
+      if (node.name === reassignment.name && node.from >= prefix.length) {
         found = node.node;
         return false;
       }
@@ -504,10 +517,15 @@ function listEnd(reassignment: SyntaxNode, source: ListSource): number {
   return end;
 }
 
-// A node on an unindented line of a reassignment's target or value list
-// that a comma ending the line before carried on (`a,` then `g = 1, 2`, or
-// `a, b, c = 1,` then `2,` then `3`). The reassignment ends at the start of
-// the first such line, so the rest of its list is in siblings after it.
+// The statements whose list an unindented line can carry on.
+const LIST_STATEMENTS = new Set(["LuauReassignment", "LuauVariableDefinition"]);
+
+// A node on an unindented line of a reassignment's target or value list, or
+// of a declaration's value list, that a comma ending the line before carried
+// on (`a,` then `g = 1, 2`, `a, b, c = 1,` then `2,` then `3`, or
+// `local a, b = 1,` then `2` at the line's start). The statement ends at the
+// start of the first such line, so the rest of its list is in siblings
+// after it.
 // Which siblings is what the reassignment reads once those lines are
 // indented (`listEnd`), since that is what the next format sees: a value
 // split by a comment, a call after a finished value and the statement after
@@ -519,7 +537,7 @@ function continuesReassignmentList(node: SyntaxNode, source: ListSource): boolea
   let prev = node.prevSibling;
   // A sibling that begins a statement ends any list before it, which keeps
   // the walk to the lines of one statement.
-  while (prev && prev.name !== "LuauReassignment") {
+  while (prev && !LIST_STATEMENTS.has(prev.name)) {
     if (beginsListEndingStatement(prev)) return false;
     prev = prev.prevSibling;
   }
@@ -827,6 +845,9 @@ export const getFormatting = (
         line: range.start.line + 1,
         character: 0,
       });
+      // A line inside a string begun on an earlier line (`[[a` then
+      // `  b]]`) is part of the string's value, its indentation too.
+      if (insideNode(tree, lineStart, STRING_NODE_REGEX)) return;
       const lineText = document.read(lineStart, lineEnd);
       const firstNonWs = lineText.search(/\S/);
       const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;
@@ -1090,28 +1111,55 @@ export const getFormatting = (
   // the `..` in `5 .. x`), so a span that starts or ends at one may go
   // without joining anything; keeping it too would write two spaces.
   const insertsSpaceAt = new Set<number>();
+  // A zero-width `separator` decides the gap it sits in: extra whitespace
+  // that touches it is the same gap (the space after `-> one` before the
+  // `==` the separator stands in front of), which keeps one space where
+  // the separator would insert one once the extra whitespace is gone.
+  const separatorAt = new Set<number>();
   const insertCur = annotations.formatting.iter(iterStart);
   while (insertCur.value) {
     if (formattingTo != null && insertCur.from > formattingTo) break;
-    if (
-      insertCur.value.type === "keyword_separator" &&
-      insertCur.from === insertCur.to
-    ) {
-      insertsSpaceAt.add(insertCur.from);
+    if (insertCur.from === insertCur.to) {
+      if (insertCur.value.type === "keyword_separator") {
+        insertsSpaceAt.add(insertCur.from);
+      } else if (insertCur.value.type === "separator") {
+        separatorAt.add(insertCur.from);
+      }
     }
     insertCur.next();
   }
+  // The characters either side of the gap from `from` to `to`, as the
+  // spacing rules read them. The vararg `...` is one token, not member
+  // accesses, so it reads as a name does (`c, ...`, `if ... then`).
+  const charBefore = (from: number) => {
+    // Whole code points, so a letter outside the BMP (`𐐀`) is not read as
+    // half of a surrogate pair.
+    const char =
+      Array.from(document.read(Math.max(0, from - 2), from)).pop() ?? "";
+    return char === "." && document.read(from - 3, from) === "..." ? "_" : char;
+  };
+  const charAfter = (to: number) => {
+    const char = Array.from(document.read(to, to + 2))[0] ?? "";
+    return char === "." && document.read(to, to + 3) === "..." ? "_" : char;
+  };
+  // Whether the separator rule puts one space between the tokens either side
+  // of the gap from `from` to `to`.
+  const insertsSeparatorSpace = (from: number, to: number) =>
+    shouldInsertSpaceBetween(charBefore(from), charAfter(to));
+  // Whether the separator touching the whitespace from `from` to `to` would
+  // insert a space between the tokens either side once it is removed.
+  const separatorKeepsSpace = (from: number, to: number) =>
+    from !== to &&
+    (separatorAt.has(from) || separatorAt.has(to)) &&
+    insertsSeparatorSpace(from, to);
   // Whether the whitespace from `from` to `to` must keep one space so the
   // tokens either side are not joined.
   const keepsJoiningSpace = (from: number, to: number) => {
     if (from === to || insertsSpaceAt.has(from) || insertsSpaceAt.has(to)) {
       return false;
     }
-    // Whole code points, so a letter outside the BMP (`𐐀`) is not read as
-    // half of a surrogate pair.
-    const nextChar = Array.from(document.read(to, to + 2))[0] ?? "";
-    const prevChar =
-      Array.from(document.read(Math.max(0, from - 2), from)).pop() ?? "";
+    const nextChar = charAfter(to);
+    const prevChar = charBefore(from);
     return mustKeepSpaceBetween(
       prevChar,
       nextChar,
@@ -1192,12 +1240,10 @@ export const getFormatting = (
         // whitespace (`indent` handles the row's leading WS).
         expectedText = "";
       } else {
-        const nextChar = document.read(cur.to, cur.to + 1);
-        const prevChar = document.read(cur.from - 1, cur.from);
         // Collapsing existing spaces keeps one where the tokens either
         // side would otherwise join.
         expectedText =
-          shouldInsertSpaceBetween(prevChar, nextChar) ||
+          insertsSeparatorSpace(cur.from, cur.to) ||
           keepsJoiningSpace(cur.from, cur.to)
             ? " "
             : "";
@@ -1236,8 +1282,13 @@ export const getFormatting = (
     } else if (cur.value.type === "extra") {
       const text = document.getText(range);
       // Extra whitespace goes, except one space where its removal would
-      // join the tokens either side into one.
-      const expectedText = keepsJoiningSpace(cur.from, cur.to) ? " " : "";
+      // join the tokens either side into one, or where a separator it
+      // touches would put one back.
+      const expectedText =
+        keepsJoiningSpace(cur.from, cur.to) ||
+        separatorKeepsSpace(cur.from, cur.to)
+          ? " "
+          : "";
       if (text !== expectedText) {
         pushIfInRange({
           lineNumber: range.start.line + 1,
@@ -1342,7 +1393,9 @@ export const getFormatting = (
       document.length > 0
         ? document.read(document.length - 1, document.length)
         : "";
-    if (lastChar !== "\n" && lastChar !== "\r") {
+    // A document with no text gains no newline: it would end in a blank
+    // line, which `trimFinalNewlines` removes on the next format.
+    if (/\S/.test(document.getText()) && lastChar !== "\n" && lastChar !== "\r") {
       const editRange = {
         start: lastPosition,
         end: lastPosition,
@@ -1669,6 +1722,28 @@ export const getFormatting = (
     // its own line (separates choices from the result body). Skip
     // join when the keyword sits inside a `LuauSparkdownChooseThenClause`.
     const BLOCK_OPENER_KEYWORDS = nodeNameSet(["LuauDoKeyword", "LuauThenKeyword"]);
+    // Whether the token that ends at `pos` is a line comment (`-- note`), as
+    // opposed to a block comment (`--[[c]]`).
+    const afterLineComment = (pos: number) => {
+      for (let n: SyntaxNode | null = tree.resolveInner(pos, -1); n; n = n.parent) {
+        if (/Comment$/.test(n.name)) {
+          return !/^--\[=*\[/.test(document.read(n.from, n.to));
+        }
+      }
+      return false;
+    };
+    // Whether the token that ends at `from`, before the gap that ends at
+    // `to`, is a keyword or an operator (`if`, `not`, `and`, `==`).
+    const afterKeywordOrOperator = (from: number, to: number) => {
+      for (
+        let n: SyntaxNode | null = tree.resolveInner(from, -1);
+        n && n.to <= to;
+        n = n.parent
+      ) {
+        if (/(?:Keyword|Operator)$/.test(n.name)) return true;
+      }
+      return false;
+    };
     const LOOP_CONTENT_NAMES = nodeNameSet([
       "LuauSparkdownForLoop_content",
       "LuauSparkdownWhileLoop_content",
@@ -1721,6 +1796,13 @@ export const getFormatting = (
           // its begin's `.to` as the header-start.
           let walker = nodeRef.node.parent;
           while (walker) {
+            // An if expression's `then` opens no block: joining it to the
+            // `if` statement around it would claim that statement's header
+            // a second time (`if if c then false else ...then` with
+            // `return if if c then ...` under it).
+            if (isExplicitRuleName(walker.name, "LuauTernaryExpression")) {
+              return;
+            }
             // A story header ends at its line (#1907): a `then` on a
             // later line is not its header's, and joining it would
             // read the lines between into the condition.
@@ -1757,11 +1839,15 @@ export const getFormatting = (
             // lines above it are never its loop's condition.
             // Its own `do` stays where a bracket that carried the
             // header on left it.
+            // A Sparkle block's `do` (`match mode do`) ends a header written
+            // on its own line, so the lines above it are not its header
+            // either.
             if (
               walker.name === "LuauSparkdownDoBlock" ||
               walker.name === "LuauSparkdownForLoop" ||
               walker.name === "LuauSparkdownWhileLoop" ||
-              walker.name === "LuauSparkdownRepeatLoop"
+              walker.name === "LuauSparkdownRepeatLoop" ||
+              walker.name === "LuauSparkleDoMark"
             ) {
               return;
             }
@@ -1857,12 +1943,31 @@ export const getFormatting = (
         const between = document.read(headerStart, kwFrom);
         if (!between.includes("\n")) return;
 
-        // Collapse every WS-or-newline run to a single space. No
-        // trim — the outer slice already accounts for whatever
-        // boundary whitespace was actually present in the source,
-        // so collapsing in-place preserves single-line idempotency
-        // (`if cond then` round-trips identically).
-        const newText = between.replace(/\s+/g, " ");
+        // Each line break, with the whitespace around it, becomes the gap
+        // the joined line's spacing rules leave there, so a second format
+        // does not move it: one space, none where the tokens either side
+        // are written together (`t` then `[2]` joins as `t[2]`), and one
+        // after a keyword or an operator (`if (t)`, `and (t)`) or before
+        // a spaced operator (`... .. "x"`). Only the line breaks: the
+        // gaps on one line keep their own edits, and a line break inside
+        // a string or a comment is the author's text.
+        const breaks: { from: number; to: number; newText: string }[] = [];
+        for (const run of between.matchAll(/\s+/g)) {
+          if (!run[0].includes("\n")) continue;
+          const from = headerStart + run.index;
+          const to = from + run[0].length;
+          if (insideNode(tree, from, LITERAL_NODE_REGEX)) continue;
+          // A line comment runs to the end of its line, so joining the
+          // next line onto it would read that line as part of the comment.
+          if (afterLineComment(from)) return;
+          const spaced =
+            afterKeywordOrOperator(from, to) ||
+            ["..", "::"].includes(document.read(to, to + 2)) ||
+            insertsSeparatorSpace(from, to) ||
+            keepsJoiningSpace(from, to);
+          breaks.push({ from, to, newText: spaced ? " " : "" });
+        }
+        if (breaks.length === 0) return;
 
         // Line-length budget. If collapsing the whole header would
         // exceed the budget, keep it multi-line — the opener stays
@@ -1881,17 +1986,19 @@ export const getFormatting = (
           .replace(/\s+/g, " ");
         if (wouldBe.length > HEADER_LINE_BUDGET) return;
 
-        const range: Range = {
-          start: document.positionAt(headerStart),
-          end: document.positionAt(kwFrom),
-        };
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText,
-          type: "opener_join",
-        });
+        for (const { from, to, newText } of breaks) {
+          const range: Range = {
+            start: document.positionAt(from),
+            end: document.positionAt(to),
+          };
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText,
+            type: "opener_join",
+          });
+        }
       },
     });
     // Quote normalization. Convert single-quoted Luau strings
@@ -1926,16 +2033,15 @@ export const getFormatting = (
         // Strip redundant `\'` escapes — single-quote doesn't need
         // escaping inside a double-quoted string.
         const newContent = contentText.split("\\'").join("'");
+        // A string left open at the end of its line keeps its quote: a
+        // closing `"` would end it there and read the next line apart.
+        if (document.read(endNode.from, endNode.from + 1) !== "'") return;
         // Stop at the closing quote: the node also holds the whitespace
         // after it, which belongs to the separator edits around the next
         // operator (`'x' .. 'y'`), and replacing it here would drop them.
-        const quoteEnd =
-          document.read(endNode.from, endNode.from + 1) === "'"
-            ? endNode.from + 1
-            : endNode.from;
         const range: Range = {
           start: document.positionAt(node.from),
-          end: document.positionAt(quoteEnd),
+          end: document.positionAt(endNode.from + 1),
         };
         pushIfInRange({
           lineNumber: range.start.line + 1,
@@ -2254,6 +2360,23 @@ export const resolveFormattingConflicts = (
       // (immaterial after this — the edit is final).
       prev.type = "blankline";
       continue;
+    }
+
+    // A blank line inserted before a line and that line's indent: the
+    // blank line goes in front of the re-indented line, rather than the
+    // insert winning and the indent waiting for the next format.
+    const blanklineInsertIndent =
+      (prev.type === "blankline_insert" && curr.type === "indent") ||
+      (prev.type === "indent" && curr.type === "blankline_insert");
+    if (blanklineInsertIndent) {
+      const insert = prev.type === "blankline_insert" ? prev : curr;
+      const indent = prev.type === "indent" ? prev : curr;
+      if (start(insert) === start(indent) && end(insert) === start(insert)) {
+        prev.range = indent.range;
+        prev.newText = insert.newText + indent.newText;
+        prev.type = "blankline_insert";
+        continue;
+      }
     }
 
     if (isMergeable(prev.type, curr.type)) {
