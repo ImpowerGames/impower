@@ -374,13 +374,18 @@ function firstPart(node: any, start = node?.firstChild): any {
 
 // Whether an if expression's clause holds a value: its first part that is not
 // its keyword, a comment or space is a value, not a line or an operator that
-// continues a value before it, nor a unary operator with nothing after it.
+// continues a value before it, nor a unary operator with nothing after it. A
+// then arm whose `then` ends its line holds its keyword and first value in a
+// part of its own (`LuauThenNextLineArm`), whose parts are the arm's.
 function clauseHasValue(
   clause: any,
   read: (from: number, to: number) => string,
 ): boolean {
   const content = childNamed(clause, `${clause.name}_content`);
-  const part = firstPart(content);
+  let part = firstPart(content);
+  if (part?.name === "LuauThenNextLineArm") {
+    part = firstPart(childNamed(part, `${part.name}_content`));
+  }
   return !!part && !isLineContinuation(part) && isValue(part, read);
 }
 

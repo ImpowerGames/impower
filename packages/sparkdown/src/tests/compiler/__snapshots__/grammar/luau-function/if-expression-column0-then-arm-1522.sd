@@ -1,0 +1,31 @@
+function a(c)
+while if c then
+false
+else true do
+end
+end
+function b(c)
+print(if c then
+1
+else 2)
+end
+function d(c)
+return if c then
+1
+else 2
+end
+function e(c)
+local y = if c then -- note
+
+1
+else 2
+return y
+end
+function g(c)
+local y = if c then
+local z = 1
+end
+function h(c)
+local y = if c then
+return y
+end

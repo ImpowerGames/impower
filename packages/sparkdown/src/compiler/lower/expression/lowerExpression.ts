@@ -215,12 +215,16 @@ function directChild(parent: SyntaxNode, name: string): SyntaxNode | null {
  * The value nodes of an if expression's `then` or `else` clause
  * (`LuauThenExpression`, `LuauElseExpression`): its `_content`'s children
  * but its keyword (`LuauThenOperator`, `LuauElseOperator`) and whitespace.
+ * A then arm whose `then` ends its line holds its keyword and first value in
+ * a part of its own (`LuauThenNextLineArm`), whose children are the arm's.
  */
 export function ifClauseValueNodes(clause: SyntaxNode): SyntaxNode[] {
   const body: SyntaxNode[] = [];
   const content = directChild(clause, `${clause.name}_content`) ?? clause;
   for (let child = content.firstChild; child; child = child.nextSibling) {
-    if (
+    if (child.name === "LuauThenNextLineArm") {
+      body.push(...ifClauseValueNodes(child));
+    } else if (
       !isExplicitRuleName(child.name, "LuauThenOperator") &&
       !isExplicitRuleName(child.name, "LuauElseOperator") &&
       !IF_CLAUSE_TRIVIA.has(child.name)
