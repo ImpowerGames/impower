@@ -1860,13 +1860,19 @@ variables:
   # code between them pass over that code (`--[====[a]====] y = 1;
   # --[====[b]====] f()`).
   LUAU_LINE_LEADING_BLOCK_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*{{LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE}}{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*)
-  # A define's header line up to its `with` and the whitespace after it
-  # (`define X with`, `define X as Y with`), for a lookbehind: a method
-  # written there (`define X with f() return 1 end end`) opens as one written
-  # at a line's start does (I-1506), after block comments too
-  # (`define X with --[[c]] f() …`). The text between `define` and `with`
-  # is not read further, since the header's own rules read it.
-  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_HEADER_LINE_START}}define\b[^\r\n]*\bwith{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
+  # A define's header up to its `with` and the whitespace or block comments
+  # after it (`define X with`, `define X as Y with --[[c]]`), for a
+  # lookbehind: a method written there (`define X with f() return 1 end
+  # end`) opens as one written at a line's start does (I-1506). It is the
+  # header's own shape, `define`, a name, an optional `as` and parent, then
+  # `with`, so a `with` that is a value in the body (`z = with f()`) is no
+  # header's, and a define nested in a one-line block (`if c then define X
+  # with f() …`) is.
+  LUAU_DEFINE_HEADER_TO_WITH: (?:\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}?{{LUAU_DEFINE_HEADER_GAP}}with\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
+  # The `as` and parent name of such a header.
+  LUAU_DEFINE_HEADER_PARENT: (?:{{LUAU_DEFINE_HEADER_GAP}}as{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}})
+  # Whitespace or block comments between the words of such a header.
+  LUAU_DEFINE_HEADER_GAP: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{WS}}+)
   # A comment of level four or more, whose text runs to the last close of
   # level four or more on its line, `]` included.
   LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE: --\[====+\[[^\r\n]*\]====+\]

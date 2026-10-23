@@ -86,11 +86,20 @@ describe("a call after a `;` in a define body is a statement of the body (I-1506
   }
   // A call after a `;` on the define's header line is a call too (its
   // errors, missing on that line, are another ticket's).
-  test("a call after a `;` on the define's header line is no method", () => {
-    const text = `define X with y = 1; print(1 2 3) end\n${STORY}`;
-    expect(methodReadings(text)).toEqual([]);
-    expect(nodeNames(text), stripAnsi(dumpTree(text))).toContain("LuauDefine_end");
-  });
+  // So is one after a value named `with` there, which is no header's `with`
+  // (round 3, undirected).
+  for (const define of [
+    "define X with y = 1; print(1 2 3) end\n",
+    "define X with y = 1; z = with f() end\n",
+    "define X with y = 1; z = with --[[c]] f() end\n",
+    "define X with y = 1; z = with f(1 2 3) end\n",
+  ]) {
+    test(`${JSON.stringify(define)}: a call after a \`;\` on the define's header line is no method`, () => {
+      const text = `${define}${STORY}`;
+      expect(methodReadings(text)).toEqual([]);
+      expect(nodeNames(text), stripAnsi(dumpTree(text))).toContain("LuauDefine_end");
+    });
+  }
   test("the ticket's form reports Luau's three errors", () => {
     expect(official("  y = 1; print(1 2 3)\n").length, "the official parser reports the form").toBe(3);
   });
@@ -105,6 +114,10 @@ const HEADER_LINE_METHODS: [text: string, readings: string[]][] = [
   ["define X with --[[c]] f() return 1 end end\n", ["f:method"]],
   ["define X with --[====[a]b]====] f() return 1 end end\n", ["f:method"]],
   ["define X with f() return 1 end\n  g()\n    return 2\n  end\nend\n", ["f:method", "g:method"]],
+  ["define --[[a]] X with f() return 1 end end\n", ["f:method"]],
+  // A define nested in a one-line block (round 3, undirected).
+  ["if true then define X with f() return 1 end end end\n", ["f:method"]],
+  ["function outer() define X with f() return 1 end end end\n", ["f:method"]],
 ];
 
 describe("a method on the define's header line reads as a method (I-1506)", () => {
