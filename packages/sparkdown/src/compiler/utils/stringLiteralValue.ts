@@ -70,7 +70,8 @@ export function processLuauEscapes(s: string): string {
         break;
       case "z": {
         i += 2;
-        while (i < s.length && /\s/.test(s[i]!)) i++;
+        // Luau's whitespace: a space or `\t` through `\r`, not a Unicode space.
+        while (i < s.length && /[ \t-\r]/.test(s[i]!)) i++;
         break;
       }
       case "x": {

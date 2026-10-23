@@ -539,6 +539,13 @@ interface Token {
   story?: true;
   /** The grammar-owned EOF of a marked narrative island. */
   authoredEnd?: true;
+  /**
+   * That EOF ends a story statement island's line (`isStoryStatementIsland`:
+   * a story declaration or reassignment, a story `repeat`'s `until`
+   * condition, or a story loop header with no `do` on its line), which Luau
+   * reads on past, not a marked (`&`) statement's (I-1490).
+   */
+  storyStatementEnd?: true;
   /** That EOF ends a story loop header with no `do` on its line (#1907), where Luau's error is the loop's diagnostic. */
   loopHeaderEnd?: true;
   /** A token of such a header, where Luau's error is the loop's diagnostic too (`while true print(1)`). */
@@ -2175,7 +2182,7 @@ class Parser {
     const boundedDelimiter = CLOSERS.has(text) && begin.from < begin.to && begin.authoredIsland !== undefined && !this.currentFunction().luau;
     const malformed = construct ?? (this.isAnnotationColon() ? "annotation" : boundedDelimiter ? "expression" : undefined);
     // Luau compares the line of the token found with the opener's.
-    const line = this.current().kind === "eof" && this.eofOnNextLine ? location.begin.line + 1 : location.begin.line;
+    const line = this.endOfInputOnNextLine() ? location.begin.line + 1 : location.begin.line;
     const message =
       line === begin.location.begin.line
         ? `Expected '${text}' (to close '${open}' at column ${begin.location.begin.column + 1}), got ${got}`
@@ -2183,6 +2190,24 @@ class Parser {
     const reported = this.errors.length;
     this.report(location, message, malformed);
     if (this.errors.length > reported && begin.from < begin.to) this.errors[reported]!.opener = begin.location;
+  }
+
+  /**
+   * Not part of Luau: whether the end of input the reading meets (its own,
+   * or a story declaration's island's) stands on the next line in Luau's
+   * reading. A marked (`&`) statement's is read as the statement alone,
+   * whose end of input is on its own line (`WrittenIslandDiagnostics931`). A
+   * reading that stops at the end of a line, with only trivia after its last
+   * token and a line break after that (`store s = g(x`, I-1490), stops where
+   * Luau reads on past the line break, so Luau's end of input is on the next
+   * line, as `ReadOptions.eofOnNextLine` says for a store's reading (I-1477).
+   */
+  private endOfInputOnNextLine(): boolean {
+    const at = this.current();
+    if (at.kind !== "eof" && !at.storyStatementEnd) return false;
+    if (at.kind === "eof" && this.eofOnNextLine) return true;
+    const lineEnd = this.ctx.text.indexOf("\n", at.to);
+    return lineEnd >= 0 && /^[ \t\r]*(--.*)?$/.test(this.ctx.text.slice(at.to, lineEnd));
   }
 
   /** Not part of Luau: whether a block's opener is written, not a chunk's or a flow's wrapper's. */
@@ -5097,7 +5122,7 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
       if (island.loop && shared?.authoredEnd && shared.from === island.end) shared.loopHeaderEnd = true;
       return;
     }
-    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}) });
+    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, storyStatementEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}) });
     lastStoryBreak = island.end;
   };
   for (const token of tokens) {
