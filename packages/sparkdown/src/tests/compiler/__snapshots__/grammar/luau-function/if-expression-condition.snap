@@ -31,8 +31,13 @@ sparkdown [0..375]
  │   │   │   └─ LuauFunctionParameters_end [15..16]
  │   │   │       └─ LuauFunctionParameters_end_c1 [15..16]
  │   │   │           └─ PunctuationParenClose [15..16]: ")"
- │   │   └─ LuauFunctionBody [16..371]
- │   │       ├─ LuauFunctionBody_begin [16..17]: "\n"
+ │   │   ├─ LuauFunctionHeaderLineBreak [16..17]
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_begin 16
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_content [16..17]
+ │   │   │   │   └─ Newline [16..17]: "\n"
+ │   │   │   └─ LuauFunctionHeaderLineBreak_end 17
+ │   │   └─ LuauFunctionBody [17..371]
+ │   │       ├─ LuauFunctionBody_begin 17
  │   │       ├─ LuauFunctionBody_content [17..371]
  │   │       │   ├─ LuauIfBlock [17..108]
  │   │       │   │   ├─ LuauIfBlock_begin [17..22]
@@ -863,8 +868,13 @@ sparkdown [0..375]
  │   │       │   │   │       │       │       │   │   │       │   │   └─ LuauFunctionParameters_end [335..336]
  │   │       │   │   │       │       │       │   │   │       │   │       └─ LuauFunctionParameters_end_c1 [335..336]
  │   │       │   │   │       │       │       │   │   │       │   │           └─ PunctuationParenClose [335..336]: ")"
- │   │       │   │   │       │       │       │   │   │       │   └─ LuauFunctionBody [336..351]
- │   │       │   │   │       │       │       │   │   │       │       ├─ LuauFunctionBody_begin [336..337]: "\n"
+ │   │       │   │   │       │       │       │   │   │       │   ├─ LuauFunctionHeaderLineBreak [336..337]
+ │   │       │   │   │       │       │       │   │   │       │   │   ├─ LuauFunctionHeaderLineBreak_begin 336
+ │   │       │   │   │       │       │       │   │   │       │   │   ├─ LuauFunctionHeaderLineBreak_content [336..337]
+ │   │       │   │   │       │       │       │   │   │       │   │   │   └─ Newline [336..337]: "\n"
+ │   │       │   │   │       │       │       │   │   │       │   │   └─ LuauFunctionHeaderLineBreak_end 337
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauFunctionBody [337..351]
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauFunctionBody_begin 337
  │   │       │   │   │       │       │       │   │   │       │       ├─ LuauFunctionBody_content [337..351]
  │   │       │   │   │       │       │       │   │   │       │       │   ├─ LuauReturnStatement [337..350]
  │   │       │   │   │       │       │       │   │   │       │       │   │   ├─ LuauReturnStatement_begin [337..348]

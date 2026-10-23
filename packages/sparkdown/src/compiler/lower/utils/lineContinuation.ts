@@ -467,6 +467,7 @@ export function reportUntakenLineContinuation(
     if (!isLineContinuation(node) && !isExplicitRuleName(node.name, "LuauAccessPart")) {
       continue;
     }
+    if (beginsWithKeywordMethod(node)) continue;
     const raw = ctx.read(node.from, node.to);
     const text = raw.trim();
     const from = node.from + raw.length - raw.trimStart().length;
@@ -484,6 +485,14 @@ export function reportUntakenLineContinuation(
       },
     });
   }
+}
+
+// Whether a continuation line begins with a `:` and a reserved word, the
+// method's name in error (`print(t)` then `:end`, I-1449). Luau's reading
+// reports the line in its own words whatever the line before it ends with,
+// and a report of the line here would cover Luau's errors at its tokens.
+function beginsWithKeywordMethod(line: SyntaxNode): boolean {
+  return line.getChild(`${line.name}_content`)?.firstChild?.name === "LuauLineStartKeywordMethodAccessor";
 }
 
 // Whether `nodes` are continuation lines that only qualify a type name

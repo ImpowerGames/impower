@@ -1807,6 +1807,12 @@ export const getFormatting = (
               bb = bb.nextSibling;
             }
             if (bodyHasContent) break;
+          } else if (
+            cc.name === "LuauFunctionHeaderLineBreak" &&
+            !document.read(cc.from, cc.to).trim()
+          ) {
+            // The line break after a parameter list that ends its line,
+            // which the header carries across (I-1449): nothing of the body.
           } else if (!isInsignificant(cc.name) && signatureEnd != null) {
             bodyHasContent = true;
             break;
