@@ -361,6 +361,59 @@ describe("a call after a function statement named after a builtin", () => {
     ).toEqual(got("Got replacement."));
   });
 
+  const recursive = [
+    "  function type(n)",
+    "    if n == 0 then return 'replacement' end",
+    "    return type(n - 1)",
+    "  end",
+  ];
+
+  test("a recursive call in the definition's own body reaches the new function", () => {
+    expect(
+      run(["function change()", ...recursive, "  return type(1)", "end", "Got {change()}."]),
+    ).toEqual(got("Got replacement."));
+  });
+
+  test("a recursive call reaches it from a block, a local function and a define's method", () => {
+    const inBlock = ["function a()", "  do", ...recursive.map((l) => `  ${l}`), "  end", "  return type(1)", "end"];
+    const inInner = [
+      "function b()",
+      "  local function inner()",
+      ...recursive.map((l) => `  ${l}`),
+      "    return type(1)",
+      "  end",
+      "  return inner()",
+      "end",
+    ];
+    const inMethod = [
+      "define thing with",
+      "  function m()",
+      ...recursive.map((l) => `  ${l}`),
+      "    return type(1)",
+      "  end",
+      "end",
+    ];
+    expect(run([...inBlock, "A {a()}."])).toEqual(got("A replacement."));
+    expect(run([...inInner, "B {b()}."])).toEqual(got("B replacement."));
+    expect(run([...inMethod, "M {thing.m()}."])).toEqual(got("M replacement."));
+  });
+
+  test("a recursive call reaches a top-level local the statement assigns", () => {
+    expect(
+      run([
+        "local count = 0",
+        "function change()",
+        "  function count(n)",
+        "    if n == 0 then return 'replacement' end",
+        "    return count(n - 1)",
+        "  end",
+        "end",
+        "& change()",
+        "Got {count(2)}.",
+      ]),
+    ).toEqual(got("Got replacement."));
+  });
+
   test("a local of the name keeps the builtin for the global", () => {
     expect(
       run([

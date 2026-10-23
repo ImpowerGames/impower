@@ -196,6 +196,12 @@ function lowerNestedNamedFunction(
   }
   recordCaptureRead(ctx, upvals);
 
+  // `function NAME` assigns NAME (below): calls of a name no local takes,
+  // in its own body (a recursive call) and after it, dispatch through the
+  // value NAME holds as they run, as after `NAME = <expr>`
+  // (`recordRebind`), so the body is lowered after the rebind is recorded.
+  if (!isLocal) recordRebind(selfName, node.from, ctx);
+
   // Its frames and its value are labelled by the name it is written with,
   // not the generated one (`functionLabel`).
   const fn = buildFunction(func, node, synthName, ctx, upvals);
@@ -227,10 +233,7 @@ function lowerNestedNamedFunction(
   // is written, the innermost local of that name in scope (one the
   // function's entry binds to a top-level `local` included), else the
   // global, and declares nothing that would hide it from the lines before.
-  // Later calls of a name no local takes dispatch through the value it
-  // now holds, as after the assignment (`recordRebind`).
   if (!isLocal) {
-    recordRebind(selfName, node.from, ctx);
     return wrapInWeave([
       new VariableAssignment({
         variableIdentifier: identifier,
