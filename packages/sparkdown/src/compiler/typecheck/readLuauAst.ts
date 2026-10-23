@@ -2525,7 +2525,10 @@ class Parser {
       // covers one story line. Written Luau functions require final returns,
       // including statements marked with `&` in their nested blocks.
       const returned = stat instanceof AstStatSparkdownExplicit ? stat.statement : stat;
-      if (begin && returned instanceof AstStatReturn && this.currentFunction().luau) {
+      // Luau ends a block at a `break` or `continue` as at a `return`, its
+      // last statement (I-1508).
+      const last = returned instanceof AstStatReturn || returned instanceof AstStatBreak || returned instanceof AstStatContinue;
+      if (begin && last && this.currentFunction().luau) {
         while (this.current().kind === "break" && !this.current().story) this.next();
         const following = this.pos;
         if (this.current().kind === "mark") this.next();
