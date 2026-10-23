@@ -21,7 +21,7 @@ import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
 import { isUnreadTokenAt } from "../../utils/unreadTokens";
 import { LUAU_STATEMENT_KEYWORDS } from "../../utils/luauStatementKeywords";
-import { storyIslandEnd } from "../../utils/storyIslands";
+import { enclosingUnclosedIslandEnd, storyIslandEnd } from "../../utils/storyIslands";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
 // declaration: a value missing after `=` or after a comma, a second `=`, a
@@ -202,6 +202,9 @@ export function validateAssignmentValue(
   // The highlighting node may end at the line-ending operator while Luau
   // reads a value on the following line. Validate the converter's value.
   const read = (from: number, to: number) => ctx.read(from, to);
+  // In a story statement cut at its unclosed bracket's line, the reading of
+  // that line reports every error (`cutIslands`, I-1532).
+  if (enclosingUnclosedIslandEnd(opNode, wholeDocument(opNode, read, ctx.documentText)) !== undefined) return;
   const islandEnd = authoredIslandEnd(opNode, wholeDocument(opNode, read, ctx.documentText));
   const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText, islandEnd);
   // A value that begins with a token the grammar left unread (`x = @5`) is

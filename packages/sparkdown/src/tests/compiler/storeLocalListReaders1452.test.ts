@@ -332,6 +332,20 @@ describe("a story store or local whose unclosed bracket the tree reads on into s
       pinText(`"${line}" before a story line`, `${line}\nHello.\n${SCENE}`, luau, 0, 0);
     }
   }
+  // A string's own error in the bracket is reported once, and a string the
+  // line continues with `\` is read up to the line's end, as Luau reads the
+  // line alone; the braces of a string are not brackets.
+  for (const keyword of ["store s", "local s", "s"]) {
+    const backtick = `${keyword} = g(\`a {} b\``;
+    pinText(`"${backtick}" before a story line in a scene`, `scene start\n  ${backtick}\n  Hello.\nend\n`, `${backtick.replace(/^store/, "local")}\n`, 1, 2);
+    pinText(`"${backtick}" before a story line`, `${backtick}\nHello.\n${SCENE}`, `${backtick.replace(/^store/, "local")}\n`, 0, 0);
+    for (const quote of ['"', "'", "`"]) {
+      const line = `${keyword} = g(${quote}abc\\`;
+      const luau = `${line.replace(/^store/, "local")}\n`;
+      pinText(`${JSON.stringify(line)} continued on a story line in a scene`, `scene start\n  ${line}\n  continued${quote}\n  Hello.\nend\n`, luau, 1, 2);
+      pinText(`${JSON.stringify(line)} continued on a story line`, `${line}\ncontinued${quote}\nHello.\n${SCENE}`, luau, 0, 0);
+    }
+  }
   pinLine("store s = g({1, (2", "local s = g({1, (2");
   pinLine("local s = g({1, (2", "local s = g({1, (2");
   // The outermost unclosed opener's line ends the value, even where a bracket inside it closes on a later line.

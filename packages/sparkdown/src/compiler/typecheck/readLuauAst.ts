@@ -821,6 +821,33 @@ class Tokenizer {
     return new Location(this.index.position(from), this.index.position(to));
   }
 
+  /**
+   * Pushes a token the tree reads whole (a string, a number). One the tree
+   * carries past the cut of the island being read (a string continued on
+   * the next line with `\`) is what Luau's lexer reads of it up to the cut
+   * and the line break after it, as it does for that line alone (I-1532).
+   */
+  private pushWhole(kind: TokenKind, from: number, to: number, node: SyntaxNode): void {
+    const cut = this.islandCut ?? null;
+    if (cut === null || to <= cut) {
+      this.push(kind, from, to, node);
+      return;
+    }
+    let end = cut;
+    if (this.text[end] === "\r") end++;
+    if (this.text[end] === "\n") end++;
+    this.lex(from, end);
+    const last = this.tokens.at(-1);
+    if (last && last.to > cut) this.wholePastCut = { token: last, cut };
+  }
+
+  /**
+   * Not part of Luau: the token `pushWhole` read on past the cut, with the
+   * cut, where the reading's end of input stands when that token is its
+   * last (the string's line break is the token's, not the input's).
+   */
+  wholePastCut?: { token: Token; cut: number };
+
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
     // Luau's lexer reads `@` as an attribute lexeme: with the name written
     // right after it (`@native`), with `[` (`@[`), or alone, with no name.
@@ -1092,19 +1119,19 @@ class Tokenizer {
     }
     if (!name.startsWith("Luau") && !isNeutral(node)) return;
     if (isQuotedString(node)) {
-      if (to > from) this.push("string", from, to, node);
+      if (to > from) this.pushWhole("string", from, to, node);
       return;
     }
     if (name === RAW_STRING) {
-      if (to > from) this.push("rawstring", from, to, node);
+      if (to > from) this.pushWhole("rawstring", from, to, node);
       return;
     }
     if (name === INTERPOLATED_STRING) {
-      if (to > from) this.push("interp", from, to, node);
+      if (to > from) this.pushWhole("interp", from, to, node);
       return;
     }
     if (isNumber(node)) {
-      if (to > from) this.push("number", from, to, node);
+      if (to > from) this.pushWhole("number", from, to, node);
       return;
     }
     if (name === "LuauFunctionDefinition") {
@@ -4917,7 +4944,10 @@ function readUnit(
   }
   const ctx: ReadContext = { text: tokenizer.text, index };
   const lastEnd = tokenizer.tokens.at(-1)?.location.end;
+  // A last token read on past an island's cut ends the input at the cut (I-1532).
+  const cutEof = tokenizer.wholePastCut?.token === tokenizer.tokens.at(-1) ? tokenizer.wholePastCut?.cut : undefined;
   const eof = eofAt !== undefined ? index.position(eofAt)
+    : cutEof !== undefined ? index.position(cutEof)
     : retainedEnd && (!lastEnd || retainedEnd.gt(lastEnd)) ? retainedEnd : undefined;
   const parser = new Parser(tokenizer.tokens, ctx, new Location(start, start), eof);
   for (const span of tokenizer.returnTriviaSpans) parser.recordSourceDependency(span.from, span.to);

@@ -240,7 +240,8 @@ export class SparkdownTypechecker {
           // (`LuauSyntaxError.ofString`) and a token inside a backtick string,
           // where Luau gave up on the string and no tree check names a token
           // (I-1463).
-          const inPureLuau = pureLuau || inFunction(start) || inCutIsland(start);
+          // A cut story `store`'s are still its reading's (`validateStores`).
+          const inPureLuau = pureLuau || inFunction(start) || (inCutIsland(start) && !inStoryStore(start));
           // Luau's parser stops at the end of the chunk, and what the reading
           // reads on after it is none of Luau's: in a `.luau` or `run` file
           // all of it, in a `.sd` document the rest of the top-level

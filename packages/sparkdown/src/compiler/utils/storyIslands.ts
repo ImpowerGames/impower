@@ -127,9 +127,10 @@ function unclosedOpener(island: SyntaxNode): SyntaxNode | null {
       }
     }
     if (!next) return null;
-    // A backtick string's braces are the string's: one it leaves unfinished
-    // runs on as the string does, not as a bracket.
-    if (next.name.startsWith("LuauInterpolatedString")) return null;
+    // A string's braces (a backtick string's, a quoted string's
+    // interpolation) are the string's: one it leaves unfinished runs on as
+    // the string does, not as a bracket.
+    if (next.name.startsWith("LuauInterpolatedString") || next.name.includes("String")) return null;
     // A bracket's rule begins with its opener (`(`, `{`, `[`), where a
     // block's begins with its keyword (`function(x)`, ended by `end`).
     const begin = next.getChild(`${next.name}_begin`);
