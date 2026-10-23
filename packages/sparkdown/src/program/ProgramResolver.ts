@@ -2612,11 +2612,30 @@ export class ProgramResolver {
   }
 }
 
+/** Whether the flow `obj` belongs to, the closest one around it, is a
+ *  function, as `FlowBase.CheckOwnControlFlow` finds a return's flow. */
+const inFunctionBody = (obj: ParsedObject): boolean => {
+  for (let parent = obj.parent; parent; parent = parent.parent) {
+    if (parent instanceof FlowBase) {
+      return parent.isFunction;
+    }
+  }
+  return false;
+};
+
 /** Whether `obj`, or anything under it, is what the story's passes over the
  *  whole program take of a statement (`ProgramResolver.shapeOf`,
- *  `readFacts`): a declaration of any kind, a flow, a label, a return, an
- *  assignment, a store through the globals table or a function value. A statement served from its memo holds
- *  no objects, so a statement that holds any of these is never remembered. */
+ *  `readFacts`): a declaration of any kind, a flow, a label, a return
+ *  outside a function's body, an assignment, a store through the globals
+ *  table or a function value. A statement served from its memo holds no
+ *  objects, so a statement that holds any of these is never remembered.
+ *  Of a return the passes take only one a scene, a branch or the file's
+ *  top level holds, which they report (`generateFlow`,
+ *  `FlowBase.CheckOwnControlFlow`); one in a function's body emits its
+ *  values and `Return`, which its chunk holds, and its memo serves only a
+ *  statement of its syntax, which names the nodes it stands in up to the
+ *  top (`StatementMemoSession.syntaxOf`), so in a function's body too
+ *  (I-1423). */
 const holdsWhatTheStoryWalks = (
   obj: ParsedObject,
   except?: ReadonlySet<ParsedObject>,
@@ -2634,8 +2653,7 @@ const holdsWhatTheStoryWalks = (
     obj instanceof ConstantDeclaration ||
     obj instanceof ExternalDeclaration ||
     obj instanceof StructDefinition ||
-    obj instanceof ReturnType ||
-    obj instanceof MultiReturnType ||
+    ((obj instanceof ReturnType || obj instanceof MultiReturnType) && !inFunctionBody(obj)) ||
     ((obj instanceof Gather || obj instanceof Choice) && obj.identifier?.name != null) ||
     (obj instanceof DivertTarget && obj.isFunctionValue) ||
     // A store through the globals table is an assignment the story's
