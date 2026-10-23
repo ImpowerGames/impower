@@ -44,6 +44,10 @@ const TARGETED: Record<string, string> = {
   // this `+` as a missing operand by reading `local` on the next line.
   "operator-at-line-end-before-statement":
     "function f(t)\n  store x = 1 +\n  local y = 2 +;\nend\n",
+  // A doc tag at column 0 in a block comment (I-1105): `LuauDocParamModifier`'s
+  // whitespace lookbehind must not see the line break above it.
+  "doc-param-tag-at-column-0":
+    "function f()\n  --[[\n\\param x the value\n  ]]\n  return 1\nend\n",
   // A story statement ends at its line (GRAMMAR.md §11.5), so this agreed
   // before the line bound too; it guards the top-level reading.
   "assign-trailing-space-top-level": "x = \nlocal z = 1\n",

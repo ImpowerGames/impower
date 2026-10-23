@@ -1,4 +1,4 @@
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { documentString } from "../../utils/documentString";
@@ -162,6 +162,16 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_EXPRESSION = "Expected identifier when parsing expression";
+// The binary value operators whose rule takes the line break after the
+// operator, so that the operand begins on a later line.
+const LINE_BREAK_BINARY_OPERATORS = new Set(
+  ["LuauArithmeticOperator", "LuauCompareOperator", "LuauConcatOperator", "LuauLogicalOperator"].flatMap(explicitRuleNames),
+);
+// Luau's reserved words that begin a statement or close a block and begin no
+// expression, which Luau reports as the expression it found missing.
+const LUAU_STATEMENT_KEYWORDS = new Set([
+  "break", "do", "else", "elseif", "end", "for", "local", "repeat", "return", "then", "until", "while",
+]);
 // Worded like the missing-`end` message of a define (validateDefineStructure).
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
@@ -1257,10 +1267,34 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
+  /**
+   * A binary operator that ends its line takes the line break, and its
+   * operand begins on a later line, as Luau reads it; no pattern sees that
+   * line (GRAMMAR.md §11.5). Where that line begins with a statement keyword,
+   * no expression begins there, and Luau reports the keyword as the missing
+   * operand. The checker reports it for the Luau it reads, and Sparkdown for
+   * a `store` declaration in a function, which it does not.
+   */
+  protected validateLineEndOperator(
+    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
+    nodeRef: SparkdownSyntaxNodeRef,
+  ) {
+    if (!LINE_BREAK_BINARY_OPERATORS.has(nodeRef.name) || !/[\r\n]/.test(this.read(nodeRef.from, nodeRef.to))) {
+      return;
+    }
+    const got = this.luauTokenAt(nodeRef.to);
+    if (got && LUAU_STATEMENT_KEYWORDS.has(got.text) && !this.checkerReadsOnTo(nodeRef.node, got.from)) {
+      this.error(annotations, `${MISSING_EXPRESSION}, got '${got.text}'`, got.from, got.from + got.text.length);
+    }
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    // Before the unread reading's ownership: that reading's errors are the
+    // checker's, and this check reports only where the checker does not read.
+    this.validateLineEndOperator(annotations, nodeRef);
     if (nodeRef.name.startsWith("Luau") && this.ownedByUnreadReading(nodeRef.node)) {
       return annotations;
     }
