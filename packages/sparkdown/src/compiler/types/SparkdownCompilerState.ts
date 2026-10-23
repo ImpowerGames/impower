@@ -34,10 +34,15 @@ export interface SparkdownCompilerState {
    * `runDeclared` holds the resolved URIs of the `.luau` files whose wrapper
    * function this compile has declared: the first `run` of a file the
    * compile reaches declares it, and every `run` of the file calls it.
+   *
+   * `runFiles` is the record of those wrappers: each wrapper's name and the
+   * resolved URI of the file it wraps, which the program shows the wrapper
+   * by (`runFileRecord`).
    */
   fileResolutionState?: {
     currentParentUri: string;
     runStack?: string[];
     runDeclared?: Set<string>;
+    runFiles?: Map<string, string>;
   };
 }

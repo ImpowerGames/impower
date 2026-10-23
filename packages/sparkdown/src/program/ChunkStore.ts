@@ -55,6 +55,7 @@ import {
   type SequenceArrays,
   type SequenceRow,
   type ProgramStoryTables,
+  type RunFile,
 } from "./ProgramRoot";
 import { identityOf, StatementWatch } from "./StatementWatch";
 import { Op, opOf } from "./ProgramInstructions";
@@ -225,6 +226,9 @@ export interface ProgramSource {
    *  The incremental passes); without it, as on a cold build or from a
    *  caller that cannot say, it lists and assembles every one. */
   changed?: ReadonlyMap<string, readonly (readonly [number, number])[]>;
+  /** The functions that wrap a `run` file, by name, with the file each
+   *  wraps, as the compile recorded them (`runFileRecord`). */
+  runFiles?: ReadonlyMap<string, RunFile>;
 }
 
 /** A construct the writer has no emit path for, where it was first met:
@@ -1141,6 +1145,7 @@ export class ChunkStore {
       definitions,
       this._labels,
       this._symbolRemaps,
+      this.runFilesBySymbol(program.runFiles),
     );
     this._statementCounts.set(root, build.statements);
     if (ChunkStore.verifyBuilds) {
@@ -1795,6 +1800,21 @@ export class ChunkStore {
         statement.defines ?? functionLabel(fn),
       );
     }
+  }
+
+  /** The record of the `run` file wrappers by the symbols of their names,
+   *  leaving out a name the table does not hold. */
+  protected runFilesBySymbol(
+    runFiles: ReadonlyMap<string, RunFile> | undefined,
+  ): Map<number, RunFile> {
+    const bySymbol = new Map<number, RunFile>();
+    for (const [name, file] of runFiles ?? []) {
+      const symbol = this.table.symbolIds.get(name);
+      if (symbol !== undefined) {
+        bySymbol.set(symbol, file);
+      }
+    }
+    return bySymbol;
   }
 
   /** Whether the functions of other statements that `chunk`'s code calls by

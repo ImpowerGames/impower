@@ -9,7 +9,9 @@
 // per compile for each file (#887), and each `run` statement is a call of
 // the function where its line stands (I-1439).
 
+import type { RunFile } from "../../program/ProgramRoot";
 import { documentTag } from "../lower/utils/documentTag";
+import { projectPath } from "./projectMembership";
 
 export const RUN_QUERY = "?run=";
 
@@ -47,6 +49,55 @@ export function runDeclarationText(wrapper: string, fileText: string): string {
 /** The URI of the declaration document. */
 export function runWrapperUri(fileUri: string, wrapper: string): string {
   return `${fileUri}${RUN_QUERY}${wrapper}`;
+}
+
+/** A path without the extension of its last name. */
+const withoutExtension = (path: string): string =>
+  path.replace(/(?<=[^/])\.[^./]*$/, "");
+
+/**
+ * The record of the wrappers of the `run` files a compile ran (`files`, the
+ * URI of each by its wrapper's name): each wrapper's file, and the name an
+ * author reads the wrapper by, the file's name as the file system names it
+ * (`projectPath`, under the host's `asWritten` convention) without its
+ * extension (`my%20helper.luau` shows as `my helper`). Two files of one name
+ * are each shown by their paths under the project's folder (`projectRoot`),
+ * so `a/helper` and `b/helper` stay apart. The names are only shown: a
+ * wrapper's identity stays its name (`runWrapperFunctionName`).
+ */
+export function runFileRecord(
+  files: ReadonlyMap<string, string>,
+  projectRoot: string | undefined,
+  asWritten = false,
+): Map<string, RunFile> {
+  const named = (uri: string) =>
+    withoutExtension(
+      projectPath(uri.slice(uri.lastIndexOf("/") + 1), asWritten),
+    );
+  const counts = new Map<string, number>();
+  for (const uri of files.values()) {
+    const name = named(uri);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  const labels = new Map<string, RunFile>();
+  for (const [wrapper, uri] of files) {
+    const name = named(uri);
+    labels.set(wrapper, {
+      uri,
+      label:
+        counts.get(name)! > 1
+          ? withoutExtension(
+              projectPath(
+                projectRoot && uri.startsWith(projectRoot)
+                  ? uri.slice(projectRoot.length)
+                  : uri,
+                asWritten,
+              ),
+            )
+          : name,
+    });
+  }
+  return labels;
 }
 
 /** The wrapper a `run` document's URI names, or undefined for any other. */

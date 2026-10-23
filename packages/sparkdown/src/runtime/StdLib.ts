@@ -3207,7 +3207,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // Function values (a `SymbolValue`, a closure or a builtin) print
       // Luau's `function: <id>` form, as a line prints them, not their
       // table key text.
-      const fnText = functionText(v);
+      const fnText = functionText(v, (ref) => story.FunctionLabel(ref));
       if (fnText !== null) return fnText;
       if (typeof v === "object" && "value" in v) {
         const map = (v as any).value;
@@ -6290,9 +6290,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const idx = frames - level;
       if (idx < 0 || idx >= frames) return new NullValue();
       const pathStr = story.CallFramePath(idx) ?? "?";
-      const name = pathStr.includes(".")
-        ? pathStr.substring(pathStr.lastIndexOf(".") + 1)
-        : pathStr;
+      const name = story.CallFrameName(idx) ?? "?";
       const results: AbstractValue[] = [];
       for (const c of opts) {
         switch (c) {
