@@ -219,7 +219,7 @@ export function validateAssignmentValue(
   const atKeyword =
     got !== null &&
     LUAU_STATEMENT_KEYWORDS.has(got.text) &&
-    /[\r\n]/.test(ctx.read(range.to, got.from)) &&
+    ctx.lineNumber(got.from) > ctx.lineNumber(range.to) &&
     !checkerReadsOnTo(opNode, got.from, read);
   ctx.diagnostics.push({
     message: `Expected identifier when parsing expression, got ${display(got)}`,
