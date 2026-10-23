@@ -2614,14 +2614,8 @@ export class ProgramResolver {
 
 /** Whether the flow `obj` belongs to, the closest one around it, is a
  *  function, as `FlowBase.CheckOwnControlFlow` finds a return's flow. */
-const inFunctionBody = (obj: ParsedObject): boolean => {
-  for (let parent = obj.parent; parent; parent = parent.parent) {
-    if (parent instanceof FlowBase) {
-      return parent.isFunction;
-    }
-  }
-  return false;
-};
+const inFunctionBody = (obj: ParsedObject): boolean =>
+  !!(ClosestFlowBase(obj) as FlowBase | null)?.isFunction;
 
 /** Whether `obj`, or anything under it, is what the story's passes over the
  *  whole program take of a statement (`ProgramResolver.shapeOf`,
