@@ -143,7 +143,17 @@ const config: esbuild.BuildOptions = {
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    await ctx.watch();
+    // Not ctx.watch(), which polls the build graph's files; the helper watches
+    // them from change notifications. The copy plugin keeps its own watcher. A
+    // failed rebuild is logged and watching continues.
+    const { watchBuild } = await import("../../scripts/esbuild-watch.mjs");
+    await watchBuild(ctx, {
+      onError: (e) =>
+        console.error(
+          LOG_PREFIX + "rebuild failed:",
+          e instanceof Error ? e.message : e,
+        ),
+    });
   } else {
     const result = await ctx.rebuild();
     if (PRODUCTION && result.metafile) {
