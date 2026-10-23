@@ -1,4 +1,3 @@
-import * as chokidar from "chokidar";
 import * as esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
@@ -34,9 +33,6 @@ const rawPlugin = {
 
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
-
-const SPARKLE_SCREEN_PREVIEW_SRC_PATH =
-  "../../../packages/sparkle-screen-preview/src";
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildInlineWorkerPlugin = (extraConfig) => ({
@@ -108,25 +104,20 @@ const config = {
   entryPoints: ["./screen-webview.ts"],
   outfile: "../../out/webviews/screen-webview.js",
   plugins: [rawPlugin, esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
+  metafile: WATCH,
 };
 
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    await ctx.watch();
-    chokidar
-      .watch(SPARKLE_SCREEN_PREVIEW_SRC_PATH, {
-        ignoreInitial: true,
-        persistent: true,
-        depth: 99,
-      })
-      .on("all", async () => {
-        console.log(
-          LOG_PREFIX +
-            `detected change in ${SPARKLE_SCREEN_PREVIEW_SRC_PATH}, rebuilding...`,
-        );
-        await ctx.rebuild();
-      });
+    // Not ctx.watch(), which polls the build graph's files; the helper watches
+    // that graph — including sparkle-screen-preview, imported via its /src/
+    // subpath — from change notifications. A failed rebuild is logged and
+    // watching continues.
+    const { watchBuild } = await import("../../../scripts/esbuild-watch.mjs");
+    await watchBuild(ctx, {
+      onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();

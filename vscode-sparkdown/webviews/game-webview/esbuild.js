@@ -1,4 +1,3 @@
-import * as chokidar from "chokidar";
 import * as esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
@@ -35,17 +34,21 @@ const rawPlugin = {
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-// Source dirs bundled INTO the inline worker (workspace.worker →
+// Source files bundled INTO the inline worker (workspace.worker →
 // spark-web-player, spark-engine, the compiler, textmate-grammar-tree, …),
-// collected from the worker's esbuild metafile below. esbuild's outer
-// ctx.watch() can't see them (the inline worker is a separate build), so we
-// watch them explicitly.
-const workerSrcDirs = new Set();
+// collected from the worker's esbuild metafile on every outer build (below).
+// The outer build's own metafile can't list them (the inline worker is a
+// separate build), so in --watch mode they are handed to the watcher
+// explicitly.
+const workerInputs = new Set();
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildInlineWorkerPlugin = (extraConfig) => ({
   name: "esbuild-inline-worker",
   setup(build) {
+    build.onStart(() => {
+      workerInputs.clear();
+    });
     build.onLoad({ filter: /\.worker\.(?:ts|js)$/ }, async (args) => {
       const result = await esbuild.build({
         entryPoints: [args.path],
@@ -61,8 +64,8 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
         ...(extraConfig || {}),
         metafile: true,
       });
-      // Record each bundled SOURCE dir (…/<pkg>/src) so --watch tracks the
-      // worker's deep deps, not just spark-web-player.
+      // Record each bundled SOURCE file so --watch tracks the worker's deep
+      // deps, not just spark-web-player.
       for (const input of Object.keys(result.metafile?.inputs ?? {})) {
         // esbuild lists namespaced inputs as `<namespace>:<path>` (e.g. a ?raw
         // import in rawPlugin's `raw-loader` namespace). Strip it first.
@@ -70,8 +73,7 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
           ? input.slice("raw-loader:".length)
           : input;
         if (real.includes("node_modules")) continue;
-        const m = real.replace(/\\/g, "/").match(/^(.*\/src)\//);
-        if (m) workerSrcDirs.add(path.resolve(m[1]));
+        workerInputs.add(path.resolve(real));
       }
       let bundledText = result.outputFiles?.[0]?.text || "";
       const exportIndex = bundledText.lastIndexOf("export");
@@ -125,33 +127,21 @@ const config = {
   entryPoints: ["./game-webview.ts"],
   outfile: "../../out/webviews/game-webview.js",
   plugins: [rawPlugin, esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
+  metafile: WATCH,
 };
 
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    // Explicit initial build FIRST so the inline-worker onLoad runs and
-    // populates workerSrcDirs before we set up the dep watcher.
-    await ctx.rebuild();
-    // Native watch covers this webview's own src (the outer build graph).
-    await ctx.watch();
-    if (workerSrcDirs.size > 0) {
-      chokidar
-        .watch([...workerSrcDirs], {
-          ignoreInitial: true,
-          persistent: true,
-          depth: 99,
-        })
-        .on("all", async () => {
-          console.log(LOG_PREFIX + `detected worker-dep change, rebuilding...`);
-          try {
-            await ctx.rebuild();
-          } catch (e) {
-            // A build error must not kill the watcher.
-            console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e);
-          }
-        });
-    }
+    // Not ctx.watch(), which polls the build graph's files; the helper watches
+    // this webview's own graph and the inline worker's inputs from change
+    // notifications. A build error must not kill the watcher — it logs and
+    // keeps watching.
+    const { watchBuild } = await import("../../../scripts/esbuild-watch.mjs");
+    await watchBuild(ctx, {
+      extraInputs: () => workerInputs,
+      onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();
