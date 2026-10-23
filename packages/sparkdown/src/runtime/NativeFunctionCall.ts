@@ -651,14 +651,18 @@ export class NativeFunctionCall extends InkObject {
         // is coerced to the the proper value type.
         //
         // Note that we also force all other unary operation to
-        // return the same value type, although this is only
-        // meaningful for numbers. See `Value.Create`.
+        // return the same value type when they return a number. A
+        // boolean result stays a boolean: forcing it made
+        // `math.isnan(math.huge)` the float 0, which only compared
+        // equal to false while equality cast across types (I-1413).
         if (this.name === NativeFunctionCall.Int) {
           return Value.Create(resultVal, ValueType.Int);
         } else if (this.name === NativeFunctionCall.Float) {
           return Value.Create(resultVal, ValueType.Float);
-        } else {
+        } else if (typeof resultVal === "number") {
           return Value.Create(resultVal, param1.valueType);
+        } else {
+          return Value.Create(resultVal);
         }
       }
     } else {

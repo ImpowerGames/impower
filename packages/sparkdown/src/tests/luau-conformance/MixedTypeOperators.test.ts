@@ -100,6 +100,20 @@ check(function() return "x" .. 2 end, "true|x2")
 done()`);
   });
 
+  // A float operand made a one-argument builtin's boolean result the
+  // float 0 or 1, which only equality's cast hid.
+  test("a builtin predicate on a float returns a boolean", () => {
+    passes(`${CHECK}
+check(function() return math.isnan(math.huge) == false end, "true|true")
+check(function() return type(math.isnan(1.5)) end, "true|boolean")
+check(function() return math.isinf(math.huge) == true end, "true|true")
+check(function() return math.isfinite(1.5) == true end, "true|true")
+check(function() return math.isfinite(math.huge) end, "true|false")
+check(function() return math.floor(2.5) end, "true|2")
+check(function() return -2.5 end, "true|-2.5")
+done()`);
+  });
+
   test("metamethods run before the type checks raise", () => {
     passes(`${CHECK}
 local mt = {
