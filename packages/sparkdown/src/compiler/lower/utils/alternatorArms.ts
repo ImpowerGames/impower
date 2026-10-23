@@ -325,11 +325,9 @@ function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext, mode: Val
     }
   }
   // An arm that declares holds its locals for itself, as a `do` block does
-  // (`lowerLuauDoBlock`): the names they hide are the enclosing scope's
-  // again after it.
+  // (`lowerLuauDoBlock`).
   const scoped = parts.some((part) => part.statement);
   if (scoped) {
-    ctx.blockEndStack?.push([]);
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
   }
   let value: Expression | null = null;
@@ -363,7 +361,6 @@ function valueArmBody(nodes: readonly SyntaxNode[], ctx: LowerContext, mode: Val
   body.push(value ?? new NullExpression());
   if (!scoped) return body;
   ctx.scopeDepth = (ctx.scopeDepth ?? 1) - 1;
-  ctx.blockEndStack?.pop()?.forEach((end) => end());
   return wrapInScope(body);
 }
 

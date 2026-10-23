@@ -3552,9 +3552,9 @@ export class SparkdownCompiler {
   }
 
   // Canonicalize compiler-synthesized identifier names that are minted from a
-  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
-  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
-  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`),
+  // node's ABSOLUTE source offset at lowering time — anonymous/define
+  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`), method-call
+  // receiver temps (`__mcall_<from>`),
   // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …),
   // compound property assignment temps (`__pa_base_<from>`, `__pa_key_<from>`)
   // and multi-target assignment temps (`__mt_<from>_<i>`, `__mt_base_<from>_<i>`,
@@ -3616,7 +3616,7 @@ export class SparkdownCompiler {
     // name such as `f__redef_x__1` or `__synth_0` for one of its own. The
     // canonical form is the one its readers share (`NUMBERED_SYNTHETIC_NAME`).
     const RAW_SYNTH =
-      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
+      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$/;
     const SYNTH = new RegExp(
       `${NUMBERED_SYNTHETIC_NAME.source}|${RAW_SYNTH.source}`,
     );

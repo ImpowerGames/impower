@@ -925,9 +925,9 @@ describe("a statement that writes a function", () => {
   });
 });
 
-// A `local` hides a variadic function of its name for the rest of its block,
-// and a closure written after it in the block captures the local where it
-// called the function before (`shadowSiblingSubFlow`). The closure's own
+// A `local` hides a function of its name for the rest of its block, and a
+// closure written after it in the block calls the local where it called the
+// function before. The closure's own
 // statement is unchanged by an edit that names the local after the function,
 // so its lowering records what it found the name to be, and the store emits
 // it again when that changes.

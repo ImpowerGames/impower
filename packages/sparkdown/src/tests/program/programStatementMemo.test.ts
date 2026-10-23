@@ -1060,36 +1060,37 @@ describe("local declarations, further shapes", () => {
 // ---- The recording of the lowering context ----------------------------------
 
 describe("the recording of the lowering context", () => {
-  it("writes what a lowering writes as itself, and hands it back as itself, so a block's end puts back what it hid", async () => {
+  it("writes what a lowering writes as itself, hands it back as itself, and records nothing once it is done", async () => {
     const { recordLowering } = await import("../../compiler/lower/recordingContext");
-    const { shadowSiblingSubFlow } = await import("../../compiler/lower/expression/bindings");
-    const hidden: { upvals: string[]; arity: number; knotName: string; rebound?: boolean } = {
-      upvals: ["base"],
-      arity: 1,
-      knotName: "foo",
-    };
-    const frame = new Map<string, typeof hidden>([["foo", hidden]]);
-    const ends: (() => void)[] = [];
+    const { recordRebind } = await import("../../compiler/lower/expression/bindings");
+    const earlier = { rebound: true as const };
+    const frame = new Map<string, { rebound: true }>([["foo", earlier]]);
     const ctx = {
       siblingSubFlowNamesStack: [frame],
-      blockEndStack: [ends],
+      declaredLocalsStack: [new Set<string>()],
       read: () => "",
       lineNumber: () => 0,
       characterNumber: () => 0,
     } as never;
-    // A `local foo` lowered under the recording hides the sibling function
-    // for the rest of its block, and the block's end, which runs after the
-    // statement's recording is done, puts it back.
+    // A `foo = <expr>` lowered under the recording rebinds the name, writing
+    // an entry of its own, which a later read of the name gets back as it
+    // was written.
     const { ctx: recorded, finish } = recordLowering(ctx, 0, 0);
-    shadowSiblingSubFlow("foo", recorded);
-    expect(frame.get("foo")).not.toBe(hidden);
-    expect(frame.get("foo")?.rebound).toBe(true);
+    recordRebind("foo", recorded);
+    const written = frame.get("foo");
+    expect(written).not.toBe(earlier);
+    expect(written?.rebound).toBe(true);
+    const stack = (recorded as unknown as { siblingSubFlowNamesStack: Map<string, unknown>[] })
+      .siblingSubFlowNamesStack;
+    expect(stack[0]!.get("foo")).toBe(written);
     const recording = finish();
     const reads = recording.reads.length;
-    ends.forEach((end) => end());
-    expect(frame.get("foo")).toBe(hidden);
-    // What the block's end read and wrote after the recording was done is
-    // none of the statement's reads.
+    // A closure that holds the context it was handed and runs after the
+    // recording is done reads and writes the context as itself.
+    stack[0]!.set("foo", earlier);
+    expect(frame.get("foo")).toBe(earlier);
+    expect(stack[0]!.get("foo")).toBe(earlier);
+    // What it read and wrote then is none of the statement's reads.
     expect(recording.reads.length).toBe(reads);
   });
 

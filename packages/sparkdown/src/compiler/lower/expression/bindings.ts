@@ -1,16 +1,14 @@
 // What a name refers to while a function's statements lower: a local of an
-// enclosing function, a variadic function nested in one (a "sibling
-// subflow", which is no variable and is reached by path), or neither (a
-// global, a knot or a stdlib name). The lowerers ask by name, innermost scope
-// first, and record each answer that decides a statement's code for the
-// binary program's chunk store.
+// enclosing function, a name an assignment in one rebinds to a value
+// (`recordRebind`), or neither (a global, a knot or a stdlib name). The
+// lowerers ask by name, innermost scope first, and record each answer that
+// decides a statement's code for the binary program's chunk store.
 
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
-import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/VariablePointerExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { lookupGlobalStdLibBuiltin } from "../../../runtime/StdLib";
-import type { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { LowerContext } from "../context";
 import { takesOffset } from "../recordingContext";
 import type { FunctionBinding } from "../utils/functionBindings";
 import { answersDeclaration, rootLocalAnswer } from "../utils/rootLocalReads";
@@ -49,40 +47,25 @@ export function makeGlobalFunctionCall(
 // frame onto BOTH `declaredLocalsStack` and
 // `siblingSubFlowNamesStack` in tandem (see
 // lowerLuauFunctionDefinition / lowerFunctionExpression), so frames
-// align by index. Within one frame a variadic sibling subflow wins
-// over a same-named local; ACROSS frames the inner binding wins
-// regardless of kind — a lambda param `f` shadows an outer variadic
-// `function f(...)` (vararg.luau's `call = function (f, args)`), and
-// an inner variadic `function foo(...)` shadows an outer
-// `local function foo` (basic.luau line 342). A flat
-// "sibling-check-first" rule gets one of those two wrong whichever
-// way it's ordered.
-//
+// align by index. A name a frame's assignment rebinds, or a local of a
+// frame, answers "local": the call dispatches through the variable.
 // A frame's locals are every name its function's body declares, in any
-// block; `at`, the offset the name is written at, keeps a local whose
-// block has ended, or that is declared after `at`, from answering, so
-// the name reaches a sibling of an enclosing function as Luau scopes it
-// (`localInScope`).
+// block.
 export function resolveCallableBinding(
   name: string,
   ctx: LowerContext,
-  at?: number,
-): "sibling" | "local" | null {
+): "local" | null {
   const locals = ctx.declaredLocalsStack ?? [];
   const siblings = ctx.siblingSubFlowNamesStack ?? [];
   const depth = Math.max(locals.length, siblings.length);
-  const scopeAt = siblingRegistered(name, ctx) ? at : undefined;
   for (let i = depth - 1; i >= 0; i--) {
-    const sibling = siblings[i]?.get(name);
-    if (sibling !== undefined) {
-      // Rebound names (`f = <expr>` over a former subflow or a bare
-      // global) dispatch as VALUE calls, not static diverts.
-      const binding = sibling.rebound ? "local" : "sibling";
-      recordSiblingRead(ctx, `call:${name}=${binding}`);
-      return binding;
+    if (siblings[i]?.get(name) !== undefined) {
+      // Rebound names (`f = <expr>` over a bare global) dispatch as VALUE
+      // calls, not static diverts.
+      recordSiblingRead(ctx, `call:${name}=local`);
+      return "local";
     }
-    const frame = locals[i];
-    if (frame?.has(name) && localInScope(frame, name, scopeAt)) return "local";
+    if (locals[i]?.has(name)) return "local";
   }
   return null;
 }
@@ -114,36 +97,15 @@ export function localHidesStdLib(
 }
 
 /**
- * Whether a local of a function lowering around `at` binds `name` there, as
- * an assignment to the name asks (`lowerReassignment`): a local whose block
- * has ended, or that is declared after `at`, does not, when a sibling of the
- * name is registered for it to hide (`localInScope`).
+ * Whether a function lowering around the name declares a local `name`, in
+ * any block of its body, as an assignment to the name asks
+ * (`lowerReassignment`). The reads here index the context's arrays rather
+ * than pass a callback to their methods, which no memo can record.
  */
-export function isLocalAt(name: string, ctx: LowerContext, at: number): boolean {
-  const scopeAt = siblingRegistered(name, ctx) ? at : undefined;
+export function isLocal(name: string, ctx: LowerContext): boolean {
   const locals = ctx.declaredLocalsStack ?? [];
   for (let i = 0; i < locals.length; i++) {
-    if (locals[i]!.has(name) && localInScope(locals[i]!, name, scopeAt)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Whether a variadic sibling subflow of `name`, not rebound, is registered
- * in any function lowering around the name: only then does where a local's
- * block ends decide what the name refers to. The scope is asked only then,
- * since a statement's memo records every answer its lowering reads from the
- * context (`recordLowering`), and a name with nothing to hide needs none.
- * The reads here index the context's arrays rather than pass a callback to
- * their methods, which no memo can record.
- */
-export function siblingRegistered(name: string, ctx: LowerContext): boolean {
-  const siblings = ctx.siblingSubFlowNamesStack ?? [];
-  for (let i = 0; i < siblings.length; i++) {
-    const entry = siblings[i]!.get(name);
-    if (entry !== undefined && !entry.rebound) return true;
+    if (locals[i]!.has(name)) return true;
   }
   return false;
 }
@@ -210,13 +172,12 @@ export function localInScope(
 
 /**
  * Records in the running statement's reads what its lowering found a name
- * to be among the sibling subflows: whether a call reaches the subflow or a
- * value (`resolveCallableBinding`), and the pointers a call to a subflow or
- * a reference to one as a value passes. A `local` of the name that an edit
- * adds or removes changes the answer (`shadowSiblingSubFlow`) and the
- * statement's code, not its syntax, and the binary program's chunk store
- * emits a statement again when its reads change. Whether a closure captures
- * the name is in the list of names it captures (`recordCaptureRead`).
+ * to be among the rebound names: that a call of it dispatches through the
+ * variable (`resolveCallableBinding`). An assignment of the name that an
+ * edit adds or removes changes the answer and the statement's code, not its
+ * syntax, and the binary program's chunk store emits a statement again when
+ * its reads change. Whether a closure captures the name is in the list of
+ * names it captures (`recordCaptureRead`).
  */
 export function recordSiblingRead(ctx: LowerContext, read: string): void {
   const reads = currentStatement(ctx)?.reads.other;
@@ -246,96 +207,22 @@ export function recordCaptureRead(
 }
 
 /**
- * Hides the sibling subflow `name` of the innermost function for the rest of
- * the block being lowered, as a `local` of that name declared in the block,
- * or a loop's variable of that name, hides it in Luau: calls and references
- * to the name after the declaration dispatch to the local's value, as a
- * rebound name's do (`resolveCallableBinding`), and the subflow is visible
- * again when the block ends (`lowerStatements`, or the loop that pushed a
- * block of its own for its variables). Without it, a call to the local would
- * pass the subflow's upvalues before its own arguments.
+ * Records that an assignment rebinds `name` to a runtime value (`name =
+ * <expr>`, and a function statement, Lua's sugar for it, I-1422). For a name
+ * that is not a local of a function lowering around it (a global, a
+ * builtin), the registry, consulted in lexical order, drops any earlier
+ * entry and marks the name `rebound`, so a later call value-dispatches
+ * through the variable (`CallValueExpression` carries the call-site arg
+ * count the runtime needs to pack `...` args) while still suppressing upval
+ * capture: a closure referencing a bare-assigned global (`self = 20` then
+ * `function a.y (x) return x+self end`, calls.luau line 34) reads the
+ * global, it doesn't capture a pointer. A local's calls value-dispatch
+ * already, and registering it here would wrongly suppress its capture.
  */
-export function shadowSiblingSubFlow(name: string, ctx: LowerContext): void {
-  const frame = ctx.siblingSubFlowNamesStack?.at(-1);
-  const hidden = frame?.get(name);
-  const ends = ctx.blockEndStack?.at(-1);
-  if (!frame || !hidden || hidden.rebound || !ends) {
-    return;
-  }
-  const shadow: SiblingSubFlowInfo = { ...hidden, rebound: true };
-  frame.set(name, shadow);
-  ends.push(() => {
-    // A redefinition of the subflow later in the block replaced the shadow.
-    if (frame.get(name) === shadow) {
-      frame.set(name, hidden);
-    }
-  });
-}
-
-/**
- * Records that an assignment written at `at` rebinds `name` to a runtime
- * value (`name = <expr>`, and a function statement, Lua's sugar for it,
- * I-1422). For a name that is not a local in scope there (a global, a
- * builtin, a former sibling subflow), the sibling registry, consulted in
- * lexical order, drops any stale subflow entry, so a later `name(...)` does
- * not statically divert to an old knot, and marks the name `rebound`, so a
- * later call value-dispatches through the variable (`CallValueExpression`
- * carries the call-site arg count the runtime needs to pack `...` args)
- * while still suppressing upval capture: a closure referencing a
- * bare-assigned global (`self = 20` then `function a.y (x) return x+self
- * end`, calls.luau line 34) reads the global, it doesn't capture a pointer.
- * A local's calls value-dispatch already, and registering it here would
- * wrongly suppress its capture. A local whose block has ended is no local
- * here (`isLocalAt`).
- */
-export function recordRebind(name: string, at: number, ctx: LowerContext): void {
-  if (isLocalAt(name, ctx, at) || !ctx.siblingSubFlowNamesStack) return;
+export function recordRebind(name: string, ctx: LowerContext): void {
+  if (isLocal(name, ctx) || !ctx.siblingSubFlowNamesStack) return;
   for (const frame of ctx.siblingSubFlowNamesStack) {
     frame.delete(name);
   }
-  ctx.siblingSubFlowNamesStack.at(-1)?.set(name, {
-    upvals: [],
-    arity: -1,
-    knotName: name,
-    rebound: true,
-  });
-}
-
-// The registry entry of a sibling variadic SubFlow (captured upval
-// names + declared fixed arity), or null when `name` isn't a
-// registered subflow. Call sites prepend one
-// `VariablePointerExpression` per upval (mirroring the closure-upval
-// mechanism) so the subflow's prepended upval PARAMETERS receive the
-// enclosing scope's cells — reads and writes go through the shared
-// cell, and self-recursive calls thread the subflow's own upval
-// params down each level.
-export function siblingSubFlowInfo(
-  name: string,
-  ctx: LowerContext,
-): SiblingSubFlowInfo | null {
-  const stack = ctx.siblingSubFlowNamesStack;
-  if (!stack) return null;
-  for (let i = stack.length - 1; i >= 0; i--) {
-    const hit = stack[i]!.get(name);
-    if (hit !== undefined) return hit;
-  }
-  return null;
-}
-
-// Prepend a sibling subflow's upval pointers to a call's arg list.
-// No-op (returns `args` unchanged) when `name` isn't a registered
-// sibling subflow or captures nothing. The subflow's body decides the
-// pointers, so the calling statement records them (`recordSiblingRead`).
-export function withSiblingSubFlowUpvalArgs(
-  name: string,
-  args: Expression[],
-  ctx: LowerContext,
-): Expression[] {
-  const upvals = siblingSubFlowInfo(name, ctx)?.upvals ?? null;
-  if (upvals) recordSiblingRead(ctx, `upvals:${name}=${upvals.join(",")}`);
-  if (!upvals || upvals.length === 0) return args;
-  return [
-    ...upvals.map((n) => new VariablePointerExpression(n)),
-    ...args,
-  ];
+  ctx.siblingSubFlowNamesStack.at(-1)?.set(name, { rebound: true });
 }
