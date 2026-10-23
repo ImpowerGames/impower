@@ -284,9 +284,11 @@ arr:filter(function(x) return x > 10 end)
 
 ### Decision 4: Nested function definitions
 
-Once anonymous functions land, named nested functions
-(`function inner() ... end` inside another `function`) reduce to
-sugar:
+Once anonymous functions land, named nested functions reduce to sugar
+over the anonymous form, as Luau's do. A `local function inner()`
+inside another function declares a local, `local inner; inner =
+function() ... end`. A plain `function inner()` declares nothing: it is
+the assignment `inner = function() ... end` (I-1422).
 ```sparkdown
 function outer()
   function inner()  -- syntactic sugar
@@ -298,14 +300,25 @@ end
 desugars to:
 ```sparkdown
 function outer()
-  local inner = function()  -- the anonymous form
+  inner = function()  -- the anonymous form
     ...
   end
   return inner
 end
 ```
 
-No separate design needed — falls out of anonymous-function support.
+So `inner` is the variable the name resolves to where the statement is
+written:
+- a local of `outer`, or a parameter;
+- a local of a function around `outer` (I-1349);
+- a top-level `local` in scope where `outer` is written, which `outer`'s
+  entry binds (`BindRoot`);
+- otherwise the global `inner`, which every other function and line of
+  the story reads once `outer` has run.
+
+A `store`, a top-level `function` or `local function` and any other global
+of the name, in this script or another, are all assigned. A function
+statement never declares a hidden local of the function it is written in.
 
 ### Decision 5: Chained method calls on function results
 
@@ -338,7 +351,7 @@ first, then layering syntactic surfaces on top.
 | 1 | Runtime: `Environment` heap object + per-call environment chain. Variable lookup/mutation walks the chain. **No new syntax** — invisible refactor of how `local`s are stored. | Self-contained. Existing tests should all still pass; this is plumbing only. |
 | 2 | Runtime: `FunctionValue` type (path + captured environment). Compile-time: function references at expression position (`local f = some_named_function`). Runtime: invoking a `FunctionValue`. | Builds on 1. |
 | 3 | Grammar + lowerer: anonymous function expressions (`function(args) body end`). Each anonymous function definition snapshots the current environment as its static link. Closures work automatically because of Phase 1+2 machinery. | Builds on 2. |
-| 4 | Grammar + lowerer: nested `function name() ... end` blocks. Sugar over `local name = function() ... end` (with the Luau pre-declaration trick for recursion). | Tiny once 3 lands. |
+| 4 | Grammar + lowerer: nested `function name() ... end` blocks. Sugar over `name = function() ... end`, and `local function name` over `local name = function() ... end` (with the Luau pre-declaration trick for recursion). | Tiny once 3 lands. |
 | 5 | Implement deferred predicate methods (`:map`, `:filter`, `:reduce`, `:find(fn)`, `:findindex`, `:foreach`, predicate `:sort`, `:some(fn)` / `:every(fn)`, `:gsub(pat, fn)`). | Builds on 3. Each is ~10 lines in MethodDispatch.ts. |
 
 Order rationale:
