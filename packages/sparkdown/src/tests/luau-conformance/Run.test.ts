@@ -315,7 +315,8 @@ done
     ]);
     const before = recordedRun(first.program.chunks);
     expect(before).toHaveLength(2);
-    expect(before[0]).toMatch(/^__run_\w+helper\w*__$/);
+    // Shown by the file's name (I-1266).
+    expect(before[0]).toBe("helper");
     expect(before[1]).toBe(before[0]);
     compiler.updateDocument({
       textDocument: { uri: "inmemory:///main.sd", version: 2 },

@@ -127,7 +127,8 @@ describe("a backtick string's own errors, from the reading of the statement it s
     });
     test(`a define's value s = ${string}`, () => {
       const text = `define Thing with\n  s = ${string}\nend\n`;
-      expect(sparkdownErrors(text)).toEqual(officialFirst(`local s = ${string}\n`, 1, -4));
+      // A property's reading reports every error of its value (I-1500).
+      expect(sparkdownErrors(text)).toEqual(official(`local s = ${string}\n`, 1, -4));
       expectIncrementalEqualsCold(text);
     });
   }
