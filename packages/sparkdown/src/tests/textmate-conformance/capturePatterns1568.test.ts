@@ -3,7 +3,8 @@
 // its scope (I-1565), and the patterns read the line before the capture, so a
 // lookbehind, `^` or `\b` sees what vscode-textmate sees (I-1566). Each
 // grammar here runs through both engines, and the scope stack of every
-// character must agree.
+// character must agree. Each case also states the scopes vscode-textmate
+// gives, so a case whose rule never matches cannot pass unnoticed.
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
@@ -23,8 +24,16 @@ const afterX = (match: string) =>
     { afterX: { match, name: "after" } },
   );
 
+type Case = { name: string; grammar: object; text: string; expected: string[] };
+
+const agrees = async ({ grammar, text, expected }: Case) => {
+  const vscode = await vscodeScopes(grammar, text);
+  expect(vscode).toEqual(expected);
+  expect(treeScopes(grammar, text)).toEqual(vscode);
+};
+
 describe("a capture's inline patterns have node types (I-1565)", () => {
-  test.each([
+  test.each<Case>([
     {
       name: "an inline rule in a capture's patterns",
       grammar: grammarOf({
@@ -33,6 +42,7 @@ describe("a capture's inline patterns have node types (I-1565)", () => {
         captures: { "1": { patterns: [{ match: "ab", name: "a" }] } },
       }),
       text: "ab",
+      expected: ["t text a", "t text a"],
     },
     {
       name: "an inline rule in an inline rule's capture",
@@ -52,6 +62,7 @@ describe("a capture's inline patterns have node types (I-1565)", () => {
         },
       }),
       text: "abc",
+      expected: ["t text outer", "t text outer", "t text outer inner"],
     },
     {
       name: "an inline rule in a begin/end rule's patterns",
@@ -62,19 +73,61 @@ describe("a capture's inline patterns have node types (I-1565)", () => {
         patterns: [{ match: "a", name: "a" }],
       }),
       text: "[a]",
+      expected: ["t block", "t block a", "t block"],
     },
-  ])("$name", async ({ grammar, text }) => {
-    expect(treeScopes(grammar, text)).toEqual(await vscodeScopes(grammar, text));
-  });
+    {
+      // Resolving every pattern list before the node set is built must not
+      // stop a grammar loading over a rule the tree does not support, in a
+      // list its input never reaches.
+      name: "an unsupported rule in a capture's patterns that nothing reaches",
+      grammar: {
+        scopeName: "t",
+        patterns: [
+          { match: "a", name: "a" },
+          { match: "(b)", captures: { "1": { patterns: [{ begin: "x", while: "x", patterns: [] }] } } },
+        ],
+      },
+      text: "a",
+      expected: ["t a"],
+    },
+  ])("$name", agrees);
 });
 
 describe("a capture's patterns read the line before the capture (I-1566)", () => {
-  test.each([
-    { name: "a lookbehind sees the text before the capture", grammar: afterX("(?<=x)y"), text: "xy" },
-    { name: "a negative lookbehind sees the text before the capture", grammar: afterX("(?<!x)y"), text: "xy" },
-    { name: "`^` does not match at the capture's start", grammar: afterX("^y"), text: "xy" },
-    { name: "`\\b` reads the character before the capture", grammar: afterX("\\by"), text: "xy" },
-    { name: "`^` still matches a capture at the line's start", grammar: afterX("^y"), text: "y" },
+  test.each<Case>([
+    {
+      name: "a lookbehind sees the text before the capture",
+      grammar: afterX("(?<=x)y"),
+      text: "xy",
+      expected: ["t x", "t after"],
+    },
+    {
+      name: "a negative lookbehind sees the text before the capture",
+      grammar: afterX("(?<!x)y"),
+      text: "xy",
+      expected: ["t x", "t"],
+    },
+    {
+      name: "`^` does not match at the capture's start",
+      grammar: afterX("^y"),
+      text: "xy",
+      expected: ["t x", "t"],
+    },
+    {
+      name: "`\\b` reads the character before the capture",
+      grammar: afterX("\\by"),
+      text: "xy",
+      expected: ["t x", "t"],
+    },
+    {
+      name: "`^` still matches a capture at the line's start",
+      grammar: grammarOf(
+        { match: "(y)", captures: { "1": { patterns: [{ include: "#atStart" }] } } },
+        { atStart: { match: "^y", name: "start" } },
+      ),
+      text: "y",
+      expected: ["t start"],
+    },
     {
       name: "`^` reads the capture's own line on a later line",
       grammar: grammarOf(
@@ -85,6 +138,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         { atStart: { match: "^y", name: "start" } },
       ),
       text: "xy\ny\nxy",
+      expected: ["t x", "t", "", "t start", "", "t x", "t"],
     },
     {
       name: "a lookbehind does not read the line above",
@@ -96,6 +150,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         { afterX: { match: "(?<=x\\n?)y", name: "after" } },
       ),
       text: "x\ny",
+      expected: ["t", "", "t"],
     },
     {
       name: "a lookahead does not read past the capture",
@@ -107,6 +162,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         { beforeZ: { match: "y(?=z)", name: "before" } },
       ),
       text: "yz",
+      expected: ["t", "t z"],
     },
     {
       name: "`$` matches at the capture's end",
@@ -118,6 +174,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         { atEnd: { match: "y$", name: "end" } },
       ),
       text: "yz",
+      expected: ["t end", "t z"],
     },
     {
       name: "a lookbehind past a character the patterns cannot read",
@@ -129,6 +186,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         { afterY: { match: "(?<=xy)z", name: "after" } },
       ),
       text: "xyz",
+      expected: ["t", "t cap", "t cap after"],
     },
     {
       name: "a capture placed from indices, nested in a group",
@@ -140,6 +198,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         { afterA: { match: "(?<=a)b", name: "after" } },
       ),
       text: "abc",
+      expected: ["t", "t after", "t"],
     },
     {
       name: "a capture's patterns whose own capture reads further back",
@@ -158,6 +217,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         },
       ),
       text: "wxy",
+      expected: ["t", "t inner", "t inner after"],
     },
     {
       name: "a begin capture's patterns read the text before the begin",
@@ -171,8 +231,7 @@ describe("a capture's patterns read the line before the capture (I-1566)", () =>
         { afterX: { match: "(?<=x)y", name: "after" } },
       ),
       text: "xy",
+      expected: ["t", "t block after"],
     },
-  ])("$name", async ({ grammar, text }) => {
-    expect(treeScopes(grammar, text)).toEqual(await vscodeScopes(grammar, text));
-  });
+  ])("$name", agrees);
 });

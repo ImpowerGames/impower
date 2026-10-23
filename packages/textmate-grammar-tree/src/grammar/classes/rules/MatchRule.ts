@@ -226,7 +226,7 @@ export class MatchRule implements Rule {
       return Matched.create(capture, pos, resultStrLength);
     }
     const start = pos - lineStart;
-    const state = new GrammarState(
+    const state = GrammarState.ofLine(
       lineText.slice(0, start + resultStrLength),
     );
     const children: Matched[] = [];
