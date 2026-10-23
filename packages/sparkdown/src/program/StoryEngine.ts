@@ -28,7 +28,8 @@ export interface DebugFrame {
    *  the flow's own frame stands in (-1 for a declaration). */
   readonly symbol: number;
   /** The frame's name as an author reads it: a function the compiler named
-   *  shows as anonymous (`readableSymbolLabel`). */
+   *  shows as anonymous, and a `run` file's wrapper by its file
+   *  (`ProgramRoot.shownLabelOf`). */
   readonly name: string;
   /** The frame's identity as a temporary's scope and a data breakpoint name
    *  it: the label the program holds, which keeps two functions the
@@ -123,6 +124,9 @@ export interface StoryEngine {
   CallStackTrace(): string;
   CallFrameCount(): number;
   CallFramePath(index: number): string | null;
+  /** The name `debug.info` gives call frame `index`: the last part of its
+   *  path (`CallFramePath`), or a `run` file's whole name. */
+  CallFrameName(index: number): string | null;
   onError: StoryErrorHandler | null;
   errorMessageFormatter?: (story: any, message: string) => string;
   /** Whether the `error` builtin running was called by `pcall` or

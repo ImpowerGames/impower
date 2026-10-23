@@ -722,6 +722,11 @@ export class JsonSerialisation {
       writer.WriteInt(ref.generation);
       writer.Write(ref.name ?? "");
       writer.Write(ref.label);
+      // The name the value is shown by, only where it is not its label (a
+      // `run` file's wrapper), so every other value is written as before.
+      if (ref.shown !== ref.label) {
+        writer.Write(ref.shown);
+      }
       writer.WriteArrayEnd();
       writer.WritePropertyEnd();
       writer.WriteObjectEnd();
@@ -934,13 +939,14 @@ export class JsonSerialisation {
 
       // A binary program's function value.
       if (Array.isArray(obj["^sym"])) {
-        const [symbol, generation, name, label] = obj["^sym"];
+        const [symbol, generation, name, label, shown] = obj["^sym"];
         return new SymbolValue(
           new SymbolRef(
             Number(symbol),
             Number(generation),
             name ? String(name) : null,
             String(label ?? ""),
+            shown === undefined ? undefined : String(shown),
           ),
         );
       }

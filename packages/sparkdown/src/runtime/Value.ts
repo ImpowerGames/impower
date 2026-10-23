@@ -378,6 +378,11 @@ export class SymbolRef {
     public readonly generation: number,
     public readonly name: string | null,
     public readonly label: string,
+    /** The name an author reads the value by, where it is not its label:
+     *  a `run` file's wrapper is shown by its file
+     *  (`ProgramRoot.shownLabelOf`). The label stays the value's table key
+     *  and what a save holds. */
+    public readonly shown: string = label,
   ) {}
 
   public Equals(other: unknown): boolean {
@@ -620,11 +625,11 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
  *  marked `__stdlib_fn`). `null` when the value is no function. The value's
  *  `toString` is its table key instead, which saves hold. */
 export function functionText(value: unknown): string | null {
-  if (value instanceof SymbolValue) return "function: " + value.ref.label;
+  if (value instanceof SymbolValue) return "function: " + value.ref.shown;
   if (!(value instanceof ObjectValue) || value.value === null) return null;
   const closure = value.value.get("__closure_fn");
   if (closure !== undefined) {
-    const label = closure instanceof SymbolValue ? closure.ref.label : null;
+    const label = closure instanceof SymbolValue ? closure.ref.shown : null;
     return `function: ${label ?? "<closure>"}`;
   }
   const builtin = value.value.get("__stdlib_fn");

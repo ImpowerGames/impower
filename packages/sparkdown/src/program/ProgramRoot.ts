@@ -7,6 +7,7 @@ import type { StructDefinitionTable } from "../runtime/StructDefinition";
 import {
   SymbolKind,
   UNDEFINED_KIND,
+  readableSymbolLabel,
   type SymbolKindValue,
 } from "./ProgramSymbols";
 import { Op, opOf } from "./ProgramInstructions";
@@ -215,6 +216,14 @@ export interface ProgramStoryTables {
   readonly constantNames: ReadonlySet<string>;
 }
 
+/** The file the wrapper function of a `run` statement wraps, as the compile
+ *  that built a root recorded it (`runFileRecord`): the file's URI, and the
+ *  name an author reads the wrapper by. */
+export interface RunFile {
+  readonly uri: string;
+  readonly label: string;
+}
+
 /**
  * One version of the whole program (docs/engine/binary-program.md, sections 1
  * and 9): what each sequence id holds, the flows by symbol, each script's
@@ -261,6 +270,9 @@ export class ProgramRoot {
     /** The symbol remap of each reseed of the table, by the generation it
      *  maps from (`ChunkStore.reseed`). */
     protected _symbolRemaps: readonly Int32Array[] = [],
+    /** The functions that wrap a `run` file, by symbol, with the file each
+     *  wraps. */
+    protected _runFiles: ReadonlyMap<number, RunFile> = new Map(),
   ) {}
 
   /** The id in this root's table generation of symbol `symbol` of table
@@ -541,6 +553,41 @@ export class ProgramRoot {
   labelOf(symbol: number): string {
     return this._labels.get(symbol) ?? this.table.symbols[symbol] ?? "";
   }
+
+  /** The file the function `symbol` names wraps, when it is the wrapper of
+   *  a `run` file. */
+  runFileOf(symbol: number): RunFile | undefined {
+    return this._runFiles.get(symbol);
+  }
+
+  /** The name an author reads a symbol by in a stack trace, `debug.info`,
+   *  the frames view or a function value: a `run` file's wrapper by its
+   *  file (`runFileOf`), a function the file defines with the file in place
+   *  of the wrapper's part of its label, and any other as its label reads
+   *  (`readableSymbolLabel`). It is only shown; the label stays the
+   *  symbol's identity. */
+  shownLabelOf(symbol: number): string {
+    const file = this._runFiles.get(symbol);
+    if (file) {
+      return file.label;
+    }
+    const label = this.labelOf(symbol);
+    if (this._runFiles.size === 0) {
+      return readableSymbolLabel(label);
+    }
+    this._runFileNames ??= new Map(
+      [...this._runFiles].map(([id, run]) => [this.table.symbols[id]!, run]),
+    );
+    return label
+      .split(".")
+      .map(
+        (part) => this._runFileNames!.get(part)?.label ?? readableSymbolLabel(part),
+      )
+      .join(".");
+  }
+
+  /** The record of the `run` file wrappers by their names. */
+  protected _runFileNames?: Map<string, RunFile>;
 
   /** The sequence that holds a chunk and the chunk's entry in it, searched
    *  for outward from `near` when one is given, or nothing when this root

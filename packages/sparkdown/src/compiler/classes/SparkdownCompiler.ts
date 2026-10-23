@@ -193,6 +193,7 @@ import {
 } from "../utils/runOperand";
 import {
   runDeclarationText,
+  runFileRecord,
   runWrapperFunctionName,
   runWrapperUri,
 } from "../utils/runWrapper";
@@ -1734,6 +1735,7 @@ export class SparkdownCompiler {
     // compile starts from.
     const fileResolutionState = {
       currentParentUri: uri,
+      runFiles: new Map<string, string>(),
     };
     const fileHandler: IFileHandler = {
       ResolveInkFilename: (filename: string): string => {
@@ -2055,7 +2057,13 @@ export class SparkdownCompiler {
       // A program runs from its statement chunks. A statement that holds a
       // construct the program has no emit path for is a compile error at its
       // line, and such a compile makes no program (`buildProgramChunks`).
-      const chunked = this.buildProgramChunks(parsedStory, tables, program, uri);
+      const chunked = this.buildProgramChunks(
+        parsedStory,
+        tables,
+        program,
+        uri,
+        fileResolutionState.runFiles,
+      );
       if (chunked) {
         state.produced = true;
         state.structDefinitions =
@@ -3121,6 +3129,12 @@ export class SparkdownCompiler {
             : undefined;
           if (!declared?.has(resolvedFilePath)) {
             declared?.add(resolvedFilePath);
+            // What the program shows the wrapper by comes from this record,
+            // never from the wrapper's name.
+            state.fileResolutionState?.runFiles?.set(
+              wrapperName,
+              resolvedFilePath,
+            );
             const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
             // A document is set again only when its text changed, under the
             // next version, so the registry parses the new text (the .luau
@@ -4323,6 +4337,7 @@ export class SparkdownCompiler {
     tables: ProgramStoryTables,
     program: SparkProgram,
     uri: string,
+    runFiles: ReadonlyMap<string, string> = new Map(),
   ): boolean {
     profile("start", this._profilerId, "program/chunks", uri);
     const lineCount = (scriptUri: string) => {
@@ -4354,6 +4369,7 @@ export class SparkdownCompiler {
         declarations: flows.declarations,
         lineCount,
         changed,
+        runFiles: runFileRecord(runFiles, projectRootUri(uri)),
       },
       !this._previewing && !flows.unsupported,
       tables,
