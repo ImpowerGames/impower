@@ -5,6 +5,7 @@ import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { enclosingUnclosedIslandEnd } from "../../utils/storyIslands";
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 import { loopBodyBlock } from "./loopDoBlock";
@@ -135,8 +136,14 @@ function luauReportsOpenBlock(ctx: LowerContext): boolean {
 // header would report the same mistake again (I-1322, the maintainer's
 // decision). A block in story, a `store`'s function value and a `&` line's
 // block are Sparkdown's to report.
+// A block opened in a story statement whose bracket never closes ends with
+// that bracket's line, where Luau's reading meets its end of input inside
+// it and reports the missing closer (`unclosedIslandEnd`, I-1532); the
+// tree's closers on the story lines after it are not its.
 function luauReportsOpenBlockAt(header: SyntaxNode, ctx: LowerContext): boolean {
-  return luauReportsOpenBlock(ctx) || luauReadingReportsAllAt(header, (from, to) => ctx.read(from, to));
+  if (luauReportsOpenBlock(ctx) || luauReadingReportsAllAt(header, (from, to) => ctx.read(from, to))) return true;
+  const text = ctx.documentText?.();
+  return text !== undefined && enclosingUnclosedIslandEnd(header, text) !== undefined;
 }
 
 function missingEndMessage(label: string): string {

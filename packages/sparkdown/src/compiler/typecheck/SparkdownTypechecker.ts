@@ -34,6 +34,7 @@ import {
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
 import { isCheckedLuauAt, luauReadingReportsAllAt, storyStoreOf } from "./LuauUnitNodes";
+import { cutIslands } from "../utils/storyIslands";
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
 import { withMessageLines } from "./messageLines";
 import { syntaxErrorEnd } from "./syntaxErrorRange";
@@ -179,6 +180,14 @@ export class SparkdownTypechecker {
     };
     const inFunction = (position: { line: number; character: number }) =>
       luauReadingReportsAllAt(tree.resolveInner(offsetOf(position), -1), read);
+    // A story statement cut at its unclosed bracket's line is Luau its
+    // reading reports every error of, as a function's own Luau is: the
+    // tree's reading of the line runs on past the cut (I-1532).
+    let cutIslandRanges: readonly { from: number; to: number }[] | undefined;
+    const inCutIsland = (position: { line: number; character: number }) => {
+      const at = offsetOf(position);
+      return (cutIslandRanges ??= cutIslands(tree, text)).some((island) => at >= island.from && at <= island.to);
+    };
     // Whether a position is inside a backtick string the tree holds, whose
     // text no tree check reads (I-1435).
     const inBacktickString = (position: { line: number; character: number }) => {
@@ -231,7 +240,8 @@ export class SparkdownTypechecker {
           // (`LuauSyntaxError.ofString`) and a token inside a backtick string,
           // where Luau gave up on the string and no tree check names a token
           // (I-1463).
-          const inPureLuau = pureLuau || inFunction(start);
+          // A cut story `store`'s are still its reading's (`validateStores`).
+          const inPureLuau = pureLuau || inFunction(start) || (inCutIsland(start) && !inStoryStore(start));
           // Luau's parser stops at the end of the chunk, and what the reading
           // reads on after it is none of Luau's: in a `.luau` or `run` file
           // all of it, in a `.sd` document the rest of the top-level

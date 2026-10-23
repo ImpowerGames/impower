@@ -1,5 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
-import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd } from "../utils/storyIslands";
+import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, enclosingUnclosedIslandEnd, lastLineEnd, unclosedIslandEnd } from "../utils/storyIslands";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -546,6 +546,12 @@ interface Token {
    * reads on past, not a marked (`&`) statement's (I-1490).
    */
   storyStatementEnd?: true;
+  /**
+   * That EOF ends a story statement island at its unclosed bracket's line
+   * (`unclosedIslandEnd`, I-1532), which ends a block the island opened (a
+   * function in its value) too, as the end of the line alone does for Luau.
+   */
+  unclosedEnd?: true;
   /** That EOF ends a story loop header with no `do` on its line (#1907), where Luau's error is the loop's diagnostic. */
   loopHeaderEnd?: true;
   /** A token of such a header, where Luau's error is the loop's diagnostic too (`while true print(1)`). */
@@ -783,7 +789,7 @@ class Tokenizer {
   readonly returnTriviaSpans: { from: number; to: number }[] = [];
   readonly hotcomments: HotComment[] = [];
   /** Where each story declaration's or reassignment's Luau ends (#1907), for `insertStoryBreaks`. */
-  readonly storyIslandEnds: { from: number; end: number; source: number; loop?: true; continued?: true }[] = [];
+  readonly storyIslandEnds: { from: number; end: number; source: number; loop?: true; continued?: true; unclosed?: true }[] = [];
   /** The index of the top-level node being read. */
   source = -1;
   /**
@@ -814,6 +820,33 @@ class Tokenizer {
   location(from: number, to: number): Location {
     return new Location(this.index.position(from), this.index.position(to));
   }
+
+  /**
+   * Pushes a token the tree reads whole (a string, a number). One the tree
+   * carries past the cut of the island being read (a string continued on
+   * the next line with `\`) is what Luau's lexer reads of it up to the cut
+   * and the line break after it, as it does for that line alone (I-1532).
+   */
+  private pushWhole(kind: TokenKind, from: number, to: number, node: SyntaxNode): void {
+    const cut = this.islandCut ?? null;
+    if (cut === null || to <= cut) {
+      this.push(kind, from, to, node);
+      return;
+    }
+    let end = cut;
+    if (this.text[end] === "\r") end++;
+    if (this.text[end] === "\n") end++;
+    this.lex(from, end);
+    const last = this.tokens.at(-1);
+    if (last && last.to > cut) this.wholePastCut = { token: last, cut };
+  }
+
+  /**
+   * Not part of Luau: the token `pushWhole` read on past the cut, with the
+   * cut, where the reading's end of input stands when that token is its
+   * last (the string's line break is the token's, not the input's).
+   */
+  wholePastCut?: { token: Token; cut: number };
 
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
     // Luau's lexer reads `@` as an attribute lexeme: with the name written
@@ -889,13 +922,37 @@ class Tokenizer {
     this.tokens.push({ kind, text, from: at, to: at, location: this.location(at, at), source: this.source, ...(written && { written }) });
   }
 
+  /**
+   * Not part of Luau: where the story statement island being read was cut
+   * at its unclosed bracket's line (`unclosedIslandEnd`, I-1532), null where
+   * it was not, and undefined outside a reading. The story lines the tree
+   * reads into such a bracket are story, not the statement's Luau, in every
+   * reading of a node in it, so no node past the cut is read. Found once
+   * where a reading begins, from the node's ancestors, and set where the
+   * reading enters an island.
+   */
+  private islandCut: number | null | undefined;
+
   /** Reads the tokens of a node and everything under it. */
   read(node: SyntaxNode): void {
+    if (this.islandCut === undefined) {
+      this.islandCut = enclosingUnclosedIslandEnd(node, this.text) ?? null;
+      try {
+        this.read(node);
+      } finally {
+        this.islandCut = undefined;
+      }
+      return;
+    }
+    if (this.islandCut !== null && node.from >= this.islandCut) return;
     const name = node.name;
     if (isExplicitRuleName(name, "LuauReturnStatement")) {
-      const suffix = returnSuffixSpan(this.text, this.index, node.to);
+      // A return the tree carries past an island's cut ends there (I-1532).
+      const cut = this.islandCut ?? null;
+      const end = cut !== null && node.to > cut ? cut : node.to;
+      const suffix = returnSuffixSpan(this.text, this.index, end);
       this.returnSourceLines.push(this.location(node.from, suffix.to));
-      this.returnTriviaSpans.push({ from: node.to, to: suffix.triviaEnd });
+      this.returnTriviaSpans.push({ from: end, to: suffix.triviaEnd });
     }
     if (isComment(node)) {
       this.comment(node);
@@ -966,7 +1023,10 @@ class Tokenizer {
     // A structural word's rule that holds no arms is read as Luau, through
     // its children: the word is a name (`match(1)` is a call, I-1310).
     if (isSparkdownExpression(node)) {
-      if (to > from) this.push("sparkdown", from, to, node);
+      // One the tree carries past an island's cut (an alternator whose
+      // `end` is a later line's) ends at the cut for the reading (I-1532).
+      const cut = this.islandCut ?? null;
+      if (to > from) this.push("sparkdown", from, cut !== null && to > cut ? cut : to, node);
       return;
     }
     if (name === "LuauNewExpression") {
@@ -1013,17 +1073,26 @@ class Tokenizer {
     // later on its line is still one Luau's reading meets, so the EOF stands
     // at the end of that line, where `insertStoryBreaks` puts it, unless a
     // statement that begins later on that line goes on past it, whose own
-    // end then ends the reading.
+    // end then ends the reading. A bracket the island never closes carried
+    // nothing on, so the island ends with its opener's line, and the story
+    // lines the tree reads into the bracket are not its Luau (I-1532).
     if (isStoryStatementIsland(node)) {
       const first = this.tokens.length;
-      this.readChildren(node);
-      const end = lastLineEnd(this.text, node.to);
+      const unclosed = unclosedIslandEnd(node, this.text);
+      const outerCut = this.islandCut;
+      this.islandCut = unclosed ?? null;
+      try {
+        this.readChildren(node);
+      } finally {
+        this.islandCut = outerCut;
+      }
+      const end = unclosed ?? lastLineEnd(this.text, node.to);
       const loop = isStoryHeaderOnlyLoop(node);
       for (let i = first; i < this.tokens.length; i++) {
         this.tokens[i]!.authoredIsland ??= end;
         if (loop) this.tokens[i]!.loopHeader = true;
       }
-      this.storyIslandEnds.push({ from: node.from, end, source: this.source, ...(loop ? { loop: true as const } : {}), ...(continuesPastLine(node, this.text) ? { continued: true as const } : {}) });
+      this.storyIslandEnds.push({ from: node.from, end, source: this.source, ...(loop ? { loop: true as const } : {}), ...(continuesPastLine(node, this.text) ? { continued: true as const } : {}), ...(unclosed !== undefined ? { unclosed: true as const } : {}) });
       return;
     }
     if (name === "LuauSparkdownChooseBlock_begin") {
@@ -1053,19 +1122,19 @@ class Tokenizer {
     }
     if (!name.startsWith("Luau") && !isNeutral(node)) return;
     if (isQuotedString(node)) {
-      if (to > from) this.push("string", from, to, node);
+      if (to > from) this.pushWhole("string", from, to, node);
       return;
     }
     if (name === RAW_STRING) {
-      if (to > from) this.push("rawstring", from, to, node);
+      if (to > from) this.pushWhole("rawstring", from, to, node);
       return;
     }
     if (name === INTERPOLATED_STRING) {
-      if (to > from) this.push("interp", from, to, node);
+      if (to > from) this.pushWhole("interp", from, to, node);
       return;
     }
     if (isNumber(node)) {
-      if (to > from) this.push("number", from, to, node);
+      if (to > from) this.pushWhole("number", from, to, node);
       return;
     }
     if (name === "LuauFunctionDefinition") {
@@ -1296,7 +1365,17 @@ class Tokenizer {
     }
     if (ch === '"' || ch === "'") {
       let end = i + 1;
-      while (end < to && text[end] !== ch && text[end] !== "\n") end += text[end] === "\\" ? 2 : 1;
+      while (end < to && text[end] !== ch && text[end] !== "\n") {
+        if (text[end] !== "\\") end++;
+        // `\z` skips the whitespace after it, line breaks included, and a
+        // `\` before `\r\n` escapes both, as in a backtick string's section
+        // (`sectionEnd`, Luau's `readBackslashInString`).
+        else if (text[end + 1] === "z") {
+          end += 2;
+          while (end < to && /[ \t-\r]/.test(text[end]!)) end++;
+        } else if (text.startsWith("\r\n", end + 1)) end += 3;
+        else end += 2;
+      }
       end = Math.min(to, text[end] === ch ? end + 1 : end);
       this.push("string", i, end);
       return end;
@@ -1974,8 +2053,10 @@ class Parser {
     // A marked narrative statement owns its missing value/closer at its
     // authored EOF. The following prose only supplies a synthetic break;
     // delegating this error to story grammar would drop it entirely.
-    // Genuine Luau functions keep their existing multiline recovery.
-    const boundedStoryEnd = !this.currentFunction().luau && this.current().kind === "break" && this.current().authoredEnd === true;
+    // Genuine Luau functions keep their existing multiline recovery, but
+    // one a story statement cut at its unclosed bracket's line opens meets
+    // its end of input there, Luau's own (`unclosedEnd`, I-1532).
+    const boundedStoryEnd = (!this.currentFunction().luau || this.current().unclosedEnd === true) && this.current().kind === "break" && this.current().authoredEnd === true;
     // An error met in an attribute list is the list's, and Luau's attribute
     // errors are Luau's own even in a `store` declaration's value, since
     // Sparkdown's syntax does not read an attribute's meaning.
@@ -2157,12 +2238,16 @@ class Parser {
     this.expectMatchAndConsumeFail(text, begin, "", construct);
     if (searchForMissing) {
       const line = this.previousLocation().end.line;
-      while (this.current().kind !== "eof" && this.current().location.begin.line === line && !this.is(text) && !this.is("end")) this.next();
+      // Not part of Luau: nothing after an `unclosedEnd` is on the line (I-1532).
+      while (this.current().kind !== "eof" && !this.current().unclosedEnd && this.current().location.begin.line === line && !this.is(text) && !this.is("end")) this.next();
       if (this.is(text)) {
         this.nextExpected();
         return true;
       }
-    } else if (this.is(text, this.lookahead())) {
+    } else if (!this.current().unclosedEnd && this.is(text, this.lookahead())) {
+      // Not part of Luau: the end of a story statement cut at its unclosed
+      // bracket's line is Luau's end of input, with no token after it to
+      // recover with (`unclosedEnd`, I-1532).
       this.next();
       this.nextExpected();
       return true;
@@ -2329,7 +2414,8 @@ class Parser {
       this.next();
       return false;
     }
-    if (this.is(text, this.lookahead())) {
+    // As in `expectMatchAndConsume`: nothing after an `unclosedEnd` recovers.
+    if (!this.current().unclosedEnd && this.is(text, this.lookahead())) {
       this.next();
       this.nextExpected();
       return true;
@@ -2379,6 +2465,18 @@ class Parser {
   }
 
   // -- Blocks and statements -----------------------------------------------
+
+  /**
+   * Not part of Luau: whether a block the reading is in ends at the current
+   * token, the end of a story statement island cut at its unclosed bracket's
+   * line (`unclosedEnd`, I-1532), because the block was opened in that island
+   * (a function in its value). Luau, reading that line alone, meets its end
+   * of input there, inside the block; a block the island is in reads on.
+   */
+  private endsIslandBlock(begin: Token | undefined): boolean {
+    const current = this.current();
+    return current.kind === "break" && current.unclosedEnd === true && begin?.authoredIsland === current.from;
+  }
 
   private blockFollow(token: Token): boolean {
     if (token.kind === "eof" || token.kind === "unfinishedComment" || token.kind === "chooseThen" || token.kind === "chooseEnd") return true;
@@ -2445,7 +2543,7 @@ class Parser {
     // Not part of Luau: whether what follows is the condition Luau reads for
     // a `repeat` loop whose block it ended after a `return` (see below).
     let repeatCondition = false;
-    while (!this.blockFollow(this.current())) {
+    while (!this.blockFollow(this.current()) && !this.endsIslandBlock(begin)) {
       const current = this.current();
       // Not part of Luau: where the tree ends the statement before, no statement begins.
       if (current.kind === "break") {
@@ -4859,7 +4957,10 @@ function readUnit(
   }
   const ctx: ReadContext = { text: tokenizer.text, index };
   const lastEnd = tokenizer.tokens.at(-1)?.location.end;
+  // A last token read on past an island's cut ends the input at the cut (I-1532).
+  const cutEof = tokenizer.wholePastCut?.token === tokenizer.tokens.at(-1) ? tokenizer.wholePastCut?.cut : undefined;
   const eof = eofAt !== undefined ? index.position(eofAt)
+    : cutEof !== undefined ? index.position(cutEof)
     : retainedEnd && (!lastEnd || retainedEnd.gt(lastEnd)) ? retainedEnd : undefined;
   const parser = new Parser(tokenizer.tokens, ctx, new Location(start, start), eof);
   for (const span of tokenizer.returnTriviaSpans) parser.recordSourceDependency(span.from, span.to);
@@ -5125,7 +5226,7 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
       if (island.loop && shared?.authoredEnd && shared.from === island.end) shared.loopHeaderEnd = true;
       return;
     }
-    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, storyStatementEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}) });
+    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, storyStatementEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}), ...(island.unclosed ? { unclosedEnd: true as const } : {}) });
     lastStoryBreak = island.end;
   };
   for (const token of tokens) {
@@ -5254,7 +5355,12 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
     tokenizer.tokens[tokenizer.tokens.length - 1]!.story = true;
   } else {
     const last = tokenizer.tokens[tokenizer.tokens.length - 1]!;
-    tokenizer.synthetic("keyword", "end", last.to);
+    // The wrapper's closer stands after the cut of a story statement that
+    // ends the flow's tokens, outside its island, whose function the tree
+    // may have closed with the scene's `end` (I-1532).
+    let at = last.to;
+    for (const island of tokenizer.storyIslandEnds) if (island.unclosed && island.end > at) at = island.end;
+    tokenizer.synthetic("keyword", "end", at);
   }
   insertStoryBreaks(tokenizer, tree);
   const start = new Position(index.lineAt(flow.header.from), 0);
