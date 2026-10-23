@@ -152,15 +152,20 @@ export function unclosedIslandEnd(node: SyntaxNode, text: string): number | unde
   return opener ? lastLineEnd(text, opener.to) : undefined;
 }
 
-/** Whether a node is on the story lines after a story island's unclosed bracket (`unclosedIslandEnd`). */
-export function pastStoryIslandEnd(node: SyntaxNode, text: string): boolean {
+/** The `unclosedIslandEnd` of the story island a node is inside, if it has one. */
+export function enclosingUnclosedIslandEnd(node: SyntaxNode, text: string): number | undefined {
   for (let n = node.parent; n; n = n.parent) {
     if ((n.name === "LuauSparkdownVariableDefinition" || n.name === "LuauSparkdownReassignment") && isStoryStatementIsland(n)) {
-      const end = unclosedIslandEnd(n, text);
-      return end !== undefined && node.from >= end;
+      return unclosedIslandEnd(n, text);
     }
   }
-  return false;
+  return undefined;
+}
+
+/** Whether a node is on the story lines after a story island's unclosed bracket (`unclosedIslandEnd`). */
+export function pastStoryIslandEnd(node: SyntaxNode, text: string): boolean {
+  const end = enclosingUnclosedIslandEnd(node, text);
+  return end !== undefined && node.from >= end;
 }
 
 /** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */

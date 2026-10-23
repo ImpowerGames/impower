@@ -475,12 +475,17 @@ describe("brackets carry a story statement on", () => {
     expect(output).toBe(expected);
   });
 
-  test.each([
-    ["a declaration", "local x = math.max(1,"],
-    ["an `&` line", "& print(1,"],
-  ])("an unclosed `(` in %s reports Luau's missing `)` at the next header", (_name, statement) => {
-    const source = `${statement}\n  2\nscene t\n  After.\nend\n`;
+  test("an unclosed `(` in an `&` line reports Luau's missing `)` at the next header", () => {
+    const source = "& print(1,\n  2\nscene t\n  After.\nend\n";
     expect(errorsOf(source)).toEqual(["1:3-2:0 Expected ')' (to close '(' at line 1), got <eof>"]);
+    expect(topNodes(source).find((node) => node.name === "Scene")?.from).toBe(source.indexOf("scene t"));
+  });
+
+  // A declaration's bracket that never closes carried nothing on, so its
+  // Luau ends with the opener's line, and the line after it is story (I-1532).
+  test("an unclosed `(` in a declaration reports Luau's error for its line alone", () => {
+    const source = "local x = math.max(1,\n  2\nscene t\n  After.\nend\n";
+    expect(errorsOf(source)).toEqual(["0:21-1:0 Expected identifier when parsing expression, got <eof>"]);
     expect(topNodes(source).find((node) => node.name === "Scene")?.from).toBe(source.indexOf("scene t"));
   });
 

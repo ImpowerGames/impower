@@ -305,6 +305,14 @@ describe("a story store or local whose unclosed bracket the tree reads on into s
       pinText(`"${line}" before ${story}`, `${line}\n${lines.map((l) => `${l}\n`).join("")}${SCENE}`, luau, 0, 0);
     }
   }
+  // A function the unclosed bracket's line opens ends with that line too: its
+  // body on the story lines after it is story, so its `end` is missing there.
+  for (const line of ["store s = g(function()", "local s = g(function()", "store s = g(function() if x then", "store s = {function()", "s = g(function()"]) {
+    const luau = `${line.replace(/^store/, "local")}\n`;
+    pinText(`"${line}" before its body in a scene`, `scene start\n  ${line}\n  return 1\n  end\n  Hello.\nend\n`, luau, 1, 2);
+    pinText(`"${line}" before its body`, `${line}\nreturn 1\nend\nHello.\n${SCENE}`, luau, 0, 0);
+  }
+  pinLine("store s = g(function() return 1 end", "local s = g(function() return 1 end");
   pinLine("store s = g({1, (2", "local s = g({1, (2");
   pinLine("local s = g({1, (2", "local s = g({1, (2");
   // The outermost unclosed opener's line ends the value, even where a bracket inside it closes on a later line.

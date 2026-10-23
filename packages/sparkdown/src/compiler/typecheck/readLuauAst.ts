@@ -1,5 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
-import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd, unclosedIslandEnd } from "../utils/storyIslands";
+import { continuesPastLine, isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd, pastStoryIslandEnd, unclosedIslandEnd } from "../utils/storyIslands";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -546,6 +546,12 @@ interface Token {
    * reads on past, not a marked (`&`) statement's (I-1490).
    */
   storyStatementEnd?: true;
+  /**
+   * That EOF ends a story statement island at its unclosed bracket's line
+   * (`unclosedIslandEnd`, I-1532), which ends a block the island opened (a
+   * function in its value) too, as the end of the line alone does for Luau.
+   */
+  unclosedEnd?: true;
   /** That EOF ends a story loop header with no `do` on its line (#1907), where Luau's error is the loop's diagnostic. */
   loopHeaderEnd?: true;
   /** A token of such a header, where Luau's error is the loop's diagnostic too (`while true print(1)`). */
@@ -783,7 +789,7 @@ class Tokenizer {
   readonly returnTriviaSpans: { from: number; to: number }[] = [];
   readonly hotcomments: HotComment[] = [];
   /** Where each story declaration's or reassignment's Luau ends (#1907), for `insertStoryBreaks`. */
-  readonly storyIslandEnds: { from: number; end: number; source: number; loop?: true; continued?: true }[] = [];
+  readonly storyIslandEnds: { from: number; end: number; source: number; loop?: true; continued?: true; unclosed?: true }[] = [];
   /** The index of the top-level node being read. */
   source = -1;
   /**
@@ -892,6 +898,10 @@ class Tokenizer {
   /** Reads the tokens of a node and everything under it. */
   read(node: SyntaxNode): void {
     const name = node.name;
+    // The story lines the tree reads into a story statement's bracket that
+    // never closes are story, not its Luau (`pastStoryIslandEnd`, I-1532), in
+    // every reading of a node in the statement.
+    if (pastStoryIslandEnd(node, this.text)) return;
     if (isExplicitRuleName(name, "LuauReturnStatement")) {
       const suffix = returnSuffixSpan(this.text, this.index, node.to);
       this.returnSourceLines.push(this.location(node.from, suffix.to));
@@ -1020,18 +1030,13 @@ class Tokenizer {
       const first = this.tokens.length;
       this.readChildren(node);
       const unclosed = unclosedIslandEnd(node, this.text);
-      if (unclosed !== undefined) {
-        let kept = first;
-        while (kept < this.tokens.length && this.tokens[kept]!.from < unclosed) kept++;
-        this.tokens.length = kept;
-      }
       const end = unclosed ?? lastLineEnd(this.text, node.to);
       const loop = isStoryHeaderOnlyLoop(node);
       for (let i = first; i < this.tokens.length; i++) {
         this.tokens[i]!.authoredIsland ??= end;
         if (loop) this.tokens[i]!.loopHeader = true;
       }
-      this.storyIslandEnds.push({ from: node.from, end, source: this.source, ...(loop ? { loop: true as const } : {}), ...(continuesPastLine(node, this.text) ? { continued: true as const } : {}) });
+      this.storyIslandEnds.push({ from: node.from, end, source: this.source, ...(loop ? { loop: true as const } : {}), ...(continuesPastLine(node, this.text) ? { continued: true as const } : {}), ...(unclosed !== undefined ? { unclosed: true as const } : {}) });
       return;
     }
     if (name === "LuauSparkdownChooseBlock_begin") {
@@ -2170,7 +2175,10 @@ class Parser {
         this.nextExpected();
         return true;
       }
-    } else if (this.is(text, this.lookahead())) {
+    } else if (!this.current().unclosedEnd && this.is(text, this.lookahead())) {
+      // Not part of Luau: the end of a story statement cut at its unclosed
+      // bracket's line is Luau's end of input, with no token after it to
+      // recover with (`unclosedEnd`, I-1532).
       this.next();
       this.nextExpected();
       return true;
@@ -2337,7 +2345,8 @@ class Parser {
       this.next();
       return false;
     }
-    if (this.is(text, this.lookahead())) {
+    // As in `expectMatchAndConsume`: nothing after an `unclosedEnd` recovers.
+    if (!this.current().unclosedEnd && this.is(text, this.lookahead())) {
       this.next();
       this.nextExpected();
       return true;
@@ -2387,6 +2396,18 @@ class Parser {
   }
 
   // -- Blocks and statements -----------------------------------------------
+
+  /**
+   * Not part of Luau: whether a block the reading is in ends at the current
+   * token, the end of a story statement island cut at its unclosed bracket's
+   * line (`unclosedEnd`, I-1532), because the block was opened in that island
+   * (a function in its value). Luau, reading that line alone, meets its end
+   * of input there, inside the block; a block the island is in reads on.
+   */
+  private endsIslandBlock(begin: Token | undefined): boolean {
+    const current = this.current();
+    return current.kind === "break" && current.unclosedEnd === true && begin?.authoredIsland === current.from;
+  }
 
   private blockFollow(token: Token): boolean {
     if (token.kind === "eof" || token.kind === "unfinishedComment" || token.kind === "chooseThen" || token.kind === "chooseEnd") return true;
@@ -2453,7 +2474,7 @@ class Parser {
     // Not part of Luau: whether what follows is the condition Luau reads for
     // a `repeat` loop whose block it ended after a `return` (see below).
     let repeatCondition = false;
-    while (!this.blockFollow(this.current())) {
+    while (!this.blockFollow(this.current()) && !this.endsIslandBlock(begin)) {
       const current = this.current();
       // Not part of Luau: where the tree ends the statement before, no statement begins.
       if (current.kind === "break") {
@@ -5133,7 +5154,7 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
       if (island.loop && shared?.authoredEnd && shared.from === island.end) shared.loopHeaderEnd = true;
       return;
     }
-    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, storyStatementEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}) });
+    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, storyStatementEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}), ...(island.unclosed ? { unclosedEnd: true as const } : {}) });
     lastStoryBreak = island.end;
   };
   for (const token of tokens) {
