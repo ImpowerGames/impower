@@ -115,7 +115,7 @@ describe("in a narrative body", () => {
 
   // Luau ends `local c : : number`'s method call at `number` with `Expected
   // function call arguments after '('`; the reading meets the line's end
-  // there and words it as a call with no arguments at <eof> (TICKET-PENDING).
+  // there and words it as a call with no arguments at <eof> (I-1551).
   test.each(["local c : : number", "scene S\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
     expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
       "Expected type, got ':'",
