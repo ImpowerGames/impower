@@ -5,13 +5,19 @@
 // label's text.
 
 import { describe, expect, test } from "vitest";
-import { testCompiler, testStory, withTestExternals } from "../engineUnderTest";
+import {
+  TestProgramStory,
+  testCompiler,
+  testStory,
+  withTestExternals,
+} from "../engineUnderTest";
 
 type File = { uri: string; text: string };
 
-function compileWithFiles(files: File[]) {
+function compileWithFiles(files: File[], uriPathsAsWritten = false) {
   const compiler = testCompiler();
   compiler.configure({
+    uriPathsAsWritten,
     files: files.map((f) => ({
       uri: f.uri,
       type: "script",
@@ -45,8 +51,8 @@ function compileWithFiles(files: File[]) {
 /** What a story reports while a `run` file's body calls `harness_probe`:
  *  what the body recorded, and at the probe, each call frame's name
  *  (`CallFramePath`), the debugger's frame names and the stack trace. */
-function probe(files: File[]) {
-  const { result, errs } = compileWithFiles(files);
+function probe(files: File[], uriPathsAsWritten = false) {
+  const { result, errs } = compileWithFiles(files, uriPathsAsWritten);
   expect(errs).toEqual([]);
   const story = testStory(result.program.chunks);
   story.stepLimit = 20000;
@@ -252,6 +258,108 @@ done
       expect(shown).not.toContain("__run_");
       expect(shown).toContain("my helper");
       expect(recorded[0]).not.toContain("__run_");
+    },
+  );
+
+  // A host that writes each path as it is (the web editor) has a file of
+  // that very name, which is shown as it is (`projectPath`).
+  test.each([
+    {
+      host: "a host that encodes its URIs",
+      asWritten: false,
+      shown: "my helper",
+    },
+    {
+      host: "a host that writes paths as they are",
+      asWritten: true,
+      shown: "my%20helper",
+    },
+  ])(
+    "shows my%20helper.luau as the file system names it on $host",
+    ({ asWritten, shown }) => {
+      const { recorded, paths } = probe(
+        [
+          {
+            uri: "file:///C:/proj/main.sd",
+            text: `${EXTERNALS}run "${asWritten ? "my%20helper" : "my helper"}"\ndone\n`,
+          },
+          { uri: "file:///C:/proj/my%20helper.luau", text: BODY },
+        ],
+        asWritten,
+      );
+      expect(recorded[0]).toBe(shown);
+      expect(paths[0]).toContain(shown);
+    },
+  );
+
+  // A function value is named by the program that runs it: a value made
+  // while `a/helper` was the only `helper`, carried into a program that also
+  // runs `b/helper`, prints as `a/helper`, after an execution image's
+  // restore or a state's `LoadJson` alike.
+  test.each(["an execution image", "the state's JSON"])(
+    "prints a carried wrapper value by the running program's name after restoring %s",
+    (carrier) => {
+      const wrapper = "__run_file_3a_2f_2f_2fC_3a_2fproj_2fa_2fhelper_2eluau__";
+      const mainWith = (runs: string) =>
+        `${EXTERNALS}run hold\nFirst line.\nrun show\n${runs}done\n`;
+      const files = [
+        { uri: "file:///C:/proj/main.sd", text: mainWith('run "a/helper"\n') },
+        { uri: "file:///C:/proj/hold.luau", text: `held = ${wrapper}\n` },
+        {
+          uri: "file:///C:/proj/show.luau",
+          text: `harness_record(tostring(held))\n`,
+        },
+        {
+          uri: "file:///C:/proj/a/helper.luau",
+          text: `harness_record(debug.info(1, "n"))\n`,
+        },
+        {
+          uri: "file:///C:/proj/b/helper.luau",
+          text: `harness_record(debug.info(1, "n"))\n`,
+        },
+      ];
+      const { compiler, result, errs } = compileWithFiles(files);
+      expect(errs).toEqual([]);
+      const bind = (story: ReturnType<typeof testStory>, out: unknown[]) => {
+        story.stepLimit = 20000;
+        story.BindExternalFunction("harness_record", (v: unknown) => {
+          out.push(v);
+          return v;
+        });
+        story.BindExternalFunction("harness_probe", () => null);
+      };
+      const first = testStory(result.program.chunks);
+      bind(first, []);
+      first.Continue();
+      const image = first.capture();
+      const json = first.state.ToJson();
+      compiler.updateDocument({
+        textDocument: { uri: "file:///C:/proj/main.sd", version: 2 },
+        contentChanges: [
+          {
+            text: withTestExternals(
+              mainWith('run "a/helper"\nrun "b/helper"\n'),
+            ),
+          },
+        ],
+      });
+      const next = compiler.compile({
+        textDocument: { uri: "file:///C:/proj/main.sd" },
+      });
+      const after: unknown[] = [];
+      // The next program's engine shares the first's images, as a game's
+      // engine after an edit does.
+      const second = new TestProgramStory(next.program.chunks!, {
+        images: first.images,
+      });
+      bind(second, after);
+      if (carrier === "an execution image") {
+        expect(second.restore(image)).toBe(true);
+      } else {
+        second.state.LoadJson(json);
+      }
+      second.ContinueMaximally();
+      expect(after).toEqual(["function: a/helper", "a/helper", "b/helper"]);
     },
   );
 

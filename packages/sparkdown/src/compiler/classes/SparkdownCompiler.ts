@@ -4369,7 +4369,11 @@ export class SparkdownCompiler {
         declarations: flows.declarations,
         lineCount,
         changed,
-        runFiles: runFileRecord(runFiles, projectRootUri(uri)),
+        runFiles: runFileRecord(
+          runFiles,
+          projectRootUri(uri),
+          this._config.uriPathsAsWritten,
+        ),
       },
       !this._previewing && !flows.unsupported,
       tables,

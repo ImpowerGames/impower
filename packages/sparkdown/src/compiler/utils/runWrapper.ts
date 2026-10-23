@@ -11,6 +11,7 @@
 
 import type { RunFile } from "../../program/ProgramRoot";
 import { documentTag } from "../lower/utils/documentTag";
+import { projectPath } from "./projectMembership";
 
 export const RUN_QUERY = "?run=";
 
@@ -50,16 +51,6 @@ export function runWrapperUri(fileUri: string, wrapper: string): string {
   return `${fileUri}${RUN_QUERY}${wrapper}`;
 }
 
-/** A path of a URI as an author spells it: each escape decoded, or the
- *  path as it is when it holds a malformed one. */
-const decodedPath = (path: string): string => {
-  try {
-    return decodeURIComponent(path);
-  } catch {
-    return path;
-  }
-};
-
 /** A path without the extension of its last name. */
 const withoutExtension = (path: string): string =>
   path.replace(/(?<=[^/])\.[^./]*$/, "");
@@ -67,7 +58,8 @@ const withoutExtension = (path: string): string =>
 /**
  * The record of the wrappers of the `run` files a compile ran (`files`, the
  * URI of each by its wrapper's name): each wrapper's file, and the name an
- * author reads the wrapper by, the file's name decoded and without its
+ * author reads the wrapper by, the file's name as the file system names it
+ * (`projectPath`, under the host's `asWritten` convention) without its
  * extension (`my%20helper.luau` shows as `my helper`). Two files of one name
  * are each shown by their paths under the project's folder (`projectRoot`),
  * so `a/helper` and `b/helper` stay apart. The names are only shown: a
@@ -76,9 +68,12 @@ const withoutExtension = (path: string): string =>
 export function runFileRecord(
   files: ReadonlyMap<string, string>,
   projectRoot: string | undefined,
+  asWritten = false,
 ): Map<string, RunFile> {
   const named = (uri: string) =>
-    withoutExtension(decodedPath(uri.slice(uri.lastIndexOf("/") + 1)));
+    withoutExtension(
+      projectPath(uri.slice(uri.lastIndexOf("/") + 1), asWritten),
+    );
   const counts = new Map<string, number>();
   for (const uri of files.values()) {
     const name = named(uri);
@@ -92,10 +87,11 @@ export function runFileRecord(
       label:
         counts.get(name)! > 1
           ? withoutExtension(
-              decodedPath(
+              projectPath(
                 projectRoot && uri.startsWith(projectRoot)
                   ? uri.slice(projectRoot.length)
                   : uri,
+                asWritten,
               ),
             )
           : name,

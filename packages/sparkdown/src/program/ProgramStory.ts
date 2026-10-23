@@ -2069,6 +2069,14 @@ export class ProgramStory implements StoryEngine {
     return path.slice(path.lastIndexOf(".") + 1);
   }
 
+  /** The name a function value prints by: its symbol's as this program
+   *  shows it, so a value made under an earlier program reads as the
+   *  running one names it. */
+  FunctionLabel(ref: SymbolRef): string {
+    const symbol = this.symbolIn(ref);
+    return symbol === undefined ? ref.label : this.root.shownLabelOf(symbol);
+  }
+
   /** The name a frame that runs no function shows: the name of the flow it
    *  stands in, `0` for the top-level content, as the object engine's path
    *  of that container read, and `global decl` for a declaration. */
@@ -2766,7 +2774,9 @@ export class ProgramStory implements StoryEngine {
           if (!(output instanceof Void)) {
             // A function value's `toString` is its table key, not its text;
             // a multiple value prints its first.
-            const text = functionText(oneValue(output)) ?? output.toString();
+            const text =
+              functionText(oneValue(output), (ref) => this.FunctionLabel(ref)) ??
+              output.toString();
             state.PushToOutputStream(new StringValue(text));
           }
         }
@@ -3182,7 +3192,6 @@ export class ProgramStory implements StoryEngine {
           this.root.generation,
           isAnonymousSymbol(table, symbol) ? null : table.symbols[symbol]!,
           readableSymbolLabel(this.root.labelOf(symbol)),
-          this.root.shownLabelOf(symbol),
         ),
       );
       this._symbols.set(symbol, value);

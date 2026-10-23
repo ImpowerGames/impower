@@ -3,7 +3,7 @@ import type { ErrorType, RaisedError } from "../runtime/Error";
 import type { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
 import type { ProgramAddress } from "../compiler/types/ProgramAddress";
-import type { AbstractValue, ObjectValue } from "../runtime/Value";
+import type { AbstractValue, ObjectValue, SymbolRef } from "../runtime/Value";
 import type { VariablesState } from "../runtime/VariablesState";
 import type { ProgramImage, ProgramImages } from "./ProgramImages";
 import type { ProgramRoot } from "./ProgramRoot";
@@ -127,6 +127,10 @@ export interface StoryEngine {
   /** The name `debug.info` gives call frame `index`: the last part of its
    *  path (`CallFramePath`), or a `run` file's whole name. */
   CallFrameName(index: number): string | null;
+  /** The name a function value prints by (`functionText`): its symbol's
+   *  as the running program shows it (`ProgramRoot.shownLabelOf`), or the
+   *  value's own label when the program no longer defines the symbol. */
+  FunctionLabel(ref: SymbolRef): string;
   onError: StoryErrorHandler | null;
   errorMessageFormatter?: (story: any, message: string) => string;
   /** Whether the `error` builtin running was called by `pcall` or

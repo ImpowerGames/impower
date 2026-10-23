@@ -378,11 +378,6 @@ export class SymbolRef {
     public readonly generation: number,
     public readonly name: string | null,
     public readonly label: string,
-    /** The name an author reads the value by, where it is not its label:
-     *  a `run` file's wrapper is shown by its file
-     *  (`ProgramRoot.shownLabelOf`). The label stays the value's table key
-     *  and what a save holds. */
-    public readonly shown: string = label,
   ) {}
 
   public Equals(other: unknown): boolean {
@@ -623,13 +618,18 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
  *  `SymbolValue`) and for a closure (a table holding its function at
  *  `__closure_fn`), `function: builtin: <name>` for a builtin (a table
  *  marked `__stdlib_fn`). `null` when the value is no function. The value's
- *  `toString` is its table key instead, which saves hold. */
-export function functionText(value: unknown): string | null {
-  if (value instanceof SymbolValue) return "function: " + value.ref.shown;
+ *  `toString` is its table key instead, which saves hold. A function is
+ *  named by `labelOf`, which the running program gives so that a `run`
+ *  file's wrapper shows by its file (`StoryEngine.FunctionLabel`). */
+export function functionText(
+  value: unknown,
+  labelOf: (ref: SymbolRef) => string = (ref) => ref.label,
+): string | null {
+  if (value instanceof SymbolValue) return "function: " + labelOf(value.ref);
   if (!(value instanceof ObjectValue) || value.value === null) return null;
   const closure = value.value.get("__closure_fn");
   if (closure !== undefined) {
-    const label = closure instanceof SymbolValue ? closure.ref.shown : null;
+    const label = closure instanceof SymbolValue ? labelOf(closure.ref) : null;
     return `function: ${label ?? "<closure>"}`;
   }
   const builtin = value.value.get("__stdlib_fn");
