@@ -539,7 +539,12 @@ interface Token {
   story?: true;
   /** The grammar-owned EOF of a marked narrative island. */
   authoredEnd?: true;
-  /** That EOF ends a story declaration's or reassignment's line, not a marked (`&`) statement's (I-1490). */
+  /**
+   * That EOF ends a story statement island's line (`isStoryStatementIsland`:
+   * a story declaration or reassignment, a story `repeat`'s `until`
+   * condition, or a story loop header with no `do` on its line), which Luau
+   * reads on past, not a marked (`&`) statement's (I-1490).
+   */
   storyStatementEnd?: true;
   /** That EOF ends a story loop header with no `do` on its line (#1907), where Luau's error is the loop's diagnostic. */
   loopHeaderEnd?: true;
