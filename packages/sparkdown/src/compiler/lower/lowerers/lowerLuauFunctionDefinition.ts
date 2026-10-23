@@ -86,11 +86,12 @@ export function lowerLuauFunctionDefinition(
 
   // Detect whether this definition itself is lexically nested —
   // i.e. it lives inside another function's body. If so, we treat
-  // the named declaration as syntactic sugar for `local NAME =
-  // function ... end`: emit a synthetic anonymous knot, capture
-  // upvalues that the body references from outer scopes, and
-  // declare the name as a local holding the resulting closure
-  // value. Otherwise emit a top-level `Knot` as before.
+  // the named definition as syntactic sugar over a function value:
+  // emit a synthetic anonymous knot, capture upvalues that the body
+  // references from outer scopes, and either declare a local holding
+  // the resulting closure value (`local function NAME`) or assign it
+  // to NAME (`function NAME`, below). Otherwise emit a top-level
+  // `Knot` as before.
   const stack = ctx.functionScopeStack;
   const enclosingScope =
     stack && stack.length > 0 ? stack[stack.length - 1] : null;

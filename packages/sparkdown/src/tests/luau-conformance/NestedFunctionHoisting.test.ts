@@ -4,12 +4,12 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // `function NAME(...) end` (without `local`) inside a function body is
 // Luau-spec sugar for `NAME = function(...) end` — visible across
 // do/while/for/if block boundaries within the enclosing function. The
-// lowerer hoists the `local NAME = nil` pre-declaration to the
-// enclosing function's body level and emits a reassignment in place,
-// so the binding survives BeginScope/EndScope on the wrapping block.
+// lowerer emits that assignment in place (I-1422): it assigns the local
+// NAME resolves to, or the global, neither of which a wrapping block's
+// BeginScope/EndScope discards.
 //
 // `local function NAME(...) end` still scopes to the innermost block
-// per Luau spec — only the non-local form gets hoisted.
+// per Luau spec.
 
 describe("nested function hoisting", () => {
   test("function in do block, called after do block", () => {
