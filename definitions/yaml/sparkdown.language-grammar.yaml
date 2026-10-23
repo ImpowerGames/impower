@@ -208,7 +208,7 @@ variables:
   # header around the bracket may hold the `:do` (`while t :: {a: T | :do
   # end`).
   # lookaround: read only in lookbehinds, with no lookaround of its own.
-  LUAU_DECLARATION_TARGETS_BEHIND: (?:\b{{LUAU_DECLARATION_SCOPE_WORDS}}\b[^\n\r(){}\[\]:=]*)
+  LUAU_DECLARATION_TARGETS_BEHIND: (?:\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}\b[^\n\r(){}\[\]:=]*)
   # A reserved word other than `do` and `then`, which only a header's colon
   # rule or the expression's accessor reads after a `:` (a path ends before
   # them, `LUAU_COLON_BEFORE_HEADER_END`; a type's stray `:` before them is
@@ -1571,9 +1571,9 @@ variables:
   # `for` loop's variable takes a `:` before `in` as its annotation's
   # (`LuauForCondition`), so a line that begins with one of them is not
   # `LuauLineContinuation`'s.
-  LUAU_NOT_LINE_START_HEADER_WORD: (?!{{LUAU_LINE_START_HEADER_WORDS}}{{LUAU_NAME_END}})
+  LUAU_NOT_LINE_START_HEADER_WORD: (?!(?:{{LUAU_LINE_START_HEADER_WORDS}}){{LUAU_NAME_END}})
   # The reserved words a header's condition ends at.
-  LUAU_LINE_START_HEADER_WORDS: (?:in|do|then)
+  LUAU_LINE_START_HEADER_WORDS: ["in", "do", "then"]
   # A reserved word on the `:`'s line past a long comment, which
   # `LuauLineStartKeywordMethodAccessor` reads as the method's name, but a
   # header's `do` or `then`.
@@ -1602,9 +1602,7 @@ variables:
   LUAU_TARGET_LINE_END_BEHIND: (?:{{LUAU_BEFORE_TARGET_BEHIND}}{{LUAU_NAME_BEHIND}}{{WS}}*{{LUAU_LINE_COMMENT_BEHIND}}?)
   # What stands before a target on its line: the declaration's keyword, the
   # keyword and the targets before it and a comma, or the line's indent.
-  LUAU_BEFORE_TARGET_BEHIND: (?:\b{{LUAU_DECLARATION_SCOPE_WORDS}}{{WS}}+|\b{{LUAU_DECLARATION_SCOPE_WORDS}}\b{{LUAU_DECLARATION_LIST_BEHIND}}[,]{{WS}}*|^{{WS}}*)
-  # The words a declaration in Luau code begins with.
-  LUAU_DECLARATION_SCOPE_WORDS: (?:local|store|const)
+  LUAU_BEFORE_TARGET_BEHIND: (?:\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+|\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}\b{{LUAU_DECLARATION_LIST_BEHIND}}[,]{{WS}}*|^{{WS}}*)
   # A line comment to the line's end, inside a lookbehind.
   LUAU_LINE_COMMENT_BEHIND: (?:--[^\n\r]*)
   # Text of a declaration's target list with no `=` outside its strings and
