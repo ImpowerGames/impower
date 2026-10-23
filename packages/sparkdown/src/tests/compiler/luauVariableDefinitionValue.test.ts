@@ -63,9 +63,24 @@ describe("the two declaration rules", () => {
       captures(luau),
     );
     expect(captures(narrative)[3]!.patterns[0]).toEqual({ include: "#LuauComment" });
-    expect(luau.end!.startsWith(`${narrative.end!}|(?<=`)).toBe(true);
+    // The Luau end is the narrative one with one exception: at the end of a
+    // line that a target ends, `LuauTargetLineBreak` carries the line break
+    // (I-1449), so the end at the line's end steps aside there.
+    const lineEnds = String.raw`(?=^|$|[;)\]}])`;
+    const [before, after, ...more] = narrative.end!.split(lineEnds);
+    expect(more).toEqual([]);
+    const exception = `${before}${String.raw`(?=^|[;)\]}])|(?=$)(?<!`}`;
+    expect(luau.end!.startsWith(exception)).toBe(true);
+    const rest = luau.end!.slice(exception.length);
+    const behindEnd = rest.indexOf(`)${after}|(?<=`);
+    expect(behindEnd).toBeGreaterThan(0);
+    expect(rest.slice(0, behindEnd)).toBe(TARGET_LINE_END_BEHIND);
   });
 });
+
+// The text the target carrier's begin looks behind for
+// (`LUAU_TARGET_LINE_END_BEHIND`), which the declaration's end steps aside at.
+const TARGET_LINE_END_BEHIND = repository["LuauTargetLineBreak"]!.begin!.replace(/^\(\?=\$\)\(\?<=/, "").replace(/\)$/, "");
 
 // A narrative declaration or reassignment ends at its line, so its `=` is
 // read by its own rules (#1906): `LuauSparkdownVariableAssignment` and

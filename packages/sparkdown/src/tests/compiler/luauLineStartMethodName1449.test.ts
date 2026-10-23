@@ -105,6 +105,11 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t)\n    -- c\n    :end", "end"],
     ["local t = {}\n  local b = (t)\n\n    :end", "end"],
     ["local t = {}\n  local b = (t)\n    : --[=========[c]=========] end", "end"],
+    // A declaration's keyword inside a comment is no declaration's (round 1,
+    // `undirected` finding 2).
+    ["local t = {}\n  local b = (t) -- local x\n    :end", "end"],
+    ["local b = f() -- local x\n    :function", "function"],
+    ["local t = {}\n  local b = (t) -- store x\n    :end", "end"],
     // In brackets, conditions and blocks.
     ["local t = {}\n  local b = {t\n    :end}", "end"],
     ["local t = {}\n  while t\n    :end do end", "end"],
@@ -156,6 +161,7 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x, y\n  : end", null, "local x, y\n  : end"],
     ["local x -- c\n  : end", null, "local x -- c\n  : end"],
     ["local x --[[c]]\n  : end", null, "local x --[[c]]\n  : end"],
+    ["local a, b -- c\n  : end", null, "local a, b -- c\n  : end"],
     ["local x\n  -- c\n  : end", null, "local x\n  -- c\n  : end"],
     ["local x\n\n  : end", null, "local x\n\n  : end"],
     ["local x\n  : --[=========[c]=========] end", null, "local x\n  : --[=========[c]=========] end"],

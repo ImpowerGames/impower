@@ -1777,6 +1777,11 @@ export const getFormatting = (
           name === "OptionalWhitespace" ||
           name === "RequiredWhitespace" ||
           name === "TrailingWhitespace";
+        // The line break after a parameter list that ends its line, which
+        // the body carries the header across (I-1449): nothing of the body
+        // when it holds only whitespace.
+        const isBlankHeaderLineBreak = (node: { name: string; from: number; to: number }): boolean =>
+          node.name === "LuauFunctionHeaderLineBreak" && !document.read(node.from, node.to).trim();
         let cc = contentNode.firstChild;
         while (cc) {
           if (SIGNATURE_NAMES.has(cc.name)) {
@@ -1796,7 +1801,11 @@ export const getFormatting = (
               if (bb.name === "LuauFunctionBody_content") {
                 let bc = bb.firstChild;
                 while (bc) {
-                  if (!isInsignificant(bc.name) && signatureEnd != null) {
+                  if (
+                    !isInsignificant(bc.name) &&
+                    !isBlankHeaderLineBreak(bc) &&
+                    signatureEnd != null
+                  ) {
                     bodyHasContent = true;
                     break;
                   }
@@ -1807,12 +1816,6 @@ export const getFormatting = (
               bb = bb.nextSibling;
             }
             if (bodyHasContent) break;
-          } else if (
-            cc.name === "LuauFunctionHeaderLineBreak" &&
-            !document.read(cc.from, cc.to).trim()
-          ) {
-            // The line break after a parameter list that ends its line,
-            // which the header carries across (I-1449): nothing of the body.
           } else if (!isInsignificant(cc.name) && signatureEnd != null) {
             bodyHasContent = true;
             break;

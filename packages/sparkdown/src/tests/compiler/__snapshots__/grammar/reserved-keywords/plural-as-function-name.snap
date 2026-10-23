@@ -51,14 +51,14 @@ sparkdown [0..41]
      │   │   └─ LuauFunctionParameters_end [25..26]
      │   │       └─ LuauFunctionParameters_end_c1 [25..26]
      │   │           └─ PunctuationParenClose [25..26]: ")"
-     │   ├─ LuauFunctionHeaderLineBreak [26..27]
-     │   │   ├─ LuauFunctionHeaderLineBreak_begin 26
-     │   │   ├─ LuauFunctionHeaderLineBreak_content [26..27]
-     │   │   │   └─ Newline [26..27]: "\n"
-     │   │   └─ LuauFunctionHeaderLineBreak_end 27
-     │   └─ LuauFunctionBody [27..38]
-     │       ├─ LuauFunctionBody_begin 27
-     │       ├─ LuauFunctionBody_content [27..38]
+     │   └─ LuauFunctionBody [26..38]
+     │       ├─ LuauFunctionBody_begin 26
+     │       ├─ LuauFunctionBody_content [26..38]
+     │       │   ├─ LuauFunctionHeaderLineBreak [26..27]
+     │       │   │   ├─ LuauFunctionHeaderLineBreak_begin 26
+     │       │   │   ├─ LuauFunctionHeaderLineBreak_content [26..27]
+     │       │   │   │   └─ Newline [26..27]: "\n"
+     │       │   │   └─ LuauFunctionHeaderLineBreak_end 27
      │       │   ├─ LuauReturnStatement [27..37]
      │       │   │   ├─ LuauReturnStatement_begin [27..36]
      │       │   │   │   ├─ LuauReturnStatement_begin_c1 [27..29]

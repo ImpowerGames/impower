@@ -141,8 +141,10 @@ describe("comments", () => {
   test("comment_skipped: `--  `", () => {
     const body = "--  ";
     expect(onlyNode(body, "LuauLineComment").text).toBe("--  ");
+    // The body's content begins with the header's line break, which its
+    // `LuauFunctionHeaderLineBreak` carries (I-1449).
     const content = onlyNode(body, "LuauFunctionBody_content");
-    expect(content.text).toBe("--  \n");
+    expect(content.text).toBe("\n--  \n");
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
