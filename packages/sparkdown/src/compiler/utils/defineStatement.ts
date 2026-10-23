@@ -27,6 +27,14 @@ const DEFINE_STATEMENT_STARTS = nodeNameSet([
 const DEFINE_CONTENT = "LuauDefine_content";
 
 /**
+ * The members a define body reads: its properties, methods and functions.
+ * A property's value stops at the next one (`propertyValueNodes`,
+ * `readsDefineProperty`), and they may follow `with` on the header line
+ * (`validateDefineStructure`).
+ */
+export const DEFINE_MEMBERS = nodeNameSet(["LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition"]);
+
+/**
  * Whether a child of a define's content begins a statement of the body: an
  * expression or reassignment, an unread token, a function definition with
  * no name, or a `name(...)` line the grammar opened as a method that is a
@@ -219,10 +227,6 @@ export function readsDefineProperty(property: SyntaxNode): boolean {
 const PROPERTY_VALUE_TRIVIA = nodeNameSet([
   "ExtraWhitespace", "Whitespace", "OptionalWhitespace", "RequiredWhitespace", "Newline", "LuauAssignmentLineBreak",
 ]);
-
-// The members of a define body, where a property's value stops
-// (`propertyValueNodes`).
-const DEFINE_MEMBERS = nodeNameSet(["LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition"]);
 
 /** The statement start or property whose reading reads a define body node (`loweredDefineStatementOf`, `loweredDefinePropertyOf`). */
 function defineReadingOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
