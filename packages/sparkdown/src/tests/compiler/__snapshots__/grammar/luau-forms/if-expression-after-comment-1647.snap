@@ -113,21 +113,25 @@ sparkdown [0..223]
  │   │       │   │   │       │       │       │   ├─ LuauThenExpression [41..52]
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 41
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [41..52]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [41..50]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin [41..45]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [41..45]
- │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenKeyword [41..45]: "then"
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 45
- │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 45
- │   │       │   │   │       │       │       │   │   │   │   │   │       └─ OptionalWhitespace 45
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 45
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [45..50]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [45..46]: "\n"
- │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [46..50]: "    "
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 50
- │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [50..51]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [50..51]: "1"
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 51
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenNextLineArm [41..51]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 41
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [41..51]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator [41..50]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin [41..45]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [41..45]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   │   └─ LuauThenKeyword [41..45]: "then"
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 45
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 45
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   │       └─ OptionalWhitespace 45
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 45
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [45..50]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ Newline [45..46]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [46..50]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 50
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [50..51]
+ │   │       │   │   │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [50..51]: "1"
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 51
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 51
  │   │       │   │   │       │       │       │   │   │   └─ Newline [51..52]: "\n"
  │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 52
  │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [52..54]: "  "
@@ -241,21 +245,25 @@ sparkdown [0..223]
  │   │       │   │   │       │       │       │       │   ├─ LuauThenExpression [89..100]
  │   │       │   │   │       │       │       │       │   │   ├─ LuauThenExpression_begin 89
  │   │       │   │   │       │       │       │       │   │   ├─ LuauThenExpression_content [89..100]
- │   │       │   │   │       │       │       │       │   │   │   ├─ LuauThenOperator [89..98]
- │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenOperator_begin [89..93]
- │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [89..93]
- │   │       │   │   │       │       │       │       │   │   │   │   │   │   └─ LuauThenKeyword [89..93]: "then"
- │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 93
- │   │       │   │   │       │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 93
- │   │       │   │   │       │       │       │       │   │   │   │   │   │       └─ OptionalWhitespace 93
- │   │       │   │   │       │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 93
- │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenOperator_content [93..98]
- │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ Newline [93..94]: "\n"
- │   │       │   │   │       │       │       │       │   │   │   │   │   └─ ExtraWhitespace [94..98]: "    "
- │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauThenOperator_end 98
- │   │       │   │   │       │       │       │       │   │   │   ├─ LuauNumericDecimal [98..99]
- │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [98..99]: "1"
- │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 99
+ │   │       │   │   │       │       │       │       │   │   │   ├─ LuauThenNextLineArm [89..99]
+ │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 89
+ │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [89..99]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauThenOperator [89..98]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin [89..93]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [89..93]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   │   └─ LuauThenKeyword [89..93]: "then"
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 93
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 93
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   │       └─ OptionalWhitespace 93
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 93
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [93..98]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   ├─ Newline [93..94]: "\n"
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [94..98]: "    "
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 98
+ │   │       │   │   │       │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [98..99]
+ │   │       │   │   │       │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [98..99]: "1"
+ │   │       │   │   │       │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 99
+ │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 99
  │   │       │   │   │       │       │       │       │   │   │   └─ Newline [99..100]: "\n"
  │   │       │   │   │       │       │       │       │   │   └─ LuauThenExpression_end 100
  │   │       │   │   │       │       │       │       │   ├─ RequiredWhitespace [100..102]: "  "
@@ -386,21 +394,25 @@ sparkdown [0..223]
  │   │       │   │   │       │       │       │       │   ├─ LuauThenExpression [141..152]
  │   │       │   │   │       │       │       │       │   │   ├─ LuauThenExpression_begin 141
  │   │       │   │   │       │       │       │       │   │   ├─ LuauThenExpression_content [141..152]
- │   │       │   │   │       │       │       │       │   │   │   ├─ LuauThenOperator [141..150]
- │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenOperator_begin [141..145]
- │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [141..145]
- │   │       │   │   │       │       │       │       │   │   │   │   │   │   └─ LuauThenKeyword [141..145]: "then"
- │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 145
- │   │       │   │   │       │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 145
- │   │       │   │   │       │       │       │       │   │   │   │   │   │       └─ OptionalWhitespace 145
- │   │       │   │   │       │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 145
- │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenOperator_content [145..150]
- │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ Newline [145..146]: "\n"
- │   │       │   │   │       │       │       │       │   │   │   │   │   └─ ExtraWhitespace [146..150]: "    "
- │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauThenOperator_end 150
- │   │       │   │   │       │       │       │       │   │   │   ├─ LuauNumericDecimal [150..151]
- │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [150..151]: "1"
- │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 151
+ │   │       │   │   │       │       │       │       │   │   │   ├─ LuauThenNextLineArm [141..151]
+ │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 141
+ │   │       │   │   │       │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [141..151]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   ├─ LuauThenOperator [141..150]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin [141..145]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [141..145]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   │   └─ LuauThenKeyword [141..145]: "then"
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 145
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 145
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   │       └─ OptionalWhitespace 145
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 145
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [145..150]
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   ├─ Newline [145..146]: "\n"
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [146..150]: "    "
+ │   │       │   │   │       │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 150
+ │   │       │   │   │       │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [150..151]
+ │   │       │   │   │       │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [150..151]: "1"
+ │   │       │   │   │       │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 151
+ │   │       │   │   │       │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 151
  │   │       │   │   │       │       │       │       │   │   │   └─ Newline [151..152]: "\n"
  │   │       │   │   │       │       │       │       │   │   └─ LuauThenExpression_end 152
  │   │       │   │   │       │       │       │       │   ├─ RequiredWhitespace [152..154]: "  "
@@ -514,27 +526,31 @@ sparkdown [0..223]
  │   │       │   │   │       │   ├─ LuauThenExpression [195..206]
  │   │       │   │   │       │   │   ├─ LuauThenExpression_begin 195
  │   │       │   │   │       │   │   ├─ LuauThenExpression_content [195..206]
- │   │       │   │   │       │   │   │   ├─ LuauThenOperator [195..204]
- │   │       │   │   │       │   │   │   │   ├─ LuauThenOperator_begin [195..199]
- │   │       │   │   │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [195..199]
- │   │       │   │   │       │   │   │   │   │   │   └─ LuauThenKeyword [195..199]: "then"
- │   │       │   │   │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 199
- │   │       │   │   │       │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 199
- │   │       │   │   │       │   │   │   │   │   │       └─ OptionalWhitespace 199
- │   │       │   │   │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 199
- │   │       │   │   │       │   │   │   │   ├─ LuauThenOperator_content [199..204]
- │   │       │   │   │       │   │   │   │   │   ├─ Newline [199..200]: "\n"
- │   │       │   │   │       │   │   │   │   │   └─ ExtraWhitespace [200..204]: "    "
- │   │       │   │   │       │   │   │   │   └─ LuauThenOperator_end 204
- │   │       │   │   │       │   │   │   ├─ LuauAccessPath [204..205]
- │   │       │   │   │       │   │   │   │   ├─ LuauAccessPath_begin 204
- │   │       │   │   │       │   │   │   │   ├─ LuauAccessPath_content [204..205]
- │   │       │   │   │       │   │   │   │   │   └─ LuauAccessPart [204..205]
- │   │       │   │   │       │   │   │   │   │       └─ LuauVariable [204..205]
- │   │       │   │   │       │   │   │   │   │           └─ LuauVariable_c1 [204..205]
- │   │       │   │   │       │   │   │   │   │               └─ LuauVariableName [204..205]: "x"
- │   │       │   │   │       │   │   │   │   └─ LuauAccessPath_end 205
- │   │       │   │   │       │   │   │   │       └─ LuauAccessPath_end_c1 205
+ │   │       │   │   │       │   │   │   ├─ LuauThenNextLineArm [195..205]
+ │   │       │   │   │       │   │   │   │   ├─ LuauThenNextLineArm_begin 195
+ │   │       │   │   │       │   │   │   │   ├─ LuauThenNextLineArm_content [195..205]
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauThenOperator [195..204]
+ │   │       │   │   │       │   │   │   │   │   │   ├─ LuauThenOperator_begin [195..199]
+ │   │       │   │   │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 [195..199]
+ │   │       │   │   │       │   │   │   │   │   │   │   │   └─ LuauThenKeyword [195..199]: "then"
+ │   │       │   │   │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 199
+ │   │       │   │   │       │   │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c2 199
+ │   │       │   │   │       │   │   │   │   │   │   │   │       └─ OptionalWhitespace 199
+ │   │       │   │   │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 199
+ │   │       │   │   │       │   │   │   │   │   │   ├─ LuauThenOperator_content [199..204]
+ │   │       │   │   │       │   │   │   │   │   │   │   ├─ Newline [199..200]: "\n"
+ │   │       │   │   │       │   │   │   │   │   │   │   └─ ExtraWhitespace [200..204]: "    "
+ │   │       │   │   │       │   │   │   │   │   │   └─ LuauThenOperator_end 204
+ │   │       │   │   │       │   │   │   │   │   └─ LuauAccessPath [204..205]
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauAccessPath_begin 204
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauAccessPath_content [204..205]
+ │   │       │   │   │       │   │   │   │   │       │   └─ LuauAccessPart [204..205]
+ │   │       │   │   │       │   │   │   │   │       │       └─ LuauVariable [204..205]
+ │   │       │   │   │       │   │   │   │   │       │           └─ LuauVariable_c1 [204..205]
+ │   │       │   │   │       │   │   │   │   │       │               └─ LuauVariableName [204..205]: "x"
+ │   │       │   │   │       │   │   │   │   │       └─ LuauAccessPath_end 205
+ │   │       │   │   │       │   │   │   │   │           └─ LuauAccessPath_end_c1 205
+ │   │       │   │   │       │   │   │   │   └─ LuauThenNextLineArm_end 205
  │   │       │   │   │       │   │   │   └─ Newline [205..206]: "\n"
  │   │       │   │   │       │   │   └─ LuauThenExpression_end 206
  │   │       │   │   │       │   ├─ RequiredWhitespace [206..208]: "  "
