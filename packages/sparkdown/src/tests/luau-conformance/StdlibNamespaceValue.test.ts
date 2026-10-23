@@ -99,6 +99,13 @@ describe("a stdlib namespace read as a value", () => {
     ).toEqual(got("Got mine true mine nil."));
   });
 
+  test("is nil once a global of its name is set to nil", () => {
+    expect(run(["math = nil", "Got {type(math)} {_G.math == nil}."])).toEqual(
+      got("Got nil true."),
+    );
+    expect(run(["_G.string = nil", "Got {type(string)}."])).toEqual(got("Got nil."));
+  });
+
   test("lists its members through pairs", () => {
     expect(
       run([
