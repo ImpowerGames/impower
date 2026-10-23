@@ -1,4 +1,4 @@
-import type { SyntaxNode } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 
 // A Luau statement in a story body (a scene, a branch or the file's top
 // level) ends at its line unless a bracket, a long string or a block comment
@@ -167,10 +167,21 @@ export function enclosingUnclosedIslandEnd(node: SyntaxNode, text: string): numb
   return undefined;
 }
 
-/** Whether a node is on the story lines after a story island's unclosed bracket (`unclosedIslandEnd`). */
-export function pastStoryIslandEnd(node: SyntaxNode, text: string): boolean {
-  const end = enclosingUnclosedIslandEnd(node, text);
-  return end !== undefined && node.from >= end;
+/**
+ * The story lines after each story island's unclosed bracket in a tree
+ * (`unclosedIslandEnd`): from the island's cut to its end. A node that
+ * begins in one is story, not the statement's Luau.
+ */
+export function unclosedIslandCuts(tree: Tree, text: string): { from: number; to: number }[] {
+  const cuts: { from: number; to: number }[] = [];
+  tree.iterate({
+    enter: (ref) => {
+      if (ref.name !== "LuauSparkdownVariableDefinition" && ref.name !== "LuauSparkdownReassignment") return;
+      const end = unclosedIslandEnd(ref.node, text);
+      if (end !== undefined) cuts.push({ from: end, to: ref.to });
+    },
+  });
+  return cuts;
 }
 
 /** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */

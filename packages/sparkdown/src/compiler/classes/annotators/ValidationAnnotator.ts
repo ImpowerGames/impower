@@ -15,7 +15,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
-import { enclosingUnclosedIslandEnd, isStoryCondition, pastStoryIslandEnd } from "../../utils/storyIslands";
+import { enclosingUnclosedIslandEnd, isStoryCondition, unclosedIslandCuts } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -600,11 +600,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   // (`loweredLuauBodyOf`), by its range, the errors its reading reports.
   private loweredReadings = new Map<string, readonly { message: string; from: number; to: number }[]>();
 
+  // The tree's story lines after each story island's unclosed bracket
+  // (`unclosedIslandCuts`), found once per tree.
+  private islandCuts?: { tree: Tree; cuts: readonly { from: number; to: number }[] };
+
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
     this.unreadReadings.clear();
     this.loweredReadings.clear();
     super.update(tree, text, uri);
+  }
+
+  /** Whether an offset is on the story lines after a story island's unclosed bracket. */
+  private inIslandCut(at: number): boolean {
+    const tree = this.tree;
+    if (!tree) return false;
+    if (this.islandCuts?.tree !== tree) this.islandCuts = { tree, cuts: unclosedIslandCuts(tree, this.statementDocumentText()) };
+    return this.islandCuts.cuts.some((cut) => at >= cut.from && at < cut.to);
   }
 
   /**
@@ -1289,10 +1301,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
     // The story lines the tree reads into a story declaration's bracket that
-    // never closes are story, not its Luau (`pastStoryIslandEnd`, I-1532):
+    // never closes are story, not its Luau (`unclosedIslandCuts`, I-1532):
     // the checker's reading ends at the opener's line, and no Luau check
     // reports on them.
-    if (nodeRef.name.startsWith("Luau") && pastStoryIslandEnd(nodeRef.node, this.statementDocumentText())) {
+    if (nodeRef.name.startsWith("Luau") && this.inIslandCut(nodeRef.from)) {
       return annotations;
     }
     // Before the unread reading's ownership: that reading's errors are the
