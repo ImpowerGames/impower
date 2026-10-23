@@ -1933,16 +1933,15 @@ variables:
   # first argument list; ending before either loses reference ownership.
   LUAU_NAMED_TYPE_FOLLOW: (?!{{LUAU_COMMENT_START}}|{{LUAU_TYPE_GENERIC_OPEN}}|{{LUAU_TYPE_QUALIFICATION_OPEN}})[^\s]
   LUAU_TYPE_QUALIFIED_NAME_SEGMENT: (?:{{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*{{LUAU_IDENTIFIER}})
-  # The `;` that ends a statement, after any whitespace, line breaks and
-  # comments, which Luau reads as trivia. A block comment ends at the first
-  # closing bracket of its own level, as `LuauBlockComment` does, so its level
-  # is captured and matched by `\4`: every rule using this must put exactly
-  # three capture groups before it. A line comment must run to its line end,
-  # so the token is never a character inside it (`local x: -- a, b`).
-  # reads-past-line: it skips blank lines and comments to the next token on
-  # purpose. An incremental reparse restarts at the last code line above an
-  # edit (`lookaheadContextStart`), so a lookahead built on it sees the edit.
-  _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
+  # The `;` that ends a statement, after any whitespace and comments on its
+  # line, which Luau reads as trivia. Both engines match a regex against its
+  # line alone (GRAMMAR.md §11.5), so this never reaches the next line. A block
+  # comment closes on its line at the first closing bracket of its own level,
+  # as `LuauBlockComment` does, so its level is captured and matched by `\4`:
+  # every rule using this must put exactly three capture groups before it. A
+  # line comment must run to its line end, so the token is never a character
+  # inside it (`local x: -- a, b`).
+  _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|--\[(=*)\[(?:[^\]\r\n]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
   _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
   # The same, ending at a token that cannot start an expression: a `;`, `,`
   # or `=` (not `==`, nor the end of an operator such as `<=` or `+=`, which
