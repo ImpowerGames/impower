@@ -28,11 +28,25 @@ const DEFINE_CONTENT = "LuauDefine_content";
 
 /**
  * The members a define body reads: its properties, methods and functions.
- * A property's value stops at the next one (`propertyValueNodes`,
- * `readsDefineProperty`), and they may follow `with` on the header line
- * (`validateDefineStructure`).
+ * They may follow `with` on the header line (`validateDefineStructure`).
  */
 export const DEFINE_MEMBERS = nodeNameSet(["LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition"]);
+
+/** Whether a node is a function definition with no name of its own (`function() … end`), an expression. */
+function isAnonymousFunction(node: SyntaxNode): boolean {
+  return node.name === "LuauFunctionDefinition" && !findOwnDeclarationName(node);
+}
+
+/**
+ * Whether a child of a define's content is a member the define reads, where
+ * a property's value on the lines after it stops (`propertyValueNodes`,
+ * `readsDefineProperty`). A function with no name of its own is a value
+ * (`y =` then `function() … end`, I-1536), as it begins a statement
+ * (`isDefineStatementStart`).
+ */
+export function isDefineMember(child: SyntaxNode): boolean {
+  return DEFINE_MEMBERS.has(child.name) && !isAnonymousFunction(child);
+}
 
 /**
  * Whether a child of a define's content begins a statement of the body: an
@@ -41,7 +55,7 @@ export const DEFINE_MEMBERS = nodeNameSet(["LuauPropertyDefinition", "LuauMethod
  * call (`isDefineMethodCall`), which holds its whole line.
  */
 export function isDefineStatementStart(child: SyntaxNode, lineOf: (pos: number) => number): boolean {
-  if (child.name === "LuauFunctionDefinition") return !findOwnDeclarationName(child);
+  if (child.name === "LuauFunctionDefinition") return isAnonymousFunction(child);
   if (child.name === "LuauMethodDefinition") return isDefineMethodCall(child, lineOf);
   return DEFINE_STATEMENT_STARTS.has(child.name) || REASSIGNMENT_NAMES.has(child.name) || UNREAD_TOKENS.has(child.name);
 }
@@ -217,7 +231,7 @@ export function readsDefineProperty(property: SyntaxNode): boolean {
   // with no value (`name =`, then a member or the define's `end`) keeps the
   // missing value's report (`validateAssignmentValue`).
   if (!lineBreak) return false;
-  for (let next = property.nextSibling; next && !DEFINE_MEMBERS.has(next.name); next = next.nextSibling) {
+  for (let next = property.nextSibling; next && !isDefineMember(next); next = next.nextSibling) {
     if (!PROPERTY_VALUE_TRIVIA.has(next.name) && !next.name.endsWith("Comment")) return true;
   }
   return false;

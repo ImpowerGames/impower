@@ -2,10 +2,10 @@ import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { luauStatementErrors, type LuauStatementError } from "../../utils/luauStatementError";
 import {
-  DEFINE_MEMBERS,
   danglingDots,
   defineStatementLast,
   defineStatementThrough,
+  isDefineMember,
   isDefineStatementStart,
   readsDefineProperty,
   readsDefineStatement,
@@ -1033,7 +1033,7 @@ function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: 
     // A bracket-key property's operation is a sibling of its key node.
     // Its value nodes are already present above.
     if (opNode && next.to <= opNode.to) continue;
-    if (DEFINE_MEMBERS.has(next.name)) break;
+    if (isDefineMember(next)) break;
     candidates.push(next);
   }
   const continued = readExpressionAst(candidates, ctx);
