@@ -371,20 +371,6 @@ type OpenEntry =
   // A scene or branch, and the last block an `end` closed while it was open.
   | { kind: "scene" | "branch"; lastClosed?: Block };
 
-// Root-level nodes that begin no statement: line breaks, space and comments.
-const ROOT_TRIVIA = new Set<string>([
-  "Newline",
-  "Whitespace",
-  "ExtraWhitespace",
-  "OptionalWhitespace",
-  "RequiredWhitespace",
-  "TrailingWhitespace",
-  "SparkdownLineComment",
-  "SparkdownInlineComment",
-  "LuauLineComment",
-  "LuauBlockComment",
-]);
-
 // Checks, over the root-level nodes of a whole document, the blocks that
 // chunks leave open for a later root-level `end` to close, whether the chunk
 // is itself a block or holds one (a function value in a `store`), and warns
@@ -436,7 +422,7 @@ export function validateOpenBlocks(
   let afterStrayCloser = false;
   for (let node = top.firstChild; node; node = node.nextSibling) {
     if (node.name === "LuauStrayUntilStatement" && open.length === 0) afterStrayCloser = true;
-    else if (node.name !== "LuauEndKeyword" && !ROOT_TRIVIA.has(node.name)) afterStrayCloser = false;
+    else if (node.name !== "LuauEndKeyword" && !isTrivia(node)) afterStrayCloser = false;
     if (node.name === "Scene") {
       closeAbove(() => false);
       open.push({ kind: "scene" });

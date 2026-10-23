@@ -116,6 +116,16 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
     expect(sparkdownErrors(text)).toEqual([...luau].sort());
   });
 
+  for (const [name, form] of CONDITION_FORMS) {
+    const valid = name.includes("numeric") ? "1" : name.includes("generic") ? "pairs({})" : "1 == 1";
+    test(`a well-formed ${name.slice(name.indexOf(" ") + 1)} reports nothing`, () => {
+      const text = `scene start\n${form(valid)}end\n`;
+      expect(official(text)).toEqual([]);
+      expect(sparkdownErrors(text)).toEqual([]);
+      expect(sparkdownErrors(form(valid).replace(/^ {2}/gm, ""))).toEqual([]);
+    });
+  }
+
   for (const [name, form, conditions] of CONDITION_FORMS) {
     for (const condition of conditions) {
       test(`${JSON.stringify(condition)} in ${name} in a scene`, () => {
