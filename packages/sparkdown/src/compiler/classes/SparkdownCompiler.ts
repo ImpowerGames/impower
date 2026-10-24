@@ -1,5 +1,7 @@
 /// <reference path="../../sd-raw.d.ts" />
 import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
+import type { SyntaxNode } from "@lezer/common";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { resolveImageAttributes } from "../utils/filterImage";
 import {
   collectMorphIssues,
@@ -5791,6 +5793,9 @@ export class SparkdownCompiler {
     };
     const artworkEmitted = new Set<string>();
     const assetRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    // Where each named look is declared, in script order, so a circular chain
+    // can be reported at the declaration that closes it.
+    const lookDeclarations = new Map<any, { uri: string; order: number; from: number; to: number }>();
     for (const image of Object.values({ ...program.context["image"], ...program.context["layered_image"] })) {
       const resolved = resolveImageAttributes(program.context, image);
       for (const diagnostic of resolved.vocabulary?.diagnostics ?? []) {
@@ -5807,7 +5812,7 @@ export class SparkdownCompiler {
         });
       }
     }
-    for (const uri of Object.keys(program.scripts)) {
+    for (const [order, uri] of Object.keys(program.scripts).entries()) {
       const doc = this.documents.get(uri);
       if (!doc) continue;
       const annotations = this.documents.annotations(uri);
@@ -5852,15 +5857,59 @@ export class SparkdownCompiler {
           coveredTo = image.to;
         }
       }
+      const tree = this.documents.tree(uri);
       const declarations = annotations.declarations.iter();
       while (declarations.value) {
         if (declarations.value.type === "define") {
-          const name = doc.read(declarations.from, declarations.to);
-          const struct = getContextEntry(program.context, "filtered_image", name) ?? getContextEntry(program.context, "layered_image", name) ?? getContextEntry(program.context, "image", name);
-          if (struct) emit(struct, declarations.from, declarations.to);
+          // A define's context type is the name after `as`, so a character
+          // or any other define sharing an image's name is not that image.
+          let header: SyntaxNode | null = tree?.resolveInner(declarations.from, 1) ?? null;
+          while (header && header.name !== "LuauDefineNameAndInheritance") header = header.parent;
+          const typeNode = header ? getDescendent("LuauDefineParentName", header) : undefined;
+          const type = typeNode ? doc.read(typeNode.from, typeNode.to).trim() : "";
+          if (["image", "filtered_image", "layered_image"].includes(type)) {
+            const name = doc.read(declarations.from, declarations.to);
+            const struct = getContextEntry(program.context, type, name);
+            if (struct && type === "filtered_image") {
+              lookDeclarations.set(struct, { uri, order, from: declarations.from, to: declarations.to });
+            }
+            if (struct) emit(struct, declarations.from, declarations.to);
+          }
         }
         declarations.next();
       }
+    }
+    // Every look in a loop reaches it, as does every look leading into it, so
+    // each loop is reported once, at its last declared look: the declaration
+    // whose `image` turns the chain back on itself.
+    const reportedCycles = new Set<any>();
+    for (const look of Object.values(program.context["filtered_image"] ?? {})) {
+      const cycle = resolveImageAttributes(program.context, look, { visibility: false }).cycle;
+      if (!cycle?.length) continue;
+      let closing: any;
+      for (const member of cycle) {
+        const at = lookDeclarations.get(member);
+        const best = closing ? lookDeclarations.get(closing)! : undefined;
+        if (at && (!best || at.order > best.order || (at.order === best.order && at.from > best.from))) {
+          closing = member;
+        }
+      }
+      if (!closing || reportedCycles.has(closing)) continue;
+      reportedCycles.add(closing);
+      const at = lookDeclarations.get(closing)!;
+      const doc = this.documents.get(at.uri);
+      if (!doc) continue;
+      const start = cycle.indexOf(closing);
+      const loop = [...cycle.slice(start), ...cycle.slice(0, start), closing];
+      ((program.diagnostics ??= {})[at.uri] ??= []).push({
+        range: doc.range(at.from, at.to),
+        severity: DiagnosticSeverity.Error,
+        message: {
+          kind: "markdown",
+          value: "Circular filtered_image chain: " + loop.map((member) => "`" + member.$name + "`").join(" → ") + ". A chain must end at an image or a layered_image.",
+        },
+        source: LANGUAGE_NAME,
+      });
     }
   }
 
