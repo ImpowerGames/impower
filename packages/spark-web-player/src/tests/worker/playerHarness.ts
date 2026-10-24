@@ -130,6 +130,27 @@ export const settle = async (tasks = 20) => {
   }
 };
 
+/** Hold the first application the controller builds inside its `init`,
+ *  and record every application it builds. */
+export const holdFirstInit = (h: any) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const apps: any[] = [];
+  const createApp = h.controller.createApp.bind(h.controller);
+  h.controller.createApp = (...args: unknown[]) => {
+    const app = createApp(...args);
+    if (apps.push(app) === 1) {
+      const init = app.init.bind(app);
+      app.init = async () => {
+        await held;
+        await init();
+      };
+    }
+    return app;
+  };
+  return { apps, release };
+};
+
 export interface PlayerHarnessOptions {
   files: { uri: string; text: string }[];
   startFrom: { file: string; line: number };

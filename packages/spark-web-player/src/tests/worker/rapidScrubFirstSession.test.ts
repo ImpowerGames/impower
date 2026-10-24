@@ -5,7 +5,7 @@
 // give way to the newest, and the screen shows one `main` layout holding the
 // last scrub's beat.
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, holdFirstInit, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `-> start
 
@@ -46,24 +46,8 @@ describe("scrubbing while the first preview session is still coming up (#317)", 
       startFrom: { file: MAIN_URI, line: FIRST },
     });
     try {
-      // Hold the first application's initialization, so the first session
-      // stays coming up while the scrubs arrive, and record every
-      // application the controller builds.
-      let release!: () => void;
-      const held = new Promise<void>((resolve) => (release = resolve));
-      const apps: any[] = [];
-      const createApp = h.controller.createApp.bind(h.controller);
-      h.controller.createApp = (...args: unknown[]) => {
-        const app = createApp(...args);
-        if (apps.push(app) === 1) {
-          const init = app.init.bind(app);
-          app.init = async () => {
-            await held;
-            await init();
-          };
-        }
-        return app;
-      };
+      // The first session stays coming up while the scrubs arrive.
+      const { apps, release } = holdFirstInit(h);
 
       // The first compile lands and starts the first session.
       const compiled = h.compile();
