@@ -126,6 +126,40 @@ You rummage through your pack.
 });
 
 describe("a target no element is named after", () => {
+  // The coordinator's decision for #863, with the #1813 rule
+  // (spark-web-player workerConnectRestore.test.ts): in a layout that
+  // replaces `main`, a container carrying a target's name as a class is that
+  // target's slot, and its text is a placeholder the story's write replaces.
+  test("takes a container carrying its class as its slot in a layout that replaces `main`", async () => {
+    const { h, writes, idsNamed, created } = await run(
+      `layout main with
+  column.panel {
+    row.title { text "Inventory" }
+    text "Rope"
+  }
+end
+
+^: Chapter One
+
+You rummage through your pack.
+`,
+    );
+    const [slot] = idsNamed("row title");
+    expect(slot, created).toBeTruthy();
+    expect(h.game.module.ui.findIds("title")).toEqual([slot]);
+    const written = writes.filter(
+      (m) =>
+        m.method === "ui/write-text" &&
+        m.params.target === "title" &&
+        m.params.instructions.length > 0,
+    );
+    expect(written).toHaveLength(1);
+    expect(written[0].params.elements).toEqual([slot]);
+    expect(
+      written[0].params.instructions.map((i: any) => i.text).join(""),
+    ).toContain("Chapter One");
+  });
+
   test("still reveals an author's `text.continue_indicator` in a layout that replaces `main`", async () => {
     const { hidden, idsNamed, created, h } = await run(
       `layout main with
