@@ -495,6 +495,10 @@ export class ProgramStory implements StoryEngine {
    *  `pausedBeforeCondition` names the decision's address. */
   pauseBeforeEvaluatingConditions = false;
   pausedBeforeCondition: ProgramAddress | null = null;
+  /** The verdict the decision `pausedBeforeCondition` names reaches unless a
+   *  simulator forces one: its condition is already on the evaluation stack.
+   *  Null when that condition is no value a decision can test. */
+  pausedConditionVerdict: boolean | null = null;
 
   /** Every instruction this story has run. */
   stepCount = 0;
@@ -2534,10 +2538,18 @@ export class ProgramStory implements StoryEngine {
       const address = ProgramStory.addressOf(chunk, position.offset);
       if (!this.simulator?.willForceCondition(address)) {
         this.pausedBeforeCondition = address;
+        // Both decisions pop their condition first. A divert target is
+        // refused when the decision runs, so it has no verdict here.
+        const condition = state.PeekEvaluationStack();
+        this.pausedConditionVerdict =
+          condition instanceof Value && !(condition instanceof SymbolValue)
+            ? condition.isTruthy
+            : null;
         return;
       }
     }
     this.pausedBeforeCondition = null;
+    this.pausedConditionVerdict = null;
     this.stepCount++;
     if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
       throw new StepLimitExceeded();

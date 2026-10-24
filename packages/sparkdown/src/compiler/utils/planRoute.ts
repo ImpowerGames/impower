@@ -42,8 +42,17 @@ export interface SearchNode {
   conditions: { selected: boolean }[];
   /** The sequence of forced choices that led here */
   choices: { options: string[]; selected: number }[];
-  /** The overrides to enforce when running this node */
+  /** The decision this node was forked to make, which its first step takes.
+   *  Every earlier decision is already part of `state`, and the replay forces
+   *  them all from the top in order (`decisions`): forcing one again here
+   *  would apply it to a later visit of its site, as a loop's test makes. */
   overrides: RouteOverride[];
+  /** How many of those decisions depart from what the program would do
+   *  unforced: every choice, and every condition verdict the program would
+   *  not reach itself. The search expands the node that departs least
+   *  first, so a route follows the program wherever the program leads to
+   *  the target. */
+  departures: number;
 }
 
 /**
@@ -506,56 +515,17 @@ const searchBudgetExhausted = (budget: SearchBudget): boolean => {
 };
 
 /**
- * The forced decisions a node has NOT yet replayed, folded to a fixed width.
- *
- * A node's overrides are every decision made on the route to it, and running
- * the node restores its state directly rather than replaying that route — so
- * the overrides for paths the node does not revisit stay queued, and would
- * still be forced if the story looped back onto one of those paths. Two
- * arrivals at the same story position therefore only behave the same if the
- * decisions still queued behind them are the same too, which is what this
- * captures.
- */
-const pendingOverrideSignature = (
-  overrides: RouteOverride[],
-  snapshot: SimulatorSnapshot,
-): string => {
-  const skippedPerSite = new Map<string, number>();
-  let signature = "";
-  for (const override of overrides) {
-    const site = `${override.kind}:${override.site}`;
-    const replayed =
-      (override.kind === "condition"
-        ? snapshot.conditionPointer[override.site]
-        : snapshot.choicePointer[override.site]) ?? 0;
-    const skipped = skippedPerSite.get(site) ?? 0;
-    if (skipped < replayed) {
-      // Consumed on the way to this site, so it is not part of what still
-      // distinguishes one arrival here from another.
-      //
-      // This is a summary, not a guarantee about the future: a CHILD forked
-      // from here rebuilds the queue with its pointers back at zero, so an
-      // override dropped here can fire again if the story returns to its path.
-      // Dropping it is what lets two arrivals that differ only in already-spent
-      // history share an entry; keeping it would make the key grow forever
-      // along a loop and never match.
-      skippedPerSite.set(site, skipped + 1);
-      continue;
-    }
-    signature = extendSeq(signature, `${site}=${override.value}`);
-  }
-  return signature;
-};
-
-/**
  * Claim a fork site for expansion, returning false if an equivalent one has
  * already been expanded.
  *
- * What happens after a fork site is decided by the story state there plus the
- * forced decisions still queued behind it, and nothing else — so a second
- * arrival at the same pair would enqueue the same children the first arrival
- * already did, and expanding it again is wasted work. Breadth-first order
- * means the arrival that was kept is also the shortest route to that position.
+ * What happens after a fork site is decided by the story state there and
+ * nothing else: a node forces only the decision it was forked to make, which
+ * its first step consumes ({@link SearchNode.overrides}), so no forced
+ * decision is still queued at a fork. A second arrival at the same site and
+ * state would enqueue the same children the first arrival already did, and
+ * expanding it again is wasted work. The search expands nodes
+ * in order of departures ({@link SearchQueue}), so the arrival that was kept is
+ * also the route to that position that departs least from the program.
  *
  * This prunes repetition; it is not what makes the search terminate. A story
  * that loops does not generally come back to the same state, because visit
@@ -570,24 +540,18 @@ const pendingOverrideSignature = (
  * found, but ~2^53 values across the thousands of sites a search visits makes
  * that vanishingly unlikely.
  *
- * Note that siblings of one fork share both their state and their queue — they
- * differ only in the decision each is about to make, which the simulator
- * applies while the child runs. That is why the check belongs at the site
- * being expanded and not on the nodes coming off the queue: applied to nodes,
- * it would collapse every branch of the story into whichever sibling happened
- * to be dequeued first.
+ * Note that siblings of one fork share their state — they differ only in the
+ * decision each is about to make, which the simulator applies while the child
+ * runs. That is why the check belongs at the site being expanded and not on
+ * the nodes coming off the queue: applied to nodes, it would collapse every
+ * branch of the story into whichever sibling happened to be dequeued first.
  */
 const claimForkSite = (
   budget: SearchBudget,
   site: ProgramAddress,
   stateKey: string,
-  overrides: RouteOverride[],
-  snapshot: SimulatorSnapshot,
 ): boolean => {
-  const key = `${site}|${stateKey}|${pendingOverrideSignature(
-    overrides,
-    snapshot,
-  )}`;
+  const key = `${site}|${stateKey}`;
   if (budget.visited.has(key)) {
     lastSearchStats.forkSitesSkipped += 1;
     return false;
@@ -647,6 +611,56 @@ export interface SearchError {
 }
 
 /**
+ * The nodes a search has yet to expand, taken fewest departures first
+ * ({@link SearchNode.departures}), and among equals first in, first out for a
+ * breadth-first search or last in, first out for a depth-first one.
+ *
+ * A route that departs less is the one the program takes more of on its own,
+ * so the state it reaches the target with is the state the program reaches it
+ * with. A route that forces a loop's test false the first time it is asked
+ * reaches the line after the loop in fewer decisions than one that lets the
+ * loop run, so a search that counted every decision alike would replay the
+ * line with the store as it stood before the loop (#637).
+ */
+class SearchQueue {
+  /** The nodes of each departure count, and how far each has been taken. */
+  protected _buckets: { nodes: SearchNode[]; head: number }[] = [];
+  /** The lowest departure count that may still hold a node. */
+  protected _lowest = 0;
+  /** How many nodes wait. */
+  length = 0;
+
+  constructor(protected readonly _fifo: boolean) {}
+
+  push(node: SearchNode): void {
+    const bucket = (this._buckets[node.departures] ??= { nodes: [], head: 0 });
+    bucket.nodes.push(node);
+    this.length += 1;
+    if (node.departures < this._lowest) {
+      this._lowest = node.departures;
+    }
+  }
+
+  take(): SearchNode | undefined {
+    for (; this._lowest < this._buckets.length; this._lowest += 1) {
+      const bucket = this._buckets[this._lowest];
+      if (!bucket || bucket.head >= bucket.nodes.length) {
+        continue;
+      }
+      this.length -= 1;
+      if (!this._fifo) {
+        return bucket.nodes.pop();
+      }
+      const node = bucket.nodes[bucket.head]!;
+      bucket.nodes[bucket.head] = undefined!;
+      bucket.head += 1;
+      return node;
+    }
+    return undefined;
+  }
+}
+
+/**
  * Search for a way from the top of the flow `from` to the address `to`, by
  * stepping the story and forking it at every decision. A step is known by the
  * address of the position it stands at (docs/engine/binary-program.md,
@@ -684,7 +698,7 @@ export const planRoute = (
   /** Set when a node run threw (see the catch in the search loop). */
   let nodeErrored = false;
   const startingSteps = budget.stepsRemaining;
-  const queue: SearchNode[] = [];
+  const queue = new SearchQueue(isBfs);
 
   const port = statePort(story, options?.stateImages !== false);
   const prevOnError = story.onError;
@@ -741,7 +755,7 @@ export const planRoute = (
       budget.nodesRemaining -= 1;
       lastSearchStats.nodesExpanded += 1;
 
-      const node = isBfs ? queue.shift()! : queue.pop()!;
+      const node = queue.take()!;
       try {
         const result = runUntilDecisionOrBranch(
           story,
@@ -855,7 +869,7 @@ const runUntilDecisionOrBranch = (
     story.pauseBeforeEvaluatingConditions;
   const prevSimulator = story.simulator;
 
-  // Build a simulator from *this node's* overrides (streams per path)
+  // A simulator that forces the decision this node was forked to make.
   const simulator = buildRouteSimulator(node.overrides);
   story.simulator = simulator;
 
@@ -922,15 +936,7 @@ const runUntilDecisionOrBranch = (
           // from this same position.
           const fork = port.fork();
           const forkState = fork.state;
-          if (
-            !claimForkSite(
-              budget,
-              site,
-              fork.key,
-              node.overrides,
-              simulator.saveSnapshot(),
-            )
-          ) {
+          if (!claimForkSite(budget, site, fork.key)) {
             // Already expanded from this exact position, so its children are
             // already queued.
             terminal = true;
@@ -1039,56 +1045,37 @@ const runUntilDecisionOrBranch = (
         // this same position.
         const fork = port.fork();
         const forkState = fork.state;
-        if (
-          !claimForkSite(
-            budget,
-            story.pausedBeforeCondition,
-            fork.key,
-            node.overrides,
-            simulator.saveSnapshot(),
-          )
-        ) {
+        if (!claimForkSite(budget, story.pausedBeforeCondition, fork.key)) {
           // Already expanded from this exact position, so both branches are
           // already queued.
           terminal = true;
           break;
         }
 
-        const favoredConditionalValue =
-          favoredConditionalValues[node.conditions.length];
-        if (favoredConditionalValue != null) {
-          // Fork favored branch
+        // The verdict the program reaches here departs from nothing, so a
+        // route that follows it is expanded before one that forces the other.
+        // A favored verdict cannot outrank it: favored verdicts are matched to
+        // decisions by their order along an earlier route, and a loop's test
+        // forced to that route's verdict ends the loop at that route's count.
+        // It orders the branches only where the program reaches no verdict.
+        const natural = story.pausedConditionVerdict;
+        const first =
+          natural ??
+          favoredConditionalValues[node.conditions.length] ??
+          true;
+        for (const value of [first, !first]) {
           branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: favoredConditionalValue,
-            }),
-          );
-          // Fork opposite of favored branch
-          branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: !favoredConditionalValue,
-            }),
-          );
-        } else {
-          // Fork true branch
-          branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: true,
-            }),
-          );
-          // Fork false branch
-          branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: false,
-            }),
+            forkCondition(
+              forkState,
+              node,
+              stepsEncountered,
+              {
+                kind: "condition",
+                site: story.pausedBeforeCondition,
+                value,
+              },
+              value !== natural,
+            ),
           );
         }
         break;
@@ -1155,6 +1142,7 @@ const makeStartNode = (
     conditions: [],
     choices: [],
     overrides: [],
+    departures: 0,
   };
 };
 
@@ -1165,10 +1153,8 @@ const makeStartNode = (
  * `state` when it runs, so unlike {@link makeStartNode} this neither resets
  * the story nor moves it.
  *
- * The decisions are handed on as the node's queued overrides in full, exactly as
- * a node reached by walking would carry them: the story does not revisit the
- * sites they name, so they sit unconsumed, and dropping them would change what
- * happens if it ever did.
+ * The node forces nothing: every decision of the resume point was taken
+ * before the state it stands in.
  */
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   state: resumeFrom.state,
@@ -1177,7 +1163,8 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   decisions: [...resumeFrom.decisions],
   conditions: [...resumeFrom.conditions],
   choices: [...resumeFrom.choices],
-  overrides: [...resumeFrom.decisions],
+  overrides: [],
+  departures: 0,
 });
 
 const isRootLevel = (knot: string): boolean =>
@@ -1213,6 +1200,7 @@ const forkCondition = (
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ConditionOverride,
+  departs: boolean,
 ): SearchNode => {
   return {
     state,
@@ -1226,7 +1214,8 @@ const forkCondition = (
     decisions: [...parent.decisions, ov],
     conditions: [...parent.conditions, { selected: ov.value }],
     choices: [...parent.choices],
-    overrides: [...parent.overrides, ov],
+    overrides: [ov],
+    departures: parent.departures + (departs ? 1 : 0),
   };
 };
 
@@ -1245,7 +1234,8 @@ const forkChoice = (
     decisions: [...parent.decisions, ov],
     conditions: [...parent.conditions],
     choices: [...parent.choices, choice],
-    overrides: [...parent.overrides, ov],
+    overrides: [ov],
+    departures: parent.departures + 1,
   };
 };
 
