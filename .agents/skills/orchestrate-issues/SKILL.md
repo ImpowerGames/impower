@@ -9,7 +9,7 @@ One coordinator owns the delivery of the named parent issue, a Feature, Task or 
 
 ## Authority
 
-An explicit request such as "Use orchestrate-issues for #692", where #692 is the parent, grants the coordinator four things for that parent: dispatching writers for its open sub-issues, the review checkpoint decisions in [review checkpoints](references/review-checkpoints.md), merging its slices' PRs through the gate in [integration](references/integration.md), and the bounded disk recovery in step 5. That merge is the one exception to the repository's maintainer-only merge rule: writers and ordinary resolve-issue sessions never merge, and discussing, filing or reviewing this skill grants nothing. Record the request verbatim with `init --invocation` and who merges with `--merging`, as integration describes.
+An explicit request such as "Use orchestrate-issues for #692", where #692 is the parent, grants the coordinator, for that parent: dispatching writers for its open sub-issues and assigning any missing Effort, the review checkpoint decisions in [review checkpoints](references/review-checkpoints.md), merging its slices' PRs through the gate in [integration](references/integration.md), and the bounded disk recovery in step 5. That merge is the one exception to the repository's maintainer-only merge rule: writers and ordinary resolve-issue sessions never merge, and discussing, filing or reviewing this skill grants nothing. Record the request verbatim with `init --invocation` and who merges with `--merging`, as integration describes.
 
 ## 0. Start
 
@@ -18,7 +18,7 @@ Before `init`, read [starting a run](references/start.md).
 1. Read your own model, effort and permission mode as the [runner notes](../RUNNERS.md) describe, and know which [writer routes](../references/runner-writing.md) your runner offers. Run in bypass permissions mode: writers launch in your own mode, and auto mode's classifier refuses their edits; nothing is dispatched until `init` records bypass.
 2. Allocate your private directory with resolve-issue's [allocator](../resolve-issue/references/publishing.md#private-writer-allocation), passing the parent's number as `--issue`; the run record lives there.
 3. Run `init`. It records your session id, which writers message, and your title, and refuses a second coordinator for the parent. A checkpointed parent is resumed as [checkpoints](references/checkpoints.md) describes, never restarted.
-4. Schedule the periodic check-in at 30 minutes: the prompt cache lasts an hour and a recurring job fires up to 10 percent late, so an hourly job can miss it. It is the fallback for a lost message or a dead writer.
+4. Schedule the periodic check-in at 30 minutes: the prompt cache lasts an hour and a recurring job can fire 10 percent late. It is the fallback for a lost message or a dead writer.
 5. Report the writer model, the concurrency bound and its basis to the user before any dispatch.
 
 ## 1. Read the parent
