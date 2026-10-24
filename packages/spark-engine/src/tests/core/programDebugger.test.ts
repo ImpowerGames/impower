@@ -263,6 +263,48 @@ describe("the debugger on the program engine", () => {
     expect(trace.stackFrames.map((f) => f.location?.range.start.line)).toEqual([14, 7]);
   });
 
+  it("places the frame of a checkpoint loaded in place on the beat it shows, as a load of its save does (#1200)", () => {
+    const script = [
+      "choose",
+      "  First.",
+      "  & aside()",
+      "  * One",
+      "end",
+      "choose",
+      "  Second.",
+      "  & aside()",
+      "  * Two",
+      "end",
+      "function aside()",
+      '  print("Aside.")',
+      "end",
+      "",
+    ].join("\n");
+    const advanceTo = (game: Game, text: string) => {
+      for (let i = 0; i < 10 && game.story.currentText !== text; i++) {
+        if (game.story.currentChoices.length > 0) {
+          game.chosePathToContinue(0);
+        } else {
+          game.continue();
+        }
+      }
+      expect(game.story.currentText).toBe(text);
+    };
+    const topLine = (h: ReturnType<typeof debugGame>) =>
+      h.frames().stackFrames[0]?.location?.range.start.line;
+    const inPlace = debugGame(script);
+    inPlace.game.start();
+    expect(inPlace.game.story.currentText).toBe("First.\n");
+    const checkpoint = inPlace.game.newestCheckpoint()!;
+    advanceTo(inPlace.game, "Second.\n");
+    expect(inPlace.game.loadCheckpoint(checkpoint)).toBe(true);
+    expect(inPlace.game.story.currentText).toBe("First.\n");
+    const fromJson = debugGame(script);
+    expect(fromJson.game.load(inPlace.game.checkpointJson(checkpoint)!)).toBe(true);
+    expect(topLine(fromJson)).toBe(1);
+    expect(topLine(inPlace)).toBe(1);
+  });
+
   it("shows the temporaries of the frame that runs, and of the frame below it", () => {
     const h = debugGame(NESTED);
     h.game.setBreakpoints([{ file: MAIN, line: 15 }]);
