@@ -2890,9 +2890,6 @@ export class Game<T extends M = {}> {
   /** What a load does once its story has loaded, which cannot fail: a
    *  waiting preview goes, and the modules and the runtime record load. */
   protected finishLoad(saveData: SaveData, runtime: RuntimeState): void {
-    // The game stands where the save was taken, not on the beat it waited
-    // on before.
-    this._awaiting = null;
     // A preview waiting for its pictures would display its beat over the
     // loaded state, and record a checkpoint of it.
     this.cancelPreview();
@@ -2904,6 +2901,11 @@ export class Game<T extends M = {}> {
       }
     }
     this._runtimeState = runtime;
+    // The game waits on the beat the save was taken at, where the runtime
+    // record the save carried last ran: a story loaded in place keeps the
+    // last instruction its beat's continue ran, which can stand past the
+    // beat, and a story loaded from JSON keeps none (#1200).
+    this._awaiting = this.lastExecutedScriptLocation();
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this._simulateFlow = saveData.simulatedFrom;
