@@ -1493,10 +1493,6 @@ style image with
     background_size = auto 100%
     will_change = transform
     min_width = 100%
-    -- The indented form read the next line, indented under `min_width`, as
-    -- nothing, so it has never applied. It stays a comment so that the brace
-    -- form does not start applying it:
-    --   translate = calc(0.5 * (100cqw - 100%)) 0
   }
 end
 
