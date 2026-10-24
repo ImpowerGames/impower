@@ -14,13 +14,15 @@ The default is to fix the item in this PR. A ticket is the expensive option: ano
 
 None of these is a reason to file instead of fixing: the item is tedious or hard, it predates the branch, its test is awkward to write, or fixing it now means another review round. Work the issue's own acceptance criteria require is never a follow-up; while it is unfinished, the PR stays draft and the handoff is an incomplete draft handoff.
 
+The root-cause fix of the issue's own defect is never filed. A narrow fix that meets the acceptance criteria while the cause remains (a special case, a guard, a suppressed error) is not "correct and verified without the item", and the cause sitting in another subsystem does not make its fix separate work: it belongs in this PR. Only an unsettled behavior decision about that fix turns it into a question to the user, or to the coordinator under orchestrate-issues, never a ticket.
+
 A fix made after the reviewed head is a correction under review-pr's [later-round rules](../../review-pr/references/later-rounds.md), and it waits until every reviewer process has exited. That cost is the reason to fix what you meet during steps 4 to 6, when you meet it, and to keep this sweep for what is left.
 
 ## File a ticket only for separate work
 
 File a ticket only when all of these are true:
 
-- This PR's change is correct and verified without the item.
+- The item is not the root cause of the issue's own defect, and this PR's change is correct and verified without it.
 - Fixing it here would widen the PR beyond its issue: it sits in another subsystem, needs its own reproduction and review, or turns on a behavior decision the maintainer has not made.
 - It is real: reproduced, or confirmed in the code at a `file:line`, during this sweep rather than while the issue's own work was unfinished. A suspicion, a style preference or an improvement with no named consequence is not a ticket; mention it in the handoff or drop it.
 
@@ -28,8 +30,8 @@ This step authorizes filing the items that meet that bar, without asking first. 
 
 ## Delegate the reproduction and filing
 
-Do not reproduce or file the candidates yourself. Read [filing routes](../../references/runner-filing.md) and launch the runner's cheap filing route once per candidate, all together, each with the item's `file:line`, one sentence on the symptom, the base commit and this PR's number. The route follows [file-bug](../../file-bug/SKILL.md) for wrong behavior or [file-task](../../file-task/SKILL.md) for bounded maintenance in its own worktree, never this PR's, searches for an existing issue first so an open match is reused, declines to file what it cannot reproduce, and reports the issue number or `Not filed` with the reason. Await every route before the handoff, read each filed ticket back, and treat a `Not filed` report as a dropped item to mention in the handoff. Only when the runner offers no filing route do you run file-bug or file-task yourself, skipping their user handoff.
+Do not reproduce or file the candidates yourself. Read [filing routes](../../references/runner-filing.md) and launch the runner's cheap filing route once per candidate, all together, each with the item's `file:line`, one sentence on the symptom, the base commit and this PR's number, plus the coordinated parent issue when an orchestrate-issues coordinator briefed you. The route follows [file-bug](../../file-bug/SKILL.md) for wrong behavior or [file-task](../../file-task/SKILL.md) for bounded maintenance in its own worktree, never this PR's, searches for an existing issue first so an open match is reused, declines to file what it cannot reproduce, and reports the issue number or `Not filed` with the reason. Await every route before the handoff, read each filed ticket back, and treat a `Not filed` report as a dropped item to mention in the handoff. Only when the runner offers no filing route do you run file-bug or file-task yourself, skipping their user handoff.
 
 ## Record it
 
-In the PR body (the PR report on the ticket once the cutover switch is on), name each in-passing fix under Changes and each filed ticket under Notes for reviewers, with one sentence on why it is separate work, and read it back. In the handoff, list the tickets filed and the in-passing fixes, or say None. Most sessions file nothing.
+In the PR body (the PR report on the ticket once the cutover switch is on), name each in-passing fix under Changes and each filed ticket under Notes for reviewers, with one sentence on why it is separate work, and read it back. In the handoff, list the tickets filed and the in-passing fixes, or say None. Under a coordinator, the final report's filed tickets field lists every ticket you, your filing routes or review-pr filed or reused, each with your reading of how it relates to your fix, and each follow-up you proposed without filing. Most sessions file nothing.

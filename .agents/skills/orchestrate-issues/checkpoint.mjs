@@ -592,7 +592,7 @@ export function buildCheckpoint(record, { seq, previous, snapshotParents = [], k
     invocation: record.invocation, authority: record.authority, writer: record.writer, concurrency: record.concurrency,
     checkIn: record.checkIn ?? null, title: record.title ?? null,
     tickets: portableTickets(record.tickets, host),
-    operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries, verifications: record.verifications ?? [],
+    operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries, verifications: record.verifications ?? [], filed: record.filed ?? {},
     work: work ?? {}, snapshots,
     handoff: record.handoff ?? null,
     observed: observed ?? null,
@@ -854,7 +854,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     coordinator: self,
     invocation: { text: invocation, merging, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: authorityFor(merging), writer, concurrency,
-    tickets: structuredClone(prev.tickets), diskRecoveries: prev.diskRecoveries, operations: prev.operations ?? [], decisionRefs: prev.decisions ?? [], verifications: prev.verifications ?? [],
+    tickets: structuredClone(prev.tickets), diskRecoveries: prev.diskRecoveries, operations: prev.operations ?? [], decisionRefs: prev.decisions ?? [], verifications: prev.verifications ?? [], filed: structuredClone(prev.filed ?? {}),
     // Saved snapshots stay the tickets' retrievable work under the new
     // coordinator. The work inventory needs no copy: every location passes
     // through the takeover checkpoint from the one it is built on.

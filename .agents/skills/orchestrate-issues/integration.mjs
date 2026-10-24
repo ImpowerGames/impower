@@ -22,7 +22,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRepos } from "../../repos.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs } from "./issue-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -140,10 +140,13 @@ export function gatherFacts({ record, ticket, pr, client, git }) {
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
   let mainRuns;
   try { mainRuns = client.mainRuns(TARGET); } catch (error) { mainRuns = `${TARGET}'s workflow runs could not be read: ${String(error.stderr || error.message).trim().split("\n")[0]}`; }
+  // Each ticket filed during the run that completes this slice's fix, as
+  // GitHub shows it now; one that cannot be read is held as open.
+  const filed = Object.fromEntries(completingTickets(record, ticket).map((e) => { try { return [e.number, client.issue(e.number).state]; } catch (error) { return [e.number, `unreadable (${String(error.stderr || error.message).trim().split("\n")[0]})`]; } }));
   git.fetch(pr);
   const originMain = git.main();
   const containsMain = git.isAncestor(originMain, pull.head);
-  return { pull, originMain, protection, comments, state, mainRuns, chain: git.cleanChain(pull.head, originMain), containsMain, ciMain: containsMain ? originMain : git.mergeBase(pull.head, originMain) };
+  return { pull, originMain, protection, comments, state, mainRuns, filed, chain: git.cleanChain(pull.head, originMain), containsMain, ciMain: containsMain ? originMain : git.mergeBase(pull.head, originMain) };
 }
 
 // An acceptance applies to the head, or to a commit the head reaches through
@@ -182,6 +185,17 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   // The client keeps only closing references to the tickets repository.
   const names = repositoriesOf(record), ref = names.split ? `${names.tickets}#${number}` : `#${number}`;
   if (!(pull.closes ?? []).includes(number)) blockers.push(`PR #${pr} does not close ${ref} (its body has no Closes ${ref}), so merging it would leave the ticket open`);
+  // A ticket filed during the run that completes this slice's fix is
+  // delivered by this PR: while it is open, the PR closes it or waits, unless
+  // the maintainer accepted the narrow fix as an interim.
+  for (const e of completingTickets(record, number)) {
+    const seen = facts.filed?.[e.number] ?? "unread";
+    if (seen === "closed" || (pull.closes ?? []).includes(e.number)) continue;
+    const fref = names.split ? `${names.tickets}#${e.number}` : `#${e.number}`;
+    blockers.push(e.outcome.kind === "maintainer"
+      ? `${fref}, filed during the run, waits on the maintainer's answer to "${e.outcome.question}", and the PR holds until it is recorded (triage, or interim for an accepted narrow fix)`
+      : `${fref}, filed during the run, completes #${number}'s fix (${e.outcome.reason}) and is ${seen}, but PR #${pr} does not close it; send the PR back to its writer for the proper fix with Closes ${fref}, or record the maintainer's interim decision with issue-run.mjs interim`);
+  }
   // The PR itself.
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
   if (pull.isDraft) blockers.push(`PR #${pr} is a draft; it merges only once marked ready`);
@@ -469,6 +483,8 @@ export function verifyIssue(record, { snapshot, evidence, mainSha }) {
     throw new Error(`Criterion ${c.index}'s status must be met or unmet`);
   });
   const incomplete = slices(record, snapshot).filter((s) => !s.delivered).map((s) => ({ number: s.number, action: s.state === "closed" ? `closed without a merged deliverable on ${TARGET}` : s.open.length ? `open, PR ${s.open.map((p) => `#${p}`).join(", ")} not merged` : "open with no merged PR" }));
+  // A ticket filed during the run is placed before the parent issue closes.
+  incomplete.push(...filedActions(record).map((f) => ({ number: f.number, action: f.action === "triage-filed" ? "filed during the run, with no triage outcome" : `named as filed in #${f.from}'s writer's report, not confirmed and triaged` })));
   const unsettled = (record.operations ?? []).filter((o) => OPEN.has(o.state)).map((o) => `${operationText(o)} ${o.id} (${o.state})`);
   const verdict = !incomplete.length && !unsettled.length && rows.every((r) => r.status === "met") ? "complete" : "incomplete";
   const v = { id: randomUUID().slice(0, 8), time: new Date().toISOString(), coordinator: record.coordinator.session, mainSha, snapshotAt: snapshot.observedAt, verdict, criteria: rows, acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null, incomplete, unsettled, tickets: snapshot.tickets.filter((t) => !t.container).map((t) => t.number) };

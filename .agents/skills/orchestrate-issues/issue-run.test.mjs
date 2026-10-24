@@ -258,11 +258,11 @@ try {
 
   // The writer's report must carry the full contract; one at another effort
   // is kept and stops the writer.
-  assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("partial.json", { model: "claude-opus-5-5", effort: "medium", pr: 601 }) })), /lacks permissionMode, reviewedHead, rounds, findings, verification, ci, next/);
+  assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("partial.json", { model: "claude-opus-5-5", effort: "medium", pr: 601 }) })), /lacks permissionMode, reviewedHead, rounds, findings, verification, ci, filed, next/);
   const wrong = structuredClone(run.readRecord(record));
-  run.result(wrong, { ticket: 101, report: write("wrong.json", { model: "claude-opus-5-5", effort: "low", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, next: "x" }) });
+  run.result(wrong, { ticket: 101, report: write("wrong.json", { model: "claude-opus-5-5", effort: "low", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, filed: "None", next: "x" }) });
   assert.match(wrong.tickets[101].owner.mismatch, /the writer reported claude-opus-5-5 at low in bypassPermissions, not claude-opus-5-5 at medium in bypassPermissions/);
-  rev = mutate(rev, (r) => run.result(r, { ticket: 101, report: write("report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: { "hook-tests": "pass" }, next: "await review" }) }));
+  rev = mutate(rev, (r) => run.result(r, { ticket: 101, report: write("report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: { "hook-tests": "pass" }, filed: "None", next: "await review" }) }));
 
   // Observed exit releases the ticket; the next plan offers it again.
   fs.writeFileSync(stop101, "");
@@ -1180,6 +1180,93 @@ try {
     const client = { subIssues: (n) => (n === 300 ? [{ number: 1103, title: "t", state: "closed", state_reason: "completed", closed_at: before, type: { name: "Bug" }, body: "" }] : []), pulls: () => [] };
     const [walked] = run.walkSubIssues(300, client);
     assert.deepEqual([walked.stateReason, walked.closedAt], ["completed", before]);
+  }
+
+  // Tickets filed during the run. The writer's report names them, a writer
+  // claimed before the brief asked for them still reports, each ticket is
+  // recorded once GitHub confirms it and triaged, the plan reports one with
+  // no outcome, a ticket completing a slice's fix waits for that slice and is
+  // delivered by its PR, and a ticket the parent needs is admitted like any
+  // sub-issue once attached under the parent behind its chain's tail.
+  {
+    const f = fresh("filed");
+    const pre = [available("claude-cli", "claude-opus-5-5", [3001, 3003])];
+    assert.ok(run.REPORT_FIELDS.includes("filed"), "the report has a field for filed tickets");
+    // A claim records the report fields its brief asks for.
+    const claimed = f.change((r) => run.claim(r, { plan: write("filed-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3001), parent: 300 }]), { preflights: pre })), ticket: 3001, worktree: path.join(f.dir, "wt-3001"), branch: "fix/3001-thing", artifactParent: f.artifacts }));
+    assert.deepEqual(claimed.reportFields, run.REPORT_FIELDS, "the claim keeps the fields its brief asks for");
+    f.change((r) => { const t = r.tickets[3001]; t.owner = { ...t.pending, handle: { kind: "session", id: "local_w3001" }, since: new Date().toISOString() }; t.pending = null; });
+    const base = { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 3901, reviewedHead: "abc1234", rounds: { codex: 1 }, findings: "None", verification: "tests", ci: "test-suite passed", next: "none" };
+    assert.throws(() => f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r0.json", base) })), /lacks filed/, "a writer briefed for it reports its filed tickets");
+    const named = f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r1.json", { ...base, filed: [{ number: 3002, reading: "completes the fix" }] }) }));
+    assert.match(named.filed, /#3002 as filed; confirm each on GitHub/, "the report's list is a hint to confirm");
+    // A writer adopted with its work, briefed before the field existed,
+    // reports without it; its filed tickets are read from GitHub.
+    f.change((r) => { r.tickets[3009] = { owner: { route: "claude-cli", model: "claude-opus-5-5", effort: "medium", handle: { kind: "session", id: "local_old" }, adopted: { pr: null, rounds: 0 }, since: new Date().toISOString() }, pending: null, history: [], results: [] }; });
+    assert.match(f.change((r) => run.result(r, { ticket: 3009, report: write("filed-r2.json", { ...base, pr: 3909 }) })).filed, /read what #3009's writer filed from GitHub/, "an older writer's report still records");
+    assert.equal(run.readRecord(f.file).tickets[3009].results.length, 1);
+    assert.deepEqual(run.filedNumbers("Filed #3002 and #3003; reused #3002"), [3002, 3003]);
+    assert.deepEqual(run.filedNumbers("None"), []);
+    // A ticket a report names and the record lacks plans as confirm-filed;
+    // once recorded, as triage-filed until it has an outcome.
+    const filedOf = (p) => Object.fromEntries(p.filed.map((x) => [x.number, x.action]));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), { 3002: "confirm-filed" });
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 3002, ticket: 3001, pr: 3901 })), /--source must say where GitHub confirms/);
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 300, source: "x" })), /is the parent issue/);
+    f.change((r) => run.filed(r, { filed: 3002, ticket: 3001, pr: 3901, source: "PR #3901's report, Notes for reviewers", reading: "completes the fix" }));
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 3002, source: "again" })), /already recorded as filed/);
+    let p = planOf(f, snapshotOf(300, []));
+    assert.deepEqual(filedOf(p), { 3002: "triage-filed" }, "a recorded ticket with no outcome is an action");
+    assert.ok(p.remaining.some((line) => /#3002 \(triage-filed\)/.test(line)), "the remaining work names it");
+    // The parent cannot be complete while a filed ticket lacks an outcome,
+    // even on a verification that otherwise holds.
+    const verified = { ...run.readRecord(f.file), verifications: [{ verdict: "complete", mainSha: "abc", criteria: [], acceptanceSha256: null, tickets: [3001] }] };
+    const doneSnap = { ...snapshotOf(300, [{ ...ticket(3001), parent: 300, state: "closed", delivered: true }]), issue: { number: 300, state: "open", criteria: [], acceptanceSha256: null } };
+    assert.deepEqual(run.verificationGaps(verified, doneSnap), ["#3002 was filed during the run and has no triage outcome; triage it with issue-run.mjs triage"]);
+    // Triage: each outcome takes what it needs.
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3002, outcome: "later" })), /--outcome must be completes, needed, separate, maintainer/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3002, outcome: "completes", reason: "same root cause" })), /--slice must name the slice/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3004, outcome: "separate", reason: "x" })), /not recorded as filed/);
+    f.change((r) => run.triage(r, { filed: 3002, outcome: "completes", slice: 3001, reason: "it replaces the guard PR #3901 adds" }));
+    assert.deepEqual(run.verificationGaps({ ...run.readRecord(f.file), verifications: verified.verifications }, doneSnap), [], "a triaged ticket leaves the verification holding");
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {});
+    assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002]);
+    // Attached under the parent while #3001's PR is open and does not close
+    // it, the completing ticket waits for #3001 and is never dispatched.
+    const slicePr = (closes) => ({ number: 3901, state: "OPEN", isDraft: true, branch: "fix/3001-thing", head: "h", rounds: 1, closes });
+    p = planOf(f, snapshotOf(300, [{ ...ticket(3001), parent: 300, prs: [slicePr([3001])] }, { ...ticket(3002), parent: 300 }]), { preflights: [available("claude-cli", "claude-opus-5-5", [3002])], observations: { sessions: { local_w3001: { state: "running" } } } });
+    assert.equal(actions(p)[3002], "wait-dependency");
+    assert.match(p.tickets.find((t) => t.number === 3002).reason, /completes #3001's fix .*makes the proper fix in its PR with a closing reference to #3002/);
+    // Once #3001's PR closes it, the delivered-by rule counts it delivered by
+    // that slice, read through the snapshot's own walk.
+    const issues = { 300: { title: "parent", state: "open", body: "## Acceptance criteria\n\n- [ ] done\n" }, 3001: { title: "slice", state: "open", type: { name: "Bug" }, body: "" }, 3002: { title: "filed", state: "open", type: { name: "Bug" }, body: "" } };
+    const prNode = { number: 3901, state: "OPEN", isDraft: true, headRefName: "fix/3001-thing", headRefOid: "h", baseRefName: "main", closingIssuesReferences: [{ number: 3001 }, { number: 3002 }], mergeCommit: null };
+    const client = { fetchMain: () => "abc", worktrees: () => [], issue: (n) => issues[n], subIssues: (n) => (n === 300 ? [3001, 3002].map((k) => ({ number: k, ...issues[k] })) : []), pulls: (n) => ([3001, 3002].includes(n) ? [prNode] : []), effort: () => "Medium", blockedBy: () => [], comments: () => [], checks: () => [], onMain: () => false };
+    const walked = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, client);
+    assert.deepEqual(walked.tickets.find((t) => t.number === 3002).deliveredBy, { ticket: 3001, via: "pr", pr: 3901, merged: false });
+    p = planOf(f, walked, { observations: { sessions: { local_w3001: { state: "running" } } } });
+    assert.equal(actions(p)[3002], "delivered-by", "an open slice's PR delivers the completing ticket");
+    assert.deepEqual(p.tickets.find((t) => t.number === 3001).delivers, [3002]);
+    // A ticket the parent needs, attached mid-run behind the tail of its file
+    // set's chain, waits for that tail and is admitted once it is delivered.
+    f.change((r) => run.filed(r, { filed: 3003, ticket: 3001, pr: 3901, source: "ticket #3003's provenance line" }));
+    f.change((r) => run.triage(r, { filed: 3003, outcome: "needed", under: 300, reason: "a defect in behavior #3001 changed" }));
+    const needed = (delivered) => snapshotOf(300, [{ ...ticket(3001), parent: 300, state: delivered ? "closed" : "open", delivered }, { ...ticket(3003), parent: 300, blockers: [{ number: 3001, state: delivered ? "closed" : "open", delivered }] }]);
+    const freed = (r) => ({ ...r, tickets: { ...r.tickets, 3001: { ...r.tickets[3001], owner: null } } });
+    assert.equal(actions(run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: needed(false), preflights: pre, freeBytes: 100 * GB, defaults }))[3003], "wait-dependency", "it waits behind the chain's tail");
+    assert.equal(actions(run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: needed(true), preflights: pre, freeBytes: 100 * GB, defaults }))[3003], "dispatch", "a ticket attached mid-run is admitted once its blocker is delivered");
+    // A ticket raised with the maintainer holds its slice and is not
+    // dispatched; an interim decision lets the slice merge without it, and it
+    // stays in scope as completing that fix.
+    f.change((r) => run.filed(r, { filed: 3005, ticket: 3001, pr: 3901, source: "review-pr's deferral Task" }));
+    f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001 }));
+    assert.equal(actions(planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300 }])))[3005], "decision-needed");
+    assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002, 3005]);
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3003, decision: "ok", evidence: "chat" })), /not triaged as completing/);
+    f.change((r) => run.interim(r, { filed: 3005, decision: "Keep the narrow fix for now", evidence: "the maintainer's reply on the parent" }));
+    const after = run.readRecord(f.file).filed[3005].outcome;
+    assert.deepEqual([after.kind, after.slice, after.interim.decision], ["completes", 3001, "Keep the narrow fix for now"]);
+    assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002], "an interim releases the slice's PR");
   }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");

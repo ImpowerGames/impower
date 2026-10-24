@@ -296,7 +296,7 @@ try {
     return { dir, report };
   };
   const reviewed = (pr, round, head) => { const j = journal(pr, round, "undirected", ["undirected"], { head, completed: { undirected: 1 } }); post(pr, `### Adjudication of review ${j.report.id}\n\nEvery finding accepted and fixed, or rejected with evidence.`); return j; };
-  const report = (n, reviewedHead, findings = "None") => change((r) => run.result(r, { ticket: n, report: write(`report-${n}-${clock}.json`, { model: "gpt-6.1-sol", effort: "high", permissionMode: null, pr: 100 + n, reviewedHead, rounds: { "claude-opus-5-5": 1 }, findings, verification: "red/green regression and tooling checks", ci: "all passed", next: "await the coordinator's merge" }) }));
+  const report = (n, reviewedHead, findings = "None") => change((r) => run.result(r, { ticket: n, report: write(`report-${n}-${clock}.json`, { model: "gpt-6.1-sol", effort: "high", permissionMode: null, pr: 100 + n, reviewedHead, rounds: { "claude-opus-5-5": 1 }, findings, verification: "red/green regression and tooling checks", ci: "all passed", filed: "None", next: "await the coordinator's merge" }) }));
   const snapshotFile = (s = snapshotNow()) => write(`snapshot-${clock}.json`, s);
   const gate = (n, rec = record(), facts) => {
     const pr = 100 + n, g = gitOf(src);
@@ -401,6 +401,33 @@ try {
   unknownWriter.tickets[41].history.push({ owner: { route: "claude-cli", handle: { kind: "process", pid: 4242, start: "1" } }, released: "x" });
   blocked(gate(41, unknownWriter), /#41's writer process 4242 has no recorded session and no stream was recorded for it, so whether its session wrote for the ticket is unknown/, "a writer whose session is unknown never counts as not having written");
   assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
+  // A ticket filed during the run that completes #41's fix holds PR #141
+  // while it is open and the PR does not close it; the PR closing it, its
+  // closure, or the maintainer's interim decision admits the head again. One
+  // raised with the maintainer for #41 holds the PR until the answer.
+  {
+    const filedGate = (rec) => ig.admission(rec, { ticket: 41, pr: 141, snapshot: snapshotNow(), facts: ig.gatherFacts({ record: rec, ticket: 41, pr: 141, client, git: gitOf(src) }), git: gitOf(src) });
+    gh.issues.set(48, { state: "open", title: "the proper fix", body: "" });
+    const withFiled = structuredClone(record());
+    run.filed(withFiled, { filed: 48, ticket: 41, pr: 141, source: "PR #141's report, Notes for reviewers" });
+    run.triage(withFiled, { filed: 48, outcome: "completes", slice: 41, reason: "it removes the guard PR #141 adds" });
+    const held = filedGate(withFiled);
+    blocked(held, /^#48, filed during the run, completes #41's fix \(it removes the guard PR #141 adds\) and is open, but PR #141 does not close it/, "an open completing ticket the PR does not close");
+    assert.equal(held.blockers.length, 1, `nothing else holds the head: ${held.blockers.join(" | ")}`);
+    gh.pulls.get(141).closes = [41, 48];
+    assert.deepEqual(filedGate(withFiled).blockers, [], "a PR that closes the completing ticket delivers it");
+    gh.pulls.get(141).closes = [41];
+    gh.issues.get(48).state = "closed";
+    assert.deepEqual(filedGate(withFiled).blockers, [], "a closed completing ticket holds nothing");
+    gh.issues.get(48).state = "open";
+    const raised = structuredClone(withFiled);
+    run.triage(raised, { filed: 48, outcome: "maintainer", question: "Does the proper fix change agreed behavior?", slice: 41 });
+    blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer to "Does the proper fix change agreed behavior\?"/, "a ticket raised with the maintainer holds its slice");
+    run.interim(raised, { filed: 48, decision: "Merge the narrow fix as an interim", evidence: "the maintainer's comment on #40" });
+    assert.deepEqual(filedGate(raised).blockers, [], "the maintainer's interim decision admits the head");
+    assert.deepEqual(filedGate(record()).blockers, [], "the record as it is holds no filed ticket");
+    gh.issues.delete(48);
+  }
 
   // CI: pending, failed, cancelled and a skipped required gate all refuse.
   for (const [state, pattern] of [["IN_PROGRESS", /still pending .* a merge may not/], ["FAILURE", /test-suite concluded FAILURE/], ["CANCELLED", /test-suite concluded CANCELLED/], ["SKIPPED", /required check Test Suite \/ test-suite was skipped/]]) {
@@ -836,6 +863,15 @@ try {
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "a delivered slice joined the parent issue");
   gh.slices.delete(44);
   gh.pulls.delete(144);
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);
+  // A ticket filed during the run with no triage outcome keeps the parent
+  // issue open: the plan is not complete and the closure refuses, through
+  // the same check its final gate repeats as a premise; once triaged, the
+  // verification holds again.
+  change((r) => run.filed(r, { filed: 49, ticket: 43, pr: 143, source: "PR #143's report, Notes for reviewers" }), dstRecord, "local_dst");
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "an untriaged filed ticket is not completion");
+  assert.throws(() => close(done.id), /no longer holds: #49 was filed during the run and has no triage outcome; triage it with issue-run\.mjs triage/);
+  change((r) => run.triage(r, { filed: 49, outcome: "separate", reason: "a worktree-cleanup defect outside the parent issue's scope" }), dstRecord, "local_dst");
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);
   const body = gh.issues.get(ISSUE).body;
   gh.issues.get(ISSUE).body = body.replace("## Additional context", "- [ ] A criterion added after the verification.\n\n## Additional context");

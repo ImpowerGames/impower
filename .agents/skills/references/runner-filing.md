@@ -11,7 +11,9 @@ The resolve-issue [outstanding work](../resolve-issue/references/follow-ups.md) 
 
 The prompt for one item carries its `file:line`, one sentence on the symptom, the base commit, the PR number and the instruction to report the issue number or `Not filed` with the reason. The writer reads every filed ticket back before recording it in the PR body. When the runner offers no such route, the writer runs the sweep itself as the reference describes.
 
-An orchestrate-issues coordinator files the same way: a follow-up a writer flags outside its ticket's scope, or any Bug or Task its run turns up, goes to the filing route with the item's location, symptom, base commit and PR, and the coordinator awaits it and reports the ticket number. It never proposes the filing to the maintainer as a session to start, since such a proposal waits on their approval by hand and an unattended run has none.
+Under an orchestrate-issues coordinator, the prompt also names the coordinated parent issue, and the filed ticket carries a provenance line naming that parent and the PR it came from, with one sentence each on how it relates to the parent's goal and to the fix it came from. The writer lists every ticket it, its filing routes or review-pr filed or reused in its final report to the coordinator, which confirms each from that line or the PR report and places it in or outside the parent's tree.
+
+An orchestrate-issues coordinator files the same way: a follow-up a writer flags outside its ticket's scope, or any Bug or Task its run turns up, goes to the filing route with the item's location, symptom, base commit, PR and the parent issue, and the coordinator awaits it, reports the ticket number, and records and triages it like a writer's filing. It never proposes the filing to the maintainer as a session to start, since such a proposal waits on their approval by hand and an unattended run has none.
 
 ## Checked reproduction lifecycle
 
