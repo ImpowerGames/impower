@@ -13,7 +13,7 @@ import { execFileSync } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
-import { runHandoff as actualRunHandoff, recordCoordinatorReport as actualRecord, writeReportReadBack, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
+import { runHandoff as actualRunHandoff, recordCoordinatorReport as actualRecord, writeReportReadBack, reviewAccounting, readJournalRows, settleLaunch } from "./agent-handoff.mjs";
 import { readRepos } from "../.agents/repos.mjs";
 import { roundState } from "../.agents/skills/orchestrate-issues/review-checkpoint.mjs";
 
@@ -247,4 +247,127 @@ post(report, 603);
 recordCoordinatorReport(awaiting, 603, readBack);
 assert.deepEqual(readJournalRows(awaiting).map((row) => row.event), ["coordinator", "report-awaiting-post", "report-posted", "finished"]);
 console.log("PASS: a journal awaiting a coordinator-posted report is still completed without a completed row of its own");
+
+// A reviewer with GitHub access posts its own report, then its launcher dies
+// (a machine restart) before journalling the step's exit, and settle-launch
+// ends the journal blocked. record-report completes it from the reviewer's
+// own comment, read back by ID, so the round counts the reviewer without a
+// relaunch (#1599). The journal is settle-launch's own output.
+const settledDir = path.join(jobDir, "launch-undirected-settled");
+fs.mkdirSync(settledDir);
+const settled = path.join(settledDir, "journal.jsonl");
+const settledToken = "handoff-report-11e2a76e-4f02-4a23-8dee-2a1186e639de";
+const launchedAt = "2026-10-24T05:38:23.822Z";
+const coordinatorIdentity = { pid: 43136, start: "639284170971764329" };
+const childIdentity = { pid: 44280, start: "639284171174800674" };
+const settledCompletion = path.join(settledDir, "completion-0", "completion.json");
+const settledPlanFile = path.join(settledDir, "plan.json");
+const settledPlan = { worktree, pr: 1948, completedReviewRound: 1, reviewedHead: head, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", maxSteps: 1, first: "undirected", journal: settled, steps: {
+  undirected: { role: "review", round: 1, reviewerId: "undirected", reviewers: ["ax", "undirected"], model: "reviewer-test", executable: process.execPath, args: [], prompt, next: [null] },
+} };
+fs.writeFileSync(settledPlanFile, JSON.stringify(settledPlan));
+const settledThread = { repo: OFF.code, number: 1948, issueUrl: threadUrl };
+const unsettledRows = [
+  { time: "2026-10-24T05:38:20.963Z", event: "coordinator", pid: coordinatorIdentity.pid, processIdentity: coordinatorIdentity, thread: settledThread },
+  { time: "2026-10-24T05:38:23.823Z", event: "launching", index: 0, step: "undirected", role: "review", model: "reviewer-test", round: 1, reviewerId: "undirected", attempt: 1, plannedReviewers: ["ax", "undirected"], completedRound: 1, reviewedHead: head, completedRoundReviews: 1, completedRoundReviewers: { ax: 1 }, plannedRoundReviewers: ["ax", "undirected"], finalCorrections: false, head, completion: settledCompletion, reportNotBefore: launchedAt, reportToken: settledToken },
+  { time: "2026-10-24T05:38:36.401Z", event: "route-probed", index: 0, model: "reviewer-test" },
+  { time: "2026-10-24T05:38:37.469Z", event: "reserved", index: 0, slot: path.join(scratch, "slots", "slot-0.jsonl"), token: "66781144-c87e-4c1c-aef4-f1c06bc9144c", owner: coordinatorIdentity },
+  { time: "2026-10-24T05:38:38.602Z", event: "running", index: 0, step: "undirected", pid: childIdentity.pid, startedAt: "2026-10-24T05:38:38.602Z", head, completion: settledCompletion },
+  { time: "2026-10-24T05:38:38.603Z", event: "identified", index: 0, step: "undirected", childIdentity, token: "66781144-c87e-4c1c-aef4-f1c06bc9144c" },
+];
+fs.writeFileSync(settled, unsettledRows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+fs.writeFileSync(path.join(settledDir, "agent-handoff.lock.recovered-1792831772796.json"), JSON.stringify({ journal: settled, processIdentity: coordinatorIdentity }));
+settleLaunch(settled, { identifyProcess: () => null });
+const settledRowsNow = () => readJournalRows(settled);
+assert.deepEqual(settledRowsNow().map((row) => row.event).slice(-2), ["confirmed-absent", "blocked"]);
+assert.equal(settledRowsNow().at(-1).settledBy, "settle-launch");
+const settledOriginal = fs.readFileSync(settled, "utf8");
+const settledAccountingBefore = reviewAccounting([{ file: journal, rows: rows(), plan }, { file: settled, rows: settledRowsNow(), plan: settledPlan }]);
+assert.deepEqual(settledAccountingBefore.rounds[0].pending, ["undirected"], "before the record, the round still plans the settled reviewer");
+
+// The reviewer's own report, as it posted it on the review thread before the
+// restart, and read back by ID.
+const settledReadBack = path.join(settledDir, "read-back-6381200355.json");
+const reviewerReport = `### Adversarial review — undirected (reviewer-test)\n\nRound 1; reviewed head ${head}.\n\nNo findings.\n\n${settledToken}`;
+const reviewerComment = ({ body = reviewerReport, id = 6381200355, issue_url = threadUrl, created_at = "2026-10-24T07:00:44Z" } = {}) => fs.writeFileSync(settledReadBack, JSON.stringify({ id, issue_url, created_at, body }));
+const recordSettled = (id = 6381200355) => recordCoordinatorReport(settled, id, settledReadBack);
+const refusesSettled = (pattern, what, prepare = () => {}) => {
+  fs.writeFileSync(settled, settledOriginal);
+  fs.rmSync(path.dirname(settledCompletion), { recursive: true, force: true });
+  reviewerComment();
+  prepare();
+  const before = fs.readFileSync(settled, "utf8");
+  assert.throws(() => recordSettled(), pattern, what);
+  assert.equal(fs.readFileSync(settled, "utf8"), before, `a refusal writes nothing (${what})`);
+};
+const settledWith = (edit) => () => { const list = settledRowsNow(); edit(list); fs.writeFileSync(settled, list.map((row) => JSON.stringify(row)).join("\n") + "\n"); };
+const otherToken = "handoff-report-00000000-0000-4000-8000-000000000000";
+refusesSettled(/end with the launch's report token/, "a comment ending with another launch's token is refused", () => reviewerComment({ body: reviewerReport.replace(settledToken, otherToken) }));
+refusesSettled(/end with the launch's report token/, "a comment quoting the token before its end is refused", () => reviewerComment({ body: `${reviewerReport}\n\nMore text after the token.` }));
+refusesSettled(/name reviewed head/, "a comment naming another head is refused", () => reviewerComment({ body: reviewerReport.split(head).join("0".repeat(40)) }));
+refusesSettled(/not review thread .*#1948/, "a comment on another issue is refused", () => reviewerComment({ issue_url: `https://api.github.com/repos/${OFF.internal}/issues/77` }));
+refusesSettled(/read-back is comment 6381200356, not comment 6381200355/, "a read-back of another comment is refused", () => reviewerComment({ id: 6381200356 }));
+refusesSettled(/outside launch 0's run/, "a comment posted before the launch is refused", () => reviewerComment({ created_at: "2026-10-24T05:30:00Z" }));
+refusesSettled(/outside launch 0's run/, "a comment posted after the reviewer was confirmed absent is refused", () => reviewerComment({ created_at: new Date(Date.now() + 60000).toISOString() }));
+refusesSettled(/created_at/, "a read-back without its creation time is refused", () => fs.writeFileSync(settledReadBack, JSON.stringify({ id: 6381200355, issue_url: threadUrl, body: reviewerReport })));
+refusesSettled(/confirmed absent/, "a settled journal without its confirmed-absent row is refused", settledWith((list) => { list.splice(list.findIndex((row) => row.event === "confirmed-absent"), 1); }));
+refusesSettled(/names no review thread/, "a settled journal whose coordinator row names no thread is refused", settledWith((list) => { delete list.find((row) => row.event === "coordinator").thread; }));
+refusesSettled(/report token/, "a settled launch that is not a review is refused", settledWith((list) => { list.find((row) => row.event === "launching").role = "implement"; }));
+refusesSettled(/does not end/, "a journal blocked for another reason is still refused", settledWith((list) => { delete list.at(-1).settledBy; }));
+refusesSettled(/completion artifact/, "a completion artifact naming another comment is refused", () => { fs.mkdirSync(path.dirname(settledCompletion), { recursive: true }); fs.writeFileSync(settledCompletion, JSON.stringify({ head, next: null, commentIds: [7], summary: "No findings." })); });
+refusesSettled(/completion artifact/, "a completion artifact for another head is refused", () => { fs.mkdirSync(path.dirname(settledCompletion), { recursive: true }); fs.writeFileSync(settledCompletion, JSON.stringify({ head: "0".repeat(40), next: null, commentIds: [], summary: "No findings." })); });
+{
+  const twoWays = { ...settledPlan, steps: { undirected: { ...settledPlan.steps.undirected, next: [null, "implement"] } } };
+  refusesSettled(/transition/, "a review with two transitions and no completion artifact is refused", () => fs.writeFileSync(settledPlanFile, JSON.stringify(twoWays)));
+  fs.writeFileSync(settledPlanFile, JSON.stringify(settledPlan));
+}
+refusesSettled(/no launcher plan/, "a settled journal no plan names is refused", () => fs.writeFileSync(settledPlanFile, JSON.stringify({ ...settledPlan, journal: path.join(settledDir, "other.jsonl") })));
+fs.writeFileSync(settledPlanFile, JSON.stringify(settledPlan));
+console.log("PASS: a settled journal is completed only by the reviewer's own report for this launch, posted on its thread during its run");
+
+// The accepted shape: the reviewer's comment completes the settled journal,
+// dated when the reviewer posted it, and the round counts the reviewer.
+fs.writeFileSync(settled, settledOriginal);
+fs.rmSync(path.dirname(settledCompletion), { recursive: true, force: true });
+reviewerComment();
+execFileSync(process.execPath, [launcher, "record-report", settled, "6381200355", settledReadBack], { encoding: "utf8", windowsHide: true });
+const settledFull = settledRowsNow();
+assert.deepEqual(settledFull.map((row) => row.event).slice(-5), ["confirmed-absent", "blocked", "completed", "report-posted", "finished"]);
+const settledCompleted = settledFull.find((row) => row.event === "completed");
+assert.deepEqual({ ...settledCompleted, readBackSha256: undefined, recordedAt: undefined, summary: undefined }, { time: "2026-10-24T07:00:44.000Z", event: "completed", index: 0, step: "undirected", head, next: null, commentIds: [], summary: undefined, reviewerId: "undirected", attempt: 1, completedRound: 1, reviewedHead: head, completedRoundReviews: 2, completedRoundReviewers: { ax: 1, undirected: 1 }, plannedRoundReviewers: ["ax", "undirected"], pendingReviewers: [], finalCorrections: false, postedBy: "reviewer", commentId: 6381200355, readBackSha256: undefined, recordedAt: undefined }, "the completion is dated at the reviewer's post and carries the round accounting");
+assert.match(settledCompleted.summary, /6381200355/);
+const settledPosted = settledFull.find((row) => row.event === "report-posted");
+assert.deepEqual({ ...settledPosted, time: undefined, readBackSha256: undefined }, { time: undefined, readBackSha256: undefined, event: "report-posted", index: 0, step: "undirected", head, commentId: 6381200355, postedBy: "reviewer" });
+assert.equal(settledCompleted.readBackSha256, settledPosted.readBackSha256);
+const withSettled = [{ file: journal, rows: rows(), plan }, { file: settled, rows: settledFull, plan: settledPlan }];
+const settledAccounting = reviewAccounting(withSettled);
+assert.deepEqual(settledAccounting.rounds[0].completedReviewers, { ax: 1, undirected: 1 });
+assert.deepEqual(settledAccounting.rounds[0].pending, [], "the round counts the settled reviewer");
+assert.equal(settledAccounting.rounds[0].complete, true);
+assert.deepEqual(settledAccounting.completions.find((completion) => completion.file === settled).comments, [6381200355]);
+assert.deepEqual(roundState(withSettled).blockers, [], "the checkpoint no longer waits for the settled reviewer");
+assert.throws(() => recordSettled(), /does not end/, "a completed settled journal is not completed twice");
+console.log("PASS: the reviewer's own comment completes the settled journal and the round counts the reviewer");
+
+// A completion artifact the reviewer wrote before the restart supplies the
+// summary and transition, and may already name the comment.
+fs.writeFileSync(settled, settledOriginal);
+fs.mkdirSync(path.dirname(settledCompletion), { recursive: true });
+fs.writeFileSync(settledCompletion, JSON.stringify({ head, next: null, commentIds: [6381200355], summary: "No findings; report posted." }));
+reviewerComment();
+recordSettled();
+assert.equal(settledRowsNow().find((row) => row.event === "completed").summary, "No findings; report posted.");
+fs.rmSync(path.dirname(settledCompletion), { recursive: true, force: true });
+
+// An interrupted record is completed by the same command without a second
+// post, and a different comment or read-back cannot complete it.
+fs.writeFileSync(settled, settledFull.slice(0, -2).map((row) => JSON.stringify(row)).join("\n") + "\n");
+assert.throws(() => recordSettled(6381200356), /already records comment 6381200355/, "a different comment cannot complete an interrupted settled record");
+reviewerComment({ body: `${reviewerReport}\n\n---\n_Generated by someone else_` });
+assert.throws(() => recordSettled(), /already records comment 6381200355/, "a different read-back cannot complete an interrupted settled record");
+reviewerComment();
+recordSettled();
+assert.deepEqual(settledRowsNow().map((row) => row.event).slice(-4), ["blocked", "completed", "report-posted", "finished"]);
+assert.equal(settledRowsNow().filter((row) => row.event === "completed").length, 1, "the retry appends only the missing rows");
+console.log("PASS: an interrupted settled record is completed by the same command, and a different comment or read-back is refused");
 fs.rmSync(scratch, { recursive: true, force: true });
