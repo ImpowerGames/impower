@@ -184,6 +184,22 @@ function findStyleSheet(nodes: Node[]): string | undefined {
 export const authoredHidden = (element: Element) =>
   (styleProperty(element, "display") ?? element.attributes["display"])?.trim().toLowerCase() === "none";
 
+/** Inline style properties that move an element where its `transform` attribute does not say. */
+const CSS_TRANSFORM_PROPERTIES = new Set([
+  "transform",
+  "transform-origin",
+  "transform-box",
+  "translate",
+  "rotate",
+  "scale",
+  "offset",
+  "offset-path",
+  "offset-distance",
+  "offset-rotate",
+  "offset-anchor",
+  "offset-position",
+]);
+
 const elementsOf = (children: Node[]): Element[] =>
   children.filter((c): c is Element => !!c && typeof c === "object");
 
@@ -200,7 +216,12 @@ export function readArtDocument(svg: string): ArtDocument | undefined {
   const byId = new Map<string, Element>();
   const visit = (element: Element, parent: ElementInfo | null, resource: boolean) => {
     const tag = element.tagName.toLowerCase();
-    const own = parseTransform(element.attributes["transform"]);
+    // CSS transform properties in an inline style outrank the attribute, and
+    // `transform-origin` moves its pivot, so neither can be followed.
+    const cssTransform =
+      element.attributes["transform-origin"] !== undefined ||
+      styleDeclarations(element).some(([name]) => CSS_TRANSFORM_PROPERTIES.has(name));
+    const own = cssTransform ? null : parseTransform(element.attributes["transform"]);
     const parentSpace = parent ? parent.rootFromChildren : IDENTITY;
     const rootFromElement = parentSpace && own ? multiply(parentSpace, own) : null;
     // A nested <svg> starts a new viewport; its contents are not mapped here.

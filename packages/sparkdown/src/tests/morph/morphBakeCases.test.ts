@@ -291,6 +291,16 @@ describe("morph bake: compositing and authored style", () => {
     expect(restyled.diagnostics.find((d) => d.code === "unsupported-element")!.message).toContain("style `d:");
   });
 
+  test("a drawing moved by a CSS transform the bake cannot follow fades instead of moving", () => {
+    for (const attrs of [' style="transform:translate(5px,0)"', ' style="fill:#111;rotate:10deg"', ' transform="rotate(10)" transform-origin="50 50"']) {
+      const artifact = bake(art(lash(UPPER_OPEN, "eyelash-left", attrs) + lash(LOWER_OPEN), LASH_CLOSED), recipe());
+      expect(codes(artifact), attrs).toContain("unsupported-transform");
+      // The upper lash no longer morphs; the lower one still pairs.
+      const morphs = artifact.segments[0]!.transitions.filter((t) => t.kind === "morph");
+      expect(morphs.length, attrs).toBeLessThan(2);
+    }
+  });
+
   test("hidden state leaves are hidden inline in the live part and by the renderer", () => {
     const artifact = bake(art(LASHES_OPEN, LASH_CLOSED), recipe());
     const live = elements(artifact.parts.find((p) => p.kind === "live")!.svg);
