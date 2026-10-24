@@ -87,52 +87,6 @@ describe("morph bake: layered art", () => {
     expect(elements(artifact.parts[2]!.svg).some((e) => e.attributes["id"])).toBe(false);
   });
 
-  test("a resource only a style sheet references travels with every part that carries the sheet", () => {
-    // The face's paint comes from a class rule, not from its own attribute.
-    const styled = layeredPortrait()
-      .replace("<defs>", "<style>.skin { fill: url(#white); }</style><defs>")
-      .replace('<path data-name="face" d="', '<path data-name="face" class="skin" d="')
-      .replace(/(<path data-name="face"[^>]*) fill="#fdb"/, "$1");
-    const styledArtifact = bake(styled, layeredRecipe);
-    expect(styledArtifact.diagnostics).toEqual([]);
-    const face = elements(styledArtifact.parts[0]!.svg);
-    const p = styledArtifact.idPrefix;
-    const sheet = face.find((e) => e.tagName === "style")!;
-    expect(sheet.children.join("")).toContain(`url(#${p}white)`);
-    expect(face.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${p}white`)).toBe(true);
-  });
-
-  test("id selectors and references inside nested rules are namespaced, colours are not", () => {
-    const styled = layeredPortrait()
-      .replace("<defs>", "<style>@media all { #hair-tint { fill: url(#white); stroke: #abc } } .x { stroke: #def; #hair-tint { opacity: 1 } }</style><defs>")
-      .replace('<path data-name="hair" d="', '<path id="hair-tint" data-name="hair" d="');
-    const artifact = bake(styled, layeredRecipe);
-    const p = artifact.idPrefix;
-    const sheet = elements(artifact.parts[artifact.parts.length - 1]!.svg).find((e) => e.tagName === "style")!.children.join("");
-    expect(sheet).toContain(`@media all { #${p}hair-tint { fill: url(#${p}white); stroke: #abc } }`);
-    expect(sheet).toContain(`.x { stroke: #def; #${p}hair-tint { opacity: 1 } }`);
-  });
-
-  test("a colour that spells a known id stays a colour, whatever a comment or string beside it holds", () => {
-    const styled = layeredPortrait()
-      .replace("<defs>", `<style>.hair { fill: #abc /* { */; } #abc { stroke: #abc; --note: "{ #abc" }</style><defs>`)
-      .replace('<path data-name="hair" d="', '<path id="abc" class="hair" data-name="hair" d="');
-    const artifact = bake(styled, layeredRecipe);
-    const p = artifact.idPrefix;
-    const sheet = elements(artifact.parts[artifact.parts.length - 1]!.svg).find((e) => e.tagName === "style")!.children.join("");
-    expect(sheet).toContain(`.hair { fill: #abc /* { */; } #${p}abc { stroke: #abc; --note: "{ #abc" }`);
-  });
-
-  test("a colour in an at-rule's condition stays a colour; the selectors inside it are namespaced", () => {
-    const styled = layeredPortrait()
-      .replace("<defs>", `<style>@media all { @supports (fill: #abc) { #abc { fill: lime } } }</style><defs>`)
-      .replace('<path data-name="hair" d="', '<path id="abc" data-name="hair" d="');
-    const artifact = bake(styled, layeredRecipe);
-    const p = artifact.idPrefix;
-    const sheet = elements(artifact.parts[artifact.parts.length - 1]!.svg).find((e) => e.tagName === "style")!.children.join("");
-    expect(sheet).toContain(`@media all { @supports (fill: #abc) { #${p}abc { fill: lime } } }`);
-  });
-
   test("inline declarations split only where a semicolon ends one", () => {
     const element = { tagName: "path", attributes: { style: 'fill:url(data:image/svg+xml;utf8,x);--note:"a;b" /* c;d */;opacity:.5' }, children: [] };
     expect(styleDeclarations(element).map(([name]) => name)).toEqual(["fill", "--note", "opacity"]);
@@ -233,10 +187,9 @@ describe("morph bake: resting states", () => {
 });
 
 describe("morph bake: compositing and authored style", () => {
-  test("a group a style-sheet rule makes translucent stays whole in one live part", () => {
+  test("a group its inline style makes translucent stays whole in one live part", () => {
     const dim = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<style>.dim { opacity: .5 }</style>
-<g class="dim">
+<g style="fill:red;opacity:.5 /* dim */">
 <path data-name="backing" d="M0,0H120V100H0Z" fill="blue"/>
 <g data-name="eyes.open:default">${LASHES_OPEN}</g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
@@ -244,8 +197,8 @@ describe("morph bake: compositing and authored style", () => {
 </svg>`;
     const artifact = bake(dim, recipe());
     expect(artifact.parts.map((p) => p.kind)).toEqual(["live"]);
-    // Without the rule the backing stays static, below the lashes.
-    expect(bake(dim.replace(".dim { opacity: .5 }", ".dim { fill: red }"), recipe()).parts.map((p) => p.kind)).toEqual(["static", "live"]);
+    // Without the opacity the backing stays static, below the lashes.
+    expect(bake(dim.replace("opacity:.5 /* dim */", "stroke:red"), recipe()).parts.map((p) => p.kind)).toEqual(["static", "live"]);
   });
 
   test("a live drawing's own display gives way to the rest pose's inline one", () => {
@@ -256,38 +209,34 @@ describe("morph bake: compositing and authored style", () => {
     expect(closed.attributes["style"]).toBe("fill:#111;display:none");
   });
 
-  test("art a style-sheet display rule may apply to keeps its static render", () => {
-    // `.authored { display: inline !important }` would outrank any inline
-    // declaration that hides a state, and a sheet can reveal what an
-    // attribute hides, so neither is baked live.
-    for (const rule of [
-      ".authored { display: inline }",
-      ".authored { display: inline !important }",
-      "g.eyes { display: block }",
-      // Nested in a conditional at-rule, or in another rule.
-      "@media all { .authored { display: inline !important } }",
-      "@supports (display: grid) { @media screen { .authored { display: inline } } }",
-      ".eyes { fill: red; & .authored { display: inline } }",
-      // A quoted or commented brace is not a block boundary.
-      '.authored { --note: "}"; display: inline !important }',
-      ".authored { --note: 1 /* } */; display: inline }",
-      // Rules the bake cannot read.
-      "@import url(more.css);",
-    ]) {
-      const sheet = art(
+  test("artwork carrying a style sheet keeps its static render with one diagnostic", () => {
+    const sheets: Record<string, string> = {
+      "at the root": art(LASHES_OPEN, LASH_CLOSED, "<style>.unused { fill: red }</style>"),
+      "inside defs": art(LASHES_OPEN, LASH_CLOSED, "<defs><style>.unused { fill: red }</style></defs>"),
+      empty: art(LASHES_OPEN, LASH_CLOSED, "<style></style>"),
+      "touching no drawing": art(LASHES_OPEN, LASH_CLOSED, "<style>.unused { display: none } @font-face { font-family: x }</style>"),
+      "with a display rule": art(
         lash(UPPER_OPEN, "eyelash-left", ' class="authored"') + lash(LOWER_OPEN, "eyelash-left", ' class="authored"'),
         lash(CLOSED, "eyelash-left", ' class="authored"'),
-        `<g class="eyes"/><style>${rule}</style>`,
-      );
-      const artifact = bake(sheet, recipe());
-      expect(artifact.status).toBe("static");
-      expect(codes(artifact)).toEqual(["unsupported-element"]);
-      expect(artifact.diagnostics[0]!.message).toContain("`display`");
+        "<style>.authored { display: inline !important }</style>",
+      ),
+      "with a compositing rule": art(LASHES_OPEN, LASH_CLOSED, '<g class="dim"/><style>.dim { opacity: .5 }</style>'),
+      namespaced: art(LASHES_OPEN, LASH_CLOSED, "<svg:style>.unused { fill: red }</svg:style>"),
+      linked: art(LASHES_OPEN, LASH_CLOSED, '<link rel="stylesheet" href="more.css"/>'),
+      "as an instruction": `<?xml-stylesheet href="more.css" type="text/css"?>\n${art(LASHES_OPEN, LASH_CLOSED)}`,
+    };
+    for (const [where, svg] of Object.entries(sheets)) {
+      const artifact = bake(svg, recipe());
+      expect(artifact.status, where).toBe("static");
+      expect(artifact.diagnostics, where).toEqual([
+        expect.objectContaining({ code: "unsupported-element", severity: "error", uri: URI, variant: "bunny" }),
+      ]);
+      expect(artifact.diagnostics[0]!.message, where).toContain("style sheet");
+      // The static render is the artwork's own.
+      expect(artifact.rest, where).toBe(filterSVGAttributes(svg, {}));
     }
-    // A display rule no drawing matches leaves the morph alone, nested or not.
-    for (const rule of [".unused { display: none }", "@media all { .unused { display: none } }", "@font-face { font-family: x }"]) {
-      expect(bake(art(LASHES_OPEN, LASH_CLOSED, `<style>${rule}</style>`), recipe()).status).toBe("live");
-    }
+    // The same art without the sheet plays.
+    expect(bake(art(LASHES_OPEN, LASH_CLOSED), recipe()).status).toBe("live");
   });
 
   test("hidden state leaves are hidden inline in the live part and by the renderer", () => {
@@ -489,23 +438,17 @@ describe("morph bake: apertures that cannot be built", () => {
     expect(artifact.diagnostics[0]!.message).toContain("standing still");
   });
 
-  test("a moving drawing reached through a kept group's clip path or a style sheet keeps the variant static", () => {
+  test("a moving drawing reached through a kept group's clip path keeps the variant static", () => {
     const copyClip = `<defs><clipPath id="copy"><use href="#open-lash"/></clipPath></defs>`;
     const withId = art(lash(UPPER_OPEN, "eyelash-left", ` id="open-lash"`) + lash(LOWER_OPEN), LASH_CLOSED);
     const throughGroup = withId.replace(
       "</svg>",
       `${copyClip}<g clip-path="url(#copy)"><path data-name="nose" d="M0,0H120V100H0Z" fill="#a76"/></g>\n</svg>`,
     );
-    const throughSheet = withId.replace(
-      "</svg>",
-      `${copyClip}<style>.nose { clip-path: url(#copy) }</style><path class="nose" data-name="nose" d="M0,0H120V100H0Z" fill="#a76"/>\n</svg>`,
-    );
-    for (const svg of [throughGroup, throughSheet]) {
-      const artifact = bake(svg, recipe());
-      expect(artifact.status).toBe("static");
-      expect(codes(artifact)).toEqual(["unsupported-element"]);
-      expect(artifact.diagnostics[0]!.message).toContain("standing still");
-    }
+    const artifact = bake(throughGroup, recipe());
+    expect(artifact.status).toBe("static");
+    expect(codes(artifact)).toEqual(["unsupported-element"]);
+    expect(artifact.diagnostics[0]!.message).toContain("standing still");
   });
 
   test("unchanging art a compositing group keeps in a live part can still be referenced", () => {
@@ -534,11 +477,10 @@ describe("morph bake: apertures that cannot be built", () => {
     expect(top.some((e) => e.attributes["id"] === `${artifact.idPrefix}face`)).toBe(true);
   });
 
-  test("a reference inside a CSS comment or string references nothing", () => {
+  test("a reference inside an inline style's comment or string references nothing", () => {
     const commented = art(
-      lash(UPPER_OPEN, "eyelash-left", ` style="fill:#111 /* url(#gone) */"`) + lash(LOWER_OPEN),
+      lash(UPPER_OPEN, "eyelash-left", ` style="fill:#111 /* url(#gone) */;--text:'url(#gone)'"`) + lash(LOWER_OPEN),
       LASH_CLOSED,
-      `<style>/* .old { fill: url(#gone) } */ .note { --text: "url(#gone)" }</style>`,
     );
     expect(bake(commented, recipe()).diagnostics).toEqual([]);
   });

@@ -41,6 +41,8 @@ export interface ArtDocument {
   byKey: Map<string, ElementInfo>;
   byId: Map<string, Element>;
   vocabulary: AttributeVocabulary;
+  /** The first style sheet the artwork carries, which the bake refuses. */
+  styleSheet?: Element;
 }
 
 const SHAPES = new Set(["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"]);
@@ -150,101 +152,26 @@ export const compositingValue = (name: string, value: string): boolean => {
 };
 
 /**
- * What the document's style sheets give some declarations to, by the simple
- * selectors named in the rules that make them. This over-approximates on
- * purpose: a rule `.face .dim { opacity: .5 }` counts every `.face` and every
- * `.dim`, and an attribute selector or `*` counts every element. Erring this
- * way only keeps more art in one live part (compositing), or keeps a variant
- * static that might have played (display).
+ * The first style sheet the parsed artwork carries, wherever it sits: a
+ * `<style>` element (namespaced or not, empty or not), a `<link>` to a style
+ * sheet, or an `<?xml-stylesheet?>` instruction.
  */
-export interface StyleRules {
-  any: boolean;
-  classes: Set<string>;
-  ids: Set<string>;
-  tags: Set<string>;
-}
-
-/**
- * The rules of the document's style sheets with a declaration `declares`
- * accepts. Rules inside conditional at-rules (`@media`, `@supports`, …) count
- * as written, and a nested rule counts with the selectors of every rule it
- * sits in, so `.a { & .b { … } }` names both `.a` and `.b`. An `@import`
- * brings rules the bake cannot read, so it counts for every element.
- */
-export function styleRules(doc: ArtDocument, declares: (name: string, value: string) => boolean): StyleRules {
-  const rules: StyleRules = { any: false, classes: new Set(), ids: new Set(), tags: new Set() };
-  const name = (selector: string) => {
-    // Each compound selector (`g.dim`, `#eye`, `path`) is matched by any one
-    // of its classes or ids, or by its tag when it names nothing else.
-    for (const compound of selector.split(/[\s>+~,()]+/)) {
-      if (!compound) continue;
-      if (/[*[]/.test(compound)) rules.any = true;
-      const classes = [...compound.matchAll(/\.(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
-      const ids = [...compound.matchAll(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
-      for (const c of classes) rules.classes.add(c);
-      for (const id of ids) rules.ids.add(id);
-      const tag = /^[a-zA-Z][-a-zA-Z0-9]*/.exec(compound)?.[0];
-      if (tag && !classes.length && !ids.length) rules.tags.add(tag.toLowerCase());
-    }
-  };
-  // Declarations made directly in a rule whose selectors are `selectors`.
-  const declarations = (text: string, selectors: string[]) => {
-    for (const statement of text.split(";")) {
-      const trimmed = statement.trim();
-      if (/^@import\b/i.test(trimmed)) rules.any = true;
-      const colon = trimmed.indexOf(":");
-      if (!selectors.length || colon <= 0 || trimmed.startsWith("@")) continue;
-      if (declares(trimmed.slice(0, colon).trim().toLowerCase(), trimmed.slice(colon + 1))) selectors.forEach(name);
-    }
-  };
-  // `css` is masked (`maskCss`), so every brace and semicolon is structure.
-  const walk = (css: string, selectors: string[]) => {
-    let text = "";
-    for (let i = 0; i < css.length; i++) {
-      const ch = css[i]!;
-      if (ch === "{") {
-        // The prelude is what follows the last declaration before the block.
-        const split = text.lastIndexOf(";");
-        declarations(text.slice(0, split + 1), selectors);
-        const prelude = text.slice(split + 1).trim();
-        let depth = 1;
-        let end = i + 1;
-        for (; end < css.length && depth; end++) {
-          if (css[end] === "{") depth++;
-          else if (css[end] === "}") depth--;
-        }
-        const inner = css.slice(i + 1, depth ? end : end - 1);
-        walk(inner, prelude.startsWith("@") ? selectors : [prelude, ...selectors]);
-        i = end - 1;
-        text = "";
-      } else if (ch !== "}") text += ch;
-    }
-    declarations(text, selectors);
-  };
-  for (const sheet of subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style")) {
-    walk(maskCss(sheet.children.filter((c): c is string => typeof c === "string").join("")), []);
+function findStyleSheet(nodes: Node[]): Element | undefined {
+  for (const element of elementsOf(nodes)) {
+    const tag = element.tagName.toLowerCase();
+    const local = tag.slice(tag.lastIndexOf(":") + 1);
+    if (local === "style" || tag.startsWith("?xml-stylesheet")) return element;
+    if (local === "link" && /\bstylesheet\b/i.test(element.attributes["rel"] ?? "")) return element;
+    const inner = findStyleSheet(element.children);
+    if (inner) return inner;
   }
-  return rules;
+  return undefined;
 }
-
-/** The rules that give elements a compositing property. */
-export const compositingRules = (doc: ArtDocument): StyleRules => styleRules(doc, compositingValue);
-
-/** The rules that set `display`, which decides whether art draws at all. */
-export const displayRules = (doc: ArtDocument): StyleRules => styleRules(doc, (name) => name === "display");
-
-/** Whether one of the rules may apply to the element. */
-export const matchesStyleRule = (rules: StyleRules, element: Element): boolean =>
-  rules.any ||
-  rules.tags.has(element.tagName.toLowerCase()) ||
-  (element.attributes["id"] !== undefined && rules.ids.has(element.attributes["id"])) ||
-  (element.attributes["class"] ?? "").split(/\s+/).some((c) => c && rules.classes.has(c));
 
 /**
  * Whether the element is authored not to render at all, from the inline
  * `display` declaration that takes effect or else its `display` attribute.
- * Style-sheet `display` rules are not read here: a bake refuses art they
- * could apply to.
+ * Artwork with a style sheet is never baked live, so no sheet rule decides it.
  */
 export const authoredHidden = (element: Element) =>
   (styleProperty(element, "display") ?? element.attributes["display"])?.trim().toLowerCase() === "none";
@@ -288,7 +215,8 @@ export function readArtDocument(svg: string): ArtDocument | undefined {
   };
   visit(root, null, false);
   // The root's own transform does not apply to its viewBox content.
-  return { root, info, byKey, byId, vocabulary };
+  const styleSheet = findStyleSheet(roots);
+  return { root, info, byKey, byId, vocabulary, ...(styleSheet ? { styleSheet } : {}) };
 }
 
 /**
@@ -389,11 +317,11 @@ export function convertToPath(element: Element, d: string) {
   element.attributes["d"] = d;
 }
 
-// References to other elements: `url(#id)` in any attribute or style text,
-// and `href`/`xlink:href` pointing into the document.
+// References to other elements: `url(#id)` in any attribute, an inline
+// style included, and `href`/`xlink:href` pointing into the document.
 const URL_REF = /url\(\s*(['"]?)#([^'")\s]+)\1\s*\)/g;
 
-// The ids `url(#…)` names in CSS text, outside comments and strings.
+// The ids `url(#…)` names in an inline style, outside comments and strings.
 const cssUrlIds = (css: string): string[] => {
   const masked = maskCss(css);
   return [...css.matchAll(URL_REF)]
@@ -407,9 +335,6 @@ export function referencedIds(element: Element): string[] {
     if (typeof value !== "string") continue;
     if ((name === "href" || name === "xlink:href") && value.startsWith("#")) ids.push(value.slice(1));
     ids.push(...(name === "style" ? cssUrlIds(value) : [...value.matchAll(URL_REF)].map((match) => match[2]!)));
-  }
-  if (element.tagName.toLowerCase() === "style") {
-    ids.push(...cssUrlIds(element.children.filter((c): c is string => typeof c === "string").join("")));
   }
   return ids;
 }
@@ -464,8 +389,8 @@ export const cloneElement = (element: Element, deep = true): Element => ({
 
 /**
  * Prefixes every id in a tree and every reference to an id in `known`:
- * `url(#…)` in attributes and style text, `href`, and `#id` selectors in
- * `<style>` rules. References to unknown ids are left as written.
+ * `url(#…)` in attributes (an inline style included) and `href`. References
+ * to unknown ids are left as written.
  */
 export function namespaceTree(root: Element, prefix: string, known: ReadonlySet<string>) {
   const rewriteUrls = (text: string) =>
@@ -480,57 +405,9 @@ export function namespaceTree(root: Element, prefix: string, known: ReadonlySet<
         element.attributes[name] = `#${prefix}${value.slice(1)}`;
       } else if (value.includes("url(")) element.attributes[name] = rewriteUrls(value);
     }
-    if (element.tagName.toLowerCase() === "style") {
-      element.children = element.children.map((c) =>
-        typeof c === "string" ? rewriteStyleSheet(c, prefix, known, rewriteUrls) : c,
-      );
-    }
     for (const child of elementsOf(element.children)) walk(child);
   };
   walk(root);
-}
-
-// A selector is the text before a `{`, after the last declaration (rules
-// nest inside at-rules and other rules); `#abc` in a declaration or an
-// at-rule's condition is a colour.
-function rewriteStyleSheet(
-  css: string,
-  prefix: string,
-  known: ReadonlySet<string>,
-  rewriteUrls: (text: string) => string,
-): string {
-  // Structure is read from the masked text, so a brace or `#` in a comment
-  // or string is neither a boundary nor a selector; rewrites apply to the
-  // original text at the same positions.
-  const masked = maskCss(css);
-  const rewriteIds = (from: number, to: number) => {
-    let text = "";
-    let last = from;
-    for (const match of masked.slice(from, to).matchAll(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)) {
-      if (!known.has(match[1]!)) continue;
-      const at = from + match.index!;
-      text += css.slice(last, at) + `#${prefix}${match[1]}`;
-      last = at + match[0].length;
-    }
-    return text + css.slice(last, to);
-  };
-  let out = "";
-  let start = 0;
-  for (let i = 0; i < masked.length; i++) {
-    if (masked[i] === "{") {
-      const split = masked.lastIndexOf(";", i) + 1;
-      const prelude = Math.max(start, split);
-      // An at-rule's prelude is a condition (`@supports (fill: #abc)`), not
-      // a selector; selectors are the preludes of the rules inside it.
-      const atRule = masked.slice(prelude, i).trimStart().startsWith("@");
-      out += rewriteUrls(css.slice(start, prelude)) + (atRule ? css.slice(prelude, i) : rewriteIds(prelude, i)) + "{";
-      start = i + 1;
-    } else if (masked[i] === "}") {
-      out += rewriteUrls(css.slice(start, i)) + "}";
-      start = i + 1;
-    }
-  }
-  return out + rewriteUrls(css.slice(start));
 }
 
 export const serialize = (element: Element): string =>
@@ -542,9 +419,9 @@ const OWN_ATTRIBUTES = new Set(["id", "transform", "data-name"]);
 /**
  * A resource copied out of its place, inside groups that repeat what its
  * original ancestors (below the root, which every part copies) passed down:
- * a `currentColor` stop under `<defs color="lime">` stays lime, and a class
- * rule matching an ancestor still matches. Ids stay with the original, and
- * an ancestor's transform does not apply to a paint server or a clip path.
+ * a `currentColor` stop under `<defs color="lime">` stays lime. Ids stay
+ * with the original, and an ancestor's transform does not apply to a paint
+ * server or a clip path.
  */
 function withInheritance(doc: ArtDocument, target: Element, clone: Element): Element {
   let out = clone;
@@ -567,25 +444,21 @@ function keptAncestry(doc: ArtDocument, keep: Iterable<Element>): Set<Element> {
 }
 
 /**
- * Every id a part keeping `keep` depends on: what the kept subtrees and the
- * style sheets reference, transitively, and what the ancestors kept for them
- * reference themselves (a group's `clip-path`).
+ * Every id a part keeping `keep` depends on: what the kept subtrees
+ * reference, transitively, and what the ancestors kept for them reference
+ * themselves (a group's `clip-path`).
  */
 export function partClosure(doc: ArtDocument, keep: Iterable<Element>, missing?: Set<string>): Set<string> {
   const kept = [...keep];
-  // Every part carries every style sheet, so whatever a sheet references
-  // (`.skin { fill: url(#skin) }`) is part of every part's closure.
-  const sheets = subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style");
   // Containers kept for their children still carry their own references, and
   // what those reference is closed over like any other resource.
-  return resourceClosure(doc, [...kept, ...sheets], missing, keptAncestry(doc, kept));
+  return resourceClosure(doc, kept, missing, keptAncestry(doc, kept));
 }
 
 /**
  * A copy of the document keeping only `keep` (and every ancestor of a kept
  * element, with its attributes) plus the resources they reference. Resource
- * elements outside the kept tree are copied into a leading `<defs>`; every
- * `<style>` element is carried so class rules still apply.
+ * elements outside the kept tree are copied into a leading `<defs>`.
  */
 export function extractTree(
   doc: ArtDocument,
@@ -602,8 +475,6 @@ export function extractTree(
     for (const child of element.children) {
       if (child && typeof child === "object") {
         const tag = child.tagName.toLowerCase();
-        // Every style sheet is carried once, at the top.
-        if (tag === "style") continue;
         if (!inKeep && SVG_RESOURCE_TAGS.has(tag)) continue;
         const c = copy(child, inKeep);
         if (c) clone.children.push(c);
@@ -613,7 +484,6 @@ export function extractTree(
     return wrap ? wrap(clone) : clone;
   };
   const root = copy(doc.root, false) ?? cloneElement(doc.root, false);
-  const sheets = subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style");
   const closure = partClosure(doc, keep, options.missing);
   const defs: Element = { tagName: "defs", attributes: {}, children: [] };
   for (const id of closure) {
@@ -626,9 +496,7 @@ export function extractTree(
     }
     if (!insideCopied) defs.children.push(withInheritance(doc, target, cloneElement(target)));
   }
-  const styles = sheets.map((e) => cloneElement(e));
-  const leading = [...styles, ...(defs.children.length ? [defs] : [])];
-  if (leading.length) root.children.unshift(...leading);
+  if (defs.children.length) root.children.unshift(defs);
   const ids = new Set<string>();
   for (const element of subtree(root)) {
     const id = element.attributes["id"];

@@ -37,12 +37,8 @@ import { recipeAsMorph } from "./recipe";
 import {
   ancestry,
   cloneElement,
-  compositingRules,
   compositingValue,
-  displayRules,
-  matchesStyleRule,
   styleDeclarations,
-  type StyleRules,
   convertToPath,
   drawnLeaves,
   effectiveLabel,
@@ -54,7 +50,6 @@ import {
   partClosure,
   readArtDocument,
   serialize,
-  subtree,
   setStyleProperty,
   type ArtDocument,
   type Element,
@@ -164,14 +159,13 @@ export const idPrefixFor = (key: string) => `_m${hashText(key).slice(0, 8)}_`;
 /**
  * Whether splitting this element's content across parts would change how it
  * composites: an opacity under 1, a filter, a mask, a blend mode or
- * isolation, from its attributes, its inline style or a style-sheet rule.
+ * isolation, from its attributes or its inline style.
  */
-function composites(element: Element, rules: StyleRules): boolean {
+function composites(element: Element): boolean {
   for (const [name, value] of Object.entries(element.attributes)) {
     if (typeof value === "string" && compositingValue(name.toLowerCase(), value)) return true;
   }
-  if (styleDeclarations(element).some(([name, , clean]) => compositingValue(name, clean))) return true;
-  return matchesStyleRule(rules, element);
+  return styleDeclarations(element).some(([name, , clean]) => compositingValue(name, clean));
 }
 
 const packed = (subpaths: Subpath[]): number[] => {
@@ -321,6 +315,21 @@ export function* bakeSteps(
   const vocabulary = doc.vocabulary;
   const disable = () => staticArtifact(input, text, diagnostics);
 
+  // Which drawings exist, which a state hides, what composites and what each
+  // part references are read from attributes and inline styles. A style
+  // sheet's rules could change any of them, and the bake does not read them,
+  // so artwork carrying one keeps its static render.
+  if (doc.styleSheet) {
+    const tag = doc.styleSheet.tagName;
+    const named = tag.startsWith("?") ? `<${tag}?>` : `<${tag}>`;
+    report(
+      "unsupported-element",
+      "error",
+      `This artwork carries a style sheet (\`${named}\`), whose rules the bake does not read, so this variant shows without the morph. Inline \`style\` attributes and presentation attributes are read.`,
+    );
+    return disable();
+  }
+
   // Binding: the same rules compilation applied, against the source as it is
   // now. A variant the morph does not play on keeps its plain render.
   const requirements = morphRequirements(recipeAsMorph(recipe));
@@ -419,22 +428,6 @@ export function* bakeSteps(
     return found.filter((e) => !found.some((other) => other !== e && isAncestorOrSelf(doc!, other, e)));
   });
 
-  // Which drawings exist, and which a state hides, is read from inline
-  // styles and attributes. A style-sheet `display` rule could reveal a hidden
-  // state or hide an authored drawing, and the bake does not evaluate
-  // selectors, so art such a rule may apply to keeps its static render.
-  const sheetDisplay = displayRules(doc);
-  const displayed = subtree(doc.root).find((e) => e !== doc!.root && !doc!.info.get(e)?.resource && matchesStyleRule(sheetDisplay, e));
-  if (displayed) {
-    report(
-      "unsupported-element",
-      "error",
-      "A style sheet in this artwork sets `display` on its drawings, so the bake cannot tell which drawings show in each state; this variant shows without the morph.",
-      { ...(keyOf(displayed) === undefined ? {} : { path: keyOf(displayed)! }) },
-    );
-    return disable();
-  }
-
   const allLeaves = drawnLeaves(doc).filter(unionVisible);
   const inTarget = (element: Element) =>
     targetsByClip.some((targets) => targets.some((t) => isAncestorOrSelf(doc!, t, element)));
@@ -446,7 +439,6 @@ export function* bakeSteps(
   // The drawings that change: state layers and clip targets. Live parts also
   // hold unchanging art a compositing group keeps with them.
   const moving = new Set(live);
-  const sheetRules = compositingRules(doc);
   // A group that composites as a whole (opacity, filters, masks, blending)
   // cannot be split between parts without changing how it looks.
   let grew = true;
@@ -454,7 +446,7 @@ export function* bakeSteps(
     grew = false;
     for (const element of [...live]) {
       for (const entry of ancestry(doc, element)) {
-        if (entry.element === element || !composites(entry.element, sheetRules)) continue;
+        if (entry.element === element || !composites(entry.element)) continue;
         for (const leaf of drawnLeaves(doc, entry.element)) {
           if (unionVisible(leaf) && !live.has(leaf)) {
             live.add(leaf);
@@ -881,7 +873,7 @@ export function* bakeSteps(
   // A drawing drawn again by reference (`<use href="#portrait">`, or a clip
   // path that uses it) has to be whole wherever it is referenced, and move
   // where the original moves. The references are every dependency the part
-  // carries, its kept ancestors' and its style sheets' included. A drawing
+  // carries, its kept ancestors' included. A drawing
   // that never changes and lies wholly in other parts is copied whole. One
   // that holds leaves of the referencing part and of another is kept there
   // only in part (no part can carry it whole without repeating ids it already
@@ -928,10 +920,10 @@ export function* bakeSteps(
           clone.attributes["data-morph"] = leaf.node;
           // The markup is the rest pose: the parts composed as written are
           // the rest render, and a player shows other states' drawings by
-          // taking the inline `display: none` off. Nothing outranks it: no
-          // style-sheet `display` rule applies to art baked live, and a drawn
-          // leaf's own `display` can only be a showing one (hidden art is no
-          // leaf), so it goes.
+          // taking the inline `display: none` off. Nothing outranks it: art
+          // baked live carries no style sheet, and a drawn leaf's own
+          // `display` can only be a showing one (hidden art is no leaf), so
+          // it goes.
           delete clone.attributes["display"];
           setStyleProperty(clone, "display", visibleAt(leaf.element, restVisible) ? undefined : "none");
           if (morphing.has(leaf.node)) {
