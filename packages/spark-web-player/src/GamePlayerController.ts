@@ -1667,13 +1667,14 @@ export class GamePlayerController {
   /** The portrait morphs of whatever the overlay shows, stopped or playing,
    *  which outlive the applications drawn there. */
   protected get morphs() {
-    return MorphPlayback.for(this.refs.gameUI);
+    const overlay = this.refs.gameUI;
+    return overlay ? MorphPlayback.for(overlay) : undefined;
   }
 
   protected handleSetAnimatePortraits = async (
     message: SetAnimatePortraitsMessage.Request,
   ) => {
-    this.morphs.setEnabled(message.params.enabled);
+    this.morphs?.setEnabled(message.params.enabled);
     return SetAnimatePortraitsMessage.type.response(message.id, {});
   };
 
@@ -2801,7 +2802,7 @@ export class GamePlayerController {
     }
     // Previewing another place starts the portraits' morphs at rest; a
     // re-render of the same place keeps their phase.
-    this.morphs.setSession(`preview:${file}:${line}`);
+    this.morphs?.setSession(`preview:${file}:${line}`);
     const selectionVersion = this._selectionVersion;
     const update = ++this._previewUpdates;
     // This update overtakes every one still waiting for its display's answer,

@@ -5,6 +5,10 @@
 // inline is placed on that rectangle, so it lands on the pixels the static
 // image it replaces painted.
 
+import { cssList } from "../../../../sparkdown/src/morph/cssList";
+
+export { cssList };
+
 /** What an image says about its own size: intrinsic dimensions and ratio. */
 export interface IntrinsicSize {
   width?: number;
@@ -195,30 +199,4 @@ export function backgroundRect(
 export function layerValue(list: string, index: number): string {
   const values = cssList(list);
   return values[index % values.length] ?? "";
-}
-
-/**
- * The entries of a comma-separated CSS list, top layer first, with commas
- * inside functions and quoted strings (a `url("data:…")`) kept in place.
- */
-export function cssList(list: string): string[] {
-  const values: string[] = [];
-  let depth = 0;
-  let quote: string | undefined;
-  let start = 0;
-  for (let i = 0; i < list.length; i++) {
-    const c = list[i];
-    if (quote) {
-      if (c === "\\") i++;
-      else if (c === quote) quote = undefined;
-    } else if (c === '"' || c === "'") quote = c;
-    else if (c === "(") depth++;
-    else if (c === ")") depth--;
-    else if (c === "," && depth === 0) {
-      values.push(list.slice(start, i).trim());
-      start = i + 1;
-    }
-  }
-  values.push(list.slice(start).trim());
-  return values;
 }

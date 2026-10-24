@@ -12,7 +12,10 @@ import type { MorphArtifact, MorphRef, MorphTiming } from "@impower/sparkdown/sr
 import { blink, blinkScript, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
 import { backgroundRect, layerValue, svgIntrinsicSize } from "../../app/morph/backgroundFit";
 import { MorphPlayback, type MorphImageContent } from "../../app/morph/MorphPlayback";
-import { createDOMHarness, flushMicrotasks, installJSDOM } from "./domTestHarness";
+import UIManager from "../../app/managers/UIManager";
+import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
+import { cssList } from "@impower/sparkdown/src/morph/cssList";
+import { createDOMHarness, createStubApp, flushMicrotasks, installJSDOM } from "./domTestHarness";
 
 const TIMING = `  timing {
     duration = 0.25
@@ -143,6 +146,19 @@ describe("morph playback in the page", () => {
     expect(span.style.backgroundImage).toBe("none");
     const shadow = shadowOf(span)!;
     expect(shadow.querySelectorAll("svg > svg").length).toBeGreaterThan(1);
+  });
+
+  test("an image's place counts every image of a literal composed below it", async () => {
+    const { h, writes } = await previewed();
+    const literal = '"linear-gradient(red, blue), linear-gradient(black, white)"';
+    await h.game.module.ui.image.write("portrait", [{ control: "show", assets: [literal, "bunny"] } as any], true);
+    await flushMicrotasks(10);
+    const write = writes.filter((w) => w.params.target === "portrait" && w.params.instructions.length).pop();
+    const content = write.params.instructions[0].content;
+    const images = cssList(content.background).reverse();
+    expect(images).toHaveLength(3);
+    expect(content.morph.plays.map((p: any) => p.layer)).toEqual([2]);
+    expect(images[2]).toContain("url(");
   });
 
   test("a write without a morph is the write it always was", async () => {
@@ -371,6 +387,95 @@ describe("morph layers", () => {
     expect(leafStates(shadowOf(el)!)).not.toEqual(rest);
     playback.advance(-0.05);
     expect(leafStates(shadowOf(el)!)).toEqual(rest);
+  });
+});
+
+describe("morph lifecycle at the page's boundaries", () => {
+  const recipeText = serializeMorphRecipe(blink());
+  const ref: MorphRef = { morph: "blink", key: "k1", image: "bunny", selection: "{}", groups: ["eyes"] };
+  const timing: MorphTiming = { duration: 0.25, delay: 0.7, easing: "linear", iterations: "infinite", direction: "normal" };
+  const content: MorphImageContent = { plays: [{ layer: 0, ref, timing, definition: "d1" }], epoch: 0 };
+  const BG = 'url("bunny.svg")';
+  const bakingHost = () =>
+    createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { blink: recipeText }, variants: {} }),
+      readSource: async () => ({ text: ART }),
+    });
+
+  test("a portrait mounted after the frame loop went idle starts from its own first frame", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const frames = manualFrames();
+    const playback = new MorphPlayback(env.overlay, { host: bakingHost(), seed: "s", ...frames });
+    const doc = env.overlay.ownerDocument;
+    const first = doc.createElement("span");
+    env.overlay.appendChild(first);
+    playback.mount(first, content, BG, "background", "portrait:0");
+    await until(() => playback.stats.live === 1, "the first artifact");
+    frames.run(1000);
+    frames.run(1200);
+    playback.releaseWithin(first);
+    first.remove();
+    // The frame already requested runs once more and finds nothing to draw.
+    frames.run(1300);
+    expect(frames.pending).toBe(0);
+    const before = playback.now;
+    const second = doc.createElement("span");
+    env.overlay.appendChild(second);
+    playback.mount(second, content, BG, "background", "portrait:1");
+    await until(() => playback.stats.live === 1, "the second artifact");
+    // Its first frame, long after the loop went idle, moves nothing.
+    frames.run(10_000);
+    expect(playback.now).toBe(before);
+    frames.run(10_100);
+    expect(playback.now).toBeCloseTo(before + 0.1, 9);
+  });
+
+  test("a clock step moves the morphs by the step alone", () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const playback = new MorphPlayback(env.overlay, { host: bakingHost(), requestFrame: () => 0, cancelFrame: () => {} });
+    (env.overlay as any).__sdMorphs = playback;
+    const ui = new UIManager(createStubApp(env.overlay, () => {}));
+    // `Application.skip` steps the clock without adding to its elapsed time,
+    // then updates with the delta of the frame before.
+    const clock = { elapsedTime: 0, deltaTime: 0 } as any;
+    ui.onStart();
+    ui.onUpdate(clock);
+    Object.assign(clock, { elapsedTime: 0.1, deltaTime: 0.1 });
+    ui.onUpdate(clock);
+    expect(playback.now).toBeCloseTo(0.1, 9);
+    ui.onSkip(0.2);
+    ui.onUpdate(clock);
+    expect(playback.now).toBeCloseTo(0.3, 9);
+  });
+
+  test("content written over an element lets go of the morphs drawn inside it", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    let aborted = false;
+    const pending: MorphHost = {
+      resolve: (_ref, options) =>
+        new Promise(() => {
+          options?.signal?.addEventListener("abort", () => (aborted = true));
+        }),
+    };
+    const playback = new MorphPlayback(env.overlay, { host: pending, requestFrame: () => 0, cancelFrame: () => {} });
+    (env.overlay as any).__sdMorphs = playback;
+    playback.setEnabled(false);
+    const ui = new UIManager(createStubApp(env.overlay, () => {}));
+    const doc = env.overlay.ownerDocument;
+    const box = doc.createElement("div");
+    (box as any).__sdId = "box";
+    env.overlay.appendChild(box);
+    const span = doc.createElement("span");
+    box.appendChild(span);
+    playback.mount(span, content, BG, "background", "box:0");
+    expect(playback.stats.layers).toBe(1);
+    await ui.onReceiveRequest(UpdateElementMessage.type.request({ element: "box", content: { text: "Replaced." } } as any));
+    expect(playback.stats.layers).toBe(0);
+    expect(aborted).toBe(true);
   });
 });
 

@@ -233,8 +233,13 @@ export class MorphPlayback {
   }
 
   protected schedule() {
-    if (this.frame !== undefined || this.clockOwner || this.paused || !this.enabled) return;
-    if (![...this.layers].some((layer) => layer.live)) return;
+    if (this.frame !== undefined) return;
+    if (this.clockOwner || this.paused || !this.enabled || ![...this.layers].some((layer) => layer.live)) {
+      // An idle loop keeps no baseline: the frame that wakes it next counts
+      // from itself, not from the last frame before it went idle.
+      this.frameTime = undefined;
+      return;
+    }
     this.frame = this.requestFrame((now) => {
       this.frame = undefined;
       const seconds = now / 1000;
@@ -470,6 +475,12 @@ export class MorphLayer {
 
   protected changed() {
     if (this.disposed || this.frozen) return;
+    // A layer whose span left the page by a route that did not release it,
+    // and that no frame has rendered since, goes when its artifact settles.
+    if (!this.span.isConnected) {
+      this.dispose();
+      return;
+    }
     if (this.kind === "mask") {
       this.applyMask();
       return;

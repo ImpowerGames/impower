@@ -6,6 +6,7 @@ import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolv
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { default_morph } from "../constructors/default_morph";
@@ -2049,23 +2050,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!channel || !this.context) {
       return undefined;
     }
-    const layers: string[] = [];
     const plays: MorphLayerPlay[] = [];
+    // Each asset's place is counted in the images of the CSS it is painted
+    // with, as the page splits the write's `background`: a literal may list
+    // several (`"linear-gradient(…), linear-gradient(…)"`).
+    let next = 0;
     for (const asset of assets) {
+      const first = next;
+      const count = cssList(this.getBackgroundImageFromString(asset)).length;
+      next += count;
       if (asset.at(0) === '"' && asset.at(-1) === '"') {
-        layers.push(this.getBackgroundImageFromLiteral(asset.slice(1, -1)));
         continue;
       }
       const imageName = sortFilteredName(asset);
       const image = resolveImageReference(this.context, { $type: "", $name: imageName });
       const resolved = resolveImageLayers(this.context, image);
-      if (resolved.length === 0) {
-        layers.push(this.getBackgroundImageFromLiteral(asset));
+      if (resolved.length !== count) {
         continue;
       }
-      for (const layer of resolved) {
-        const index = layers.length;
-        layers.push(this.getUrl(layer.src));
+      for (const [offset, layer] of resolved.entries()) {
+        const index = first + offset;
         const refs = morphRefsForStruct(this.context, channel, layer.struct);
         if (refs.length > 1) {
           // Each artifact draws the whole image, so two morphs cannot both

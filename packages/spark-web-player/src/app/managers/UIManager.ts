@@ -489,10 +489,22 @@ export default class UIManager extends Manager {
     const morphs = this.morphs;
     morphs?.attachClock(this);
     morphs?.setSession(`play:${++playSessions}`);
+    this._morphClockSeen = undefined;
   }
 
+  /** The clock's elapsed time at the last update the morphs were moved by. */
+  protected _morphClockSeen?: number;
+
+  // Moved by the clock's elapsed time rather than its last frame's delta:
+  // `Application.skip` steps the morphs itself (`onSkip`) and then updates
+  // with the delta of the frame before, which elapsed time does not repeat.
   override onUpdate(time: Clock) {
-    this.morphs?.advance(time.deltaTime);
+    const elapsed = time.elapsedTime;
+    const seen = this._morphClockSeen;
+    this._morphClockSeen = elapsed;
+    if (seen !== undefined && elapsed > seen) {
+      this.morphs?.advance(elapsed - seen);
+    }
   }
 
   override onSkip(seconds: number) {
@@ -1283,6 +1295,8 @@ export default class UIManager extends Manager {
         // Full-replace className so a reused node matches the new render exactly.
         el.className = params.name || "";
         if (params.content) {
+          // The content replaces whatever the node holds, image layers too.
+          this.morphs?.releaseWithin(el);
           el.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1400,6 +1414,7 @@ export default class UIManager extends Manager {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
+          this.morphs?.releaseWithin(element);
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
