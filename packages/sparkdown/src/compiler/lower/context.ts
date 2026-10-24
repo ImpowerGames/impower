@@ -273,7 +273,8 @@ export interface LowerContext {
   /**
    * Stack of per-enclosing-function-scope local declarations. Each
    * frame holds the names declared via `local` / `store` / `const`
-   * (and nested `function NAME(...) end` declarations) in that
+   * (and nested `local function NAME(...) end` declarations; a plain
+   * `function NAME` assigns and declares nothing, I-1422) in that
    * function's immediate body. `lowerLuauFunctionDefinition` pushes
    * a frame before lowering its body and pops after; the body's
    * recursive lowering of nested functions can then consult the stack
@@ -290,45 +291,20 @@ export interface LowerContext {
    */
   declaredLocalsStack?: Set<string>[];
   /**
-   * Stack of per-enclosing-function-scope buffers for HOISTED local
-   * declarations. Each entry holds the `local NAME = nil` pre-declarations
-   * that need to land at the top of an enclosing function's body —
-   * specifically the bindings for nested `function NAME(...) end` (without
-   * a `local` prefix). Luau treats those as `NAME = function() end`, which
-   * is visible across `do`/`while`/`for`/`if` block boundaries within the
-   * enclosing function. Emitting the `VariableAssignment` in place inside a
-   * block would scope it to that block (BeginScope/EndScope discards it on
-   * exit). Instead, the in-place site emits a REASSIGNMENT to a NAME that
-   * was pre-declared at function-body level; this stack holds those
-   * pre-declarations until the enclosing function-definition lowerer
-   * prepends them to its body.
-   *
-   * Parallel to `functionScopeStack`: each function-definition lowerer
-   * pushes one buffer on entry and pops on exit.
-   */
-  hoistedNestedFnDeclsStack?: ParsedObject[][];
-  /**
    * Stack of per-enclosing-function-scope sibling-subflow frames. A
    * nested function statement, variadic or not, lowers as a closure
-   * assigned to a local (`lowerNestedNamedFunction`), so no lowerer
-   * registers a subflow here any more (I-1360); the frames hold the
-   * names an assignment rebinds (`lowerReassignment`), whose calls
-   * dispatch through the variable (`SiblingSubFlowInfo.rebound`).
+   * declared as a local (`local function`) or assigned to the variable
+   * its name resolves to (`function NAME`, I-1422)
+   * (`lowerNestedNamedFunction`), so no lowerer registers a subflow here
+   * any more (I-1360); the frames hold the names an assignment or a
+   * function statement rebinds (`recordRebind`), whose calls dispatch
+   * through the variable (`SiblingSubFlowInfo.rebound`).
    *
-   * Parallel to `functionScopeStack` / `hoistedNestedFnDeclsStack`:
+   * Parallel to `functionScopeStack`:
    * each function-definition lowerer pushes one frame on entry and
    * pops on exit.
    */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
-  /**
-   * The blocks being lowered, the innermost last: each `lowerStatements`
-   * call pushes one, with what to undo when the block ends. A `local`
-   * declared in a block hides a sibling subflow of its name in the same
-   * function for the rest of the block, as Luau scopes a local, and the
-   * subflow is visible again after it (`shadowSiblingSubFlow`). Absent for
-   * callers that lower no function bodies.
-   */
-  blockEndStack?: (() => void)[][];
   /**
    * The statements whose lowering is running, the innermost last, with the
    * top-level statement at the bottom (see `StatementShape`). Given by the
@@ -348,39 +324,22 @@ export interface LowerContext {
 }
 
 /**
- * Registry entry for a name of the sibling-subflow frames. Only rebound
- * entries are registered now (`LowerContext.siblingSubFlowNamesStack`);
- * the fields below describe the knot-form SubFlow that variadic nested
- * functions lowered as before I-1360, whose readers remain. `upvals` are the
- * captured free-variable names — prepended as parameters on the
- * SubFlow and as `VariablePointerExpression` args at direct call
- * sites. `arity` is the declared FIXED parameter count (excludes
- * both the prepended upvals and the `...` slot) — value references
- * need it to build a closure-shaped value whose
- * `__closure_user_arity` drives the runtime's variadic arg packing.
- * `knotName` is the SubFlow's actual container name: normally the
- * source name, but a REDEFINITION (`function f(...)` twice in one
- * function body — vararg.luau lines 9/64) gets a mangled name so
- * both bodies survive as distinct containers. The registry is
- * consulted in lexical order during lowering, so call sites before
- * the redefinition bind the first container and sites after bind
- * the second — matching Lua's assign-a-global semantics.
+ * Registry entry for a name of the sibling-subflow frames
+ * (`LowerContext.siblingSubFlowNamesStack`): a plain `NAME = <expr>`
+ * assignment rebound the name to a runtime value (Lua's `function f` is
+ * sugar for exactly that, so a later assignment wins). A rebound entry makes
+ * `resolveCallableBinding` answer "local" (subsequent calls value-dispatch
+ * through the variable, carrying the arg count the runtime's variadic
+ * packing needs) while still suppressing upval capture — a bare-assigned
+ * GLOBAL is read as a global inside closures, not captured by pointer. The
+ * registry is consulted in lexical order during lowering, so call sites
+ * before the assignment keep their binding. Each rebind writes an entry of
+ * its own, so the frame a rebinding statement wrote reads as changed, and the
+ * statement, whose write no memo replays, is not served from one
+ * (`recordLowering`).
  */
 export interface SiblingSubFlowInfo {
-  upvals: string[];
-  arity: number;
-  knotName: string;
-  /**
-   * The name no longer refers to a knot at all: a plain `NAME =
-   * <expr>` assignment rebound it to a runtime value (Lua's
-   * `function f` is sugar for exactly that, so a later assignment
-   * wins). Rebound entries make `resolveCallableBinding` answer
-   * "local" (subsequent calls value-dispatch through the variable,
-   * carrying the arg count the runtime's variadic packing needs)
-   * while still suppressing upval capture — a bare-assigned GLOBAL
-   * is read as a global inside closures, not captured by pointer.
-   */
-  rebound?: boolean;
+  rebound: true;
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

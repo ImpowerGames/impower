@@ -276,7 +276,7 @@ export const DISCOVERY_TYPES = ["fix", "feat", "perf", "docs", "test", "refactor
 // recorded reading of the request it quotes: `coordinator` for an explicit
 // request to orchestrate the parent issue, `maintainer` when the request stops at
 // ready PRs. Without that decision the maintainer merges.
-export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" };
+export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, on blocked disk headroom or after a confirmed merge, plus worktrees and safely deletable branches this run created and no longer needs, each recorded here" };
 export const MERGE_GRANT = "the coordinator merges this parent issue's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection";
 export const MERGING = ["coordinator", "maintainer"];
 // A request that asks to stop at ready PRs, or not to merge, never grants the

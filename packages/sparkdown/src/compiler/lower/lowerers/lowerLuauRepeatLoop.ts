@@ -11,16 +11,13 @@ import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { AstStatRepeat } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
-import { shadowSiblingSubFlow } from "../expression/bindings";
 import { lowerExpression } from "../expression/lowerExpression";
-import { blockLocalNames } from "../expression/lowerFunction";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { untilKeywordOf } from "../utils/validateBlockEnds";
 import { syntheticId } from "../utils/documentTag";
-import { publishesConst } from "../utils/publishesConst";
 import {
   extendStatement,
   recordLoop,
@@ -92,16 +89,7 @@ export function lowerLuauRepeatLoop(
   const untilKeyword = untilKeywordOf(node);
   if (!untilKeyword) return {};
   const condition = findNextUntilSibling(node);
-  // The condition sees the locals its body declares, as Luau scopes them:
-  // each hides a variadic function of its name in the condition as in the
-  // rest of the body (`shadowSiblingSubFlow`), from a block of their own
-  // that ends with the condition.
-  ctx.blockEndStack?.push([]);
-  for (const name of blockLocalNames(stat.body, !publishesConst(ctx))) {
-    shadowSiblingSubFlow(name, ctx);
-  }
   const condExpr = lowerExpression(stat.condition, site.source, ctx);
-  ctx.blockEndStack?.pop()?.forEach((end) => end());
   if (!condExpr) return {};
 
   const id = syntheticId(node.from, ctx);

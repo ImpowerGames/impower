@@ -1,6 +1,6 @@
 ---
 name: clean-worktrees
-description: Classify and remove merged idle worktrees through the guarded cleanup script. Use for requested cleanup, low-disk recovery or the resolve-issue preflight before a task's worktree exists; dry run first, never as an automatic post-resolution step.
+description: Classify and remove merged idle worktrees through the guarded cleanup script. Use for requested cleanup, low-disk recovery, orchestrate-issues post-merge cleanup or the resolve-issue preflight; dry run first, never otherwise automatic after resolution.
 ---
 
 # Clean up merged worktrees

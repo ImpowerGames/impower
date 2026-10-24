@@ -7,9 +7,10 @@
 // Run:
 //   node .agents/skills/drive-web-editor/two-sessions.test.mjs
 //
-// The driver is copied into a scratch repository whose package.json makes
-// `npm run web:dev` start a fixture of three process generations holding TCP
-// listeners, so every process signalled belongs to this check. The sessions
+// The driver is copied into a scratch repository whose scripts/dev-preview.mjs,
+// the launcher `npm run web:dev` runs, starts a fixture of three process
+// generations holding TCP listeners, so every process signalled belongs to
+// this check. The sessions
 // differ only in IMPOWER_DRIVER_SESSION, with IMPOWER_DRIVER_HOME inside the
 // scratch directory. This file imports nothing from the driver, so a red run
 // can substitute an older driver. Node's built-in assert only.
@@ -46,7 +47,14 @@ fs.writeFileSync(fixture, [
   "const server = net.createServer();",
   'server.listen(0, "127.0.0.1", () => fs.appendFileSync(file, JSON.stringify({ pid: process.pid }) + "\\n"));',
 ].join("\n"));
-fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": `node "${fixture.replaceAll("\\", "/")}" "${rowsFile.replaceAll("\\", "/")}" root` } }));
+// The driver runs the launcher with node; package.json names it as the
+// repository's does, so a driver that still runs npm reaches the same tree.
+fs.writeFileSync(path.join(scratch, "repo", "scripts", "dev-preview.mjs"), [
+  'import { spawn } from "node:child_process";',
+  `const child = spawn(process.execPath, [${JSON.stringify(fixture)}, ${JSON.stringify(rowsFile)}, "root"], { stdio: "ignore", windowsHide: true });`,
+  'child.on("exit", (code) => process.exit(code ?? 1));',
+].join("\n"));
+fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": "node scripts/dev-preview.mjs --mode same-origin" } }));
 
 const home = path.join(scratch, "home");
 const envOf = (session) => {

@@ -8,8 +8,11 @@ import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHi
 import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
+import { type SyntaxNode } from "@lezer/common";
 import {
   AstExpr,
+  AstExprSparkdownConditionalAlternator,
+  AstExprSparkdownSequentialAlternator,
   AstStatAssign,
   AstStatCompoundAssign,
   AstStatExpr,
@@ -17,7 +20,7 @@ import {
 } from "../../typecheck/Ast";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
-import { isLocalAt } from "../expression/bindings";
+import { recordRebind } from "../expression/bindings";
 import {
   lowerCallArguments,
   lowerExpression,
@@ -28,6 +31,7 @@ import {
   storeTarget,
   targetIdentifier,
 } from "../utils/lowerPropertyTargetAssignment";
+import { lowerAlternatorValue } from "../utils/alternatorValue";
 import { offsetAt } from "../utils/luauAst";
 import { publishesConst, reassignedConstName, reportReassignedConst } from "../utils/publishesConst";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -99,6 +103,13 @@ export function lowerCallStatement(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
+  // An alternator written as a statement runs its selected arm, whose
+  // value is discarded (I-1397).
+  if (stat.expr instanceof AstExprSparkdownSequentialAlternator || stat.expr instanceof AstExprSparkdownConditionalAlternator) {
+    const node = stat.expr.source.node as SyntaxNode | undefined;
+    const alternator = node ? lowerAlternatorValue(node, ctx, true) : null;
+    return alternator ? wrapInWeave([alternator]) : {};
+  }
   const call = lowerExpression(stat.expr, site.source, ctx);
   if (call instanceof FunctionCall || call instanceof CallValueExpression) {
     call.shouldPopReturnedValue = true;
@@ -139,39 +150,9 @@ function lowerSingleAssignment(
   // `f = <expr>` REBINDS the name to a runtime value (Lua's
   // `function f` is itself sugar for this kind of assignment —
   // vararg.luau line 155 reassigns the twice-defined `f` to a fresh
-  // function value). For names that are NOT already locals (bare
-  // globals and former sibling subflows), record the rebind in the
-  // sibling registry — consulted in lexical order during lowering,
-  // so earlier call sites keep their original binding:
-  //   - any stale subflow entries are dropped (subsequent `f(...)`
-  //     must not statically divert to the old knot);
-  //   - the `rebound` marker makes subsequent calls value-dispatch
-  //     through the variable (CallValueExpression carries the
-  //     call-site arg count the runtime needs to pack `...` args)
-  //     while still suppressing upval capture — a closure
-  //     referencing a bare-assigned GLOBAL (`self = 20` then
-  //     `function a.y (x) return x+self end` — calls.luau line 34)
-  //     reads the global, it doesn't capture a pointer.
-  // Already-local names skip all of this: their dispatch is value-
-  // call via declaredLocals anyway, and registering them here would
-  // wrongly suppress their upval capture. A local whose block has ended
-  // is no local here (`isLocalAt`).
-  const isKnownLocal = isLocalAt(
-    variableName,
-    ctx,
-    offsetAt(target.location.begin, ctx),
-  );
-  if (!isKnownLocal && ctx.siblingSubFlowNamesStack) {
-    for (const frame of ctx.siblingSubFlowNamesStack) {
-      frame.delete(variableName);
-    }
-    ctx.siblingSubFlowNamesStack.at(-1)?.set(variableName, {
-      upvals: [],
-      arity: -1,
-      knotName: variableName,
-      rebound: true,
-    });
-  }
+  // function value), which later calls dispatch through
+  // (`recordRebind`).
+  recordRebind(variableName, ctx);
 
   const expr =
     opText === "="

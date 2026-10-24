@@ -968,13 +968,14 @@ describe("flows on the program engine", () => {
     ],
     [
       "the kind of an alternator nested in them",
-      // A string's alternator shows nothing; the cycle that
-      // holds it counts all the same.
+      // A string's alternator gives its arm's value (I-1284), counted
+      // as its own.
       ['    | Pick {cycle|"{cycle|1|2}"|"X"}.', '    | Pick {cycle|"{queue|1|2}"|"X"}.'],
-      ["Pick .", "Pick .", "Pick X."],
+      ["Pick 1.", "Pick 1.", "Pick X."],
       // The fourth pass takes the arm now second, whose middle cycle ran
-      // twice and so shows its first arm again.
-      "Pick .",
+      // twice and so shows its first arm again, the string whose cycle
+      // ran once and so gives its second arm.
+      "Pick 2.",
     ],
   ])("keeps each alternator's count when arms that differ only by %s swap", (_what, arms, before, after) => {
     const text = (order: string[]) =>

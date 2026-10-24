@@ -649,7 +649,7 @@ export class SparkdownCombinedAnnotator {
    * The window the validations are run over again after an edit whose own
    * window is `[from, to]`. Some checks read past their node to the next
    * token, across blank and comment lines, and name that token or report at
-   * it: a line in a Luau body that is not a statement (`luauStatementError`),
+   * it: a line in a Luau body that is not a statement (`luauStatementErrors`),
    * a `.` that no name follows, and an if condition that no `then` follows.
    * Such a statement takes the lines that go on from it (a line that ends
    * in a `.`, `,` or operator, or a next line that begins with a string, a

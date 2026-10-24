@@ -18,7 +18,7 @@
 // Env overrides (optional): EDITOR_PORT, PLAYER_PORT, HMR_PORT force specific
 // ports instead of auto-picking free ones.
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -125,6 +125,72 @@ function shutdown(code) {
 
 process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
+// Closing the terminal. On Windows this is CTRL_CLOSE_EVENT, which leaves the
+// handler a few seconds before the system ends the process.
+process.on("SIGHUP", () => shutdown(0));
+
+// The handlers above are the orderly stop, but a hard kill runs none of them,
+// and on Windows nothing else reaches the servers: libuv's own kill-on-close
+// job holds only the cmd.exe each `npm` runs in, so its npm, tsx, vite and
+// esbuild descendants run on without a parent (a closed terminal once left
+// three polling esbuild watchers running for days). So before starting
+// anything, this launcher joins a kill-on-close job object whose only handle
+// it holds itself. Windows closes that handle however the launcher ends, which
+// ends every process in the job, and every descendant is in it, since the job
+// allows no breakaway. Unlike asking each server to watch for this launcher's
+// exit, the job needs nothing from the servers and covers the workers they
+// start. Node cannot create a job, so a short PowerShell step compiles the
+// calls, hands this process the handle and exits.
+function jobScript(pid) {
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    "try {",
+    "Add-Type -TypeDefinition @'",
+    "using System;",
+    "using System.ComponentModel;",
+    "using System.Runtime.InteropServices;",
+    "public static class DevPreviewJob {",
+    "  [StructLayout(LayoutKind.Sequential)] struct BASIC_LIMIT { public long processTime, jobTime; public uint flags; public UIntPtr minWorking, maxWorking; public uint activeLimit; public UIntPtr affinity; public uint priority, scheduling; }",
+    "  [StructLayout(LayoutKind.Sequential)] struct IO_COUNTERS { public ulong readOps, writeOps, otherOps, readBytes, writeBytes, otherBytes; }",
+    "  [StructLayout(LayoutKind.Sequential)] struct EXTENDED_LIMIT { public BASIC_LIMIT basic; public IO_COUNTERS io; public UIntPtr processMemory, jobMemory, peakProcessMemory, peakJobMemory; }",
+    '  [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] static extern IntPtr CreateJobObject(IntPtr attributes, string name);',
+    '  [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetInformationJobObject(IntPtr job, int type, ref EXTENDED_LIMIT limit, int size);',
+    '  [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr OpenProcess(uint access, bool inherit, int pid);',
+    '  [DllImport("kernel32.dll", SetLastError=true)] static extern bool DuplicateHandle(IntPtr sourceProcess, IntPtr source, IntPtr targetProcess, out IntPtr target, uint access, bool inherit, uint options);',
+    '  [DllImport("kernel32.dll", SetLastError=true)] static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);',
+    '  [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();',
+    '  static void Check(bool ok, string what) { if (!ok) throw new Exception(what + ": " + new Win32Exception(Marshal.GetLastWin32Error()).Message); }',
+    "  public static void Bind(int pid) {",
+    "    IntPtr job = CreateJobObject(IntPtr.Zero, null);",
+    '    Check(job != IntPtr.Zero, "CreateJobObject");',
+    "    var limit = new EXTENDED_LIMIT();",
+    "    limit.basic.flags = 0x2000; // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
+    '    Check(SetInformationJobObject(job, 9, ref limit, Marshal.SizeOf(limit)), "SetInformationJobObject"); // JobObjectExtendedLimitInformation',
+    "    IntPtr launcher = OpenProcess(0x0141, false, pid); // PROCESS_DUP_HANDLE | PROCESS_SET_QUOTA | PROCESS_TERMINATE",
+    '    Check(launcher != IntPtr.Zero, "OpenProcess");',
+    "    // The launcher holds a handle before it joins, so this step exiting",
+    "    // never closes the job's last handle on a launcher already inside it.",
+    "    IntPtr copy;",
+    '    Check(DuplicateHandle(GetCurrentProcess(), job, launcher, out copy, 0, false, 2), "DuplicateHandle"); // DUPLICATE_SAME_ACCESS',
+    '    Check(AssignProcessToJobObject(job, launcher), "AssignProcessToJobObject");',
+    "  }",
+    "}",
+    "'@",
+    `[DevPreviewJob]::Bind(${pid})`,
+    "} catch { $e = $_.Exception; if ($e.InnerException) { $e = $e.InnerException }; [Console]::Out.Write($e.Message); exit 1 }",
+  ].join("\n");
+}
+
+// Returns null once this process is in the job, or why it is not.
+function joinKillOnCloseJob() {
+  const result = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(jobScript(process.pid), "utf16le").toString("base64")],
+    { encoding: "utf8", windowsHide: true, timeout: 60_000 },
+  );
+  if (result.status === 0) return null;
+  return result.stdout?.trim() || result.error?.message || `PowerShell exited with code ${result.status}`;
+}
 
 // Preview mode:
 //   same-origin  — the editor reverse-proxies the player under its OWN origin at
@@ -148,6 +214,15 @@ function parseMode() {
 
 async function main() {
   const mode = parseMode();
+  if (IS_WIN) {
+    const problem = joinKillOnCloseJob();
+    if (problem) {
+      process.stdout.write(
+        `\n  ! Could not tie the servers to this launcher (${problem});\n` +
+          `    if it is killed rather than stopped, they keep running.\n`,
+      );
+    }
+  }
   const editorPort = await pickPort("EDITOR_PORT");
   const playerPort = await pickPort("PLAYER_PORT");
   const hmrPort = await pickPort("HMR_PORT");

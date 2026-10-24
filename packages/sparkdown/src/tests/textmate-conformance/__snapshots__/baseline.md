@@ -4,28 +4,32 @@ Total cases: 95
 
 ## Summary by axis
 
-- pass: 1
+- pass: 3
 - mismatch: 1
-- incomplete: 11
-- capture-model: 4
+- incomplete: 14
+- capture-model: 0
 - while-rule: 18
-- regex-invalid: 11
+- regex-invalid: 10
 - throw-other: 3
 - external-includes: 46
 - load-error: 0
 
 ## Per-case
 
-### pass (1)
+### pass (3)
+- first-mate#2 [fixtures/coffee-script.json] TEST #5
 - first-mate#10 [fixtures/coffee-script.json] TEST #13
+- first-mate#38 [fixtures/nested-captures.json] TEST #44
 
 ### mismatch (1)
 - suite1#19 [fixtures/147.grammar.json] Issue #147 — line 1 "Function": token[0] ("Function") scopes got ["source.test","storage.type.$0 keyword.declaration.$0"] want ["source.test","storage.type.Function","keyword.declaration.Function"]
 
-### incomplete (11)
+### incomplete (14)
+- first-mate#0 [fixtures/hello.json] TEST #3 — tokens matched but tree has error nodes
 - first-mate#3 [fixtures/text.json] TEST #6 — line 1 "abc def": token[0] ("abc def") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
 - first-mate#11 [fixtures/text.json] TEST #14 — line 1 "hoo": token[0] ("hoo") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
 - first-mate#12 [fixtures/text.json] TEST #15 — line 1 "ok, cool": token[0] ("ok, cool") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
+- first-mate#13 [fixtures/text.json] TEST #16 — line 1 " ok, cool": token[0] value got " ok, cool" want " "
 - first-mate#14 [fixtures/content-name.json] TEST #17 — line 2 "test": token[0] ("test") scopes got ["source.test"] want ["source.test","pre","nested"]
 - first-mate#15 [fixtures/content-name.json] TEST #18 — line 1 "test": token[0] ("test") scopes got ["source.test"] want ["source.test","all","middle"]
 - first-mate#16 [fixtures/content-name.json] TEST #19 — line 1 " test": token[1] ("test") scopes got ["source.test"] want ["source.test","all","middle"]
@@ -34,12 +38,7 @@ Total cases: 95
 - first-mate#31 [fixtures/multiline.json] TEST #34 — line 1 "Xy\\": token[1] value got "y\\" want "y"
 - first-mate#35 [fixtures/infinite-loop.json] TEST #38 — line 1 "abc": token[0] value got "abc" want "a"
 - first-mate#63 [fixtures/loops.json] TEST #74 — tokens matched but tree has error nodes
-
-### capture-model (4)
-- first-mate#0 [fixtures/hello.json] TEST #3 — Invalid capturing group lengths: world(!?)
-- first-mate#2 [fixtures/coffee-script.json] TEST #5 — Invalid capturing group lengths: (new)\s+(\w+(?:\.\w*)*)
-- first-mate#38 [fixtures/nested-captures.json] TEST #44 — Invalid capturing group lengths: (a(b))
-- suite1#9 [fixtures/testlang12.plist] Issue #12 — Invalid capturing group lengths: ^([ \t]*)(?=(.*?)\|$)
+- suite1#9 [fixtures/testlang12.plist] Issue #12 — line 1 "[test]|": token[0] ("[test]|") scopes got ["text.testlang"] want ["text.testlang","string.unquoted.verbatim.youki"]
 
 ### while-rule (18)
 - first-mate#1 [fixtures/coffee-script.json] TEST #4 — Invalid RegExp: (?x)
@@ -106,8 +105,7 @@ Total cases: 95
 - suite1#7 [fixtures/whileLang.plist] Nested whiles should check line for outer most while to inner most while — while rules are not currently supported
 - suite1#8 [fixtures/whileLang.plist] Should Correctly handle anchor in while rule — while rules are not currently supported
 
-### regex-invalid (11)
-- first-mate#13 [fixtures/text.json] TEST #16 — Invalid RegExp: ^(?!\1(?=\S))
+### regex-invalid (10)
 - first-mate#20 [fixtures/coffee-script.json] TEST #23 — Invalid RegExp: \#\{
 - first-mate#33 [fixtures/c.json] TEST #36 — Invalid RegExp: (?x)
         		^\s*\#\s*(define)\s+             # define

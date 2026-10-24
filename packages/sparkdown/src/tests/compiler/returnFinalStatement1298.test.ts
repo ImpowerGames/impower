@@ -11,6 +11,16 @@ function compile(text: string, compiler = new SparkdownCompiler(), version = 1) 
   return (compiler.compile({ textDocument: { uri: URI } } as never) as any).program;
 }
 
+type Located = { message: unknown; range: { start: { line: number; character: number }; end: { line: number; character: number } } };
+function asDiagnostic(error: { message: string; location: { begin: { line: number; column: number }; end: { line: number; column: number } } }): Located {
+  const { begin, end } = error.location;
+  return { message: error.message, range: { start: { line: begin.line, character: begin.column }, end: { line: end.line, character: end.column } } };
+}
+/** Diagnostics in the order of where each begins. */
+function inOrder(diagnostics: Located[]): Located[] {
+  return [...diagnostics].sort((a, b) => a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character);
+}
+
 const cases = [
   ["function", "function f()\n  return 1\n  print(2)\nend\n", 3],
   ["multiline return", "function f()\n  return\n    1\n  local y = 2\nend\n", 4],
@@ -96,14 +106,14 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     const errors = (Object.values(compile(source).diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
     expect(errors).toEqual([]);
   });
-  it.each(cases)("reports Luau's syntax error for %s", (_name, source) => {
-    const oracle = officialSyntaxErrors(source.replaceAll("&", " "))[0]!;
-    expect(oracle).toBeDefined();
+  // Every error Luau reports: the function ends at the first, and the `end`
+  // after the statements read on is met where the chunk ends (I-1430).
+  it.each(cases)("reports Luau's syntax errors for %s", (_name, source) => {
+    const oracle = officialSyntaxErrors(source.replaceAll("&", " "));
+    expect(oracle.length).toBeGreaterThan(0);
     const program = compile(source + "\nBOB:\n  Hello after.\n");
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
-    expect(errors.map((d: any) => ({ message: typeof d.message === "string" ? d.message : d.message?.value, range: d.range }))).toEqual([
-      { message: oracle.message, range: { start: { line: oracle.location.begin.line, character: oracle.location.begin.column }, end: { line: oracle.location.end.line, character: oracle.location.end.column } } },
-    ]);
+    expect(inOrder(errors.map((d: any) => ({ message: typeof d.message === "string" ? d.message : d.message?.value, range: d.range })))).toEqual(inOrder(oracle.map(asDiagnostic)));
   });
 
   it.each(cases)("preserves the function's own end for %s", (_name, source, endLine) => {
@@ -148,12 +158,10 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     for (const follower of ["print(2)", "x = 1"]) {
       const header = block === "do" ? "  do\n" : block === "if" ? "  if x then\n" : "";
       const source = `function f()\n${header}  return\n  ${follower}\n${header ? "  end\n" : ""}end\n`;
-      const oracle = officialSyntaxErrors(source)[0];
+      const oracle = officialSyntaxErrors(source);
       const program = compile(source);
       const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
-      expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual(oracle ? [
-        { message: oracle.message, range: { start: { line: oracle.location.begin.line, character: oracle.location.begin.column }, end: { line: oracle.location.end.line, character: oracle.location.end.column } } },
-      ] : []);
+      expect(inOrder(errors.map((d: any) => ({ message: d.message, range: d.range })))).toEqual(inOrder(oracle.map(asDiagnostic)));
     }
   });
 });

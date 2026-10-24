@@ -661,19 +661,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // holds, with their ranges (`functionBindings`), pushed with
       // `declaredLocalsStack`.
       const functionBindingsStack: FunctionBinding[][] = [];
-      // Per-chunk stack of hoist buffers — one entry pushed per
-      // enclosing function-definition lowering. Bare `function NAME end`
-      // nested inside another function pre-declares a `local NAME = nil`
-      // here so it lands at the enclosing function's body top, surviving
-      // any do/while/for/if block scopes that wrap the in-place
-      // assignment.
-      const hoistedNestedFnDeclsStack: ParsedObject[][] = [];
       // Per-chunk stack of "sibling subflow" names, which records the
       // names an assignment rebinds (`LowerContext.siblingSubFlowNamesStack`).
       const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
-      // Per-chunk stack of the blocks being lowered, each with what its end
-      // undoes (`LowerContext.blockEndStack`).
-      const blockEndStack: (() => void)[][] = [];
       const callableNames = this.computeGlobalCallableNames();
       const globalCallableReads = new Map<string, boolean>();
       const typeNames = this.computeDefineTypeNames();
@@ -745,9 +735,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         },
         declaredLocalsStack,
         functionBindingsStack,
-        hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
-        blockEndStack,
         // The depth of the scoped blocks open around the statement being
         // lowered, which a block statement raises and puts back: starting it
         // at 0, as every reader reads it unset, leaves the context as a block

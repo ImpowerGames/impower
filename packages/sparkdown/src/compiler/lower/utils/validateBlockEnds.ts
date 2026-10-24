@@ -5,6 +5,7 @@ import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { enclosingUnclosedIslandEnd } from "../../utils/storyIslands";
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 import { loopBodyBlock } from "./loopDoBlock";
@@ -135,8 +136,14 @@ function luauReportsOpenBlock(ctx: LowerContext): boolean {
 // header would report the same mistake again (I-1322, the maintainer's
 // decision). A block in story, a `store`'s function value and a `&` line's
 // block are Sparkdown's to report.
+// A block opened in a story statement whose bracket never closes ends with
+// that bracket's line, where Luau's reading meets its end of input inside
+// it and reports the missing closer (`unclosedIslandEnd`, I-1532); the
+// tree's closers on the story lines after it are not its.
 function luauReportsOpenBlockAt(header: SyntaxNode, ctx: LowerContext): boolean {
-  return luauReportsOpenBlock(ctx) || luauReadingReportsAllAt(header, (from, to) => ctx.read(from, to));
+  if (luauReportsOpenBlock(ctx) || luauReadingReportsAllAt(header, (from, to) => ctx.read(from, to))) return true;
+  const text = ctx.documentText?.();
+  return text !== undefined && enclosingUnclosedIslandEnd(header, text) !== undefined;
 }
 
 function missingEndMessage(label: string): string {
@@ -417,7 +424,12 @@ export function validateOpenBlocks(
       reportEntry(open.pop()!);
     }
   };
+  // Whether the root-level tokens since the last statement are a stray
+  // closer and the line breaks and comments after it.
+  let afterStrayCloser = false;
   for (let node = top.firstChild; node; node = node.nextSibling) {
+    if (node.name === "LuauStrayUntilStatement" && open.length === 0) afterStrayCloser = true;
+    else if (node.name !== "LuauEndKeyword" && !isTrivia(node)) afterStrayCloser = false;
     if (node.name === "Scene") {
       closeAbove(() => false);
       open.push({ kind: "scene" });
@@ -432,7 +444,11 @@ export function validateOpenBlocks(
       // meets in place of its `until` is that loop's missing `until`. In a
       // `.luau` or `run` file Luau's reading reports it, and nothing after
       // it, where Luau's parser stops (`luauReportsOpenBlock`).
-      if (open.length === 0 && !luauReportsOpenBlock(ctx)) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
+      // Luau's parser stops at the first stray closer (`until` included,
+      // which Luau's reading of its line reports), so a stray `end` right
+      // after one, with no statement between, is none of Luau's (I-1514).
+      if (open.length === 0 && !luauReportsOpenBlock(ctx) && !afterStrayCloser) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
+      if (open.length === 0) afterStrayCloser = true;
       // An `end` cannot close a `repeat`, so a `repeat` still open inside the
       // block it reaches is left without its `until`.
       closeAbove(

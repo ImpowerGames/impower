@@ -17,9 +17,10 @@ import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 // mid-line and then matched an `^`-anchored rule at a non-line-start).
 //
 // This test asserts ZERO per-character scope-stack divergence between the two
-// engines, and FAILS THE BUILD on any divergence. Because vscode-textmate is
-// the reference we ship to users and cannot patch, every divergence is a
-// grammar bug to fix in the grammar (see
+// engines, and FAILS THE BUILD on any divergence. vscode-textmate is the
+// reference we ship to users and cannot patch: a divergence where the tree
+// reads the grammar differently is fixed in textmate-grammar-tree, and one
+// that remains once both engines read it the same way is a grammar bug (see
 // packages/sparkdown/docs/compiler/GRAMMAR.md §17).
 //
 // Coverage = a set of hand-written targeted fixtures (below) + every `.sd`
@@ -33,6 +34,23 @@ const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
 // colon, blank-line-separated content, and comment-line-separated content.
 // Newlines are explicit `\n` so the fixtures are immune to CRLF checkout.
 const TARGETED: Record<string, string> = {
+  // An assignment whose `=` ends its line (I-1283): the missing operand's
+  // lookahead must not read the next line, as vscode-textmate cannot.
+  "assign-trailing-space-in-function":
+    "function greet()\n    x = \n    local z = 1\nend\n",
+  "assign-no-trailing-space-in-function":
+    "function greet()\n    x =\n    local z = 1\nend\n",
+  // Any operator that ends its line reads only that line: the tree scoped
+  // this `+` as a missing operand by reading `local` on the next line.
+  "operator-at-line-end-before-statement":
+    "function f(t)\n  store x = 1 +\n  local y = 2 +;\nend\n",
+  // A doc tag at column 0 in a block comment (I-1105): `LuauDocParamModifier`'s
+  // whitespace lookbehind must not see the line break above it.
+  "doc-param-tag-at-column-0":
+    "function f()\n  --[[\n\\param x the value\n  ]]\n  return 1\nend\n",
+  // A story statement ends at its line (GRAMMAR.md §11.5), so this agreed
+  // before the line bound too; it guards the top-level reading.
+  "assign-trailing-space-top-level": "x = \nlocal z = 1\n",
   // A method's name past the trivia after its `:` (I-1322), and the token
   // that is no name where a comment leaves the reading.
   "next-line-method-trivia":
@@ -131,14 +149,21 @@ const TARGETED: Record<string, string> = {
   // `LuauInterpolatedStringExpression` nodes inside `TagContent`). Adjacent
   // interpolations + literal runs (`# pic{a}{b}.jpg`), an interpolation
   // mid-body, and a multi-tag line all exercise the no-`^` `TagText` /
-  // interpolation interleaving in `TagContent`. Line-start `#` is used so
-  // these don't trip a PRE-EXISTING `Tag` capture-1 leading-whitespace
-  // divergence (the space before a mid-line `#` already diverges on the
-  // unchanged grammar — out of scope for this fix).
+  // interpolation interleaving in `TagContent`.
   "tag-interpolation": "# pic{amount}{color}.jpg\n",
   "tag-interpolation-midbody": "# a tag {var} more\n",
   "tag-plain-no-interp": "# plain tag no interp\n",
   "tag-multi-with-interp": "# a # b {x}\n",
+  // A begin/end rule with only `captures` uses them for begin and end, as
+  // vscode-textmate does: the space before a mid-line `#` keeps the `Tags`
+  // rule's required-whitespace scope (#886).
+  "tag-midline-required-whitespace-886": "Text # a {var}\n",
+
+  // A capture scans on past a character its patterns cannot read and leaves
+  // it in the capture's scope, as vscode-textmate does: the name after a `$`
+  // struct key is still a property (#828).
+  "struct-dollar-key-828":
+    "theme t with\n  g:\n    $c = 3\nend\ntheme u with\n  g { $c = 3 }\nend\n",
 
   // --- a pure-Luau body or bracket tiles with `LuauUnreadToken` (#1905), so
   // both engines read a token its rules lack the same way, and the function
@@ -188,6 +213,18 @@ const TARGETED: Record<string, string> = {
   // reads it as an unread token of the body.
   "unread-character-in-open-statement":
     "function f()\n  x = 1 @@ 2\n  y = $5\nend\ndefine X with\n  b = $5\nend\nlayout main with\n  button @click={ x = 1 @@ 2 }\nend\n",
+  // A capture's patterns read the line before the capture (I-1566): a
+  // lookbehind, `^` or `\b` in them sees what vscode-textmate sees, as at
+  // `TrailingWhitespace`'s `(?<!^)`, `LuauDocParamModifier`'s lookbehind
+  // and the access path's line-start keyword test. These sites agreed in
+  // scope before I-1566 too (only the tree's structure changed, at the
+  // access path); they guard that agreement.
+  "capture-context-trailing-whitespace-1566":
+    "BUNNY:   \nHello there.   \n@ ACE  \n  Hi.  \n(quietly)  \nscene main\n  BUNNY:  \n  Hello.  \n  (beat)  \nend\n",
+  "capture-context-doc-param-1566":
+    "function f(x)\n  --[[ @param x the value ]]\n  -- @param y other\n  return x\nend\n",
+  "capture-context-luau-names-1566":
+    "local x: number? = 1\nfunction f(a: string?, b: {number}?): number?\n  scene = a\n  branch += 1\n  return nil\nend\nfunction a.b:c()\nend\n",
 };
 
 interface Fixture {

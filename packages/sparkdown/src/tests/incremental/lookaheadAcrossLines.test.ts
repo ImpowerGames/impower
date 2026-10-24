@@ -1,6 +1,7 @@
-// A pattern tried on one line can read on into the lines below it. An edit
-// on a later line can then change what that pattern decided, and the
-// incremental tree has to come out as a parse from the start does (#1583).
+// A rule opened on one line can stay open into the lines below it, though no
+// regex reads past its own line (I-1283). An edit on a later line can then
+// change what that rule decided, and the incremental tree has to come out as
+// a parse from the start does (#1583).
 
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { TreeFragment } from "@lezer/common";

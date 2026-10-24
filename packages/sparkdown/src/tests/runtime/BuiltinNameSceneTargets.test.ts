@@ -784,9 +784,35 @@ end
     expect(runtimeErrors.join("\n")).toContain("could not be found (game)");
   });
 
-  test("a nested function named after the builtin does not soften the report", () => {
-    // `function color()` inside `outer` is a local of `outer`, hoisted as a
-    // `local color` plus an assignment to it, which writes the local.
+  test("a nested local function named after the builtin does not soften the report", () => {
+    // `local function color()` inside `outer` declares a local of `outer`,
+    // which its definition writes, not the global.
+    const source = `-> s
+scene s
+  -> color
+
+end
+function outer()
+  local function color()
+    return 1
+  end
+  return color()
+end
+scene there
+  Arrived.
+  fin
+
+end
+`;
+    expect(collisionsOf(compileUnseeded(source)).map((c) => c.message)).toEqual([
+      DIVERT_MESSAGE("color"),
+    ]);
+  });
+
+  test("a nested function statement named after the builtin writes the global, so the report is a warning", () => {
+    // `function color()` inside `outer` is `color = function() ... end`,
+    // as Luau's is (I-1422): with no local `color` in scope it writes the
+    // global, as an assignment to the name does.
     const source = `-> s
 scene s
   -> color
@@ -805,7 +831,7 @@ scene there
 end
 `;
     expect(collisionsOf(compileUnseeded(source)).map((c) => c.message)).toEqual([
-      DIVERT_MESSAGE("color"),
+      DIVERT_WARNING("color"),
     ]);
   });
 

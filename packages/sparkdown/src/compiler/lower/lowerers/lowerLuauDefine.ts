@@ -1,9 +1,18 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { UNREAD_TOKENS } from "../../utils/unreadTokens";
-import { luauStatementError } from "../../utils/luauStatementError";
+import { luauStatementErrors, type LuauStatementError } from "../../utils/luauStatementError";
+import {
+  danglingDots,
+  defineStatementLast,
+  defineStatementThrough,
+  isDefineMember,
+  isDefineStatementStart,
+  readsDefineProperty,
+  readsDefineStatement,
+} from "../../utils/defineStatement";
+import { nextLuauToken } from "../../typecheck/readLuauAst";
+import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
-import { followsDanglingDot, followsMissingValue } from "../utils/statementBefore";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -27,7 +36,7 @@ import {
   defineCellName,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/DefineCellBinding";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { CompiledBlock, InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import {
@@ -147,44 +156,145 @@ interface DefineValue {
   nodes: SyntaxNode[];
 }
 
-const DEFINE_MEMBER_NAMES = nodeNameSet([
-  "LuauPropertyDefinition", "LuauMethodDefinition", "LuauFunctionDefinition",
-]);
-
-const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
-  "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary",
-  "LuauDoubleQuotedString", "LuauSingleQuotedString", "LuauMultilineString",
-  "LuauInterpolatedString", "LuauBoolean", "LuauNil", "LuauTable",
-  "LuauLengthOperation", "LuauLogicalOperation", "LuauParenthetical", "LuauUnitKeywords",
-]);
-
-// Define bodies lower members only, but still report expressions that Luau
-// cannot read as statements. A property's continuation is consumed first.
-// A statement that is a `.` no name follows is the validator's to report
-// (`LuauDanglingAccessor`); a later one on the line (`Hello there.`) is a
-// statement of its own, and Luau's first error is this one's. A call the
-// grammar opened as a method (`isDefineMethodCall`) holds its whole line,
-// line break included, so it is the statement alone (`whole`).
-function reportDefineStatement(start: SyntaxNode, ctx: LowerContext, whole = false): SyntaxNode {
-  let last = start;
-  if (!whole) for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) last = node;
-  const dangling = start.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", start) !== undefined;
+// Define bodies lower members only, but still report the statements that
+// Luau cannot read, every error of each (I-1489), as their one owner
+// (`loweredDefineStatementOf`). A property's continuation is consumed
+// first, and a line that finishes what a property left open is the tree
+// checks' (`readsDefineStatement`). A call the grammar opened as a method
+// (`isDefineMethodCall`) holds its whole line, line break included, so it
+// is the statement alone (`whole`). The lines that continue a statement
+// (`.g(2)`) are its own (`defineStatementLast`). A statement line that
+// Luau's reading reads on into (`Hi, Bob` then `1 + 2; t.f(1 +)`, whose
+// `1 + 2` is the assignment's values) is read with it whole, as Luau reads
+// it, so the reading reports every statement on that line too
+// (`defineStatementThrough`). Returns the last node read.
+function reportDefineStatement(
+  start: SyntaxNode,
+  ctx: LowerContext,
+  structureErrors: InkDiagnostic[],
+  whole = false,
+): SyntaxNode {
+  let last = defineStatementLast(start, whole);
   const read = (from: number, to: number) => ctx.read(from, to);
-  if (dangling || followsDanglingDot(start, read) || followsMissingValue(start, read)) return last;
-  const error = luauStatementError(start, start.from, read, last.to, ctx.documentText);
-  if (error) ctx.diagnostics?.push({
-    message: error.message,
-    severity: ErrorType.Error,
-    source: {
+  if (!readsDefineStatement(start, read)) return last;
+  const lineOf = (pos: number) => ctx.lineNumber(pos);
+  let errors: LuauStatementError[];
+  for (;;) {
+    const reading = luauStatementErrors(start, start.from, read, last.to, ctx.documentText);
+    const through = defineStatementThrough(last, reading.to, read, lineOf);
+    if (through === last) {
+      errors = reading.errors;
+      break;
+    }
+    last = through;
+  }
+  reportStatementErrors(start, last, errors, ctx, structureErrors);
+  return last;
+}
+
+// A property keyed by a name (`readsDefineProperty`) is read as Luau's
+// statement `name = value`, as far as its value runs on
+// (`propertyValueNodes`), and that reading reports every syntax error of
+// the value, in Luau's words at Luau's range, once (I-1500), in a define of
+// any structure: the validator leaves them to it
+// (`loweredDefinePropertyOf`). A statement after the value on its line is
+// its own (`reportDefineStatement`). A property with no value keeps the
+// missing value's report (`validateAssignmentValue`), and one whose value
+// Luau reads whole, while Sparkdown's reading of it does not (an
+// alternator's arm), keeps that reading's. Returns where the property's
+// nodes end when the reading reported it, or null.
+function reportDefineProperty(
+  propNode: SyntaxNode,
+  ctx: LowerContext,
+  structureErrors: InkDiagnostic[],
+): number | null {
+  if (!readsDefineProperty(propNode)) return null;
+  const { opNode, consumed } = propertyValueNodes(propNode, ctx);
+  const last = consumed[consumed.length - 1];
+  // A property with no value keeps the missing value's report.
+  if (!last || (!findAssignmentValueNode(opNode ?? null) && last.to <= propNode.to)) return null;
+  const value = readExpressionAst(consumed, ctx);
+  // A value Sparkdown's reading reads without an error has none for Luau's
+  // to report, and Luau's reading reads on past the define, which would
+  // make the define's lowering depend on the text after it (I-1500 round 1:
+  // its chunk is no longer kept across an edit elsewhere).
+  if (value && value.source.errors.length === 0) return null;
+  const end = Math.max(propNode.to, last.to);
+  const read = (from: number, to: number) => ctx.read(from, to);
+  const { errors } = luauStatementErrors(propNode, propNode.from, read, end, ctx.documentText);
+  if (errors.length === 0 && value) return null;
+  // A value's nodes on the lines after the property are its siblings.
+  reportStatementErrors(propNode, last.from >= propNode.to ? last : propNode, errors, ctx, structureErrors);
+  return end;
+}
+
+// Reports the errors Luau's reading gave for the define body nodes from
+// `start` to `last`, past those another report owns.
+function reportStatementErrors(
+  start: SyntaxNode,
+  last: SyntaxNode,
+  errors: LuauStatementError[],
+  ctx: LowerContext,
+  structureErrors: InkDiagnostic[],
+): void {
+  const read = (from: number, to: number) => ctx.read(from, to);
+  // A `.` no name follows has its own error reported by the validator, in a
+  // define of any structure (`danglingDots`): Luau's `Expected identifier,
+  // got …` at the token after it is left to that report, and the
+  // statement's other errors are the reading's.
+  // A dot with no token after it is followed by the end of the input.
+  const dotErrorsAt = new Set<number>();
+  let dotAtEnd = false;
+  const dots = danglingDots(start, last);
+  if (dots.length > 0) {
+    let root = start;
+    while (root.parent) root = root.parent;
+    const documentText = ctx.documentText?.() ?? ctx.read(0, root.to);
+    for (const dot of dots) {
+      const after = nextLuauToken(dot.to, documentText);
+      // The validator reports the `.` where no reading reads on to the
+      // token after it (`checkerReadsOnTo`, ValidationAnnotator's
+      // `LuauDanglingAccessor` check). Where it defers, as to a method's
+      // lowered reading in a function with no name (`function()` as a line
+      // of the body) that no method lowers, this reading keeps the error.
+      if (checkerReadsOnTo(dot, after?.from, read)) continue;
+      if (after) dotErrorsAt.add(after.from);
+      else dotAtEnd = true;
+    }
+  }
+  const dotError = (error: LuauStatementError) =>
+    // value-level: the message of an error Luau's reading returned.
+    error.message.startsWith("Expected identifier, got ") &&
+    (dotErrorsAt.has(error.from) || (dotAtEnd && error.message === "Expected identifier, got <eof>"));
+  for (const error of errors) {
+    if (dotError(error)) continue;
+    const source = {
       fileName: null,
       filePath: ctx.filePath ?? null,
       startLineNumber: ctx.lineNumber(error.from) + 1,
       endLineNumber: ctx.lineNumber(error.to) + 1,
       startCharacterNumber: ctx.characterNumber(error.from) + 1,
       endCharacterNumber: ctx.characterNumber(error.to) + 1,
-    },
-  });
-  return last;
+    };
+    // A token the define's structure check reports, in its own words (a
+    // `with` on the line below a header without one), has that one report.
+    if (structureErrors.some((reported) => sameRange(reported.source, source))) continue;
+    ctx.diagnostics?.push({ message: error.message, severity: ErrorType.Error, source });
+  }
+}
+
+/** Whether two diagnostic sources span the same range. */
+function sameRange(
+  a: { startLineNumber: number; endLineNumber: number; startCharacterNumber: number; endCharacterNumber: number } | null | undefined,
+  b: { startLineNumber: number; endLineNumber: number; startCharacterNumber: number; endCharacterNumber: number },
+): boolean {
+  return (
+    !!a &&
+    a.startLineNumber === b.startLineNumber &&
+    a.endLineNumber === b.endLineNumber &&
+    a.startCharacterNumber === b.startCharacterNumber &&
+    a.endCharacterNumber === b.endCharacterNumber
+  );
 }
 
 // Coerce a property's value to a compile-time literal for the engine struct
@@ -393,12 +503,14 @@ export function lowerLuauDefine(
   const structureErrors = validateDefineStructure(nodeRef.node, ctx);
   ctx.diagnostics?.push(...structureErrors);
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
-  if (!nameNode) return {};
-  const nameIdentifier = identifierAt(nameNode, ctx);
 
-  const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
-  const parentIdentifier = parentNode ? identifierAt(parentNode, ctx) : null;
-
+  // The body's statements are read in every define, whatever its structure
+  // errors (no name, an unreadable header, a missing `end`, a body without
+  // `with`), since the validator leaves their errors to this reading
+  // (`loweredDefineStatementOf`). What stands on the header's own line is
+  // the header's, which its structure check reports.
+  const headerLine = ctx.lineNumber(nodeRef.node.from);
+  const inBody = (node: SyntaxNode) => ctx.lineNumber(node.from) !== headerLine;
   const content = findChildByName(nodeRef.node, "LuauDefine_content");
   const properties: DefineProperty[] = [];
   const methodNodes: { name: string; node: SyntaxNode }[] = [];
@@ -406,16 +518,20 @@ export function lowerLuauDefine(
     let child = content.firstChild;
     while (child) {
       if (child.name === "LuauPropertyDefinition") {
-        const prop = readPropertyDefinition(child, ctx);
-        if (prop) {
-          properties.push(prop);
-          const end = rangeOf(prop.value.expr.location, ctx).to;
+        // A property's reading reports its value's errors whether or not
+        // it lowers; one on the header's line is the header's. A define
+        // with no name lowers no member.
+        const readEnd = inBody(child) ? reportDefineProperty(child, ctx, structureErrors) : null;
+        const prop = nameNode ? readPropertyDefinition(child, ctx, readEnd !== null) : null;
+        if (prop) properties.push(prop);
+        const end = prop ? rangeOf(prop.value.expr.location, ctx).to : readEnd;
+        if (end !== null) {
           while (child.nextSibling && child.nextSibling.from < end) child = child.nextSibling;
         }
       } else if (isDefineMethodCall(child, (pos) => ctx.lineNumber(pos))) {
         // A line the grammar opened as a method, which took neither a line
         // below it nor an `end`: a statement of the body (`print("x")`).
-        if (structureErrors.length === 0) reportDefineStatement(child, ctx, true);
+        if (inBody(child)) child = reportDefineStatement(child, ctx, structureErrors, true);
       } else if (child.name === "LuauMethodDefinition") {
         const methodNameNode = getDescendent("LuauFunctionName", child);
         if (methodNameNode) {
@@ -435,20 +551,23 @@ export function lowerLuauDefine(
             name: ctx.read(fnNameNode.from, fnNameNode.to),
             node: child,
           });
-        } else if (structureErrors.length === 0) {
-          child = reportDefineStatement(child, ctx);
+        } else if (inBody(child)) {
+          child = reportDefineStatement(child, ctx, structureErrors);
         }
-      } else if (
-        structureErrors.length === 0 &&
-        (EXPRESSION_STATEMENT_STARTS.has(child.name) || UNREAD_TOKENS.has(child.name))
-      ) {
-        // A token no rule of the body read (`!`, `a = 1 !`) has its error
-        // here too: the validator leaves it to Luau's reading.
-        child = reportDefineStatement(child, ctx);
+      } else if (inBody(child) && isDefineStatementStart(child, (pos) => ctx.lineNumber(pos))) {
+        // An expression, a reassignment (`t.a = 1`), or a token no rule of
+        // the body read (`!`, `a = 1 !`): the validator leaves its errors to
+        // Luau's reading.
+        child = reportDefineStatement(child, ctx, structureErrors);
       }
       child = child.nextSibling;
     }
   }
+  if (!nameNode) return {};
+  const nameIdentifier = identifierAt(nameNode, ctx);
+
+  const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
+  const parentIdentifier = parentNode ? identifierAt(parentNode, ctx) : null;
 
   // ----- The runtime table: __def({ props, methods, modifier lists }, name, parent)
   const entries: ObjectExpressionEntry[] = [];
@@ -781,7 +900,6 @@ function lowerDefineMethod(
   // captures one whatever its name (a stdlib name too, `freeVariables`).
   ctx.declaredLocalsStack?.push(declaredLocalsFrame(["self", ...params], bodyAst, bindings, ctx));
   const hoistedDecls: ParsedObject[] = [];
-  ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
@@ -799,7 +917,6 @@ function lowerDefineMethod(
     reportBodySyntaxErrors(errors, ctx, reportFrom);
   }
   ctx.siblingSubFlowNamesStack?.pop();
-  ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.functionBindingsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
@@ -914,7 +1031,7 @@ function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: 
     // A bracket-key property's operation is a sibling of its key node.
     // Its value nodes are already present above.
     if (opNode && next.to <= opNode.to) continue;
-    if (DEFINE_MEMBER_NAMES.has(next.name)) break;
+    if (isDefineMember(next)) break;
     candidates.push(next);
   }
   const continued = readExpressionAst(candidates, ctx);
@@ -926,6 +1043,8 @@ function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: 
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
+  // Whether the property's reading reported its value (`reportDefineProperty`).
+  reported = false,
 ): DefineProperty | null {
   // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
   // plain identifier (`name = …`).
@@ -938,7 +1057,7 @@ function readPropertyDefinition(
       bracketAssignment,
     );
     if (!indexNode) {
-      reportUnreadValueErrors(propNode, ctx);
+      if (!reported) reportUnreadValueErrors(propNode, ctx);
       return null;
     }
     // Only STRING-LITERAL keys are representable in the compile-time struct;
@@ -963,7 +1082,7 @@ function readPropertyDefinition(
       }
     }
     if (name == null) {
-      reportUnreadValueErrors(propNode, ctx);
+      if (!reported) reportUnreadValueErrors(propNode, ctx);
       return null;
     }
   } else {
@@ -979,7 +1098,7 @@ function readPropertyDefinition(
       ? getDescendent("LuauVariableName", variableAssignment)
       : null);
     if (!nameNode) {
-      reportUnreadValueErrors(propNode, ctx);
+      if (!reported) reportUnreadValueErrors(propNode, ctx);
       return null;
     }
     name = ctx.read(nameNode.from, nameNode.to);
@@ -989,8 +1108,8 @@ function readPropertyDefinition(
   // to the value (including call sugar and a value after a line-ending `=`).
   const { opNode, consumed } = propertyValueNodes(propNode, ctx);
   const reading = readExpressionAst(consumed, ctx);
-  if (reading) reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
-  if (opNode && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
+  if (reading && !reported) reportReadingErrors(reading.source.errors, consumed[0]!, ctx, "string");
+  if (opNode && !reported && (!reading || reading.source.errors.length > 0)) validateAssignmentValue(opNode, ctx);
   const expr = reading
     ? lowerExpression(reading.expr, reading.source, ctx)
     : null;

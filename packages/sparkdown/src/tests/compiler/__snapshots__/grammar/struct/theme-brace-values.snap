@@ -412,18 +412,14 @@ sparkdown [0..386]
  │   │   │   │       │       │   │   │       │               │       │   ├─ StylingFunctionParameters_begin_c1 [260..261]
  │   │   │   │       │       │   │   │       │               │       │   │   └─ PunctuationParenOpen [260..261]: "("
  │   │   │   │       │       │   │   │       │               │       │   └─ StylingFunctionParameters_begin_c2 261
- │   │   │   │       │       │   │   │       │               │       ├─ StylingFunctionParameters_content [261..267]
- │   │   │   │       │       │   │   │       │               │       │   └─ LuauLineComment [261..267]
- │   │   │   │       │       │   │   │       │               │       │       ├─ LuauLineComment_begin [261..263]
- │   │   │   │       │       │   │   │       │               │       │       │   ├─ LuauLineComment_begin_c1 261
- │   │   │   │       │       │   │   │       │               │       │       │   └─ LuauLineComment_begin_c2 [261..263]
- │   │   │   │       │       │   │   │       │               │       │       │       └─ LuauCommentMark [261..263]: "--"
- │   │   │   │       │       │   │   │       │               │       │       ├─ LuauLineComment_content [263..267]
- │   │   │   │       │       │   │   │       │               │       │       │   └─ LuauLineCommentContent [263..267]: "gap)"
- │   │   │   │       │       │   │   │       │               │       │       └─ LuauLineComment_end 267
- │   │   │   │       │       │   │   │       │               │       └─ StylingFunctionParameters_end 267
- │   │   │   │       │       │   │   │       │               │           ├─ StylingFunctionParameters_end_c1 267
- │   │   │   │       │       │   │   │       │               │           └─ StylingFunctionParameters_end_c2 267
+ │   │   │   │       │       │   │   │       │               │       ├─ StylingFunctionParameters_content [261..266]
+ │   │   │   │       │       │   │   │       │               │       │   ├─ CalcOperator [261..262]: "-"
+ │   │   │   │       │       │   │   │       │               │       │   ├─ CalcOperator [262..263]: "-"
+ │   │   │   │       │       │   │   │       │               │       │   └─ ParameterStringIdentifier [263..266]: "gap"
+ │   │   │   │       │       │   │   │       │               │       └─ StylingFunctionParameters_end [266..267]
+ │   │   │   │       │       │   │   │       │               │           ├─ StylingFunctionParameters_end_c1 266
+ │   │   │   │       │       │   │   │       │               │           └─ StylingFunctionParameters_end_c2 [266..267]
+ │   │   │   │       │       │   │   │       │               │               └─ PunctuationParenClose [266..267]: ")"
  │   │   │   │       │       │   │   │       │               └─ StylingFunction_end 267
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 267
  │   │   │   │       │       │   │   │       ├─ StylingValue_c6 267
@@ -640,14 +636,9 @@ sparkdown [0..386]
  │   │   │   │   │   │       ├─ StylingValue_c4 [374..379]
  │   │   │   │   │   │       │   └─ StylingValueContent [374..379]
  │   │   │   │   │   │       │       └─ StylingValueContent_c1 [374..379]
- │   │   │   │   │   │       │           └─ LuauLineComment [374..379]
- │   │   │   │   │   │       │               ├─ LuauLineComment_begin [374..376]
- │   │   │   │   │   │       │               │   ├─ LuauLineComment_begin_c1 374
- │   │   │   │   │   │       │               │   └─ LuauLineComment_begin_c2 [374..376]
- │   │   │   │   │   │       │               │       └─ LuauCommentMark [374..376]: "--"
- │   │   │   │   │   │       │               ├─ LuauLineComment_content [376..379]
- │   │   │   │   │   │       │               │   └─ LuauLineCommentContent [376..379]: "gap"
- │   │   │   │   │   │       │               └─ LuauLineComment_end 379
+ │   │   │   │   │   │       │           ├─ UnquotedChar [374..375]: "-"
+ │   │   │   │   │   │       │           ├─ UnquotedChar [375..376]: "-"
+ │   │   │   │   │   │       │           └─ StylingStringIdentifier [376..379]: "gap"
  │   │   │   │   │   │       ├─ StylingValue_c5 379
  │   │   │   │   │   │       ├─ StylingValue_c6 379
  │   │   │   │   │   │       └─ StylingValue_c7 379

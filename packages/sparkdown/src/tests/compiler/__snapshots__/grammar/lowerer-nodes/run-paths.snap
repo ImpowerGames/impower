@@ -64,6 +64,7 @@ sparkdown [0..122]
  │   │   │   └─ RunContent_c3 89
  │   │   └─ Tags [89..94]
  │   │       ├─ Tags_begin 89
+ │   │       │   └─ Tags_begin_c1 89
  │   │       ├─ Tags_content [89..94]
  │   │       │   └─ Tag [89..94]
  │   │       │       ├─ Tag_c1 89
@@ -94,6 +95,7 @@ sparkdown [0..122]
  │   │   │   └─ RunContent_c3 116
  │   │   └─ Tags [116..121]
  │   │       ├─ Tags_begin 116
+ │   │       │   └─ Tags_begin_c1 116
  │   │       ├─ Tags_content [116..121]
  │   │       │   └─ Tag [116..121]
  │   │       │       ├─ Tag_c1 116

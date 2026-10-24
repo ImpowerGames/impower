@@ -192,6 +192,22 @@ function isInsignificant(n: { name: string }): boolean {
   );
 }
 
+/**
+ * Whether a whitespace node is the begin capture of a mid-line `Tags` or
+ * `SparkdownExplicitTags` rule, the space right before its `#`.
+ */
+function isBeforeMidLineTag(
+  node: SyntaxNode,
+  read: (from: number, to: number) => string,
+): boolean {
+  const begin = node.parent?.parent;
+  return (
+    (begin?.name === "Tags_begin" ||
+      begin?.name === "SparkdownExplicitTags_begin") &&
+    read(node.to, node.to + 1) === "#"
+  );
+}
+
 function significantBefore(n: SyntaxNode | null): SyntaxNode | null {
   while (n && isInsignificant(n)) n = n.prevSibling;
   return n;
@@ -310,6 +326,26 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
+    // A line that starts at column 0 with a token gets its `indent` from the
+    // first node entered at its start (I-1545). A block's begin capture can
+    // take the line break before it (`LuauFunctionBody_begin` holds the `\n`
+    // after `function g(c)`), so such a line has neither a `Newline` node nor
+    // a whitespace node at its start to carry the mark.
+    if (
+      nodeRef.from > this.processedLineFrom &&
+      (nodeRef.from === 0 || this.read(nodeRef.from - 1, nodeRef.from) === "\n")
+    ) {
+      const firstChar = this.read(nodeRef.from, nodeRef.from + 1);
+      if (firstChar !== "" && !/\s/.test(firstChar)) {
+        this.processedLineFrom = nodeRef.from;
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("indent").range(
+            nodeRef.from,
+            nodeRef.from,
+          ),
+        );
+      }
+    }
     // Universal whitespace dispatch keyed on POSITION first, then name.
     // Any whitespace-class node — `Whitespace`, `ExtraWhitespace`,
     // `RequiredWhitespace`, `OptionalWhitespace` — gets the same
@@ -590,6 +626,24 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           ),
         );
       }
+      // Glued to the operand after it too (`...then'b'`), the keyword ends
+      // its if expression's condition and has no whitespace slot after it;
+      // spaced on its left it reads as the arm's operator, whose slot the
+      // separator rule fills. The same zero-width separator here decides
+      // that gap the same way in both readings.
+      const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
+      if (
+        nextChar !== "" &&
+        !/\s/.test(nextChar) &&
+        !isInsideAnyInlineAlternator(nodeRef, (from, to) => this.read(from, to))
+      ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("separator").range(
+            nodeRef.to,
+            nodeRef.to,
+          ),
+        );
+      }
     }
     // A one-line table constructor or table type is spaced inside its
     // braces (`{ a = 1 }`, `{ number }`). The separator rule tightens after
@@ -707,6 +761,17 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
+      // The space before a mid-line tag's `#` (`Hello.   # greeting`) is one
+      // space; the separator rule would glue the `#` to a `.` before it.
+      if (isBeforeMidLineTag(nodeRef.node, read)) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+            nodeRef.from,
+            nodeRef.to,
+          ),
+        );
+        return annotations;
+      }
       // In a brace element's head, a class is glued to the name or class
       // before it (`text .title` → `text.title`); after anything else it
       // keeps one space, since `#width=1 .x` glued would read `1.x` as the
@@ -756,6 +821,13 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
         return annotations;
       if (isInStructBlockKey(nodeRef.node)) return annotations;
+      // Text a prop's value cannot hold is reported as written: removing
+      // its spaces would make it read as more of the value (`f(...)
+      // { text "body" }` past the nesting limit as `f(...){text"body"}`),
+      // which the next format then spaces as a table.
+      if (ancestorNamed(nodeRef.node, "LuauSparkleValueOverflow")) {
+        return annotations;
+      }
       annotations.push(
         SparkdownAnnotation.mark<FormatType>(
           isSpacedBraceEdge(nodeRef.node, (from, to) => this.read(from, to))

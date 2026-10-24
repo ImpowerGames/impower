@@ -20,7 +20,8 @@ import { isLuauNameAt, luauPositionOffset, nextLuauToken, readLuauExpressionAfte
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
 import { isUnreadTokenAt } from "../../utils/unreadTokens";
-import { storyIslandEnd } from "../../utils/storyIslands";
+import { LUAU_STATEMENT_KEYWORDS } from "../../utils/luauStatementKeywords";
+import { enclosingUnclosedIslandEnd, storyIslandEnd, unclosedIslandEnd } from "../../utils/storyIslands";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
 // declaration: a value missing after `=` or after a comma, a second `=`, a
@@ -70,6 +71,11 @@ export function validateStatementNode(
   continuation: readonly SyntaxNode[],
   ctx: LowerContext,
 ): void {
+  // A statement in a story statement cut at its unclosed bracket's line,
+  // or that statement itself, is its reading's to report (`cutIslands`,
+  // I-1532): the tree's nodes run on past the cut into story.
+  const text = ctx.documentText?.();
+  if (text !== undefined && (unclosedIslandEnd(node, text) ?? enclosingUnclosedIslandEnd(node, text)) !== undefined) return;
   if (REASSIGNMENT_NAMES.has(node.name)) {
     const parts = reassignmentParts(node);
     const isOperation = (part: SyntaxNode) => isExplicitRuleName(part.name, "LuauAssignmentOperation");
@@ -160,7 +166,9 @@ function siblingAssignmentOperation(node: SyntaxNode): SyntaxNode | null {
 //
 // We mirror that wording — `<token>` is the next thing the parser sees instead
 // of a value (the block `end`, the next property's name, or end-of-file) — and
-// point the squiggle at the `=`/`+=` operator, where the missing value belongs.
+// point the squiggle at the `=`/`+=` operator, where the missing value belongs,
+// or, where the checker does not read on to it, at a statement keyword that
+// begins a later line, where Luau's range is.
 //
 // No-op when the operation carries a value, or when there's no operator node
 // (a bare `local x` declaration has no operator and is valid). A trailing
@@ -199,6 +207,9 @@ export function validateAssignmentValue(
   // The highlighting node may end at the line-ending operator while Luau
   // reads a value on the following line. Validate the converter's value.
   const read = (from: number, to: number) => ctx.read(from, to);
+  // In a story statement cut at its unclosed bracket's line, the reading of
+  // that line reports every error (`cutIslands`, I-1532).
+  if (enclosingUnclosedIslandEnd(opNode, wholeDocument(opNode, read, ctx.documentText)) !== undefined) return;
   const islandEnd = authoredIslandEnd(opNode, wholeDocument(opNode, read, ctx.documentText));
   const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText, islandEnd);
   // A value that begins with a token the grammar left unread (`x = @5`) is
@@ -210,10 +221,18 @@ export function validateAssignmentValue(
   }
   if (typeCheckerReportsMissingValue(opNode, operator.to, read, ctx.documentText)) return;
   const got = nextTokenAfter(opNode, range.to, ctx);
+  // A statement keyword that begins a later line where the checker does not
+  // read on to it (a `store` declaration in a function) is the token Luau's
+  // range is on, as the type checker ranges it in the Luau it reads.
+  const atKeyword =
+    got !== null &&
+    LUAU_STATEMENT_KEYWORDS.has(got.text) &&
+    ctx.lineNumber(got.from) > ctx.lineNumber(range.to) &&
+    !checkerReadsOnTo(opNode, got.from, read);
   ctx.diagnostics.push({
     message: `Expected identifier when parsing expression, got ${display(got)}`,
     severity: ErrorType.Error,
-    source: makeSource(range, ctx),
+    source: makeSource(atKeyword ? { from: got.from, to: got.from + got.text.length } : range, ctx),
   });
 }
 

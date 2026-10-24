@@ -63,6 +63,7 @@ import { lowerLuauStyle } from "./lowerers/lowerLuauStyle";
 import { lowerLuauStructDefine } from "./lowerers/lowerLuauStructDefine";
 import { lowerLuauUI, lowerLuauScreen } from "./lowerers/lowerLuauUI";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
+import { validateTopLevelDeclaration } from "./utils/validateTopLevelDeclaration";
 import {
   LUAU_STATEMENT_NODES,
   lowerLuauStatementNode,
@@ -179,6 +180,24 @@ function lowerInner(
   if (LUAU_STATEMENT_NODES.has(nodeRef.name)) {
     return lowerLuauStatementNode(nodeRef.node, ctx);
   }
+  // A top-level Sparkle declaration written inside a function is an error
+  // (I-1405). It is lowered as written, so the errors in its body are
+  // reported too, and only those are kept: neither what it registers in the
+  // program's context nor the statement that registers an `animation` or a
+  // `theme` when the story runs (`lowerLuauStructDefine`).
+  const misplaced = validateTopLevelDeclaration(nodeRef.node, ctx);
+  if (misplaced) {
+    ctx.diagnostics?.push(misplaced);
+    const block = lowerNode(nodeRef, ctx);
+    return block && { diagnostics: block.diagnostics };
+  }
+  return lowerNode(nodeRef, ctx);
+}
+
+function lowerNode(
+  nodeRef: SparkdownSyntaxNodeRef,
+  ctx: LowerContext,
+): CompiledBlock | undefined {
   switch (nodeRef.name) {
     case "Include":
       return lowerInclude(nodeRef, ctx);
@@ -356,10 +375,6 @@ function lowerBlockStatements(
   skipNames: ReadonlySet<string>,
   body: BodyShape | undefined,
 ): ParsedObject[] {
-  // The block is on the context's block stack while its statements lower:
-  // what its `local`s hide is undone when it ends (`blockEndStack`). No
-  // frame is added for it, since a block nests this function once per level.
-  ctx.blockEndStack?.push([]);
   const result: ParsedObject[] = [];
   const recording = body && ctx.statementStack ? body : undefined;
   // A block of a `choose` block's preamble (an `if` branch, a `do` block, a
@@ -570,7 +585,6 @@ function lowerBlockStatements(
   if (inPreamble) {
     preamble.inChoosePreamble = true;
   }
-  ctx.blockEndStack?.pop()?.forEach((end) => end());
   return result;
 }
 

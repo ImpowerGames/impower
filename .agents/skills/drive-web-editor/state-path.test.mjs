@@ -20,7 +20,7 @@
 // pinned without a process or a file. The live probe is pinned against a child
 // this check spawns. The commands are pinned by copying the driver into a
 // scratch repository, running the copy over records this check writes. The
-// npm launch uses a fixture script that starts three process generations;
+// launch starts a fixture launcher that starts three process generations;
 // every process signalled belongs to the fixture. Node's built-in assert only.
 
 import assert from "node:assert/strict";
@@ -424,8 +424,10 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
 // A copy of the driver laid out as `.agents/skills/drive-web-editor/` under a
 // scratch repository root beside an empty `resolve-issue/`, with the
 // `scripts/detached-launch.mjs` it imports. REPO_ROOT resolves
-// three directories up from the copy. The final case supplies package.json
-// and exercises the real npm launch path with fixture-only TCP listeners.
+// three directories up from the copy. The final case supplies a fixture
+// scripts/dev-preview.mjs, with the package.json `web:dev` script that runs it
+// in the repository, and exercises the real launch path with fixture-only TCP
+// listeners.
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "state-path-"));
@@ -663,8 +665,13 @@ try {
   });
 
   await freshCheck("up waits on a standing record while its launcher lives, and launches once it exits", async () => {
-    const launchedRowsFile = path.join(scratch, "npm-tree.jsonl");
-    fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": `node "${fixture.replaceAll("\\", "/")}" "${launchedRowsFile.replaceAll("\\", "/")}" root` } }));
+    const launchedRowsFile = path.join(scratch, "launched-tree.jsonl");
+    fs.writeFileSync(path.join(scratch, "repo", "scripts", "dev-preview.mjs"), [
+      'import { spawn } from "node:child_process";',
+      `const child = spawn(process.execPath, [${JSON.stringify(fixture)}, ${JSON.stringify(launchedRowsFile)}, "root"], { stdio: "ignore", windowsHide: true });`,
+      'child.on("exit", (code) => process.exit(code ?? 1));',
+    ].join("\n"));
+    fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": "node scripts/dev-preview.mjs --mode same-origin" } }));
     let launchedRows = [];
     const child = idle();
     writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
@@ -696,7 +703,7 @@ try {
         if (launchedRows.length === 3) break;
         await sleep(100);
       }
-      assert.equal(launchedRows.length, 3, `the actual npm launcher must reach all fixture descendants\ncoordinator exit=${up.exitCode ?? "unobserved"}; signal=${up.signalCode ?? "none"}\n${out}`);
+      assert.equal(launchedRows.length, 3, `the actual launcher must reach all fixture descendants\ncoordinator exit=${up.exitCode ?? "unobserved"}; signal=${up.signalCode ?? "none"}\n${out}`);
     } finally {
       stop(child);
       stop(up);
@@ -706,7 +713,7 @@ try {
         const d = run("down");
         assert.equal(d.status, 0, d.out);
       }
-      assert.ok(await untilGone(launched.pid), "up left its npm launcher behind");
+      assert.ok(await untilGone(launched.pid), "up left its launcher behind");
       assert.ok(await treeGone(launchedRows), "up left a descendant behind");
     }
   });

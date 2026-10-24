@@ -1,4 +1,5 @@
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { explicitRuleNames, isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { LUAU_STATEMENT_KEYWORDS } from "../../utils/luauStatementKeywords";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { documentString } from "../../utils/documentString";
@@ -14,7 +15,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
-import { isStoryCondition } from "../../utils/storyIslands";
+import { cutIslands, isStoryCondition } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -162,6 +163,11 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_EXPRESSION = "Expected identifier when parsing expression";
+// The binary value operators whose rule takes the line break after the
+// operator, so that the operand begins on a later line.
+const LINE_BREAK_BINARY_OPERATORS = new Set(
+  ["LuauArithmeticOperator", "LuauCompareOperator", "LuauConcatOperator", "LuauLogicalOperator"].flatMap(explicitRuleNames),
+);
 // Worded like the missing-`end` message of a define (validateDefineStructure).
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
@@ -374,13 +380,18 @@ function firstPart(node: any, start = node?.firstChild): any {
 
 // Whether an if expression's clause holds a value: its first part that is not
 // its keyword, a comment or space is a value, not a line or an operator that
-// continues a value before it, nor a unary operator with nothing after it.
+// continues a value before it, nor a unary operator with nothing after it. A
+// then arm whose `then` ends its line holds its keyword and first value in a
+// part of its own (`LuauThenNextLineArm`), whose parts are the arm's.
 function clauseHasValue(
   clause: any,
   read: (from: number, to: number) => string,
 ): boolean {
   const content = childNamed(clause, `${clause.name}_content`);
-  const part = firstPart(content);
+  let part = firstPart(content);
+  if (part?.name === "LuauThenNextLineArm") {
+    part = firstPart(childNamed(part, `${part.name}_content`));
+  }
   return !!part && !isLineContinuation(part) && isValue(part, read);
 }
 
@@ -589,11 +600,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   // (`loweredLuauBodyOf`), by its range, the errors its reading reports.
   private loweredReadings = new Map<string, readonly { message: string; from: number; to: number }[]>();
 
+  // The tree's story islands cut at their unclosed bracket's line
+  // (`cutIslands`), found once per tree.
+  private cutIslandRanges?: { tree: Tree; islands: readonly { from: number; to: number }[] };
+
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
     this.unreadReadings.clear();
     this.loweredReadings.clear();
     super.update(tree, text, uri);
+  }
+
+  /** Whether an offset is in a story island cut at its unclosed bracket's line. */
+  private inCutIsland(at: number): boolean {
+    const tree = this.tree;
+    if (!tree) return false;
+    if (this.cutIslandRanges?.tree !== tree) this.cutIslandRanges = { tree, islands: cutIslands(tree, this.statementDocumentText()) };
+    return this.cutIslandRanges.islands.some((island) => at >= island.from && at < island.to);
   }
 
   /**
@@ -1252,10 +1275,42 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
+  /**
+   * A binary operator that ends its line takes the line break, and its
+   * operand begins on a later line, as Luau reads it; no pattern sees that
+   * line (GRAMMAR.md §11.5). Where that line begins with a statement keyword,
+   * no expression begins there, and Luau reports the keyword as the missing
+   * operand. The checker reports it for the Luau it reads, and Sparkdown for
+   * a `store` declaration in a function, which it does not.
+   */
+  protected validateLineEndOperator(
+    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
+    nodeRef: SparkdownSyntaxNodeRef,
+  ) {
+    if (!LINE_BREAK_BINARY_OPERATORS.has(nodeRef.name) || !/[\r\n]/.test(this.read(nodeRef.from, nodeRef.to))) {
+      return;
+    }
+    const got = this.luauTokenAt(nodeRef.to);
+    if (got && LUAU_STATEMENT_KEYWORDS.has(got.text) && !this.checkerReadsOnTo(nodeRef.node, got.from)) {
+      this.error(annotations, `${MISSING_EXPRESSION}, got '${got.text}'`, got.from, got.from + got.text.length);
+    }
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    // A story declaration whose bracket never closes ends with its opener's
+    // line, and the tree reads the story lines after it into the bracket
+    // (`cutIslands`, I-1532). The checker's reading of the line alone
+    // reports every error of its Luau, so no Luau check reports in it: one
+    // here would read the tree's run-on, which is story.
+    if (nodeRef.name.startsWith("Luau") && this.inCutIsland(nodeRef.from)) {
+      return annotations;
+    }
+    // Before the unread reading's ownership: that reading's errors are the
+    // checker's, and this check reports only where the checker does not read.
+    this.validateLineEndOperator(annotations, nodeRef);
     if (nodeRef.name.startsWith("Luau") && this.ownedByUnreadReading(nodeRef.node)) {
       return annotations;
     }

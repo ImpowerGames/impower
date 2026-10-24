@@ -5,10 +5,10 @@ sparkdown [0..308]
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauFunctionDefinition_begin_c2 0
  │   │   ├─ LuauFunctionDefinition_begin_c3 0
- │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
+ │   │   ├─ LuauFunctionDefinition_begin_c5 [0..8]
  │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
- │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
- │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │   └─ LuauFunctionDefinition_begin_c6 [8..9]
+ │   │       └─ LuauFunctionDefinition_begin_c6 [8..9]
  │   │           └─ OptionalWhitespace [8..9]: " "
  │   ├─ LuauFunctionDefinition_content [9..270]
  │   │   ├─ LuauFunctionDeclarationName [9..10]
@@ -106,20 +106,24 @@ sparkdown [0..308]
  │   │       │   │   │       │       │       │   ├─ LuauThenExpression [41..48]
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 41
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [41..48]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [41..46]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 41
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 41
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 41
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 41
- │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 41
- │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 41
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [41..46]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [41..42]: "\n"
- │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [42..46]: "    "
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 46
- │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [46..47]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [46..47]: "1"
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 47
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenNextLineArm [41..47]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 41
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [41..47]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator [41..46]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin 41
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 41
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 41
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 41
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │       └─ LuauThenOperator_begin_c3 41
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │           └─ OptionalWhitespace 41
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [41..46]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ Newline [41..42]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [42..46]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 46
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [46..47]
+ │   │       │   │   │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [46..47]: "1"
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 47
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 47
  │   │       │   │   │       │       │       │   │   │   └─ Newline [47..48]: "\n"
  │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 48
  │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [48..50]: "  "
@@ -207,20 +211,24 @@ sparkdown [0..308]
  │   │       │   │   │       │       │       │   ├─ LuauThenExpression [79..86]
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 79
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [79..86]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [79..84]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 79
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 79
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 79
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 79
- │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 79
- │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 79
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [79..84]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [79..80]: "\n"
- │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [80..84]: "    "
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 84
- │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [84..85]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [84..85]: "2"
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 85
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenNextLineArm [79..85]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 79
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [79..85]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator [79..84]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin 79
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 79
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 79
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 79
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │       └─ LuauThenOperator_begin_c3 79
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │           └─ OptionalWhitespace 79
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [79..84]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ Newline [79..80]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [80..84]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 84
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [84..85]
+ │   │       │   │   │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [84..85]: "2"
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 85
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 85
  │   │       │   │   │       │       │       │   │   │   └─ Newline [85..86]: "\n"
  │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 86
  │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [86..88]: "  "
@@ -299,20 +307,24 @@ sparkdown [0..308]
  │   │       │   │   │       │       │       │   ├─ LuauThenExpression [117..124]
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 117
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [117..124]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [117..122]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 117
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 117
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 117
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 117
- │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 117
- │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 117
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [117..122]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [117..118]: "\n"
- │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [118..122]: "    "
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 122
- │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [122..123]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [122..123]: "3"
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 123
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenNextLineArm [117..123]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 117
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [117..123]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator [117..122]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin 117
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 117
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 117
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 117
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │       └─ LuauThenOperator_begin_c3 117
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │           └─ OptionalWhitespace 117
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [117..122]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ Newline [117..118]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [118..122]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 122
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [122..123]
+ │   │       │   │   │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [122..123]: "3"
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 123
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 123
  │   │       │   │   │       │       │       │   │   │   └─ Newline [123..124]: "\n"
  │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 124
  │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [124..126]: "  "
@@ -400,20 +412,24 @@ sparkdown [0..308]
  │   │       │   │   │       │       │       │   ├─ LuauThenExpression [162..169]
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 162
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [162..169]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [162..167]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 162
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 162
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 162
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 162
- │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 162
- │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 162
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [162..167]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [162..163]: "\n"
- │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [163..167]: "    "
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 167
- │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [167..168]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [167..168]: "5"
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 168
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenNextLineArm [162..168]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 162
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [162..168]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator [162..167]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin 162
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 162
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 162
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 162
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │       └─ LuauThenOperator_begin_c3 162
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │           └─ OptionalWhitespace 162
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [162..167]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ Newline [162..163]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [163..167]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 167
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [167..168]
+ │   │       │   │   │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [167..168]: "5"
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 168
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 168
  │   │       │   │   │       │       │       │   │   │   └─ Newline [168..169]: "\n"
  │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 169
  │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [169..171]: "  "
@@ -449,20 +465,24 @@ sparkdown [0..308]
  │   │       │   │   │       │       │       │   ├─ LuauThenExpression [185..192]
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 185
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [185..192]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauThenOperator [185..190]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_begin 185
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c1 185
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator_begin_c2 185
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauThenOperator_begin_c3 185
- │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauThenOperator_begin_c3 185
- │   │       │   │   │       │       │       │   │   │   │   │           └─ OptionalWhitespace 185
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenOperator_content [185..190]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ Newline [185..186]: "\n"
- │   │       │   │   │       │       │       │   │   │   │   │   └─ ExtraWhitespace [186..190]: "    "
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenOperator_end 190
- │   │       │   │   │       │       │       │   │   │   ├─ LuauNumericDecimal [190..191]
- │   │       │   │   │       │       │       │   │   │   │   ├─ LuauNumericDecimal_c1 [190..191]: "6"
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauNumericDecimal_c2 191
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauThenNextLineArm [185..191]
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_begin 185
+ │   │       │   │   │       │       │       │   │   │   │   ├─ LuauThenNextLineArm_content [185..191]
+ │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauThenOperator [185..190]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_begin 185
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c1 185
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ LuauThenOperator_begin_c2 185
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ LuauThenOperator_begin_c3 185
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │       └─ LuauThenOperator_begin_c3 185
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │           └─ OptionalWhitespace 185
+ │   │       │   │   │       │       │       │   │   │   │   │   │   ├─ LuauThenOperator_content [185..190]
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   ├─ Newline [185..186]: "\n"
+ │   │       │   │   │       │       │       │   │   │   │   │   │   │   └─ ExtraWhitespace [186..190]: "    "
+ │   │       │   │   │       │       │       │   │   │   │   │   │   └─ LuauThenOperator_end 190
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauNumericDecimal [190..191]
+ │   │       │   │   │       │       │       │   │   │   │   │       ├─ LuauNumericDecimal_c1 [190..191]: "6"
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauNumericDecimal_c2 191
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauThenNextLineArm_end 191
  │   │       │   │   │       │       │       │   │   │   └─ Newline [191..192]: "\n"
  │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 192
  │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [192..194]: "  "
@@ -701,17 +721,21 @@ sparkdown [0..308]
  │   │       │   │   │       │       │       │   └─ LuauThenExpression [258..261]
  │   │       │   │   │       │       │       │       ├─ LuauThenExpression_begin 258
  │   │       │   │   │       │       │       │       ├─ LuauThenExpression_content [258..261]
- │   │       │   │   │       │       │       │       │   └─ LuauThenOperator [258..261]
- │   │       │   │   │       │       │       │       │       ├─ LuauThenOperator_begin 258
- │   │       │   │   │       │       │       │       │       │   ├─ LuauThenOperator_begin_c1 258
- │   │       │   │   │       │       │       │       │       │   ├─ LuauThenOperator_begin_c2 258
- │   │       │   │   │       │       │       │       │       │   └─ LuauThenOperator_begin_c3 258
- │   │       │   │   │       │       │       │       │       │       └─ LuauThenOperator_begin_c3 258
- │   │       │   │   │       │       │       │       │       │           └─ OptionalWhitespace 258
- │   │       │   │   │       │       │       │       │       ├─ LuauThenOperator_content [258..261]
- │   │       │   │   │       │       │       │       │       │   ├─ Newline [258..259]: "\n"
- │   │       │   │   │       │       │       │       │       │   └─ ExtraWhitespace [259..261]: "  "
- │   │       │   │   │       │       │       │       │       └─ LuauThenOperator_end 261
+ │   │       │   │   │       │       │       │       │   └─ LuauThenNextLineArm [258..261]
+ │   │       │   │   │       │       │       │       │       ├─ LuauThenNextLineArm_begin 258
+ │   │       │   │   │       │       │       │       │       ├─ LuauThenNextLineArm_content [258..261]
+ │   │       │   │   │       │       │       │       │       │   └─ LuauThenOperator [258..261]
+ │   │       │   │   │       │       │       │       │       │       ├─ LuauThenOperator_begin 258
+ │   │       │   │   │       │       │       │       │       │       │   ├─ LuauThenOperator_begin_c1 258
+ │   │       │   │   │       │       │       │       │       │       │   ├─ LuauThenOperator_begin_c2 258
+ │   │       │   │   │       │       │       │       │       │       │   └─ LuauThenOperator_begin_c3 258
+ │   │       │   │   │       │       │       │       │       │       │       └─ LuauThenOperator_begin_c3 258
+ │   │       │   │   │       │       │       │       │       │       │           └─ OptionalWhitespace 258
+ │   │       │   │   │       │       │       │       │       │       ├─ LuauThenOperator_content [258..261]
+ │   │       │   │   │       │       │       │       │       │       │   ├─ Newline [258..259]: "\n"
+ │   │       │   │   │       │       │       │       │       │       │   └─ ExtraWhitespace [259..261]: "  "
+ │   │       │   │   │       │       │       │       │       │       └─ LuauThenOperator_end 261
+ │   │       │   │   │       │       │       │       │       └─ LuauThenNextLineArm_end 261
  │   │       │   │   │       │       │       │       └─ LuauThenExpression_end 261
  │   │       │   │   │       │       │       └─ LuauTernaryExpression_end 261
  │   │       │   │   │       │       └─ LuauAssignmentOperation_end 261
@@ -746,7 +770,7 @@ sparkdown [0..308]
  │       ├─ LuauFunctionDefinition_end_c2 [270..273]
  │       │   └─ LuauEndKeyword [270..273]: "end"
  │       ├─ LuauFunctionDefinition_end_c3 273
- │       └─ LuauFunctionDefinition_end_c4 273
+ │       └─ LuauFunctionDefinition_end_c5 273
  ├─ Newline [273..274]: "\n"
  ├─ Newline [274..275]: "\n"
  ├─ LuauSparkdownVariableDefinition [275..295]

@@ -1,4 +1,4 @@
-import type { SyntaxNode } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 
 // A Luau statement in a story body (a scene, a branch or the file's top
 // level) ends at its line unless a bracket, a long string or a block comment
@@ -55,13 +55,17 @@ export function lastLineEnd(text: string, to: number): number {
  * statement ends on, so a token later on that line (`local a = 1 +;`) is
  * still one Luau's reading meets. A marked statement already spans its
  * line. A genuine function inside it keeps Luau's own multiline reading, so
- * a node in one has none.
+ * a node in one has none, unless the statement is cut at its unclosed
+ * bracket's line (`unclosedIslandEnd`), which ends the function too.
  */
 export function storyIslandEnd(node: SyntaxNode, text: string): number | undefined {
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
-    if (n.name === "LuauFunctionBody") return undefined;
+    // A statement cut at its unclosed bracket's line ends there, a function
+    // in it included (`unclosedIslandEnd`, I-1532): above a function, only
+    // the island it may be in is looked for (`enclosingUnclosedIslandEnd`).
+    if (n.name === "LuauFunctionBody") return enclosingUnclosedIslandEnd(n, text);
     if (n.name === "LuauSparkdownExplicitStatement") return n.to;
-    if (STORY_STATEMENTS.has(n.name)) return lastLineEnd(text, n.to);
+    if (STORY_STATEMENTS.has(n.name)) return unclosedIslandEnd(n, text) ?? lastLineEnd(text, n.to);
     if (isStoryCondition(n)) return lastLineEnd(text, n.to);
     if (n.name === "LuauSparkdownExplicitUntilCondition" && isStoryUntilCondition(n)) return lastLineEnd(text, n.to);
   }
@@ -81,6 +85,125 @@ export function continuesPastLine(node: SyntaxNode, text: string): boolean {
     if (lastLineEnd(text, next.to) > end) return true;
   }
   return false;
+}
+
+const BRACKET_OPENER = /^Punctuation(?:Paren|Brace|Bracket)Open$/;
+const BRACKET_CLOSER = /^Punctuation(?:Paren|Brace|Bracket)Close$/;
+
+/** The first node with text and no children in a node's subtree. */
+function firstLeaf(node: SyntaxNode): SyntaxNode | null {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.from === child.to) continue;
+    return firstLeaf(child) ?? child;
+  }
+  return null;
+}
+
+/** The first node in a node's subtree, itself included, named as `pattern` matches. */
+function holds(node: SyntaxNode, pattern: RegExp): SyntaxNode | null {
+  if (pattern.test(node.name)) return node;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    const found = holds(child, pattern);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * The opener of the outermost bracket in a story declaration or
+ * reassignment island that has no closer, if one does. A bracket the tree
+ * never closes runs on to the island's end, so it is on the path of the
+ * nodes that end where the island does; a closed bracket on that path ends
+ * the search, as no bracket in it is outermost.
+ */
+function unclosedOpener(island: SyntaxNode): SyntaxNode | null {
+  let node = island;
+  for (;;) {
+    let next: SyntaxNode | null = null;
+    for (let child = node.lastChild; child && child.to === island.to; child = child.prevSibling) {
+      if (child.from < child.to) {
+        next = child;
+        break;
+      }
+    }
+    if (!next) return null;
+    // A string's braces (a backtick string's, a quoted string's
+    // interpolation) are the string's: one it leaves unfinished runs on as
+    // the string does, not as a bracket.
+    if (next.name.startsWith("LuauInterpolatedString") || next.name.includes("String")) return null;
+    // A bracket's rule begins with its opener (`(`, `{`, `[`), where a
+    // block's begins with its keyword (`function(x)`, ended by `end`).
+    const begin = next.getChild(`${next.name}_begin`);
+    const opener = begin && firstLeaf(begin);
+    if (opener && BRACKET_OPENER.test(opener.name)) {
+      const end = next.getChild(`${next.name}_end`);
+      return end && holds(end, BRACKET_CLOSER) ? null : opener;
+    }
+    node = next;
+  }
+}
+
+/**
+ * Where a story declaration or reassignment island ends when it leaves a
+ * bracket open (I-1532): the end of the line of its outermost unclosed
+ * bracket's opener. The tree reads the story lines after that bracket into
+ * it, up to whatever ends the statement's node, but a bracket that never
+ * closes carried nothing on (#1907), so those lines are story, and Luau's
+ * reading meets its end of input at the end of the opener's line, as it
+ * does for that line alone. Undefined for any other node, or an island
+ * with no unclosed bracket.
+ */
+export function unclosedIslandEnd(node: SyntaxNode, text: string): number | undefined {
+  if (node.name !== "LuauSparkdownVariableDefinition" && node.name !== "LuauSparkdownReassignment") return undefined;
+  if (!isStoryStatementIsland(node)) return undefined;
+  const opener = unclosedOpener(node);
+  return opener ? lastLineEnd(text, opener.to) : undefined;
+}
+
+/**
+ * The `unclosedIslandEnd` of the story island a node is inside, if it has
+ * one. Every node between an island and a node in it is a rule of its Luau,
+ * so the search stops at the first that is not. Every reading of a node
+ * asks where it begins (`Tokenizer.read`), and nodes with one parent share
+ * the answer, which is kept for the document by that parent.
+ */
+export function enclosingUnclosedIslandEnd(node: SyntaxNode, text: string): number | undefined {
+  const parent = node.parent;
+  if (!parent) return undefined;
+  if (enclosingEnds.text !== text) enclosingEnds = { text, byParent: new Map() };
+  const key = `${parent.name}:${parent.from}:${parent.to}`;
+  const known = enclosingEnds.byParent.get(key);
+  if (known !== undefined) return known ?? undefined;
+  let end: number | undefined;
+  for (let n: SyntaxNode | null = parent; n && n.name.startsWith("Luau"); n = n.parent) {
+    if ((n.name === "LuauSparkdownVariableDefinition" || n.name === "LuauSparkdownReassignment") && isStoryStatementIsland(n)) {
+      end = unclosedIslandEnd(n, text);
+      break;
+    }
+  }
+  enclosingEnds.byParent.set(key, end ?? null);
+  return end;
+}
+
+// The `enclosingUnclosedIslandEnd` of the nodes under each parent, by the
+// parent's rule and range, for the document last asked about.
+let enclosingEnds: { text: string; byParent: Map<string, number | null> } = { text: "", byParent: new Map() };
+
+/**
+ * The ranges of the story islands in a tree that are cut at their unclosed
+ * bracket's line (`unclosedIslandEnd`), the story lines the tree reads into
+ * the bracket included. The reading of the island's line alone reports
+ * every error of its Luau.
+ */
+export function cutIslands(tree: Tree, text: string): { from: number; to: number }[] {
+  const islands: { from: number; to: number }[] = [];
+  tree.iterate({
+    enter: (ref) => {
+      if (ref.name !== "LuauSparkdownVariableDefinition" && ref.name !== "LuauSparkdownReassignment") return;
+      if (unclosedIslandEnd(ref.node, text) !== undefined) islands.push({ from: ref.from, to: ref.to });
+    },
+  });
+  return islands;
 }
 
 /** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */

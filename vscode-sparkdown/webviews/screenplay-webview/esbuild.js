@@ -7,6 +7,12 @@ import path from "path";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
+// The files the `?tw` loader below compiled (the entry and the CSS it
+// imports), collected on every build. The metafile lists only the entry, and
+// the loader's `watchFiles` reach only esbuild's own ctx.watch(), so in --watch
+// mode they are handed to the watcher explicitly.
+const tailwindInputs = new Set();
+
 /**
  * Compile a Tailwind entry CSS to a string at build time, importable as
  * `import css from "./foo.css?tw"`. Used to inject impower-ui's utilities into
@@ -18,6 +24,9 @@ const WATCH = process.argv.includes("--watch");
 const tailwindLoader = () => ({
   name: "tailwind-loader",
   setup(build) {
+    build.onStart(() => {
+      tailwindInputs.clear();
+    });
     build.onResolve({ filter: /\?tw$/ }, (args) => ({
       path: path.resolve(args.resolveDir, args.path.replace(/\?tw$/, "")),
       namespace: "tailwind-loader",
@@ -34,6 +43,7 @@ const tailwindLoader = () => ({
         });
         const scanner = new Scanner({ sources: compiler.sources });
         const css = compiler.build(scanner.scan());
+        for (const file of watchFiles) tailwindInputs.add(file);
         return { contents: `export default ${JSON.stringify(css)};`, watchFiles };
       },
     );
@@ -134,12 +144,20 @@ const config = {
     "@lezer/common": "@lezer/common",
     "@lezer/highlight": "@lezer/highlight",
   },
+  metafile: WATCH,
 };
 
 async function main() {
   const ctx = await context(config);
   if (WATCH) {
-    await ctx.watch();
+    // Not ctx.watch(), which polls the build graph's files; the helper watches
+    // that graph and the Tailwind loader's files from change notifications. A
+    // failed rebuild is logged and watching continues.
+    const { watchBuild } = await import("../../../scripts/esbuild-watch.mjs");
+    await watchBuild(ctx, {
+      extraInputs: () => tailwindInputs,
+      onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();

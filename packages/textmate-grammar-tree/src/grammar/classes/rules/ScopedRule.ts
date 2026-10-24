@@ -43,6 +43,12 @@ export class ScopedRule implements Rule {
   constructor(repo: GrammarRepository, def: ScopedRuleDefinition) {
     this.repo = repo;
 
+    // Refused before anything is registered, so a refusal leaves no type
+    // index without its node (the repository's eager resolution catches it).
+    if ("while" in def) {
+      throw new Error("while rules are not currently supported");
+    }
+
     let id = def.id ?? createID();
     this.id = id;
     this.node = new GrammarNode(
@@ -59,20 +65,18 @@ export class ScopedRule implements Rule {
     const beginRuleItem: MatchRuleDefinition = {
       id: beginId,
       match: def.begin,
-      captures: def.beginCaptures,
+      // vscode-textmate falls back on `captures` (beginCaptures || captures)
+      captures: def.beginCaptures ?? def.captures,
       closedBy: (def.closedBy ?? def.brackets) ? endId : undefined,
     };
     this.beginRule = repo.add(beginRuleItem, beginId);
-
-    if ("while" in def) {
-      throw new Error("while rules are not currently supported");
-    }
 
     // end
     const endRuleItem: MatchRuleDefinition = {
       id: endId,
       match: def.end,
-      captures: def.endCaptures,
+      // vscode-textmate falls back on `captures` (endCaptures || captures)
+      captures: def.endCaptures ?? def.captures,
       openedBy: (def.openedBy ?? def.brackets) ? beginId : undefined,
     };
     this.endRule = repo.add(endRuleItem, endId);
@@ -257,15 +261,13 @@ export class ScopedRule implements Rule {
   }
 
   begin(state: GrammarState, from: number) {
-    let beginMatched = this.beginRule.match(state, from);
-    if (!beginMatched) {
+    const begun = this.beginRule.matchGroups(state, from);
+    if (!begun) {
       return null;
     }
-    const captures = [""];
-    beginMatched.children?.forEach((c) => {
-      captures.push(state.str.slice(c.from, c.from + c.length));
-    });
-    beginMatched = beginMatched.wrap(this.node, Wrapping.BEGIN);
+    // The end's `\N` is the begin's group N, as in vscode-textmate.
+    const captures = begun.groups.map((group) => group ?? "");
+    const beginMatched = begun.matched.wrap(this.node, Wrapping.BEGIN);
     this.contentRule.resolve();
     state.stack.push(this.node, captures);
     return beginMatched;

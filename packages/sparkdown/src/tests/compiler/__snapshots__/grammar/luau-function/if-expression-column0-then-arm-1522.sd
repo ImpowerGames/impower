@@ -1,0 +1,72 @@
+function a(c)
+while if c then
+false
+else true do
+end
+end
+function b(c)
+print(if c then
+1
+else 2)
+end
+function d(c)
+return if c then
+1
+else 2
+end
+function e(c)
+local y = if c then -- note
+
+1
+else 2
+return y
+end
+function g(c)
+local y = if c then
+local z = 1
+end
+function h(c)
+local y = if c then
+return y
+end
+function k(c)
+if if c then c then
+print(c)
+end
+while if c then c do
+print(c)
+end
+if if c then (c)then
+print(c)
+end
+if if c then "x"then
+print(c)
+end
+if if c then c:then
+print(c)
+end
+while if c then c:do
+print(c)
+end
+end
+function n(c)
+local w = if (c)then
+1
+else 2
+return w
+end
+function p(c)
+local y = if c then 1 -- )then
+print(c)
+local z = if c then 1 -- ]then
+print(c)
+local u = if c then 1 -- "then
+print(c)
+local t = if c then 1 -- ...then
+print(c)
+local s = if c then 1 -- /gthen
+print(c)
+local v = if c then
+false -- f(x)then
+print(c)
+end

@@ -193,6 +193,7 @@ import {
 } from "../utils/runOperand";
 import {
   runDeclarationText,
+  runFileRecord,
   runWrapperFunctionName,
   runWrapperUri,
 } from "../utils/runWrapper";
@@ -1734,6 +1735,7 @@ export class SparkdownCompiler {
     // compile starts from.
     const fileResolutionState = {
       currentParentUri: uri,
+      runFiles: new Map<string, string>(),
     };
     const fileHandler: IFileHandler = {
       ResolveInkFilename: (filename: string): string => {
@@ -2055,7 +2057,13 @@ export class SparkdownCompiler {
       // A program runs from its statement chunks. A statement that holds a
       // construct the program has no emit path for is a compile error at its
       // line, and such a compile makes no program (`buildProgramChunks`).
-      const chunked = this.buildProgramChunks(parsedStory, tables, program, uri);
+      const chunked = this.buildProgramChunks(
+        parsedStory,
+        tables,
+        program,
+        uri,
+        fileResolutionState.runFiles,
+      );
       if (chunked) {
         state.produced = true;
         state.structDefinitions =
@@ -3121,6 +3129,12 @@ export class SparkdownCompiler {
             : undefined;
           if (!declared?.has(resolvedFilePath)) {
             declared?.add(resolvedFilePath);
+            // What the program shows the wrapper by comes from this record,
+            // never from the wrapper's name.
+            state.fileResolutionState?.runFiles?.set(
+              wrapperName,
+              resolvedFilePath,
+            );
             const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
             // A document is set again only when its text changed, under the
             // next version, so the registry parses the new text (the .luau
@@ -3538,9 +3552,9 @@ export class SparkdownCompiler {
   }
 
   // Canonicalize compiler-synthesized identifier names that are minted from a
-  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
-  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
-  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`),
+  // node's ABSOLUTE source offset at lowering time — anonymous/define
+  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`), method-call
+  // receiver temps (`__mcall_<from>`),
   // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …),
   // compound property assignment temps (`__pa_base_<from>`, `__pa_key_<from>`)
   // and multi-target assignment temps (`__mt_<from>_<i>`, `__mt_base_<from>_<i>`,
@@ -3602,7 +3616,7 @@ export class SparkdownCompiler {
     // name such as `f__redef_x__1` or `__synth_0` for one of its own. The
     // canonical form is the one its readers share (`NUMBERED_SYNTHETIC_NAME`).
     const RAW_SYNTH =
-      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
+      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$/;
     const SYNTH = new RegExp(
       `${NUMBERED_SYNTHETIC_NAME.source}|${RAW_SYNTH.source}`,
     );
@@ -3956,11 +3970,15 @@ export class SparkdownCompiler {
     if (!tree || !doc) {
       return;
     }
+    let documentText: string | undefined;
     const ctx = {
       filePath: uri,
       read: (from: number, to: number) => doc.read(from, to),
       lineNumber: (pos: number) => doc.positionAt(pos).line,
       characterNumber: (pos: number) => doc.positionAt(pos).character,
+      // A block opened in a story statement cut at its unclosed bracket's
+      // line is Luau's reading's to report (`validateBlockEnds`, I-1532).
+      documentText: () => (documentText ??= doc.getText()),
     } as unknown as LowerContext;
     const emit = (diags: ReturnType<typeof validateScene>) => {
       for (const d of diags) {
@@ -4323,6 +4341,7 @@ export class SparkdownCompiler {
     tables: ProgramStoryTables,
     program: SparkProgram,
     uri: string,
+    runFiles: ReadonlyMap<string, string> = new Map(),
   ): boolean {
     profile("start", this._profilerId, "program/chunks", uri);
     const lineCount = (scriptUri: string) => {
@@ -4354,6 +4373,11 @@ export class SparkdownCompiler {
         declarations: flows.declarations,
         lineCount,
         changed,
+        runFiles: runFileRecord(
+          runFiles,
+          projectRootUri(uri),
+          this._config.uriPathsAsWritten,
+        ),
       },
       !this._previewing && !flows.unsupported,
       tables,

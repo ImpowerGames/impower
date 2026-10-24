@@ -11,7 +11,6 @@ import {
 } from "../../typecheck/Ast";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
-import { shadowSiblingSubFlow } from "../expression/bindings";
 import {
   astIdentifier,
   lowerCallArguments,
@@ -68,17 +67,9 @@ export function lowerVariableDefinition(
     }
   }
 
-  // A `local f = ...` over a name that statically referred to a sibling
-  // variadic subflow (`function f(...)` earlier in this function) hides
-  // the subflow for the rest of its block (`shadowSiblingSubFlow` below),
-  // and a local of a function nested in that one hides it there by
-  // resolution, the inner frame first (`resolveCallableBinding`): the
-  // subflow is reached again after the local's block (math.luau line
-  // 503's `local v,f = math.modf(...)` after the chunk-level
-  // `function f(...)`). A `store` or published `const` of the name drops
-  // the registry entries, as lowerReassignment's rebind does — registry
-  // consulted in lexical order, so earlier call sites keep the knot
-  // binding.
+  // A `store` or published `const` of the name drops the registry's
+  // rebound entries (`recordRebind`) — registry consulted in lexical
+  // order, so earlier call sites keep their binding.
   if (scope !== "local" && ctx.siblingSubFlowNamesStack) {
     for (const t of targets) {
       for (const frame of ctx.siblingSubFlowNamesStack) {
@@ -159,11 +150,6 @@ export function lowerVariableDefinition(
       // after them read and assign these locals.
       const multiExprs =
         expressions.length === 0 ? [new NullExpression()] : expressions;
-      // Each local hides a variadic function of its name for the rest of
-      // its block, the statements after it on its line included.
-      for (const target of targetIdentifiers) {
-        if (target.name) shadowSiblingSubFlow(target.name, ctx);
-      }
       const multi = new MultiVariableAssignment(targetIdentifiers, multiExprs, true);
       markRootDeclarations(multi.targetAssignments, targets, ctx);
       return wrapInWeave([multi]);
@@ -209,7 +195,6 @@ export function lowerVariableDefinition(
   // (`local x = 1, bump()` calls `bump`), as the multiple assignment does
   // (`lowerReassignment.ts`, `lowerMultipleAssignment`).
   if (scope === "local" && expressions.length > 1) {
-    if (lastIdentifier.name) shadowSiblingSubFlow(lastIdentifier.name, ctx);
     const multi = new MultiVariableAssignment([lastIdentifier], expressions, true);
     markRootDeclarations(multi.targetAssignments, [targets[targets.length - 1]!], ctx);
     return wrapInWeave([multi]);
@@ -231,11 +216,6 @@ export function lowerVariableDefinition(
   });
   // A store evaluates its values after the first and drops them (#1333).
   if (scope === "store") va.Discard(expressions.slice(1));
-  // A local hides a variadic function of its name for the rest of its
-  // block, the statements after it on its line included.
-  if (isTemp && lastIdentifier.name) {
-    shadowSiblingSubFlow(lastIdentifier.name, ctx);
-  }
   if (isTemp) markRootDeclarations([va], [targets[targets.length - 1]!], ctx);
   return wrapInWeave([va]);
 }

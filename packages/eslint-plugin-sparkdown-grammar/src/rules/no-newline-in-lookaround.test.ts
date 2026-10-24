@@ -54,12 +54,16 @@ test("\\s inside a lookaround fails", () => {
   match: (x)(?=\\s*y)`), ["Rule.match: `\\s` (matches `\\n`) inside a lookaround"]);
 });
 
-test("a variable that reads past the line on purpose says why and passes", () => {
+test("a comment on a variable does not exempt the line break it brings in", () => {
+  // The `# reads-past-line:` marker once exempted a variable; since I-1283
+  // no pattern can read past its line, so nothing is exempt.
   const trivia = `# reads-past-line: skips blank lines to the next token.
 TRIVIA: (?:[\\r\\n]|{{WS}})*
 WS: (?:[^\\S\\n\\r])`;
   assert.deepEqual(findings(`Rule:
-  match: (x)(?={{TRIVIA}}y)`, trivia), []);
+  match: (x)(?={{TRIVIA}}y)`, trivia), [
+    "Rule.match: `[\\r\\n]` with more of its lookahead after it (from variable TRIVIA)",
+  ]);
 });
 
 test("a line break repeated within its lookahead fails", () => {
@@ -90,12 +94,4 @@ Once:
     "Rule.match: `[\\s]` inside a lookbehind",
     "Other.match: `[\\s]` inside a lookbehind",
   ]);
-});
-
-test("an exempt variable's line break does not hide a later one in the same lookahead", () => {
-  const trivia = `# reads-past-line: skips blank lines to the next token.
-TRIVIA: (?:[\\r\\n]|{{WS}})*
-WS: (?:[^\\S\\n\\r])`;
-  assert.deepEqual(findings(`Rule:
-  match: (x)(?={{TRIVIA}}q\\nZ)`, trivia), ["Rule.match: `\\n` with more of its lookahead after it"]);
 });
