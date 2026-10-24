@@ -519,6 +519,15 @@ describe("morph bake: apertures that cannot be built", () => {
     expect(top.some((e) => e.attributes["id"] === `${artifact.idPrefix}face`)).toBe(true);
   });
 
+  test("a reference inside a CSS comment or string references nothing", () => {
+    const commented = art(
+      lash(UPPER_OPEN, "eyelash-left", ` style="fill:#111 /* url(#gone) */"`) + lash(LOWER_OPEN),
+      LASH_CLOSED,
+      `<style>/* .old { fill: url(#gone) } */ .note { --text: "url(#gone)" }</style>`,
+    );
+    expect(bake(commented, recipe()).diagnostics).toEqual([]);
+  });
+
   test("a missing referenced resource is reported on the artwork", () => {
     const artifact = bake(art(lash(UPPER_OPEN, "eyelash-left", ` stroke="url(#gone)"`) + lash(LOWER_OPEN), LASH_CLOSED), recipe());
     expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "resource-missing", uri: URI })]);

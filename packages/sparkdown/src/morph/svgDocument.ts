@@ -393,17 +393,23 @@ export function convertToPath(element: Element, d: string) {
 // and `href`/`xlink:href` pointing into the document.
 const URL_REF = /url\(\s*(['"]?)#([^'")\s]+)\1\s*\)/g;
 
+// The ids `url(#…)` names in CSS text, outside comments and strings.
+const cssUrlIds = (css: string): string[] => {
+  const masked = maskCss(css);
+  return [...css.matchAll(URL_REF)]
+    .filter((match) => masked.slice(match.index!, match.index! + 4).toLowerCase() === "url(")
+    .map((match) => match[2]!);
+};
+
 export function referencedIds(element: Element): string[] {
   const ids: string[] = [];
   for (const [name, value] of Object.entries(element.attributes)) {
     if (typeof value !== "string") continue;
     if ((name === "href" || name === "xlink:href") && value.startsWith("#")) ids.push(value.slice(1));
-    for (const match of value.matchAll(URL_REF)) ids.push(match[2]!);
+    ids.push(...(name === "style" ? cssUrlIds(value) : [...value.matchAll(URL_REF)].map((match) => match[2]!)));
   }
   if (element.tagName.toLowerCase() === "style") {
-    for (const child of element.children) {
-      if (typeof child === "string") for (const match of child.matchAll(URL_REF)) ids.push(match[2]!);
-    }
+    ids.push(...cssUrlIds(element.children.filter((c): c is string => typeof c === "string").join("")));
   }
   return ids;
 }
