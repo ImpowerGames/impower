@@ -218,14 +218,28 @@ describe("morph bake: compositing and authored style", () => {
     expect(closed.attributes["style"]).toBe("fill:#111;display:none");
   });
 
-  test("a style-sheet display rule cannot reveal a state hidden at rest", () => {
-    // `.authored { display: inline }` outranks a display attribute, not an inline declaration.
-    const sheet = art(
-      lash(UPPER_OPEN, "eyelash-left", ' class="authored"') + lash(LOWER_OPEN, "eyelash-left", ' class="authored"'),
-      lash(CLOSED, "eyelash-left", ' class="authored"'),
-      "<style>.authored { display: inline }</style>",
-    );
-    const artifact = bake(sheet, recipe());
+  test("art a style-sheet display rule may apply to keeps its static render", () => {
+    // `.authored { display: inline !important }` would outrank any inline
+    // declaration that hides a state, and a sheet can reveal what an
+    // attribute hides, so neither is baked live.
+    for (const rule of [".authored { display: inline }", ".authored { display: inline !important }", "g.eyes { display: block }"]) {
+      const sheet = art(
+        lash(UPPER_OPEN, "eyelash-left", ' class="authored"') + lash(LOWER_OPEN, "eyelash-left", ' class="authored"'),
+        lash(CLOSED, "eyelash-left", ' class="authored"'),
+        `<g class="eyes"/><style>${rule}</style>`,
+      );
+      const artifact = bake(sheet, recipe());
+      expect(artifact.status).toBe("static");
+      expect(codes(artifact)).toEqual(["unsupported-element"]);
+      expect(artifact.diagnostics[0]!.message).toContain("`display`");
+    }
+    // A display rule no drawing matches leaves the morph alone.
+    const unrelated = art(LASHES_OPEN, LASH_CLOSED, "<style>.unused { display: none }</style>");
+    expect(bake(unrelated, recipe()).status).toBe("live");
+  });
+
+  test("hidden state leaves are hidden inline in the live part and by the renderer", () => {
+    const artifact = bake(art(LASHES_OPEN, LASH_CLOSED), recipe());
     const live = elements(artifact.parts.find((p) => p.kind === "live")!.svg);
     expect(live.find((e) => e.attributes["d"] === CLOSED)!.attributes["style"]).toBe("display:none");
     const closedPose = elements(renderMorphFrame(artifact, { segment: 0, progress: 1 }));
@@ -233,6 +247,22 @@ describe("morph bake: compositing and authored style", () => {
     const open = closedPose.filter((e) => openNodes.includes(e.attributes["data-morph"] ?? ""));
     expect(open).toHaveLength(2);
     expect(open.map((e) => e.attributes["style"])).toEqual(["display:none", "display:none"]);
+  });
+
+  test("display is read from the inline declaration, important or not, before the attribute", () => {
+    const HIDDEN = "M10,10H20V20H10Z";
+    const SHOWN = "M30,10H40V20H30Z";
+    const svg = art(
+      LASHES_OPEN +
+        `<path data-name="crease" d="${HIDDEN}" style="display:none !important"/>` +
+        `<g display="none" style="display:inline"><path data-name="crease" d="${SHOWN}"/></g>`,
+      LASH_CLOSED,
+    );
+    const artifact = bake(svg, recipe());
+    expect(artifact.status).toBe("live");
+    const drawn = artifact.parts.flatMap((p) => elements(p.svg)).map((e) => e.attributes["d"]);
+    expect(drawn).not.toContain(HIDDEN);
+    expect(drawn).toContain(SHOWN);
   });
 
   test("art the author hid is no live drawing", () => {
@@ -379,6 +409,40 @@ describe("morph bake: apertures that cannot be built", () => {
     expect(artifact.status).toBe("static");
     expect(codes(artifact)).toEqual(["unsupported-element"]);
     expect(artifact.diagnostics[0]!.message).toContain("standing still");
+  });
+
+  test("a moving drawing reached through a kept group's clip path or a style sheet keeps the variant static", () => {
+    const copyClip = `<defs><clipPath id="copy"><use href="#open-lash"/></clipPath></defs>`;
+    const withId = art(lash(UPPER_OPEN, "eyelash-left", ` id="open-lash"`) + lash(LOWER_OPEN), LASH_CLOSED);
+    const throughGroup = withId.replace(
+      "</svg>",
+      `${copyClip}<g clip-path="url(#copy)"><path data-name="nose" d="M0,0H120V100H0Z" fill="#a76"/></g>\n</svg>`,
+    );
+    const throughSheet = withId.replace(
+      "</svg>",
+      `${copyClip}<style>.nose { clip-path: url(#copy) }</style><path class="nose" data-name="nose" d="M0,0H120V100H0Z" fill="#a76"/>\n</svg>`,
+    );
+    for (const svg of [throughGroup, throughSheet]) {
+      const artifact = bake(svg, recipe());
+      expect(artifact.status).toBe("static");
+      expect(codes(artifact)).toEqual(["unsupported-element"]);
+      expect(artifact.diagnostics[0]!.message).toContain("standing still");
+    }
+  });
+
+  test("unchanging art a compositing group keeps in a live part can still be referenced", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g opacity=".5">
+<path id="face" data-name="face" d="M0,0H120V100H0Z" fill="#fdb"/>
+<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.closed">${LASH_CLOSED}</g>
+</g>
+<use href="#face" transform="translate(0 50)"/>
+</svg>`;
+    const artifact = bake(svg, recipe());
+    expect(codes(artifact)).toEqual([]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.parts.map((p) => p.kind)).toEqual(["live", "static"]);
   });
 
   test("a reference to static art in another part is copied whole and the morph plays", () => {

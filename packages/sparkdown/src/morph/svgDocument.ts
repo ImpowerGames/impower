@@ -88,35 +88,37 @@ export const compositingValue = (name: string, value: string): boolean => {
 };
 
 /**
- * What the document's style sheets give compositing properties to, by the
- * simple selectors named in such rules. This over-approximates on purpose:
- * a rule `.face .dim { opacity: .5 }` counts every `.face` and every `.dim`,
- * and an attribute selector or `*` counts every element. Erring this way
- * only keeps more art in one live part, which draws the same.
+ * What the document's style sheets give some declarations to, by the simple
+ * selectors named in the rules that make them. This over-approximates on
+ * purpose: a rule `.face .dim { opacity: .5 }` counts every `.face` and every
+ * `.dim`, and an attribute selector or `*` counts every element. Erring this
+ * way only keeps more art in one live part (compositing), or keeps a variant
+ * static that might have played (display).
  */
-export interface CompositingRules {
+export interface StyleRules {
   any: boolean;
   classes: Set<string>;
   ids: Set<string>;
   tags: Set<string>;
 }
 
-export function compositingRules(doc: ArtDocument): CompositingRules {
-  const rules: CompositingRules = { any: false, classes: new Set(), ids: new Set(), tags: new Set() };
+/** The rules of the document's style sheets with a declaration `declares` accepts. */
+export function styleRules(doc: ArtDocument, declares: (name: string, value: string) => boolean): StyleRules {
+  const rules: StyleRules = { any: false, classes: new Set(), ids: new Set(), tags: new Set() };
   for (const sheet of subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style")) {
     const css = sheet.children.filter((c): c is string => typeof c === "string").join("").replace(/\/\*[\s\S]*?\*\//g, "");
     for (const block of css.split("}")) {
       const open = block.indexOf("{");
       if (open < 0) continue;
       const selector = block.slice(0, open);
-      const declares = block
+      const matches = block
         .slice(open + 1)
         .split(";")
         .some((d) => {
           const colon = d.indexOf(":");
-          return colon > 0 && compositingValue(d.slice(0, colon).trim().toLowerCase(), d.slice(colon + 1));
+          return colon > 0 && declares(d.slice(0, colon).trim().toLowerCase(), d.slice(colon + 1));
         });
-      if (!declares) continue;
+      if (!matches) continue;
       // Each compound selector (`g.dim`, `#eye`, `path`) is matched by any one
       // of its classes or ids, or by its tag when it names nothing else.
       for (const compound of selector.split(/[\s>+~,()]+/)) {
@@ -134,16 +136,28 @@ export function compositingRules(doc: ArtDocument): CompositingRules {
   return rules;
 }
 
-/** Whether a style-sheet rule may give the element a compositing property. */
-export const matchesCompositingRule = (rules: CompositingRules, element: Element): boolean =>
+/** The rules that give elements a compositing property. */
+export const compositingRules = (doc: ArtDocument): StyleRules => styleRules(doc, compositingValue);
+
+/** The rules that set `display`, which decides whether art draws at all. */
+export const displayRules = (doc: ArtDocument): StyleRules => styleRules(doc, (name) => name === "display");
+
+/** Whether one of the rules may apply to the element. */
+export const matchesStyleRule = (rules: StyleRules, element: Element): boolean =>
   rules.any ||
   rules.tags.has(element.tagName.toLowerCase()) ||
   (element.attributes["id"] !== undefined && rules.ids.has(element.attributes["id"])) ||
   (element.attributes["class"] ?? "").split(/\s+/).some((c) => c && rules.classes.has(c));
 
-/** Whether the element is authored not to render at all. */
+/**
+ * Whether the element is authored not to render at all, from its inline
+ * `display` (important or not) or else its `display` attribute. Style-sheet
+ * `display` rules are not read here: a bake refuses art they could apply to.
+ */
 export const authoredHidden = (element: Element) =>
-  (styleProperty(element, "display") ?? element.attributes["display"])?.trim().toLowerCase() === "none";
+  (styleProperty(element, "display")?.replace(/!\s*important\s*$/i, "") ?? element.attributes["display"])
+    ?.trim()
+    .toLowerCase() === "none";
 
 const elementsOf = (children: Node[]): Element[] =>
   children.filter((c): c is Element => !!c && typeof c === "object");
@@ -316,7 +330,7 @@ export function subtree(element: Element): Element[] {
  * a clip path whose contents use a pattern. `missing` collects references
  * that name nothing in the document.
  */
-export function resourceClosure(
+function resourceClosure(
   doc: ArtDocument,
   elements: Iterable<Element>,
   missing?: Set<string>,
@@ -428,6 +442,39 @@ function withInheritance(doc: ArtDocument, target: Element, clone: Element): Ele
   return out;
 }
 
+/** `keep` and every ancestor of a kept element. */
+function keptAncestry(doc: ArtDocument, keep: Iterable<Element>): Set<Element> {
+  const keepUp = new Set<Element>();
+  for (const element of keep) for (const entry of ancestry(doc, element)) keepUp.add(entry.element);
+  return keepUp;
+}
+
+/**
+ * Every id a part keeping `keep` depends on: what the kept subtrees and the
+ * style sheets reference, transitively, and what the ancestors kept for them
+ * reference themselves (a group's `clip-path`).
+ */
+export function partClosure(doc: ArtDocument, keep: Iterable<Element>, missing?: Set<string>): Set<string> {
+  const kept = [...keep];
+  // Every part carries every style sheet, so whatever a sheet references
+  // (`.skin { fill: url(#skin) }`) is part of every part's closure.
+  const sheets = subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style");
+  const closure = resourceClosure(doc, [...kept, ...sheets], missing);
+  // Containers kept for their children still carry their own references.
+  for (const element of keptAncestry(doc, kept)) {
+    for (const id of referencedIds(element)) {
+      const target = doc.byId.get(id);
+      if (!target) {
+        missing?.add(id);
+        continue;
+      }
+      for (const nested of resourceClosure(doc, [target], missing)) closure.add(nested);
+      closure.add(id);
+    }
+  }
+  return closure;
+}
+
 /**
  * A copy of the document keeping only `keep` (and every ancestor of a kept
  * element, with its attributes) plus the resources they reference. Resource
@@ -439,8 +486,7 @@ export function extractTree(
   keep: ReadonlySet<Element>,
   options: { extra?: Map<Element, (clone: Element) => Element>; missing?: Set<string> } = {},
 ): { root: Element; ids: Set<string> } {
-  const keepUp = new Set<Element>();
-  for (const element of keep) for (const entry of ancestry(doc, element)) keepUp.add(entry.element);
+  const keepUp = keptAncestry(doc, keep);
   const kept = new Set<Element>();
   const copy = (element: Element, whole: boolean): Element | undefined => {
     const inKeep = whole || keep.has(element);
@@ -461,22 +507,8 @@ export function extractTree(
     return wrap ? wrap(clone) : clone;
   };
   const root = copy(doc.root, false) ?? cloneElement(doc.root, false);
-  // Every part carries every style sheet, so whatever a sheet references
-  // (`.skin { fill: url(#skin) }`) is part of every part's closure.
   const sheets = subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style");
-  const closure = resourceClosure(doc, [...keep, ...sheets], options.missing);
-  // Containers kept for their children still carry their own references.
-  for (const element of keepUp) {
-    for (const id of referencedIds(element)) {
-      const target = doc.byId.get(id);
-      if (!target) {
-        options.missing?.add(id);
-        continue;
-      }
-      for (const nested of resourceClosure(doc, [target], options.missing)) closure.add(nested);
-      closure.add(id);
-    }
-  }
+  const closure = partClosure(doc, keep, options.missing);
   const defs: Element = { tagName: "defs", attributes: {}, children: [] };
   for (const id of closure) {
     const target = doc.byId.get(id)!;

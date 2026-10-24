@@ -39,9 +39,10 @@ import {
   cloneElement,
   compositingRules,
   compositingValue,
-  matchesCompositingRule,
+  displayRules,
+  matchesStyleRule,
   styleDeclarations,
-  type CompositingRules,
+  type StyleRules,
   convertToPath,
   drawnLeaves,
   effectiveLabel,
@@ -50,9 +51,10 @@ import {
   isShape,
   localGeometry,
   namespaceTree,
+  partClosure,
   readArtDocument,
-  resourceClosure,
   serialize,
+  subtree,
   setStyleProperty,
   type ArtDocument,
   type Element,
@@ -164,12 +166,12 @@ export const idPrefixFor = (key: string) => `_m${hashText(key).slice(0, 8)}_`;
  * composites: an opacity under 1, a filter, a mask, a blend mode or
  * isolation, from its attributes, its inline style or a style-sheet rule.
  */
-function composites(element: Element, rules: CompositingRules): boolean {
+function composites(element: Element, rules: StyleRules): boolean {
   for (const [name, value] of Object.entries(element.attributes)) {
     if (typeof value === "string" && compositingValue(name.toLowerCase(), value)) return true;
   }
   if (styleDeclarations(element).some(([name, value]) => compositingValue(name, value))) return true;
-  return matchesCompositingRule(rules, element);
+  return matchesStyleRule(rules, element);
 }
 
 const packed = (subpaths: Subpath[]): number[] => {
@@ -417,6 +419,22 @@ export function* bakeSteps(
     return found.filter((e) => !found.some((other) => other !== e && isAncestorOrSelf(doc!, other, e)));
   });
 
+  // Which drawings exist, and which a state hides, is read from inline
+  // styles and attributes. A style-sheet `display` rule could reveal a hidden
+  // state or hide an authored drawing, and the bake does not evaluate
+  // selectors, so art such a rule may apply to keeps its static render.
+  const sheetDisplay = displayRules(doc);
+  const displayed = subtree(doc.root).find((e) => e !== doc!.root && !doc!.info.get(e)?.resource && matchesStyleRule(sheetDisplay, e));
+  if (displayed) {
+    report(
+      "unsupported-element",
+      "error",
+      "A style sheet in this artwork sets `display` on its drawings, so the bake cannot tell which drawings show in each state; this variant shows without the morph.",
+      { ...(keyOf(displayed) === undefined ? {} : { path: keyOf(displayed)! }) },
+    );
+    return disable();
+  }
+
   const allLeaves = drawnLeaves(doc).filter(unionVisible);
   const inTarget = (element: Element) =>
     targetsByClip.some((targets) => targets.some((t) => isAncestorOrSelf(doc!, t, element)));
@@ -425,6 +443,9 @@ export function* bakeSteps(
     const key = keyOf(element);
     if ((key !== undefined && groupOf.has(key)) || inTarget(element)) live.add(element);
   }
+  // The drawings that change: state layers and clip targets. Live parts also
+  // hold unchanging art a compositing group keeps with them.
+  const moving = new Set(live);
   const sheetRules = compositingRules(doc);
   // A group that composites as a whole (opacity, filters, masks, blending)
   // cannot be split between parts without changing how it looks.
@@ -857,22 +878,26 @@ export function* bakeSteps(
     if (last && last.live === leaf.live) last.leaves.push(leaf);
     else runs.push({ live: leaf.live, leaves: [leaf] });
   }
-  // A drawing drawn again by reference (`<use href="#portrait">`) has to be
-  // whole wherever it is referenced, and move where the original moves. One
-  // that lies wholly in other static parts is copied whole at its rest pose.
-  // One that holds leaves of the referencing part and of another is kept
-  // there only in part (no part can carry it whole without repeating ids it
-  // already holds), and a copy of live art would stand still while the
-  // original moves; either way the variant keeps its static render.
+  // A drawing drawn again by reference (`<use href="#portrait">`, or a clip
+  // path that uses it) has to be whole wherever it is referenced, and move
+  // where the original moves. The references are every dependency the part
+  // carries, its kept ancestors' and its style sheets' included. A drawing
+  // that never changes and lies wholly in other parts is copied whole. One
+  // that holds leaves of the referencing part and of another is kept there
+  // only in part (no part can carry it whole without repeating ids it already
+  // holds), and a copy of a changing drawing in another part would stand
+  // still while the original moves; either way the variant keeps its static
+  // render.
   if (runs.length > 1) {
     const runOf = new Map<Element, number>();
     runs.forEach((run, index) => run.leaves.forEach((leaf) => runOf.set(leaf.element, index)));
     for (const [index, run] of runs.entries()) {
-      for (const id of resourceClosure(doc, run.leaves.map((leaf) => leaf.element))) {
+      for (const id of partClosure(doc, run.leaves.map((leaf) => leaf.element))) {
         const target = doc.byId.get(id)!;
-        const parts = new Set(drawnLeaves(doc, target).filter((leaf) => runOf.has(leaf)).map((leaf) => runOf.get(leaf)!));
+        const drawn = drawnLeaves(doc, target).filter((leaf) => runOf.has(leaf));
+        const parts = new Set(drawn.map((leaf) => runOf.get(leaf)!));
         const split = parts.has(index) && parts.size > 1;
-        const stillCopy = [...parts].some((part) => part !== index && runs[part]!.live);
+        const stillCopy = drawn.some((leaf) => moving.has(leaf) && runOf.get(leaf) !== index);
         if (split || stillCopy) {
           report(
             "unsupported-element",

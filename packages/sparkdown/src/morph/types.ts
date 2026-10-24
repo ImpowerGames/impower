@@ -125,8 +125,9 @@ export interface MorphBakeDiagnostic {
  * sizing and every resource it references, ids namespaced under the
  * artifact's `idPrefix`. A live part is written in the rest pose: its leaves
  * carry `data-morph` node ids, and those other states show carry an inline
- * `display: none` (inline, so no style-sheet rule outranks it), so the parts
- * composed as written are the rest render.
+ * `display: none`, so the parts composed as written are the rest render.
+ * (Art whose style sheets may set `display` is never baked live, so nothing
+ * outranks that declaration.)
  */
 export interface MorphPart {
   kind: "static" | "live";
