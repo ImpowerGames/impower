@@ -1719,7 +1719,7 @@ export const getCompletions = (
           ...clauses,
           ...(takesMovieClauses(control) ? MOVIE_CLAUSE_KEYWORDS : []),
         ]);
-        if (control !== "hide" && control !== "animate") {
+        if (control !== "hide") {
           addStructReferenceCompletions(
             completions,
             program,

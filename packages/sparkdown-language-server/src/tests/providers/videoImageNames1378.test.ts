@@ -19,10 +19,14 @@ const labels = (source: string) =>
   completeAt(source.replace("|", "@0"), { program }).labels;
 
 describe("video name completions in image commands (I-1378)", () => {
-  it("offers video and image names after show LAYER", () => {
-    expect(labels("[[show backdrop |]]")).toEqual(
+  it.each(["show", "animate"])("offers video and image names after %s LAYER", (control) => {
+    expect(labels(`[[${control} backdrop |]]`)).toEqual(
       expect.arrayContaining(["bunny_idle", "forest"]),
     );
+  });
+
+  it("keeps with first after animate LAYER", () => {
+    expect(labels("[[animate backdrop |]]")[0]).toBe("with");
   });
 
   it.each(["show", "animate"])("offers a video name while typing it after %s LAYER", (control) => {
