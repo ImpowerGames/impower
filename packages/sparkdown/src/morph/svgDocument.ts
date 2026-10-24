@@ -433,7 +433,8 @@ export function namespaceTree(root: Element, prefix: string, known: ReadonlySet<
   walk(root);
 }
 
-// Selectors sit outside braces; `#abc` inside a block is a colour.
+// A selector is the text before a `{`, after the last declaration (rules
+// nest inside at-rules and other rules); `#abc` in a declaration is a colour.
 function rewriteStyleSheet(
   css: string,
   prefix: string,
@@ -441,23 +442,20 @@ function rewriteStyleSheet(
   rewriteUrls: (text: string) => string,
 ): string {
   let out = "";
-  let depth = 0;
   let run = "";
-  const flush = () => {
-    out += depth === 0
-      ? run.replace(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g, (whole, id: string) => (known.has(id) ? `#${prefix}${id}` : whole))
-      : rewriteUrls(run);
-    run = "";
-  };
+  const rewriteIds = (text: string) =>
+    text.replace(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g, (whole, id: string) => (known.has(id) ? `#${prefix}${id}` : whole));
   for (const ch of css) {
-    if (ch === "{" || ch === "}") {
-      flush();
-      out += ch;
-      depth = Math.max(0, depth + (ch === "{" ? 1 : -1));
+    if (ch === "{") {
+      const split = run.lastIndexOf(";") + 1;
+      out += rewriteUrls(run.slice(0, split)) + rewriteIds(run.slice(split)) + ch;
+      run = "";
+    } else if (ch === "}") {
+      out += rewriteUrls(run) + ch;
+      run = "";
     } else run += ch;
   }
-  flush();
-  return out;
+  return out + rewriteUrls(run);
 }
 
 export const serialize = (element: Element): string =>

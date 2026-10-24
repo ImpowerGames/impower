@@ -101,6 +101,17 @@ describe("morph bake: layered art", () => {
     expect(face.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${p}white`)).toBe(true);
   });
 
+  test("id selectors and references inside nested rules are namespaced, colours are not", () => {
+    const styled = layeredPortrait()
+      .replace("<defs>", "<style>@media all { #hair-tint { fill: url(#white); stroke: #abc } } .x { stroke: #def; #hair-tint { opacity: 1 } }</style><defs>")
+      .replace('<path data-name="hair" d="', '<path id="hair-tint" data-name="hair" d="');
+    const artifact = bake(styled, layeredRecipe);
+    const p = artifact.idPrefix;
+    const sheet = elements(artifact.parts[artifact.parts.length - 1]!.svg).find((e) => e.tagName === "style")!.children.join("");
+    expect(sheet).toContain(`@media all { #${p}hair-tint { fill: url(#${p}white); stroke: #abc } }`);
+    expect(sheet).toContain(`.x { stroke: #def; #${p}hair-tint { opacity: 1 } }`);
+  });
+
   test("a copied resource keeps what its original ancestors passed down to it", () => {
     // The gradient's stop paints `currentColor`, which its <defs> sets.
     const inherited = layeredPortrait().replace("<defs>", '<defs color="lime">').replace('<stop offset="0" stop-color="#fff"/>', '<stop offset="0" stop-color="currentColor"/>');
