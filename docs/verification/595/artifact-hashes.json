@@ -1,0 +1,12 @@
+[
+  {
+    "file": "evidence/transcription-audit.json",
+    "sha256": "15d91f311788a624950b5df83c2aca465095470ce6e4653dab2b4366378e9bf2",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "8c362363ae3c9af196fee058dad9a4851c56fbc38b601c78707a7a2b3ec59bfd",
+    "kind": "unaltered historical artifact"
+  }
+]
