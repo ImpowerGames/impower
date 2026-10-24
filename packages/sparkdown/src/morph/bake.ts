@@ -51,6 +51,7 @@ import {
   readArtDocument,
   serialize,
   setStyleProperty,
+  unreadableGeometry,
   type ArtDocument,
   type Element,
 } from "./svgDocument";
@@ -320,12 +321,10 @@ export function* bakeSteps(
   // sheet's rules could change any of them, and the bake does not read them,
   // so artwork carrying one keeps its static render.
   if (doc.styleSheet) {
-    const tag = doc.styleSheet.tagName;
-    const named = tag.startsWith("?") ? `<${tag}?>` : `<${tag}>`;
     report(
       "unsupported-element",
       "error",
-      `This artwork carries a style sheet (\`${named}\`), whose rules the bake does not read, so this variant shows without the morph. Inline \`style\` attributes and presentation attributes are read.`,
+      `This artwork carries a style sheet (\`${doc.styleSheet}\`), whose rules the bake does not read, so this variant shows without the morph. Inline \`style\` attributes and presentation attributes are read.`,
     );
     return disable();
   }
@@ -489,7 +488,10 @@ export function* bakeSteps(
   const rootGeometry = (leaf: Leaf): Subpath[] | null => {
     if (geometryOf.has(leaf)) return geometryOf.get(leaf)!;
     let value: Subpath[] | null = null;
-    if (isShape(leaf.element)) {
+    const unreadable = isShape(leaf.element) ? unreadableGeometry(leaf.element) : undefined;
+    if (unreadable) {
+      report("unsupported-element", "warning", `Layer "${leaf.label || leaf.key}" sets its geometry with ${unreadable}, which this bake cannot read exactly, so it fades instead of moving.`, { layer: leaf.label, path: leaf.key });
+    } else if (isShape(leaf.element)) {
       const local = localGeometry(leaf.element) ?? [];
       const space = doc!.info.get(leaf.element)?.rootFromElement ?? null;
       if (!space) {
@@ -707,7 +709,10 @@ export function* bakeSteps(
             transitions.push({ kind: "scale", node: nodeOf(leaf), direction, frames: ref });
             return;
           }
-          report("unsupported-element", "warning", `"${leaf.label || leaf.key}" has no shape geometry to scale, so it fades.`, { layer: leaf.label, path: leaf.key });
+          // Geometry the bake could not read was reported where it was read.
+          if (!(isShape(leaf.element) && unreadableGeometry(leaf.element))) {
+            report("unsupported-element", "warning", `"${leaf.label || leaf.key}" has no shape geometry to scale, so it fades.`, { layer: leaf.label, path: leaf.key });
+          }
           transitions.push(side === "from" ? { kind: "fade", from: nodeOf(leaf) } : { kind: "fade", to: nodeOf(leaf) });
           return;
         }

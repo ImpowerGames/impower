@@ -41,8 +41,8 @@ export interface ArtDocument {
   byKey: Map<string, ElementInfo>;
   byId: Map<string, Element>;
   vocabulary: AttributeVocabulary;
-  /** The first style sheet the artwork carries, which the bake refuses. */
-  styleSheet?: Element;
+  /** The first style sheet the artwork carries or may carry, as written; the bake refuses it. */
+  styleSheet?: string;
 }
 
 const SHAPES = new Set(["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"]);
@@ -152,17 +152,25 @@ export const compositingValue = (name: string, value: string): boolean => {
 };
 
 /**
- * The first style sheet the parsed artwork carries, wherever it sits: a
- * `<style>` element (namespaced or not, empty or not), a `<link>` to a style
- * sheet, or an `<?xml-stylesheet?>` instruction.
+ * The first style sheet the parsed artwork carries or may carry, named as
+ * written, wherever it sits: a `<style>` element (namespaced or not, empty or
+ * not), a `<link>` element (its relationship may be spelled with character
+ * references the parser keeps, so every link counts), an `<?xml-stylesheet?>`
+ * instruction, or a DOCTYPE with an internal subset, whose entities a browser
+ * expands into markup the parser never sees.
  */
-function findStyleSheet(nodes: Node[]): Element | undefined {
-  for (const element of elementsOf(nodes)) {
-    const tag = element.tagName.toLowerCase();
+function findStyleSheet(nodes: Node[]): string | undefined {
+  for (const node of nodes) {
+    if (typeof node === "string") {
+      if (/^!DOCTYPE[^>]*\[/i.test(node.trim())) return "<!DOCTYPE … [ … ]>";
+      continue;
+    }
+    if (!node) continue;
+    const tag = node.tagName.toLowerCase();
     const local = tag.slice(tag.lastIndexOf(":") + 1);
-    if (local === "style" || tag.startsWith("?xml-stylesheet")) return element;
-    if (local === "link" && /\bstylesheet\b/i.test(element.attributes["rel"] ?? "")) return element;
-    const inner = findStyleSheet(element.children);
+    if (tag.startsWith("?xml-stylesheet")) return `<${node.tagName}?>`;
+    if (local === "style" || local === "link") return `<${node.tagName}>`;
+    const inner = findStyleSheet(node.children);
     if (inner) return inner;
   }
   return undefined;
@@ -307,6 +315,35 @@ export function localGeometry(element: Element): Subpath[] | undefined {
 }
 
 const GEOMETRY_ATTRIBUTES = ["x", "y", "width", "height", "rx", "ry", "cx", "cy", "r", "x1", "y1", "x2", "y2", "points", "pathLength"];
+
+/** A user-space number: unitless or in `px`. */
+const USER_LENGTH = /^\s*[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?(?:px)?\s*$/i;
+const LENGTH_ATTRIBUTES: Record<string, string[]> = {
+  rect: ["x", "y", "width", "height", "rx", "ry"],
+  circle: ["cx", "cy", "r"],
+  ellipse: ["cx", "cy", "rx", "ry"],
+  line: ["x1", "y1", "x2", "y2"],
+};
+/** Geometry properties an inline style can set, outranking the attributes. */
+const GEOMETRY_PROPERTIES = new Set(["x", "y", "width", "height", "rx", "ry", "cx", "cy", "r", "d"]);
+
+/**
+ * What keeps the bake from reading a shape's geometry exactly, or undefined:
+ * a length in a unit other than `px` (a percentage resolves against the
+ * viewport, `em` against the font), or an inline style that sets a geometry
+ * property. Such a drawing has no geometry to morph or scale.
+ */
+export function unreadableGeometry(element: Element): string | undefined {
+  const declared = styleDeclarations(element).find(([name]) => GEOMETRY_PROPERTIES.has(name));
+  if (declared) return `style \`${declared[0]}: ${declared[1]}\``;
+  for (const name of LENGTH_ATTRIBUTES[element.tagName.toLowerCase()] ?? []) {
+    const value = element.attributes[name];
+    if (value === undefined || USER_LENGTH.test(value)) continue;
+    if ((name === "rx" || name === "ry") && value.trim().toLowerCase() === "auto") continue;
+    return `\`${name}="${value}"\``;
+  }
+  return undefined;
+}
 
 /** Turns a basic shape into an equivalent `<path>` in place. */
 export function convertToPath(element: Element, d: string) {

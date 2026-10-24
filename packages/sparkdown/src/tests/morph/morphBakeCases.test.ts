@@ -223,6 +223,15 @@ describe("morph bake: compositing and authored style", () => {
       "with a compositing rule": art(LASHES_OPEN, LASH_CLOSED, '<g class="dim"/><style>.dim { opacity: .5 }</style>'),
       namespaced: art(LASHES_OPEN, LASH_CLOSED, "<svg:style>.unused { fill: red }</svg:style>"),
       linked: art(LASHES_OPEN, LASH_CLOSED, '<link rel="stylesheet" href="more.css"/>'),
+      // A relationship spelled with a character reference is still a style sheet.
+      "linked, the relationship encoded": art(
+        LASHES_OPEN,
+        LASH_CLOSED,
+        '<foreignObject width="1" height="1"><link xmlns="http://www.w3.org/1999/xhtml" rel="style&#115;heet" href="data:text/css,.x%7Bfill:red%7D"/></foreignObject>',
+      ),
+      "linked for anything else": art(LASHES_OPEN, LASH_CLOSED, '<link rel="icon" href="icon.png"/>'),
+      // An entity can expand into a style sheet the parser never sees.
+      "an internal DTD subset": `<!DOCTYPE svg [<!ENTITY sheet "<style>.x{fill:red}</style>">]>\n${art(LASHES_OPEN, LASH_CLOSED)}`,
       "as an instruction": `<?xml-stylesheet href="more.css" type="text/css"?>\n${art(LASHES_OPEN, LASH_CLOSED)}`,
     };
     for (const [where, svg] of Object.entries(sheets)) {
@@ -256,6 +265,30 @@ describe("morph bake: compositing and authored style", () => {
     expect(scaled.segments[0]!.transitions.some((t) => t.kind === "scale")).toBe(true);
     const glint = elements(scaled.parts.find((p) => p.kind === "live")!.svg).find((e) => e.attributes["data-name"] === "glint")!;
     expect(glint.tagName).toBe("path");
+  });
+
+  test("a shape whose geometry the bake cannot read exactly fades and keeps its authored markup", () => {
+    for (const [shape, named] of [
+      ['<ellipse data-name="glint" cx="50%" cy="50%" rx="10%" ry="10%" fill="blue"/>', 'cx="50%"'],
+      ['<circle data-name="glint" cx="50" cy="40" r="1em" fill="blue"/>', 'r="1em"'],
+      ['<circle data-name="glint" cx="50" cy="40" r="4" style="r:8;fill:blue"/>', "style `r: 8`"],
+    ] as const) {
+      const artifact = bake(art(LASHES_OPEN + shape, LASH_CLOSED), recipe({ fallback: "scale" }));
+      expect(artifact.status, shape).toBe("live");
+      expect(artifact.diagnostics, shape).toEqual([
+        expect.objectContaining({ code: "unsupported-element", severity: "warning", layer: "glint" }),
+      ]);
+      expect(artifact.diagnostics[0]!.message, shape).toContain(named);
+      // It fades rather than scaling, and the live part writes it as authored.
+      const transitions = artifact.segments[0]!.transitions;
+      expect(transitions.some((t) => t.kind === "scale"), shape).toBe(false);
+      const glint = elements(artifact.parts.find((p) => p.kind === "live")!.svg).find((e) => e.attributes["data-name"] === "glint")!;
+      expect(glint.tagName, shape).toBe(shape.slice(1, shape.indexOf(" ")));
+    }
+    // A path whose inline style replaces its data does not morph as its attribute says.
+    const restyled = bake(art(lash(UPPER_OPEN, "eyelash-left", ` style="d:path('${LOWER_OPEN}')"`) + lash(LOWER_OPEN), LASH_CLOSED), recipe());
+    expect(codes(restyled)).toContain("unsupported-element");
+    expect(restyled.diagnostics.find((d) => d.code === "unsupported-element")!.message).toContain("style `d:");
   });
 
   test("hidden state leaves are hidden inline in the live part and by the renderer", () => {
