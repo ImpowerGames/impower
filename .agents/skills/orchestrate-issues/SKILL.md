@@ -9,7 +9,7 @@ One coordinator owns the delivery of the named parent issue, a Feature, Task or 
 
 ## Authority
 
-An explicit request such as "Use orchestrate-issues for #692", where #692 is the parent, grants the coordinator five things for that parent: dispatching writers for its open sub-issues, organizing its loose Bugs into Task slices in step 2 (filing them, re-parenting the Bugs, setting Effort and blockers) with no maintainer approval, the review checkpoint decisions in [review checkpoints](references/review-checkpoints.md), merging its slices' PRs through the gate in [integration](references/integration.md), and the bounded disk recovery in step 6. That merge is the one exception to the repository's maintainer-only merge rule: writers and ordinary resolve-issue sessions never merge, and discussing, filing or reviewing this skill grants nothing.
+An explicit request such as "Use orchestrate-issues for #692", where #692 is the parent, grants the coordinator, for that parent: dispatching writers for its open sub-issues, setting missing Effort, organizing its loose Bugs into Task slices in step 2 (filing them, re-parenting the Bugs, setting Effort and blockers) with no maintainer approval, the review checkpoint decisions in [review checkpoints](references/review-checkpoints.md), merging its slices' PRs through the gate in [integration](references/integration.md), and the bounded disk recovery in step 6. That merge is the one exception to the repository's maintainer-only merge rule: writers and ordinary resolve-issue sessions never merge, and discussing, filing or reviewing this skill grants nothing.
 
 ## 0. Start
 
@@ -68,4 +68,4 @@ Before any merge or verification, read [integration](references/integration.md).
 
 ## 8. Report
 
-Report at each meaningful change and when you stop: each ticket's action and reason, merges, PRs left to the maintainer, blockers with recommendations, disk recoveries, the `remaining` list and the next action. At completion, or when you need the maintainer, send the optional [notify-user](../notify-user/SKILL.md) alert. `recover-lock` removes only a record lock left by an exited helper process. File what the run turns up through the [filing routes](../references/runner-filing.md), never a session proposal.
+Report at each meaningful change and on stopping: each ticket's action and reason, merges, PRs left to the maintainer, blockers with recommendations, disk recoveries, the `remaining` list and the next action. At completion, or when you need the maintainer, send the optional [notify-user](../notify-user/SKILL.md) alert. `recover-lock` removes only a record lock left by an exited helper process. File what the run turns up through the [filing routes](../references/runner-filing.md), never a session proposal.
