@@ -35,7 +35,7 @@ export { normalizeSVGAttributeNames } from "./normalizeSVGAttributeNames";
 
 // Definitions are referenced resources, not conditional artwork. Their IDs
 // must survive even when they resemble a group.option name.
-const resources = new Set([
+export const SVG_RESOURCE_TAGS: ReadonlySet<string> = new Set([
   "defs",
   "clippath",
   "mask",
@@ -61,7 +61,7 @@ const readDocumentLayers = (
       if (!node || typeof node !== "object") return;
       const key = `${path}/${index}`;
       const tag = node.tagName.toLowerCase();
-      if (resources.has(tag)) return;
+      if (SVG_RESOURCE_TAGS.has(tag)) return;
       if (tag === "svg" || tag.startsWith("?")) {
         walk(node.children, parent, key);
         return;
@@ -87,6 +87,27 @@ export const buildSVGAttributeVocabulary = (svg: string): AttributeVocabulary =>
   buildAttributeVocabulary(
     readDocumentLayers(parse(decodeSVGSource(svg))).inputs,
   );
+
+/**
+ * A parsed SVG with its attribute layers: `nodes` maps each vocabulary layer
+ * key to its element, so callers that need geometry address layers by the
+ * same keys visibility is evaluated with.
+ */
+export interface SVGAttributeDocument {
+  roots: Node[];
+  nodes: Map<string, Element>;
+  vocabulary: AttributeVocabulary;
+}
+
+export const readSVGAttributeDocument = (svg: string): SVGAttributeDocument => {
+  const document = parse(decodeSVGSource(svg));
+  const { inputs, nodes } = readDocumentLayers(document);
+  return {
+    roots: Array.isArray(document) ? document : [document],
+    nodes,
+    vocabulary: buildAttributeVocabulary(inputs),
+  };
+};
 
 export const filterSVGAttributes = (
   svg: string,

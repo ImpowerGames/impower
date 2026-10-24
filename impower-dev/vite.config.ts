@@ -22,6 +22,11 @@ import {
   parseImageFilterParam,
   serializeImageFilterParam,
 } from "../packages/sparkdown/src/filters/filteredSvg";
+import {
+  parseMorphAssetRequest,
+  serveMorphAsset,
+} from "../packages/sparkdown/src/morph/assetService";
+import { MorphBakeService } from "../packages/sparkdown/src/morph/service";
 import { clampThumbnailWidth } from "../packages/sparkdown/src/thumbnails/composeThumbnail";
 import pkg from "./package.json";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
@@ -439,6 +444,9 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
     // a changed file changes its signature, so stale entries are simply
     // never hit again (and a dev-server restart empties the map).
     const filteredSvgMirrorCache = new Map<string, string>();
+    // Morph artifacts for mirrored art: the service keeps them in memory,
+    // bounded, for the dev server's lifetime.
+    const morphMirrorService = new MorphBakeService();
     // Downscaled `?thumb=` webp variants, same key discipline (path × clamped
     // width × file signature). `sharp` is a dev-only optionalish dependency:
     // loaded lazily, and if it's missing the mirror serves original bytes —
@@ -624,6 +632,31 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             // image fetches the same variant url twice (background-image +
             // hidden <img>, #344), so a fresh filter per request would double
             // the parse cost of every portrait beat.
+            // Morph artifacts too: the same shared endpoint the service
+            // worker answers them with.
+            const morphRequest =
+              ext === "svg" ? parseMorphAssetRequest(params) : undefined;
+            if (morphRequest) {
+              let response: Response;
+              if (morphRequest === "invalid") {
+                response = new Response("Unreadable morph request", { status: 400 });
+              } else {
+                const stat = fs.statSync(abs);
+                response = await serveMorphAsset({
+                  service: morphMirrorService,
+                  path: rel,
+                  file: new File([fs.readFileSync(abs, "utf-8")], path.basename(abs), {
+                    type: "image/svg+xml",
+                    lastModified: stat.mtimeMs,
+                  }),
+                  request: morphRequest,
+                });
+              }
+              res.statusCode = response.status;
+              response.headers.forEach((value, name) => res.setHeader(name, value));
+              res.end(await response.text());
+              return;
+            }
             if (ext === "svg") {
               const filtersParam = params.get("attributes");
               const filter = filtersParam

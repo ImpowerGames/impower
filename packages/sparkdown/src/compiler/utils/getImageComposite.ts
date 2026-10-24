@@ -24,6 +24,15 @@ export type ReadFileBytes = (uri: string) => Promise<string | undefined>;
 
 export interface ImageCompositeOptions {
   readFileBytes?: ReadFileBytes;
+  /**
+   * The rest render of a variant a morph plays on (its static render with the
+   * rest apertures applied), when the host has baked one. A preview shows it
+   * in place of the plain static render.
+   */
+  morphRest?: (
+    context: { [type: string]: { [name: string]: any } } | undefined,
+    struct: any,
+  ) => Promise<string | undefined>;
 }
 
 /**
@@ -261,9 +270,13 @@ export const getImagePreviewMarkupComposited = async (
   struct: any,
   options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
+  const name = struct?.["$name"] ?? "";
+  const rest = await options?.morphRest?.(context, struct);
+  if (rest) {
+    return buildImagePreviewMarkup(`data:image/svg+xml,${encodeURIComponent(rest)}`, name);
+  }
   const composite = await getImageCompositeSrc(context, struct, options);
   if (composite) {
-    const name = struct?.["$name"] ?? "";
     return buildImagePreviewMarkup(composite, name);
   }
   // Either a source the host loads as it stands, or one no thumbnail could be

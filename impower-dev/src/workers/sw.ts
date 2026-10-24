@@ -2,6 +2,8 @@ export default null;
 declare var self: ServiceWorkerGlobalScope;
 
 import { getOrCreateFilteredSvg as getOrCreateFilteredSvgShared } from "@impower/sparkdown/src/filters/filteredSvg";
+import { parseMorphAssetRequest, serveMorphAsset } from "@impower/sparkdown/src/morph/assetService";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { getStaleCacheNames } from "./swCaches";
 
@@ -29,6 +31,13 @@ const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
 // filter param + FILTER_VERSION (see filters/filteredSvg), with superseded
 // signatures pruned on write.
 const SW_FILTERED_CACHE_NAME: string = "filtered-svgs";
+// Baked morph artifacts (src/morph/README.md): the same discipline again, keyed
+// by the file's content digest, the variant's selection, the recipe and the
+// bake format, with superseded signatures pruned on write. The service below
+// coalesces concurrent requests and reuses one artwork's geometry across its
+// variants while this worker lives.
+const SW_MORPH_CACHE_NAME: string = "morph-artifacts";
+const morphService = new MorphBakeService();
 const SW_RESOURCES: string[] = JSON.parse(
   typeof SW_RESOURCES_INJECTED !== "undefined" ? SW_RESOURCES_INJECTED : "[]",
 );
@@ -90,6 +99,38 @@ async function handleLocalAssetRequest(url: URL) {
   // file signature + filter combo, so the program never has to embed SVG
   // source just to make filtering possible. Garbage or no-op params fall
   // through to the unfiltered original.
+  // A morph request is a variant's filtered url with the morph's recipe added
+  // (`&morph=…&key=…`): answer with the baked artifact, or its rest render.
+  const morphRequest = parseMorphAssetRequest(url.searchParams);
+  if (morphRequest && contentType === "image/svg+xml") {
+    if (morphRequest === "invalid") {
+      return new Response("Unreadable morph request", { status: 400 });
+    }
+    let cache: Cache | undefined;
+    try {
+      cache = await caches.open(SW_MORPH_CACHE_NAME);
+    } catch {
+      // Baking still works without Cache Storage, only slower.
+    }
+    return serveMorphAsset({
+      service: morphService,
+      ...(cache
+        ? {
+            cache: {
+              match: (key) => cache.match(key),
+              put: (key, response) => cache.put(key, response),
+              delete: (key) => cache.delete(key),
+              keys: () => cache.keys(),
+            },
+          }
+        : {}),
+      path,
+      file,
+      request: morphRequest,
+      keyPrefix: RESOURCE_PROTOCOL,
+    });
+  }
+
   const filtersParam = url.searchParams.get("attributes");
   if (filtersParam && contentType === "image/svg+xml") {
     const filtered = await getOrCreateFilteredSvg(path, file, filtersParam);
@@ -223,6 +264,7 @@ self.addEventListener("activate", (e) => {
           SW_CACHE_NAME,
           SW_THUMB_CACHE_NAME,
           SW_FILTERED_CACHE_NAME,
+          SW_MORPH_CACHE_NAME,
         ]).map(
           (name) => caches.delete(name),
         ),
