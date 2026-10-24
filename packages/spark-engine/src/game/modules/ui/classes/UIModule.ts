@@ -5,6 +5,10 @@ import { ErrorType } from "../../../core/enums/ErrorType";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
+import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { hashText } from "@impower/sparkdown/src/morph/hash";
+import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
+import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
@@ -110,6 +114,8 @@ import {
   type UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
 import {
+  type MorphImageContent,
+  type MorphLayerPlay,
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
@@ -797,6 +803,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onReset() {
     this._events = {};
     this._mountedLayouts = new Map();
+    this._morphEpoch += 1;
+  }
+
+  override async onLoad() {
+    this._morphEpoch += 1;
+  }
+
+  override onRestart() {
+    this._morphEpoch += 1;
   }
 
   /** Forget which images are currently displayed, without emitting anything.
@@ -2014,6 +2029,82 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scan(value, 0);
     }
     return [...referenced];
+  }
+
+  /** Counts loads, restarts and resets: a portrait's morph starts at rest in each epoch. */
+  protected _morphEpoch = 0;
+
+  /** The images whose morph claims have been reported as conflicting, so each is reported once. */
+  protected _morphConflicts = new Set<string>();
+
+  /**
+   * What an image write of `assets` carries for the morphs that play on its
+   * images: the reference, timing and definition of each image a morph
+   * plays on, with the image's place among the write's images bottom first
+   * (the order `background` lists them in reverse). Undefined when none
+   * does, so a write without morphs is the write it always was.
+   */
+  getMorphContent(assets: string[]): MorphImageContent | undefined {
+    const channel = this._game.program?.morphs;
+    if (!channel || !this.context) {
+      return undefined;
+    }
+    const layers: string[] = [];
+    const plays: MorphLayerPlay[] = [];
+    for (const asset of assets) {
+      if (asset.at(0) === '"' && asset.at(-1) === '"') {
+        layers.push(this.getBackgroundImageFromLiteral(asset.slice(1, -1)));
+        continue;
+      }
+      const imageName = sortFilteredName(asset);
+      const image = resolveImageReference(this.context, { $type: "", $name: imageName });
+      const resolved = resolveImageLayers(this.context, image);
+      if (resolved.length === 0) {
+        layers.push(this.getBackgroundImageFromLiteral(asset));
+        continue;
+      }
+      for (const layer of resolved) {
+        const index = layers.length;
+        layers.push(this.getUrl(layer.src));
+        const refs = morphRefsForStruct(this.context, channel, layer.struct);
+        if (refs.length > 1) {
+          // Each artifact draws the whole image, so two morphs cannot both
+          // play on it, and which one would is not the author's to infer
+          // from declaration order: the image stays still and says why.
+          this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
+          continue;
+        }
+        const ref = refs[0];
+        if (!ref) {
+          continue;
+        }
+        const timing = { ...default_morph().timing, ...(this.context.morph?.[ref.morph]?.timing ?? {}) } as MorphTiming;
+        plays.push({
+          layer: index,
+          ref,
+          timing,
+          definition: hashText(`${channel.recipes[ref.morph] ?? ""}\n${JSON.stringify(timing)}`),
+        });
+      }
+    }
+    return plays.length > 0 ? { plays, epoch: this._morphEpoch } : undefined;
+  }
+
+  protected reportMorphConflict(image: string, refs: MorphRef[]) {
+    const names = refs.map((r) => r.morph).sort();
+    const key = `${image}\n${names.join("\n")}`;
+    if (this._morphConflicts.has(key)) {
+      return;
+    }
+    this._morphConflicts.add(key);
+    const shared = refs[0]!.groups.filter((g) => refs.slice(1).some((r) => r.groups.includes(g)));
+    const list = names.map((n) => `\`${n}\``).join(", ");
+    this._game.log(
+      shared.length > 0
+        ? `\`${image}\` is claimed by ${list}, which all drive ${shared.map((g) => `\`${g}\``).join(", ")}; it stays still until only one morph plays on it.`
+        : `\`${image}\` has more than one morph (${list}); one image plays one morph, so it stays still until only one plays on it.`,
+      "warning",
+    );
   }
 
   getImageSrcsByName(name: string) {
@@ -5365,6 +5456,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             };
             if (src != null) {
               content.src = src;
+            }
+            const morph = $.getMorphContent(e.assets);
+            if (morph) {
+              content.morph = morph;
             }
             if (e.control === "show") {
               const showEvent = {

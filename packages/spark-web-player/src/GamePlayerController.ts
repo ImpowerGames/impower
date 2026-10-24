@@ -55,6 +55,7 @@ import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/class
 import { GetGameVariablesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
+import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
@@ -75,6 +76,7 @@ import {
   SparkdownWorkspace,
 } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application, type GameEndpoint } from "./app/Application";
+import { MorphPlayback } from "./app/morph/MorphPlayback";
 import type { WorkerGameLink } from "./main/workers/WorkerGameLink";
 import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseError";
@@ -955,6 +957,11 @@ export class GamePlayerController {
     p.onRequest(StartGameMessage.type, this.handleStartGame, this.host);
     p.onRequest(StopGameMessage.type, this.handleStopGame, this.host);
     p.onRequest(RestartGameMessage.type, this.handleRestartGame, this.host);
+    p.onRequest(
+      SetAnimatePortraitsMessage.type,
+      this.handleSetAnimatePortraits,
+      this.host,
+    );
     p.onRequest(PauseGameMessage.type, this.handlePauseGame, this.host);
     p.onRequest(UnpauseGameMessage.type, this.handleUnpauseGame, this.host);
     p.onRequest(StepGameClockMessage.type, this.handleStepGameClock, this.host);
@@ -1656,6 +1663,19 @@ export class GamePlayerController {
     const play = this._workerPlay;
     return play && this._appPlay === play ? this._app : undefined;
   }
+
+  /** The portrait morphs of whatever the overlay shows, stopped or playing,
+   *  which outlive the applications drawn there. */
+  protected get morphs() {
+    return MorphPlayback.for(this.refs.gameUI);
+  }
+
+  protected handleSetAnimatePortraits = async (
+    message: SetAnimatePortraitsMessage.Request,
+  ) => {
+    this.morphs.setEnabled(message.params.enabled);
+    return SetAnimatePortraitsMessage.type.response(message.id, {});
+  };
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
     const app = this.controlledApp;
@@ -2779,6 +2799,9 @@ export class GamePlayerController {
       // The real document takes the screen back from any suggestion.
       this._completionShown = null;
     }
+    // Previewing another place starts the portraits' morphs at rest; a
+    // re-render of the same place keeps their phase.
+    this.morphs.setSession(`preview:${file}:${line}`);
     const selectionVersion = this._selectionVersion;
     const update = ++this._previewUpdates;
     // This update overtakes every one still waiting for its display's answer,

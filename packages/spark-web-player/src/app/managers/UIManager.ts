@@ -28,7 +28,9 @@ import {
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
+import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
 import { Manager } from "../Manager";
+import { MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import {
@@ -88,6 +90,9 @@ type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
  *  is a clock out of step, not a wait. The delay before the beat's first
  *  letter comes on top. */
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+/** Counts PLAY sessions, each of which starts every portrait morph at rest. */
+let playSessions = 0;
 
 /** A beat's ops in order, each batch's ops in its place. */
 function beatOps(params: BeatParams): IMessage[] {
@@ -330,6 +335,8 @@ export default class UIManager extends Manager {
     if (!content) {
       this._placeCursor.clear();
     }
+    // A target this pass empties and writes again keeps its morphs' phase.
+    this.morphs?.beginPass();
     const overlay = this.app.overlay;
     if (overlay) {
       // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
@@ -381,6 +388,7 @@ export default class UIManager extends Manager {
       }
     }
     this._staleTextTargets.clear();
+    this.morphs?.endPass();
   }
 
   /** Drop the text a target's writes left, as a `ui/write-text` carrying no
@@ -427,6 +435,7 @@ export default class UIManager extends Manager {
   protected clearImageLayers(el: HTMLElement) {
     for (const tag of ["image", "mask"]) {
       for (const contentEl of this.getContentElements(el, tag)) {
+        this.morphs?.releaseWithin(contentEl);
         contentEl.replaceChildren();
       }
     }
@@ -462,9 +471,40 @@ export default class UIManager extends Manager {
           this._staleIds.delete(childId);
         }
       });
+      this.morphs?.releaseWithin(el);
       el.remove();
     }
     this._staleIds.delete(id);
+  }
+
+  /** The overlay's live portrait morphs, which outlive this manager with its DOM. */
+  get morphs(): MorphPlayback | undefined {
+    const overlay = this.app.overlay;
+    return overlay ? MorphPlayback.for(overlay) : undefined;
+  }
+
+  // PLAY's application clock drives the morphs once it starts; a preview,
+  // which never starts, leaves them on the playback's own frames.
+  override onStart() {
+    const morphs = this.morphs;
+    morphs?.attachClock(this);
+    morphs?.setSession(`play:${++playSessions}`);
+  }
+
+  override onUpdate(time: Clock) {
+    this.morphs?.advance(time.deltaTime);
+  }
+
+  override onSkip(seconds: number) {
+    this.morphs?.step(seconds);
+  }
+
+  override onPause() {
+    this.morphs?.setPaused(true);
+  }
+
+  override onUnpause() {
+    this.morphs?.setPaused(false);
   }
 
   override onDispose() {
@@ -476,6 +516,11 @@ export default class UIManager extends Manager {
     }
     this._listeners = {};
     this._elements.clear();
+    // The morphs on the screen this leaves go on, on their own frames, until
+    // the next display replaces them; a pause was this run's.
+    const morphs = this.morphs;
+    morphs?.detachClock(this);
+    morphs?.setPaused(false);
     // A played beat still waiting for its commit belonged to the run being
     // torn down (STOP, or the rebuild a new run makes): it never goes up, and
     // the screen stays as it is until the next display (#1820).
@@ -2027,11 +2072,9 @@ export default class UIManager extends Manager {
       if (instructions.length === 0) {
         // Clear path (the engine cleared image + mask content then set
         // display:none on the wrapper, which it still emits via ui/update).
-        for (const imageEl of imageEls) {
-          imageEl.replaceChildren();
-        }
-        for (const maskEl of maskEls) {
-          maskEl.replaceChildren();
+        for (const contentEl of [...imageEls, ...maskEls]) {
+          this.morphs?.releaseWithin(contentEl);
+          contentEl.replaceChildren();
         }
         continue;
       }
@@ -2074,6 +2117,17 @@ export default class UIManager extends Manager {
             // (`AssetManager.derivedPins`). Kept on the node, which outlives
             // this manager across a re-render.
             (newSpanEl as any).__sdSrcs = content.srcs;
+            // The morphs on its images: live in an image, the rest render in
+            // a mask. A layer built only to fade out holds still.
+            if (content.morph && instruction.control !== "hide") {
+              this.morphs?.mount(
+                newSpanEl,
+                content.morph,
+                content.background,
+                property === "mask_image" ? "mask" : "background",
+                `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
+              );
+            }
             if (instruction.control === "show") {
               // 'show' fades out + destroys the previous layers (the crossfade).
               // The engine only ever destroyed spans it had enqueued an exit
@@ -2081,6 +2135,8 @@ export default class UIManager extends Manager {
               // previous layer is faded out then destroyed.
               if (content.previousHideAnimation) {
                 for (const prevSpanEl of prevSpanEls) {
+                  // An outgoing morph holds its frame through the fade.
+                  this.morphs?.freezeWithin(prevSpanEl);
                   this.addAnimationEffects(exitEffects, prevSpanEl, [
                     content.previousHideAnimation,
                   ]);
@@ -2147,6 +2203,7 @@ export default class UIManager extends Manager {
     await Promise.all([playEffects(enterEffects), playEffects(exitEffects)]);
     // 3. destroy the faded-out previous layers
     for (const el of toDestroy) {
+      this.morphs?.releaseWithin(el);
       el.remove();
     }
   }

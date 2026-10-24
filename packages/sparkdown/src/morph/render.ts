@@ -4,7 +4,7 @@
 // verification captures look at any pose without a player.
 
 import { parse, stringify, type Node } from "../txml/txml";
-import { own } from "./own";
+import { own, table } from "./own";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
 import type { MorphArtifact, MorphFrames, MorphGeometryRef } from "./types";
 
@@ -104,93 +104,220 @@ const multiplyOpacity = (element: Element, factor: number) => {
 };
 
 /**
- * The artifact drawn at `pose` as one SVG: each part nested in paint order,
- * the live parts posed. A static artifact draws its rest render.
+ * Where one driven group is: holding a state, or partway through one of the
+ * artifact's segments. A held group names the last of its segments it has
+ * finished, if any, so its apertures keep that segment's end pose.
  */
-export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): string {
-  if (artifact.status !== "live" || pose === "rest") return artifact.rest;
-  const segment = artifact.segments[pose.segment];
-  if (!segment) return artifact.rest;
-  const p = clamp01(pose.progress);
-  const shown = new Set<string>();
-  const hidden = new Set<string>();
-  const geometry = new Map<string, string>();
-  const opacity = new Map<string, number>();
-  // Groups other than the moving one hold their schedule's first state.
-  for (const [group, states] of Object.entries(artifact.visibility)) {
-    if (group === segment.group) continue;
-    const first = own(artifact.schedules, group)?.[0]?.state;
-    const all = new Set(Object.values(states).flat());
-    for (const node of all) (own(states, first ?? "")?.includes(node) ? shown : hidden).add(node);
+export type MorphGroupPose = { state: string; last?: number } | { segment: number; progress: number };
+
+/**
+ * Every driven group's pose at keyframe offset `offset`, which is already
+ * eased: the segment the offset falls in, or the state the group holds
+ * there.
+ */
+export function morphPosesAt(artifact: MorphArtifact, offset: number): Record<string, MorphGroupPose> {
+  const at = clamp01(offset);
+  const poses: Record<string, MorphGroupPose> = table();
+  for (const [group, entries] of Object.entries(artifact.schedules)) {
+    let last: number | undefined;
+    let pose: MorphGroupPose | undefined;
+    // A group's segments are in schedule order. An offset exactly on a
+    // segment's end is inside it, at its destination's pose.
+    for (const [index, segment] of artifact.segments.entries()) {
+      if (segment.group !== group) continue;
+      if (at > segment.to.offset) {
+        last = index;
+        continue;
+      }
+      if (segment.from.offset <= at) {
+        const span = segment.to.offset - segment.from.offset;
+        pose = { segment: index, progress: span > 0 ? (at - segment.from.offset) / span : 1 };
+      }
+      break;
+    }
+    if (!pose) {
+      const held = entries.filter((e) => e.offset <= at).pop() ?? entries[0];
+      pose = { state: held?.state ?? "", ...(last === undefined ? {} : { last }) };
+    }
+    poses[group] = pose;
   }
-  const groupStates = own(artifact.visibility, segment.group) ?? {};
-  const before = new Set(own(groupStates, segment.from.state) ?? []);
-  const after = new Set(own(groupStates, segment.to.state) ?? []);
-  // Every drawing of the moving group starts hidden, including those of
-  // states this segment does not touch (the open pose during `half → closed`);
-  // drawings in both poses stay, and the transitions below decide the rest.
-  for (const node of new Set(Object.values(groupStates).flat())) {
-    (before.has(node) && after.has(node) ? shown : hidden).add(node);
-  }
+  return poses;
+}
+
+/**
+ * What a frame changes in the live parts as written: which leaves show and
+ * hide through their inline `display`, the path data that replaces a moving
+ * leaf's `d`, the factor a fading leaf's own opacity is multiplied by, and
+ * the path data of each clip path (by its id before occurrence namespacing).
+ * Anything a frame does not mention keeps its markup.
+ */
+export interface MorphFrameState {
+  shown: Set<string>;
+  hidden: Set<string>;
+  geometry: Map<string, string>;
+  opacity: Map<string, number>;
+  clips: Map<string, string>;
+}
+
+/** The playback rules applied to one pose of every driven group. */
+export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<string, MorphGroupPose>>): MorphFrameState {
+  const state: MorphFrameState = {
+    shown: new Set(),
+    hidden: new Set(),
+    geometry: new Map(),
+    opacity: new Map(),
+    clips: new Map(),
+  };
+  const { shown, hidden, geometry, opacity } = state;
   const show = (node: string | undefined) => {
     if (!node) return;
     hidden.delete(node);
     shown.add(node);
   };
-  for (const t of segment.transitions) {
-    switch (t.kind) {
-      case "morph": {
-        // At the endpoint the destination's own drawing takes over, so a
-        // destination several tracks share is drawn once.
-        if (p >= 1) {
-          show(t.to);
-          break;
-        }
-        // The start pose is the authored drawing itself, not its sampled
-        // approximation.
-        if (p <= 0) {
-          show(t.from);
-          break;
-        }
-        show(t.draw);
-        const frames = artifact.frames[t.frames.index]!;
-        geometry.set(t.draw, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
-        break;
-      }
-      case "fade":
-        if (t.from && p < 1) {
-          show(t.from);
-          opacity.set(t.from, 1 - p);
-        }
-        if (t.to && p > 0) {
-          show(t.to);
-          opacity.set(t.to, p);
-        }
-        break;
-      case "cut":
-        if (p < 1) show(t.from);
-        else show(t.to);
-        break;
-      case "scale": {
-        const zero = t.direction === "shrink" ? p >= 1 : p <= 0;
-        if (zero) break;
-        show(t.node);
-        const full = t.direction === "shrink" ? p <= 0 : p >= 1;
-        if (full) break;
-        const frames = artifact.frames[t.frames.index]!;
-        geometry.set(t.node, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
-        break;
-      }
-      case "hold":
-        show(t.node);
-        break;
+  const writeClip = (clip: number, loops: MorphGeometryRef, p: number) => {
+    const d = aperturePathData(artifact.apertures[loops.index]!, loops, p);
+    for (const target of artifact.clipTargets) if (target.clip === clip) state.clips.set(target.clipPath, d);
+  };
+  for (const [group, states] of Object.entries(artifact.visibility)) {
+    const pose = own(poses, group);
+    const segment = pose && "segment" in pose ? artifact.segments[pose.segment] : undefined;
+    // A group with no segment under way holds a state: its leaves in that
+    // state show and its others hide.
+    if (!segment || !pose || !("segment" in pose)) {
+      const held = pose && "state" in pose ? pose.state : own(artifact.schedules, group)?.[0]?.state;
+      const all = new Set(Object.values(states).flat());
+      for (const node of all) (own(states, held ?? "")?.includes(node) ? shown : hidden).add(node);
+      const last = pose && "state" in pose ? pose.last : undefined;
+      if (last !== undefined) holdApertures(artifact, group, last + 1, writeClip);
+      continue;
     }
+    const p = clamp01(pose.progress);
+    const before = new Set(own(states, segment.from.state) ?? []);
+    const after = new Set(own(states, segment.to.state) ?? []);
+    // Every drawing of the moving group starts hidden, including those of
+    // states this segment does not touch (the open pose during `half →
+    // closed`); drawings in both poses stay, and the transitions below
+    // decide the rest.
+    for (const node of new Set(Object.values(states).flat())) {
+      (before.has(node) && after.has(node) ? shown : hidden).add(node);
+    }
+    for (const t of segment.transitions) {
+      switch (t.kind) {
+        case "morph": {
+          // At the endpoint the destination's own drawing takes over, so a
+          // destination several tracks share is drawn once.
+          if (p >= 1) {
+            show(t.to);
+            break;
+          }
+          // The start pose is the authored drawing itself, not its sampled
+          // approximation.
+          if (p <= 0) {
+            show(t.from);
+            break;
+          }
+          show(t.draw);
+          const frames = artifact.frames[t.frames.index]!;
+          geometry.set(t.draw, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
+          break;
+        }
+        case "fade":
+          if (t.from && p < 1) {
+            show(t.from);
+            opacity.set(t.from, 1 - p);
+          }
+          if (t.to && p > 0) {
+            show(t.to);
+            opacity.set(t.to, p);
+          }
+          break;
+        case "cut":
+          if (p < 1) show(t.from);
+          else show(t.to);
+          break;
+        case "scale": {
+          const zero = t.direction === "shrink" ? p >= 1 : p <= 0;
+          if (zero) break;
+          show(t.node);
+          const full = t.direction === "shrink" ? p <= 0 : p >= 1;
+          if (full) break;
+          const frames = artifact.frames[t.frames.index]!;
+          geometry.set(t.node, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
+          break;
+        }
+        case "hold":
+          show(t.node);
+          break;
+      }
+    }
+    // The group's earlier segments leave their apertures at their end pose;
+    // this segment's own apertures follow it.
+    holdApertures(artifact, group, pose.segment, writeClip);
+    for (const clip of segment.clips) writeClip(clip.clip, clip.loops, p);
   }
-  const clipData = new Map<string, string>();
-  for (const clip of segment.clips) {
-    const d = aperturePathData(artifact.apertures[clip.loops.index]!, clip.loops, p);
-    for (const target of artifact.clipTargets) if (target.clip === clip.clip) clipData.set(target.clipPath, d);
+  return state;
+}
+
+/**
+ * Writes, for every clip a group's segments before `end` moved, the end pose
+ * of the last of them that moved it: outside its segments an aperture keeps
+ * its last pose.
+ */
+function holdApertures(
+  artifact: MorphArtifact,
+  group: string,
+  end: number,
+  writeClip: (clip: number, loops: MorphGeometryRef, p: number) => void,
+) {
+  const latest = new Map<number, MorphGeometryRef>();
+  for (let i = 0; i < end && i < artifact.segments.length; i++) {
+    const segment = artifact.segments[i]!;
+    if (segment.group !== group) continue;
+    for (const clip of segment.clips) latest.set(clip.clip, clip.loops);
   }
+  for (const [clip, loops] of latest) writeClip(clip, loops, 1);
+}
+
+/**
+ * The artifact drawn at `pose` as one SVG: each part nested in paint order,
+ * the live parts posed. Groups other than the moving one hold their
+ * schedule's first state. A static artifact draws its rest render.
+ */
+export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): string {
+  if (artifact.status !== "live" || pose === "rest") return artifact.rest;
+  const segment = artifact.segments[pose.segment];
+  if (!segment) return artifact.rest;
+  const poses: Record<string, MorphGroupPose> = table();
+  for (const group of Object.keys(artifact.visibility)) {
+    poses[group] = group === segment.group ? pose : { state: own(artifact.schedules, group)?.[0]?.state ?? "" };
+  }
+  return renderMorphState(artifact, morphFrameState(artifact, poses));
+}
+
+/** The artifact drawn at keyframe offset `offset` (already eased) as one SVG. */
+export function renderMorphAt(artifact: MorphArtifact, offset: number): string {
+  if (artifact.status !== "live") return artifact.rest;
+  return renderMorphState(artifact, morphFrameState(artifact, morphPosesAt(artifact, offset)));
+}
+
+/**
+ * Poses one live leaf, given as it is written in its part (its markup
+ * `style` and `d`), for the frame `state` describes. A player keeps each
+ * leaf's markup and poses a copy of it every frame, so a leaf a frame no
+ * longer mentions goes back to its markup.
+ */
+export function poseLeaf(element: Element, node: string, state: MorphFrameState) {
+  // The inline declaration the live part is written with.
+  if (state.shown.has(node)) setStyleProperty(element, "display", undefined);
+  else if (state.hidden.has(node)) setStyleProperty(element, "display", "none");
+  const d = state.geometry.get(node);
+  if (d !== undefined) element.attributes["d"] = d;
+  const o = state.opacity.get(node);
+  if (o !== undefined) multiplyOpacity(element, o);
+}
+
+function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): string {
+  const clipData = state.clips;
   const root: Element = {
     tagName: "svg",
     attributes: {
@@ -208,15 +335,7 @@ export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): stri
     if (part.kind === "live") {
       for (const element of walk(svg)) {
         const node = element.attributes["data-morph"];
-        if (node !== undefined) {
-          // The inline declaration the live part is written with.
-          if (shown.has(node)) setStyleProperty(element, "display", undefined);
-          else if (hidden.has(node)) setStyleProperty(element, "display", "none");
-          const d = geometry.get(node);
-          if (d !== undefined) element.attributes["d"] = d;
-          const o = opacity.get(node);
-          if (o !== undefined) multiplyOpacity(element, o);
-        }
+        if (node !== undefined) poseLeaf(element, node, state);
         if (element.tagName === "clipPath") {
           const d = clipData.get(element.attributes["id"] ?? "");
           const path = elementsOf(element.children)[0];
