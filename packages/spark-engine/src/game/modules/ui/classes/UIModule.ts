@@ -4788,11 +4788,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  /** The elements a target names. Elements named exactly as the target are
+   *  its own, so an author's element that only shares a class with it (`text
+   *  title` beside the builtin `title`) is left alone (#863); a target no
+   *  element is named after resolves to every element with all its classes. */
   protected findElements(target: string): Element[] {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
-      const elements = this.searchForAll(this._root, name, found);
+      const matches = this.searchForAll(this._root, name, found);
+      const named = matches.filter((el) => el.name === name);
+      const elements = named.length > 0 ? named : matches;
       if (instance) {
         const instanceIndex = Number(instance);
         if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
