@@ -247,12 +247,14 @@ try {
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
     const program = workspace.program(uri);
     const config = workspace.compilerConfig;
     const result = profiled("lsp: onHover", uri, () =>
       getHover(
         document,
+        tree,
         annotations,
         program,
         config,
