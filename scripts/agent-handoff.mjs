@@ -10,7 +10,7 @@ import { withJob,retryBusy,git,failureDetails,sameIdentity } from './review-job-
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs,codexReviewMode,discardCodexAuthCopy} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-defaults.mjs";
-import { reviewJobRoot, assertInsideJobRoot, reviewJobFiles } from "./review-job-root.mjs";
+import { reviewJobRoot, assertInsideJobRoot, assertWalkedJobState, reviewJobFiles } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
@@ -1363,6 +1363,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   // Claude reviewer's directory exists only inside its built prompt, which
   // scripts/build-review-prompt.mjs checks when it fills REVDIR and DIFF.
   assertInsideJobRoot([["plan file", configFile], ["journal", journal], ...Object.entries(config.steps).flatMap(([name, step]) => [[`step ${name} prompt`, step?.prompt], ...(step?.permissions?.cwd !== undefined ? [[`step ${name} reviewer directory`, step.permissions.cwd]] : [])])], root, `in pr-${config.pr}${path.sep}round-<R>`);
+  assertWalkedJobState([["plan file", configFile, "file"], ["journal", journal, "file"]], root);
   const selection = resolveReviewer(config, cwd);
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");

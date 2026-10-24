@@ -9,7 +9,7 @@ import { executionCommands } from './reviewer-execution.mjs';
 import { checkWriterEffort } from './reviewer-defaults.mjs';
 import { verifyClaimConfiguration } from './continuation-host.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
-import { reviewJobRoot,assertInsideJobRoot } from './review-job-root.mjs';
+import { reviewJobRoot,assertInsideJobRoot,assertWalkedJobState } from './review-job-root.mjs';
 import { nativeResultType,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import { readRepos,reviewThread } from '../.agents/repos.mjs';
 import { readJson,writeExclusive,git,readEvents,appendEvent,withJob,retryBusy,recoverJobLock,alive,sameIdentity,currentIdentity,assertFrozen,reserveFreeze,assertJobFreeze,worktreePaths,failureDetails } from './review-job-store.mjs';
@@ -78,6 +78,7 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
   // refuses outside the review job root; refusing here happens before the
   // job's files or the worktree freeze exist.
   assertInsideJobRoot([['jobDir',plan.jobDir],...plan.reviews.flatMap(review=>[[`review ${review.id} prompt`,review.prompt],...(review.permissions?.cwd!==undefined?[[`review ${review.id} reviewer directory`,review.permissions.cwd]]:[])])],jobRoot??reviewJobRoot(plan.worktree),`in pr-${plan.pr}${path.sep}round-${plan.round}`);
+  assertWalkedJobState([['jobDir',plan.jobDir,'directory']],jobRoot??reviewJobRoot(plan.worktree));
   checkCrossVendor(plan,jobRoot??reviewJobRoot(plan.worktree));
   assertFrozen(plan);
   return plan;

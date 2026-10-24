@@ -92,6 +92,34 @@ export function assertInsideJobRoot(entries, root, where) {
   if (outside.length) throw new Error(`Review job paths must lie under ${root} (${where}): ${outside.map(([label, p]) => `${label} ${p}`).join("; ")}`);
 }
 
+// Whether reviewJobFiles skips a path under a PR's job directory: a directory
+// between `pr-<P>` and the path (the path itself too, for a directory) has a
+// name the walk skips or holds `.git`. A path outside every `pr-<P>`
+// directory is never walked, so it is not refused here.
+function skippedByWalk(p, root, kind) {
+  const resolvedRoot = resolvedExisting(path.resolve(root));
+  const resolved = resolvedExisting(path.resolve(p));
+  if (!resolvedRoot || !resolved) return false;
+  const parts = path.relative(resolvedRoot, resolved).split(path.sep);
+  if (!/^pr-\d+$/.test(parts[0])) return false;
+  const directories = kind === "directory" ? parts.slice(1) : parts.slice(1, -1);
+  let directory = path.join(resolvedRoot, parts[0]);
+  for (const name of directories) {
+    directory = path.join(directory, name);
+    if (NOT_JOB_STATE.test(name) || fs.existsSync(path.join(directory, ".git"))) return true;
+  }
+  return false;
+}
+
+// Refuses, naming each one, a plan, journal or job directory the review-job
+// readers would never see, so no launch is hidden from the dead-launch sweep,
+// the review checkpoint or the merge gate. Entries are [label, path, kind],
+// with kind "file" or "directory".
+export function assertWalkedJobState(entries, root) {
+  const hidden = entries.filter(([, p, kind]) => typeof p === "string" && skippedByWalk(p, root, kind));
+  if (hidden.length) throw new Error(`Review job state must not lie inside a reviewer workspace (reviewer-*), a reviewer tool home (codex-home-*, gh-config-*), a Git checkout, node_modules or a package cache (npm-cache, .npm, _cacache), which the review-job readers skip; use a launch-state directory such as launch-<reviewer-id>-<attempt>: ${hidden.map(([label, p]) => `${label} ${p}`).join("; ")}`);
+}
+
 // Resolve the existing readable directory without creating it or disturbing
 // permitted pre-launch artifacts. Containment remains the caller's check.
 export function assertReviewerDirectory(directory) {

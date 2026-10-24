@@ -827,7 +827,9 @@ export function deadLaunches(jobRoot, prs, census = processCensus) {
     const sizes = new Map(files.map(({ file, size }) => [file, size]));
     for (const { file, journal } of launchPlans(files)) {
       const started = ["out", "err"].some((kind) => launcherLogs(file, journal, kind).some((log) => fs.existsSync(log)));
-      if (!started || (sizes.get(journal) ?? fs.statSync(journal, { throwIfNoEntry: false })?.size) > 0) continue;
+      // A journal the walk saw empty is read again: its launcher may have
+      // written its first rows since.
+      if (!started || (sizes.get(journal) || fs.statSync(journal, { throwIfNoEntry: false })?.size) > 0) continue;
       if (list === undefined) { try { list = census(); } catch { list = null; } }
       if (!Array.isArray(list)) return [];
       if (usersOf(file, list, process.pid).length) continue;

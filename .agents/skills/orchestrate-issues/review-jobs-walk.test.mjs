@@ -4,7 +4,9 @@
 // reviewer's workspace, with its probe checkouts, clones and caches, and a
 // reviewer tool's private home are never entered, each file is statted at
 // most once, and an entry a reviewer removes while the walk reads it is
-// skipped.
+// skipped. A journal the walk saw empty is read again before a launch is
+// called dead, and the launcher refuses a plan or journal where the walk
+// would never see it.
 //
 //   node .agents/skills/orchestrate-issues/review-jobs-walk.test.mjs
 import assert from "node:assert/strict";
@@ -13,6 +15,8 @@ import os from "node:os";
 import path from "node:path";
 import * as run from "./issue-run.mjs";
 import { readJournals } from "./review-checkpoint.mjs";
+import { runHandoff } from "../../../scripts/agent-handoff.mjs";
+import { readRepos } from "../../repos.mjs";
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "review-jobs-walk-"));
 const fold = (p) => (process.platform === "win32" ? path.resolve(p).toLowerCase() : path.resolve(p));
@@ -133,6 +137,48 @@ const removedMidWalk = (label, read) => scenario(`a directory or file removed wh
 });
 removedMidWalk("the dead-launch sweep", (f) => run.deadLaunches(f.root, [{ ticket: 1, pr: 1 }], () => []));
 removedMidWalk("the journal reader", (f) => assert.equal(readJournals(f.prDir).length, 1));
+
+scenario("a journal the walk saw empty and its launcher filled before the census is not a dead launch", () => {
+  const f = jobs("journal-filled", { probeFiles: 0 });
+  fs.writeFileSync(f.journalFile, "");
+  // The launcher writes its first rows after the walk listed the empty journal.
+  const { result } = traced(() => run.deadLaunches(f.root, [{ ticket: 1, pr: 1 }], () => []), (name, target) => {
+    if (name === "readFileSync" && fold(target) === fold(f.plan)) fs.writeFileSync(f.journalFile, coordinatorRow + "\n");
+  });
+  assert.deepEqual(result, []);
+});
+
+// The launcher refuses a plan or journal where the readers would never see
+// it, so no launch can hide from the sweep, the checkpoint or the gate.
+const launcherRefusals = async () => {
+  const name = "launcher refuses a plan or journal inside a directory the review-job readers skip";
+  try {
+    const root = path.join(tmp, "launcher.review-jobs");
+    const worktree = path.join(tmp, "launcher-worktree");
+    fs.mkdirSync(worktree, { recursive: true });
+    const repos = path.join(tmp, "repos-off.json");
+    fs.writeFileSync(repos, JSON.stringify({ ...readRepos(), cutover: false }));
+    const attempt = (planDir, journalDir = planDir) => {
+      fs.mkdirSync(planDir, { recursive: true });
+      fs.mkdirSync(journalDir, { recursive: true });
+      const file = path.join(planDir, "plan.json");
+      const prompt = path.join(round, "prompt.txt");
+      fs.writeFileSync(prompt, "review");
+      fs.writeFileSync(file, JSON.stringify({ worktree, pr: 1, writer: "claude-opus-5-5", writerEffort: "medium", completedReviewRound: 0, maxSteps: 1, first: "review", journal: path.join(journalDir, "journal.jsonl"), steps: { review: { role: "review", round: 1, prompt, next: [null] } } }));
+      return runHandoff(file, { jobRoot: root, slotRoot: path.join(tmp, "launcher-slots"), repos: readRepos(repos) }).then(() => null, (error) => error.message);
+    };
+    const round = path.join(root, "pr-1", "round-1");
+    const hidden = /must not lie inside a reviewer workspace/;
+    assert.match(await attempt(path.join(round, "reviewer-supervisor")), hidden, "a plan in a reviewer-* directory is refused");
+    assert.match(await attempt(path.join(round, "launch-b-1"), path.join(round, "launch-b-1", "handoff-0-review-x", "codex-home-y")), hidden, "a journal in a tool home is refused");
+    const probe = path.join(round, "probe-head");
+    fs.mkdirSync(path.join(probe, ".git"), { recursive: true });
+    assert.match(await attempt(path.join(probe, "state")), hidden, "a plan inside a Git checkout is refused");
+    assert.doesNotMatch(await attempt(path.join(round, "launch-a-1")) ?? "", hidden, "a plan in a launch-state directory passes this check");
+    console.log(`ok   ${name}`);
+  } catch (error) { failures.push(name); console.log(`FAIL ${name}\n${error.stack}`); }
+};
+await launcherRefusals();
 
 fs.rmSync(tmp, { recursive: true, force: true });
 if (failures.length) { console.log(`${failures.length} failed`); process.exit(1); }
