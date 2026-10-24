@@ -45,7 +45,6 @@ import {
   ConstValue,
   DONE_HOLD,
   JUMP_DECISION,
-  JUMP_LOOP,
   LEAVE_CONTINUE,
   Op,
   OP_NAMES,
@@ -1499,9 +1498,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   /** A loop's test: its condition, a jump past the pass when it is false,
-   *  which is a decision as a conditional divert is and is marked as a
-   *  loop's (`JUMP_LOOP`), and the newline a branch that is not inline
-   *  starts with. Returns the jump's label. */
+   *  which is a decision as a conditional divert is, and the newline a
+   *  branch that is not inline starts with. Returns the jump's label. */
   protected emitTest(test: ConditionalSingleBranch): ProgramLabel {
     this.expect(
       !!test.ownExpression &&
@@ -1511,7 +1509,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       "a loop's test",
     );
     this.emitObject(test.ownExpression!);
-    const exit = this.jump(Op.JumpIfFalse, JUMP_DECISION | JUMP_LOOP);
+    const exit = this.jump(Op.JumpIfFalse, JUMP_DECISION);
     if (!test.isInline) {
       this.emit(Op.Newline);
     }
