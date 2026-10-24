@@ -23,20 +23,19 @@ const kindsOf = (scope: "comment" | "string"): string[] =>
     })
     .map((node) => node.typeId);
 
-// Kinds no script reads: rules nothing reaches (`grammarReachability.test.ts`)
-// and rules no sample or fixture of the repository reaches through the
-// patterns that include them. A kind leaves this list when a sample reads it.
+// Kinds no script reads. The three `LuauStyle…`/`LuauUI…` rules are ones
+// nothing includes (`grammarReachability.test.ts`). The explicit tags are
+// included only by `SparkdownExplicitDivertPath`, whose end matches at the
+// first character that is not part of a target's name, before a tag's
+// leading whitespace or `#` can start the annotation. A kind leaves this
+// list when a sample reads it.
 const UNREAD = [
-  "AssignedQuotedEventAttribute",
-  "AssignedQuotedStyleAttribute",
-  "LuauCallableValueTrailingBlockComment",
   "LuauStylePropertyValue",
   "LuauUIAttributeValue",
   "LuauUIContentText",
   "SparkdownExplicitTag",
   "SparkdownExplicitTag_c2",
   "SparkdownExplicitTags",
-  "StringLiteral",
 ];
 
 // A script holding a comment, and the same script without it.
@@ -66,6 +65,8 @@ const COMMENTS: [string, string][] = [
   // The grammar reads a shebang's text after its `#!` as the comment.
   ["#!/usr/bin/env luau\n& x = 1", "#!/usr/bin/env other\n& x = 1"],
   ["& local x = 1 --[[c]] print(x)", "& local x = 1 print(x)"],
+  // After a value that can be called, as a name can.
+  ["& local x = foo --[[a\n]] print(1)", "& local x = foo print(1)"],
   // Its closing brackets stand outside the comment where a token follows
   // them, as the grammar reads it in a statement.
   ["& local x = 1 --[[a\n]]print(x)", "& local x = 1 --[[b\n]]print(x)"],
@@ -80,6 +81,19 @@ const COMMENTS: [string, string][] = [
 // string changed, or for a string that holds no whitespace, a character.
 const STRINGS: [string, string][] = [
   ['& s = "a  b"', '& s = "a b"'],
+  // A selector's parameters: a string, a style attribute, an event's.
+  [
+    'style card with\n  ("a  b") {\n  }\nend',
+    'style card with\n  ("a b") {\n  }\nend',
+  ],
+  [
+    'style card with\n  (#image="a  b") {\n  }\nend',
+    'style card with\n  (#image="a b") {\n  }\nend',
+  ],
+  [
+    'style card with\n  (@click="a  b") {\n  }\nend',
+    'style card with\n  (@click="a b") {\n  }\nend',
+  ],
   ["& s = 'a  b'", "& s = 'a b'"],
   ["& s = [[a  b]]", "& s = [[a b]]"],
   ["& s = `a {x}  b`", "& s = `a {x} b`"],
