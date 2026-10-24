@@ -439,12 +439,13 @@ end
 const OPENED = lineIn(OPENS, "Opened.");
 
 /** A beat before the cursor's in a branch the route never takes: the route
- *  to a line takes a conditional's first branch, and so never this `else`. */
+ *  to a line follows the verdict the program reaches, and `skip` sends it
+ *  down the first branch, so never this `else`. */
 const UNTAKEN = `define HAPPY as image with
   src = "https://example.com/happy.png"
 end
 
-store skip = false
+store skip = true
 
 -> start
 
@@ -650,7 +651,7 @@ end
  *  where the story last ran. An untaken branch before the menu holds the
  *  edit. */
 const RETAINED = `store stamp = 7
-store skip = false
+store skip = true
 
 layout main with
   badge {

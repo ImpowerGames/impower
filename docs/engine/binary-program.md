@@ -196,7 +196,7 @@ Values are the engine's value classes, and a pushed constant is a value object c
 | `Done` | flag: hold | | | pops a forked thread if one is open, otherwise stops the flow with a safe exit; with the hold flag, which the `Done` that ends a `choose` block's presentation carries, only when a choice its chunk raised is waiting, and otherwise nothing | |
 | `End` | | | | ends every flow | |
 
-A `JumpIfFalse` or `Choice` with the decision-site flag is where the route planner pauses, forks and forces a value, which is what a conditional divert and a choice point with a condition are today (`Story.ts:1715-1734`). A jump that belongs to an expression (`and`, `or`, the `if` expression) carries no such flag, as `ShortCircuit` has no pause today.
+A `JumpIfFalse` or `Choice` with the decision-site flag is where the route planner pauses, forks and forces a value, which is what a conditional divert and a choice point with a condition are today (`Story.ts:1715-1734`). A decision `JumpIfFalse` in a statement that owns a loop block (`BLOCK_LOOP`) is that loop's test, the only decision such a statement holds; the planner follows the program's own verdict there before any route that forces it (`SearchQueue` in `planRoute.ts`). A jump that belongs to an expression (`and`, `or`, the `if` expression) carries no such flag, as `ShortCircuit` has no pause today.
 
 ### What the parsed hierarchy emits
 
