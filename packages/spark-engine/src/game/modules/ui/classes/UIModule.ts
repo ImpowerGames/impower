@@ -4752,6 +4752,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // that group's await chain had progressed (the same defect class the
     // per-name grouping fixed, one level up). Everything before a navigate
     // settles first, the navigate runs alone, then the remainder proceeds.
+    // The chain belongs to the stream it started in. A connect that begins
+    // while a directive waits (an open on its font) rebuilds the screen from
+    // its own state, so the directives still to run do nothing (#1218).
+    const epoch = this._game.connection.epoch;
     const segments: LayoutInstruction[][] = [[]];
     for (const e of instructions) {
       if (e.control === "navigate") {
@@ -4761,6 +4765,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     for (const segment of segments) {
+      if (this.superseded(epoch)) {
+        return;
+      }
       if (segment.length === 0) {
         continue;
       }
@@ -4781,6 +4788,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       await Promise.all(
         [...byLayout.values()].map(async (group) => {
           for (const e of group) {
+            if (this.superseded(epoch)) {
+              return;
+            }
             await run(e);
           }
         }),
