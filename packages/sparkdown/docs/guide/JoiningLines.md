@@ -99,7 +99,7 @@ end
 
 Several clicks can add to one box: in `One .. > .. two .. > .. three.` each click adds to the box.
 
-A continuation may name a speaker. Its words are then typed with that speaker's settings, and the box shows that speaker's name:
+A continuation may name a speaker. Its words are then typed with that speaker's settings, and a dialogue box shows that speaker's name:
 
 ```sparkdown
 scene Knock
@@ -107,6 +107,8 @@ scene Knock
   ALICE: .. It's me.
 end
 ```
+
+The box stays the kind it was before the click. An action box carried on by `BOB: .. Who's there?` adds the words, typed as BOB, and shows no name.
 
 With a mark on one side of the break only, the part after the click starts a new box. A `..` that ends a line right after a break (`Wait > ..`) has no part after the break to begin, so it does nothing.
 
