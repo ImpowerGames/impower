@@ -340,7 +340,10 @@ export function extractTree(
     return wrap ? wrap(clone) : clone;
   };
   const root = copy(doc.root, false) ?? cloneElement(doc.root, false);
-  const closure = resourceClosure(doc, keep, options.missing);
+  // Every part carries every style sheet, so whatever a sheet references
+  // (`.skin { fill: url(#skin) }`) is part of every part's closure.
+  const sheets = subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style");
+  const closure = resourceClosure(doc, [...keep, ...sheets], options.missing);
   // Containers kept for their children still carry their own references.
   for (const element of keepUp) {
     for (const id of referencedIds(element)) {
@@ -364,9 +367,7 @@ export function extractTree(
     }
     if (!insideCopied) defs.children.push(cloneElement(target));
   }
-  const styles = subtree(doc.root)
-    .filter((e) => e.tagName.toLowerCase() === "style")
-    .map((e) => cloneElement(e));
+  const styles = sheets.map((e) => cloneElement(e));
   const leading = [...styles, ...(defs.children.length ? [defs] : [])];
   if (leading.length) root.children.unshift(...leading);
   const ids = new Set<string>();

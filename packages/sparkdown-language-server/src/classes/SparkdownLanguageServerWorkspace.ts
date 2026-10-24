@@ -484,15 +484,18 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
-  /** Every reference in a program, once per key, with the variant it is for. */
-  protected morphRefs(program: SparkProgram): { variant: string; ref: MorphRef }[] {
-    const seen = new Set<string>();
-    const refs: { variant: string; ref: MorphRef }[] = [];
+  /**
+   * Every reference in a program with the variant it is for and the URI of
+   * its artwork. Several consumers can share one key (the same art in two
+   * files, two names for one selection): the bake runs once per key, but
+   * each consumer is its own place to report on.
+   */
+  protected morphRefs(program: SparkProgram): { variant: string; ref: MorphRef; uri?: string }[] {
+    const refs: { variant: string; ref: MorphRef; uri?: string }[] = [];
     for (const [variant, list] of Object.entries(program.morphs?.variants ?? {})) {
       for (const ref of list) {
-        if (seen.has(ref.key)) continue;
-        seen.add(ref.key);
-        refs.push({ variant, ref });
+        const uri = program.context?.["image"]?.[ref.image]?.uri;
+        refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
       }
     }
     return refs;
@@ -508,20 +511,21 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   /**
-   * The bake diagnostics of `program`'s references that belong to `uri`. One
-   * problem in the art shows once, naming the variants it affects, however
-   * many variants of the portrait the morph plays on.
+   * The bake diagnostics of `program`'s references whose artwork is `uri`.
+   * A bake's diagnostics describe the art; where they are shown and which
+   * variants they name come from each consumer of the key as this program
+   * has it, never from whichever consumer happened to bake it. One problem in
+   * the art shows once, naming every variant it affects.
    */
   protected morphDiagnosticsFor(program: SparkProgram, uri: string) {
-    const grouped = new Map<string, { diagnostic: MorphBakeDiagnostic; variants: string[] }>();
-    for (const { variant, ref } of this.morphRefs(program)) {
-      const imageUri = program.context?.["image"]?.[ref.image]?.uri;
+    type Group = { diagnostic: MorphBakeDiagnostic; variants: string[] };
+    const grouped = new Map<string, Group>();
+    for (const { variant, ref, uri: artwork } of this.morphRefs(program)) {
+      if (artwork !== uri) continue;
       for (const d of this.morphDiagnostics.get(ref.key) ?? []) {
-        if ((d.uri ?? imageUri) !== uri) continue;
         const key = JSON.stringify([d.morph, d.code, d.severity, d.layer, d.message]);
-        const group = grouped.get(key) ?? { diagnostic: d, variants: [] };
-        const name = d.variant ?? variant;
-        if (!group.variants.includes(name)) group.variants.push(name);
+        const group: Group = grouped.get(key) ?? { diagnostic: d, variants: [] };
+        if (!group.variants.includes(variant)) group.variants.push(variant);
         grouped.set(key, group);
       }
     }
@@ -548,12 +552,15 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
    * but never published under the newer program.
    */
   protected bakeProgramMorphs(program: SparkProgram, owner: string | undefined) {
-    const pending = this.morphRefs(program).filter(({ ref }) => !this.morphDiagnostics.has(ref.key));
-    if (pending.length === 0) return;
+    const consumers = this.morphRefs(program);
+    const pending = new Map<string, { variant: string; ref: MorphRef }>();
+    for (const { variant, ref } of consumers) {
+      if (!this.morphDiagnostics.has(ref.key) && !pending.has(ref.key)) pending.set(ref.key, { variant, ref });
+    }
+    if (pending.size === 0) return;
     const host = this.morphHost(program);
-    const uris = new Set<string>();
     void Promise.allSettled(
-      pending.map(({ variant, ref }) =>
+      [...pending.values()].map(({ variant, ref }) =>
         host.resolve(ref).then(
           (handle) => {
             this.recordMorphDiagnostics(ref.key, handle.artifact.diagnostics);
@@ -570,13 +577,14 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
               },
             ]);
           },
-        ).finally(() => {
-          const uri = program.context?.["image"]?.[ref.image]?.uri;
-          if (typeof uri === "string") uris.add(uri);
-        }),
+        ),
       ),
     ).then(() => {
       if (owner && this._entryPrograms.get(owner) !== program) return;
+      // Every artwork a baked key reports on, not only the one that baked it.
+      const uris = new Set(
+        consumers.filter(({ ref, uri }) => uri && pending.has(ref.key)).map(({ uri }) => uri!),
+      );
       for (const uri of uris) this.publishDiagnostics(uri, this.getDiagnostics(program, uri), owner);
     });
   }
@@ -798,9 +806,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     // Include prior publications so warnings removed by repair are cleared,
     // and artwork whose morph bakes reported something.
     const morphUris = this.morphRefs(params.program)
-      .filter(({ ref }) => this.morphDiagnostics.get(ref.key)?.length)
-      .map(({ ref }) => params.program.context?.["image"]?.[ref.image]?.uri)
-      .filter((uri): uri is string => typeof uri === "string");
+      .filter(({ ref, uri }) => uri && this.morphDiagnostics.get(ref.key)?.length)
+      .map(({ uri }) => uri!);
     const uris = new Set([
       ...this._documentVersions.keys(),
       ...Object.keys(params.program.diagnostics ?? {}),

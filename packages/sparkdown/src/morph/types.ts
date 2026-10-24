@@ -104,10 +104,13 @@ export interface MorphBakeDiagnostic {
   code: MorphDiagnosticCode;
   severity: "warning" | "error";
   message: string;
-  /** The artwork's URI, when the host knows it. */
+  /**
+   * The artwork's URI and the variant's context key for the consumer the
+   * bake ran for. Consumers sharing the artifact's key share its diagnostics;
+   * a host reporting them binds each to its own artwork and variant.
+   */
   uri?: string;
   morph: string;
-  /** The variant's context key. */
   variant?: string;
   /** The layer label or element the problem is about. */
   layer?: string;

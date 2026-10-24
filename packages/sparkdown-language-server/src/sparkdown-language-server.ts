@@ -15,8 +15,8 @@ import type {
   AddressQuery,
   ProgramAddress,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
-import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
+import { createImageCompositeOptions } from "./utils/providers/imagePreviewOptions";
 import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
 import { getCodeActions } from "./utils/providers/getCodeActions";
@@ -59,17 +59,9 @@ try {
 
   const workspace = new SparkdownLanguageServerWorkspace(connection);
 
-  // Asset previews composite a layered image by reading its layers. impower-dev
-  // serves assets over http so the worker just fetches them; VS Code's srcs are
-  // workspace uris a worker can't fetch, so the bytes come back over the
-  // extension bridge instead. Hosts that implement neither fall back to the
-  // single-layer preview rather than failing.
-  // A variant a morph plays on previews as its rest render, baked here.
-  const imageCompositeOptions = {
-    readFileBytes: (uri: string) => workspace.getFileBytes(uri),
-    morphRest: (context: SparkProgram["context"], struct: any) =>
-      workspace.morphRestRender(context, struct),
-  };
+  // Hosts that implement neither image route fall back to the single-layer
+  // preview rather than failing.
+  const imageCompositeOptions = createImageCompositeOptions(workspace);
 
   const capabilities: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,

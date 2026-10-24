@@ -85,6 +85,21 @@ describe("morph bake: layered art", () => {
     expect(elements(artifact.parts[2]!.svg).some((e) => e.attributes["id"])).toBe(false);
   });
 
+  test("a resource only a style sheet references travels with every part that carries the sheet", () => {
+    // The face's paint comes from a class rule, not from its own attribute.
+    const styled = layeredPortrait()
+      .replace("<defs>", "<style>.skin { fill: url(#white); }</style><defs>")
+      .replace('<path data-name="face" d="', '<path data-name="face" class="skin" d="')
+      .replace(/(<path data-name="face"[^>]*) fill="#fdb"/, "$1");
+    const styledArtifact = bake(styled, layeredRecipe);
+    expect(styledArtifact.diagnostics).toEqual([]);
+    const face = elements(styledArtifact.parts[0]!.svg);
+    const p = styledArtifact.idPrefix;
+    const sheet = face.find((e) => e.tagName === "style")!;
+    expect(sheet.children.join("")).toContain(`url(#${p}white)`);
+    expect(face.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${p}white`)).toBe(true);
+  });
+
   test("a target's own clip stays on it inside the aperture's wrapper, so the two intersect", () => {
     const live = elements(artifact.parts[1]!.svg);
     const iris = live.find((e) => e.attributes["data-name"] === "iris")!;
@@ -221,9 +236,16 @@ describe("morph bake: policies", () => {
     expect(artifact.diagnostics[0]!.message).toContain("subpath-count");
   });
 
-  test("unequal counts with neither side single do not pair, and warn", () => {
+  test("unequal counts with neither side single do not pair, and warn once for both directions", () => {
     const counts = art(lash(UPPER_OPEN, "mark") + lash(LOWER_OPEN, "mark"), lash(CLOSED, "mark") + lash(UPPER_OPEN, "mark") + lash(LOWER_OPEN, "mark", ` transform="translate(0 5)"`));
-    expect(codes(bake(counts, recipe()))).toContain("pairing-count");
+    expect(codes(bake(counts, recipe())).filter((c) => c === "pairing-count")).toHaveLength(1);
+  });
+
+  test("a pair with no method is reported once per pair, though both directions try it", () => {
+    // Two pairs (upper and lower lash onto the closed one), each tried
+    // closing and again reopening.
+    const artifact = bake(art(LASHES_OPEN, LASH_CLOSED), recipe({ method: undefined }));
+    expect(codes(artifact).filter((c) => c === "missing-method")).toHaveLength(2);
   });
 });
 

@@ -503,7 +503,9 @@ export function* bakeSteps(
         "method-failed",
         "warning",
         `\`${method}\` could not morph "${from.label}" (${result.failure.code}: ${result.failure.message}), so it uses its fallback.`,
-        { layer: from.label, path: from.key },
+        // The pair's canonical source, so the segment that moves the same
+        // pair back reports the same problem rather than a second one.
+        { layer: from.label, path: cacheKey.slice(0, cacheKey.indexOf(">")) },
       );
       return { morph: null, cacheKey, reversed };
     }
@@ -562,7 +564,10 @@ export function* bakeSteps(
       const byNode = new Map(leaves.filter((l) => l.live).map((l) => [l.node, l]));
       const pairing = pairShapes(fromShapes, toShapes);
       for (const d of pairing.diagnostics) {
-        report("pairing-count", "warning", `"${d.label}" has ${d.fromCount} drawings in one pose and ${d.toCount} in the other, so they cannot pair: ${d.message}`, { layer: d.label });
+        // Worded the same in either direction, so a segment and its reverse
+        // report it once.
+        const [fewer, more] = [d.fromCount, d.toCount].sort((a, b) => a - b);
+        report("pairing-count", "warning", `"${d.label}" has ${fewer} drawings in one pose and ${more} in the other; neither is a single drawing, so they cannot pair and each uses its fallback.`, { layer: d.label });
       }
       for (const u of pairing.unpaired) (u.side === "from" ? unpairedFrom : unpairedTo).push(byNode.get(u.shape.id)!);
       // A drawing several tracks leave cannot carry them all; each draws on
@@ -585,7 +590,7 @@ export function* bakeSteps(
         }
         const method = policy(from, "method");
         if (!method) {
-          report("missing-method", "error", `"${from.label}" morphs but has no \`method\`, so it uses its fallback.`, { layer: from.label, path: from.key });
+          report("missing-method", "error", `"${from.label}" morphs but has no \`method\`, so it uses its fallback.`, { layer: from.label, path: [from.key, to.key].sort()[0] });
           unpairedFrom.push(from);
           unpairedTo.push(to);
           continue;

@@ -3,9 +3,13 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
+import { getHover } from "../../utils/providers/getHover";
+import { createImageCompositeOptions } from "../../utils/providers/imagePreviewOptions";
+import { resolveCompletion } from "../../utils/providers/resolveCompletion";
 
 const main = "file:///project/main.sd";
 const asset = "file:///project/bunny.svg";
+const twin = "file:///project/rabbit.svg";
 
 const UPPER = "M0,50 C30,5 70,5 100,50 C70,25 30,25 0,50Z";
 const LOWER = "M0,50 C30,75 70,75 100,50 C70,85 30,85 0,50Z";
@@ -67,6 +71,28 @@ function compileServed(script = SCRIPT): any {
   } as any);
   return compiler.compile({ textDocument: { uri: main } }).program;
 }
+
+/**
+ * VS Code's compile: the art is inline, so two files holding the same SVG
+ * give their variants one artifact key.
+ */
+function compileInlineTwins(script: string): any {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      { uri: main, type: "script", name: "main", ext: "sd", text: script, version: 1, languageId: "sparkdown" },
+      { uri: asset, type: "image", name: "bunny", ext: "svg", data: SVG },
+      { uri: twin, type: "image", name: "rabbit", ext: "svg", data: SVG },
+    ],
+  } as any);
+  return compiler.compile({ textDocument: { uri: main } }).program;
+}
+
+/** The decoded image an LSP preview's markup shows. */
+const previewImage = (markup: string | undefined) => {
+  const src = /<img src="([^"]*)"/.exec(markup ?? "")?.[1] ?? "";
+  return decodeURIComponent(src);
+};
 
 function setup() {
   const workspace = Object.create(SparkdownLanguageServerWorkspace.prototype) as SparkdownLanguageServerWorkspace;
@@ -137,12 +163,49 @@ describe("morph bake diagnostics", () => {
     expect(publishes().length).toBe(count);
   });
 
-  it("a preview of the variant shows its rest render", async () => {
+  it("the same art in two files reports on both files, each naming its own variant", async () => {
+    const { workspace, publishes } = setup();
+    const program = compileInlineTwins(`${SCRIPT}\n[[rabbit]]\n`);
+    const [bunnyRef] = program.morphs.variants.bunny;
+    const [rabbitRef] = program.morphs.variants.rabbit;
+    expect(rabbitRef.key).toBe(bunnyRef.key);
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
+    await until(() => publishes().some((p) => p.uri === asset) && publishes().some((p) => p.uri === twin));
+    const on = (uri: string) => publishes().filter((p) => p.uri === uri).at(-1)?.diagnostics ?? [];
+    expect(on(asset).map((d: any) => d.message)).toEqual([expect.stringContaining("Morph `blink` on `bunny`:")]);
+    expect(on(twin).map((d: any) => d.message)).toEqual([expect.stringContaining("Morph `blink` on `rabbit`:")]);
+  });
+});
+
+describe("morph previews through the providers", () => {
+  const lineOf = (text: string, needle: string) => text.split("\n").findIndex((line) => line.includes(needle));
+
+  it("hovering a variant the morph plays on shows its rest render", async () => {
     const { workspace } = setup();
     const program = compileServed();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
-    const rest = await workspace.morphRestRender(program.context, program.context.filtered_image.bunny ?? program.context.image.bunny);
-    expect(rest).toContain("<clipPath");
-    expect(await workspace.morphRestRender(program.context, { $name: "nobody" })).toBeUndefined();
+    const documents = new SparkdownDocumentRegistry(["references"]);
+    documents.set({ textDocument: { uri: main, text: SCRIPT, version: 1, languageId: "sparkdown" } });
+    const position = { line: lineOf(SCRIPT, "[[bunny]]"), character: 4 };
+    const hover = await getHover(documents.get(main), documents.annotations(main), program, undefined, position, createImageCompositeOptions(workspace));
+    const shown = previewImage((hover?.contents as any)?.value);
+    expect(shown).toContain("<clipPath");
+    // Without the morph hook the same hover shows the plain static image.
+    const plain = await getHover(documents.get(main), documents.annotations(main), program, undefined, position, {});
+    expect(previewImage((plain?.contents as any)?.value)).not.toContain("<clipPath");
+  });
+
+  it("a completion candidate no script names yet previews as its rest render", async () => {
+    const { workspace } = setup();
+    const program = compileServed();
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
+    expect(program.morphs.variants["bunny~eyes.open"]).toBeUndefined();
+    const item = { label: "open", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.open"] } } };
+    const resolved = await resolveCompletion({ ...item }, program, createImageCompositeOptions(workspace));
+    expect(previewImage((resolved.documentation as any)?.value)).toContain("<clipPath");
+    // A candidate the morph does not play on keeps its static preview.
+    const closed = { label: "closed", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.closed"] } } };
+    const still = await resolveCompletion(closed, program, createImageCompositeOptions(workspace));
+    expect(previewImage((still.documentation as any)?.value)).not.toContain("<clipPath");
   });
 });
