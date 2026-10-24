@@ -630,7 +630,7 @@ export class MorphLayer {
   layout() {
     if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    const area = { width: this.span.clientWidth, height: this.span.clientHeight };
+    const area = positioningArea(this.span, computed);
     // A span with no size yet (its target hidden) is placed once it has one.
     if (!(area.width > 0 && area.height > 0)) return;
     const count = this.layers.length;
@@ -639,10 +639,14 @@ export class MorphLayer {
       if (!view) continue;
       const rect = this.placement(view.artifact, computed, count - 1 - state.play.layer, area);
       if (!rect) continue;
-      view.box.style.left = `${rect.x}px`;
-      view.box.style.top = `${rect.y}px`;
-      view.box.style.width = `${rect.width}px`;
-      view.box.style.height = `${rect.height}px`;
+      // The browser paints a background image on whole device pixels; a
+      // drawing placed on the same snapped rectangle lands on its pixels.
+      const dpr = this.span.ownerDocument.defaultView?.devicePixelRatio || 1;
+      const snap = (v: number) => `${Math.round(v * dpr) / dpr}px`;
+      view.box.style.left = snap(rect.x);
+      view.box.style.top = snap(rect.y);
+      view.box.style.width = snap(rect.width);
+      view.box.style.height = snap(rect.height);
     }
   }
 
@@ -686,6 +690,33 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
+}
+
+/**
+ * The span's background positioning area (its padding box) in fractional
+ * pixels. `clientWidth` and `clientHeight` round to whole pixels, which puts
+ * a drawing up to half a pixel off the image CSS draws; the computed size is
+ * exact and, unlike a bounding rectangle, ignores the transforms an enter
+ * animation plays on the span.
+ */
+function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | undefined) {
+  const px = (name: string) => Number.parseFloat(computed?.getPropertyValue(name) ?? "");
+  const width = px("width");
+  const height = px("height");
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return { width: span.clientWidth, height: span.clientHeight };
+  }
+  const sum = (...names: string[]) => names.reduce((total, name) => total + (px(name) || 0), 0);
+  const borderBox = computed?.getPropertyValue("box-sizing") === "border-box";
+  return borderBox
+    ? {
+        width: width - sum("border-left-width", "border-right-width"),
+        height: height - sum("border-top-width", "border-bottom-width"),
+      }
+    : {
+        width: width + sum("padding-left", "padding-right"),
+        height: height + sum("padding-top", "padding-bottom"),
+      };
 }
 
 /** Writes a frame into a live drawing, starting every element from its markup. */
