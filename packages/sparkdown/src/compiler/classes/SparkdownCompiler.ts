@@ -1,6 +1,7 @@
 /// <reference path="../../sd-raw.d.ts" />
 import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { resolveImageAttributes } from "../utils/filterImage";
+import { fingerprintSource } from "../utils/fingerprintSource";
 import {
   collectMorphIssues,
   type MorphScript,
@@ -4073,6 +4074,21 @@ export class SparkdownCompiler {
     const textOf = (a: number, b: number) =>
       this.documents.get(uri)?.getText().slice(a, b) ?? "";
     const sourceOf = () => (source ??= textOf(place.from, endOf()));
+    // A fingerprint reads the script's parse, offsets relative to the
+    // statement's start (`fingerprintSource`).
+    const fingerprintOf = (
+      a: number,
+      b: number,
+      cuts: readonly { from: number; to: number }[] = [],
+    ) =>
+      fingerprintSource(
+        this.documents.tree(uri),
+        this.documents.get(uri)?.getText() ?? "",
+        place.from + a,
+        place.from + b,
+        cuts.map((cut) => ({ from: place.from + cut.from, to: place.from + cut.to })),
+      );
+    let fingerprint: string | undefined;
     const columnOf = () =>
       this.documents.get(uri)?.positionAt(place.from).character ?? 0;
     const first = block.content?.[0];
@@ -4080,6 +4096,8 @@ export class SparkdownCompiler {
       uri,
       line,
       source: sourceOf,
+      fingerprint: () => (fingerprint ??= fingerprintOf(0, endOf() - place.from)),
+      fingerprintOf,
       syntax: () =>
         (syntax ??= `${block.node ?? ""}\u0000${columnOf()}\u0000${sourceOf()}`),
       reads: JSON.stringify([
