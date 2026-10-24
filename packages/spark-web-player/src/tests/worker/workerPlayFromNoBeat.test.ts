@@ -74,6 +74,9 @@ describe("PLAY from a line that holds no beat", () => {
   it.each([
     ["the top-level divert", 0],
     ["the scene's header", 1],
+    // The control: the line that holds the beat, which the run above must
+    // match.
+    ["the scene's first line", 2],
   ])("from %s, runs the scene and waits on its first line", async (_name, line) => {
     const outcome = await playFrom(line);
     expect(outcome.started).toBe(true);
