@@ -1732,6 +1732,16 @@ exports[`style > authored style block content payload 1`] = `
       "position": "absolute",
       "text_align": "center",
     },
+    "toggle_label": {
+      "$name": "toggle_label",
+      "$type": "style",
+      "align_items": "center",
+      "align_self": "flex-start",
+      "cursor": "pointer",
+      "display": "flex",
+      "flex_direction": "row",
+      "gap": "0.5rem",
+    },
     "transitional": {
       "$name": "transitional",
       "$type": "style",
@@ -4726,6 +4736,16 @@ exports[`style > style + variables construction stream 1`] = `
             "padding_right": "40px",
             "position": "absolute",
             "text_align": "center",
+          },
+          "toggle_label": {
+            "$name": "toggle_label",
+            "$type": "style",
+            "align_items": "center",
+            "align_self": "flex-start",
+            "cursor": "pointer",
+            "display": "flex",
+            "flex_direction": "row",
+            "gap": "0.5rem",
           },
           "transitional": {
             "$name": "transitional",

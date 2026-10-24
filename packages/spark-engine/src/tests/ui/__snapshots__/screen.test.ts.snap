@@ -3045,6 +3045,16 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "position": "absolute",
                   "text_align": "center",
                 },
+                "toggle_label": {
+                  "$name": "toggle_label",
+                  "$type": "style",
+                  "align_items": "center",
+                  "align_self": "flex-start",
+                  "cursor": "pointer",
+                  "display": "flex",
+                  "flex_direction": "row",
+                  "gap": "0.5rem",
+                },
                 "transitional": {
                   "$name": "transitional",
                   "$type": "style",

@@ -2505,8 +2505,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Element name = builtin tag joined with its bare-word classes, matching the
     // static path's dotted-segment naming ("mask shadow_1", "text", "stage").
     const name = [node.tag, ...node.classes].join(" ");
-    // Input widgets (field/slider/checkbox) render a real <input> with their
-    // value-surface props as attributes (and reactive value/checked).
+    // Input widgets (input/slider/checkbox/radio/switch) render a real <input>
+    // with their value-surface props as attributes (and reactive
+    // value/checked), inside a <label> when they have content.
     const widget = INPUT_WIDGETS[node.tag];
     if (widget) {
       return this.mountInputWidget(parent, node, scope, name, widget, before);
@@ -2627,8 +2628,42 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   /** Mount a form-control widget as a real `<input>`: its props become initial
    *  attributes, and `value`/`checked` bindings register for one-way reactive
    *  updates (UI follows state; write-back is via the element's `@input`/
-   *  `@change` handler). Inputs are void — no content/children are mounted. */
+   *  `@change` handler). Inputs are void, so quoted content is the widget's
+   *  LABEL: `slider "Master Volume"` mounts a real `<label>` holding the text
+   *  and the control, and that label is the element returned. Props, events
+   *  and bindings stay on the control. */
   protected mountInputWidget(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    name: string,
+    widget: { inputType: string; attributes?: Record<string, string> },
+    before: Element | null,
+  ): Element {
+    if (!node.content || node.content.length === 0) {
+      return this.mountInputControl(parent, node, scope, name, widget, before);
+    }
+    // A checkbox, radio or switch reads as one row with its wording after the
+    // box; a text field or slider takes its label above, as `label "X" { … }`
+    // lays it out.
+    const toggle = widget.inputType === "checkbox" || widget.inputType === "radio";
+    const label = this.createElement(
+      parent,
+      { type: "label", name: toggle ? "label toggle_label" : "label" },
+      before,
+    );
+    if (!toggle) {
+      this.mountTextContent(label, node.content, scope);
+    }
+    this.mountInputControl(label, node, scope, name, widget, null);
+    if (toggle) {
+      this.mountTextContent(label, node.content, scope);
+    }
+    return label;
+  }
+
+  /** The `<input>` itself, with every prop, binding and event of the widget. */
+  protected mountInputControl(
     parent: Element,
     node: ElementNode,
     scope: ReactiveScope,

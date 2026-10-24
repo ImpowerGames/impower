@@ -1853,6 +1853,14 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -4020,6 +4028,14 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -6148,6 +6164,14 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -8400,6 +8424,14 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -10510,6 +10542,14 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -12601,6 +12641,14 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -14744,6 +14792,14 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -16852,6 +16908,14 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -18962,6 +19026,14 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -21071,6 +21143,14 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -23179,6 +23259,14 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .toggle_label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
