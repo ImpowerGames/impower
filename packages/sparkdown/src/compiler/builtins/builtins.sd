@@ -3263,6 +3263,15 @@ style label with
   }
 end
 
+// The label a text field or slider gets from its own quoted content
+// (`slider "Master Volume"`): the text above the control. It takes the full
+// width the control would take on its own, since the control's `width = 100%`
+// resolves against this label; in a `row` a label sized to its text would
+// shrink the slider to the width of its wording.
+style field_label with
+  width = 100%
+end
+
 // The label a checkbox, radio or switch gets from its own quoted content
 // (`checkbox "Mute Music"`): the control first and its wording beside it, the
 // same row the showcase builds by hand as `label.row` around the control and a

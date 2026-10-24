@@ -472,6 +472,11 @@ exports[`style > authored style block content payload 1`] = `
       "display": "inline",
       "text-style": "italic",
     },
+    "field_label": {
+      "$name": "field_label",
+      "$type": "style",
+      "width": "100%",
+    },
     "fieldset": {
       "$name": "fieldset",
       "$type": "style",
@@ -3476,6 +3481,11 @@ exports[`style > style + variables construction stream 1`] = `
             "$type": "style",
             "display": "inline",
             "text-style": "italic",
+          },
+          "field_label": {
+            "$name": "field_label",
+            "$type": "style",
+            "width": "100%",
           },
           "fieldset": {
             "$name": "fieldset",

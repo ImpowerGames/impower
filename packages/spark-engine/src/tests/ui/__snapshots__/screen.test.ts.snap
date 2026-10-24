@@ -1785,6 +1785,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "display": "inline",
                   "text-style": "italic",
                 },
+                "field_label": {
+                  "$name": "field_label",
+                  "$type": "style",
+                  "width": "100%",
+                },
                 "fieldset": {
                   "$name": "fieldset",
                   "$type": "style",

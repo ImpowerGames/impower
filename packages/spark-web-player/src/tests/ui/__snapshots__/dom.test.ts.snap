@@ -1853,6 +1853,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
@@ -4028,6 +4031,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
@@ -6164,6 +6170,9 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .field_label {
+  width: 100%;
 }
 spark-web-player #game .toggle_label {
   display: flex;
@@ -8424,6 +8433,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
@@ -10542,6 +10554,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
@@ -12641,6 +12656,9 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .field_label {
+  width: 100%;
 }
 spark-web-player #game .toggle_label {
   display: flex;
@@ -14792,6 +14810,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
@@ -16908,6 +16929,9 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .field_label {
+  width: 100%;
 }
 spark-web-player #game .toggle_label {
   display: flex;
@@ -19026,6 +19050,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
@@ -21143,6 +21170,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
@@ -23259,6 +23289,9 @@ spark-web-player #game .label {
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
   }
+}
+spark-web-player #game .field_label {
+  width: 100%;
 }
 spark-web-player #game .toggle_label {
   display: flex;

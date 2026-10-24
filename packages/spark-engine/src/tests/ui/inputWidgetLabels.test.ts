@@ -101,6 +101,98 @@ end
     expect(createdOfType(h, "input")).toHaveLength(1);
   });
 
+  test("hiding a labelled widget hides its label too", async () => {
+    const h = createHarness(
+      `store shown = true
+layout settings with
+  slider "Private volume" #displayed={shown} #value=5
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    // One query, so creates and updates share one id numbering.
+    const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
+    const label = ui().find(
+      (m) => m.method === "ui/create" && m.params.type === "label",
+    ).params;
+    const input = ui().find(
+      (m) => m.method === "ui/create" && m.params.type === "input",
+    ).params;
+    expect(label.style?.displayed).toBe("true");
+    expect(input.style?.displayed).toBeUndefined();
+
+    // Ids are numbered in first-seen order, so messages sent after a point
+    // keep the numbering of the creates above.
+    let seen = ui().length;
+    (h.game.story as any).variablesState.$("shown", false);
+    (h.game.module.ui as any).refreshLayouts();
+    const hidden = ui()
+      .slice(seen)
+      .filter(
+        (m) => m.method === "ui/update" && m.params.style?.displayed === "false",
+      );
+    expect(hidden.map((m) => m.params.element)).toEqual([label.element]);
+
+    seen = ui().length;
+    (h.game.module.ui as any).hide("slider");
+    // A direct UI call's messages go out on the next microtask.
+    await Promise.resolve();
+    const hiddenByName = ui()
+      .slice(seen)
+      .filter(
+        (m) => m.method === "ui/update" && m.params.style?.display === "none",
+      );
+    expect(hiddenByName.map((m) => m.params.element)).toEqual([label.element]);
+  });
+
+  test("removing a labelled widget drops its control's event handler", async () => {
+    const h = createHarness(
+      `store show = true
+store volume = 80
+layout settings with
+  if show then
+    slider "Volume" #value={volume} @input={ volume = event.value }
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const events = (h.game.module.ui as any)._events;
+    expect(Object.keys(events.input ?? {})).toHaveLength(1);
+    (h.game.story as any).variablesState.$("show", false);
+    (h.game.module.ui as any).refreshLayouts();
+    expect(createdOfType(h, "label")).toHaveLength(1);
+    expect(Object.keys(events.input ?? {})).toEqual([]);
+    expect(h.snapshotFiltered("ui/unobserve")).toHaveLength(1);
+  });
+
+  test("removing a container drops the handlers of controls inside it", async () => {
+    const h = createHarness(
+      `store show = true
+store n = 0
+layout settings with
+  if show then
+    row {
+      button "Bump" @click={ n = n + 1 }
+    }
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const events = (h.game.module.ui as any)._events;
+    expect(Object.keys(events.click ?? {})).toHaveLength(1);
+    (h.game.story as any).variablesState.$("show", false);
+    (h.game.module.ui as any).refreshLayouts();
+    expect(Object.keys(events.click ?? {})).toEqual([]);
+  });
+
   test("props, bindings and write-back stay on the control", async () => {
     const h = createHarness(
       `store volume = 80

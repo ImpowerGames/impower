@@ -441,6 +441,16 @@ const INPUT_WIDGETS: Record<
   switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
 
+/** Props that show or hide a whole input widget, in their sparkle and CSS
+ *  spellings. On a widget with a label they style the label, so the text
+ *  disappears with its control. */
+const WIDGET_VISIBILITY_PROPS = new Set([
+  "displayed",
+  "display",
+  "visible",
+  "visibility",
+]);
+
 /**
  * Builtin tag → the real DOM tag it renders as. Anything absent renders as a
  * `<div>` (the overlay's default box), which is still what `text`, `box`,
@@ -640,6 +650,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
+
+  /** A labelled input widget's control → the `<label>` that wraps it. */
+  protected _widgetLabels: WeakMap<Element, Element> = new WeakMap();
 
   // Phase 3 reactive runtime: render layouts from program.sparkle (the typed AST)
   // instead of the static context.layout struct, with coarse per-turn binding
@@ -1709,29 +1722,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (isRootElement) {
       this._root = undefined;
     }
-    // Drop any `@event` handlers registered for this element, and tell the
-    // renderer to detach its DOM listener.
+    // Drop the `@event` handlers registered for this element AND every element
+    // under it, and tell the renderer to detach each DOM listener. A handler
+    // usually sits below the element a region removes: a labelled widget's
+    // `<input>` inside its `<label>`, a button inside a removed row.
     //
-    // The static `setEventListener` path already cleans up (it deletes on a null
-    // callback); the reactive `mountEvent` path had no counterpart, so every
-    // destroy leaked. And structural ids are MONOTONIC — `Element.nextChildIndex`
-    // never reuses a number even after removal — so the orphan is never
-    // overwritten by a later element. Each one retains its `scope.env` (loop
-    // values included) and, through the handler, the Story. A keyed `for` that
-    // drops rows, a conditional that switches branch, or a layout that closes
-    // therefore grew `_events` without bound; `onReset` clears it, but that only
-    // fires on a full game reset, not on the incremental churn this path exists
-    // to serve.
+    // Structural ids are MONOTONIC — `Element.nextChildIndex` never reuses a
+    // number even after removal — so an entry left behind is never overwritten
+    // by a later element. Each one retains its `scope.env` (loop values
+    // included) and, through the handler, the Story, so a keyed `for` that drops
+    // rows, a conditional that switches branch, or a layout that closes would
+    // grow `_events` without bound; `onReset` clears it, but only on a full game
+    // reset.
+    const subtree: string[] = [];
+    const collect = (el: Element) => {
+      subtree.push(el.id);
+      for (const child of el.children) {
+        collect(child);
+      }
+    };
+    collect(element);
     for (const [event, byId] of Object.entries(this._events)) {
-      if (byId && element.id in byId) {
-        delete byId[element.id];
-        this.enqueueUI(
-          UnobserveElementMessage.type.notification({
-            element: element.id,
-            event,
-            ...(retired ? { retired } : {}),
-          }),
-        );
+      if (!byId) {
+        continue;
+      }
+      for (const id of subtree) {
+        if (id in byId) {
+          delete byId[id];
+          this.enqueueUI(
+            UnobserveElementMessage.type.notification({
+              element: id,
+              event,
+              ...(retired ? { retired } : {}),
+            }),
+          );
+        }
       }
     }
     element.remove();
@@ -1850,7 +1875,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   show(target: string): void {
     // TODO: use transition classes to apply show style instead
     for (const targetEl of this.findElements(target)) {
-      this.updateElement(targetEl, { style: { display: "flex" } });
+      const el = this._widgetLabels.get(targetEl) ?? targetEl;
+      this.updateElement(el, { style: { display: "flex" } });
     }
   }
 
@@ -1863,7 +1889,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   hide(target: string): void {
     // TODO: use transition classes to apply hide style instead
     for (const targetEl of this.findElements(target)) {
-      this.updateElement(targetEl, {
+      const el = this._widgetLabels.get(targetEl) ?? targetEl;
+      this.updateElement(el, {
         style: { display: "none" },
       });
     }
@@ -2631,7 +2658,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  `@change` handler). Inputs are void, so quoted content is the widget's
    *  LABEL: `slider "Master Volume"` mounts a real `<label>` holding the text
    *  and the control, and that label is the element returned. Props, events
-   *  and bindings stay on the control. */
+   *  and bindings stay on the control, except the ones that show or hide the
+   *  widget (WIDGET_VISIBILITY_PROPS), which go on the label so the text hides
+   *  with its control. */
   protected mountInputWidget(
     parent: Element,
     node: ElementNode,
@@ -2643,19 +2672,53 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!node.content || node.content.length === 0) {
       return this.mountInputControl(parent, node, scope, name, widget, before);
     }
+    const vs = this._game.story.variablesState;
+    const labelStyle: Record<string, string | null> = {};
+    const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
+    const controlProps: ElementNode["props"] = {};
+    for (const [prop, propValue] of Object.entries(node.props)) {
+      if (!WIDGET_VISIBILITY_PROPS.has(prop)) {
+        controlProps[prop] = propValue;
+        continue;
+      }
+      vs.beginReactiveRead();
+      const resolved = this.resolveProp(propValue, scope.env);
+      const deps = vs.endReactiveRead();
+      const val = resolved == null ? null : String(resolved);
+      labelStyle[prop] = val;
+      if (this.isReactiveProp(propValue)) {
+        reactiveStyles.push({ prop, propValue, last: val, deps });
+      }
+    }
     // A checkbox, radio or switch reads as one row with its wording after the
     // box; a text field or slider takes its label above, as `label "X" { … }`
     // lays it out.
     const toggle = widget.inputType === "checkbox" || widget.inputType === "radio";
     const label = this.createElement(
       parent,
-      { type: "label", name: toggle ? "label toggle_label" : "label" },
+      {
+        type: "label",
+        name: toggle ? "label toggle_label" : "label field_label",
+        ...(Object.keys(labelStyle).length > 0 ? { style: labelStyle } : {}),
+      },
       before,
     );
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: label, ...r });
+    }
     if (!toggle) {
       this.mountTextContent(label, node.content, scope);
     }
-    this.mountInputControl(label, node, scope, name, widget, null);
+    const control = this.mountInputControl(
+      label,
+      { ...node, props: controlProps },
+      scope,
+      name,
+      widget,
+      null,
+    );
+    // `show`/`hide` find the control by its name; they act on the label.
+    this._widgetLabels.set(control, label);
     if (toggle) {
       this.mountTextContent(label, node.content, scope);
     }

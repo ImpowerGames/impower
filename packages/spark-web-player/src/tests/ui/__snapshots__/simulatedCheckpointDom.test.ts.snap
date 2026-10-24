@@ -1853,6 +1853,9 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
+spark-web-player #game .field_label {
+  width: 100%;
+}
 spark-web-player #game .toggle_label {
   display: flex;
   flex-direction: row;
