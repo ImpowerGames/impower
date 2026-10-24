@@ -1000,7 +1000,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       // a target that holds something resolves to is left out, since a
       // clear of another target there reaches what it holds.
       const elementsOf = (targets: string[]) =>
-        targets.flatMap((target) => this.findElements(target));
+        targets.flatMap((target) => this.findElements(target, true));
       const held = new Set([
         ...elementsOf(holding.text),
         ...elementsOf(holding.image),
@@ -4788,11 +4788,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  protected findElements(target: string): Element[] {
+  /** The elements a target names. Elements named exactly as the target are
+   *  its own, so an author's element that only shares a class with it (`text
+   *  title` beside the builtin `title`) is left alone (#863). A target no
+   *  element is named after resolves to the elements that carry all its
+   *  classes (`dialogue action` for `dialogue`, its own text a placeholder).
+   *  For a text or image write (`writes`) that excludes content elements: a
+   *  write fills a target's `text`, `image`, `stroke` and `mask` children, so
+   *  `text title` is never one, while a style or visibility update still
+   *  reaches an author's `text continue_indicator`. */
+  protected findElements(target: string, writes = false): Element[] {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
-      const elements = this.searchForAll(this._root, name, found);
+      const matches = this.searchForAll(this._root, name, found);
+      const named = matches.filter((el) => el.name === name);
+      const elements =
+        named.length > 0
+          ? named
+          : writes
+            ? matches.filter(
+                (el) =>
+                  !el.name
+                    .split(" ")
+                    .some((c) =>
+                      ["text", "image", "stroke", "mask"].includes(c),
+                    ),
+              )
+            : matches;
       if (instance) {
         const instanceIndex = Number(instance);
         if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
@@ -4833,8 +4856,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return element.findChildren(tag);
   }
 
+  /** The ids of the elements a text or image write to `target` reaches. */
   findIds(target: string): string[] {
-    return this.findElements(target).map((c) => c.id);
+    return this.findElements(target, true).map((c) => c.id);
+  }
+
+  /** Whether a write to `target` names the elements it goes to: a composed
+   *  beat always does (#1820), and so does a write whose target resolved by
+   *  class, which the page cannot tell apart from an author's element with
+   *  the same classes. */
+  protected namesWriteElements(target: string, elements: Element[]): boolean {
+    const name = target.split("#")[0];
+    return (
+      Boolean(this._compose) || elements.some((el) => el.name !== name)
+    );
   }
 
   getTransientTargets() {
@@ -5031,7 +5066,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // span/whitespace/text-align decomposition AND the per-char reveal of
         // the `text`/`stroke` content children to the consumer via a single
         // `ui/write-text` message per target.
-        const targetEls = $.findElements(target);
+        const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("text", targetEls)) {
           // A clear that changes nothing on the page (#657).
           return;
@@ -5077,7 +5112,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ...(shown > 0 ? { shown } : {}),
             // A composed beat reaches the page with its structure: the write
             // goes to the elements the target resolves to now (#1820).
-            ...($._compose ? { elements: targetEls.map((el) => el.id) } : {}),
+            ...($.namesWriteElements(target, targetEls)
+              ? { elements: targetEls.map((el) => el.id) }
+              : {}),
           }),
         );
       }
@@ -5442,7 +5479,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // the `backdrop`/`portrait` wrapper) but delegates the image-layer
         // realization + animation lifecycle to the consumer via a single
         // `ui/write-image` carrying a fully-resolved `WriteImageInstruction[]`.
-        const targetEls = $.findElements(target);
+        const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("image", targetEls)) {
           // A clear that changes nothing on the page (#657).
           return;
@@ -5482,7 +5519,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ...(time != null ? { time } : {}),
             // A composed beat reaches the page with its structure: the write
             // goes to the elements the target resolves to now (#1820).
-            ...($._compose ? { elements: targetEls.map((el) => el.id) } : {}),
+            ...($.namesWriteElements(target, targetEls)
+              ? { elements: targetEls.map((el) => el.id) }
+              : {}),
           }),
         );
       }
