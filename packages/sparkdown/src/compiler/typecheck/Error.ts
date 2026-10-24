@@ -89,6 +89,7 @@ export type TypeErrorData =
   | { kind: "OccursCheckFailed" }
   | { kind: "UnknownRequire"; modulePath: string }
   | { kind: "IllegalRequire"; moduleName: string; reason: string }
+  | { kind: "ModuleHasCyclicDependency"; cycle: string[] }
   | { kind: "IncorrectGenericParameterCount"; name: string; typeFun: TypeFun; actualParameters: number; actualPackParameters: number }
   | { kind: "SyntaxError"; message: string }
   | { kind: "CodeTooComplex" }
@@ -171,6 +172,7 @@ const ERROR_KINDS: Record<TypeErrorKind, true> = {
   OccursCheckFailed: true,
   UnknownRequire: true,
   IllegalRequire: true,
+  ModuleHasCyclicDependency: true,
   IncorrectGenericParameterCount: true,
   SyntaxError: true,
   CodeTooComplex: true,
@@ -337,6 +339,17 @@ function findCallMetamethod(type: TypeId): TypeId | undefined {
 
 /** The message Luau's `toString(TypeError)` gives an error. */
 export function errorToString(error: LuauTypeError): string {
+  return errorToStringWithContext(error);
+}
+
+/** The pinned frontend configuration and optional resolver used to print cycle diagnostics. */
+export interface ErrorToStringContext {
+  cyclicRequireTypeInference?: boolean;
+  getHumanReadableModuleName?: (moduleName: string) => string;
+}
+
+/** Prints with explicit cycle configuration; the ordinary production printer retains its defaults. */
+export function errorToStringWithContext(error: LuauTypeError, context: ErrorToStringContext = {}): string {
   const e = error.data;
   switch (e.kind) {
     case "TypeMismatch": {
@@ -370,7 +383,7 @@ export function errorToString(error: LuauTypeError): string {
       if (e.error) {
         result += "\ncaused by:\n  ";
         if (e.reason) result += `${e.reason}\n`;
-        result += errorToString(e.error);
+        result += errorToStringWithContext(e.error, context);
       } else if (e.reason) {
         result += `; ${e.reason}`;
       }
@@ -435,6 +448,14 @@ export function errorToString(error: LuauTypeError): string {
       return e.modulePath ? `Unknown require: ${e.modulePath}` : "Unknown require: unsupported path";
     case "IllegalRequire":
       return `Cannot require module ${e.moduleName}: ${e.reason}`;
+    case "ModuleHasCyclicDependency": {
+      const names = context.getHumanReadableModuleName ? e.cycle.map(context.getHumanReadableModuleName) : e.cycle;
+      if (context.cyclicRequireTypeInference) {
+        const message = "Cyclic dependencies are only supported if all modules in the cycle use 'export' syntax";
+        return names.length ? `${message}. The following modules do not use 'export': ${names.join(", ")}` : message;
+      }
+      return names.length ? `Cyclic module dependency: ${names.join(" -> ")}` : "Cyclic module dependency detected";
+    }
     case "IncorrectGenericParameterCount": {
       let name = e.name;
       const tf = e.typeFun;
@@ -754,6 +775,7 @@ function copyError(e: TypeErrorData, cloneState: TypeCloner): TypeErrorData {
     case "OccursCheckFailed":
     case "UnknownRequire":
     case "IllegalRequire":
+    case "ModuleHasCyclicDependency":
       return e;
     case "IncorrectGenericParameterCount":
       return { ...e, typeFun: cloneTypeFun(e.typeFun, cloneState) };
