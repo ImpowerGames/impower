@@ -1,7 +1,7 @@
 // #664: a host that enters a scene by name (`ChoosePathString`, as the
 // preview's scrub does) gives its parameters the arguments it passes, nil for
 // each one it leaves out and an empty `...`, as a call does, so the state
-// holds values its save can write.
+// holds values its saves, the session save and the durable one, can write.
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -56,6 +56,21 @@ describe("entering a scene by name binds its parameters", () => {
     );
     expect(text).toBe("Hello Ann, 2.\n");
     expect(save).not.toThrow();
+  });
+
+  test("the durable save of a scene entered without its argument writes, loads and runs on", () => {
+    const source = "scene start(first: string)\n  Hello {first}.\n  Bye {first}.\nend\n";
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    ctx.story.keepBeatImages = true;
+    ctx.story.ChoosePathString("start");
+    expect(ctx.story.Continue()).toBe("Hello nil.\n");
+    const saved = ctx.story.toSave();
+    const other = makeRuntimeStoryFromSource(source);
+    other.story.keepBeatImages = true;
+    other.story.loadSave(saved);
+    expect(other.story.currentText?.trim()).toBe("Hello nil.");
+    expect(other.story.Continue()).toBe("Bye nil.\n");
   });
 
   test("the save of a scene entered without its argument loads", () => {
