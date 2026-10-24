@@ -138,10 +138,7 @@ export const STYLE_TRANSFORMERS = {
   "child-columns": getCssChildColumns,
   "child-gap": getCssSize,
   // A marker is a KEYWORD (`disc` / `decimal` / `none` / …), so it passes
-  // through unchanged. The entry is still required: `CSS_UTILITIES` supplies an
-  // empty placeholder value and `getCssEquivalent` drops any declaration whose
-  // value is still empty — so a utility with no transformer emits NOTHING, with
-  // no error anywhere.
+  // through unchanged.
   "list-mark": get,
   "child-align": getCssChildAlign,
   "child-justify": getCssChildJustify,
@@ -154,6 +151,10 @@ export const STYLE_TRANSFORMERS = {
   shrink: getCssShrink,
   basis: getCssBasis,
   order: getCssOrder,
+
+  fill: getCssColor,
+  stroke: getCssColor,
+  "stroke-width": getCssSize,
 
   visible: getCssVisible,
   interactable: getCssInteractable,
@@ -185,6 +186,10 @@ export const STYLE_TRANSFORMERS = {
   "background-fit": getCssBgFit,
 
   mask: getCssMask,
+
+  // `clip-path` takes a basic shape, `path()`, `url()` or a geometry-box
+  // keyword, all of which are already valid CSS as written.
+  clip: get,
 
   shadow: getCssShadow,
   "shadow-inset": getCssShadowInset,

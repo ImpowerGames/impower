@@ -24,16 +24,17 @@ export const getCssEquivalent = (
   const entries: [string, string][] = [];
 
   const sparklePropName: string = aliases[key] ?? key;
+  // An empty value in a utility is a placeholder for the transformer named
+  // after the utility; without one, the authored value passes through as
+  // written.
+  const resolve = styleTransformers[sparklePropName] ?? ((v: string) => v);
   const cssUtility = cssUtilities[sparklePropName];
   if (cssUtility) {
     const defaultSelector = cssUtility[""];
     if (defaultSelector) {
       for (let [k, v] of Object.entries(defaultSelector)) {
         if (v === "") {
-          const transformer = styleTransformers[sparklePropName];
-          if (transformer) {
-            v = transformer(String(value));
-          }
+          v = resolve(String(value));
         }
         if (v) {
           entries.push([k, v]);
@@ -47,10 +48,7 @@ export const getCssEquivalent = (
     if (valueSelector && valueSelector !== defaultSelector) {
       for (let [k, v] of Object.entries(valueSelector)) {
         if (v === "") {
-          const transformer = styleTransformers[sparklePropName];
-          if (transformer) {
-            v = transformer(String(value));
-          }
+          v = resolve(String(value));
         }
         if (v) {
           entries.push([k, v]);
