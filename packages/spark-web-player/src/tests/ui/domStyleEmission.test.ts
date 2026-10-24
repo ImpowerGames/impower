@@ -505,6 +505,23 @@ end
     expect(block).toContain("stroke-width: 2px;");
   });
 
+  // A size prop gives a bare number its default unit, but a number inside a
+  // CSS function is an operand: `calc(1px * 2px * 3)` is a squared length,
+  // which the browser drops.
+  test("numbers inside a CSS function in a size prop keep their unit", async () => {
+    const out = await css(`style shaped with
+  stroke-width = calc(1px * 2 * 3)
+  margin = calc(1px * 2) 4
+end
+layout main with
+  box.shaped
+end
+`);
+    const block = out.slice(out.indexOf(".shaped"));
+    expect(block).toContain("stroke-width: calc(1px * 2 * 3);");
+    expect(block).toContain("margin: calc(1px * 2) 4px;");
+  });
+
   // An empty value in a CSS_UTILITIES selector is a placeholder for the
   // transformer named after the utility. A utility whose transformer is missing
   // passes the authored value through unchanged, which skips the resolution
