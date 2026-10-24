@@ -1,17 +1,25 @@
 // A `..` right after a mid-line `>` break is a glue mark in both TextMate
-// engines (I-557): vscode-textmate, which the extension uses, and
-// textmate-grammar-tree, which the web editor uses, give it the same
-// `keyword.other.glue.sd` scope as the `..` that ends `A > ..`. A third dot
-// makes an ellipsis, and dots inside a word are text.
+// engines (I-557): vscode-textmate, reading the grammar the extension ships,
+// and textmate-grammar-tree, reading the grammar the web editor ships, give
+// it the same `keyword.other.glue.sd` scope as the `..` that ends `A > ..`. A
+// third dot makes an ellipsis, and dots inside a word are text.
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import grammar from "../../../language/sparkdown.language-grammar.json";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
+const extensionGrammar = JSON.parse(
+  readFileSync(
+    new URL("../../../../../vscode-sparkdown/language/sparkdown.language-grammar.json", import.meta.url),
+    "utf8",
+  ),
+);
+
 const GLUE = "keyword.other.glue.sd";
 
-/** The scopes of the first `..` at or after `from` in `text`, per engine. */
+/** The scopes of the `..` at `from` in `text`, per editor. */
 const scopesAt = async (text: string, from: number) => {
-  const vscode = await vscodeScopes(grammar, text);
+  const vscode = await vscodeScopes(extensionGrammar, text);
   const tree = treeScopes(grammar, text);
   return { vscode: vscode.slice(from, from + 2), tree: tree.slice(from, from + 2) };
 };
