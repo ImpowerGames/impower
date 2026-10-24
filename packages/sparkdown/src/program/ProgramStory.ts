@@ -1430,7 +1430,12 @@ export class ProgramStory implements StoryEngine {
       return;
     }
     this._state.didSafeExit = false;
-    this._state.variablesState.CompleteVariableObservation();
+    // The abandoned line's writes are not announced, but they are in the
+    // state until a caller replaces it, so the state is no longer the one a
+    // reset built.
+    if (this._state.variablesState.DiscardVariableObservation()) {
+      this._stateIsPristine = false;
+    }
     this._asyncContinueActive = false;
   }
 

@@ -115,6 +115,16 @@ export class VariablesState extends VariablesStateAccessor<
     this._changedVariablesForBatchObs = null;
   }
 
+  /** Closes the batch without announcing its writes, for a line the engine
+   *  abandons: no observer hears of a run that did not happen (#281). Returns
+   *  whether the batch had recorded any write. */
+  public DiscardVariableObservation(): boolean {
+    this._batchObservingVariableChanges = false;
+    const wrote = (this._changedVariablesForBatchObs?.size ?? 0) > 0;
+    this._changedVariablesForBatchObs = null;
+    return wrote;
+  }
+
   get callStack() {
     return this._callStack;
   }
