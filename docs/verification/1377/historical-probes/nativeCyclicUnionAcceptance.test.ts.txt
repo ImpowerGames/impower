@@ -1,0 +1,141 @@
+/** Private nonportable #1377 proof; cross-worktree frozen inputs, never a portable PR. */
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { loadNativeFixture, type NativeFixture } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/analysis-backend/native-conformance/nativeFixture.ts";
+import { cyclicUnionSource } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/analysis-backend/native-conformance/fixtureSources.ts";
+
+const evidence = "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1377/";
+const upstream = "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/TypeInfer.unionTypes.test.cpp";
+const sha = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+let fixture: NativeFixture;
+let source: string;
+let inputs: Record<string, string>;
+const observations: Record<string, unknown> = { state: "PRIVATE INCOMPLETE; native execution requires parent admission" };
+async function hashes() {
+  return Object.fromEntries(await Promise.all(Object.keys(inputs).map(async path => [path, sha(await readFile(path))])));
+}
+
+beforeAll(async () => {
+  inputs = JSON.parse(await readFile(evidence + "native-frozen-input-hashes.json", "utf8"));
+  expect(await hashes()).toEqual(inputs);
+  const text = (await readFile(upstream, "utf8")).replaceAll("\r\n", "\n");
+  const start = text.indexOf('TEST_CASE_FIXTURE(Fixture, "indexing_into_a_cyclic_union_doesnt_crash")');
+  expect(start).toBeGreaterThanOrEqual(0);
+  const body = text.slice(start, text.indexOf("TEST_CASE_FIXTURE(", start + 1));
+  const literalStart = body.indexOf('R"(') + 3;
+  const literalEnd = body.indexOf(')"', literalStart);
+  expect(literalStart).toBeGreaterThan(2);
+  expect(literalEnd).toBeGreaterThan(literalStart);
+  source = body.slice(literalStart, literalEnd);
+  expect(source).toBe(cyclicUnionSource);
+  observations.source = { pin: "7d5f73364fdbbaa984fa545071630eba73cfea98", upstream,
+    case: "indexing_into_a_cyclic_union_doesnt_crash", line: text.slice(0, start).split("\n").length,
+    sha256: sha(source), bytes: Buffer.byteLength(source) };
+  fixture = await loadNativeFixture();
+});
+beforeEach(() => { fixture.clearFlags(); fixture.create("Fixture"); fixture.flag("DebugLuauForceOldSolver", false); });
+afterAll(async () => {
+  try { fixture?.dispose(); }
+  finally {
+    if (inputs) {
+      const after = await hashes();
+      observations.hashes = after;
+      observations.intervalStable = JSON.stringify(after) === JSON.stringify(inputs);
+      await writeFile(evidence + "native-cyclic-acceptance-result.json", JSON.stringify(observations, null, 2));
+      expect(after).toEqual(inputs);
+    }
+  }
+});
+
+function graph() {
+  fixture.synthetic("cyclicUnion");
+  const context = fixture.context();
+  const union = fixture.globalAlias(context, "BadCyclicUnion");
+  return { context, union, table: fixture.child(union, "option", "", 1), number: fixture.builtin(context, "number") };
+}
+
+describe("original #1377 native cyclic union acceptance", () => {
+  it("observes the exported self identity, exactly two options and sealed numeric indexer", () => {
+    const { union, table, number } = graph();
+    expect(fixture.facts(union).kind).toBe("union");
+    expect(fixture.identical(fixture.child(union, "option", "", 0), union)).toBe(true);
+    expect(fixture.facts(table)).toMatchObject({ kind: "table", rawTable: true, ownProperties: 0 });
+    expect(fixture.propertyNames(table)).toEqual([]);
+    expect(fixture.tableState(table)).toBe(0); // Pinned TableState::Sealed.
+    expect(fixture.identical(fixture.child(table, "index"), number)).toBe(true);
+    expect(fixture.identical(fixture.child(table, "indexResult"), number)).toBe(true);
+    expect(fixture.inArena(union, "global")).toBe(true);
+    expect(fixture.inArena(table, "global")).toBe(true);
+    expect(() => fixture.child(union, "option", "", 2)).toThrow("Invalid native union option");
+    observations.graph = { selfIdentity: true, sealed: true, builtinIndexerIdentity: true, ownProperties: 0 };
+  });
+
+  it("retains the exact source and original no-error assertion with only original suppression", () => {
+    fixture.synthetic("cyclicUnion");
+    fixture.source("MainModule", source);
+    const result = fixture.check("MainModule", "strict");
+    observations.rawDiagnostics = result.diagnostics;
+    observations.effectiveFlags = result.effectiveFlags;
+    expect(result.diagnostics.filter(error => error.kind !== "TypeAnnotationRequired")).toEqual([]);
+    expect(fixture.moduleFacts(result, "MainModule").checkedInNewSolver).toBe(true);
+    const exported = fixture.globalAlias(result, "BadCyclicUnion");
+    expect(fixture.identical(exported, fixture.alias(result, "MainModule", "BadCyclicUnion"))).toBe(true);
+    const fn = fixture.binding(result, "MainModule", "f");
+    expect(fixture.identical(fixture.functionPack(fn, "arguments", false).head[0]!, exported)).toBe(true);
+  });
+
+  it("detects missing setup after reset and rejects stale graph handles", () => {
+    const { union } = graph();
+    fixture.reset();
+    expect(() => fixture.facts(union)).toThrow();
+    expect(() => fixture.globalAlias(fixture.context(), "BadCyclicUnion")).toThrow("Missing native global alias");
+    fixture.source("MainModule", source);
+    const result = fixture.check("MainModule");
+    observations.missingSetupDiagnostics = result.diagnostics;
+    expect(result.diagnostics.some(error => error.kind === "UnknownSymbol")).toBe(true);
+  });
+
+  it("preserves builtin identity and rejects synthetic setup outside its bounded lifecycle", () => {
+    const before = fixture.builtin(fixture.context(), "number");
+    const beforePrint = fixture.printed(before);
+    const beforeFacts = fixture.facts(before);
+    const { number } = graph();
+    // Setup invalidates old context handles. No cross-revision identity claim.
+    expect(fixture.facts(number)).toEqual(beforeFacts);
+    expect(fixture.printed(number)).toBe(beforePrint);
+    expect(fixture.identical(fixture.globalAlias(fixture.context(), "number"), number)).toBe(true);
+    expect(fixture.facts(number).kind).toBe("primitive");
+    expect(fixture.printed(number)).toBe("number");
+    expect(() => fixture.synthetic("cyclicUnion")).toThrow("fresh fixture");
+    expect(fixture.observe("synthetic", "recursiveAlias").status).not.toBe("ok");
+    fixture.create("BuiltinsFixture");
+    expect(() => fixture.synthetic("cyclicUnion")).toThrow("exact Fixture preset");
+    fixture.create("Fixture");
+    expect(() => fixture.globalAlias(fixture.context(), "BadCyclicUnion")).toThrow("Missing native global alias");
+  });
+
+  // Required finite observation contract. Current frozen facts omit these fields;
+  // these assertions must go RED when admitted, never skipped or reconstructed.
+  it("observes the actual sealed table level and global scope membership", () => {
+    const { table } = graph();
+    const facts = fixture.facts(table);
+    observations.tableFacts = facts;
+    expect(facts).toHaveProperty("tableLevel", [0, 0]);
+    expect(facts).toHaveProperty("tableScopeIsGlobal", true);
+  });
+
+  it("observes actual raw union and table nonpersistent flags and builtin persistence", () => {
+    const { union, table, number } = graph();
+    const facts = { union: fixture.facts(union), table: fixture.facts(table), number: fixture.facts(number) };
+    observations.persistenceFacts = facts;
+    expect(facts.union).toHaveProperty("rawPersistent", false);
+    expect(facts.table).toHaveProperty("rawPersistent", false);
+    expect(facts.number).toHaveProperty("rawPersistent", true);
+  });
+
+  it("observes the actual indexer readonly flag", () => {
+    const { table } = graph();
+    expect(fixture.facts(table)).toHaveProperty("indexerIsReadOnly", false);
+  });
+});
