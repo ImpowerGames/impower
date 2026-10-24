@@ -13,6 +13,7 @@ import {
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { isLuauFile } from "@impower/sparkdown/src/compiler/typecheck/LuauUnitNodes";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import {
   hasLuauExtension,
   projectLuauFiles,
@@ -472,7 +473,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       service: this.morphService,
       channel: () => program.morphs,
       readSource: async (ref) => {
-        const image = program.context?.["image"]?.[ref.image];
+        const image = getContextEntry(program.context, "image", ref.image);
         const uri = typeof image?.uri === "string" ? image.uri : undefined;
         const file = uri ? this._watchedFiles.get(uri) : undefined;
         const text =
@@ -494,7 +495,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     const refs: { variant: string; ref: MorphRef; uri?: string }[] = [];
     for (const [variant, list] of Object.entries(program.morphs?.variants ?? {})) {
       for (const ref of list) {
-        const uri = program.context?.["image"]?.[ref.image]?.uri;
+        const uri = getContextEntry(program.context, "image", ref.image)?.uri;
         refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
       }
     }

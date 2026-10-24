@@ -21,7 +21,7 @@ const elements = (svg: string): Element[] => {
   return out;
 };
 
-const shown = (list: Element[]) => list.filter((e) => e.attributes["data-morph"] && e.attributes["display"] !== "none");
+const shown = (list: Element[]) => list.filter((e) => e.attributes["data-morph"] && !/display:none/.test(e.attributes["style"] ?? ""));
 // Unshifted, so the closed lash's authored path data is the fixture's own.
 const artifact = bakeMorphArtifact({ source: portrait({ dx: 0, dy: 0 }), selection: {}, recipe: blink(), key: "k", variant: "bunny" });
 

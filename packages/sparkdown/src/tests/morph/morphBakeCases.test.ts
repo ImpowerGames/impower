@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { filterSVGAttributes } from "../../attributes";
 import { bakeMorphArtifact, MORPH_BAKE_SAMPLES } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
+import { renderMorphFrame } from "../../morph/render";
 import type { MorphArtifact, MorphRecipe } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { blink, CLOSED, EYEBALL, layeredPortrait, LOWER_OPEN, PUPIL, UPPER_OPEN } from "./fixtures";
@@ -209,12 +210,29 @@ describe("morph bake: compositing and authored style", () => {
     expect(bake(dim.replace(".dim { opacity: .5 }", ".dim { fill: red }"), recipe()).parts.map((p) => p.kind)).toEqual(["static", "live"]);
   });
 
-  test("a live drawing's own inline display goes, so the rest-pose attribute decides", () => {
-    const styled = art(LASHES_OPEN, lash(CLOSED, "eyelash-left", ' style="display:inline;fill:#111"'));
+  test("a live drawing's own display gives way to the rest pose's inline one", () => {
+    const styled = art(LASHES_OPEN, lash(CLOSED, "eyelash-left", ' display="inline" style="display:inline;fill:#111"'));
     const live = elements(bake(styled, recipe()).parts.find((p) => p.kind === "live")!.svg);
     const closed = live.find((e) => e.attributes["d"] === CLOSED)!;
-    expect(closed.attributes["display"]).toBe("none");
-    expect(closed.attributes["style"]).toBe("fill:#111");
+    expect(closed.attributes["display"]).toBeUndefined();
+    expect(closed.attributes["style"]).toBe("fill:#111;display:none");
+  });
+
+  test("a style-sheet display rule cannot reveal a state hidden at rest", () => {
+    // `.authored { display: inline }` outranks a display attribute, not an inline declaration.
+    const sheet = art(
+      lash(UPPER_OPEN, "eyelash-left", ' class="authored"') + lash(LOWER_OPEN, "eyelash-left", ' class="authored"'),
+      lash(CLOSED, "eyelash-left", ' class="authored"'),
+      "<style>.authored { display: inline }</style>",
+    );
+    const artifact = bake(sheet, recipe());
+    const live = elements(artifact.parts.find((p) => p.kind === "live")!.svg);
+    expect(live.find((e) => e.attributes["d"] === CLOSED)!.attributes["style"]).toBe("display:none");
+    const closedPose = elements(renderMorphFrame(artifact, { segment: 0, progress: 1 }));
+    const openNodes = artifact.visibility["eyes"]!["open"]!;
+    const open = closedPose.filter((e) => openNodes.includes(e.attributes["data-morph"] ?? ""));
+    expect(open).toHaveLength(2);
+    expect(open.map((e) => e.attributes["style"])).toEqual(["display:none", "display:none"]);
   });
 
   test("art the author hid is no live drawing", () => {
@@ -334,6 +352,44 @@ describe("morph bake: apertures that cannot be built", () => {
     const artifact = bake(art(ball + LASHES_OPEN, LASH_CLOSED), fading);
     expect(artifact.status).toBe("static");
     expect(codes(artifact)).toContain("edge-not-bend");
+  });
+
+  test("a reference to art the morph splits between parts keeps the variant static", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g id="portrait-copy">
+<path data-name="face" d="M0,0H120V100H0Z" fill="#fdb"/>
+<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.closed">${LASH_CLOSED}</g>
+<path data-name="nose" d="M60,60L65,70L55,70Z" fill="#a76"/>
+</g>
+<use href="#portrait-copy" transform="translate(120 0)"/>
+</svg>`;
+    const artifact = bake(svg, recipe());
+    expect(artifact.status).toBe("static");
+    expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "unsupported-element", severity: "error", uri: URI })]);
+    expect(artifact.diagnostics[0]!.message).toContain("split it between parts");
+  });
+
+  test("a reference to moving art from another part keeps the variant static", () => {
+    const svg = art(LASHES_OPEN, LASH_CLOSED).replace(
+      `<g data-name="eyes.open:default">`,
+      `<g id="open-lashes" data-name="eyes.open:default">`,
+    ).replace("</svg>", `<path data-name="nose" d="M60,60L65,70L55,70Z" fill="#a76"/><use href="#open-lashes" transform="translate(0 20)"/>\n</svg>`);
+    const artifact = bake(svg, recipe());
+    expect(artifact.status).toBe("static");
+    expect(codes(artifact)).toEqual(["unsupported-element"]);
+    expect(artifact.diagnostics[0]!.message).toContain("standing still");
+  });
+
+  test("a reference to static art in another part is copied whole and the morph plays", () => {
+    const svg = art(LASHES_OPEN, LASH_CLOSED)
+      .replace(`<path data-name="face"`, `<path id="face" data-name="face"`)
+      .replace("</svg>", `<use href="#face" opacity="0.1"/>\n</svg>`);
+    const artifact = bake(svg, recipe());
+    expect(codes(artifact)).toEqual([]);
+    expect(artifact.status).toBe("live");
+    const top = elements(artifact.parts[artifact.parts.length - 1]!.svg);
+    expect(top.some((e) => e.attributes["id"] === `${artifact.idPrefix}face`)).toBe(true);
   });
 
   test("a missing referenced resource is reported on the artwork", () => {

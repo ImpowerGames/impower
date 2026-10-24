@@ -6,6 +6,7 @@
 
 import { decodeSVGSource } from "../attributes";
 import { hashText } from "./hash";
+import { own } from "./own";
 import { parseMorphRecipe } from "./recipe";
 import type { MorphBakeService, MorphHandle, MorphLoad } from "./service";
 import { MORPH_BAKE_FORMAT, type MorphArtifact, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
@@ -28,7 +29,7 @@ type Context = { [type: string]: { [name: string]: any } };
  * the language server and local compiles do.
  */
 export const inlineMorphSource = (context: () => Context | undefined): MorphSourceReader => async (ref) => {
-  const image = context()?.["image"]?.[ref.image];
+  const image = own(context()?.["image"], ref.image);
   const data = image?.data;
   if (typeof data !== "string" || !data) return undefined;
   return { text: decodeSVGSource(data), ...(typeof image.uri === "string" ? { uri: image.uri } : {}) };
@@ -42,7 +43,7 @@ export const fetchedMorphSource = (
   context: () => Context | undefined,
   fetcher: (url: string, init: { signal: AbortSignal }) => Promise<Response> = (url, init) => fetch(url, init),
 ): MorphSourceReader => async (ref, signal) => {
-  const image = context()?.["image"]?.[ref.image];
+  const image = own(context()?.["image"], ref.image);
   const src = image?.src;
   if (typeof src !== "string" || !src) return undefined;
   const response = await fetcher(src, { signal });
@@ -93,7 +94,7 @@ export function createMorphHost(options: MorphHostOptions): MorphHost {
       if (!isMorphArtifact(artifact)) throw new Error(`The asset service's ${ref.morph} artifact is not one this player can read.`);
       return { kind: "artifact", artifact: { ...artifact, key: ref.key } };
     }
-    const text = options.channel()?.recipes[ref.morph];
+    const text = own(options.channel()?.recipes, ref.morph);
     const recipe = text === undefined ? undefined : recipeFor(text);
     if (!recipe) throw new Error(`The program has no recipe for \`${ref.morph}\`.`);
     const source = await options.readSource?.(ref, signal);

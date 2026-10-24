@@ -4,6 +4,7 @@
 // verification captures look at any pose without a player.
 
 import { parse, stringify, type Node } from "../txml/txml";
+import { own } from "./own";
 import { setStyleProperty, styleProperty } from "./svgDocument";
 import type { MorphArtifact, MorphFrames, MorphGeometryRef } from "./types";
 
@@ -117,13 +118,13 @@ export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): stri
   // Groups other than the moving one hold their schedule's first state.
   for (const [group, states] of Object.entries(artifact.visibility)) {
     if (group === segment.group) continue;
-    const first = artifact.schedules[group]?.[0]?.state;
+    const first = own(artifact.schedules, group)?.[0]?.state;
     const all = new Set(Object.values(states).flat());
-    for (const node of all) (states[first ?? ""]?.includes(node) ? shown : hidden).add(node);
+    for (const node of all) (own(states, first ?? "")?.includes(node) ? shown : hidden).add(node);
   }
-  const groupStates = artifact.visibility[segment.group] ?? {};
-  const before = new Set(groupStates[segment.from.state] ?? []);
-  const after = new Set(groupStates[segment.to.state] ?? []);
+  const groupStates = own(artifact.visibility, segment.group) ?? {};
+  const before = new Set(own(groupStates, segment.from.state) ?? []);
+  const after = new Set(own(groupStates, segment.to.state) ?? []);
   // Every drawing of the moving group starts hidden, including those of
   // states this segment does not touch (the open pose during `half → closed`);
   // drawings in both poses stay, and the transitions below decide the rest.
@@ -207,8 +208,9 @@ export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): stri
       for (const element of walk(svg)) {
         const node = element.attributes["data-morph"];
         if (node !== undefined) {
-          if (shown.has(node)) delete element.attributes["display"];
-          else if (hidden.has(node)) element.attributes["display"] = "none";
+          // Inline, so a style-sheet `display` rule cannot outrank it.
+          if (shown.has(node)) setStyleProperty(element, "display", undefined);
+          else if (hidden.has(node)) setStyleProperty(element, "display", "none");
           const d = geometry.get(node);
           if (d !== undefined) element.attributes["d"] = d;
           const o = opacity.get(node);

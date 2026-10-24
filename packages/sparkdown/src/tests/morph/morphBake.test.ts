@@ -96,7 +96,7 @@ describe("morph bake", () => {
     expect(live!.filter((e) => e.attributes["data-morph"]).length).toBe(5);
     // Written in the rest pose: the closed lash starts hidden, so the parts
     // composed as written are the rest render.
-    const hidden = live!.filter((e) => e.attributes["data-morph"] && e.attributes["display"] === "none");
+    const hidden = live!.filter((e) => e.attributes["data-morph"] && /display:none/.test(e.attributes["style"] ?? ""));
     expect(hidden.map((e) => e.attributes["d"])).toEqual([elements(portrait()).find((e) => e.attributes["d"]?.startsWith("M20,60 C50,54"))!.attributes["d"]]);
     // Every part keeps the root's sizing so the parts overlay exactly.
     for (const part of artifact.parts) {

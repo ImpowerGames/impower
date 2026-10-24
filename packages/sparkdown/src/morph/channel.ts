@@ -13,6 +13,7 @@ import {
 import { resolveImageAttributes } from "../compiler/utils/filterImage";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
+import { own, table } from "./own";
 import { buildMorphRecipe, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
 import { MORPH_BAKE_FORMAT, type MorphProgramChannel, type MorphRef } from "./types";
 
@@ -72,7 +73,7 @@ export function buildMorphChannel(
   morphs: ReadonlyMap<string, Record<string, unknown>>,
 ): MorphProgramChannel | undefined {
   if (morphs.size === 0) return undefined;
-  const channel: MorphProgramChannel = { recipes: {}, variants: {} };
+  const channel: MorphProgramChannel = { recipes: table(), variants: table() };
   const images = morphImages(context);
   for (const [name, effective] of morphs) {
     const recipeText = serializeMorphRecipe(buildMorphRecipe(name, effective));
@@ -82,11 +83,11 @@ export function buildMorphChannel(
     for (const candidate of binding.candidates) {
       // Only drawn SVG art has geometry to bake.
       if (!candidate.compatible || candidate.type !== "image") continue;
-      const image = context["image"]?.[candidate.image];
+      const image = own(context["image"], candidate.image);
       for (const variant of candidate.variants) {
         if (variant.status !== "active") continue;
         const ref = makeRef(name, recipeText, candidate.image, image, variant.selection, groups);
-        if (ref) (channel.variants[variant.name] ??= []).push(ref);
+        if (ref) (own(channel.variants, variant.name) ?? (channel.variants[variant.name] = [])).push(ref);
       }
     }
   }
@@ -105,7 +106,7 @@ export function morphRefsForStruct(
 ): MorphRef[] {
   const name = struct?.["$name"];
   if (!context || !channel || typeof name !== "string") return [];
-  const listed = channel.variants[name];
+  const listed = own(channel.variants, name);
   if (listed) return listed;
   const resolved = resolveImageAttributes(context, struct, { visibility: false });
   const image = resolved.image;

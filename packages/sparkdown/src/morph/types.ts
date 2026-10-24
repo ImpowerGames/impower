@@ -124,8 +124,9 @@ export interface MorphBakeDiagnostic {
  * player animates. Each part is a complete SVG document with the root's
  * sizing and every resource it references, ids namespaced under the
  * artifact's `idPrefix`. A live part is written in the rest pose: its leaves
- * carry `data-morph` node ids, and those other states show carry
- * `display="none"`, so the parts composed as written are the rest render.
+ * carry `data-morph` node ids, and those other states show carry an inline
+ * `display: none` (inline, so no style-sheet rule outranks it), so the parts
+ * composed as written are the rest render.
  */
 export interface MorphPart {
   kind: "static" | "live";

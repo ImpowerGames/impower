@@ -32,6 +32,7 @@ import {
   type Affine,
 } from "./affine";
 import { hashText } from "./hash";
+import { own, table } from "./own";
 import { recipeAsMorph } from "./recipe";
 import {
   ancestry,
@@ -50,6 +51,7 @@ import {
   localGeometry,
   namespaceTree,
   readArtDocument,
+  resourceClosure,
   serialize,
   setStyleProperty,
   type ArtDocument,
@@ -335,7 +337,8 @@ export function* bakeSteps(
   // for the state the morph starts from, and for the ends a keyframe leaves
   // out (the CSS rule for an omitted first or last value).
   const restName = (group: string): string => {
-    if (selection[group] !== undefined) return selection[group]!;
+    const chosen = own(selection, group);
+    if (chosen !== undefined) return chosen;
     const choices = new Set(Object.values(binding.rest[group] ?? {}));
     return choices.size === 1 ? [...choices][0]! : (requirements.rest.get(group) ?? "rest");
   };
@@ -344,7 +347,7 @@ export function* bakeSteps(
     const start = requirements.rest.get(group);
     const entries: { offset: number; state: string | Rest }[] = [];
     for (const keyframe of recipe.keyframes) {
-      const state = keyframe.states[group];
+      const state = own(keyframe.states, group);
       if (state === undefined) continue;
       entries.push({ offset: keyframe.offset, state: start !== undefined && state === start ? REST : state });
     }
@@ -462,7 +465,7 @@ export function* bakeSteps(
   const policy = <F extends "blend" | "method" | "fallback">(leaf: Leaf, field: F): MorphRecipe[F] => {
     for (const entry of ancestry(doc!, leaf.element)) {
       const label = entry.layer?.parsed.label;
-      const value = label ? recipe.layers[label]?.[field] : undefined;
+      const value = label ? own(recipe.layers, label)?.[field] : undefined;
       if (value) return value as MorphRecipe[F];
     }
     return recipe[field];
@@ -854,6 +857,34 @@ export function* bakeSteps(
     if (last && last.live === leaf.live) last.leaves.push(leaf);
     else runs.push({ live: leaf.live, leaves: [leaf] });
   }
+  // A drawing drawn again by reference (`<use href="#portrait">`) has to be
+  // whole wherever it is referenced, and move where the original moves. One
+  // that lies wholly in other static parts is copied whole at its rest pose.
+  // One that holds leaves of the referencing part and of another is kept
+  // there only in part (no part can carry it whole without repeating ids it
+  // already holds), and a copy of live art would stand still while the
+  // original moves; either way the variant keeps its static render.
+  if (runs.length > 1) {
+    const runOf = new Map<Element, number>();
+    runs.forEach((run, index) => run.leaves.forEach((leaf) => runOf.set(leaf.element, index)));
+    for (const [index, run] of runs.entries()) {
+      for (const id of resourceClosure(doc, run.leaves.map((leaf) => leaf.element))) {
+        const target = doc.byId.get(id)!;
+        const parts = new Set(drawnLeaves(doc, target).filter((leaf) => runOf.has(leaf)).map((leaf) => runOf.get(leaf)!));
+        const split = parts.has(index) && parts.size > 1;
+        const stillCopy = [...parts].some((part) => part !== index && runs[part]!.live);
+        if (split || stillCopy) {
+          report(
+            "unsupported-element",
+            "error",
+            `"${id}" is drawn again by reference, but the morph would ${split ? "split it between parts" : "leave that copy standing still"}, so this variant shows without the morph.`,
+            { ...(keyOf(target) === undefined ? {} : { path: keyOf(target)! }) },
+          );
+          return disable();
+        }
+      }
+    }
+  }
   const morphing = new Set<string>();
   for (const segment of segments) {
     for (const t of segment.transitions) {
@@ -872,12 +903,12 @@ export function* bakeSteps(
           clone.attributes["data-morph"] = leaf.node;
           // The markup is the rest pose: the parts composed as written are
           // the rest render, and a player shows other states' drawings by
-          // taking this off. An inline `display` would outrank the attribute;
-          // a drawn leaf's own can only be a default one (hidden art is no
-          // leaf), so it goes.
-          setStyleProperty(clone, "display", undefined);
-          if (!visibleAt(leaf.element, restVisible)) clone.attributes["display"] = "none";
-          else delete clone.attributes["display"];
+          // taking the inline `display: none` off. Inline, because a style
+          // sheet's `display` rule would outrank the attribute. A drawn leaf's
+          // own `display` can only be a default one (hidden art is no leaf),
+          // so it goes.
+          delete clone.attributes["display"];
+          setStyleProperty(clone, "display", visibleAt(leaf.element, restVisible) ? undefined : "none");
           if (morphing.has(leaf.node)) {
             const local = localGeometry(leaf.element);
             if (local) convertToPath(clone, pathData(local));
@@ -905,11 +936,11 @@ export function* bakeSteps(
     report("resource-missing", "warning", `The artwork refers to \`#${id}\`, which it does not define.`);
   }
 
-  const visibility: MorphArtifact["visibility"] = {};
-  const scheduleOut: MorphArtifact["schedules"] = {};
+  const visibility: MorphArtifact["visibility"] = table();
+  const scheduleOut: MorphArtifact["schedules"] = table();
   for (const [group, entries] of schedules) {
     const byState = visibleIn.get(group)!;
-    const states: Record<string, string[]> = {};
+    const states: Record<string, string[]> = table();
     for (const [state, visible] of byState) {
       states[state || restName(group)] = leaves
         .filter((l) => l.live && l.group === group && visibleAt(l.element, visible))

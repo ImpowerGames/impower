@@ -12,10 +12,13 @@ interface CompileOptions {
   /** Serve the artwork from the asset service instead of inline. */
   served?: boolean;
   skipValidation?: boolean;
+  /** The image's name, `bunny` unless given. */
+  name?: string;
 }
 
 function compile(text: string, options: CompileOptions = {}) {
   const svg = options.svg ?? portrait();
+  const name = options.name ?? "bunny";
   const compiler = new SparkdownCompiler();
   compiler.configure({
     ...(options.served ? { stripImageData: true } : {}),
@@ -23,11 +26,11 @@ function compile(text: string, options: CompileOptions = {}) {
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
       {
-        uri: "file:///bunny.svg",
+        uri: `file:///${name}.svg`,
         type: "image",
-        name: "bunny",
+        name,
         ext: "svg",
-        ...(options.served ? { src: "/file:/local/bunny.svg?v=7-100", text: svg } : { data: svg }),
+        ...(options.served ? { src: `/file:/local/${name}.svg?v=7-100`, text: svg } : { data: svg }),
       },
     ],
   } as any);
@@ -82,6 +85,15 @@ describe("morph channel", () => {
     expect(key(SCRIPT, portrait({ dx: 21 }))).not.toBe(base);
     expect(key(`${blinkScript("  fallback = cut\n")}\n[[bunny]]\n`)).not.toBe(base);
     expect(key(`${blinkScript("  timing {\n    duration = 2\n  }\n")}\n[[bunny]]\n`)).toBe(base);
+  });
+
+  test("images named after object members get references like any other", () => {
+    for (const name of ["toString", "constructor"]) {
+      const program = compile(`${blinkScript()}\n[[${name}]]\n`, { name });
+      const refs = program.morphs!.variants[name];
+      expect(refs).toHaveLength(1);
+      expect(refs![0]).toMatchObject({ morph: "blink", image: name });
+    }
   });
 
   test("hosts that skip validation still get the channel", () => {

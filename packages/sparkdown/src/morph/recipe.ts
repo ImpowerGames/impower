@@ -1,3 +1,4 @@
+import { table } from "./own";
 import { normalizeMorphKeyframes } from "../compiler/morph/normalizeMorphKeyframes";
 import {
   MORPH_BLENDS,
@@ -39,7 +40,7 @@ const labels = (list: unknown): string[] =>
  */
 export function buildMorphRecipe(name: string, morph: Record<string, unknown>): MorphRecipe {
   const root = policyOf(morph);
-  const layers: Record<string, MorphPolicy> = {};
+  const layers: Record<string, MorphPolicy> = table();
   if (isRecord(morph["layers"])) {
     for (const label of Object.keys(morph["layers"]).sort()) {
       const entry = morph["layers"][label];
@@ -57,7 +58,7 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
           (a.frame["offset"] as number) - (b.frame["offset"] as number) || a.index - b.index,
       );
     for (const { frame } of normalized) {
-      const states: Record<string, string> = {};
+      const states: Record<string, string> = table();
       for (const key of Object.keys(frame).sort()) {
         const container = frame[key];
         if (key === "offset" || !isRecord(container)) continue;
