@@ -15,16 +15,18 @@ const asset = (path: string): File => ({
   ext: path.split(".").at(-1)!,
   src: `/file:/local/assets/${path}`,
 });
-const compile = (lines: string[], files: File[] = []) => {
+const compilerFor = (text: string, files: File[] = []) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
-      { uri, name: "main", type: "script", ext: "sd", text: lines.join("\n"), version: 1, languageId: "sparkdown" },
+      { uri, name: "main", type: "script", ext: "sd", text, version: 1, languageId: "sparkdown" },
       ...files,
     ],
   });
-  return compiler.compile({ textDocument: { uri } }).program;
+  return compiler;
 };
+const compile = (lines: string[], files: File[] = []) =>
+  compilerFor(lines.join("\n"), files).compile({ textDocument: { uri } }).program;
 const warnings = (program: ReturnType<typeof compile>) =>
   (program.diagnostics?.[uri] ?? []).map((d) => ({
     message: typeof d.message === "string" ? d.message : d.message.value,
@@ -176,5 +178,61 @@ describe("asset references in define bodies", () => {
       [asset("backdrop.png")],
     );
     expect(missing(program)).toEqual([]);
+  });
+
+  // Validation outcomes are kept between compiles; each compile after an edit
+  // reports what a fresh compiler reports for the same text.
+  it("follows edits to the asset and to the reference across compiles", () => {
+    let text = [
+      "First beat.",
+      "",
+      "define warm as filtered_image with",
+      '  src = "https://example.com/a.svg"',
+      "end",
+      "",
+      "define portrait as filtered_image with",
+      "  image = warm",
+      "end",
+      "",
+      "define typed as filtered_image with",
+      "  image = filtered_image.warm",
+      "end",
+      "",
+      "Last beat.",
+    ].join("\n");
+    const compiler = compilerFor(text);
+    let version = 1;
+    const edit = (find: string, replace: string) => {
+      const offset = text.indexOf(find);
+      expect(offset, `"${find}" is in the text`).toBeGreaterThanOrEqual(0);
+      const position = (at: number) => {
+        const before = text.slice(0, at).split("\n");
+        return { line: before.length - 1, character: before.at(-1)!.length };
+      };
+      version += 1;
+      compiler.updateDocument({
+        textDocument: { uri, version },
+        contentChanges: [
+          { range: { start: position(offset), end: position(offset + find.length) }, text: replace },
+        ],
+      } as never);
+      text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      const incremental = missing(compiler.compile({ textDocument: { uri } }).program);
+      expect(incremental).toEqual(missing(compilerFor(text).compile({ textDocument: { uri } }).program));
+      return incremental;
+    };
+
+    expect(missing(compiler.compile({ textDocument: { uri } }).program)).toEqual([]);
+    expect(edit("Last beat.", "Last beat, edited.")).toEqual([]);
+    expect(edit("define warm as", "define warmer as")).toEqual([
+      { message: "Cannot find variable named `warm`", line: 7, from: 10, to: 14 },
+      { message: "Cannot find filtered_image named `warm`", line: 11, from: 25, to: 29 },
+    ]);
+    expect(edit("First beat.", "First beat again.")).toHaveLength(2);
+    expect(edit("define warmer as", "define warm as")).toEqual([]);
+    expect(edit("  image = warm\n", "  image = warm2\n")).toEqual([
+      { message: "Cannot find variable named `warm2`", line: 7, from: 10, to: 15 },
+    ]);
+    expect(edit("  image = warm2\n", "  image = warm\n")).toEqual([]);
   });
 });
