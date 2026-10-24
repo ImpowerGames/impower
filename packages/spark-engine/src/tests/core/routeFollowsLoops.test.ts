@@ -238,6 +238,54 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(route?.conditions.map((c) => c.selected)).toEqual([true]);
   }, 120_000);
 
+  test("a branch the program skips is reached before the menus after it", () => {
+    // Every way through the menus is the program's own, but each takes
+    // choices; none of them leads to the line, so they are not explored
+    // before the forced branch.
+    const menus = Array.from({ length: 9 }, (_, i) => [
+      "  choose",
+      `  + [Left ${i}]`,
+      "    & total += 1",
+      `  + [Right ${i}]`,
+      "    & total += 2",
+      "  then",
+      `    Menu ${i} done.`,
+      "  end",
+    ]).flat();
+    const src = [
+      "store flag = false",
+      "store total = 0",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  if flag then",
+      "    Target branch.",
+      "  end",
+      ...menus,
+      "end",
+      "",
+    ].join("\n");
+    const lines = src.split("\n");
+    const program = compileSrc(src);
+    const game: any = newGame(program);
+    game.setStartFrom({
+      file: URI,
+      line: lines.findIndex((l) => l.includes("Target branch.")),
+    });
+    const to = game.startAddress;
+    const route = Game.planRoute(
+      game.story,
+      program as any,
+      game.routeStartOf(to),
+      to,
+      undefined,
+      { maxNodes: 200 },
+    );
+    expect(route?.steps.at(-1)?.address).toBe(to);
+    expect(route?.conditions.map((c) => c.selected)).toEqual([true]);
+  }, 120_000);
+
   test("a break inside a loop leaves after the passes the program runs", () => {
     const src = [
       "store total = 0",

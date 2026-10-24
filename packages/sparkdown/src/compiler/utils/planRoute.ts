@@ -48,14 +48,15 @@ export interface SearchNode {
    *  would apply it to a later visit of its site, as a loop's test makes. */
   overrides: RouteOverride[];
   /** What the route to this node cost ({@link SearchQueue}): one for each
-   *  choice and each verdict the program reaches itself, and
-   *  {@link DEPARTURE_COST} for each verdict forced against the program. */
+   *  verdict the program reaches itself, and {@link DEPARTURE_COST} for each
+   *  verdict forced against the program, and {@link CHOICE_COST} for each
+   *  choice. */
   cost: number;
 }
 
 /**
- * What forcing a verdict against the program costs a route, in decisions
- * taken the program's own way.
+ * What forcing a verdict against the program, or taking a choice, costs a
+ * route, in decisions taken the program's own way.
  *
  * A route that forces a verdict runs something the program does not, so the
  * state it reaches its target with is not the program's: forcing a loop's test
@@ -65,8 +66,24 @@ export interface SearchNode {
  * however many more decisions it takes, up to this many. The bound is what
  * keeps a branch reachable when the program's own way runs a loop that never
  * ends: past this many of its passes, the forced branch is tried.
+ *
+ * A choice costs {@link CHOICE_COST}.
  */
 export const DEPARTURE_COST = 1_000;
+
+/**
+ * What taking a choice costs a route, in decisions taken the program's own
+ * way: half of {@link DEPARTURE_COST}.
+ *
+ * The program does not decide a choice either, and a choice that cost one
+ * would let the program's own way enumerate every combination of the menus
+ * after a skipped branch before the forced branch was tried; at half a
+ * departure, the menus are explored two choices deep at most first. It costs
+ * less than a forced verdict, so a route that takes a menu the program offers
+ * is still preferred to one that forces a loop short so that the menu is never
+ * raised, as a loop that raises its choices in a `choose` preamble would be.
+ */
+export const CHOICE_COST = DEPARTURE_COST / 2;
 
 /**
  * Extend a step-sequence identity with one more path: a step's address, or a
@@ -652,7 +669,8 @@ export interface SearchError {
  * prefers whatever reaches the target in fewer decisions, and forcing a loop's
  * test false the first time it is asked reaches the line after the loop in one,
  * so the line was replayed with the store as it stood before the loop (#637).
- * A verdict forced against the program costs {@link DEPARTURE_COST} instead.
+ * A verdict forced against the program costs {@link DEPARTURE_COST} instead,
+ * and a choice {@link CHOICE_COST}.
  *
  * A node's children never cost less than the node, so the cheapest bucket
  * that may still hold a node only moves up.
@@ -1272,7 +1290,7 @@ const forkChoice = (
     conditions: [...parent.conditions],
     choices: [...parent.choices, choice],
     overrides: [ov],
-    cost: parent.cost + 1,
+    cost: parent.cost + CHOICE_COST,
   };
 };
 
