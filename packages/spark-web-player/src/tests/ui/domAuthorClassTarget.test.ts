@@ -39,7 +39,9 @@ function expectAuthoredKept(h: DOMHarness) {
     (el) => el.className === "action",
   );
   expect(builtin).toHaveLength(1);
-  expect(builtin[0]!.textContent).toContain("You rummage through your pack.");
+  expect(builtin[0]!.textContent, builtin[0]!.outerHTML).toContain(
+    "You rummage through your pack.",
+  );
   expect((h.ui as any).findTargetElements("action")).toEqual(builtin);
 }
 
@@ -48,9 +50,12 @@ describe("an author's element whose class names a builtin target", () => {
     const h = createDOMHarness(SOURCE, 0, { reactive: true });
     await h.ready;
     h.jumpTo("start");
-    const beat = h.nextBeat();
-    await h.display(beat!, true);
-    await flushMicrotasks(10);
+    let beat = h.nextBeat();
+    while (beat) {
+      await h.display(beat, true);
+      await flushMicrotasks(10);
+      beat = h.nextBeat();
+    }
     expectAuthoredKept(h);
   });
 
