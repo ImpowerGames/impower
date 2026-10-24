@@ -132,20 +132,35 @@ const visibilityOf = (entry: RootMemo, derivation: AttributeDerivation) =>
     derivation.selection,
   ));
 
-/** Resolve named looks from the root outward, so appended attributes win. */
+/**
+ * Resolve named looks from the root outward, so appended attributes win.
+ *
+ * A chain that comes back to a look it already passed through has no root;
+ * `cycle` then lists the looks that form the loop, in chain order, leaving out
+ * any look that only leads into it.
+ */
 const resolveChain = (context: ImageContext, struct: any): {
   image?: any;
   attributes: string[];
-  circular?: boolean;
+  cycle?: any[];
 } => {
   const attributes: string[] = [];
   const seen = new Set<any>();
+  const looks: any[] = [];
+  let cycle: any[] | undefined;
   const visit = (current: any): any => {
     if (!current || typeof current !== "object") return undefined;
-    if (seen.has(current)) return "circular";
+    if (seen.has(current)) {
+      // A reference object two looks share is seen again before the look it
+      // names, so the loop starts at that look.
+      const start = looks.indexOf(current.$type ? current : lookup(context, current));
+      cycle = looks.slice(Math.max(start, 0));
+      return undefined;
+    }
     seen.add(current);
     if (!current.$type) return visit(lookup(context, current));
     if (current.$type !== "filtered_image") return current;
+    looks.push(current);
     const image = visit(lookup(context, current.image));
     if (Array.isArray(current.attributes)) {
       attributes.push(...current.attributes.filter((value: unknown): value is string => typeof value === "string"));
@@ -153,7 +168,7 @@ const resolveChain = (context: ImageContext, struct: any): {
     return image;
   };
   const image = visit(struct);
-  if (image === "circular") return { attributes, circular: true };
+  if (cycle) return { attributes, cycle };
   return { image, attributes };
 };
 
@@ -178,10 +193,10 @@ export const resolveImageAttributes = (context: ImageContext, struct: any, optio
   vocabulary?: AttributeVocabulary;
   selection: AttributeSelection;
   diagnostics: AttributeDiagnostic[];
-  circular?: boolean;
+  cycle?: any[];
 } => {
-  const { image, attributes, circular } = resolveChain(context, struct);
-  if (circular) return { attributes, selection: {}, diagnostics: [], circular: true };
+  const { image, attributes, cycle } = resolveChain(context, struct);
+  if (cycle) return { attributes, selection: {}, diagnostics: [], cycle };
   const entry = image && typeof image === "object" ? rootMemo(image) : undefined;
   if (!entry?.vocabulary) return { image, attributes, selection: {}, diagnostics: [] };
   const derivation = derivationOf(entry, attributes);
@@ -196,13 +211,12 @@ export const resolveImageAttributes = (context: ImageContext, struct: any, optio
 };
 
 /** Write the derived output of a named look onto the struct the caller holds. */
-export const filterImage = (context: ImageContext, filteredImage: any): string | undefined => {
-  if (!filteredImage) return undefined;
+export const filterImage = (context: ImageContext, filteredImage: any): void => {
+  if (!filteredImage) return;
   delete filteredImage.filtered_src;
   delete filteredImage.filtered_layers;
-  const { image, attributes, circular } = resolveChain(context, filteredImage);
-  if (circular) return `${filteredImage.$type}.${filteredImage.$name}.image`;
-  if (!image || typeof image !== "object") return undefined;
+  const { image, attributes } = resolveChain(context, filteredImage);
+  if (!image || typeof image !== "object") return;
   const entry = rootMemo(image);
   const derivation = entry.vocabulary
     ? derivationOf(entry, attributes)
@@ -211,7 +225,7 @@ export const filterImage = (context: ImageContext, filteredImage: any): string |
   if (image.$type === "image") {
     if (derivation && "filteredSrc" in derivation) {
       filteredImage.filtered_src = derivation.filteredSrc;
-      return undefined;
+      return;
     }
     let filteredSrc: string | undefined;
     if (image.data && (image.ext === "svg" || image.data.includes("<svg") || /^data:image\/svg\+xml[;,]/i.test(image.data))) {
@@ -237,5 +251,4 @@ export const filterImage = (context: ImageContext, filteredImage: any): string |
     // caller holding `filtered_layers` must not be able to edit it.
     filteredImage.filtered_layers = [...layers];
   }
-  return undefined;
 };
