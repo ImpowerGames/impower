@@ -120,6 +120,10 @@ describe("artifact playback", () => {
     const artifact = bakeMorphArtifact({ source: faded, selection: {}, recipe, key: "fade" });
     const crease = elements(renderMorphFrame(artifact, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(crease.attributes["style"]).toBe("opacity:0.2");
+    // An important inline opacity takes effect over a later normal one, and stays important.
+    const important = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important;opacity:0.9"), selection: {}, recipe, key: "fade2" });
+    const marked = elements(renderMorphFrame(important, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
+    expect(marked.attributes["style"]).toBe("opacity:0.2 !important");
   });
 
   test("the aperture blends onto its closed line as the eye closes", () => {

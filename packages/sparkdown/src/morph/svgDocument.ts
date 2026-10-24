@@ -61,9 +61,23 @@ export function styleDeclarations(element: Element): [string, string][] {
   return out;
 }
 
-/** An inline style property's value, which outranks the presentation attribute of that name. */
+const IMPORTANT = /!\s*important\s*$/i;
+
+/**
+ * The inline style declaration of `name` that takes effect, which outranks
+ * the presentation attribute of that name: the last important one if any is
+ * important, else the last. `value` has its `!important` removed.
+ */
+export function styleDeclaration(element: Element, name: string): { value: string; important: boolean } | undefined {
+  const declared = styleDeclarations(element).filter(([n]) => n === name);
+  const chosen = declared.findLast(([, v]) => IMPORTANT.test(v)) ?? declared[declared.length - 1];
+  if (!chosen) return undefined;
+  return { value: chosen[1].replace(IMPORTANT, "").trim(), important: IMPORTANT.test(chosen[1]) };
+}
+
+/** The value of the inline style declaration of `name` that takes effect. */
 export const styleProperty = (element: Element, name: string): string | undefined =>
-  styleDeclarations(element).findLast(([n]) => n === name)?.[1];
+  styleDeclaration(element, name)?.value;
 
 /** Sets (or, with `undefined`, removes) one inline style property. */
 export function setStyleProperty(element: Element, name: string, value: string | undefined) {
@@ -102,36 +116,64 @@ export interface StyleRules {
   tags: Set<string>;
 }
 
-/** The rules of the document's style sheets with a declaration `declares` accepts. */
+/**
+ * The rules of the document's style sheets with a declaration `declares`
+ * accepts. Rules inside conditional at-rules (`@media`, `@supports`, …) count
+ * as written, and a nested rule counts with the selectors of every rule it
+ * sits in, so `.a { & .b { … } }` names both `.a` and `.b`. An `@import`
+ * brings rules the bake cannot read, so it counts for every element.
+ */
 export function styleRules(doc: ArtDocument, declares: (name: string, value: string) => boolean): StyleRules {
   const rules: StyleRules = { any: false, classes: new Set(), ids: new Set(), tags: new Set() };
-  for (const sheet of subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style")) {
-    const css = sheet.children.filter((c): c is string => typeof c === "string").join("").replace(/\/\*[\s\S]*?\*\//g, "");
-    for (const block of css.split("}")) {
-      const open = block.indexOf("{");
-      if (open < 0) continue;
-      const selector = block.slice(0, open);
-      const matches = block
-        .slice(open + 1)
-        .split(";")
-        .some((d) => {
-          const colon = d.indexOf(":");
-          return colon > 0 && declares(d.slice(0, colon).trim().toLowerCase(), d.slice(colon + 1));
-        });
-      if (!matches) continue;
-      // Each compound selector (`g.dim`, `#eye`, `path`) is matched by any one
-      // of its classes or ids, or by its tag when it names nothing else.
-      for (const compound of selector.split(/[\s>+~,()]+/)) {
-        if (!compound) continue;
-        if (/[*[]/.test(compound)) rules.any = true;
-        const classes = [...compound.matchAll(/\.(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
-        const ids = [...compound.matchAll(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
-        for (const c of classes) rules.classes.add(c);
-        for (const id of ids) rules.ids.add(id);
-        const tag = /^[a-zA-Z][-a-zA-Z0-9]*/.exec(compound)?.[0];
-        if (tag && !classes.length && !ids.length) rules.tags.add(tag.toLowerCase());
-      }
+  const name = (selector: string) => {
+    // Each compound selector (`g.dim`, `#eye`, `path`) is matched by any one
+    // of its classes or ids, or by its tag when it names nothing else.
+    for (const compound of selector.split(/[\s>+~,()]+/)) {
+      if (!compound) continue;
+      if (/[*[]/.test(compound)) rules.any = true;
+      const classes = [...compound.matchAll(/\.(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
+      const ids = [...compound.matchAll(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
+      for (const c of classes) rules.classes.add(c);
+      for (const id of ids) rules.ids.add(id);
+      const tag = /^[a-zA-Z][-a-zA-Z0-9]*/.exec(compound)?.[0];
+      if (tag && !classes.length && !ids.length) rules.tags.add(tag.toLowerCase());
     }
+  };
+  // Declarations made directly in a rule whose selectors are `selectors`.
+  const declarations = (text: string, selectors: string[]) => {
+    for (const statement of text.split(";")) {
+      const trimmed = statement.trim();
+      if (/^@import\b/i.test(trimmed)) rules.any = true;
+      const colon = trimmed.indexOf(":");
+      if (!selectors.length || colon <= 0 || trimmed.startsWith("@")) continue;
+      if (declares(trimmed.slice(0, colon).trim().toLowerCase(), trimmed.slice(colon + 1))) selectors.forEach(name);
+    }
+  };
+  const walk = (css: string, selectors: string[]) => {
+    let text = "";
+    for (let i = 0; i < css.length; i++) {
+      const ch = css[i]!;
+      if (ch === "{") {
+        // The prelude is what follows the last declaration before the block.
+        const split = text.lastIndexOf(";");
+        declarations(text.slice(0, split + 1), selectors);
+        const prelude = text.slice(split + 1).trim();
+        let depth = 1;
+        let end = i + 1;
+        for (; end < css.length && depth; end++) {
+          if (css[end] === "{") depth++;
+          else if (css[end] === "}") depth--;
+        }
+        const inner = css.slice(i + 1, depth ? end : end - 1);
+        walk(inner, prelude.startsWith("@") ? selectors : [prelude, ...selectors]);
+        i = end - 1;
+        text = "";
+      } else if (ch !== "}") text += ch;
+    }
+    declarations(text, selectors);
+  };
+  for (const sheet of subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style")) {
+    walk(sheet.children.filter((c): c is string => typeof c === "string").join("").replace(/\/\*[\s\S]*?\*\//g, ""), []);
   }
   return rules;
 }
@@ -150,14 +192,13 @@ export const matchesStyleRule = (rules: StyleRules, element: Element): boolean =
   (element.attributes["class"] ?? "").split(/\s+/).some((c) => c && rules.classes.has(c));
 
 /**
- * Whether the element is authored not to render at all, from its inline
- * `display` (important or not) or else its `display` attribute. Style-sheet
- * `display` rules are not read here: a bake refuses art they could apply to.
+ * Whether the element is authored not to render at all, from the inline
+ * `display` declaration that takes effect or else its `display` attribute.
+ * Style-sheet `display` rules are not read here: a bake refuses art they
+ * could apply to.
  */
 export const authoredHidden = (element: Element) =>
-  (styleProperty(element, "display")?.replace(/!\s*important\s*$/i, "") ?? element.attributes["display"])
-    ?.trim()
-    .toLowerCase() === "none";
+  (styleProperty(element, "display") ?? element.attributes["display"])?.trim().toLowerCase() === "none";
 
 const elementsOf = (children: Node[]): Element[] =>
   children.filter((c): c is Element => !!c && typeof c === "object");
@@ -327,8 +368,10 @@ export function subtree(element: Element): Element[] {
 
 /**
  * The ids `elements` need, transitively: a gradient that inherits another,
- * a clip path whose contents use a pattern. `missing` collects references
- * that name nothing in the document.
+ * a clip path whose contents use a pattern, and what a needed resource's
+ * ancestors reference, since a copied resource repeats what they pass down
+ * (a pattern under `<defs fill="url(#paint)">` needs `#paint`). `missing`
+ * collects references that name nothing in the document.
  */
 function resourceClosure(
   doc: ArtDocument,
@@ -348,6 +391,7 @@ function resourceClosure(
       }
       needed.add(id);
       queue.push(...subtree(target));
+      for (const entry of ancestry(doc, target)) if (entry.element !== target) queue.push(entry.element);
     }
   }
   return needed;

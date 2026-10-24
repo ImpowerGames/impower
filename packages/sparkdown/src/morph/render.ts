@@ -5,7 +5,7 @@
 
 import { parse, stringify, type Node } from "../txml/txml";
 import { own } from "./own";
-import { setStyleProperty, styleProperty } from "./svgDocument";
+import { setStyleProperty, styleDeclaration } from "./svgDocument";
 import type { MorphArtifact, MorphFrames, MorphGeometryRef } from "./types";
 
 type Element = Exclude<Node, string | null>;
@@ -97,9 +97,10 @@ function* walk(element: Element): Generator<Element> {
  * faded one is written where it will.
  */
 const multiplyOpacity = (element: Element, factor: number) => {
-  const authored = styleProperty(element, "opacity") ?? element.attributes["opacity"] ?? "1";
-  const own = Number.parseFloat(authored);
-  setStyleProperty(element, "opacity", fmt((Number.isFinite(own) ? own : 1) * factor));
+  const inline = styleDeclaration(element, "opacity");
+  const own = Number.parseFloat(inline?.value ?? element.attributes["opacity"] ?? "1");
+  const value = fmt((Number.isFinite(own) ? own : 1) * factor);
+  setStyleProperty(element, "opacity", inline?.important ? `${value} !important` : value);
 };
 
 /**

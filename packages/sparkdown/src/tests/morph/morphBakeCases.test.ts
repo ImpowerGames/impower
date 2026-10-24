@@ -222,7 +222,17 @@ describe("morph bake: compositing and authored style", () => {
     // `.authored { display: inline !important }` would outrank any inline
     // declaration that hides a state, and a sheet can reveal what an
     // attribute hides, so neither is baked live.
-    for (const rule of [".authored { display: inline }", ".authored { display: inline !important }", "g.eyes { display: block }"]) {
+    for (const rule of [
+      ".authored { display: inline }",
+      ".authored { display: inline !important }",
+      "g.eyes { display: block }",
+      // Nested in a conditional at-rule, or in another rule.
+      "@media all { .authored { display: inline !important } }",
+      "@supports (display: grid) { @media screen { .authored { display: inline } } }",
+      ".eyes { fill: red; & .authored { display: inline } }",
+      // Rules the bake cannot read.
+      "@import url(more.css);",
+    ]) {
       const sheet = art(
         lash(UPPER_OPEN, "eyelash-left", ' class="authored"') + lash(LOWER_OPEN, "eyelash-left", ' class="authored"'),
         lash(CLOSED, "eyelash-left", ' class="authored"'),
@@ -233,9 +243,10 @@ describe("morph bake: compositing and authored style", () => {
       expect(codes(artifact)).toEqual(["unsupported-element"]);
       expect(artifact.diagnostics[0]!.message).toContain("`display`");
     }
-    // A display rule no drawing matches leaves the morph alone.
-    const unrelated = art(LASHES_OPEN, LASH_CLOSED, "<style>.unused { display: none }</style>");
-    expect(bake(unrelated, recipe()).status).toBe("live");
+    // A display rule no drawing matches leaves the morph alone, nested or not.
+    for (const rule of [".unused { display: none }", "@media all { .unused { display: none } }", "@font-face { font-family: x }"]) {
+      expect(bake(art(LASHES_OPEN, LASH_CLOSED, `<style>${rule}</style>`), recipe()).status).toBe("live");
+    }
   });
 
   test("hidden state leaves are hidden inline in the live part and by the renderer", () => {
@@ -249,12 +260,15 @@ describe("morph bake: compositing and authored style", () => {
     expect(open.map((e) => e.attributes["style"])).toEqual(["display:none", "display:none"]);
   });
 
-  test("display is read from the inline declaration, important or not, before the attribute", () => {
+  test("display is read from the inline declaration that takes effect, before the attribute", () => {
     const HIDDEN = "M10,10H20V20H10Z";
+    const OUTRANKED = "M50,10H60V20H50Z";
     const SHOWN = "M30,10H40V20H30Z";
     const svg = art(
       LASHES_OPEN +
         `<path data-name="crease" d="${HIDDEN}" style="display:none !important"/>` +
+        // An important declaration wins over a later normal one.
+        `<path data-name="crease" d="${OUTRANKED}" style="display:none !important;display:inline"/>` +
         `<g display="none" style="display:inline"><path data-name="crease" d="${SHOWN}"/></g>`,
       LASH_CLOSED,
     );
@@ -262,7 +276,22 @@ describe("morph bake: compositing and authored style", () => {
     expect(artifact.status).toBe("live");
     const drawn = artifact.parts.flatMap((p) => elements(p.svg)).map((e) => e.attributes["d"]);
     expect(drawn).not.toContain(HIDDEN);
+    expect(drawn).not.toContain(OUTRANKED);
     expect(drawn).toContain(SHOWN);
+  });
+
+  test("a copied resource brings what its original ancestors reference", () => {
+    const tiles = `<defs fill="url(#paint)"><linearGradient id="paint"><stop offset="0" stop-color="lime"/></linearGradient>
+<pattern id="tiles" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="2" height="2"/></pattern></defs>
+<rect data-name="tile" width="10" height="10" fill="url(#tiles)"/>`;
+    const artifact = bake(art(LASHES_OPEN, LASH_CLOSED, tiles), recipe());
+    expect(codes(artifact)).toEqual([]);
+    const part = artifact.parts.map((p) => elements(p.svg)).find((list) => list.some((e) => e.attributes["data-name"] === "tile"))!;
+    const pattern = part.find((e) => e.tagName === "pattern")!;
+    expect(pattern.attributes["id"]).toBe(`${artifact.idPrefix}tiles`);
+    // The pattern sits in a group repeating the defs' paint, which resolves in the part.
+    expect(part.some((e) => e.attributes["fill"] === `url(#${artifact.idPrefix}paint)`)).toBe(true);
+    expect(part.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${artifact.idPrefix}paint`)).toBe(true);
   });
 
   test("art the author hid is no live drawing", () => {
