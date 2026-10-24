@@ -309,6 +309,62 @@ end
     expect(reordered.map((m) => m.params.element)).toEqual([labels[0].element]);
   });
 
+  test("every spelling of a placement prop places the label", async () => {
+    const h = createHarness(
+      `layout settings with
+  column {
+    checkbox "A" #self-align=end #position=absolute #i-l=40 #m-t=8
+    checkbox "B" #align-self=end #left=40 #margin-top=8
+  }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const labels = createdOfType(h, "label");
+    const inputs = createdOfType(h, "input");
+    expect(labels[0].style).toMatchObject({
+      "self-align": "end",
+      position: "absolute",
+      "i-l": "40",
+      "m-t": "8",
+    });
+    expect(labels[1].style).toMatchObject({
+      "align-self": "end",
+      left: "40",
+      "margin-top": "8",
+    });
+    for (const input of inputs) {
+      for (const prop of ["self-align", "align-self", "i-l", "left", "m-t", "margin-top", "position"]) {
+        expect(input.style?.[prop], prop).toBeUndefined();
+      }
+    }
+  });
+
+  test("a placement prop keeps its transition on the label", async () => {
+    const h = createHarness(
+      `store offset = 0
+layout settings with
+  checkbox "Move me" #margin-left={offset} #transition-property="margin-left" #transition-duration="2s"
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const [label] = createdOfType(h, "label");
+    const [input] = createdOfType(h, "input");
+    expect(label.style).toMatchObject({
+      "margin-left": "0",
+      "transition-property": "margin-left",
+      "transition-duration": "2s",
+    });
+    expect(input.style?.["margin-left"]).toBeUndefined();
+    // The control keeps its transition for whatever changes on it.
+    expect(input.style?.["transition-duration"]).toBe("2s");
+  });
+
   test("props, bindings and write-back stay on the control", async () => {
     const h = createHarness(
       `store volume = 80

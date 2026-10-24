@@ -118,6 +118,8 @@ import {
   WriteTextMessage,
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
+import { CSS_ALIASES } from "../../../../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
+import { STYLE_ALIASES } from "../../../../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 
 /** Whether two values of a program's layout trees hold the same: the same
  *  object, or plain data of the same shape and values (#657). */
@@ -444,44 +446,66 @@ const INPUT_WIDGETS: Record<
   switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
 
-/** Props that govern a whole input widget, in their sparkle and CSS
- *  spellings: whether it shows and whether it takes the pointer. On a widget
- *  with a label they style the label as well as the control, so the text hides
- *  with its control and is never a way to activate a control that is not
- *  interactable. */
 /** Props that place an element among its siblings and in its parent (Margin,
- *  Position, and the Layout props an element sets on itself), in their sparkle,
- *  short and CSS spellings. On a widget with a label it is the label that sits
- *  in the parent, so these style the label instead of the control. */
+ *  Position, and the Layout props an element sets on itself), by canonical
+ *  sparkle name (see widgetPropName). On a widget with a label it is the label
+ *  that sits in the parent, so these style the label instead of the control.
+ *  `flex`, `flex-basis` and `z-index` have no sparkle alias and keep their CSS
+ *  names. */
 const WIDGET_PLACEMENT_PROPS = new Set([
-  "margin", "m",
-  "margin-top", "m-t",
-  "margin-right", "m-r",
-  "margin-bottom", "m-b",
-  "margin-left", "m-l",
+  "margin",
+  "margin-top",
+  "margin-right",
+  "margin-bottom",
+  "margin-left",
   "position",
-  "anchor", "a", "inset",
-  "anchor-top", "a-t", "top",
-  "anchor-right", "a-r", "right",
-  "anchor-bottom", "a-b", "bottom",
-  "anchor-left", "a-l", "left",
+  "anchor",
+  "anchor-top",
+  "anchor-right",
+  "anchor-bottom",
+  "anchor-left",
+  "anchor-to",
+  "anchor-placement",
+  "anchor-try",
+  "anchor-try-fallbacks",
+  "anchor-try-order",
+  "z",
   "z-index",
-  "align", "align-self",
-  "grow", "flex-grow",
-  "shrink", "flex-shrink",
-  "basis", "flex-basis",
+  "self-align",
+  "grow",
+  "shrink",
+  "basis",
+  "flex-basis",
   "flex",
   "order",
 ]);
 
+/** Props that govern a whole input widget, by canonical sparkle name: whether
+ *  it shows, whether it takes the pointer, and how its changes transition. On
+ *  a widget with a label they style the label as well as the control, so the
+ *  text hides with its control, is never a way to activate a control that is
+ *  not interactable, and each element transitions what changes on it. */
 const WIDGET_WIDE_PROPS = new Set([
   "displayed",
-  "display",
   "visible",
-  "visibility",
   "interactable",
-  "pointer-events",
+  "transition",
+  "transition-property",
+  "transition-duration",
+  "transition-delay",
+  "transition-easing",
 ]);
+
+/** A prop's canonical sparkle name, for classifying it against the widget
+ *  prop sets: underscores read as dashes, then the short and CSS spellings
+ *  the style transformer accepts (`i-l`, `m-t`, `align-self`, `pointer-events`)
+ *  resolve to the names they alias. */
+function widgetPropName(prop: string): string {
+  const dashed = prop.replace(/_/g, "-");
+  const long =
+    (STYLE_ALIASES as Record<string, string>)[dashed] ?? dashed;
+  return (CSS_ALIASES as Record<string, string>)[long] ?? long;
+}
 
 /**
  * Builtin tag → the real DOM tag it renders as. Anything absent renders as a
@@ -2717,8 +2741,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Placement props move to the label. Each widget-wide prop is evaluated
     // ONCE and its value given to both the label and the control: a binding
     // with side effects, or one that reads differently on a second call, must
-    // not run twice or leave the two elements disagreeing. Prop names are
-    // matched with dashes, as `#prop` spells them and `style` blocks may not.
+    // not run twice or leave the two elements disagreeing. Props are matched by
+    // canonical name, so every spelling of one prop lands on the same element.
     const vs = this._game.story.variablesState;
     const wideStyle: Record<string, string | null> = {};
     const placementStyle: Record<string, string | null> = {};
@@ -2727,7 +2751,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     })[] = [];
     const controlProps: ElementNode["props"] = {};
     for (const [prop, propValue] of Object.entries(node.props)) {
-      const key = prop.replace(/_/g, "-");
+      const key = widgetPropName(prop);
       const wide = WIDGET_WIDE_PROPS.has(key);
       if (!wide && !WIDGET_PLACEMENT_PROPS.has(key)) {
         controlProps[prop] = propValue;
