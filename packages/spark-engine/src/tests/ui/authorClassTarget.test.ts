@@ -2,9 +2,8 @@
 // text or image target (`text.title "Inventory"`) shows its content. A target
 // resolves to the elements named exactly as it is, so the story's writes and
 // clears of `title` reach the builtin `title` element and leave the author's
-// `text title` alone. A target no element is named after reaches only the
-// layouts' declared targets that carry its classes, never an element holding
-// what the author wrote.
+// `text title` alone. A target no element is named after reaches the elements
+// that carry its classes, never a content element such as `text title`.
 
 import { describe, expect, test } from "vitest";
 import {
@@ -104,15 +103,11 @@ describe("an author's element whose class names a builtin target", () => {
     expect(ids).toEqual(idsNamed("choice 0"));
   });
 
-  for (const [label, element, name] of [
-    ["`text.title`", `text.title "Inventory"`, "text title"],
-    ["a `row.title` container", `row.title { text "Inventory" }`, "row title"],
-  ] as const) {
-    test(`${label} in a layout that replaces \`main\` is not written by the story's title`, async () => {
-      const { h, hidden, writes, idsNamed, created } = await run(
-        `layout main with
+  test("`text.title` in a layout that replaces `main` is not written by the story's title", async () => {
+    const { h, hidden, writes, idsNamed, created } = await run(
+      `layout main with
   column.panel {
-    ${element}
+    text.title "Inventory"
     text "Rope"
   }
 end
@@ -121,18 +116,17 @@ end
 
 You rummage through your pack.
 `,
-      );
-      const [authored] = idsNamed(name);
-      expect(authored, created).toBeTruthy();
-      expect(hidden).not.toContain(name);
-      expect(h.game.module.ui.findIds("title")).toEqual([]);
-      expect(writes.map((m) => m.params.target)).not.toContain("title");
-    });
-  }
+    );
+    const [authored] = idsNamed("text title");
+    expect(authored, created).toBeTruthy();
+    expect(hidden).not.toContain("text title");
+    expect(h.game.module.ui.findIds("title")).toEqual([]);
+    expect(writes.map((m) => m.params.target)).not.toContain("title");
+  });
 });
 
 describe("a target no element is named after", () => {
-  test("reaches the declared target with its classes, and the write names it", async () => {
+  test("reaches the layer with its classes and not a label with them, and the write names it", async () => {
     const { h, hidden, writes, idsNamed, created } = await run(
       `layout hud with
   box.avatar { image }

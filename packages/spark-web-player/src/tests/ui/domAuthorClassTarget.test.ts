@@ -35,9 +35,9 @@ function expectAuthoredKept(h: DOMHarness) {
   expect(authored, h.overlay.innerHTML).not.toBeNull();
   expect(authored!.textContent).toBe("Inventory");
   expect(authored!.style.display).not.toBe("none");
-  const builtin = [...h.overlay.querySelectorAll<HTMLElement>(".action")].filter(
-    (el) => el.className === "action",
-  );
+  const builtin = [
+    ...h.overlay.querySelectorAll<HTMLElement>(".action"),
+  ].filter((el) => el.className === "action");
   expect(builtin).toHaveLength(1);
   expect(builtin[0]!.textContent, builtin[0]!.outerHTML).toContain(
     "You rummage through your pack.",

@@ -4791,10 +4791,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   /** The elements a target names. Elements named exactly as the target are
    *  its own, so an author's element that only shares a class with it (`text
    *  title` beside the builtin `title`) is left alone (#863). A target no
-   *  element is named after resolves to the layouts' declared targets (an
-   *  element given an empty `text`, `image`, `stroke` or `mask`) that carry
-   *  all its classes, such as `box avatar` for `avatar`; an element holding
-   *  what the author wrote is never one. */
+   *  element is named after resolves to the elements that carry all its
+   *  classes (`dialogue action` for `dialogue`, its own text a placeholder),
+   *  except content elements: a write fills a target's `text`, `image`,
+   *  `stroke` and `mask` children, so `text title` is never a target. */
   protected findElements(target: string): Element[] {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
@@ -4804,7 +4804,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const elements =
         named.length > 0
           ? named
-          : matches.filter((el) => this._clearOnContinue.has(el.name));
+          : matches.filter(
+              (el) =>
+                !el.name
+                  .split(" ")
+                  .some((c) => ["text", "image", "stroke", "mask"].includes(c)),
+            );
       if (instance) {
         const instanceIndex = Number(instance);
         if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
