@@ -146,7 +146,51 @@ end
       .filter(
         (m) => m.method === "ui/update" && m.params.style?.display === "none",
       );
-    expect(hiddenByName.map((m) => m.params.element)).toEqual([label.element]);
+    expect(hiddenByName.map((m) => m.params.element).sort()).toEqual(
+      [label.element, input.element].sort(),
+    );
+  });
+
+  test("a widget-wide binding is evaluated once for label and control", async () => {
+    const h = createHarness(
+      `store calls = 0
+store flag = true
+function shown()
+  calls = calls + 1
+  return flag
+end
+layout settings with
+  slider "Volume" #displayed={shown()} #value=40
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const vs = (h.game.story as any).variablesState;
+    const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
+    const label = ui().find(
+      (m) => m.method === "ui/create" && m.params.type === "label",
+    ).params;
+    const input = ui().find(
+      (m) => m.method === "ui/create" && m.params.type === "input",
+    ).params;
+    expect(vs.$("calls")).toBe(1);
+    expect(label.style?.displayed).toBe("true");
+    expect(input.style?.displayed).toBe("true");
+
+    const seen = ui().length;
+    vs.$("flag", false);
+    (h.game.module.ui as any).refreshLayouts();
+    expect(vs.$("calls")).toBe(2);
+    const hidden = ui()
+      .slice(seen)
+      .filter(
+        (m) => m.method === "ui/update" && m.params.style?.displayed === "false",
+      );
+    expect(hidden.map((m) => m.params.element).sort()).toEqual(
+      [label.element, input.element].sort(),
+    );
   });
 
   test("a widget that is not interactable has a label that is not either", async () => {

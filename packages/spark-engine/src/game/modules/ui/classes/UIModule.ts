@@ -301,6 +301,9 @@ interface ReactiveSliderFill {
  *  binding, so `#background-color={team_color}` re-applies when its deps change. */
 interface ReactiveStyle {
   element: Element;
+  /** A second element that takes the same value from the one evaluation: the
+   *  control of a labelled input widget, for its widget-wide props. */
+  mirror?: Element;
   prop: string;
   propValue: PropValue;
   last: string | null;
@@ -1880,9 +1883,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   show(target: string): void {
     // TODO: use transition classes to apply show style instead
     for (const targetEl of this.findElements(target)) {
-      const el = this._widgetLabels.get(targetEl) ?? targetEl;
-      this.updateElement(el, { style: { display: "flex" } });
+      for (const el of this.widgetElements(targetEl)) {
+        this.updateElement(el, { style: { display: "flex" } });
+      }
     }
+  }
+
+  /** A labelled input widget's label and control, which show and hide
+   *  together; any other element alone. */
+  protected widgetElements(el: Element): Element[] {
+    const label = this._widgetLabels.get(el);
+    return label ? [label, el] : [el];
   }
 
   showAll(targets: string[]): void {
@@ -1894,10 +1905,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   hide(target: string): void {
     // TODO: use transition classes to apply hide style instead
     for (const targetEl of this.findElements(target)) {
-      const el = this._widgetLabels.get(targetEl) ?? targetEl;
-      this.updateElement(el, {
-        style: { display: "none" },
-      });
+      for (const el of this.widgetElements(targetEl)) {
+        this.updateElement(el, {
+          style: { display: "none" },
+        });
+      }
     }
   }
 
@@ -2677,22 +2689,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!node.content || node.content.length === 0) {
       return this.mountInputControl(parent, node, scope, name, widget, before);
     }
+    // Each widget-wide prop is evaluated ONCE and its value given to both the
+    // label and the control: a binding with side effects, or one that reads
+    // differently on a second call, must not run twice or leave the two
+    // elements disagreeing.
     const vs = this._game.story.variablesState;
-    const labelStyle: Record<string, string | null> = {};
+    const wideStyle: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
+    const controlProps: ElementNode["props"] = {};
     for (const [prop, propValue] of Object.entries(node.props)) {
       if (!WIDGET_WIDE_PROPS.has(prop)) {
+        controlProps[prop] = propValue;
         continue;
       }
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
       const val = resolved == null ? null : String(resolved);
-      labelStyle[prop] = val;
+      wideStyle[prop] = val;
       if (this.isReactiveProp(propValue)) {
         reactiveStyles.push({ prop, propValue, last: val, deps });
       }
     }
+    const hasWideStyle = Object.keys(wideStyle).length > 0;
     // A checkbox, radio or switch reads as one row with its wording after the
     // box; a text field or slider takes its label above, as `label "X" { … }`
     // lays it out.
@@ -2702,25 +2721,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       {
         type: "label",
         name: toggle ? "label toggle_label" : "label field_label",
-        ...(Object.keys(labelStyle).length > 0 ? { style: labelStyle } : {}),
+        ...(hasWideStyle ? { style: { ...wideStyle } } : {}),
       },
       before,
     );
-    for (const r of reactiveStyles) {
-      scope.styles.push({ element: label, ...r });
-    }
     if (!toggle) {
       this.mountTextContent(label, node.content, scope);
     }
     const control = this.mountInputControl(
       label,
-      node,
+      { ...node, props: controlProps },
       scope,
       name,
       widget,
       null,
+      hasWideStyle ? wideStyle : undefined,
     );
-    // `show`/`hide` find the control by its name; they act on the label.
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: label, mirror: control, ...r });
+    }
+    // `show`/`hide` find the control by its name; they act on both.
     this._widgetLabels.set(control, label);
     if (toggle) {
       this.mountTextContent(label, node.content, scope);
@@ -2728,7 +2748,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return label;
   }
 
-  /** The `<input>` itself, with every prop, binding and event of the widget. */
+  /** The `<input>` itself, with the widget's props, bindings and events.
+   *  `sharedStyle` is a labelled widget's already-evaluated widget-wide props,
+   *  whose refresh the label's entries carry. */
   protected mountInputControl(
     parent: Element,
     node: ElementNode,
@@ -2736,6 +2758,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     name: string,
     widget: { inputType: string; attributes?: Record<string, string> },
     before: Element | null,
+    sharedStyle?: Record<string, string | null>,
   ): Element {
     const vs = this._game.story.variablesState;
     // The control's defining attributes first, so authored props can still
@@ -2754,7 +2777,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // This matters because form controls carry no margin of their own (see
     // builtins.sd), so stating the spacing at the call site is the ONLY way to
     // space one -- and it was the one thing that could not be done.
-    const style: Record<string, string | null> = {};
+    const style: Record<string, string | null> = { ...sharedStyle };
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
       // Every presence-semantics attribute, not just `checked`. HTML reads
@@ -3915,6 +3938,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.updateElement(entry.element, {
             style: { [entry.prop]: next },
           });
+          if (entry.mirror) {
+            this.updateElement(entry.mirror, {
+              style: { [entry.prop]: next },
+            });
+          }
         }
       }
     }
