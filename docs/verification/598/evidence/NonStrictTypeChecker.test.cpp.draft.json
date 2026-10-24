@@ -1,0 +1,1434 @@
+[
+  {
+    "line": 140,
+    "result": {
+      "name": "interesting_checked_functions",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nonlyNums(1,1,1)\nonlyNums(1, \"a\")\n\nmixedArgs(\"a\", 1, 2)\nmixedArgs(1, 1, 1)\nmixedArgs(\"a\", true)\n\noptionalArg(nil)\noptionalArg(\"a\")\noptionalArg(3)\n",
+          "expect": [
+            {
+              "errors": 4
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 12), \"onlyNums\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(5, 10), \"mixedArgs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(6, 15), \"mixedArgs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(10, 12), \"optionalArg\", result)"
+      }
+    ]
+  },
+  {
+    "line": 165,
+    "result": {
+      "name": "simple_negation_caching_example",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x = 3\nabs(x)\nabs(x)\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        },
+        {
+          "source": "\nlocal x = 3\ncontrived(x)\ncontrived(x)\n\t\t\t      ",
+          "expect": [
+            {
+              "errors": 2
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ],
+      "shareFixture": true
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 10), \"contrived\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 10), \"contrived\", result)"
+      }
+    ]
+  },
+  {
+    "line": 186,
+    "result": {
+      "name": "simple_non_strict_failure",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nabs(\"hi\")\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(1, 4), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "line": 195,
+    "result": {
+      "name": "nested_function_calls_constant",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x\nabs(lower(x))\n",
+          "expect": [
+            {
+              "errors": 2
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 4), \"abs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 208,
+    "result": {
+      "name": "if_then_else_does_not_warn_with_never_local",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x : never\nif cond() then\n    abs(x)\nelse\n    lower(x)\nend\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 222,
+    "result": {
+      "name": "if_then_else_warns_nil_branches",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x\nif cond() then\n    abs(x)\nelse\n    lower(x)\nend\n",
+          "expect": [
+            {
+              "errors": 2
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 8), \"abs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(5, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 238,
+    "result": {
+      "name": "if_then_else_doesnt_warn_else_branch",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x : string = \"hi\"\nif cond() then\n    abs(x)\nelse\n    lower(x)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "line": 253,
+    "result": {
+      "name": "if_then_no_else",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x : string\nif cond() then\n    abs(x)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "line": 266,
+    "result": {
+      "name": "if_then_no_else_err_in_cond",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x : string = \"\"\nif abs(x) then\n    lower(x)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 7), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "line": 278,
+    "result": {
+      "name": "if_then_else_expr_should_warn",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x = 42\nlocal y = if cond() then abs(x) else lower(x)\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 43), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 289,
+    "result": {
+      "name": "if_then_else_expr_should_not_warn_for_never",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x : never\nlocal y = if cond() then abs(x) else lower(x)\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 299,
+    "result": {
+      "name": "if_then_else_expr_doesnt_warn_else_branch",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x : string = \"hi\"\nlocal y = if cond() then abs(x) else lower(x)\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 29), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "line": 309,
+    "result": {
+      "name": "sequencing_if_checked_call",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x\nif cond() then\n  x = 5\nelse\n  x = nil\nend\nlower(x)\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(7, 6), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 324,
+    "result": {
+      "name": "function_def_unrelated_checked_calls",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction h(x, y)\n    abs(x)\n    lower(y)\nend\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 336,
+    "result": {
+      "name": "function_def_basic_no_errors",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x)\n    abs(x)\nend\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 346,
+    "result": {
+      "name": "function_def_basic_errors",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x : string)\n    abs(x)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "line": 358,
+    "result": {
+      "name": "function_def_failure",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x)\n    abs(lower(x))\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "line": 369,
+    "result": {
+      "name": "function_def_sequencing_errors",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x)\n    abs(x)\n    lower(x)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_FUNC_DEFINITION_ERR(Position(1, 11), \"x\", result)"
+      }
+    ]
+  },
+  {
+    "line": 382,
+    "result": {
+      "name": "function_def_sequencing_errors_2",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal t = {function(x)\n    abs(x)\n    lower(x)\nend}\n",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "the argument 'x' is used in a way that will error at runtime"
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 395,
+    "result": {
+      "name": "local_fn_produces_error",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x = 5\nlocal function y() lower(x) end\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 25), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 406,
+    "result": {
+      "name": "fn_expr_produces_error",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x = 5\nlocal y = function() lower(x) end\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 27), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 418,
+    "result": {
+      "name": "function_def_if_warns_never",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x: never)\n    if cond() then\n        abs(x)\n    else\n        lower(x)\n    end\nend\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 433,
+    "result": {
+      "name": "function_def_if_no_else",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x)\n    if cond() then\n        abs(x)\n    end\nend\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 445,
+    "result": {
+      "name": "function_def_if_assignment_errors",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x)\n    if cond() then\n        x = 5\n    else\n        x = nil\n    end\n    lower(x)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(7, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 461,
+    "result": {
+      "name": "generic_type_instantiation",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\n        function array<T>(): {T}\n            return {}\n        end\n\n        local foo = array<<number>>()\n        local bar = array<<string>>()\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "foo",
+              "equals": "{number}"
+            },
+            {
+              "type": "bar",
+              "equals": "{string}"
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 477,
+    "result": {
+      "name": "function_def_if_assignment_no_errors",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction f(x : string | number)\n    if cond() then\n        x = 5\n    else\n        x = \"hi\"\n    end\n    abs(x)\nend\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 492,
+    "result": {
+      "name": "local_only_one_warning",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x = 5\nlower(x)\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 6), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 502,
+    "result": {
+      "name": "phi_node_assignment",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x = \"a\" -- x1\nif cond() then\n    x = 3 -- x2\nend\nlower(x) -- phi {x1, x2}\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 515,
+    "result": {
+      "name": "phi_node_assignment_err",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal x = nil\nif cond() then\n    if cond() then\n        x = 5\n    end\n    abs(x)\nelse\n    lower(x)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(8, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "line": 533,
+    "result": {
+      "name": "tblprop_is_checked",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfoo.bar(\"hi\")\n",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(1, 8), \"foo.bar\", result)"
+      }
+    ]
+  },
+  {
+    "line": 542,
+    "result": {
+      "name": "exprgroup_is_checked",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\n        local foo = (abs(\"foo\"))\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "CheckedFunctionCallError"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "checkedFunctionName": "abs"
+              }
+            },
+            {
+              "diagnosticType": [
+                0,
+                "expected"
+              ],
+              "equals": "number"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "passed"
+              ],
+              "equals": "string"
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 557,
+    "result": {
+      "name": "binop_is_checked",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\n        local foo = 4 + abs(\"foo\")\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "CheckedFunctionCallError"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "checkedFunctionName": "abs"
+              }
+            },
+            {
+              "diagnosticType": [
+                0,
+                "expected"
+              ],
+              "equals": "number"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "passed"
+              ],
+              "equals": "string"
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 572,
+    "result": {
+      "name": "incorrect_arg_count",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfoo.bar(1,2,3)\nabs(3, \"hi\");\n",
+          "expect": [
+            {
+              "errors": 2
+            },
+            {
+              "error": 0,
+              "code": "CheckedFunctionIncorrectArgs"
+            },
+            {
+              "error": 1,
+              "code": "CheckedFunctionIncorrectArgs"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "functionName": "abs"
+              }
+            },
+            {
+              "error": 1,
+              "fields": {
+                "functionName": "foo.bar"
+              }
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 587,
+    "result": {
+      "name": "optionals_in_checked_function_can_be_omitted",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\noptionalArgsAtTheEnd1(\"a\")\noptionalArgsAtTheEnd1(\"a\", 3)\noptionalArgsAtTheEnd1(\"a\", nil, 3)\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 598,
+    "result": {
+      "name": "generic_type_packs_in_non_strict",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local test: <T...>(T...) -> () -- TypeError: Unknown type 'T'\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 608,
+    "result": {
+      "name": "optionals_in_checked_function_in_middle_cannot_be_omitted",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\noptionalArgsAtTheEnd2(\"a\", \"a\") -- error\noptionalArgsAtTheEnd2(\"a\", nil, \"b\")\noptionalArgsAtTheEnd2(\"a\", 3, \"b\")\noptionalArgsAtTheEnd2(\"a\", \"b\", \"c\") -- error\n",
+          "expect": [
+            {
+              "errors": 3
+            },
+            {
+              "error": 2,
+              "code": "CheckedFunctionIncorrectArgs"
+            },
+            {
+              "error": 2,
+              "fields": {
+                "expected": 3
+              }
+            },
+            {
+              "error": 2,
+              "fields": {
+                "actual": 2
+              }
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(1, 27), \"optionalArgsAtTheEnd2\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(4, 27), \"optionalArgsAtTheEnd2\", result)"
+      }
+    ]
+  },
+  {
+    "line": 625,
+    "result": {
+      "name": "non_testable_type_throws_ice",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nos.time({year = 0, month = 0, day = 0, min = 0, isdst = nil})\n",
+          "expect": [],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "actual thrown InternalCompilerError",
+        "expr": "CHECK_THROWS_AS(\n        checkNonStrict(R\"(\nos.time({year = 0, month = 0, day = 0, min = 0, isdst = nil})\n)\"),\n        Luau::InternalCompilerError\n    );"
+      }
+    ]
+  },
+  {
+    "line": 635,
+    "result": {
+      "name": "non_strict_shouldnt_warn_on_require_module",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\n--!nonstrict\nlocal E = require(script.Parent.A)\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "module": "Modules/B",
+          "moduleSources": {
+            "Modules/A": "\n--!strict\ntype t = {x : number}\nlocal e : t = {x = 3}\nreturn e\n",
+            "Modules/B": "\n--!nonstrict\nlocal E = require(script.Parent.A)\n"
+          },
+          "unparsed": {
+            "defect": 879
+          }
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "module SourceCode::Module setup",
+        "expr": "fileResolver.sourceTypes[\"Modules/A\"] = SourceCode::Module"
+      }
+    ]
+  },
+  {
+    "line": 654,
+    "result": {
+      "name": "nonstrict_shouldnt_warn_on_valid_buffer_use",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nlocal b = buffer.create(100)\nbuffer.writef64(b, 0, 5)\nbuffer.readi8(b, 0)\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict",
+          "definitions": [
+            "\ndeclare buffer: {\n    create: @checked (size: number) -> buffer,\n    readi8: @checked (b: buffer, offset: number) -> number,\n    writef64: @checked (b: buffer, offset: number, value: number) -> (),\n}\n"
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 672,
+    "result": {
+      "name": "nonstrict_method_calls",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\n        local test = \"test\"\n        test:lower()\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "per-case builtin registration",
+        "expr": "Luau::unfreeze(getFrontend().globals.globalTypes);\n    Luau::unfreeze(getFrontend().globalsForAutocomplete.globalTypes);\n\n    registerBuiltinGlobals(getFrontend(), getFrontend().globals);\n    registerTestTypes();\n\n    Luau::freeze(getFrontend().globals.globalTypes);\n    Luau::freeze(getFrontend().globalsForAutocomplete.globalTypes);"
+      }
+    ]
+  },
+  {
+    "line": 691,
+    "result": {
+      "name": "unknown_globals_in_non_strict_1",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        foo = 5\n        local wrong1 = foob\n\n        local x = 12\n        local wrong2 = x + foblm\n    ",
+          "expect": [
+            {
+              "errors": 2
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 704,
+    "result": {
+      "name": "unknown_types_in_non_strict",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local foo: Foo = 1\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "fields": {
+                "name": "Foo"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "Type"
+              }
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 717,
+    "result": {
+      "name": "unknown_types_in_non_strict_2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local foo = 1 :: Foo\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "fields": {
+                "name": "Foo"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "Type"
+              }
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 730,
+    "result": {
+      "name": "buffer_is_not_unknown",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\nlocal function wrap(b: buffer, i: number, v: number)\n    buffer.writeu32(b, i * 4, v)\nend\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 741,
+    "result": {
+      "name": "incomplete_function_annotation",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local x: () ->\n    ",
+          "expect": [
+            {
+              "errors": "some"
+            }
+          ],
+          "mode": "nonstrict",
+          "malformed": "Upstream intentionally leaves the function return annotation empty after ->; the pinned parser reports Expected type, got <eof>."
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 750,
+    "result": {
+      "name": "unknown_globals_in_function_calls",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local function foo() : ()\n            bar()\n        end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "fields": {
+                "name": "bar"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "Binding"
+              }
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 764,
+    "result": {
+      "name": "unknown_globals_in_one_sided_conditionals",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local function foo(cond) : ()\n            if cond then\n                bar()\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "fields": {
+                "name": "bar"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "Binding"
+              }
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 780,
+    "result": {
+      "name": "new_non_strict_should_suppress_dynamic_require_errors",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\nfunction passThrough(module)\n    require(module)\nend\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict",
+          "ignoreMissingAnnotations": true,
+          "unparsed": {
+            "defect": 879
+          }
+        },
+        {
+          "source": "\nfunction passThrough(module)\n    require(module)\nend\n",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "UnknownRequire"
+            }
+          ],
+          "mode": "strict",
+          "ignoreMissingAnnotations": true,
+          "unparsed": {
+            "defect": 879
+          }
+        }
+      ],
+      "shareFixture": true
+    },
+    "audit": []
+  },
+  {
+    "line": 807,
+    "result": {
+      "name": "new_non_strict_should_suppress_unknown_require_errors",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\nrequire(script.NonExistent)\nrequire(\"@self/NonExistent\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict",
+          "unparsed": {
+            "defect": 879
+          }
+        },
+        {
+          "source": "\nrequire(script.NonExistent)\nrequire(\"@self/NonExistent\")\n",
+          "expect": [
+            {
+              "errors": 2
+            },
+            {
+              "error": 0,
+              "code": "UnknownRequire"
+            },
+            {
+              "error": 1,
+              "code": "UnknownRequire"
+            }
+          ],
+          "mode": "strict",
+          "unparsed": {
+            "defect": 879
+          }
+        }
+      ],
+      "shareFixture": true
+    },
+    "audit": []
+  },
+  {
+    "line": 831,
+    "result": {
+      "name": "new_non_strict_stringifies_checked_function_errors_as_one_indexed",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\ngetAllTheArgsWrong(3, true, \"what\")\n",
+          "expect": [
+            {
+              "errors": 3
+            },
+            {
+              "error": 0,
+              "code": "CheckedFunctionCallError"
+            },
+            {
+              "error": 1,
+              "code": "CheckedFunctionCallError"
+            },
+            {
+              "error": 2,
+              "code": "CheckedFunctionCallError"
+            },
+            {
+              "error": 0,
+              "message": "the function 'getAllTheArgsWrong' expects to get a string as its 1st argument, but is being given a number"
+            },
+            {
+              "error": 1,
+              "message": "the function 'getAllTheArgsWrong' expects to get a number as its 2nd argument, but is being given a boolean"
+            },
+            {
+              "error": 2,
+              "message": "the function 'getAllTheArgsWrong' expects to get a boolean as its 3rd argument, but is being given a string"
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 854,
+    "result": {
+      "name": "new_non_strict_skips_warnings_on_unreduced_typefunctions",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "checks": [
+        {
+          "source": "\nfunction foo(x)\n    local y = x + 1\n    return abs(y)\nend\n",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 866,
+    "result": {
+      "name": "nonstrict_check_block_recursion_limit",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "flags": {
+        "LuauAddRecursionCounterToNonStrictTypeChecker": true
+      },
+      "checks": [
+        {
+          "source": "do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do do local a = 1 end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end end",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ],
+      "limits": {
+        "LuauNonStrictTypeCheckerRecursionLimit": 150,
+        "LuauConstraintGeneratorRecursionLimit": 750,
+        "LuauCheckRecursionLimit": 750
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 883,
+    "result": {
+      "name": "nonstrict_check_expr_recursion_limit",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "flags": {
+        "LuauAddRecursionCounterToNonStrictTypeChecker": true
+      },
+      "checks": [
+        {
+          "source": "(\"foo\"):lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower():lower()",
+          "expect": [],
+          "mode": "nonstrict"
+        }
+      ],
+      "limits": {
+        "LuauNonStrictTypeCheckerRecursionLimit": 150,
+        "LuauConstraintGeneratorRecursionLimit": 750,
+        "LuauCheckRecursionLimit": 750
+      },
+      "skip": {
+        "disabledUpstream": true
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 900,
+    "result": {
+      "name": "typecheck_class_method_bodies",
+      "fixture": "NonStrictTypeCheckerFixture",
+      "flags": {
+        "DebugLuauUserDefinedClasses": true
+      },
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        class Student\n            public name: number\n            function greet(self)\n                return `Hello, {lower(self.name)}!`\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "anyError": "CheckedFunctionCallError"
+            }
+          ],
+          "mode": "nonstrict",
+          "unparsed": {
+            "divergence": "No `class` declarations"
+          }
+        }
+      ],
+      "skip": {
+        "notApplicable": "User-defined class declarations are excluded by DIVERGENCES.md section No `class` declarations."
+      }
+    },
+    "audit": []
+  }
+]
