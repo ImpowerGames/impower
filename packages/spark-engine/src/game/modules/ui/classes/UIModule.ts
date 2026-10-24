@@ -441,14 +441,19 @@ const INPUT_WIDGETS: Record<
   switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
 
-/** Props that show or hide a whole input widget, in their sparkle and CSS
- *  spellings. On a widget with a label they style the label, so the text
- *  disappears with its control. */
-const WIDGET_VISIBILITY_PROPS = new Set([
+/** Props that govern a whole input widget, in their sparkle and CSS
+ *  spellings: whether it shows and whether it takes the pointer. On a widget
+ *  with a label they style the label as well as the control, so the text hides
+ *  with its control and is never a way to activate a control that is not
+ *  interactable. */
+const WIDGET_WIDE_PROPS = new Set([
   "displayed",
   "display",
   "visible",
   "visibility",
+  "interactable",
+  "pointer-events",
+  "pointer_events",
 ]);
 
 /**
@@ -2657,10 +2662,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  updates (UI follows state; write-back is via the element's `@input`/
    *  `@change` handler). Inputs are void, so quoted content is the widget's
    *  LABEL: `slider "Master Volume"` mounts a real `<label>` holding the text
-   *  and the control, and that label is the element returned. Props, events
-   *  and bindings stay on the control, except the ones that show or hide the
-   *  widget (WIDGET_VISIBILITY_PROPS), which go on the label so the text hides
-   *  with its control. */
+   *  and the control, and that label is the element returned. Props, classes,
+   *  events and bindings stay on the control; the widget-wide props
+   *  (WIDGET_WIDE_PROPS) also style the label, so the label shows, hides and
+   *  takes the pointer with its control. */
   protected mountInputWidget(
     parent: Element,
     node: ElementNode,
@@ -2675,10 +2680,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const vs = this._game.story.variablesState;
     const labelStyle: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
-    const controlProps: ElementNode["props"] = {};
     for (const [prop, propValue] of Object.entries(node.props)) {
-      if (!WIDGET_VISIBILITY_PROPS.has(prop)) {
-        controlProps[prop] = propValue;
+      if (!WIDGET_WIDE_PROPS.has(prop)) {
         continue;
       }
       vs.beginReactiveRead();
@@ -2711,7 +2714,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const control = this.mountInputControl(
       label,
-      { ...node, props: controlProps },
+      node,
       scope,
       name,
       widget,

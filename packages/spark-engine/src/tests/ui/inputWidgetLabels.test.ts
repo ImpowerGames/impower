@@ -121,7 +121,7 @@ end
       (m) => m.method === "ui/create" && m.params.type === "input",
     ).params;
     expect(label.style?.displayed).toBe("true");
-    expect(input.style?.displayed).toBeUndefined();
+    expect(input.style?.displayed).toBe("true");
 
     // Ids are numbered in first-seen order, so messages sent after a point
     // keep the numbering of the creates above.
@@ -133,7 +133,9 @@ end
       .filter(
         (m) => m.method === "ui/update" && m.params.style?.displayed === "false",
       );
-    expect(hidden.map((m) => m.params.element)).toEqual([label.element]);
+    expect(hidden.map((m) => m.params.element).sort()).toEqual(
+      [label.element, input.element].sort(),
+    );
 
     seen = ui().length;
     (h.game.module.ui as any).hide("slider");
@@ -145,6 +147,41 @@ end
         (m) => m.method === "ui/update" && m.params.style?.display === "none",
       );
     expect(hiddenByName.map((m) => m.params.element)).toEqual([label.element]);
+  });
+
+  test("a widget that is not interactable has a label that is not either", async () => {
+    const h = createHarness(
+      `store locked = true
+layout settings with
+  checkbox "Locked checkbox" #interactable={not locked}
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
+    const label = ui().find(
+      (m) => m.method === "ui/create" && m.params.type === "label",
+    ).params;
+    const input = ui().find(
+      (m) => m.method === "ui/create" && m.params.type === "input",
+    ).params;
+    // The label's wording would otherwise activate the control natively.
+    expect(label.style?.interactable).toBe("false");
+    expect(input.style?.interactable).toBe("false");
+
+    const seen = ui().length;
+    (h.game.story as any).variablesState.$("locked", false);
+    (h.game.module.ui as any).refreshLayouts();
+    const unlocked = ui()
+      .slice(seen)
+      .filter(
+        (m) => m.method === "ui/update" && m.params.style?.interactable === "true",
+      );
+    expect(unlocked.map((m) => m.params.element).sort()).toEqual(
+      [label.element, input.element].sort(),
+    );
   });
 
   test("removing a labelled widget drops its control's event handler", async () => {
