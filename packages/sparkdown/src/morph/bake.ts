@@ -928,10 +928,10 @@ export function* bakeSteps(
           clone.attributes["data-morph"] = leaf.node;
           // The markup is the rest pose: the parts composed as written are
           // the rest render, and a player shows other states' drawings by
-          // taking the inline `display: none` off. Inline, because a style
-          // sheet's `display` rule would outrank the attribute. A drawn leaf's
-          // own `display` can only be a default one (hidden art is no leaf),
-          // so it goes.
+          // taking the inline `display: none` off. Nothing outranks it: no
+          // style-sheet `display` rule applies to art baked live, and a drawn
+          // leaf's own `display` can only be a showing one (hidden art is no
+          // leaf), so it goes.
           delete clone.attributes["display"];
           setStyleProperty(clone, "display", visibleAt(leaf.element, restVisible) ? undefined : "none");
           if (morphing.has(leaf.node)) {

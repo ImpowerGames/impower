@@ -208,7 +208,7 @@ export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): stri
       for (const element of walk(svg)) {
         const node = element.attributes["data-morph"];
         if (node !== undefined) {
-          // Inline, so a style-sheet `display` rule cannot outrank it.
+          // The inline declaration the live part is written with.
           if (shown.has(node)) setStyleProperty(element, "display", undefined);
           else if (hidden.has(node)) setStyleProperty(element, "display", "none");
           const d = geometry.get(node);
