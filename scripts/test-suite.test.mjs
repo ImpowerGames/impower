@@ -181,6 +181,38 @@ assert.equal(reservationState({ owner, phase: "running", child }, pid => pid ===
 assert.equal(reservationState({ owner, phase: "launching" }, () => null), "unknown");
 assert.equal(reservationState({ owner, phase: "running", child }, () => ({ pid: 43, start: "reused" })), "interrupted");
 assert.throws(() => reservationState({ owner, phase: "running", child }, () => { throw new Error("denied"); }), /denied/);
+{
+  // A supervised run whose machine restarted before its supervisor wrote
+  // tree-proof.json: every recorded identity is gone and the proof is missing.
+  const heldSince = "2026-10-24T06:47:19.540Z", afterHold = () => Date.parse("2026-10-24T07:01:02Z");
+  const beforeHold = () => Date.parse("2026-10-24T06:00:00Z");
+  const missing = path.join(os.tmpdir(), `impower-suite-missing-${process.pid}`);
+  const supervised = { version: 2, token: "bcb91d17-673e-4191-9428-30a650b046b8", owner, phase: "running", heldSince,
+    attempt: "6a4b3c2d-1e0f-4a5b-8c7d-9e8f7a6b5c4d", run: missing,
+    supervision: { reservationToken: "bcb91d17-673e-4191-9428-30a650b046b8", attemptId: "6a4b3c2d-1e0f-4a5b-8c7d-9e8f7a6b5c4d",
+      directory: path.join(missing, "6a4b3c2d-1e0f-4a5b-8c7d-9e8f7a6b5c4d"), proofFile: path.join(missing, "6a4b3c2d-1e0f-4a5b-8c7d-9e8f7a6b5c4d", "tree-proof.json"),
+      platform: process.platform, launcher: { pid: 28860, start: "launcher" }, helper: { pid: 32400, start: "helper" } } };
+  assert.equal(reservationState(supervised, () => null, { bootTime: afterHold }), "interrupted", "a pre-boot supervised reservation is interrupted");
+  assert.equal(reservationState(supervised, () => null, { bootTime: beforeHold }), "unknown", "a missing proof after boot stays unknown");
+  assert.equal(reservationState(supervised, pid => pid === 32400 ? { pid, start: "helper" } : null, { bootTime: afterHold }), "running");
+  assert.equal(reservationState(supervised, pid => pid === 28860 ? { pid } : null, { bootTime: afterHold }), "unknown", "an unreadable identity is never guessed away");
+  assert.equal(reservationState({ ...supervised, heldSince: "not a time" }, () => null, { bootTime: afterHold }), "unknown");
+  assert.equal(reservationState({ ...supervised, supervision: { ...supervised.supervision, reservationToken: "other" } }, () => null, { bootTime: afterHold }), "unknown");
+  const unsupervised = { version: 2, token: supervised.token, owner, phase: "launching", heldSince };
+  assert.equal(reservationState(unsupervised, () => null, { bootTime: afterHold }), "interrupted");
+  assert.equal(reservationState(unsupervised, () => null, { bootTime: beforeHold }), "unknown");
+  // acquire preserves it under its token in a private store and takes a new reservation.
+  const store = fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-boot-"));
+  try {
+    fs.writeFileSync(path.join(store, "reservation.json"), JSON.stringify(supervised));
+    assert.throws(() => acquire("before boot check", { root: store, census: () => [], identify: () => null, bootTime: beforeHold, guardWaitMs: 0 }), /Existing suite unknown/);
+    const taken = acquire("after restart", { root: store, census: () => [], identify: pid => pid === process.pid ? { pid, start: "self" } : null, bootTime: afterHold, guardWaitMs: 0 });
+    assert.equal(read(path.join(store, `recovered-${supervised.token}.json`)).heldSince, heldSince);
+    assert.notEqual(read(path.join(store, "reservation.json")).token, supervised.token);
+    taken.release();
+  } finally { fs.rmSync(store, { recursive: true, force: true }); }
+  console.log("PASS: a supervised reservation held across a restart is recovered");
+}
 
 const scratch = canonicalPath(fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-")));
 console.log(`Scratch repository: ${scratch}`);
