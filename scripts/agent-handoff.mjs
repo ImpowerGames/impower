@@ -10,7 +10,7 @@ import { withJob,retryBusy,git,failureDetails,sameIdentity } from './review-job-
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs,codexReviewMode,discardCodexAuthCopy} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-defaults.mjs";
-import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
+import { reviewJobRoot, assertInsideJobRoot, assertWalkedJobState, reviewJobFiles } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
@@ -575,31 +575,34 @@ function filesUnder(directory) {
 // The launcher plan that names a journal, found by its content under any
 // name, as the orchestrate checkpoint finds it: first beside the journal,
 // then anywhere in the PR's job directory (the `pr-<N>` directory holding
-// the journal), skipping Git directories and installs.
+// the journal) where the review workflow writes plans (reviewJobFiles),
+// never inside a reviewer's workspace.
 function planNaming(journalFile) {
   const same = (a, b) => process.platform === "win32" ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
-  const naming = (file) => {
+  const naming = (file, size) => {
+    if (size === 0 || size > 4 * 2 ** 20) return null;
     try {
-      const stat = fs.lstatSync(file);
-      if (!stat.isFile() || stat.size === 0 || stat.size > 4 * 2 ** 20) return null;
       const plan = read(file);
       return typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object" && same(plan.journal, journalFile) ? plan : null;
     } catch { return null; }
   };
   const beside = path.dirname(journalFile);
-  for (const name of fs.readdirSync(beside).sort()) { const plan = naming(path.join(beside, name)); if (plan) return plan; }
+  for (const name of fs.readdirSync(beside).sort()) {
+    const file = path.join(beside, name);
+    let stat;
+    try { stat = fs.lstatSync(file); } catch { continue; }
+    const plan = stat.isFile() ? naming(file, stat.size) : null;
+    if (plan) return plan;
+  }
   let jobDir = beside;
   while (!/^pr-\d+$/.test(path.basename(jobDir)) && path.dirname(jobDir) !== jobDir) jobDir = path.dirname(jobDir);
   if (!/^pr-\d+$/.test(path.basename(jobDir))) return null;
-  const walk = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const file = path.join(directory, entry.name);
-      if (entry.isDirectory()) { if (![".git", "node_modules"].includes(entry.name)) { const plan = walk(file); if (plan) return plan; } }
-      else if (entry.isFile()) { const plan = naming(file); if (plan) return plan; }
-    }
-    return null;
-  };
-  return walk(jobDir);
+  for (const { file, size } of reviewJobFiles(jobDir)) {
+    if (path.dirname(file) === beside) continue;
+    const plan = naming(file, size);
+    if (plan) return plan;
+  }
+  return null;
 }
 
 // Windows creation ticks (100 ns since 0001-01-01 UTC) of a time in ms.
@@ -1360,6 +1363,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   // Claude reviewer's directory exists only inside its built prompt, which
   // scripts/build-review-prompt.mjs checks when it fills REVDIR and DIFF.
   assertInsideJobRoot([["plan file", configFile], ["journal", journal], ...Object.entries(config.steps).flatMap(([name, step]) => [[`step ${name} prompt`, step?.prompt], ...(step?.permissions?.cwd !== undefined ? [[`step ${name} reviewer directory`, step.permissions.cwd]] : [])])], root, `in pr-${config.pr}${path.sep}round-<R>`);
+  assertWalkedJobState([["plan file", configFile, "file"], ["journal", journal, "file"]], root);
   const selection = resolveReviewer(config, cwd);
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");

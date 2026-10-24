@@ -27,6 +27,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
+import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
 import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositories, streamSession, updateRecord } from "./issue-run.mjs";
@@ -50,39 +51,38 @@ const byTime = (a, b) => Date.parse(a.time) - Date.parse(b.time);
 // --- Round state from the launcher's journals -------------------------------
 
 // Every launch journal of the PR's review jobs, whatever its name or place
-// in the job directory (the launcher accepts any journal and plan path
-// inside it), each with the plan that names it as its journal. A journal is
-// a file whose first row is the launcher's coordinator row; a plan is a JSON
-// file naming its journal and steps. A journal no plan names keeps a null
-// plan, and its count-form rounds stay unknown. Git directories and
-// installs under reviewer directories are skipped.
-const SKIP = new Set([".git", "node_modules"]);
+// in the job directory outside reviewer workspaces (the launcher accepts any
+// journal and plan path inside it), each with the plan that names it as its
+// journal. A journal is a file whose first row is the launcher's coordinator
+// row; a plan is a JSON file naming its journal and steps. A journal no plan names keeps a null
+// plan, and its count-form rounds stay unknown. The walk reads only where
+// the review workflow writes plans and journals (reviewJobFiles), so a
+// fixture journal inside a reviewer's workspace is never counted, and a file
+// removed while it runs is skipped.
 function firstLine(file) {
   const fd = fs.openSync(file, "r");
   try { const buffer = Buffer.alloc(4096); const n = fs.readSync(fd, buffer, 0, buffer.length, 0); return buffer.subarray(0, n).toString("utf8").split("\n")[0]; }
   finally { fs.closeSync(fd); }
 }
 export function readJournals(jobDir) {
-  if (!fs.existsSync(jobDir)) return [];
   const journalFiles = [], plans = new Map();
-  const walk = (dir) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const file = path.join(dir, entry.name);
-      if (entry.isDirectory()) { if (!SKIP.has(entry.name)) walk(file); continue; }
-      if (!entry.isFile() || fs.statSync(file).size === 0) continue;
-      let head;
-      try { head = JSON.parse(firstLine(file)); } catch { head = null; }
-      if (head?.event === "coordinator") { journalFiles.push(file); continue; }
-      // The launcher reads a plan from any path, so a plan is recognized by
-      // its content, whatever its name.
-      if (fs.statSync(file).size > 4 * 2 ** 20) continue;
-      let plan;
-      try { plan = readJson(file); } catch { continue; }
-      if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.set(path.resolve(plan.journal), plan);
-    }
-  };
-  walk(jobDir);
-  return journalFiles.sort().map((file) => ({ file, rows: readJournalRows(file), plan: plans.get(path.resolve(file)) ?? null }));
+  for (const { file, size } of reviewJobFiles(jobDir)) {
+    if (size === 0) continue;
+    let head;
+    try { head = JSON.parse(firstLine(file)); } catch { head = null; }
+    if (head?.event === "coordinator") { journalFiles.push(file); continue; }
+    // The launcher reads a plan from any path, so a plan is recognized by
+    // its content, whatever its name.
+    if (size > 4 * 2 ** 20) continue;
+    let plan;
+    try { plan = readJson(file); } catch { continue; }
+    if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.set(path.resolve(plan.journal), plan);
+  }
+  return journalFiles.sort().flatMap((file) => {
+    let rows;
+    try { rows = readJournalRows(file); } catch (error) { if (error.code === "ENOENT") return []; throw error; }
+    return [{ file, rows, plan: plans.get(path.resolve(file)) ?? null }];
+  });
 }
 
 // The review state the journals record, read through the launcher's own
