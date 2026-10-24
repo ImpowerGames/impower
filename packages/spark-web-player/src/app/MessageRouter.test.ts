@@ -10,7 +10,11 @@ import {
   Connection,
   DISCONNECTED,
   METHOD_NOT_FOUND,
+  SUPERSEDED,
 } from "@impower/spark-engine/src/game/core/classes/Connection";
+import { AnimateElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
+import { BatchElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BatchElementsMessage";
+import { BeatMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import { LoadAssetsMessage } from "@impower/spark-engine/src/game/modules/assets/classes/messages/LoadAssetsMessage";
 import { LoadAudioPlayerMessage } from "@impower/spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
 import { WriteTextMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
@@ -52,6 +56,29 @@ const settle = (promise: Promise<unknown>) =>
     (result) => ({ resolved: result }),
     (error) => ({ rejected: error }),
   );
+
+/** A beat carrying one animation on its own and one inside a batch, with
+ *  the engine waiting on both, as `UIModule` waits when it composes one. */
+const sendBeat = (connection: Connection) => {
+  const animate = (element: string) =>
+    AnimateElementsMessage.type.request({
+      effects: [{ element, animations: [] }],
+    });
+  const alone = animate("portrait");
+  const batched = animate("backdrop");
+  const waits = [alone, batched].map((msg) =>
+    settle(connection.expect(msg)),
+  );
+  void connection.emit(
+    BeatMessage.type.notification({
+      messages: [
+        alone,
+        BatchElementsMessage.type.notification({ messages: [batched] }),
+      ],
+    }),
+  );
+  return waits;
+};
 
 const flush = async () => {
   for (let i = 0; i < 10; i++) {
@@ -139,6 +166,45 @@ describe("MessageRouter", () => {
         ),
       ),
     ).toMatchObject({ rejected: { code: DISCONNECTED } });
+  });
+
+  it("answers the animations of a beat that arrives after the page disconnected", async () => {
+    const { connection, router } = connect([new StalledManager([])]);
+    router.disconnect();
+    expect(await Promise.all(sendBeat(connection))).toMatchObject([
+      { rejected: { code: DISCONNECTED, data: "ui/animate" } },
+      { rejected: { code: DISCONNECTED, data: "ui/animate" } },
+    ]);
+  });
+
+  it("answers the animations of a beat from a superseded stream", async () => {
+    const { connection, router } = connect([new StalledManager([])]);
+    // The page has seen a newer stream than the one this beat is stamped with.
+    router.receive({
+      ...BatchElementsMessage.type.notification({ messages: [] }),
+      epoch: connection.epoch + 1,
+    });
+    expect(await Promise.all(sendBeat(connection))).toMatchObject([
+      { rejected: { code: SUPERSEDED, data: "ui/animate" } },
+      { rejected: { code: SUPERSEDED, data: "ui/animate" } },
+    ]);
+  });
+
+  it("hands a beat from the current stream to the managers, which answer its animations", async () => {
+    const received: string[] = [];
+    const answering = new (class extends Manager {
+      override onReceiveNotification(msg: { method: string }) {
+        received.push(msg.method);
+      }
+    })({} as any);
+    const { connection } = connect([answering]);
+    const waits = sendBeat(connection);
+    await flush();
+    expect(received).toEqual(["ui/beat"]);
+    let settled = 0;
+    waits.forEach((w) => w.then(() => (settled += 1)));
+    await flush();
+    expect(settled).toBe(0);
   });
 
   it("answers a handler that throws with its error, unless another manager handles the method", async () => {
