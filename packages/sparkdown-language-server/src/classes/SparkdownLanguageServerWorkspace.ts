@@ -507,26 +507,36 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
-  /** The bake diagnostics of `program`'s references that belong to `uri`. */
+  /**
+   * The bake diagnostics of `program`'s references that belong to `uri`. One
+   * problem in the art shows once, naming the variants it affects, however
+   * many variants of the portrait the morph plays on.
+   */
   protected morphDiagnosticsFor(program: SparkProgram, uri: string) {
-    const out: ReturnType<SparkdownWorkspace["getDiagnostics"]> = [];
-    const seen = new Set<string>();
+    const grouped = new Map<string, { diagnostic: MorphBakeDiagnostic; variants: string[] }>();
     for (const { variant, ref } of this.morphRefs(program)) {
       const imageUri = program.context?.["image"]?.[ref.image]?.uri;
       for (const d of this.morphDiagnostics.get(ref.key) ?? []) {
         if ((d.uri ?? imageUri) !== uri) continue;
-        const where = d.layer ? ` (layer "${d.layer}")` : "";
-        const message = `Morph \`${d.morph}\` on \`${d.variant ?? variant}\`${where}: ${d.message}`;
-        if (seen.has(message)) continue;
-        seen.add(message);
-        out.push({
-          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
-          severity: d.severity === "error" ? 1 : 2,
-          code: `morph-${d.code}`,
-          source: "sparkdown",
-          message,
-        });
+        const key = JSON.stringify([d.morph, d.code, d.severity, d.layer, d.message]);
+        const group = grouped.get(key) ?? { diagnostic: d, variants: [] };
+        const name = d.variant ?? variant;
+        if (!group.variants.includes(name)) group.variants.push(name);
+        grouped.set(key, group);
       }
+    }
+    const out: ReturnType<SparkdownWorkspace["getDiagnostics"]> = [];
+    for (const { diagnostic: d, variants } of grouped.values()) {
+      const shown = variants.slice(0, 3).map((v) => `\`${v}\``).join(", ");
+      const more = variants.length > 3 ? ` and ${variants.length - 3} more` : "";
+      const where = d.layer ? ` (layer "${d.layer}")` : "";
+      out.push({
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        severity: d.severity === "error" ? 1 : 2,
+        code: `morph-${d.code}`,
+        source: "sparkdown",
+        message: `Morph \`${d.morph}\` on ${shown}${more}${where}: ${d.message}`,
+      });
     }
     return out;
   }

@@ -56,12 +56,12 @@ end
 `;
 
 /** The web editor's compile: the program carries no SVG source. */
-function compileServed(): any {
+function compileServed(script = SCRIPT): any {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     stripImageData: true,
     files: [
-      { uri: main, type: "script", name: "main", ext: "sd", text: SCRIPT, version: 1, languageId: "sparkdown" },
+      { uri: main, type: "script", name: "main", ext: "sd", text: script, version: 1, languageId: "sparkdown" },
       { uri: asset, type: "image", name: "bunny", ext: "svg", src: "/file:/local/bunny.svg?v=1-1", text: SVG },
     ],
   } as any);
@@ -115,6 +115,15 @@ describe("morph bake diagnostics", () => {
     ]);
     // Nothing about the art lands on the script.
     expect(publishes().filter((p) => p.uri === main).flatMap((p) => p.diagnostics).filter((d: any) => String(d.code).startsWith("morph-"))).toEqual([]);
+  });
+
+  it("one problem in the art shows once, naming every variant it affects", async () => {
+    const { workspace, publishes } = setup();
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program: compileServed(`${SCRIPT}\n[[bunny~eyes.open]]\n`) });
+    await until(() => publishes().some((p) => p.uri === asset));
+    const diagnostics = publishes().filter((p) => p.uri === asset).at(-1).diagnostics;
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0].message).toContain("Morph `blink` on `bunny`, `bunny~eyes.open`");
   });
 
   it("a recompile with the same keys republishes the bake's diagnostics at once", async () => {

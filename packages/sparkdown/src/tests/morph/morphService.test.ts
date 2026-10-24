@@ -142,6 +142,25 @@ describe("morph bake service", () => {
     fresh.release();
   });
 
+  test("bakes beyond the concurrency bound wait their turn, and a cancelled waiter gives its turn up", async () => {
+    const { service, runs } = controlledService({ limits: { maxConcurrentBakes: 2 } });
+    const leaving = new AbortController();
+    const requests = ["a", "b", "c", "d"].map((key) =>
+      service.request(key, bakeLoad(key), key === "c" ? { signal: leaving.signal } : {}),
+    );
+    await settle();
+    expect(runs.map((r) => r.key)).toEqual(["a", "b"]);
+    leaving.abort();
+    await expect(requests[2]).rejects.toBeDefined();
+    runs[0]!.finish();
+    await settle();
+    // `c` left the queue, so `d` takes the freed turn.
+    expect(runs.map((r) => r.key)).toEqual(["a", "b", "d"]);
+    runs[1]!.finish();
+    runs[2]!.finish();
+    expect((await Promise.all([requests[0], requests[1], requests[3]])).map((h) => h!.key)).toEqual(["a", "b", "d"]);
+  });
+
   test("a failed load rejects every waiter and caches nothing", async () => {
     const service = new MorphBakeService();
     const load = async (): Promise<MorphLoad> => {

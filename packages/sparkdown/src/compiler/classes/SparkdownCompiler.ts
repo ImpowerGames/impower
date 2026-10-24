@@ -5872,13 +5872,20 @@ export class SparkdownCompiler {
     }
   }
 
-  /** The program's scripts in the form the morph readers take. */
+  /**
+   * The program's scripts that can declare a morph, in the form the morph
+   * readers take. A morph block starts with the word `morph`, so a script
+   * whose text never contains it is skipped before its tree is walked: on a
+   * project the size of Raffles and Bunny the walk costs tens of
+   * milliseconds per compile, and almost every script has no morph.
+   */
   protected morphScripts(program: SparkProgram): (MorphScript & { uri: string })[] {
     const scripts: (MorphScript & { uri: string })[] = [];
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
+      if (!doc || !/\bmorph\b/.test(doc.read(0, doc.length))) continue;
       const tree = this.documents.tree(scriptUri);
-      if (!doc || !tree) continue;
+      if (!tree) continue;
       scripts.push({
         uri: scriptUri,
         read: (from, to) => doc.read(from, to),

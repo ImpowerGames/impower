@@ -21,6 +21,11 @@ export interface MorphCacheLimits {
   maxSources: number;
   /** Geometry entries (pair morphs, sampled frames, apertures) kept per source. */
   maxGeometryPerSource: number;
+  /**
+   * Bakes running at once. The rest wait their turn, so a compile naming
+   * hundreds of variants cannot occupy a host's thread with all of them.
+   */
+  maxConcurrentBakes: number;
 }
 
 /**
@@ -32,6 +37,7 @@ export const MORPH_CACHE_DEFAULTS: MorphCacheLimits = {
   maxBytes: 8 * 1024 * 1024,
   maxSources: 16,
   maxGeometryPerSource: 512,
+  maxConcurrentBakes: 2,
 };
 
 /** What a host's loader hands the service for one request. */
@@ -55,7 +61,8 @@ export interface MorphHandle {
 
 export type MorphCacheEvent =
   | { type: "evict"; key: string; reason: "limit" | "invalidated" }
-  | { type: "baked"; key: string; milliseconds: number; bytes: number };
+  /** `milliseconds` is the bake itself; `waitedMilliseconds` the wait for a bake slot and the load. */
+  | { type: "baked"; key: string; milliseconds: number; waitedMilliseconds: number; bytes: number };
 
 interface Entry {
   key: string;
@@ -158,13 +165,20 @@ export class MorphBakeService {
       const loaded = await load(signal);
       signal.throwIfAborted();
       let artifact: MorphArtifact;
+      let baking = started;
       if (loaded.kind === "artifact") {
         artifact = loaded.artifact;
       } else {
-        const geometry = this.geometryFor(loaded.source);
-        artifact = this.options.bake
-          ? await this.options.bake(loaded.input, { signal, geometry })
-          : await bakeMorphArtifactAsync(loaded.input, { signal, geometry });
+        const release = await this.bakeSlot(signal);
+        baking = (this.options.now ?? (() => performance.now()))();
+        try {
+          const geometry = this.geometryFor(loaded.source);
+          artifact = this.options.bake
+            ? await this.options.bake(loaded.input, { signal, geometry })
+            : await bakeMorphArtifactAsync(loaded.input, { signal, geometry });
+        } finally {
+          release();
+        }
       }
       signal.throwIfAborted();
       entry = {
@@ -177,8 +191,8 @@ export class MorphBakeService {
         stale: false,
         urls: new Map(),
       };
-      const milliseconds = (this.options.now ?? (() => performance.now()))() - started;
-      this.emit({ type: "baked", key, milliseconds, bytes: entry.bytes });
+      const now = (this.options.now ?? (() => performance.now()))();
+      this.emit({ type: "baked", key, milliseconds: now - baking, waitedMilliseconds: baking - started, bytes: entry.bytes });
     } catch (error) {
       failure = error;
     }
@@ -196,6 +210,37 @@ export class MorphBakeService {
     this.entries.set(key, entry);
     for (const waiter of waiters) waiter.resolve(this.acquire(entry));
     this.trim();
+  }
+
+  protected baking = 0;
+  protected bakeQueue: (() => void)[] = [];
+
+  /** Waits for one of `maxConcurrentBakes`; the returned function gives it back. */
+  protected bakeSlot(signal: AbortSignal): Promise<() => void> {
+    const take = (): (() => void) => {
+      this.baking += 1;
+      let given = false;
+      return () => {
+        if (given) return;
+        given = true;
+        this.baking -= 1;
+        this.bakeQueue.shift()?.();
+      };
+    };
+    if (this.baking < Math.max(1, this.limits.maxConcurrentBakes)) return Promise.resolve(take());
+    return new Promise((resolve, reject) => {
+      const turn = () => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(take());
+      };
+      const onAbort = () => {
+        const at = this.bakeQueue.indexOf(turn);
+        if (at >= 0) this.bakeQueue.splice(at, 1);
+        reject(abortError(signal));
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      this.bakeQueue.push(turn);
+    });
   }
 
   protected acquire(entry: Entry): MorphHandle {
