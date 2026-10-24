@@ -4,9 +4,12 @@ import type { SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { resolveImageAttributes } from "../utils/filterImage";
 import {
+  collectEffectiveMorphs,
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
+import { buildMorphChannel } from "../../morph/channel";
+import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
   duplicateGlobalMemberMessage,
@@ -736,6 +739,10 @@ export class SparkdownCompiler {
     string,
     { source: object; value: { [name: string]: any } }
   >;
+  // The last morph channel and what it was built from: the context revision
+  // and every effective morph. Binding walks every image variant, so an edit
+  // that touches neither keeps the channel it already has.
+  protected _morphChannelCache?: { signature: string; channel: MorphProgramChannel };
   // The finished implicit definitions of each `type/name` this compiler has
   // derived, including the `$default` merge, dropped whenever the base they
   // were merged against is reassembled. An attribute directive implies the
@@ -2169,6 +2176,7 @@ export class SparkdownCompiler {
     }
     this.buildContext(state, program);
     this.populateEngineChannels(program);
+    this.populateMorphChannel(program);
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
       this.validateReferences(program);
@@ -5913,16 +5921,20 @@ export class SparkdownCompiler {
     }
   }
 
-  /** Morph declarations are checked after inheritance, against the artwork. */
-  validateMorphs(program: SparkProgram) {
-    if (!program.context) return;
-    const uri = program.uri;
-    profile("start", this._profilerId, "validateMorphs", uri);
+  /**
+   * The program's scripts that can declare a morph, in the form the morph
+   * readers take. A morph block starts with the word `morph`, so a script
+   * whose text never contains it is skipped before its tree is walked: on a
+   * project the size of Raffles and Bunny the walk costs tens of
+   * milliseconds per compile, and almost every script has no morph.
+   */
+  protected morphScripts(program: SparkProgram): (MorphScript & { uri: string })[] {
     const scripts: (MorphScript & { uri: string })[] = [];
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
+      if (!doc || !/\bmorph\b/.test(doc.read(0, doc.length))) continue;
       const tree = this.documents.tree(scriptUri);
-      if (!doc || !tree) continue;
+      if (!tree) continue;
       scripts.push({
         uri: scriptUri,
         read: (from, to) => doc.read(from, to),
@@ -5930,6 +5942,47 @@ export class SparkdownCompiler {
         tree,
       });
     }
+    return scripts;
+  }
+
+  /**
+   * The morph channel: each morph's recipe and the compact reference of every
+   * image variant it plays on. Built on every compile, validated or not,
+   * because hosts that skip validation still play morphs. A compile whose
+   * context and recipes are those of the one before reuses its channel.
+   */
+  populateMorphChannel(program: SparkProgram) {
+    if (!program.context) return;
+    const uri = program.uri;
+    profile("start", this._profilerId, "populateMorphChannel", uri);
+    const effective = collectEffectiveMorphs(
+      this.morphScripts(program),
+      program.context,
+      (base, override) => this.inheritDefaults(base, override),
+    );
+    if (effective.size === 0) {
+      delete program.morphs;
+    } else {
+      const signature = JSON.stringify([program.contextRevision, ...effective]);
+      const cached = this._morphChannelCache;
+      if (cached && cached.signature === signature) {
+        program.morphs = cached.channel;
+      } else {
+        const channel = buildMorphChannel(program.context, effective);
+        if (channel) program.morphs = channel;
+        else delete program.morphs;
+        this._morphChannelCache = channel ? { signature, channel } : undefined;
+      }
+    }
+    profile("end", this._profilerId, "populateMorphChannel", uri);
+  }
+
+  /** Morph declarations are checked after inheritance, against the artwork. */
+  validateMorphs(program: SparkProgram) {
+    if (!program.context) return;
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateMorphs", uri);
+    const scripts = this.morphScripts(program);
     const issuesByUri = collectMorphIssues(
       scripts,
       program.context,

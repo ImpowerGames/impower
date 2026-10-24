@@ -17,6 +17,11 @@ export interface ImageLayer {
   uri?: string;
   /** Host supplied revision; undefined means the bytes must be checked. */
   version?: number;
+  /**
+   * The image or filtered image this layer is, so a preview can ask for what
+   * the host has baked for that variant (a morph's rest render).
+   */
+  struct?: any;
 }
 
 /**
@@ -50,7 +55,7 @@ export const resolveImageLayers = (
     const version = /\.url(?:[?#]|$)/i.test(struct["uri"] ?? "")
       ? undefined
       : struct["version"];
-    return src ? [{ src, uri: struct["uri"], ...(typeof version === "number" && Number.isFinite(version) && version >= 0 ? { version } : {}) }] : [];
+    return src ? [{ src, uri: struct["uri"], ...(typeof version === "number" && Number.isFinite(version) && version >= 0 ? { version } : {}), struct }] : [];
   }
 
   if (type === "filtered_image") {
@@ -60,7 +65,7 @@ export const resolveImageLayers = (
     if (struct["filtered_src"]) {
       // A filtered SVG is already a single flattened source, inline in the
       // context — there is no file to read behind it.
-      return [{ src: struct["filtered_src"] }];
+      return [{ src: struct["filtered_src"], struct }];
     }
     const filteredLayers = struct["filtered_layers"];
     if (filteredLayers) {

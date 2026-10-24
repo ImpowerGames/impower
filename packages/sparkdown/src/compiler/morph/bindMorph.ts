@@ -172,7 +172,8 @@ function restChoices(
   return vocabulary.groups[group]?.switch ? ["off"] : [];
 }
 
-function bindVariant(
+/** Bind one variant by its effective resting state, folder by folder. */
+export function bindVariant(
   vocabulary: AttributeVocabulary,
   name: string,
   selection: AttributeSelection,

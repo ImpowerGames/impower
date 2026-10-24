@@ -169,6 +169,36 @@ export function readWrittenMorphs(scripts: readonly (MorphScript & { uri: string
 }
 
 /**
+ * Every named morph declared in the scripts, as the engine sees it: the
+ * builtin defaults, then its ancestors, then its own body. A name declared
+ * twice keeps its last declaration.
+ */
+export function collectEffectiveMorphs(
+  scripts: readonly (MorphScript & { uri: string })[],
+  context: Context,
+  inherit: (base: any, override: any) => any,
+): Map<string, Record<string, unknown>> {
+  const result = new Map<string, Record<string, unknown>>();
+  const morphs = readWrittenMorphs(scripts).filter((m) => m.name);
+  if (morphs.length === 0) return result;
+  const written = new Map<string, Record<string, unknown>>();
+  const parents = new Map<string, string>();
+  for (const morph of morphs) {
+    written.set(morph.name, morph.own.struct);
+    const parentNode = getDescendent("LuauDefineParentName", morph.node);
+    const script = scripts.find((s) => s.uri === morph.uri)!;
+    const parent = parentNode ? script.read(parentNode.from, parentNode.to).trim() : "";
+    if (parent) parents.set(morph.name, parent);
+  }
+  const base = (context["morph"] ?? {})["$default"] as Record<string, unknown> | undefined;
+  for (const morph of morphs) {
+    const ancestors = morphAncestors(morph.name, written, parents, context);
+    result.set(morph.name, effectiveMorph(base, ancestors, morph.own.struct, inherit));
+  }
+  return result;
+}
+
+/**
  * Check every morph declared in the scripts against its inherited struct and
  * the program's artwork, returning the issues for each script.
  *
