@@ -188,11 +188,11 @@ describe("morph previews through the providers", () => {
     const documents = new SparkdownDocumentRegistry(["references"]);
     documents.set({ textDocument: { uri: main, text: SCRIPT, version: 1, languageId: "sparkdown" } });
     const position = { line: lineOf(SCRIPT, "[[bunny]]"), character: 4 };
-    const hover = await getHover(documents.get(main), documents.annotations(main), program, undefined, position, createImageCompositeOptions(workspace));
+    const hover = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, createImageCompositeOptions(workspace));
     const shown = previewImage((hover?.contents as any)?.value);
     expect(shown).toContain("<clipPath");
     // Without the morph hook the same hover shows the plain static image.
-    const plain = await getHover(documents.get(main), documents.annotations(main), program, undefined, position, {});
+    const plain = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, {});
     expect(previewImage((plain?.contents as any)?.value)).not.toContain("<clipPath");
   });
 
