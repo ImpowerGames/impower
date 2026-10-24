@@ -17,39 +17,57 @@ const WHITESPACE = 16;
 const SEPARATOR = 32;
 const LUAU = 64;
 
-/** The grammar's rules, by name, as a fingerprint reads them by their
- *  TextMate scope (`name`): a comment, which it leaves out; a string, whose
- *  text it keeps as written; the markup of displayed text (a word, a space,
- *  a punctuation mark), whose whitespace it keeps as written; and
- *  whitespace (`punctuation.whitespace`), of which all but a line end
+/** What a fingerprint reads a node of the grammar as, by the TextMate scope
+ *  (`name`) of the rule or capture it is: a comment, which it leaves out; a
+ *  string, whose text it keeps as written; the markup of displayed text (a
+ *  word, a space, a punctuation mark), whose whitespace it keeps as written;
+ *  and whitespace (`punctuation.whitespace`), of which all but a line end
  *  separates tokens, even inside a string. A tag (`#tag`), whose scopes name
  *  a comment and a tag, is no comment: the program carries its text, which
- *  is kept as a string's is. The grammar's Luau, whose spacing is logic's,
- *  is its rules named `Luau…`. */
-const KINDS = new Map<string, number>();
-for (const [name, rule] of Object.entries(
-  GRAMMAR_DEFINITION.repository as Record<string, { name?: string }>,
-)) {
-  const scopes = rule.name?.split(" ") ?? [];
-  const scope = scopes[0] ?? "";
-  let kind = RULE | (name.startsWith("Luau") ? LUAU : 0);
+ *  is kept as a string's is. A rule of the grammar's repository or a scoped
+ *  node is one the reading tracks as the context of the text it holds; the
+ *  grammar's Luau, whose spacing is logic's, is its nodes named `Luau…`.
+ *  Every node the parser builds is read, a capture's included, as the parser
+ *  resolves the grammar. */
+const kindOf = (name: string, scope: string | undefined): number => {
+  const scopes = scope?.split(" ") ?? [];
+  const first = scopes[0] ?? "";
+  const rule = scope !== undefined || name in GRAMMAR_DEFINITION.repository;
+  let kind = (rule ? RULE : 0) | (name.startsWith("Luau") ? LUAU : 0);
   if (
-    scope.startsWith("string.") ||
+    first.startsWith("string.") ||
     scopes.some((s) => s.startsWith("entity.tag."))
   ) {
     kind |= STRING;
-  } else if (scope.startsWith("comment.")) {
+  } else if (first.startsWith("comment.")) {
     kind |= COMMENT;
-  } else if (scope.startsWith("markup.")) {
+  } else if (first.startsWith("markup.")) {
     kind |= MARKUP;
-  } else if (scope.startsWith("punctuation.whitespace.")) {
+  } else if (first.startsWith("punctuation.whitespace.")) {
     kind |= WHITESPACE;
-    if (!scope.startsWith("punctuation.whitespace.newline.")) {
+    if (!first.startsWith("punctuation.whitespace.newline.")) {
       kind |= SEPARATOR;
     }
   }
-  KINDS.set(name, kind);
-}
+  return kind;
+};
+
+let kinds: Map<string, number> | undefined;
+
+/** The kind of every node the parser builds, by name. */
+const kindsByName = (): Map<string, number> => {
+  if (!kinds) {
+    kinds = new Map();
+    for (const node of createSparkdownParser().grammar.nodes) {
+      const scope = node.props["name"];
+      kinds.set(
+        node.typeId,
+        kindOf(node.typeId, typeof scope === "string" ? scope : undefined),
+      );
+    }
+  }
+  return kinds;
+};
 
 // Luau's whitespace, which a run of between two tokens is: a space, `\t`,
 // `\n`, `\v`, `\f` or `\r`.
@@ -119,8 +137,9 @@ const keepsSpace = (before: string, after: string): boolean =>
  * read together as another, `- -2` against `--2`; `keepsSpace`), and nothing
  * elsewhere (`x=1`); so indentation, the spacing between the tokens of
  * logic, blank lines and the space at a line's end are left out. Each range
- * of `cuts` stands as one `\u0002`, for a body a block statement's own source
- * leaves out. Without a tree, the text is read as written.
+ * of `cuts` stands as one `\u0002` on a line of its own, for a body a block
+ * statement's own source leaves out, even where a comment covers the cut's
+ * start. Without a tree, the text is read as written.
  */
 export const fingerprintSource = (
   tree: Tree | undefined,
@@ -132,6 +151,7 @@ export const fingerprintSource = (
   if (!tree) {
     return text.slice(from, to).replace(/\r\n/g, "\n");
   }
+  const KINDS = kindsByName();
   let out = "";
   // The whitespace since the last token; whether all of it is a string's
   // own, and whether all of it is kept within a line; and whether a comment
@@ -194,6 +214,19 @@ export const fingerprintSource = (
       }
     }
   };
+  // A cut, which stands on a line of its own, as the lines a body holds
+  // alone do: whatever the text around it reads as, a comment it starts in
+  // included.
+  const mark = () => {
+    if (out.length > 0 && !out.endsWith("\n")) {
+      out += "\n";
+    }
+    out += "\u0002";
+    gap = "\n";
+    stringGap = false;
+    lineGap = false;
+    broken = false;
+  };
   // The text from `a` to `b` outside the cuts, each cut it reaches standing
   // as one token.
   let cut = 0;
@@ -215,7 +248,7 @@ export const fingerprintSource = (
         read(a, next.from);
       }
       if (a <= next.from) {
-        token("\u0002");
+        mark();
       }
       a = Math.min(b, next.to);
     }
@@ -258,6 +291,13 @@ export const fingerprintSource = (
     const kind = KINDS.get(node.name) ?? 0;
     if (kind & COMMENT) {
       broken = true;
+      // A cut that starts inside the comment (a body whose first line is
+      // the rest of a block comment) still stands as its mark.
+      for (const c of cuts) {
+        if (c.from >= at && c.from < node.to && c.from >= from && c.from < to) {
+          mark();
+        }
+      }
       at = Math.max(at, node.to);
       return false;
     }

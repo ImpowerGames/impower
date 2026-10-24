@@ -60,6 +60,20 @@ describe("a fingerprint read from the parse", () => {
     ).toEqual(plain);
   });
 
+  // Round 1 of the review of PR #2210 (report 6382490624): a block comment
+  // whose second line is the first line of a function's body covers the
+  // start of the body's cut.
+  it("leaves out a block comment that runs into a function's body", () => {
+    const all = (lines: string[]) =>
+      [...rootOf(lines.join("\n")).sequences()].flatMap((sequence) =>
+        sequence.arrays.chunks.map(fingerprintOf),
+      );
+    const plain = all(["function f()", "  return 1", "end", ""]);
+    const noted = all(["function f() --[[ a", "b ]]", "  return 1", "end", ""]);
+    expect(plain.length).toBeGreaterThan(0);
+    expect(noted).toEqual(plain);
+  });
+
   it("keeps a displayed line that starts with `--`", () => {
     const [busy] = prints(["HERO:", "  --I'm busy!"]);
     const [free] = prints(["HERO:", "  --I'm free!"]);

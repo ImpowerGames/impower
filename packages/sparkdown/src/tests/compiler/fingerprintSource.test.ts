@@ -1,28 +1,27 @@
 // The text a durable save's fingerprint hashes is read from the parse
 // (`fingerprintSource`, I-1112): every comment the grammar defines is left
 // out of it, and the text of every string it defines is kept as written.
-// The kinds are the grammar's own: a rule whose TextMate scope is a comment
-// or a string (a tag, scoped as both a comment and a tag, is text the
-// program carries). Each has a sample below in which the grammar reads it,
-// so a kind the grammar adds fails the first test until it has one.
+// The kinds are the grammar's own: every node the parser builds, a rule's or
+// a capture's, whose TextMate scope is a comment or a string (a tag, scoped
+// as both a comment and a tag, is text the program carries). Each has a
+// sample below in which the grammar reads it, so a kind the grammar adds
+// fails the first test until it has one.
 
 import { describe, expect, test } from "vitest";
-import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { createSparkdownParser } from "../../compiler/utils/createSparkdownParser";
 import { normalizeSource } from "../../compiler/utils/fingerprintSource";
 
 const kindsOf = (scope: "comment" | "string"): string[] =>
-  Object.entries(
-    GRAMMAR_DEFINITION.repository as Record<string, { name?: string }>,
-  )
-    .filter(([, rule]) => {
-      const scopes = rule.name?.split(" ") ?? [];
+  createSparkdownParser()
+    .grammar.nodes.filter((node) => {
+      const name = node.props["name"];
+      const scopes = typeof name === "string" ? name.split(" ") : [];
       const tag = scopes.some((s) => s.startsWith("entity.tag."));
       return scope === "string"
         ? tag || Boolean(scopes[0]?.startsWith("string."))
         : !tag && Boolean(scopes[0]?.startsWith("comment."));
     })
-    .map(([name]) => name);
+    .map((node) => node.typeId);
 
 // Kinds no script reads: rules nothing reaches (`grammarReachability.test.ts`)
 // and rules no sample or fixture of the repository reaches through the
@@ -35,6 +34,7 @@ const UNREAD = [
   "LuauUIAttributeValue",
   "LuauUIContentText",
   "SparkdownExplicitTag",
+  "SparkdownExplicitTag_c2",
   "SparkdownExplicitTags",
   "StringLiteral",
 ];
@@ -160,6 +160,14 @@ const STRINGS: [string, string][] = [
   [
     "layout main with\n  text 'a  b'\nend",
     "layout main with\n  text 'a b'\nend",
+  ],
+  [
+    'layout main with\n  text "<color=a  b>Hi</color>"\nend',
+    'layout main with\n  text "<color=a b>Hi</color>"\nend',
+  ],
+  [
+    'layout main with\n  text "<shout=a  b>Hi</shout>"\nend',
+    'layout main with\n  text "<shout=a b>Hi</shout>"\nend',
   ],
   [
     'layout main with\n  text #width="1  2"\nend',
