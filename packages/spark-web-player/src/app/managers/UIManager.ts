@@ -478,12 +478,21 @@ export default class UIManager extends Manager {
     this._elements.clear();
     // A played beat still waiting for its commit belonged to the run being
     // torn down (STOP, or the rebuild a new run makes): it never goes up, and
-    // the screen stays as it is until the next display (#1820).
+    // the screen stays as it is until the next display (#1820). The engine
+    // waits on each animation it carries, so each is answered with an error.
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const pending = overlay?.__sdBeat;
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      for (const op of pending.ops) {
+        if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
+          this.app.answer(
+            op as RequestMessage,
+            Promise.reject(new Error("the beat was called off")),
+          );
+        }
+      }
     }
   }
 
