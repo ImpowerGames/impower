@@ -52,6 +52,23 @@ describe("scanAssetDirectives", () => {
     expect(beat?.layouts).toEqual(["hud", "settings"]);
   });
 
+  it("records the video a `[[play]]` cutscene names, with no layer token", () => {
+    const { beat } = scan("[[play intro loop with fade]]");
+    expect(beat?.image).toEqual(["intro"]);
+    expect(beat?.audio).toBeUndefined();
+  });
+
+  it("finds the base of a cutscene video cut off by an interpolation", () => {
+    expect(scan("[[play intro~").capture.dynamicBases).toEqual(["intro"]);
+  });
+
+  it("keeps `((play))` an audio verb that names no image", () => {
+    expect(scan("((play song))").beat).toBeUndefined();
+    const { beat } = scan("((play music theme)) [[play intro]]");
+    expect(beat?.audio).toEqual(["theme"]);
+    expect(beat?.image).toEqual(["intro"]);
+  });
+
   it("records every flow a `load` names", () => {
     const { beat } = scan("[[load Chapter2 Chapter3 with fade]]");
     expect(beat?.loads).toEqual(["Chapter2", "Chapter3"]);
