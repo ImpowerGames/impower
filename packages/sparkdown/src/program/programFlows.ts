@@ -57,6 +57,17 @@ export interface StatementRecord {
   columnAt?: (offset: number) => number;
   /** The text between two offsets relative to the statement's start. */
   text?: (from: number, to: number) => string;
+  /** The text the statement's fingerprint hashes, its source as the
+   *  script's parse reads it (`fingerprintSource`). */
+  fingerprint: () => string;
+  /** The text a fingerprint hashes of the source between two offsets
+   *  relative to the statement's start, with each range of `cuts`, relative
+   *  too, standing for one body (`fingerprintSource`). */
+  fingerprintOf?: (
+    from: number,
+    to: number,
+    cuts?: readonly { from: number; to: number }[],
+  ) => string;
   /** The column at which a line of the script ends. */
   lineEnd?: (line: number) => number;
 }
@@ -432,10 +443,11 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
           range: record.range,
           firstLine: record.line,
           source: record.source,
+          fingerprint: record.fingerprint,
           syntax:
             run === 0 ? record.syntax : () => `${record.syntax()}\u0000${run}`,
           reads: record.reads,
-          text: record.text,
+          fingerprintOf: record.fingerprintOf,
           uri: record.uri,
           globals: [],
         },
@@ -625,6 +637,7 @@ const evaluatorFlow = (
   });
   let source: string | undefined;
   const sourceOf = () => (source ??= text(own.from, own.to));
+  let fingerprint: string | undefined;
   let syntax: string | undefined;
   const definition: StatementSource = {
     block: flow,
@@ -632,11 +645,12 @@ const evaluatorFlow = (
     range,
     firstLine,
     source: sourceOf,
+    fingerprint: () => (fingerprint ??= record.fingerprintOf!(own.from, own.to)),
     syntax: () =>
       (syntax ??= `${name}\u0000${record.columnAt?.(own.from) ?? 0}\u0000${sourceOf()}`),
     reads: "",
-    text,
-    bodies: [bodyOf(own.body, statements, lineAt, firstLine, text)],
+    fingerprintOf: record.fingerprintOf,
+    bodies: [bodyOf(own.body, statements, lineAt, firstLine, record.fingerprintOf)],
     lineEnd: record.lineEnd,
     defines: name,
   };
@@ -672,7 +686,7 @@ const functionBodiesOf = (
           nestedStatement(nested, record),
         );
         out.push(
-          bodyOf(fn.body, statements, record.lineAt!, record.line, record.text),
+          bodyOf(fn.body, statements, record.lineAt!, record.line, record.fingerprintOf),
         );
       }
     }
@@ -786,9 +800,10 @@ const statementOfRecord = (
       range: record.range,
       firstLine: record.line,
       source: record.source,
+      fingerprint: record.fingerprint,
       syntax: record.syntax,
       reads: shape ? readsKey(shape.reads) : record.reads,
-      text: record.text,
+      fingerprintOf: record.fingerprintOf,
     };
   }
   return statementOf(block, objects, record.range, record.line, shape, record);
@@ -818,7 +833,7 @@ const statementOf = (
     const statements = bodyStatements(body).map((nested) =>
       nestedStatement(nested, record),
     );
-    const source = bodyOf(body, statements, lineAt, above, text, inPlace);
+    const source = bodyOf(body, statements, lineAt, above, record.fingerprintOf, inPlace);
     bodies.push(source);
     above = source.firstLine + source.span;
     cuts.push({ from: lineAt(body.headEnd) + 1, to: lineAt(body.nextStart) });
@@ -831,6 +846,7 @@ const statementOf = (
   let own: string | undefined;
   const ownSource = () =>
     (own ??= cutLines(text(shape.from, shape.to), lineAt(shape.from), cuts));
+  let fingerprint: string | undefined;
   let syntax: string | undefined;
   return {
     block,
@@ -838,10 +854,16 @@ const statementOf = (
     range,
     firstLine,
     source: ownSource,
+    fingerprint: () =>
+      (fingerprint ??= record.fingerprintOf!(
+        shape.from,
+        shape.to,
+        cutRanges(text(shape.from, shape.to), shape.from, ordered),
+      )),
     syntax: () =>
       (syntax ??= `${shape.node}\u0000${record.columnAt?.(shape.from) ?? 0}\u0000${ownSource()}`),
     reads: readsKey(shape.reads),
-    text: record.text,
+    fingerprintOf: record.fingerprintOf,
     bodies,
     lineEnd: record.lineEnd,
   };
@@ -872,6 +894,7 @@ const nestedStatement = (
     // its memo holds, which the store finds by the memo (`ChunkStore`).
     let source: string | undefined;
     const sourceOf = () => (source ??= record.text!(shape.from, shape.to));
+    let fingerprint: string | undefined;
     let syntax: string | undefined;
     return {
       block: shape.memo,
@@ -881,10 +904,11 @@ const nestedStatement = (
       range: served.ownDebugMetadata,
       firstLine,
       source: sourceOf,
+      fingerprint: () => (fingerprint ??= record.fingerprintOf!(shape.from, shape.to)),
       syntax: () =>
         (syntax ??= `${shape.node}\u0000${record.columnAt!(shape.from)}\u0000${sourceOf()}`),
       reads: readsKey(shape.reads),
-      text: record.text,
+      fingerprintOf: record.fingerprintOf,
     };
   }
   const objects = shape.objects
@@ -906,6 +930,7 @@ const nestedStatement = (
   }
   let source: string | undefined;
   const sourceOf = () => (source ??= record.text!(shape.from, shape.to));
+  let fingerprint: string | undefined;
   let syntax: string | undefined;
   return {
     // A statement the memo remembered is known by its memo, which a later
@@ -915,10 +940,11 @@ const nestedStatement = (
     range,
     firstLine,
     source: sourceOf,
+    fingerprint: () => (fingerprint ??= record.fingerprintOf!(shape.from, shape.to)),
     syntax: () =>
       (syntax ??= `${shape.node}\u0000${record.columnAt!(shape.from)}\u0000${sourceOf()}`),
     reads: readsKey(shape.reads),
-    text: record.text,
+    fingerprintOf: record.fingerprintOf,
   };
 };
 
@@ -927,14 +953,14 @@ const nestedStatement = (
  *  statement written on the heading part's line, or on the next part's,
  *  widens it to hold the statement. `above` is the line after the owner's
  *  previous body, or the owner's first line. A function's body carries the
- *  function, and the function's own source as `text` reads it, unless the
- *  function runs in place (`inPlace`). */
+ *  function, and the function's own source as `fingerprintOf` reads it,
+ *  unless the function runs in place (`inPlace`). */
 const bodyOf = (
   shape: BodyShape,
   statements: StatementSource[],
   lineAt: (offset: number) => number,
   above: number,
-  text?: (from: number, to: number) => string,
+  fingerprintOf?: (from: number, to: number) => string,
   inPlace = false,
 ): BodySource => {
   let first = lineAt(shape.headEnd) + 1;
@@ -957,8 +983,11 @@ const bodyOf = (
     span: end - first,
     headLines: first - above,
     fn,
-    partSource: part && text ? () => text(part.from, part.to) : undefined,
-    headSource: text ? () => text(shape.headStart, shape.headEnd) : undefined,
+    partFingerprint:
+      part && fingerprintOf ? () => fingerprintOf(part.from, part.to) : undefined,
+    headFingerprint: fingerprintOf
+      ? () => fingerprintOf(shape.headStart, shape.headEnd)
+      : undefined,
   };
 };
 
@@ -993,6 +1022,29 @@ const cutLines = (
     }
   });
   return kept.join("\n");
+};
+
+// The ranges of `text`, which starts at offset `from`, that `cutLines`
+// leaves out for `bodies`, in source order: from the line after the part
+// that heads each body to the line of the part after it.
+const cutRanges = (
+  text: string,
+  from: number,
+  bodies: readonly BodyShape[],
+): { from: number; to: number }[] => {
+  const out: { from: number; to: number }[] = [];
+  for (const body of bodies) {
+    const eol = text.indexOf("\n", body.headEnd - from);
+    if (eol < 0) {
+      continue;
+    }
+    const start = from + eol + 1;
+    const end = from + text.lastIndexOf("\n", body.nextStart - from - 1) + 1;
+    if (end > start) {
+      out.push({ from: start, to: end });
+    }
+  }
+  return out;
 };
 
 /** The recorded reads of a statement as one string, which a chunk compares
