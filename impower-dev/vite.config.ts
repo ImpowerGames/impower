@@ -268,6 +268,35 @@ const readEditorGlobalCss = (): string =>
     fs.readFileSync(path.resolve(process.cwd(), f), "utf-8"),
   ).join("\n");
 
+// The asset mirror's answer to a morph request on the mirrored file at `abs`
+// (client-relative path `rel`), or `undefined` when the request is not a
+// morph on an SVG. It calls the shared endpoint the service worker answers
+// with, so the two routes bake and identify the same artifact.
+const serveMirroredMorphAsset = async (options: {
+  service: MorphBakeService;
+  rel: string;
+  abs: string;
+  params: URLSearchParams;
+}): Promise<Response | undefined> => {
+  const { service, rel, abs, params } = options;
+  if (path.extname(abs).slice(1).toLowerCase() !== "svg") return undefined;
+  const morphRequest = parseMorphAssetRequest(params);
+  if (!morphRequest) return undefined;
+  if (morphRequest === "invalid") {
+    return new Response("Unreadable morph request", { status: 400 });
+  }
+  const stat = fs.statSync(abs);
+  return serveMorphAsset({
+    service,
+    path: rel,
+    file: new File([fs.readFileSync(abs, "utf-8")], path.basename(abs), {
+      type: "image/svg+xml",
+      lastModified: stat.mtimeMs,
+    }),
+    request: morphRequest,
+  });
+};
+
 // ----------------------------------------------------------------------------
 // Vite Plugins
 // ----------------------------------------------------------------------------
@@ -634,24 +663,13 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             // the parse cost of every portrait beat.
             // Morph artifacts too: the same shared endpoint the service
             // worker answers them with.
-            const morphRequest =
-              ext === "svg" ? parseMorphAssetRequest(params) : undefined;
-            if (morphRequest) {
-              let response: Response;
-              if (morphRequest === "invalid") {
-                response = new Response("Unreadable morph request", { status: 400 });
-              } else {
-                const stat = fs.statSync(abs);
-                response = await serveMorphAsset({
-                  service: morphMirrorService,
-                  path: rel,
-                  file: new File([fs.readFileSync(abs, "utf-8")], path.basename(abs), {
-                    type: "image/svg+xml",
-                    lastModified: stat.mtimeMs,
-                  }),
-                  request: morphRequest,
-                });
-              }
+            const response = await serveMirroredMorphAsset({
+              service: morphMirrorService,
+              rel,
+              abs,
+              params,
+            });
+            if (response) {
               res.statusCode = response.status;
               response.headers.forEach((value, name) => res.setHeader(name, value));
               res.end(await response.text());
@@ -931,6 +949,7 @@ export {
   getServiceWorkerDefine,
   staticallyStylePage,
   readEditorGlobalCss,
+  serveMirroredMorphAsset,
   viteStaticallyRenderedPagesPlugin,
 };
 
