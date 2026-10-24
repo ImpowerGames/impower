@@ -39,6 +39,20 @@ describe("[[play NAME]] completions", () => {
     );
   });
 
+  it("offers the cutscene clauses, not image names, for a clause being typed", () => {
+    for (const source of [
+      "[[play intro l@0]]",
+      "[[play intro m@0]]",
+      "[[play intro loop m@0]]",
+      "[[play intro with fade l@0]]",
+    ]) {
+      const labels = complete(source);
+      expect(labels, source).toEqual(expect.arrayContaining(["loop", "mute", "with"]));
+      expect(labels, source).not.toContain("bunny");
+      expect(labels, source).not.toContain("over");
+    }
+  });
+
   it("offers transitions after `with`", () => {
     expect(complete("[[play intro with @0]]")).toEqual(["fade"]);
   });

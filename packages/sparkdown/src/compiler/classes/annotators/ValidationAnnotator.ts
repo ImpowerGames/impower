@@ -68,6 +68,8 @@ const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
 const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
 const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
 const ASSET_COMMAND_TARGET = nodeNameSet(["AssetCommandTarget"]);
+// The clauses whose value is a name.
+const NAME_VALUE_CLAUSE_KEYWORDS: ReadonlySet<string> = new Set(["with", "ease"]);
 const ASSET_COMMAND_EXTRA_NAME = nodeNameSet([
   "AssetCommandName",
   "AssetCommandAddOperator",
@@ -1873,8 +1875,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
       // `[[play NAME]]` plays one video: the name in the target slot. A
-      // missing name, a second name, or names joined with `+` are reported.
-      // Whether the name is a video is the reference's to report.
+      // missing name, a second name (before the clauses, or after a flag
+      // such as `loop`), or names joined with `+` are reported. Whether the
+      // name is a video is the reference's to report.
       if (
         context.includes("ImageCommand") &&
         MOVIE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
@@ -1911,8 +1914,31 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
         if (extraFrom !== undefined && extraTo !== undefined) {
           this.error(annotations, PLAY_ONE_VIDEO, extraFrom, extraTo);
-          return annotations;
         }
+        // A name among the clauses is a clause's value only after a clause
+        // that takes a name (`with fade`); after a flag or another value it
+        // is a second video.
+        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
+        const findStrayValue = (node: SyntaxNode) => {
+          for (let c = node.firstChild; c; c = c.nextSibling) {
+            if (c.name === "NameValue") {
+              const keyword = c.prevSibling?.prevSibling;
+              const keywordText = keyword
+                ? this.read(keyword.from, keyword.to)
+                : "";
+              if (
+                keyword?.name !== "AssetCommandClauseKeyword" ||
+                !NAME_VALUE_CLAUSE_KEYWORDS.has(keywordText)
+              ) {
+                this.error(annotations, PLAY_ONE_VIDEO, c.from, c.to);
+              }
+            } else {
+              findStrayValue(c);
+            }
+          }
+        };
+        if (command) findStrayValue(command);
+        return annotations;
       }
     }
     // Unrecognized `@event` name on a Sparkle element line (`@clik=save`). The

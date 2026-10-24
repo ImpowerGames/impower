@@ -94,7 +94,14 @@ describe("[[play NAME]] validation", () => {
     );
   });
 
-  test.each(["[[play intro bunny]]", "[[play intro intro]]", "[[play intro+bunny]]"])(
+  test.each([
+    "[[play intro bunny]]",
+    "[[play intro intro]]",
+    "[[play intro+bunny]]",
+    "[[play intro loop bunny]]",
+    "[[play intro mute loop bunny]]",
+    "[[play intro with fade bunny]]",
+  ])(
     "%s names more than one video and is reported",
     (line) => {
       const diags = diagnosticsFor(`${line}\n`);

@@ -1743,6 +1743,17 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFileName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
+        const controlNode = getDescendentInsideParent(
+          "AssetCommandControl",
+          "ImageCommand",
+          leftStack,
+        );
+        if (MOVIE_CONTROL_KEYWORDS.includes(getNodeText(controlNode))) {
+          // A cutscene takes no second name, so a word typed after its
+          // video is the start of a clause.
+          addKeywordCompletions(completions, "clause", CUTSCENE_CLAUSE_KEYWORDS);
+          return buildCompletions();
+        }
         addStructReferenceCompletions(
           completions,
           program,
@@ -1793,6 +1804,21 @@ export const getCompletions = (
         addStructReferenceCompletions(completions, program, ["ease"]);
       }
       return buildCompletions();
+    }
+    if (leftStack[0]?.name === "NameValue") {
+      const controlNode = getDescendentInsideParent(
+        "AssetCommandControl",
+        "ImageCommand",
+        leftStack,
+      );
+      if (MOVIE_CONTROL_KEYWORDS.includes(getNodeText(controlNode))) {
+        // A word typed after a cutscene's flag is the start of its next
+        // clause (a `with` value was answered above).
+        if (isCursorAfterNodeText(leftStack[0])) {
+          addKeywordCompletions(completions, "clause", CUTSCENE_CLAUSE_KEYWORDS);
+        }
+        return buildCompletions();
+      }
     }
     if (
       isWhitespaceNode(leftStack[0]?.name) &&
