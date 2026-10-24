@@ -130,6 +130,28 @@ export const settle = async (tasks = 20) => {
   }
 };
 
+/** The text a run wrote to the screen, in order, from what its game sent the
+ *  page (`toRouter`): a line is written a character at a time, and a played
+ *  beat's writes reach the page inside its composed beat (#1820). */
+export const writtenText = (sent: any[]): string => {
+  const texts: string[] = [];
+  const collect = (value: any) => {
+    if (value && typeof value === "object") {
+      if (typeof value.text === "string") texts.push(value.text);
+      for (const item of Object.values(value)) collect(item);
+    }
+  };
+  for (const m of sent) {
+    if (m.method === "ui/write-text") collect(m.params);
+    if (m.method === "ui/beat") {
+      for (const op of m.params?.messages ?? []) {
+        if (op.method === "ui/write-text") collect(op.params);
+      }
+    }
+  }
+  return texts.join("");
+};
+
 export interface PlayerHarnessOptions {
   files: { uri: string; text: string }[];
   startFrom: { file: string; line: number };

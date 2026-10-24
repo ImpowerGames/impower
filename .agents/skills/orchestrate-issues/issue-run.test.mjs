@@ -163,8 +163,10 @@ try {
   const plan = (r, more = {}) => run.planDispatch({ record: settled105(run.readRecord(record)), snapshot, preflights: [available("claude-cli", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, census: () => [], ...more, ...r });
   const actions = (p) => Object.fromEntries(p.tickets.map((t) => [t.number, t.action]));
   const p1 = plan();
-  assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "wait-capacity", 104: "adopt-pr", 105: "await-maintainer", 106: "wait-dependency", 107: "decision-needed", 108: "wait-capacity", 109: "wait-capacity", 110: "adopt-worktree", 111: "done", 112: "container" });
+  assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "wait-capacity", 104: "adopt-pr", 105: "await-maintainer", 106: "wait-dependency", 107: "assign-effort", 108: "wait-capacity", 109: "wait-capacity", 110: "adopt-worktree", 111: "done", 112: "container" });
   assert.equal(p1.concurrency.active, 2, "existing PR and worktree work occupies capacity");
+  const unknownEffort = plan({ snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => t.number === 107 ? { ...t, effort: "Huge" } : t) } });
+  assert.deepEqual([actions(unknownEffort)[107], unknownEffort.tickets.find((t) => t.number === 107).reason], ["decision-needed", "Effort Huge has no writer effort"], "the coordinator assigns a missing Effort but never reinterprets an existing one");
   const adopted = p1.tickets.find((t) => t.number === 104);
   assert.deepEqual([adopted.pr, adopted.rounds], [504, 2], "an adopted PR keeps its started review rounds");
   assert.match(p1.tickets.find((t) => t.number === 106).reason, /#91 \(closed, but no merged deliverable is on origin\/main\)/);

@@ -6,7 +6,7 @@
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
 const SOURCE = `store mood = 0
 
@@ -103,27 +103,7 @@ const run = async (compileAt?: number) => {
     expect(running.story).not.toBe(h.workerState.gameState.game!.story);
     const sent = h.toRouter.slice(sentBefore).map(comparable);
     await h.controller.destroyGameAndApp();
-    // The text the run wrote, in order: a line is written a character at a
-    // time.
-    const texts: string[] = [];
-    const collect = (value: any) => {
-      if (value && typeof value === "object") {
-        if (typeof value.text === "string") texts.push(value.text);
-        for (const item of Object.values(value)) collect(item);
-      }
-    };
-    for (const m of sent) {
-      if (m.method === "ui/write-text") collect(m.params);
-      // A played beat's writes reach the page inside its composed beat
-      // (#1820).
-      if (m.method === "ui/beat") {
-        for (const op of m.params.messages ?? []) {
-          if (op.method === "ui/write-text") collect(op.params);
-        }
-      }
-    }
-    const text = texts.join("");
-    return { sent, compiled, text };
+    return { sent, compiled, text: writtenText(sent) };
   } finally {
     h.dispose();
   }
