@@ -2,16 +2,22 @@
 
 Each line of story text shows as a line of its own. Two dots, `..`, join lines together: a line that ends with `..` offers to join, and a line that begins with `..` takes the offer. The two lines then show as one, in the same text box. The same marks beside a `>` break carry a box on after the player clicks.
 
+The examples are written inside a `scene`, as story text is in a script.
+
 ## 13.1 Ending and beginning a line with `..`
 
 A line that ends with `..` joins the next line shown onto it, when that line begins with `..`.
 
 ```sparkdown
-You see a ..
-if has_key then
-  .. rusty key.
-else
-  .. locked door.
+store has_key = true
+
+scene Cellar
+  You see a ..
+  if has_key then
+    .. rusty key.
+  else
+    .. locked door.
+  end
 end
 ```
 
@@ -24,8 +30,10 @@ Both marks are needed. A line that ends with `..` before a line that does not be
 The join keeps the spaces written before the first mark and drops the spaces after the second.
 
 ```sparkdown
-The night was full of shadows ..
-.. and whispers.
+scene Night
+  The night was full of shadows ..
+  .. and whispers.
+end
 ```
 
 This shows "The night was full of shadows and whispers.", with the space written before `..`. Write `shadows..` and `..and` and the words touch.
@@ -37,8 +45,10 @@ A mark is exactly two dots. A third dot makes an ellipsis, so `Wait...` and `...
 A tag or a `//` comment may follow the `..` that ends a line:
 
 ```sparkdown
-She waits .. # pause
-.. and then speaks.
+scene Waiting
+  She waits .. # pause
+  .. and then speaks.
+end
 ```
 
 ### Dialogue
@@ -46,16 +56,20 @@ She waits .. # pause
 A `..` may begin the words after a speaker's colon:
 
 ```sparkdown
-ALICE: I thought ..
-ALICE: .. you had gone.
+scene Doorway
+  ALICE: I thought ..
+  ALICE: .. you had gone.
+end
 ```
 
 The joined line keeps the first line's speaker. A line that begins with `..` and names no speaker takes the speaker of the line it joins. Inside a dialogue block, the lines join the same way:
 
 ```sparkdown
-ALICE:
-  I thought ..
-  .. you had gone.
+scene Doorway
+  ALICE:
+    I thought ..
+    .. you had gone.
+end
 ```
 
 ### A line with only the mark
@@ -67,7 +81,9 @@ A line that is only `..`, or `..` followed by a tag or a comment, shows nothing.
 A `>` in a line waits for the player to click before it shows the rest. With a `..` on each side of the break, what comes after the click is added to the same box, and the box keeps the text it already shows:
 
 ```sparkdown
-Hold on .. > .. tight.
+scene Ledge
+  Hold on .. > .. tight.
+end
 ```
 
 The box shows "Hold on", waits for the click, then types "tight." after it, so it reads "Hold on tight.". The marks and the `>` may touch each other and the words beside them (`Abso..>..lutely.`), as a break needs no spaces.
@@ -75,8 +91,10 @@ The box shows "Hold on", waits for the click, then types "tight." after it, so i
 The two halves can be on separate lines, with the `>` ending the first:
 
 ```sparkdown
-Hold on .. >
-.. tight.
+scene Ledge
+  Hold on .. >
+  .. tight.
+end
 ```
 
 Several clicks can add to one box: in `One .. > .. two .. > .. three.` each click adds to the box.
@@ -84,8 +102,10 @@ Several clicks can add to one box: in `One .. > .. two .. > .. three.` each clic
 A continuation may name a speaker. Its words are then typed with that speaker's settings, and the box shows that speaker's name:
 
 ```sparkdown
-???: Hello... .. >
-ALICE: .. It's me.
+scene Knock
+  ???: Hello... .. >
+  ALICE: .. It's me.
+end
 ```
 
 With a mark on one side of the break only, the part after the click starts a new box. A `..` that ends a line right after a break (`Wait > ..`) has no part after the break to begin, so it does nothing.

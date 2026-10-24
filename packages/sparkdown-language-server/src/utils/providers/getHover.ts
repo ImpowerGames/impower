@@ -70,10 +70,9 @@ const getGlueHover = (
       ? GLUE_HOVER.beforeBreak
       : GLUE_HOVER.lineEnd;
   } else {
-    text =
-      mark.parent?.name === "BreakLeadingGlue_c2"
-        ? GLUE_HOVER.afterBreak
-        : GLUE_HOVER.lineStart;
+    text = stack.some((node) => node.name === "BreakLeadingGlue")
+      ? GLUE_HOVER.afterBreak
+      : GLUE_HOVER.lineStart;
   }
   return {
     contents: {
