@@ -123,6 +123,16 @@ describe("morph bake: layered art", () => {
     expect(sheet).toContain(`.hair { fill: #abc /* { */; } #${p}abc { stroke: #abc; --note: "{ #abc" }`);
   });
 
+  test("a colour in an at-rule's condition stays a colour; the selectors inside it are namespaced", () => {
+    const styled = layeredPortrait()
+      .replace("<defs>", `<style>@media all { @supports (fill: #abc) { #abc { fill: lime } } }</style><defs>`)
+      .replace('<path data-name="hair" d="', '<path id="abc" data-name="hair" d="');
+    const artifact = bake(styled, layeredRecipe);
+    const p = artifact.idPrefix;
+    const sheet = elements(artifact.parts[artifact.parts.length - 1]!.svg).find((e) => e.tagName === "style")!.children.join("");
+    expect(sheet).toContain(`@media all { @supports (fill: #abc) { #${p}abc { fill: lime } } }`);
+  });
+
   test("inline declarations split only where a semicolon ends one", () => {
     const element = { tagName: "path", attributes: { style: 'fill:url(data:image/svg+xml;utf8,x);--note:"a;b" /* c;d */;opacity:.5' }, children: [] };
     expect(styleDeclarations(element).map(([name]) => name)).toEqual(["fill", "--note", "opacity"]);
@@ -315,17 +325,22 @@ describe("morph bake: compositing and authored style", () => {
   });
 
   test("a copied resource brings what its original ancestors reference", () => {
-    const tiles = `<defs fill="url(#paint)"><linearGradient id="paint"><stop offset="0" stop-color="lime"/></linearGradient>
-<pattern id="tiles" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="2" height="2"/></pattern></defs>
-<rect data-name="tile" width="10" height="10" fill="url(#tiles)"/>`;
-    const artifact = bake(art(LASHES_OPEN, LASH_CLOSED, tiles), recipe());
-    expect(codes(artifact)).toEqual([]);
-    const part = artifact.parts.map((p) => elements(p.svg)).find((list) => list.some((e) => e.attributes["data-name"] === "tile"))!;
-    const pattern = part.find((e) => e.tagName === "pattern")!;
-    expect(pattern.attributes["id"]).toBe(`${artifact.idPrefix}tiles`);
-    // The pattern sits in a group repeating the defs' paint, which resolves in the part.
-    expect(part.some((e) => e.attributes["fill"] === `url(#${artifact.idPrefix}paint)`)).toBe(true);
-    expect(part.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${artifact.idPrefix}paint`)).toBe(true);
+    const defs = `<defs fill="url(#paint)"><linearGradient id="paint"><stop offset="0" stop-color="lime"/></linearGradient>
+<pattern id="tiles" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="2" height="2"/></pattern></defs>`;
+    // The pattern is named by the drawing itself, or only by a group kept around it.
+    for (const tile of [
+      `<rect data-name="tile" width="10" height="10" fill="url(#tiles)"/>`,
+      `<g fill="url(#tiles)"><rect data-name="tile" width="10" height="10"/></g>`,
+    ]) {
+      const artifact = bake(art(LASHES_OPEN, LASH_CLOSED, defs + tile), recipe());
+      expect(codes(artifact)).toEqual([]);
+      const part = artifact.parts.map((p) => elements(p.svg)).find((list) => list.some((e) => e.attributes["data-name"] === "tile"))!;
+      const pattern = part.find((e) => e.tagName === "pattern")!;
+      expect(pattern.attributes["id"]).toBe(`${artifact.idPrefix}tiles`);
+      // The pattern sits in a group repeating the defs' paint, which resolves in the part.
+      expect(part.some((e) => e.attributes["fill"] === `url(#${artifact.idPrefix}paint)`)).toBe(true);
+      expect(part.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${artifact.idPrefix}paint`)).toBe(true);
+    }
   });
 
   test("art the author hid is no live drawing", () => {

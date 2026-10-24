@@ -432,9 +432,11 @@ function resourceClosure(
   doc: ArtDocument,
   elements: Iterable<Element>,
   missing?: Set<string>,
+  // Elements whose own references count, without their subtrees.
+  alone: Iterable<Element> = [],
 ): Set<string> {
   const needed = new Set<string>();
-  const queue = [...elements].flatMap(subtree);
+  const queue = [...[...elements].flatMap(subtree), ...alone];
   while (queue.length) {
     const element = queue.pop()!;
     for (const id of referencedIds(element)) {
@@ -489,7 +491,8 @@ export function namespaceTree(root: Element, prefix: string, known: ReadonlySet<
 }
 
 // A selector is the text before a `{`, after the last declaration (rules
-// nest inside at-rules and other rules); `#abc` in a declaration is a colour.
+// nest inside at-rules and other rules); `#abc` in a declaration or an
+// at-rule's condition is a colour.
 function rewriteStyleSheet(
   css: string,
   prefix: string,
@@ -517,7 +520,10 @@ function rewriteStyleSheet(
     if (masked[i] === "{") {
       const split = masked.lastIndexOf(";", i) + 1;
       const prelude = Math.max(start, split);
-      out += rewriteUrls(css.slice(start, prelude)) + rewriteIds(prelude, i) + "{";
+      // An at-rule's prelude is a condition (`@supports (fill: #abc)`), not
+      // a selector; selectors are the preludes of the rules inside it.
+      const atRule = masked.slice(prelude, i).trimStart().startsWith("@");
+      out += rewriteUrls(css.slice(start, prelude)) + (atRule ? css.slice(prelude, i) : rewriteIds(prelude, i)) + "{";
       start = i + 1;
     } else if (masked[i] === "}") {
       out += rewriteUrls(css.slice(start, i)) + "}";
@@ -570,20 +576,9 @@ export function partClosure(doc: ArtDocument, keep: Iterable<Element>, missing?:
   // Every part carries every style sheet, so whatever a sheet references
   // (`.skin { fill: url(#skin) }`) is part of every part's closure.
   const sheets = subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style");
-  const closure = resourceClosure(doc, [...kept, ...sheets], missing);
-  // Containers kept for their children still carry their own references.
-  for (const element of keptAncestry(doc, kept)) {
-    for (const id of referencedIds(element)) {
-      const target = doc.byId.get(id);
-      if (!target) {
-        missing?.add(id);
-        continue;
-      }
-      for (const nested of resourceClosure(doc, [target], missing)) closure.add(nested);
-      closure.add(id);
-    }
-  }
-  return closure;
+  // Containers kept for their children still carry their own references, and
+  // what those reference is closed over like any other resource.
+  return resourceClosure(doc, [...kept, ...sheets], missing, keptAncestry(doc, kept));
 }
 
 /**
