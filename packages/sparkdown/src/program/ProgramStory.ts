@@ -1492,6 +1492,13 @@ export class ProgramStory implements StoryEngine {
     this._currentBeat = null;
     this._state.DiscardLineEnd();
     this.passArguments(args);
+    // A flow entered at its start takes the host's arguments as a call gives
+    // them (`arrangeArgsFor`), nil for each parameter left out and an empty
+    // `...`, so its entry binds a value to every parameter (#664).
+    const entry = this.flowEntryTarget(target);
+    if (entry) {
+      arrangeArgsFor(this, entry, args?.length ?? 0);
+    }
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
     this.land(target.position, this._state.blockStack);
@@ -3592,6 +3599,35 @@ export class ProgramStory implements StoryEngine {
       this._state.PushEvaluationStack(new NullValue());
     }
     packTuple(this, 0);
+  }
+
+  /** What the entry of the scene or branch `target` starts binds, when the
+   *  target is the start of that flow and its entry binds parameters, or
+   *  null: the `SetVar`s its first chunk starts with, the first of which
+   *  binds the last parameter. */
+  protected flowEntryTarget(target: {
+    position: ProgramPosition;
+    symbol?: number;
+  }): FunctionTarget | null {
+    const { position, symbol } = target;
+    if (symbol === undefined) {
+      return null;
+    }
+    const kind = this.root.kindOf(symbol);
+    if (kind !== SymbolKind.Scene && kind !== SymbolKind.Branch) {
+      return null;
+    }
+    const chunk = position.sequence.arrays.chunks[0];
+    if (
+      !chunk ||
+      position.entry !== 0 ||
+      position.offset !== 0 ||
+      this.root.flow(symbol) !== position.sequence
+    ) {
+      return null;
+    }
+    const bound = entryBindings(chunk, 0);
+    return bound.bindings > 0 ? bound : null;
   }
 
   /** A jump to a label counts too the labels written right before it with
