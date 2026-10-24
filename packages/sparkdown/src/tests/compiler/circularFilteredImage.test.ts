@@ -64,6 +64,38 @@ end
     expect(diagnostics[0]!.range.start.line).toBe(4);
   });
 
+  it("reports at the look, not at a later define of another type with its name", () => {
+    const program = compile(`define selfie as filtered_image with
+  image = filtered_image.selfie
+end
+define selfie as character with
+  name = "Selfie"
+end
+`);
+    expect(program.context?.["character"]?.["selfie"]).toBeDefined();
+    const diagnostics = circularDiagnostics(program);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]!.range.start.line).toBe(0);
+  });
+
+  it("puts a look's attribute warning on the look, not on a define of another type with its name", () => {
+    const program = compile(`define mia_look as filtered_image with
+  image = mia
+  attributes = { "nowhere" }
+end
+define mia_look as character with
+  name = "Mia"
+end
+`);
+    const lines = (program.diagnostics?.[URI] ?? [])
+      .filter((diagnostic) =>
+        (typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value).includes('no attribute "nowhere"'),
+      )
+      .map((diagnostic) => diagnostic.range.start.line);
+    expect(lines).toContain(0);
+    expect(lines).not.toContain(4);
+  });
+
   it("says nothing about a chain that reaches an image", () => {
     const program = compile(`define happy_mia as filtered_image with
   image = mia

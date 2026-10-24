@@ -1,5 +1,7 @@
 /// <reference path="../../sd-raw.d.ts" />
 import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
+import type { SyntaxNode } from "@lezer/common";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { resolveImageAttributes } from "../utils/filterImage";
 import {
   collectMorphIssues,
@@ -5855,14 +5857,24 @@ export class SparkdownCompiler {
           coveredTo = image.to;
         }
       }
+      const tree = this.documents.tree(uri);
       const declarations = annotations.declarations.iter();
       while (declarations.value) {
         if (declarations.value.type === "define") {
-          const name = doc.read(declarations.from, declarations.to);
-          const look = getContextEntry(program.context, "filtered_image", name);
-          if (look) lookDeclarations.set(look, { uri, order, from: declarations.from, to: declarations.to });
-          const struct = look ?? getContextEntry(program.context, "layered_image", name) ?? getContextEntry(program.context, "image", name);
-          if (struct) emit(struct, declarations.from, declarations.to);
+          // A define's context type is the name after `as`, so a character
+          // or any other define sharing an image's name is not that image.
+          let header: SyntaxNode | null = tree?.resolveInner(declarations.from, 1) ?? null;
+          while (header && header.name !== "LuauDefineNameAndInheritance") header = header.parent;
+          const typeNode = header ? getDescendent("LuauDefineParentName", header) : undefined;
+          const type = typeNode ? doc.read(typeNode.from, typeNode.to).trim() : "";
+          if (["image", "filtered_image", "layered_image"].includes(type)) {
+            const name = doc.read(declarations.from, declarations.to);
+            const struct = getContextEntry(program.context, type, name);
+            if (struct && type === "filtered_image") {
+              lookDeclarations.set(struct, { uri, order, from: declarations.from, to: declarations.to });
+            }
+            if (struct) emit(struct, declarations.from, declarations.to);
+          }
         }
         declarations.next();
       }
