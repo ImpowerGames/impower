@@ -118,6 +118,8 @@ export class MessageRouter {
   answer(message: RequestMessage, work: Promise<Answer>): void {
     if (this._disconnected) {
       this.answerError(message, DISCONNECTED, "the page disconnected");
+      // Its outcome no longer reaches the game.
+      void work.catch(() => {});
       return;
     }
     this._pending.set(message.id, message.method);
