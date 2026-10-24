@@ -2,9 +2,10 @@
 // coming up (#317): the program's first preview is building the application
 // that shows the worker's game, and each scrub asks for a preview of its own
 // before that build is done. All three wait for the one build, the older two
-// give way to the newest, and the screen shows one `main` layout holding the
-// last scrub's beat.
+// give way to the newest without displaying anything, and the screen shows
+// one `main` layout holding the last scrub's beat.
 import { describe, expect, it } from "vitest";
+import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { createPlayerHarness, holdFirstInit, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `-> start
@@ -49,6 +50,24 @@ describe("scrubbing while the first preview session is still coming up (#317)", 
       // The first session stays coming up while the scrubs arrive.
       const { apps, release } = holdFirstInit(h);
 
+      // Every line the page asks the worker's game to display.
+      const displayed: number[] = [];
+      const request = h.link.request.bind(h.link);
+      (h.link as any).request = (type: any, params: any) => {
+        if (type.method === DisplayPreviewMessage.type.method) {
+          displayed.push(params.line);
+        }
+        return request(type, params);
+      };
+
+      // Every dialogue the page ever shows.
+      const painted = new Set<string | null>();
+      const Observer = (h.overlay.ownerDocument.defaultView as any).MutationObserver;
+      const observer = new Observer(() => {
+        for (const text of dialogue(h.overlay)) painted.add(text);
+      });
+      observer.observe(h.overlay, { subtree: true, childList: true, attributes: true });
+
       // The first compile lands and starts the first session.
       const compiled = h.compile();
       await settle(40);
@@ -63,7 +82,14 @@ describe("scrubbing while the first preview session is still coming up (#317)", 
       release();
       await Promise.all([compiled, second.previewed, third.previewed]);
       await settle(60);
+      observer.disconnect();
 
+      // The older previews gave way before they displayed anything: the
+      // worker was asked for the last scrub's line alone, and no earlier
+      // beat ever reached the screen.
+      expect(displayed).toEqual([THIRD]);
+      expect([...painted].filter((text) => text !== "The third beat.")).toEqual([]);
+      expect(painted.has("The third beat.")).toBe(true);
       expect(apps.length).toBe(1);
       expect(apps[0].destroys).toBe(0);
       expect(h.controller._app).toBe(apps[0]);
