@@ -60,6 +60,13 @@ describe("glue mark hover", () => {
     expect(await hoverAt("{x} .. more", 4)).toBeNull();
     expect(await hoverAt("Some {x} .. more", 9)).toBeNull();
     expect(await hoverAt("Wait...", 4)).toBeNull();
+    expect(await hoverAt("Hello. .", 5)).toBeNull();
+  });
+
+  it("gives no hover to the marks of an inline alternator", async () => {
+    const text = "Hello .. queue|a|b .. there.";
+    expect(await hoverAt(text, 6)).toBeNull();
+    expect(await hoverAt(text, 19)).toBeNull();
   });
 
   it("gives no hover to a `..` that ends a line after a break", async () => {
