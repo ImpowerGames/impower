@@ -307,6 +307,24 @@ export const getCssZ = (value: string): string => {
   return `var(--theme-z-index-${value})`;
 };
 
+// A bare number inside a CSS function (`calc(1px * 2)`) is an operand whose
+// meaning the function defines, so only numbers outside every parenthesis take
+// the default unit.
+const withUnitOutsideFunctions = (parts: string[], unit: string): string[] => {
+  let depth = 0;
+  return parts.map((part) => {
+    const insideFunction = depth > 0;
+    for (const char of part) {
+      if (char === "(") {
+        depth += 1;
+      } else if (char === ")") {
+        depth -= 1;
+      }
+    }
+    return !insideFunction && isValidNumber(part) ? `${part}${unit}` : part;
+  });
+};
+
 export const getCssValueWithUnit = (
   value: string | number,
   defaultUnit: string,
@@ -315,15 +333,12 @@ export const getCssValueWithUnit = (
     return `${value}${defaultUnit}`;
   }
   if (value.includes(",")) {
-    return value
-      .split(",")
-      .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))
-      .join(",");
+    return withUnitOutsideFunctions(value.split(","), defaultUnit).join(",");
   } else {
-    return value
-      .split(WHITESPACE_REGEX)
-      .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))
-      .join(" ");
+    return withUnitOutsideFunctions(
+      value.split(WHITESPACE_REGEX),
+      defaultUnit,
+    ).join(" ");
   }
 };
 

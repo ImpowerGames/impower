@@ -1,0 +1,6 @@
+scene Opening
+  [[play intro]]
+  [[play intro loop]]
+  [[play intro with fade]]
+  The story goes on.
+end

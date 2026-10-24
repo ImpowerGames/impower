@@ -16,6 +16,7 @@ import type {
   ProgramAddress,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
+import { createImageCompositeOptions } from "./utils/providers/imagePreviewOptions";
 import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
 import { getCodeActions } from "./utils/providers/getCodeActions";
@@ -58,14 +59,9 @@ try {
 
   const workspace = new SparkdownLanguageServerWorkspace(connection);
 
-  // Asset previews composite a layered image by reading its layers. impower-dev
-  // serves assets over http so the worker just fetches them; VS Code's srcs are
-  // workspace uris a worker can't fetch, so the bytes come back over the
-  // extension bridge instead. Hosts that implement neither fall back to the
-  // single-layer preview rather than failing.
-  const imageCompositeOptions = {
-    readFileBytes: (uri: string) => workspace.getFileBytes(uri),
-  };
+  // Hosts that implement neither image route fall back to the single-layer
+  // preview rather than failing.
+  const imageCompositeOptions = createImageCompositeOptions(workspace);
 
   const capabilities: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -247,12 +243,14 @@ try {
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
     const program = workspace.program(uri);
     const config = workspace.compilerConfig;
     const result = profiled("lsp: onHover", uri, () =>
       getHover(
         document,
+        tree,
         annotations,
         program,
         config,

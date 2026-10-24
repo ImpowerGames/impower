@@ -1,3 +1,4 @@
+import type { MorphProgramChannel } from "../../morph/types";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { type File } from "./File";
 import type { ProgramChangeSummary } from "./ProgramChangeSummary";
@@ -77,6 +78,12 @@ export interface SparkProgram {
   // then name. Lets the Game runtime read assets without the LSP-only
   // program.context. Derived from `context` after asset population.
   assets?: { [type: string]: { [name: string]: any } };
+  // Morph bake inputs (src/morph/README.md): each morph's recipe, and the
+  // compact artifact references of the image variants it plays on, keyed by
+  // the variant's context name. A host resolves a reference to its baked
+  // frames; the frames never travel in the program. Absent when the scripts
+  // declare no morph.
+  morphs?: MorphProgramChannel;
   // NOTE: there is intentionally no `defines` channel. Define-typed entries
   // (animation/character/ease/config/…) are sourced by the Game from the live
   // runtime `__def` tables (buildDefinesContext), which resolve authored→builtin

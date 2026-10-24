@@ -53,6 +53,15 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
+const MOVIE_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
+// The verbs offered inside `[[ ]]`: the image verbs and the cutscene verb.
+const BRACKET_CONTROL_KEYWORDS = [
+  ...IMAGE_CONTROL_KEYWORDS,
+  ...MOVIE_CONTROL_KEYWORDS,
+];
+// The clauses a `[[play NAME]]` cutscene takes.
+const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
 
 const IMAGE_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
@@ -98,6 +107,7 @@ const MOVIE_CLAUSE_KEYWORDS = ["loop", "once", "mute"];
 // The clauses whose next word is their value.
 const VALUE_CLAUSE_KEYWORDS = ["after", "over", "with", "to", "ease"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
+const VIDEO_TYPES = ["video"];
 const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
 
@@ -1707,10 +1717,12 @@ export const getCompletions = (
           leftStack,
         ),
       );
-    // `animate` is mostly followed by `with`, so it comes first there.
+    // A cutscene takes its own clauses; `animate` is mostly followed by
+    // `with`, so it comes first there.
     const addImageClauseCompletions = (control: string) => {
-      const clauses =
-        control === "animate"
+      const clauses = MOVIE_CONTROL_KEYWORDS.includes(control)
+        ? CUTSCENE_CLAUSE_KEYWORDS
+        : control === "animate"
           ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
           : IMAGE_CLAUSE_KEYWORDS;
       addKeywordCompletions(
@@ -1728,7 +1740,7 @@ export const getCompletions = (
     );
     if (beforeImageNode) {
       if (isCursorAfterNodeText(beforeImageNode)) {
-        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
         addStructReferenceCompletions(
           completions,
           program,
@@ -1740,7 +1752,7 @@ export const getCompletions = (
     }
     if (leftStack[0]?.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(leftStack[0])) {
-        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
       }
       return buildCompletions();
     }
@@ -1756,6 +1768,11 @@ export const getCompletions = (
       );
       const control = getNodeText(controlNode);
       if (isCursorAfterNodeText(leftStack[0])) {
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          // A cutscene's target is the video it plays.
+          addStructReferenceCompletions(completions, program, VIDEO_TYPES);
+          return buildCompletions();
+        }
         addScreenElementReferenceCompletions(
           completions,
           program,
@@ -1774,7 +1791,8 @@ export const getCompletions = (
       if (isCursorAfterNodeText(leftStack[0])) {
         const control = imageControl();
         addImageClauseCompletions(control);
-        if (control !== "hide") {
+        // A cutscene plays one video: only its clauses follow the name.
+        if (control !== "hide" && !MOVIE_CONTROL_KEYWORDS.includes(control)) {
           addStructReferenceCompletions(
             completions,
             program,
@@ -1790,8 +1808,15 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFileName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
+        const control = imageControl();
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          // A cutscene takes no second name, so a word typed after its
+          // video is the start of a clause.
+          addImageClauseCompletions(control);
+          return buildCompletions();
+        }
         if (isNameAfterName(leftStack[0]?.node)) {
-          addImageClauseCompletions(imageControl());
+          addImageClauseCompletions(control);
         }
         addStructReferenceCompletions(
           completions,
@@ -1825,7 +1850,7 @@ export const getCompletions = (
         const types =
           control === "animate"
             ? ["animation"]
-            : control === "show"
+            : control === "show" || MOVIE_CONTROL_KEYWORDS.includes(control)
               ? ["transition"]
               : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);

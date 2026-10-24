@@ -843,6 +843,16 @@ describe("a composed beat's dedupe after a structural change, round 3 of PR #186
   });
 });
 
+/** How the page answered a request: its result, its error, or still pending. */
+const outcome = (answered: Promise<unknown>) =>
+  Promise.race([
+    answered.then(
+      (result) => ({ result }),
+      (error) => ({ error }),
+    ),
+    flushMicrotasks(20).then(() => "pending" as const),
+  ]);
+
 describe("the retirement path on the page, round 3 of PR #1865", () => {
   test("a layout going once it has retired leaves a beat waiting for its commit waiting", async () => {
     // Class 2: the engine lets a retired layout go in a batch of its own.
@@ -874,15 +884,6 @@ describe("the retirement path on the page, round 3 of PR #1865", () => {
   });
 
   /** How the engine's wait for `answered` has ended so far. */
-  const outcome = (answered: Promise<unknown>) =>
-    Promise.race([
-      answered.then(
-        (result) => ({ result }),
-        (error) => ({ error }),
-      ),
-      flushMicrotasks(20).then(() => "pending" as const),
-    ]);
-
   const animation = (h: { overlay: HTMLElement }) =>
     AnimateElementsMessage.type.request({
       effects: [{ element: (h.overlay.querySelector(".dialogue") as any).__sdId, animations: [] }],
@@ -1093,6 +1094,35 @@ describe("round 5 of PR #1865", () => {
       expect(dialogue()).toBe("Do you understand?");
       expect(time.changedAt()).toBeUndefined();
       expect((h.overlay as any).__sdBeat).toBeUndefined();
+    } finally {
+      time.restore();
+    }
+  });
+
+  test("an animation a beat waiting for its commit carries is answered with the disconnect error when STOP calls the beat off (#1219)", async () => {
+    // STOP tears the page down as Application.tearDown does: the router
+    // disconnects, then the manager is disposed.
+    const { h } = await showing();
+    const exit = AnimateElementsMessage.type.request({
+      effects: [{ element: (h.overlay.querySelector(".dialogue") as any).__sdId, animations: [] }],
+    });
+    const answered = h.game.connection.expect(exit);
+    const time = controlTime(h);
+    try {
+      h.ui.onReceiveNotification(
+        beat({
+          text: [write("dialogue", [{ text: "N", after: 0.1 }], { instant: false, time: 1_100 })],
+          image: [exit],
+          time: 1_100,
+        }),
+      );
+      await time.at(1_010);
+      expect((h.overlay as any).__sdBeat).toBeDefined();
+      h.router.disconnect();
+      h.ui.onDispose();
+
+      await time.at(1_300);
+      expect(await outcome(answered)).toMatchObject({ error: { code: DISCONNECTED } });
     } finally {
       time.restore();
     }

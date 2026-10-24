@@ -5,6 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { CUSTOM_PROPERTY_ALIASES } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
 import { CSS_UTILITIES } from "../../../../sparkle-style-transformer/src/constants/CSS_UTILITIES";
+import { STYLE_TRANSFORMERS } from "../../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 async function css(src: string): Promise<string> {
@@ -484,5 +485,60 @@ end
         `\`#${authored}\` must emit \`${cssProp}\``,
       ).toContain(cssProp);
     }
+  });
+
+  test("clip-path, fill, stroke and stroke-width emit the authored value", async () => {
+    const out = await css(`style shaped with
+  clip-path = circle(50%)
+  fill = sky_60
+  stroke = #ff0000
+  stroke-width = 2
+end
+layout main with
+  box.shaped
+end
+`);
+    const block = out.slice(out.indexOf(".shaped"));
+    expect(block).toContain("clip-path: circle(50%);");
+    expect(block).toContain("fill: var(--theme-color-sky_60);");
+    expect(block).toContain("stroke: #ff0000;");
+    expect(block).toContain("stroke-width: 2px;");
+  });
+
+  // A size prop gives a bare number its default unit, but a number inside a
+  // CSS function is an operand: `calc(1px * 2px * 3)` is a squared length,
+  // which the browser drops.
+  test("numbers inside a CSS function in a size prop keep their unit", async () => {
+    const out = await css(`style shaped with
+  stroke-width = calc(1px * 2 * 3)
+  margin = calc(1px * 2) 4
+end
+layout main with
+  box.shaped
+end
+`);
+    const block = out.slice(out.indexOf(".shaped"));
+    expect(block).toContain("stroke-width: calc(1px * 2 * 3);");
+    expect(block).toContain("margin: calc(1px * 2) 4px;");
+  });
+
+  // An empty value in a CSS_UTILITIES selector is a placeholder for the
+  // transformer named after the utility. A utility whose transformer is missing
+  // passes the authored value through unchanged, which skips the resolution
+  // its transformer would apply (theme tokens, units), so every placeholder
+  // must have one.
+  test("every empty-value utility has a STYLE_TRANSFORMER", () => {
+    const missing: string[] = [];
+    for (const [name, selectors] of Object.entries(
+      CSS_UTILITIES as Record<string, Record<string, Record<string, string>>>,
+    )) {
+      const hasPlaceholder = Object.values(selectors).some((declarations) =>
+        Object.values(declarations).some((v) => v === ""),
+      );
+      if (hasPlaceholder && !(name in STYLE_TRANSFORMERS)) {
+        missing.push(name);
+      }
+    }
+    expect(missing).toEqual([]);
   });
 });

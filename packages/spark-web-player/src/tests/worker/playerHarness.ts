@@ -130,6 +130,49 @@ export const settle = async (tasks = 20) => {
   }
 };
 
+/** Hold the first application the controller builds inside its `init`,
+ *  and record every application it builds. */
+export const holdFirstInit = (h: any) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const apps: any[] = [];
+  const createApp = h.controller.createApp.bind(h.controller);
+  h.controller.createApp = (...args: unknown[]) => {
+    const app = createApp(...args);
+    if (apps.push(app) === 1) {
+      const init = app.init.bind(app);
+      app.init = async () => {
+        await held;
+        await init();
+      };
+    }
+    return app;
+  };
+  return { apps, release };
+};
+
+/** The text a run wrote to the screen, in order, from what its game sent the
+ *  page (`toRouter`): a line is written a character at a time, and a played
+ *  beat's writes reach the page inside its composed beat (#1820). */
+export const writtenText = (sent: any[]): string => {
+  const texts: string[] = [];
+  const collect = (value: any) => {
+    if (value && typeof value === "object") {
+      if (typeof value.text === "string") texts.push(value.text);
+      for (const item of Object.values(value)) collect(item);
+    }
+  };
+  for (const m of sent) {
+    if (m.method === "ui/write-text") collect(m.params);
+    if (m.method === "ui/beat") {
+      for (const op of m.params?.messages ?? []) {
+        if (op.method === "ui/write-text") collect(op.params);
+      }
+    }
+  }
+  return texts.join("");
+};
+
 export interface PlayerHarnessOptions {
   files: { uri: string; text: string }[];
   startFrom: { file: string; line: number };

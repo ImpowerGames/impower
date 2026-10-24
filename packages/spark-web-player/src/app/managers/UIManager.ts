@@ -478,12 +478,21 @@ export default class UIManager extends Manager {
     this._elements.clear();
     // A played beat still waiting for its commit belonged to the run being
     // torn down (STOP, or the rebuild a new run makes): it never goes up, and
-    // the screen stays as it is until the next display (#1820).
+    // the screen stays as it is until the next display (#1820). The engine
+    // waits on each animation it carries, so each is answered with an error.
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const pending = overlay?.__sdBeat;
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      for (const op of pending.ops) {
+        if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
+          this.app.answer(
+            op as RequestMessage,
+            Promise.reject(new Error("the beat was called off")),
+          );
+        }
+      }
     }
   }
 
@@ -1534,9 +1543,13 @@ export default class UIManager extends Manager {
    * Resolve a `target` selector (a className plus optional `#index`) to the
    * matching structural element(s) in the live DOM.
    *
-   * Mirrors the engine's `UIModule.findElements`: it recursively collects
-   * every element whose className includes the requested name, then (when an
-   * `#index` instance suffix is present) narrows to that single occurrence.
+   * Mirrors the engine's `UIModule.findElements`: it takes the elements whose
+   * className is the requested name, or, when there are none, every element
+   * whose className includes all of its classes, then (when an `#index`
+   * instance suffix is present) narrows to that single occurrence. The page
+   * cannot tell a layout's declared target from an author's element with the
+   * same classes, so a write the engine resolved by class names its elements
+   * and never reaches this.
    * The engine owns the `Element` tree and only forwards the original `target`
    * string, so the consumer re-resolves it here against the real DOM. (D13 may
    * later replace this with a consumer-side id→element map.)
@@ -1556,9 +1569,11 @@ export default class UIManager extends Manager {
     if (!selector) {
       return [];
     }
-    const matches = Array.from(
+    const classed = Array.from(
       overlay.querySelectorAll(selector),
     ) as HTMLElement[];
+    const named = classed.filter((el) => el.className === name);
+    const matches = named.length > 0 ? named : classed;
     if (instance) {
       const instanceIndex = Number(instance);
       if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {

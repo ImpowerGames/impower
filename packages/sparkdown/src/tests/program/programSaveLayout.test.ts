@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
-import { normalizeSource } from "../../program/BinaryProgramWriter";
+import { normalizeSource } from "../../compiler/utils/fingerprintSource";
 import { fingerprintOf } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, programSession } from "./programHarness";

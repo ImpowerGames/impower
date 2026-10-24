@@ -1,10 +1,16 @@
 /// <reference path="../../sd-raw.d.ts" />
 import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
+import type { SyntaxNode } from "@lezer/common";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { resolveImageAttributes } from "../utils/filterImage";
+import { fingerprintSource } from "../utils/fingerprintSource";
 import {
+  collectEffectiveMorphs,
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
+import { buildMorphChannel } from "../../morph/channel";
+import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
   duplicateGlobalMemberMessage,
@@ -734,6 +740,10 @@ export class SparkdownCompiler {
     string,
     { source: object; value: { [name: string]: any } }
   >;
+  // The last morph channel and what it was built from: the context revision
+  // and every effective morph. Binding walks every image variant, so an edit
+  // that touches neither keeps the channel it already has.
+  protected _morphChannelCache?: { signature: string; channel: MorphProgramChannel };
   // The finished implicit definitions of each `type/name` this compiler has
   // derived, including the `$default` merge, dropped whenever the base they
   // were merged against is reassembled. An attribute directive implies the
@@ -2167,6 +2177,7 @@ export class SparkdownCompiler {
     }
     this.buildContext(state, program);
     this.populateEngineChannels(program);
+    this.populateMorphChannel(program);
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
       this.validateReferences(program);
@@ -4073,6 +4084,21 @@ export class SparkdownCompiler {
     const textOf = (a: number, b: number) =>
       this.documents.get(uri)?.getText().slice(a, b) ?? "";
     const sourceOf = () => (source ??= textOf(place.from, endOf()));
+    // A fingerprint reads the script's parse, offsets relative to the
+    // statement's start (`fingerprintSource`).
+    const fingerprintOf = (
+      a: number,
+      b: number,
+      cuts: readonly { from: number; to: number }[] = [],
+    ) =>
+      fingerprintSource(
+        this.documents.tree(uri),
+        this.documents.get(uri)?.getText() ?? "",
+        place.from + a,
+        place.from + b,
+        cuts.map((cut) => ({ from: place.from + cut.from, to: place.from + cut.to })),
+      );
+    let fingerprint: string | undefined;
     const columnOf = () =>
       this.documents.get(uri)?.positionAt(place.from).character ?? 0;
     const first = block.content?.[0];
@@ -4080,6 +4106,8 @@ export class SparkdownCompiler {
       uri,
       line,
       source: sourceOf,
+      fingerprint: () => (fingerprint ??= fingerprintOf(0, endOf() - place.from)),
+      fingerprintOf,
       syntax: () =>
         (syntax ??= `${block.node ?? ""}\u0000${columnOf()}\u0000${sourceOf()}`),
       reads: JSON.stringify([
@@ -5791,6 +5819,9 @@ export class SparkdownCompiler {
     };
     const artworkEmitted = new Set<string>();
     const assetRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    // Where each named look is declared, in script order, so a circular chain
+    // can be reported at the declaration that closes it.
+    const lookDeclarations = new Map<any, { uri: string; order: number; from: number; to: number }>();
     for (const image of Object.values({ ...program.context["image"], ...program.context["layered_image"] })) {
       const resolved = resolveImageAttributes(program.context, image);
       for (const diagnostic of resolved.vocabulary?.diagnostics ?? []) {
@@ -5807,7 +5838,7 @@ export class SparkdownCompiler {
         });
       }
     }
-    for (const uri of Object.keys(program.scripts)) {
+    for (const [order, uri] of Object.keys(program.scripts).entries()) {
       const doc = this.documents.get(uri);
       if (!doc) continue;
       const annotations = this.documents.annotations(uri);
@@ -5852,28 +5883,76 @@ export class SparkdownCompiler {
           coveredTo = image.to;
         }
       }
+      const tree = this.documents.tree(uri);
       const declarations = annotations.declarations.iter();
       while (declarations.value) {
         if (declarations.value.type === "define") {
-          const name = doc.read(declarations.from, declarations.to);
-          const struct = getContextEntry(program.context, "filtered_image", name) ?? getContextEntry(program.context, "layered_image", name) ?? getContextEntry(program.context, "image", name);
-          if (struct) emit(struct, declarations.from, declarations.to);
+          // A define's context type is the name after `as`, so a character
+          // or any other define sharing an image's name is not that image.
+          let header: SyntaxNode | null = tree?.resolveInner(declarations.from, 1) ?? null;
+          while (header && header.name !== "LuauDefineNameAndInheritance") header = header.parent;
+          const typeNode = header ? getDescendent("LuauDefineParentName", header) : undefined;
+          const type = typeNode ? doc.read(typeNode.from, typeNode.to).trim() : "";
+          if (["image", "filtered_image", "layered_image"].includes(type)) {
+            const name = doc.read(declarations.from, declarations.to);
+            const struct = getContextEntry(program.context, type, name);
+            if (struct && type === "filtered_image") {
+              lookDeclarations.set(struct, { uri, order, from: declarations.from, to: declarations.to });
+            }
+            if (struct) emit(struct, declarations.from, declarations.to);
+          }
         }
         declarations.next();
       }
     }
+    // Every look in a loop reaches it, as does every look leading into it, so
+    // each loop is reported once, at its last declared look: the declaration
+    // whose `image` turns the chain back on itself.
+    const reportedCycles = new Set<any>();
+    for (const look of Object.values(program.context["filtered_image"] ?? {})) {
+      const cycle = resolveImageAttributes(program.context, look, { visibility: false }).cycle;
+      if (!cycle?.length) continue;
+      let closing: any;
+      for (const member of cycle) {
+        const at = lookDeclarations.get(member);
+        const best = closing ? lookDeclarations.get(closing)! : undefined;
+        if (at && (!best || at.order > best.order || (at.order === best.order && at.from > best.from))) {
+          closing = member;
+        }
+      }
+      if (!closing || reportedCycles.has(closing)) continue;
+      reportedCycles.add(closing);
+      const at = lookDeclarations.get(closing)!;
+      const doc = this.documents.get(at.uri);
+      if (!doc) continue;
+      const start = cycle.indexOf(closing);
+      const loop = [...cycle.slice(start), ...cycle.slice(0, start), closing];
+      ((program.diagnostics ??= {})[at.uri] ??= []).push({
+        range: doc.range(at.from, at.to),
+        severity: DiagnosticSeverity.Error,
+        message: {
+          kind: "markdown",
+          value: "Circular filtered_image chain: " + loop.map((member) => "`" + member.$name + "`").join(" → ") + ". A chain must end at an image or a layered_image.",
+        },
+        source: LANGUAGE_NAME,
+      });
+    }
   }
 
-  /** Morph declarations are checked after inheritance, against the artwork. */
-  validateMorphs(program: SparkProgram) {
-    if (!program.context) return;
-    const uri = program.uri;
-    profile("start", this._profilerId, "validateMorphs", uri);
+  /**
+   * The program's scripts that can declare a morph, in the form the morph
+   * readers take. A morph block starts with the word `morph`, so a script
+   * whose text never contains it is skipped before its tree is walked: on a
+   * project the size of Raffles and Bunny the walk costs tens of
+   * milliseconds per compile, and almost every script has no morph.
+   */
+  protected morphScripts(program: SparkProgram): (MorphScript & { uri: string })[] {
     const scripts: (MorphScript & { uri: string })[] = [];
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
+      if (!doc || !/\bmorph\b/.test(doc.read(0, doc.length))) continue;
       const tree = this.documents.tree(scriptUri);
-      if (!doc || !tree) continue;
+      if (!tree) continue;
       scripts.push({
         uri: scriptUri,
         read: (from, to) => doc.read(from, to),
@@ -5881,6 +5960,47 @@ export class SparkdownCompiler {
         tree,
       });
     }
+    return scripts;
+  }
+
+  /**
+   * The morph channel: each morph's recipe and the compact reference of every
+   * image variant it plays on. Built on every compile, validated or not,
+   * because hosts that skip validation still play morphs. A compile whose
+   * context and recipes are those of the one before reuses its channel.
+   */
+  populateMorphChannel(program: SparkProgram) {
+    if (!program.context) return;
+    const uri = program.uri;
+    profile("start", this._profilerId, "populateMorphChannel", uri);
+    const effective = collectEffectiveMorphs(
+      this.morphScripts(program),
+      program.context,
+      (base, override) => this.inheritDefaults(base, override),
+    );
+    if (effective.size === 0) {
+      delete program.morphs;
+    } else {
+      const signature = JSON.stringify([program.contextRevision, ...effective]);
+      const cached = this._morphChannelCache;
+      if (cached && cached.signature === signature) {
+        program.morphs = cached.channel;
+      } else {
+        const channel = buildMorphChannel(program.context, effective);
+        if (channel) program.morphs = channel;
+        else delete program.morphs;
+        this._morphChannelCache = channel ? { signature, channel } : undefined;
+      }
+    }
+    profile("end", this._profilerId, "populateMorphChannel", uri);
+  }
+
+  /** Morph declarations are checked after inheritance, against the artwork. */
+  validateMorphs(program: SparkProgram) {
+    if (!program.context) return;
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateMorphs", uri);
+    const scripts = this.morphScripts(program);
     const issuesByUri = collectMorphIssues(
       scripts,
       program.context,

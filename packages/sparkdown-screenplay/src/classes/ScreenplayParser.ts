@@ -33,9 +33,14 @@ export default class ScreenplayParser {
     let position: "l" | "r" | undefined = undefined;
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
+    // Whether the next text chunk begins after a `..` mark, at the start of
+    // its line or after a `>` break.
+    let leading = false;
     // A text chunk's words, without the `..` glue marks inside it (with the
-    // spaces written before each): a mark joins lines in the player and is
-    // not a word of the script.
+    // spaces written before each) and without the spaces after a mark it
+    // begins after. A mark joins lines in the player, which decides each join
+    // as the story runs; the export prints every branch of the script, so it
+    // cannot know which line a mark joins, and prints each line on its own.
     const readWords = (node: SyntaxNode): string => {
       let text = "";
       let pos = node.from;
@@ -50,7 +55,12 @@ export default class ScreenplayParser {
         }
       };
       visit(node);
-      return text + read(pos, node.to);
+      text += read(pos, node.to);
+      if (leading) {
+        leading = false;
+        return text.trimStart();
+      }
+      return text;
     };
 
     const addSeparator = () => {
@@ -114,6 +124,10 @@ export default class ScreenplayParser {
             addSeparator();
           }
           lineStart = to;
+          leading = false;
+        }
+        if (name === "LeadingGlue") {
+          leading = true;
         }
 
         // FrontMatter
