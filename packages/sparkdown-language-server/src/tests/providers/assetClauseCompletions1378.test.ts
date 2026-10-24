@@ -24,6 +24,10 @@ describe("clauses already written are not offered again (I-1378)", () => {
     ["[[show backdrop bunny_idle with fade lo|]]", "with", "mute"],
     ["((play music theme loop |))", "loop", "once"],
     ["((play music theme loop lo|))", "loop", "mute"],
+    // A space typed right before a clause inserts before it.
+    ["[[show foreground trailer |loop]]", "loop", "once"],
+    ["[[show backdrop bunny_idle with fade |loop]]", "loop", "mute"],
+    ["((play music theme |loop))", "loop", "once"],
     // The cases of I-1597: the cursor at the end, and between clauses.
     ["[[show portrait bunny over 1s |]]", "over", "after"],
     ["[[show portrait bunny over 1s | with shake]]", "over", "after"],

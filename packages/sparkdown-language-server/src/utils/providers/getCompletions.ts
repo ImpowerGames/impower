@@ -1359,8 +1359,10 @@ export const getCompletions = (
     node ? read(node.from, node.to) : "";
 
   // The clause keywords written in the `[[…]]` or `((…))` command at the
-  // cursor, except one the cursor is in. They can sit on either side of the
-  // cursor, and the space before the closing marks is not their sibling.
+  // cursor, except one the cursor is in or at the end of, which is the word
+  // being typed. A cursor at a keyword's start inserts before it. They can sit
+  // on either side of the cursor, and the space before the closing marks is
+  // not their sibling.
   const writtenClauses = (commandName: SparkdownNodeName) => {
     const command = leftStack.find((n) => n.type.name === commandName);
     const written: string[] = [];
@@ -1371,7 +1373,7 @@ export const getCompletions = (
         enter: (node) => {
           if (
             node.name === "AssetCommandClauseKeyword" &&
-            (documentCursorOffset < node.from || documentCursorOffset > node.to)
+            (documentCursorOffset <= node.from || documentCursorOffset > node.to)
           ) {
             written.push(read(node.from, node.to));
           }
