@@ -170,7 +170,7 @@ function composites(element: Element, rules: StyleRules): boolean {
   for (const [name, value] of Object.entries(element.attributes)) {
     if (typeof value === "string" && compositingValue(name.toLowerCase(), value)) return true;
   }
-  if (styleDeclarations(element).some(([name, value]) => compositingValue(name, value))) return true;
+  if (styleDeclarations(element).some(([name, , clean]) => compositingValue(name, clean))) return true;
   return matchesStyleRule(rules, element);
 }
 

@@ -3,6 +3,7 @@ import { filterSVGAttributes } from "../../attributes";
 import { bakeMorphArtifact, MORPH_BAKE_SAMPLES } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
 import { renderMorphFrame } from "../../morph/render";
+import { styleDeclarations } from "../../morph/svgDocument";
 import type { MorphArtifact, MorphRecipe } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { blink, CLOSED, EYEBALL, layeredPortrait, LOWER_OPEN, PUPIL, UPPER_OPEN } from "./fixtures";
@@ -110,6 +111,22 @@ describe("morph bake: layered art", () => {
     const sheet = elements(artifact.parts[artifact.parts.length - 1]!.svg).find((e) => e.tagName === "style")!.children.join("");
     expect(sheet).toContain(`@media all { #${p}hair-tint { fill: url(#${p}white); stroke: #abc } }`);
     expect(sheet).toContain(`.x { stroke: #def; #${p}hair-tint { opacity: 1 } }`);
+  });
+
+  test("a colour that spells a known id stays a colour, whatever a comment or string beside it holds", () => {
+    const styled = layeredPortrait()
+      .replace("<defs>", `<style>.hair { fill: #abc /* { */; } #abc { stroke: #abc; --note: "{ #abc" }</style><defs>`)
+      .replace('<path data-name="hair" d="', '<path id="abc" class="hair" data-name="hair" d="');
+    const artifact = bake(styled, layeredRecipe);
+    const p = artifact.idPrefix;
+    const sheet = elements(artifact.parts[artifact.parts.length - 1]!.svg).find((e) => e.tagName === "style")!.children.join("");
+    expect(sheet).toContain(`.hair { fill: #abc /* { */; } #${p}abc { stroke: #abc; --note: "{ #abc" }`);
+  });
+
+  test("inline declarations split only where a semicolon ends one", () => {
+    const element = { tagName: "path", attributes: { style: 'fill:url(data:image/svg+xml;utf8,x);--note:"a;b" /* c;d */;opacity:.5' }, children: [] };
+    expect(styleDeclarations(element).map(([name]) => name)).toEqual(["fill", "--note", "opacity"]);
+    expect(styleDeclarations(element)[0]![1]).toBe("url(data:image/svg+xml;utf8,x)");
   });
 
   test("a copied resource keeps what its original ancestors passed down to it", () => {
@@ -241,6 +258,9 @@ describe("morph bake: compositing and authored style", () => {
       "@media all { .authored { display: inline !important } }",
       "@supports (display: grid) { @media screen { .authored { display: inline } } }",
       ".eyes { fill: red; & .authored { display: inline } }",
+      // A quoted or commented brace is not a block boundary.
+      '.authored { --note: "}"; display: inline !important }',
+      ".authored { --note: 1 /* } */; display: inline }",
       // Rules the bake cannot read.
       "@import url(more.css);",
     ]) {
@@ -274,12 +294,14 @@ describe("morph bake: compositing and authored style", () => {
   test("display is read from the inline declaration that takes effect, before the attribute", () => {
     const HIDDEN = "M10,10H20V20H10Z";
     const OUTRANKED = "M50,10H60V20H50Z";
+    const COMMENTED = "M70,10H80V20H70Z";
     const SHOWN = "M30,10H40V20H30Z";
     const svg = art(
       LASHES_OPEN +
         `<path data-name="crease" d="${HIDDEN}" style="display:none !important"/>` +
-        // An important declaration wins over a later normal one.
+        // An important declaration wins over a later normal one, a comment after it or not.
         `<path data-name="crease" d="${OUTRANKED}" style="display:none !important;display:inline"/>` +
+        `<path data-name="crease" d="${COMMENTED}" style="display:none !important /* keep hidden */;display:inline"/>` +
         `<g display="none" style="display:inline"><path data-name="crease" d="${SHOWN}"/></g>`,
       LASH_CLOSED,
     );
@@ -288,6 +310,7 @@ describe("morph bake: compositing and authored style", () => {
     const drawn = artifact.parts.flatMap((p) => elements(p.svg)).map((e) => e.attributes["d"]);
     expect(drawn).not.toContain(HIDDEN);
     expect(drawn).not.toContain(OUTRANKED);
+    expect(drawn).not.toContain(COMMENTED);
     expect(drawn).toContain(SHOWN);
   });
 

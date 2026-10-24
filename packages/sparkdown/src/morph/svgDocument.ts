@@ -49,14 +49,61 @@ const ATOMIC = new Set([...SHAPES, "text", "image", "use", "foreignobject", "svg
 
 export const isShape = (element: Element) => SHAPES.has(element.tagName.toLowerCase());
 
-/** The declarations of an inline `style` attribute, in order. */
-export function styleDeclarations(element: Element): [string, string][] {
-  const out: [string, string][] = [];
-  for (const declaration of (element.attributes["style"] ?? "").split(";")) {
-    const colon = declaration.indexOf(":");
-    if (colon < 0) continue;
-    const name = declaration.slice(0, colon).trim().toLowerCase();
-    if (name) out.push([name, declaration.slice(colon + 1).trim()]);
+/**
+ * CSS text of the same length with comments blanked and the contents of
+ * strings replaced by `x`, so braces, semicolons, colons and `!important`
+ * found in it are the real ones. Positions match the original text, so a
+ * structure found here slices the original.
+ */
+export function maskCss(css: string): string {
+  const out = css.split("");
+  let i = 0;
+  while (i < css.length) {
+    const ch = css[i]!;
+    if (ch === "/" && css[i + 1] === "*") {
+      const close = css.indexOf("*/", i + 2);
+      const end = close < 0 ? css.length : close + 2;
+      for (let k = i; k < end; k++) out[k] = " ";
+      i = end;
+    } else if (ch === '"' || ch === "'") {
+      let k = i + 1;
+      while (k < css.length && css[k] !== ch && css[k] !== "\n") {
+        // An escape keeps the next character inside the string.
+        const width = css[k] === "\\" ? 2 : 1;
+        for (let n = k; n < Math.min(k + width, css.length); n++) out[n] = "x";
+        k += width;
+      }
+      i = k + 1;
+    } else if (/^url\(\s*[^\s"')]/i.test(css.slice(i, i + 64))) {
+      // An unquoted url is one token, `;` and braces included (a data URI).
+      const open = css.indexOf("(", i);
+      const close = css.indexOf(")", open);
+      const end = close < 0 ? css.length : close;
+      for (let k = open + 1; k < end; k++) if (";{}".includes(css[k]!)) out[k] = "x";
+      i = end;
+    } else i++;
+  }
+  return out.join("");
+}
+
+/**
+ * The declarations of an inline `style` attribute, in order: name, value as
+ * written, and the value with comments blanked and strings masked, which is
+ * what to read `!important` and keywords from.
+ */
+export function styleDeclarations(element: Element): [string, string, string][] {
+  const style = element.attributes["style"] ?? "";
+  const masked = maskCss(style);
+  const out: [string, string, string][] = [];
+  let start = 0;
+  for (let end = 0; end <= masked.length; end++) {
+    if (end < masked.length && masked[end] !== ";") continue;
+    const colon = masked.indexOf(":", start);
+    if (colon >= 0 && colon < end) {
+      const name = masked.slice(start, colon).trim().toLowerCase();
+      if (name) out.push([name, style.slice(colon + 1, end).trim(), masked.slice(colon + 1, end).trim()]);
+    }
+    start = end + 1;
   }
   return out;
 }
@@ -66,13 +113,14 @@ const IMPORTANT = /!\s*important\s*$/i;
 /**
  * The inline style declaration of `name` that takes effect, which outranks
  * the presentation attribute of that name: the last important one if any is
- * important, else the last. `value` has its `!important` removed.
+ * important, else the last. `value` has its `!important` and comments
+ * removed (and strings masked).
  */
 export function styleDeclaration(element: Element, name: string): { value: string; important: boolean } | undefined {
   const declared = styleDeclarations(element).filter(([n]) => n === name);
-  const chosen = declared.findLast(([, v]) => IMPORTANT.test(v)) ?? declared[declared.length - 1];
+  const chosen = declared.findLast(([, , clean]) => IMPORTANT.test(clean)) ?? declared[declared.length - 1];
   if (!chosen) return undefined;
-  return { value: chosen[1].replace(IMPORTANT, "").trim(), important: IMPORTANT.test(chosen[1]) };
+  return { value: chosen[2].replace(IMPORTANT, "").trim(), important: IMPORTANT.test(chosen[2]) };
 }
 
 /** The value of the inline style declaration of `name` that takes effect. */
@@ -81,7 +129,7 @@ export const styleProperty = (element: Element, name: string): string | undefine
 
 /** Sets (or, with `undefined`, removes) one inline style property. */
 export function setStyleProperty(element: Element, name: string, value: string | undefined) {
-  const kept = styleDeclarations(element).filter(([n]) => n !== name);
+  const kept: [string, string][] = styleDeclarations(element).filter(([n]) => n !== name).map(([n, v]) => [n, v]);
   if (value !== undefined) kept.push([name, value]);
   if (kept.length) element.attributes["style"] = kept.map(([n, v]) => `${n}:${v}`).join(";");
   else delete element.attributes["style"];
@@ -92,7 +140,7 @@ const COMPOSITING = ["opacity", "filter", "mask", "mix-blend-mode", "isolation"]
 
 /** Whether a declared value of a compositing property actually composites. */
 export const compositingValue = (name: string, value: string): boolean => {
-  const v = value.trim().toLowerCase();
+  const v = value.replace(IMPORTANT, "").trim().toLowerCase();
   if (!COMPOSITING.includes(name)) return false;
   if (name === "opacity") {
     const n = Number.parseFloat(v);
@@ -149,6 +197,7 @@ export function styleRules(doc: ArtDocument, declares: (name: string, value: str
       if (declares(trimmed.slice(0, colon).trim().toLowerCase(), trimmed.slice(colon + 1))) selectors.forEach(name);
     }
   };
+  // `css` is masked (`maskCss`), so every brace and semicolon is structure.
   const walk = (css: string, selectors: string[]) => {
     let text = "";
     for (let i = 0; i < css.length; i++) {
@@ -173,7 +222,7 @@ export function styleRules(doc: ArtDocument, declares: (name: string, value: str
     declarations(text, selectors);
   };
   for (const sheet of subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style")) {
-    walk(sheet.children.filter((c): c is string => typeof c === "string").join("").replace(/\/\*[\s\S]*?\*\//g, ""), []);
+    walk(maskCss(sheet.children.filter((c): c is string => typeof c === "string").join("")), []);
   }
   return rules;
 }
@@ -441,21 +490,35 @@ function rewriteStyleSheet(
   known: ReadonlySet<string>,
   rewriteUrls: (text: string) => string,
 ): string {
+  // Structure is read from the masked text, so a brace or `#` in a comment
+  // or string is neither a boundary nor a selector; rewrites apply to the
+  // original text at the same positions.
+  const masked = maskCss(css);
+  const rewriteIds = (from: number, to: number) => {
+    let text = "";
+    let last = from;
+    for (const match of masked.slice(from, to).matchAll(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)) {
+      if (!known.has(match[1]!)) continue;
+      const at = from + match.index!;
+      text += css.slice(last, at) + `#${prefix}${match[1]}`;
+      last = at + match[0].length;
+    }
+    return text + css.slice(last, to);
+  };
   let out = "";
-  let run = "";
-  const rewriteIds = (text: string) =>
-    text.replace(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g, (whole, id: string) => (known.has(id) ? `#${prefix}${id}` : whole));
-  for (const ch of css) {
-    if (ch === "{") {
-      const split = run.lastIndexOf(";") + 1;
-      out += rewriteUrls(run.slice(0, split)) + rewriteIds(run.slice(split)) + ch;
-      run = "";
-    } else if (ch === "}") {
-      out += rewriteUrls(run) + ch;
-      run = "";
-    } else run += ch;
+  let start = 0;
+  for (let i = 0; i < masked.length; i++) {
+    if (masked[i] === "{") {
+      const split = masked.lastIndexOf(";", i) + 1;
+      const prelude = Math.max(start, split);
+      out += rewriteUrls(css.slice(start, prelude)) + rewriteIds(prelude, i) + "{";
+      start = i + 1;
+    } else if (masked[i] === "}") {
+      out += rewriteUrls(css.slice(start, i)) + "}";
+      start = i + 1;
+    }
   }
-  return out + rewriteUrls(run);
+  return out + rewriteUrls(css.slice(start));
 }
 
 export const serialize = (element: Element): string =>

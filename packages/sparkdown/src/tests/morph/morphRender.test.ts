@@ -124,6 +124,10 @@ describe("artifact playback", () => {
     const important = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important;opacity:0.9"), selection: {}, recipe, key: "fade2" });
     const marked = elements(renderMorphFrame(important, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(marked.attributes["style"]).toBe("opacity:0.2 !important");
+    // A comment after `!important` does not hide it.
+    const commented = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important /* note */;opacity:0.9"), selection: {}, recipe, key: "fade3" });
+    const kept = elements(renderMorphFrame(commented, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
+    expect(kept.attributes["style"]).toBe("opacity:0.2 !important");
   });
 
   test("the aperture blends onto its closed line as the eye closes", () => {
