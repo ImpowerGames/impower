@@ -91,6 +91,11 @@ const LOCAL_DECLARATION_KEYWORDS =
 const STYLING_DEFINE_TYPES: string[] = [];
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
+// The names an image command shows: images, and videos, which play on a layer.
+const IMAGE_COMMAND_NAME_TYPES = [...IMAGE_TYPES, "video"];
+// The clauses a video takes on a layer, offered on every image command that
+// names what it shows.
+const MOVIE_CLAUSE_KEYWORDS = ["loop", "once", "mute"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
@@ -1647,6 +1652,10 @@ export const getCompletions = (
 
   // ImageCommand
   if (leftStack.some((n) => n.type.name === "ImageCommand")) {
+    // `show`, `animate` and the bare `[[NAME]]` name what they display, which
+    // may be a video.
+    const takesMovieClauses = (control: string) =>
+      control === "" || control === "show" || control === "animate";
     const beforeImageNode = leftStack.find(
       (n) => n.type.name === "ImageBeginMark",
     );
@@ -1656,7 +1665,7 @@ export const getCompletions = (
         addStructReferenceCompletions(
           completions,
           program,
-          IMAGE_TYPES,
+          IMAGE_COMMAND_NAME_TYPES,
           isPrefilteredName,
         );
       }
@@ -1706,12 +1715,15 @@ export const getCompletions = (
           control === "animate"
             ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
             : IMAGE_CLAUSE_KEYWORDS;
-        addKeywordCompletions(completions, "clause", clauses);
+        addKeywordCompletions(completions, "clause", [
+          ...clauses,
+          ...(takesMovieClauses(control) ? MOVIE_CLAUSE_KEYWORDS : []),
+        ]);
         if (control !== "hide" && control !== "animate") {
           addStructReferenceCompletions(
             completions,
             program,
-            IMAGE_TYPES,
+            IMAGE_COMMAND_NAME_TYPES,
             isPrefilteredName,
           );
         }
@@ -1726,7 +1738,7 @@ export const getCompletions = (
         addStructReferenceCompletions(
           completions,
           program,
-          IMAGE_TYPES,
+          IMAGE_COMMAND_NAME_TYPES,
           isPrefilteredName,
         );
       }
@@ -1796,10 +1808,20 @@ export const getCompletions = (
             tree,
             read,
           );
+          const control = getNodeText(
+            getDescendentInsideParent(
+              "AssetCommandControl",
+              "ImageCommand",
+              leftStack,
+            ),
+          );
           addKeywordCompletions(
             completions,
             "clause",
-            IMAGE_CLAUSE_KEYWORDS,
+            [
+              ...IMAGE_CLAUSE_KEYWORDS,
+              ...(takesMovieClauses(control) ? MOVIE_CLAUSE_KEYWORDS : []),
+            ],
             exclude,
           );
         }
