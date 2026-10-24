@@ -7,6 +7,7 @@
 // target (`Says:`) is a placeholder, the maintainer's rule: shown until the
 // first write reaches the target, and gone after it.
 import { describe, expect, it } from "vitest";
+import { StartPlayMessage } from "../../main/workers/messages/StartPlayMessage";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 type Node = { class?: string; text?: string; children?: Node[] };
@@ -189,14 +190,43 @@ describe("a connect restores each target's text in place of what it shows (#1813
     try {
       expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
       expect(await h.controller.startGameAndApp()).toBe(true);
-      // PLAY's connect is not composed; its first beat is the line's first.
+      // PLAY's connect is not composed and sweeps the preview's text; its
+      // first beat is the line's first.
       const shown = () => lettersIn(h.snapshotDOM() as Node, "dialogue");
-      for (let i = 0; i < 150 && shown() === "First.Second."; i++) {
+      for (let i = 0; i < 150 && shown() !== "First."; i++) {
         await new Promise((r) => setTimeout(r, 20));
         await settle();
       }
       expect(shown()).toBe("First.");
       expect(saysIn(h.snapshotDOM() as Node, "dialogue")).toBe(false);
+      await h.controller.destroyGameAndApp();
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("sweeps the preview's text once PLAY has connected, before its first beat (#1222)", async () => {
+    const line = lineOf(TEXT, "HERO:");
+    const h = await open(TEXT, line);
+    try {
+      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
+      // PLAY connects and is held before it runs a beat.
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => (release = resolve));
+      const request = h.link.request.bind(h.link);
+      (h.link as any).request = async (type: any, params: any) => {
+        if (type.method === StartPlayMessage.method) {
+          await held;
+        }
+        return request(type, params);
+      };
+      const played = h.controller.startGameAndApp();
+      await settle(60);
+      const dom = h.snapshotDOM() as Node;
+      expect(lettersIn(dom, "dialogue")).toBe("");
+      expect(saysIn(dom, "dialogue")).toBe(true);
+      release();
+      expect(await played).toBe(true);
       await h.controller.destroyGameAndApp();
     } finally {
       h.dispose();
