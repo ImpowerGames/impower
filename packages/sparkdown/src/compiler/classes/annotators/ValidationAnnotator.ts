@@ -46,14 +46,19 @@ const LAYOUT_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 const LOAD_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+const MOVIE_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
 // `[[...]]` brackets carry visual (show/hide/animate), screen-lifecycle
-// (open/close/navigate), and preload (load) verbs — see the *_CONTROL_KEYWORDS
-// variables in the grammar.
+// (open/close/navigate), preload (load) and cutscene (play) verbs — see the
+// *_CONTROL_KEYWORDS variables in the grammar.
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...LAYOUT_CONTROL_KEYWORDS,
   ...LOAD_CONTROL_KEYWORDS,
+  ...MOVIE_CONTROL_KEYWORDS,
 ];
+const PLAY_ONE_VIDEO =
+  "`play` takes one video name\n> e.g. `[[play intro]]`, `[[play intro loop with fade]]`";
 
 // The whole `[[…]]` / `((…))` command + its control token. A clause keyword/
 // value is a SIBLING of AssetCommandInstruction (both under the command), so
@@ -61,6 +66,12 @@ const BRACKET_CONTROL_KEYWORDS = [
 // instruction.
 const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
 const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
+const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
+const ASSET_COMMAND_TARGET = nodeNameSet(["AssetCommandTarget"]);
+const ASSET_COMMAND_EXTRA_NAME = nodeNameSet([
+  "AssetCommandName",
+  "AssetCommandAddOperator",
+]);
 
 // The closed set of `@event` names a Sparkle element line can bind. Source of
 // truth: the runtime's `EventMap` (packages/spark-engine/src/game/core/types/
@@ -1858,6 +1869,48 @@ export class ValidationAnnotator extends SparkdownAnnotator<
               severity: "warning",
             }).range(nodeRef.from, nodeRef.to),
           );
+          return annotations;
+        }
+      }
+      // `[[play NAME]]` plays one video: the name in the target slot. A
+      // missing name, a second name, or names joined with `+` are reported.
+      // Whether the name is a video is the reference's to report.
+      if (
+        context.includes("ImageCommand") &&
+        MOVIE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
+      ) {
+        const instruction = ancestorMatching(
+          nodeRef.node,
+          ASSET_COMMAND_INSTRUCTION,
+        );
+        const target = instruction
+          ? firstDescendant(instruction, ASSET_COMMAND_TARGET)
+          : null;
+        const targetText = target ? this.read(target.from, target.to) : "";
+        // The names after the target, each with any `+` before it.
+        let extraFrom: number | undefined;
+        let extraTo: number | undefined;
+        const findExtra = (node: SyntaxNode) => {
+          for (let c = node.firstChild; c; c = c.nextSibling) {
+            if (ASSET_COMMAND_EXTRA_NAME.has(c.name)) {
+              extraFrom ??= c.from;
+              extraTo = c.to;
+            } else {
+              findExtra(c);
+            }
+          }
+        };
+        if (instruction) findExtra(instruction);
+        if (!target || !targetText.trim()) {
+          this.error(annotations, PLAY_ONE_VIDEO, nodeRef.from, nodeRef.to);
+          return annotations;
+        }
+        if (targetText.includes("+")) {
+          this.error(annotations, PLAY_ONE_VIDEO, target.from, extraTo ?? target.to);
+          return annotations;
+        }
+        if (extraFrom !== undefined && extraTo !== undefined) {
+          this.error(annotations, PLAY_ONE_VIDEO, extraFrom, extraTo);
           return annotations;
         }
       }

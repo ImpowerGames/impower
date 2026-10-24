@@ -7,8 +7,9 @@ import {
 
 // The token rules mirror the runtime parser (`InterpreterModule.createAssetChunk`):
 // a directive body is split on spaces; when the first token is a control verb,
-// the second token is the target (a layer, a channel, a layout, or a scene) and
-// the rest are names; a clause keyword ends the names; names split on `+`.
+// the second token is the target (a layer, a channel, a layout, a scene, or a
+// cutscene's video) and the rest are names; a clause keyword ends the names;
+// names split on `+`.
 // Keyword lists come from the grammar so the two parsers cannot drift apart.
 // The grammar JSON also carries string-valued variables (regex fragments),
 // so the lookup type goes through `unknown`.
@@ -35,6 +36,9 @@ const LAYOUT_CONTROL_KEYWORDS: string[] = VARIABLES[
 const LOAD_CONTROL_KEYWORDS: string[] = VARIABLES["LOAD_CONTROL_KEYWORDS"] ?? [
   "load",
 ];
+const MOVIE_CONTROL_KEYWORDS: string[] = VARIABLES["MOVIE_CONTROL_KEYWORDS"] ?? [
+  "play",
+];
 // `write` is a runtime-only control verb (`[[write layer …]]`); it names no asset.
 const OTHER_CONTROL_KEYWORDS: string[] = ["write"];
 
@@ -43,6 +47,7 @@ const CONTROL_KEYWORDS = new Set<string>([
   ...AUDIO_CONTROL_KEYWORDS,
   ...LAYOUT_CONTROL_KEYWORDS,
   ...LOAD_CONTROL_KEYWORDS,
+  ...MOVIE_CONTROL_KEYWORDS,
   ...OTHER_CONTROL_KEYWORDS,
 ]);
 const CLAUSE_KEYWORDS = new Set<string>([
@@ -51,6 +56,11 @@ const CLAUSE_KEYWORDS = new Set<string>([
 ]);
 const LAYOUT_CONTROLS = new Set<string>(LAYOUT_CONTROL_KEYWORDS);
 const LOAD_CONTROLS = new Set<string>(LOAD_CONTROL_KEYWORDS);
+const MOVIE_CONTROLS = new Set<string>(MOVIE_CONTROL_KEYWORDS);
+
+/** Whether `verb` opens a `[[play NAME]]` cutscene: a movie verb inside `[[ ]]`. */
+const isCutsceneVerb = (verb: string | undefined, kind: "image" | "audio") =>
+  kind === "image" && verb !== undefined && MOVIE_CONTROLS.has(verb);
 // Verbs that take an asset name but never need it loaded.
 const NON_LOADING_CONTROLS = new Set<string>([
   "hide",
@@ -104,6 +114,16 @@ const scanBody = (
     readNames(tokens, kind === "image" ? names.image : names.audio);
     return;
   }
+  if (isCutsceneVerb(verb, kind)) {
+    // `[[play intro loop]]`: the cutscene's video is the token after the verb,
+    // in the target slot, as the runtime reads it; there is no layer token.
+    // Inside `(( ))` the same verb plays audio and is read below.
+    const video = tokens[1];
+    if (video && !CLAUSE_KEYWORDS.has(video)) {
+      names.image.push(video);
+    }
+    return;
+  }
   if (LOAD_CONTROLS.has(verb)) {
     // `[[load A B with fade]]`: every token up to the first clause is a flow
     // (or world) name. The verb exists only inside `[[ ]]`; the runtime
@@ -145,13 +165,18 @@ const scanBody = (
  * token before the cut, up to its first `~`, is the base every variant shares.
  * A run that ends in a space has no base: the whole name is dynamic.
  */
-const dynamicBaseOf = (fragment: string, hasVerb: boolean): string | null => {
+const dynamicBaseOf = (
+  fragment: string,
+  hasVerb: boolean,
+  cutscene: boolean,
+): string | null => {
   if (fragment.endsWith(" ") || fragment.endsWith("\t")) {
     return null;
   }
   const tokens = tokenize(fragment);
-  // With a verb, the first two tokens are the verb and the target.
-  const minimum = hasVerb ? 2 : 0;
+  // With a verb, the first two tokens are the verb and the target, except in
+  // a cutscene, whose target is its video.
+  const minimum = cutscene ? 1 : hasVerb ? 2 : 0;
   if (tokens.length <= minimum) {
     return null;
   }
@@ -225,7 +250,11 @@ export function scanAssetDirectives(
         opener === "image" &&
         (!hasVerb || (verb && !NON_LOADING_CONTROLS.has(verb)))
       ) {
-        const base = dynamicBaseOf(fragment, hasVerb);
+        const base = dynamicBaseOf(
+          fragment,
+          hasVerb,
+          isCutsceneVerb(verb, opener),
+        );
         if (base && !capture.dynamicBases.includes(base)) {
           capture.dynamicBases.push(base);
         }
