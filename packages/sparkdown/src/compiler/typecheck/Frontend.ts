@@ -140,6 +140,8 @@ export function accumulateErrors(errors: readonly LuauTypeError[]): LuauTypeErro
 export interface LoadDefinitionFileResult {
   success: boolean;
   module: Module | undefined;
+  /** The actual parsed source passed to the checker, also on checker failure. */
+  sourceModule: SourceModule;
   parseErrors: { location: Location; message: string }[];
 }
 
@@ -187,9 +189,9 @@ export class Frontend {
       globals.globalTypeFunctionScope,
       undefined,
     );
-    if (checkedModule.errors.length) return { success: false, module: checkedModule, parseErrors: [] };
+    if (checkedModule.errors.length) return { success: false, module: checkedModule, sourceModule, parseErrors: [] };
     persistCheckedTypes(checkedModule, globals, targetScope);
-    return { success: true, module: checkedModule, parseErrors: [] };
+    return { success: true, module: checkedModule, sourceModule, parseErrors: [] };
   }
 
   /**
