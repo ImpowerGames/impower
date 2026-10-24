@@ -118,8 +118,6 @@ import {
   WriteTextMessage,
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
-import { CSS_ALIASES } from "../../../../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
-import { STYLE_ALIASES } from "../../../../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 
 /** Whether two values of a program's layout trees hold the same: the same
  *  object, or plain data of the same shape and values (#657). */
@@ -303,9 +301,6 @@ interface ReactiveSliderFill {
  *  binding, so `#background-color={team_color}` re-applies when its deps change. */
 interface ReactiveStyle {
   element: Element;
-  /** A second element that takes the same value from the one evaluation: the
-   *  control of a labelled input widget, for its widget-wide props. */
-  mirror?: Element;
   prop: string;
   propValue: PropValue;
   last: string | null;
@@ -445,67 +440,6 @@ const INPUT_WIDGETS: Record<
   radio: { inputType: "radio" },
   switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
-
-/** Props that place an element among its siblings and in its parent (Margin,
- *  Position, and the Layout props an element sets on itself), by canonical
- *  sparkle name (see widgetPropName). On a widget with a label it is the label
- *  that sits in the parent, so these style the label instead of the control.
- *  `flex`, `flex-basis` and `z-index` have no sparkle alias and keep their CSS
- *  names. */
-const WIDGET_PLACEMENT_PROPS = new Set([
-  "margin",
-  "margin-top",
-  "margin-right",
-  "margin-bottom",
-  "margin-left",
-  "position",
-  "anchor",
-  "anchor-top",
-  "anchor-right",
-  "anchor-bottom",
-  "anchor-left",
-  "anchor-to",
-  "anchor-placement",
-  "anchor-try",
-  "anchor-try-fallbacks",
-  "anchor-try-order",
-  "z",
-  "z-index",
-  "self-align",
-  "grow",
-  "shrink",
-  "basis",
-  "flex-basis",
-  "flex",
-  "order",
-]);
-
-/** Props that govern a whole input widget, by canonical sparkle name: whether
- *  it shows, whether it takes the pointer, and how its changes transition. On
- *  a widget with a label they style the label as well as the control, so the
- *  text hides with its control, is never a way to activate a control that is
- *  not interactable, and each element transitions what changes on it. */
-const WIDGET_WIDE_PROPS = new Set([
-  "displayed",
-  "visible",
-  "interactable",
-  "transition",
-  "transition-property",
-  "transition-duration",
-  "transition-delay",
-  "transition-easing",
-]);
-
-/** A prop's canonical sparkle name, for classifying it against the widget
- *  prop sets: underscores read as dashes, then the short and CSS spellings
- *  the style transformer accepts (`i-l`, `m-t`, `align-self`, `pointer-events`)
- *  resolve to the names they alias. */
-function widgetPropName(prop: string): string {
-  const dashed = prop.replace(/_/g, "-");
-  const long =
-    (STYLE_ALIASES as Record<string, string>)[dashed] ?? dashed;
-  return (CSS_ALIASES as Record<string, string>)[long] ?? long;
-}
 
 /**
  * Builtin tag → the real DOM tag it renders as. Anything absent renders as a
@@ -706,9 +640,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
-
-  /** A labelled input widget's control → the `<label>` that wraps it. */
-  protected _widgetLabels: WeakMap<Element, Element> = new WeakMap();
 
   // Phase 3 reactive runtime: render layouts from program.sparkle (the typed AST)
   // instead of the static context.layout struct, with coarse per-turn binding
@@ -1931,17 +1862,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   show(target: string): void {
     // TODO: use transition classes to apply show style instead
     for (const targetEl of this.findElements(target)) {
-      for (const el of this.widgetElements(targetEl)) {
-        this.updateElement(el, { style: { display: "flex" } });
-      }
+      this.updateElement(targetEl, { style: { display: "flex" } });
     }
-  }
-
-  /** A labelled input widget's label and control, which show and hide
-   *  together; any other element alone. */
-  protected widgetElements(el: Element): Element[] {
-    const label = this._widgetLabels.get(el);
-    return label ? [label, el] : [el];
   }
 
   showAll(targets: string[]): void {
@@ -1953,11 +1875,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   hide(target: string): void {
     // TODO: use transition classes to apply hide style instead
     for (const targetEl of this.findElements(target)) {
-      for (const el of this.widgetElements(targetEl)) {
-        this.updateElement(el, {
-          style: { display: "none" },
-        });
-      }
+      this.updateElement(targetEl, {
+        style: { display: "none" },
+      });
     }
   }
 
@@ -2722,11 +2642,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  updates (UI follows state; write-back is via the element's `@input`/
    *  `@change` handler). Inputs are void, so quoted content is the widget's
    *  LABEL: `slider "Master Volume"` mounts a real `<label>` holding the text
-   *  and the control, and that label is the element returned. Classes, events,
-   *  bindings and most props stay on the control. The placement props
-   *  (WIDGET_PLACEMENT_PROPS) style the label instead, since the label is what
-   *  sits in the parent; the widget-wide props (WIDGET_WIDE_PROPS) style both,
-   *  so the label shows, hides and takes the pointer with its control. */
+   *  and the control, and that label is the widget's element. The label
+   *  carries the widget's name, classes and style props, so a class or prop
+   *  that hides, places, sizes or fades the widget acts on all of it. The
+   *  `<input>` inside, named `control`, takes the attribute props, bindings
+   *  and events, and the builtin control styles in builtins.sd draw it there. */
   protected mountInputWidget(
     parent: Element,
     node: ElementNode,
@@ -2738,22 +2658,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!node.content || node.content.length === 0) {
       return this.mountInputControl(parent, node, scope, name, widget, before);
     }
-    // Placement props move to the label. Each widget-wide prop is evaluated
-    // ONCE and its value given to both the label and the control: a binding
-    // with side effects, or one that reads differently on a second call, must
-    // not run twice or leave the two elements disagreeing. Props are matched by
-    // canonical name, so every spelling of one prop lands on the same element.
     const vs = this._game.story.variablesState;
-    const wideStyle: Record<string, string | null> = {};
-    const placementStyle: Record<string, string | null> = {};
-    const reactiveStyles: (Omit<ReactiveStyle, "element"> & {
-      wide: boolean;
-    })[] = [];
+    const style: Record<string, string | null> = {};
+    const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const controlProps: ElementNode["props"] = {};
     for (const [prop, propValue] of Object.entries(node.props)) {
-      const key = widgetPropName(prop);
-      const wide = WIDGET_WIDE_PROPS.has(key);
-      if (!wide && !WIDGET_PLACEMENT_PROPS.has(key)) {
+      if (isAttributeProp(prop)) {
         controlProps[prop] = propValue;
         continue;
       }
@@ -2761,13 +2671,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
       const val = resolved == null ? null : String(resolved);
-      (wide ? wideStyle : placementStyle)[prop] = val;
+      style[prop] = val;
       if (this.isReactiveProp(propValue)) {
-        reactiveStyles.push({ prop, propValue, last: val, deps, wide });
+        reactiveStyles.push({ prop, propValue, last: val, deps });
       }
     }
-    const hasWideStyle = Object.keys(wideStyle).length > 0;
-    const labelStyle = { ...placementStyle, ...wideStyle };
     // A checkbox, radio or switch reads as one row with its wording after the
     // box; a text field or slider takes its label above, as `label "X" { … }`
     // lays it out.
@@ -2776,37 +2684,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       parent,
       {
         type: "label",
-        name: toggle ? "label toggle_label" : "label field_label",
-        ...(Object.keys(labelStyle).length > 0 ? { style: labelStyle } : {}),
+        name: `${name} label ${toggle ? "toggle_label" : "field_label"}`,
+        ...(Object.keys(style).length > 0 ? { style } : {}),
       },
       before,
     );
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: label, ...r });
+    }
     if (!toggle) {
       this.mountTextContent(label, node.content, scope);
     }
-    const control = this.mountInputControl(
+    this.mountInputControl(
       label,
       { ...node, props: controlProps },
       scope,
-      name,
+      "control",
       widget,
       null,
-      hasWideStyle ? wideStyle : undefined,
     );
-    for (const { wide, ...r } of reactiveStyles) {
-      scope.styles.push({ element: label, ...(wide ? { mirror: control } : {}), ...r });
-    }
-    // `show`/`hide` find the control by its name; they act on both.
-    this._widgetLabels.set(control, label);
     if (toggle) {
       this.mountTextContent(label, node.content, scope);
     }
     return label;
   }
 
-  /** The `<input>` itself, with the widget's props, bindings and events.
-   *  `sharedStyle` is a labelled widget's already-evaluated widget-wide props,
-   *  whose refresh the label's entries carry. */
+  /** The `<input>` itself, with the widget's props, bindings and events. */
   protected mountInputControl(
     parent: Element,
     node: ElementNode,
@@ -2814,7 +2717,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     name: string,
     widget: { inputType: string; attributes?: Record<string, string> },
     before: Element | null,
-    sharedStyle?: Record<string, string | null>,
   ): Element {
     const vs = this._game.story.variablesState;
     // The control's defining attributes first, so authored props can still
@@ -2833,7 +2735,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // This matters because form controls carry no margin of their own (see
     // builtins.sd), so stating the spacing at the call site is the ONLY way to
     // space one -- and it was the one thing that could not be done.
-    const style: Record<string, string | null> = { ...sharedStyle };
+    const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
       // Every presence-semantics attribute, not just `checked`. HTML reads
@@ -3994,11 +3896,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.updateElement(entry.element, {
             style: { [entry.prop]: next },
           });
-          if (entry.mirror) {
-            this.updateElement(entry.mirror, {
-              style: { [entry.prop]: next },
-            });
-          }
         }
       }
     }

@@ -29,7 +29,7 @@ depending on the control.
 A widget's quoted content, when given, is its **label**: `slider "Master Volume"`
 labels the slider.
 
-A style class on a labelled widget styles the control, not its label, so hide a labelled widget with `#displayed` or an `if` block rather than with a class.
+A labelled widget's classes and style props act on the whole widget, label and control together, so `slider.concealed "Master Volume"` with a `concealed` style of `displayed = false` hides both. Attribute props such as `#value`, `#min` and `#checked`, and events, belong to the control. To style the control alone, nest the rule under `> control` in the style.
 
 ---
 
