@@ -18,8 +18,12 @@ const SOURCE = `layout inventory with
   }
 end
 
-[[open inventory]]
-You rummage through your pack.
+-> start
+
+scene start
+  [[open inventory]]
+  You rummage through your pack.
+end
 `;
 
 const LINE = SOURCE.split("\n").findIndex((l) => l.includes("You rummage"));
@@ -43,6 +47,7 @@ describe("an author's element whose class names a builtin target", () => {
   test("keeps its text when the page resolves the story's write", async () => {
     const h = createDOMHarness(SOURCE, 0, { reactive: true });
     await h.ready;
+    h.jumpTo("start");
     const beat = h.nextBeat();
     await h.display(beat!, true);
     await flushMicrotasks(10);
