@@ -1537,7 +1537,10 @@ export default class UIManager extends Manager {
    * Mirrors the engine's `UIModule.findElements`: it takes the elements whose
    * className is the requested name, or, when there are none, every element
    * whose className includes all of its classes, then (when an `#index`
-   * instance suffix is present) narrows to that single occurrence.
+   * instance suffix is present) narrows to that single occurrence. The page
+   * cannot tell a layout's declared target from an author's element with the
+   * same classes, so a write the engine resolved by class names its elements
+   * and never reaches this.
    * The engine owns the `Element` tree and only forwards the original `target`
    * string, so the consumer re-resolves it here against the real DOM. (D13 may
    * later replace this with a consumer-side id→element map.)

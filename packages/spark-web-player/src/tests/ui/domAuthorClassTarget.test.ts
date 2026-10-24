@@ -66,4 +66,36 @@ describe("an author's element whose class names a builtin target", () => {
     await flushMicrotasks(10);
     expectAuthoredKept(h);
   });
+
+  test("keeps its text in a layout that replaces `main` when the story writes a title", async () => {
+    const source = `layout main with
+  column.panel {
+    text.title "Inventory"
+    text "Rope"
+  }
+end
+
+-> start
+
+scene start
+  ^: Chapter One
+  You rummage through your pack.
+end
+`;
+    const h = createDOMHarness(source, 0, { reactive: true });
+    await h.ready;
+    h.jumpTo("start");
+    let beat = h.nextBeat();
+    while (beat) {
+      await h.display(beat, true);
+      await flushMicrotasks(10);
+      beat = h.nextBeat();
+    }
+    const authored = h.overlay.querySelector<HTMLElement>(
+      ".panel > .text.title",
+    );
+    expect(authored, h.overlay.innerHTML).not.toBeNull();
+    expect(authored!.textContent).toBe("Inventory");
+    expect(authored!.style.display).not.toBe("none");
+  });
 });

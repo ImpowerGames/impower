@@ -4790,15 +4790,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** The elements a target names. Elements named exactly as the target are
    *  its own, so an author's element that only shares a class with it (`text
-   *  title` beside the builtin `title`) is left alone (#863); a target no
-   *  element is named after resolves to every element with all its classes. */
+   *  title` beside the builtin `title`) is left alone (#863). A target no
+   *  element is named after resolves to the layouts' declared targets (an
+   *  element given an empty `text`, `image`, `stroke` or `mask`) that carry
+   *  all its classes, such as `box avatar` for `avatar`; an element holding
+   *  what the author wrote is never one. */
   protected findElements(target: string): Element[] {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
       const matches = this.searchForAll(this._root, name, found);
       const named = matches.filter((el) => el.name === name);
-      const elements = named.length > 0 ? named : matches;
+      const elements =
+        named.length > 0
+          ? named
+          : matches.filter((el) => this._clearOnContinue.has(el.name));
       if (instance) {
         const instanceIndex = Number(instance);
         if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
@@ -4841,6 +4847,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   findIds(target: string): string[] {
     return this.findElements(target).map((c) => c.id);
+  }
+
+  /** Whether a write to `target` names the elements it goes to: a composed
+   *  beat always does (#1820), and so does a write whose target resolved by
+   *  class, which the page cannot tell apart from an author's element with
+   *  the same classes. */
+  protected namesWriteElements(target: string, elements: Element[]): boolean {
+    const name = target.split("#")[0];
+    return (
+      Boolean(this._compose) || elements.some((el) => el.name !== name)
+    );
   }
 
   getTransientTargets() {
@@ -5083,7 +5100,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ...(shown > 0 ? { shown } : {}),
             // A composed beat reaches the page with its structure: the write
             // goes to the elements the target resolves to now (#1820).
-            ...($._compose ? { elements: targetEls.map((el) => el.id) } : {}),
+            ...($.namesWriteElements(target, targetEls)
+              ? { elements: targetEls.map((el) => el.id) }
+              : {}),
           }),
         );
       }
@@ -5488,7 +5507,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ...(time != null ? { time } : {}),
             // A composed beat reaches the page with its structure: the write
             // goes to the elements the target resolves to now (#1820).
-            ...($._compose ? { elements: targetEls.map((el) => el.id) } : {}),
+            ...($.namesWriteElements(target, targetEls)
+              ? { elements: targetEls.map((el) => el.id) }
+              : {}),
           }),
         );
       }
