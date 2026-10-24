@@ -1000,7 +1000,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       // a target that holds something resolves to is left out, since a
       // clear of another target there reaches what it holds.
       const elementsOf = (targets: string[]) =>
-        targets.flatMap((target) => this.findElements(target));
+        targets.flatMap((target) => this.findElements(target, true));
       const held = new Set([
         ...elementsOf(holding.text),
         ...elementsOf(holding.image),
@@ -4792,10 +4792,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  its own, so an author's element that only shares a class with it (`text
    *  title` beside the builtin `title`) is left alone (#863). A target no
    *  element is named after resolves to the elements that carry all its
-   *  classes (`dialogue action` for `dialogue`, its own text a placeholder),
-   *  except content elements: a write fills a target's `text`, `image`,
-   *  `stroke` and `mask` children, so `text title` is never a target. */
-  protected findElements(target: string): Element[] {
+   *  classes (`dialogue action` for `dialogue`, its own text a placeholder).
+   *  For a text or image write (`writes`) that excludes content elements: a
+   *  write fills a target's `text`, `image`, `stroke` and `mask` children, so
+   *  `text title` is never one, while a style or visibility update still
+   *  reaches an author's `text continue_indicator`. */
+  protected findElements(target: string, writes = false): Element[] {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
@@ -4804,12 +4806,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const elements =
         named.length > 0
           ? named
-          : matches.filter(
-              (el) =>
-                !el.name
-                  .split(" ")
-                  .some((c) => ["text", "image", "stroke", "mask"].includes(c)),
-            );
+          : writes
+            ? matches.filter(
+                (el) =>
+                  !el.name
+                    .split(" ")
+                    .some((c) =>
+                      ["text", "image", "stroke", "mask"].includes(c),
+                    ),
+              )
+            : matches;
       if (instance) {
         const instanceIndex = Number(instance);
         if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
@@ -4850,8 +4856,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return element.findChildren(tag);
   }
 
+  /** The ids of the elements a text or image write to `target` reaches. */
   findIds(target: string): string[] {
-    return this.findElements(target).map((c) => c.id);
+    return this.findElements(target, true).map((c) => c.id);
   }
 
   /** Whether a write to `target` names the elements it goes to: a composed
@@ -5059,7 +5066,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // span/whitespace/text-align decomposition AND the per-char reveal of
         // the `text`/`stroke` content children to the consumer via a single
         // `ui/write-text` message per target.
-        const targetEls = $.findElements(target);
+        const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("text", targetEls)) {
           // A clear that changes nothing on the page (#657).
           return;
@@ -5472,7 +5479,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // the `backdrop`/`portrait` wrapper) but delegates the image-layer
         // realization + animation lifecycle to the consumer via a single
         // `ui/write-image` carrying a fully-resolved `WriteImageInstruction[]`.
-        const targetEls = $.findElements(target);
+        const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("image", targetEls)) {
           // A clear that changes nothing on the page (#657).
           return;

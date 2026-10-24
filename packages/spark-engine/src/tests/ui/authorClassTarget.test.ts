@@ -126,6 +126,36 @@ You rummage through your pack.
 });
 
 describe("a target no element is named after", () => {
+  test("still reveals an author's `text.continue_indicator` in a layout that replaces `main`", async () => {
+    const { hidden, idsNamed, created, h } = await run(
+      `layout main with
+  column.panel {
+    text "Rope"
+    text.continue_indicator "Next"
+  }
+end
+
+You rummage through your pack.
+`,
+    );
+    const [indicator] = idsNamed("text continue_indicator");
+    expect(indicator, created).toBeTruthy();
+    expect(hidden).not.toContain("text continue_indicator");
+    const updates = flattenMessages(h.messages).filter(
+      (m) => m.method === "ui/update" && m.params.element === indicator,
+    );
+    await h.game.module.ui.style.update("continue_indicator", {
+      opacity: "1",
+    });
+    (h.game.module.ui as any).flushUIBatch();
+    await flushMicrotasks(10);
+    const after = flattenMessages(h.messages).filter(
+      (m) => m.method === "ui/update" && m.params.element === indicator,
+    );
+    expect(after.length).toBeGreaterThan(updates.length);
+    expect(after.at(-1).params.style).toMatchObject({ opacity: "1" });
+  });
+
   test("reaches the layer with its classes and not a label with them, and the write names it", async () => {
     const { h, hidden, writes, idsNamed, created } = await run(
       `layout hud with
