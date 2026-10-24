@@ -859,10 +859,16 @@ export function installPlayerWorker(connection: MessageConnection) {
         running.channel = channel;
         // A game STOP ends while it connects never finishes its restore:
         // what the page answers from then on is not delivered to it.
-        await Promise.race([
-          game.connect(sendFromPlay(game, channel)),
-          stopped,
+        const connected = await Promise.race([
+          game.connect(sendFromPlay(game, channel)).then(() => true),
+          stopped.then(() => false),
         ]);
+        if (connected) {
+          // The connect opened a reconcile pass on the page; its stream has
+          // gone out, so the page removes what it still shows that PLAY's
+          // restored state did not write (#1222).
+          game.module.ui.sweepReconcile();
+        }
         return {};
       });
       return;
