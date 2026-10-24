@@ -239,6 +239,25 @@ describe("morph bake: compositing and authored style", () => {
     expect(bake(art(LASHES_OPEN, LASH_CLOSED), recipe()).status).toBe("live");
   });
 
+  test("a moving path keeps its authored data in the live part; a moving shape becomes a path", () => {
+    // The upper open lash, written with relative commands and implicit repeats.
+    const authored = "m0 50c30-45 70-45 100 0-30-25-70-25-100 0z";
+    const svg = art(lash(authored) + lash(LOWER_OPEN), LASH_CLOSED);
+    const artifact = bake(svg, recipe());
+    expect(artifact.status).toBe("live");
+    expect(codes(artifact)).toEqual([]);
+    expect(artifact.segments[0]!.transitions.filter((t) => t.kind === "morph")).toHaveLength(2);
+    const live = elements(artifact.parts.find((p) => p.kind === "live")!.svg);
+    expect(live.some((e) => e.attributes["d"] === authored)).toBe(true);
+    const moving = new Set(artifact.segments.flatMap((s) => s.transitions.flatMap((t) => (t.kind === "morph" ? [t.from, t.to] : []))));
+    expect(live.filter((e) => moving.has(e.attributes["data-morph"] ?? "")).every((e) => e.tagName === "path")).toBe(true);
+    // An unpaired ellipse that scales is written as a path.
+    const scaled = bake(art(LASHES_OPEN + `<ellipse data-name="glint" cx="50" cy="40" rx="4" ry="3" fill="#fff"/>`, LASH_CLOSED), recipe({ fallback: "scale" }));
+    expect(scaled.segments[0]!.transitions.some((t) => t.kind === "scale")).toBe(true);
+    const glint = elements(scaled.parts.find((p) => p.kind === "live")!.svg).find((e) => e.attributes["data-name"] === "glint")!;
+    expect(glint.tagName).toBe("path");
+  });
+
   test("hidden state leaves are hidden inline in the live part and by the renderer", () => {
     const artifact = bake(art(LASHES_OPEN, LASH_CLOSED), recipe());
     const live = elements(artifact.parts.find((p) => p.kind === "live")!.svg);

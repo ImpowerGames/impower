@@ -926,7 +926,10 @@ export function* bakeSteps(
           // it goes.
           delete clone.attributes["display"];
           setStyleProperty(clone, "display", visibleAt(leaf.element, restVisible) ? undefined : "none");
-          if (morphing.has(leaf.node)) {
+          // A basic shape that moves becomes a `<path>`, so a player can set
+          // its `d`. An authored path keeps its own data, so the part draws
+          // exactly what the rest render does.
+          if (morphing.has(leaf.node) && leaf.element.tagName.toLowerCase() !== "path") {
             const local = localGeometry(leaf.element);
             if (local) convertToPath(clone, pathData(local));
           }
