@@ -316,6 +316,10 @@ refusesSettled(/report token/, "a settled launch that is not a review is refused
 refusesSettled(/does not end/, "a journal blocked for another reason is still refused", settledWith((list) => { delete list.at(-1).settledBy; }));
 refusesSettled(/completion artifact/, "a completion artifact naming another comment is refused", () => { fs.mkdirSync(path.dirname(settledCompletion), { recursive: true }); fs.writeFileSync(settledCompletion, JSON.stringify({ head, next: null, commentIds: [7], summary: "No findings." })); });
 refusesSettled(/completion artifact/, "a completion artifact for another head is refused", () => { fs.mkdirSync(path.dirname(settledCompletion), { recursive: true }); fs.writeFileSync(settledCompletion, JSON.stringify({ head: "0".repeat(40), next: null, commentIds: [], summary: "No findings." })); });
+// An artifact the reviewer wrote is validated whatever it parses to, so one
+// holding a falsy value is refused rather than read as no artifact.
+for (const value of [null, false, 0, "", {}]) refusesSettled(/completion artifact/, `a completion artifact holding ${JSON.stringify(value)} is refused`, () => { fs.mkdirSync(path.dirname(settledCompletion), { recursive: true }); fs.writeFileSync(settledCompletion, JSON.stringify(value)); });
+refusesSettled(/completion artifact path/, "a launch recording no completion path is refused", settledWith((list) => { delete list.find((row) => row.event === "launching").completion; }));
 {
   const twoWays = { ...settledPlan, steps: { undirected: { ...settledPlan.steps.undirected, next: [null, "implement"] } } };
   refusesSettled(/transition/, "a review with two transitions and no completion artifact is refused", () => fs.writeFileSync(settledPlanFile, JSON.stringify(twoWays)));

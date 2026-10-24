@@ -460,12 +460,16 @@ function settledReview(rows, journalFile) {
   const plan = planNaming(journalFile);
   const step = plan && Object.hasOwn(plan.steps, launching.step) ? plan.steps[launching.step] : null;
   if (!step || !Array.isArray(step.next)) throw new Error(`Launch ${index}: no launcher plan in its job directory names this journal and step ${launching.step}`);
+  if (typeof launching.completion !== "string") throw new Error(`Launch ${index} records no completion artifact path`);
+  // Whether the reviewer wrote an artifact is kept apart from what it holds,
+  // so an artifact holding null, false, 0 or "" is validated, not ignored.
+  const wroteArtifact = fs.existsSync(launching.completion);
   let done = null;
-  if (typeof launching.completion === "string" && fs.existsSync(launching.completion)) {
+  if (wroteArtifact) {
     try { done = read(launching.completion); }
     catch (error) { throw new Error(`Launch ${index} completion artifact at ${launching.completion} is unreadable: ${error.message}`); }
   }
-  return { index, step: launching.step, head: launching.head, launching, thread, reportToken: launching.reportToken, notBefore: launching.reportNotBefore, absentAt: absent.time, next: step.next, done };
+  return { index, step: launching.step, head: launching.head, launching, thread, reportToken: launching.reportToken, notBefore: launching.reportNotBefore, absentAt: absent.time, next: step.next, wroteArtifact, done };
 }
 
 // The `completed` row for a settled review, from the reviewer's own comment
@@ -483,9 +487,9 @@ function reviewerPostedCompletion(review, posted, body, commentId) {
   if (!Number.isFinite(created)) throw new Error(`The read-back of comment ${commentId} has no created_at; supply the comment as GitHub's REST API returns it`);
   if (created < Math.floor(Date.parse(review.notBefore) / 1000) * 1000 || created > Date.parse(review.absentAt)) throw new Error(`Comment ${commentId} was created at ${posted.created_at}, outside launch ${review.index}'s run from ${review.notBefore} until its child was confirmed absent at ${review.absentAt}`);
   let next, summary;
-  if (review.done) {
+  if (review.wroteArtifact) {
     const done = review.done;
-    if (done.head !== review.head || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.every((id) => id === commentId) || !review.next.includes(done.next)) throw new Error(`Launch ${review.index} completion artifact at ${review.launching.completion} must name head ${review.head}, a summary, a declared transition and no comment but ${commentId}`);
+    if (done?.head !== review.head || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.every((id) => id === commentId) || !review.next.includes(done.next)) throw new Error(`Launch ${review.index} completion artifact at ${review.launching.completion} must name head ${review.head}, a summary, a declared transition and no comment but ${commentId}`);
     ({ next, summary } = done);
   } else {
     if (review.next.length !== 1) throw new Error(`Launch ${review.index} wrote no completion artifact and its step declares ${review.next.length} transitions, so the transition its report takes is unknown`);
