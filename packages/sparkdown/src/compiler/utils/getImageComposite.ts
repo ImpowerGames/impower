@@ -198,19 +198,41 @@ const loadLayer = async (
  * stands — otherwise the plain resolver's `<img src>` is cheaper and sharper,
  * and re-encoding it would buy nothing.
  */
+/**
+ * The layers a preview composites, bottom first: each one a morph plays on
+ * shows its rest render, so a `+` composition with a blinking portrait
+ * previews the portrait clipped as it rests.
+ */
+export const resolvePreviewLayers = async (
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  struct: any,
+  options?: ImageCompositeOptions,
+): Promise<(ImageLayer & { rest?: true })[]> => {
+  const layers = resolveImageLayers(context, struct);
+  const morphRest = options?.morphRest;
+  if (!morphRest) return layers;
+  return Promise.all(
+    layers.map(async (layer) => {
+      const rest = layer.struct ? await morphRest(context, layer.struct) : undefined;
+      return rest ? { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, rest: true as const } : layer;
+    }),
+  );
+};
+
 export const getImageCompositeSrc = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
   options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
-  const layers = resolveImageLayers(context, struct);
+  const layers = await resolvePreviewLayers(context, struct, options);
   if (layers.length === 0) {
     return undefined;
   }
   if (layers.length === 1 && isDirectlyLoadable(layers[0]!.src)) {
-    // Nothing to flatten and nothing to rescue — the plain resolver already
-    // returns the right thing.
-    return undefined;
+    // Nothing to flatten and nothing to rescue: the plain resolver already
+    // returns the right thing, unless the one layer is a rest render the
+    // plain resolver knows nothing about.
+    return layers[0]!.rest ? layers[0]!.src : undefined;
   }
   const bridge = options?.readFileBytes;
   let cache = sharedCache;

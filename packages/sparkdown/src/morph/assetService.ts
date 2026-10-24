@@ -17,6 +17,12 @@ import { parseMorphRecipe } from "./recipe";
 import type { MorphBakeService } from "./service";
 import { MORPH_BAKE_FORMAT, type MorphArtifact, type MorphRecipe } from "./types";
 
+/**
+ * Artifacts a persistent cache keeps. Cache Storage lists entries oldest
+ * first, so the oldest go past this. A starting bound, like the service's.
+ */
+export const MORPH_ARTIFACT_CACHE_ENTRIES = 256;
+
 export interface MorphAssetRequest {
   selection: Record<string, string>;
   canonicalSelection: string;
@@ -89,8 +95,11 @@ export async function serveMorphAsset(options: {
     return respond(JSON.stringify({ error: "The artwork could not be read." }), "application/json", 404);
   }
   const identity = hashText(JSON.stringify([MORPH_BAKE_FORMAT, source.digest, request.canonicalSelection, request.recipeText]));
-  const variantPrefix = `${options.keyPrefix ?? ""}${path}?morph=${hashText(request.canonicalSelection + request.recipeText)}&`;
-  const cacheKey = `${variantPrefix}sig=${file.lastModified}-${file.size}&content=${source.digest}&bf=${MORPH_BAKE_FORMAT}`;
+  // One consumer is a file, a selection and a morph: a new signature or a new
+  // recipe for it supersedes the last, while another morph playing on the
+  // same variant keeps its own entry.
+  const variantPrefix = `${options.keyPrefix ?? ""}${path}?morph=${hashText(JSON.stringify([request.canonicalSelection, request.recipe.name]))}&`;
+  const cacheKey = `${variantPrefix}recipe=${hashText(request.recipeText)}&sig=${file.lastModified}-${file.size}&content=${source.digest}&bf=${MORPH_BAKE_FORMAT}`;
   try {
     const cached = await cache?.match(cacheKey);
     if (cached) {
@@ -124,13 +133,13 @@ export async function serveMorphAsset(options: {
     void (async () => {
       try {
         await cache.put(cacheKey, respond(JSON.stringify(artifact), "application/json"));
-        // Older signatures of this variant are superseded by the new one.
+        // Older signatures and recipes of this consumer are superseded by the
+        // new one; past the bound, the oldest entries go too.
         const keys = await cache.keys();
-        await Promise.all(
-          keys
-            .filter((req) => req.url.includes(variantPrefix) && !req.url.endsWith(cacheKey))
-            .map((req) => cache.delete(req.url)),
-        );
+        const superseded = keys.filter((req) => req.url.includes(variantPrefix) && !req.url.endsWith(cacheKey));
+        const rest = keys.filter((req) => !superseded.includes(req));
+        const overflow = rest.slice(0, Math.max(0, rest.length - MORPH_ARTIFACT_CACHE_ENTRIES)).filter((req) => !req.url.endsWith(cacheKey));
+        await Promise.all([...superseded, ...overflow].map((req) => cache.delete(req.url)));
       } catch {
         // Housekeeping only.
       }

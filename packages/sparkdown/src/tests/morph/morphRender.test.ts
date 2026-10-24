@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
-import { namespaceMorphMarkup, renderMorphFrame } from "../../morph/render";
+import { buildMorphRecipe } from "../../morph/recipe";
+import { aperturePathData, namespaceMorphMarkup, renderMorphFrame } from "../../morph/render";
 import { parse } from "../../txml/txml";
-import { blink, CLOSED, portrait } from "./fixtures";
+import { blink, CLOSED, LOWER_OPEN, portrait, UPPER_OPEN } from "./fixtures";
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
 const elements = (svg: string): Element[] => {
@@ -87,6 +88,53 @@ describe("artifact playback", () => {
     expect(ids.every((id) => id.startsWith("_copy7_"))).toBe(true);
     const refs = elements(copy).flatMap((e) => (e.attributes["clip-path"] ? [e.attributes["clip-path"]] : []));
     expect(refs.every((r) => r.startsWith("url(#_copy7_"))).toBe(true);
+  });
+
+  test("a later segment hides the drawings of states it does not touch", () => {
+    const HALF = "M0,50 C30,25 70,25 100,50 C70,40 30,40 0,50Z";
+    const three = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}"/><path data-name="lash" d="${LOWER_OPEN}"/></g>
+<g data-name="eyes.half"><path data-name="lash" d="${HALF}"/></g>
+<g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}"/></g>
+</svg>`;
+    const recipe = buildMorphRecipe("blink", {
+      method: "bend",
+      keyframes: [
+        { offset: 0, eyes: { state: "open" } },
+        { offset: 0.5, eyes: { state: "half" } },
+        { offset: 1, eyes: { state: "closed" } },
+      ],
+    });
+    const staged = bakeMorphArtifact({ source: three, selection: {}, recipe, key: "three" });
+    expect(staged.segments.map((s) => `${s.from.state}>${s.to.state}`)).toEqual(["open>half", "half>closed"]);
+    const closed = shown(elements(renderMorphFrame(staged, { segment: 1, progress: 1 })));
+    expect(closed.map((e) => e.attributes["d"])).toEqual([CLOSED]);
+  });
+
+  test("a fade starts from the drawing's own inline opacity", () => {
+    const faded = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="eyes.open:default"><path data-name="crease" d="M10,20H40V25H10Z" style="opacity:0.4"/></g>
+<g data-name="eyes.closed"><path data-name="other" d="M0,0H5V5H0Z"/></g>
+</svg>`;
+    const recipe = buildMorphRecipe("blink", { method: "bend", keyframes: [{ offset: 0, eyes: { state: "open" } }, { offset: 1, eyes: { state: "closed" } }] });
+    const artifact = bakeMorphArtifact({ source: faded, selection: {}, recipe, key: "fade" });
+    const crease = elements(renderMorphFrame(artifact, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
+    expect(crease.attributes["style"]).toBe("opacity:0.2");
+  });
+
+  test("the aperture blends onto its closed line as the eye closes", () => {
+    const clip = artifact.segments[0]!.clips[0]!;
+    const nearly = aperturePathData(artifact.apertures[clip.loops.index]!, clip.loops, 0.99);
+    const points = [...nearly.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    let sum = 0;
+    for (let i = 0; i < points.length; i++) {
+      const [x1, y1] = points[i]!;
+      const [x2, y2] = points[(i + 1) % points.length]!;
+      sum += x1! * y2! - x2! * y1!;
+    }
+    // A hundredth of the way from the last open sample, the opening is a
+    // sliver, not the half-open loop the previous sample held.
+    expect(Math.abs(sum) / 2).toBeLessThan(20);
   });
 
   test("a static artifact plays as its rest render", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { FilteredSvgCache, FilteredSvgFile } from "../../filters/filteredSvg";
-import { parseMorphAssetRequest, serveMorphAsset } from "../../morph/assetService";
+import { MORPH_ARTIFACT_CACHE_ENTRIES, parseMorphAssetRequest, serveMorphAsset } from "../../morph/assetService";
 import { serializeMorphRecipe } from "../../morph/recipe";
 import { MorphBakeService, type MorphCacheEvent } from "../../morph/service";
 import type { MorphArtifact } from "../../morph/types";
@@ -100,6 +100,36 @@ describe("asset service morph endpoint", () => {
     const after = [...cache.store.keys()];
     expect(after).toHaveLength(1);
     expect(after[0]).not.toBe(before[0]);
+  });
+
+  test("editing a morph replaces its cached artifact, while another morph on the same variant keeps its own", async () => {
+    const cache = memoryCache();
+    const service = new MorphBakeService();
+    const serve = async (recipe: ReturnType<typeof blink>) => {
+      const request = parseMorphAssetRequest(params({ morph: serializeMorphRecipe(recipe) }));
+      if (!request || request === "invalid") throw new Error("unreadable request");
+      await serveMorphAsset({ service, cache, path: "local/bunny.svg", file: file(portrait()), request });
+      await flush();
+      await flush();
+    };
+    await serve(blink());
+    await serve(blink({ fallback: "cut" }));
+    expect(cache.store.size).toBe(1);
+    await serve({ ...blink(), name: "squint" });
+    expect(cache.store.size).toBe(2);
+  });
+
+  test("the persistent cache stays within its bound, dropping its oldest entries", async () => {
+    const cache = memoryCache();
+    for (let i = 0; i < MORPH_ARTIFACT_CACHE_ENTRIES; i++) cache.store.set(`/file:/local/old-${i}.svg?morph=x&recipe=y`, "{}");
+    const request = parseMorphAssetRequest(params());
+    if (!request || request === "invalid") throw new Error("unreadable request");
+    await serveMorphAsset({ service: new MorphBakeService(), cache, path: "local/bunny.svg", file: file(portrait()), request });
+    await flush();
+    await flush();
+    expect(cache.store.size).toBe(MORPH_ARTIFACT_CACHE_ENTRIES);
+    expect(cache.store.has("/file:/local/old-0.svg?morph=x&recipe=y")).toBe(false);
+    expect([...cache.store.keys()].some((key) => key.includes("local/bunny.svg"))).toBe(true);
   });
 
   test("a bake that throws answers the rest render with the plain filtered image", async () => {

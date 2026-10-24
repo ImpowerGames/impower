@@ -12,6 +12,7 @@ import {
   type EdgeTrack,
   type LabelledShape,
   type MorphResult,
+  type Point,
   type Subpath,
   type SubpathMorph,
 } from "@impower/spark-morph/src/index";
@@ -35,6 +36,11 @@ import { recipeAsMorph } from "./recipe";
 import {
   ancestry,
   cloneElement,
+  compositingRules,
+  compositingValue,
+  matchesCompositingRule,
+  styleDeclarations,
+  type CompositingRules,
   convertToPath,
   drawnLeaves,
   effectiveLabel,
@@ -45,6 +51,7 @@ import {
   namespaceTree,
   readArtDocument,
   serialize,
+  setStyleProperty,
   type ArtDocument,
   type Element,
 } from "./svgDocument";
@@ -150,27 +157,17 @@ function staticArtifact(
  */
 export const idPrefixFor = (key: string) => `_m${hashText(key).slice(0, 8)}_`;
 
-const COMPOSITING_PROPERTIES = ["filter", "mask", "mix-blend-mode", "isolation"];
-
-/** Whether splitting this element's content across parts would change how it composites. */
-function composites(element: Element): boolean {
-  const a = element.attributes;
-  const opacity = a["opacity"];
-  if (opacity !== undefined && Number.parseFloat(opacity) < 1) return true;
-  for (const name of COMPOSITING_PROPERTIES) {
-    const value = a[name];
-    if (value !== undefined && value !== "none" && value !== "normal" && value !== "auto") return true;
+/**
+ * Whether splitting this element's content across parts would change how it
+ * composites: an opacity under 1, a filter, a mask, a blend mode or
+ * isolation, from its attributes, its inline style or a style-sheet rule.
+ */
+function composites(element: Element, rules: CompositingRules): boolean {
+  for (const [name, value] of Object.entries(element.attributes)) {
+    if (typeof value === "string" && compositingValue(name.toLowerCase(), value)) return true;
   }
-  const style = a["style"];
-  if (style) {
-    for (const declaration of style.split(";")) {
-      const [name, value] = declaration.split(":").map((s) => s?.trim().toLowerCase());
-      if (!name || value === undefined) continue;
-      if (name === "opacity" && Number.parseFloat(value) < 1) return true;
-      if (COMPOSITING_PROPERTIES.includes(name) && value !== "none" && value !== "normal" && value !== "auto") return true;
-    }
-  }
-  return false;
+  if (styleDeclarations(element).some(([name, value]) => compositingValue(name, value))) return true;
+  return matchesCompositingRule(rules, element);
 }
 
 const packed = (subpaths: Subpath[]): number[] => {
@@ -242,6 +239,34 @@ const reversedBend = (track: BendTrack): BendTrack => ({
   tips: (p) => track.tips(1 - p),
   edges: (p, n) => track.edges(1 - p, n),
 });
+
+/**
+ * A closed polyline resampled to `count` points evenly spaced along its
+ * outline, starting at its first point. A loop that already has `count`
+ * points is returned as it is.
+ */
+export function resampleLoop(loop: Point[], count: number): Point[] {
+  if (loop.length === count || loop.length === 0) return loop;
+  const lengths: number[] = [0];
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i]!;
+    const b = loop[(i + 1) % loop.length]!;
+    lengths.push(lengths[i]! + Math.hypot(b[0] - a[0], b[1] - a[1]));
+  }
+  const total = lengths[loop.length]!;
+  const out: Point[] = [];
+  let edge = 0;
+  for (let k = 0; k < count; k++) {
+    const at = (total * k) / count;
+    while (edge < loop.length - 1 && lengths[edge + 1]! < at) edge++;
+    const a = loop[edge]!;
+    const b = loop[(edge + 1) % loop.length]!;
+    const span = lengths[edge + 1]! - lengths[edge]!;
+    const f = span > 0 ? (at - lengths[edge]!) / span : 0;
+    out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+  }
+  return out;
+}
 
 const isBend = (track: unknown): track is BendTrack =>
   !!track && typeof (track as BendTrack).tips === "function" && typeof (track as BendTrack).edges === "function";
@@ -397,6 +422,7 @@ export function* bakeSteps(
     const key = keyOf(element);
     if ((key !== undefined && groupOf.has(key)) || inTarget(element)) live.add(element);
   }
+  const sheetRules = compositingRules(doc);
   // A group that composites as a whole (opacity, filters, masks, blending)
   // cannot be split between parts without changing how it looks.
   let grew = true;
@@ -404,7 +430,7 @@ export function* bakeSteps(
     grew = false;
     for (const element of [...live]) {
       for (const entry of ancestry(doc, element)) {
-        if (entry.element === element || !composites(entry.element)) continue;
+        if (entry.element === element || !composites(entry.element, sheetRules)) continue;
         for (const leaf of drawnLeaves(doc, entry.element)) {
           if (unionVisible(leaf) && !live.has(leaf)) {
             live.add(leaf);
@@ -519,6 +545,20 @@ export function* bakeSteps(
   const restLoops: (number[][] | undefined)[] = recipe.clips.map(() => undefined);
   const clipHasFrames = recipe.clips.map(() => false);
 
+  // Every edge a clip names has to be drawn here: an aperture missing one of
+  // its edges is not the opening the author asked for.
+  for (const [index, clip] of recipe.clips.entries()) {
+    const absent = clip.between.filter((label) => !leaves.some((leaf) => leaf.label === label));
+    if (absent.length) {
+      report(
+        "edge-missing",
+        "error",
+        `Clip ${index + 1} is bounded by ${absent.map((l) => `"${l}"`).join(", ")}, which this artwork does not draw, so there is no aperture to cut.`,
+        { layer: absent[0] },
+      );
+      return disable();
+    }
+  }
   // Every edge label is checked against its clip's targets once: an aperture
   // cannot clip the edge that forms it.
   for (const [index, clip] of recipe.clips.entries()) {
@@ -686,11 +726,19 @@ export function* bakeSteps(
             }
             return disable();
           }
-          const samples: number[][][] = [];
+          const raw: Point[][][] = [];
           for (let s = 0; s < MORPH_BAKE_SAMPLES; s++) {
-            const t = s / (MORPH_BAKE_SAMPLES - 1);
-            samples.push(built.apertures.map((ap) => ap.loop(t).flatMap(([x, y]) => [round(x), round(y)])));
+            raw.push(built.apertures.map((ap) => ap.loop(s / (MORPH_BAKE_SAMPLES - 1))));
           }
+          // A closed aperture comes back as its two tips; a player blends
+          // neighbouring samples point by point, so every sample of one
+          // aperture is given the same number of points.
+          const samples: number[][][] = raw.map((loops) =>
+            loops.map((loop, j) => {
+              const points = Math.max(...raw.map((other) => other[j]!.length));
+              return resampleLoop(loop, points).flatMap(([x, y]) => [round(x), round(y)]);
+            }),
+          );
           // Stored in the edges' canonical direction, so a later segment that
           // moves the same edges back reuses it reversed. Edges that disagree
           // about direction have no canonical order and are not reused.
@@ -824,8 +872,12 @@ export function* bakeSteps(
           clone.attributes["data-morph"] = leaf.node;
           // The markup is the rest pose: the parts composed as written are
           // the rest render, and a player shows other states' drawings by
-          // taking this off.
+          // taking this off. An inline `display` would outrank the attribute;
+          // a drawn leaf's own can only be a default one (hidden art is no
+          // leaf), so it goes.
+          setStyleProperty(clone, "display", undefined);
           if (!visibleAt(leaf.element, restVisible)) clone.attributes["display"] = "none";
+          else delete clone.attributes["display"];
           if (morphing.has(leaf.node)) {
             const local = localGeometry(leaf.element);
             if (local) convertToPath(clone, pathData(local));

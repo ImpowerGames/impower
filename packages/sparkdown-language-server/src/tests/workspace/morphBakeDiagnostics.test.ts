@@ -1,5 +1,6 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { resolvePreviewLayers } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
@@ -193,6 +194,20 @@ describe("morph previews through the providers", () => {
     // Without the morph hook the same hover shows the plain static image.
     const plain = await getHover(documents.get(main), documents.annotations(main), program, undefined, position, {});
     expect(previewImage((plain?.contents as any)?.value)).not.toContain("<clipPath");
+  });
+
+  it("a + composition previews its blinking layer as that layer's rest render", async () => {
+    const { workspace } = setup();
+    const program = compileServed();
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
+    // The layers a composition hands the compositor, bottom first.
+    const composed = { $type: "layered_image", $name: "bunny+bunny~eyes.closed", assets: [{ $name: "bunny" }, { $name: "bunny~eyes.closed" }] };
+    program.context.filtered_image["bunny~eyes.closed"] ??= { $type: "filtered_image", $name: "bunny~eyes.closed", image: { $name: "bunny" }, attributes: ["eyes.closed"] };
+    const layers = await resolvePreviewLayers(program.context, composed, createImageCompositeOptions(workspace));
+    expect(layers).toHaveLength(2);
+    expect(decodeURIComponent(layers[0]!.src)).toContain("<clipPath");
+    // The closed-eyes layer is dormant for the blink, so it stays as filtered.
+    expect(layers[1]!.src).toContain("attributes=");
   });
 
   it("a completion candidate no script names yet previews as its rest render", async () => {

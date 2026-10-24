@@ -4,6 +4,7 @@
 // verification captures look at any pose without a player.
 
 import { parse, stringify, type Node } from "../txml/txml";
+import { setStyleProperty, styleProperty } from "./svgDocument";
 import type { MorphArtifact, MorphFrames, MorphGeometryRef } from "./types";
 
 type Element = Exclude<Node, string | null>;
@@ -89,9 +90,15 @@ function* walk(element: Element): Generator<Element> {
   for (const child of elementsOf(element.children)) yield* walk(child);
 }
 
+/**
+ * Fades a drawing from its own opacity. An inline `style` opacity outranks the
+ * attribute, so the authored value is read from where it takes effect and the
+ * faded one is written where it will.
+ */
 const multiplyOpacity = (element: Element, factor: number) => {
-  const own = Number.parseFloat(element.attributes["opacity"] ?? "1");
-  element.attributes["opacity"] = fmt((Number.isFinite(own) ? own : 1) * factor);
+  const authored = styleProperty(element, "opacity") ?? element.attributes["opacity"] ?? "1";
+  const own = Number.parseFloat(authored);
+  setStyleProperty(element, "opacity", fmt((Number.isFinite(own) ? own : 1) * factor));
 };
 
 /**
@@ -117,8 +124,10 @@ export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): stri
   const groupStates = artifact.visibility[segment.group] ?? {};
   const before = new Set(groupStates[segment.from.state] ?? []);
   const after = new Set(groupStates[segment.to.state] ?? []);
-  for (const node of new Set([...before, ...after])) {
-    // Drawings in both poses stay; the transitions below decide the rest.
+  // Every drawing of the moving group starts hidden, including those of
+  // states this segment does not touch (the open pose during `half → closed`);
+  // drawings in both poses stay, and the transitions below decide the rest.
+  for (const node of new Set(Object.values(groupStates).flat())) {
     (before.has(node) && after.has(node) ? shown : hidden).add(node);
   }
   const show = (node: string | undefined) => {

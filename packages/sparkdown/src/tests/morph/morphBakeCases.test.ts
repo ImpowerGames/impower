@@ -100,6 +100,15 @@ describe("morph bake: layered art", () => {
     expect(face.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${p}white`)).toBe(true);
   });
 
+  test("a copied resource keeps what its original ancestors passed down to it", () => {
+    // The gradient's stop paints `currentColor`, which its <defs> sets.
+    const inherited = layeredPortrait().replace("<defs>", '<defs color="lime">').replace('<stop offset="0" stop-color="#fff"/>', '<stop offset="0" stop-color="currentColor"/>');
+    const live = elements(bake(inherited, layeredRecipe).parts[1]!.svg);
+    const gradient = live.find((e) => e.tagName === "linearGradient" && e.attributes["id"]?.endsWith("white"))!;
+    const holder = live.find((e) => e.tagName === "g" && e.children.includes(gradient));
+    expect(holder?.attributes["color"]).toBe("lime");
+  });
+
   test("a target's own clip stays on it inside the aperture's wrapper, so the two intersect", () => {
     const live = elements(artifact.parts[1]!.svg);
     const iris = live.find((e) => e.attributes["data-name"] === "iris")!;
@@ -184,6 +193,37 @@ describe("morph bake: resting states", () => {
   });
 });
 
+describe("morph bake: compositing and authored style", () => {
+  test("a group a style-sheet rule makes translucent stays whole in one live part", () => {
+    const dim = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<style>.dim { opacity: .5 }</style>
+<g class="dim">
+<path data-name="backing" d="M0,0H120V100H0Z" fill="blue"/>
+<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.closed">${LASH_CLOSED}</g>
+</g>
+</svg>`;
+    const artifact = bake(dim, recipe());
+    expect(artifact.parts.map((p) => p.kind)).toEqual(["live"]);
+    // Without the rule the backing stays static, below the lashes.
+    expect(bake(dim.replace(".dim { opacity: .5 }", ".dim { fill: red }"), recipe()).parts.map((p) => p.kind)).toEqual(["static", "live"]);
+  });
+
+  test("a live drawing's own inline display goes, so the rest-pose attribute decides", () => {
+    const styled = art(LASHES_OPEN, lash(CLOSED, "eyelash-left", ' style="display:inline;fill:#111"'));
+    const live = elements(bake(styled, recipe()).parts.find((p) => p.kind === "live")!.svg);
+    const closed = live.find((e) => e.attributes["d"] === CLOSED)!;
+    expect(closed.attributes["display"]).toBe("none");
+    expect(closed.attributes["style"]).toBe("fill:#111");
+  });
+
+  test("art the author hid is no live drawing", () => {
+    const hidden = art(LASHES_OPEN + `<path data-name="ghost" d="M0,0H5V5H0Z" style="display:none"/>`, LASH_CLOSED);
+    const artifact = bake(hidden, recipe());
+    expect(artifact.parts.some((p) => p.svg.includes("ghost"))).toBe(false);
+  });
+});
+
 describe("morph bake: policies", () => {
   const creases = `<path data-name="crease" d="M10,20 C20,10 30,10 40,20 C30,15 20,15 10,20Z" fill="#a75"/>`;
 
@@ -257,6 +297,19 @@ describe("morph bake: apertures that cannot be built", () => {
     const artifact = bake(art(ball + LASHES_OPEN, LASH_CLOSED), clip(["eyelash-right"], ["eyeball"]));
     expect(artifact.status).toBe("static");
     expect(codes(artifact)).toContain("edge-missing");
+  });
+
+  test("a clip missing one of its edges is refused even when the others make an aperture", () => {
+    const artifact = bake(art(ball + LASHES_OPEN, LASH_CLOSED), clip(["eyelash-left", "missing-edge"], ["eyeball"]));
+    expect(artifact.status).toBe("static");
+    expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "edge-missing", layer: "missing-edge", uri: URI })]);
+  });
+
+  test("every sample of an aperture has the same points, the closed one included", () => {
+    const artifact = bake(art(ball + LASHES_OPEN, LASH_CLOSED), clip(["eyelash-left"], ["eyeball"]));
+    const table = artifact.apertures[0]!;
+    expect(new Set(table.map((sample) => sample.map((loop) => loop.length).join("+"))).size).toBe(1);
+    expect(area(table[table.length - 1]![0]!)).toBeLessThan(1e-3);
   });
 
   test("three edges meeting at the same tips are ambiguous", () => {

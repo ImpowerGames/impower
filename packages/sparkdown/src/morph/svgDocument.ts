@@ -49,6 +49,102 @@ const ATOMIC = new Set([...SHAPES, "text", "image", "use", "foreignobject", "svg
 
 export const isShape = (element: Element) => SHAPES.has(element.tagName.toLowerCase());
 
+/** The declarations of an inline `style` attribute, in order. */
+export function styleDeclarations(element: Element): [string, string][] {
+  const out: [string, string][] = [];
+  for (const declaration of (element.attributes["style"] ?? "").split(";")) {
+    const colon = declaration.indexOf(":");
+    if (colon < 0) continue;
+    const name = declaration.slice(0, colon).trim().toLowerCase();
+    if (name) out.push([name, declaration.slice(colon + 1).trim()]);
+  }
+  return out;
+}
+
+/** An inline style property's value, which outranks the presentation attribute of that name. */
+export const styleProperty = (element: Element, name: string): string | undefined =>
+  styleDeclarations(element).findLast(([n]) => n === name)?.[1];
+
+/** Sets (or, with `undefined`, removes) one inline style property. */
+export function setStyleProperty(element: Element, name: string, value: string | undefined) {
+  const kept = styleDeclarations(element).filter(([n]) => n !== name);
+  if (value !== undefined) kept.push([name, value]);
+  if (kept.length) element.attributes["style"] = kept.map(([n, v]) => `${n}:${v}`).join(";");
+  else delete element.attributes["style"];
+}
+
+/** Properties that make an element composite its content as one group. */
+const COMPOSITING = ["opacity", "filter", "mask", "mix-blend-mode", "isolation"];
+
+/** Whether a declared value of a compositing property actually composites. */
+export const compositingValue = (name: string, value: string): boolean => {
+  const v = value.trim().toLowerCase();
+  if (!COMPOSITING.includes(name)) return false;
+  if (name === "opacity") {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) && n < 1;
+  }
+  return v !== "" && v !== "none" && v !== "normal" && v !== "auto";
+};
+
+/**
+ * What the document's style sheets give compositing properties to, by the
+ * simple selectors named in such rules. This over-approximates on purpose:
+ * a rule `.face .dim { opacity: .5 }` counts every `.face` and every `.dim`,
+ * and an attribute selector or `*` counts every element. Erring this way
+ * only keeps more art in one live part, which draws the same.
+ */
+export interface CompositingRules {
+  any: boolean;
+  classes: Set<string>;
+  ids: Set<string>;
+  tags: Set<string>;
+}
+
+export function compositingRules(doc: ArtDocument): CompositingRules {
+  const rules: CompositingRules = { any: false, classes: new Set(), ids: new Set(), tags: new Set() };
+  for (const sheet of subtree(doc.root).filter((e) => e.tagName.toLowerCase() === "style")) {
+    const css = sheet.children.filter((c): c is string => typeof c === "string").join("").replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const block of css.split("}")) {
+      const open = block.indexOf("{");
+      if (open < 0) continue;
+      const selector = block.slice(0, open);
+      const declares = block
+        .slice(open + 1)
+        .split(";")
+        .some((d) => {
+          const colon = d.indexOf(":");
+          return colon > 0 && compositingValue(d.slice(0, colon).trim().toLowerCase(), d.slice(colon + 1));
+        });
+      if (!declares) continue;
+      // Each compound selector (`g.dim`, `#eye`, `path`) is matched by any one
+      // of its classes or ids, or by its tag when it names nothing else.
+      for (const compound of selector.split(/[\s>+~,()]+/)) {
+        if (!compound) continue;
+        if (/[*[]/.test(compound)) rules.any = true;
+        const classes = [...compound.matchAll(/\.(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
+        const ids = [...compound.matchAll(/#(-?[_a-zA-Z][-_a-zA-Z0-9]*)/g)].map((m) => m[1]!);
+        for (const c of classes) rules.classes.add(c);
+        for (const id of ids) rules.ids.add(id);
+        const tag = /^[a-zA-Z][-a-zA-Z0-9]*/.exec(compound)?.[0];
+        if (tag && !classes.length && !ids.length) rules.tags.add(tag.toLowerCase());
+      }
+    }
+  }
+  return rules;
+}
+
+/** Whether a style-sheet rule may give the element a compositing property. */
+export const matchesCompositingRule = (rules: CompositingRules, element: Element): boolean =>
+  rules.any ||
+  rules.tags.has(element.tagName.toLowerCase()) ||
+  (element.attributes["id"] !== undefined && rules.ids.has(element.attributes["id"])) ||
+  (element.attributes["class"] ?? "").split(/\s+/).some((c) => c && rules.classes.has(c));
+
+/** Whether the element is authored not to render at all. */
+export const authoredHidden = (element: Element) =>
+  (styleProperty(element, "display") ?? element.attributes["display"])?.trim().toLowerCase() === "none";
+
 const elementsOf = (children: Node[]): Element[] =>
   children.filter((c): c is Element => !!c && typeof c === "object");
 
@@ -102,6 +198,8 @@ export function drawnLeaves(doc: ArtDocument, element: Element = doc.root): Elem
     if (!entry || entry.resource) return;
     const tag = e.tagName.toLowerCase();
     if (SVG_RESOURCE_TAGS.has(tag)) return;
+    // Art the author hid draws nothing, so it is no part's leaf.
+    if (e !== doc.root && authoredHidden(e)) return;
     if (e !== doc.root && ATOMIC.has(tag)) {
       out.push(e);
       return;
@@ -307,6 +405,29 @@ function rewriteStyleSheet(
 export const serialize = (element: Element): string =>
   stringify([element], { quote: "'", selfClosingTags: ["path"] });
 
+/** Attributes that describe one element rather than what it passes down. */
+const OWN_ATTRIBUTES = new Set(["id", "transform", "data-name"]);
+
+/**
+ * A resource copied out of its place, inside groups that repeat what its
+ * original ancestors (below the root, which every part copies) passed down:
+ * a `currentColor` stop under `<defs color="lime">` stays lime, and a class
+ * rule matching an ancestor still matches. Ids stay with the original, and
+ * an ancestor's transform does not apply to a paint server or a clip path.
+ */
+function withInheritance(doc: ArtDocument, target: Element, clone: Element): Element {
+  let out = clone;
+  for (const entry of ancestry(doc, target)) {
+    if (entry.element === target || entry.element === doc.root) continue;
+    const attributes: Record<string, string> = {};
+    for (const [name, value] of Object.entries(entry.element.attributes)) {
+      if (!OWN_ATTRIBUTES.has(name) && typeof value === "string") attributes[name] = value;
+    }
+    if (Object.keys(attributes).length) out = { tagName: "g", attributes, children: [out] };
+  }
+  return out;
+}
+
 /**
  * A copy of the document keeping only `keep` (and every ancestor of a kept
  * element, with its attributes) plus the resources they reference. Resource
@@ -365,7 +486,7 @@ export function extractTree(
     for (const entry of ancestry(doc, target)) {
       if (entry.element !== target && closure.has(entry.element.attributes["id"] ?? "")) insideCopied = true;
     }
-    if (!insideCopied) defs.children.push(cloneElement(target));
+    if (!insideCopied) defs.children.push(withInheritance(doc, target, cloneElement(target)));
   }
   const styles = sheets.map((e) => cloneElement(e));
   const leading = [...styles, ...(defs.children.length ? [defs] : [])];
