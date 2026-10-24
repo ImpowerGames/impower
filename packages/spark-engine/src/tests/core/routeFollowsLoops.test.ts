@@ -7,10 +7,11 @@
 // the loop run, so a search that counts every decision alike replays the
 // shorter route and the preview shows the store as it was before the loop.
 //
-// What must hold: a route runs a loop the passes the program runs, branches
-// inside the loop included, wherever that leads to the target; it forces a
-// loop's test only when that is the way there; and a branch the program skips
-// stays reachable beside a loop that never ends.
+// What must hold: a route takes every decision the program's way, a loop's
+// test, a branch inside or around the loop and a `break` included, wherever
+// that leads to the target; it forces a verdict only when that is the way
+// there; and a branch the program skips stays reachable beside a loop that
+// never ends.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -232,10 +233,62 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       program as any,
       game.routeStartOf(to),
       to,
-      undefined,
-      { maxSteps: 2000, maxNodes: 200 },
     );
     expect(route?.steps.at(-1)?.address).toBe(to);
     expect(route?.conditions.map((c) => c.selected)).toEqual([true]);
+  }, 120_000);
+
+  test("a break inside a loop leaves after the passes the program runs", () => {
+    const src = [
+      "store total = 0",
+      "-> main",
+      "scene main",
+      "  for i = 1, 3 do",
+      "    if i == 3 then",
+      "      break",
+      "    end",
+      "    total += i",
+      "  end",
+      "  Target {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 10, "total")).toBe(3);
+  }, 120_000);
+
+  test("a branch around a loop is taken as the program takes it", () => {
+    const src = [
+      "store total = 0",
+      "store go = true",
+      "-> main",
+      "scene main",
+      "  if go then",
+      "    for i = 1, 3 do",
+      "      total += i",
+      "    end",
+      "  end",
+      "  Target {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 10, "total")).toBe(6);
+  }, 120_000);
+
+  test("a loop in a choose block's preamble runs its passes", () => {
+    const src = [
+      "store total = 0",
+      "-> main",
+      "scene main",
+      "  choose",
+      "    for i = 1, 3 do",
+      "      total += i",
+      "      + Pick {i}",
+      "    end",
+      "  end",
+      "  Target {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 10, "total")).toBe(6);
   }, 120_000);
 });

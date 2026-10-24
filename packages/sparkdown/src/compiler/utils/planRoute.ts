@@ -47,13 +47,26 @@ export interface SearchNode {
    *  them all from the top in order (`decisions`): forcing one again here
    *  would apply it to a later visit of its site, as a loop's test makes. */
   overrides: RouteOverride[];
-  /** How many loop tests the route to this node forced to a verdict the
-   *  program does not reach there. */
-  loopDepartures: number;
-  /** How many choices and branch decisions (every decision but a loop's
-   *  test) the route to this node took. */
-  depth: number;
+  /** What the route to this node cost ({@link SearchQueue}): one for each
+   *  choice and each verdict the program reaches itself, and
+   *  {@link DEPARTURE_COST} for each verdict forced against the program. */
+  cost: number;
 }
+
+/**
+ * What forcing a verdict against the program costs a route, in decisions
+ * taken the program's own way.
+ *
+ * A route that forces a verdict runs something the program does not, so the
+ * state it reaches its target with is not the program's: forcing a loop's test
+ * false skips the passes the program runs, and forcing an `if` around a loop or
+ * a `break` inside one skips their writes (#637). A route that follows the
+ * program to the target is therefore taken before one that forces anything,
+ * however many more decisions it takes, up to this many. The bound is what
+ * keeps a branch reachable when the program's own way runs a loop that never
+ * ends: past this many of its passes, the forced branch is tried.
+ */
+export const DEPARTURE_COST = 1_000;
 
 /**
  * Extend a step-sequence identity with one more path: a step's address, or a
@@ -167,7 +180,24 @@ export interface ConditionOverride {
   /** The address of the decision the verdict is for. */
   site: ProgramAddress;
   value: boolean;
+  /** Set when the verdict is not the one the program reaches there: the
+   *  route forced it to reach its target. */
+  departs?: true;
 }
+
+/** How many of `route`'s steps come before its first departing verdict
+ *  ({@link ConditionOverride.departs}): all of them when it has none. A step
+ *  records the index of the latest decision taken before it. */
+export const stepsBeforeDeparture = (route: RoutePlan): number => {
+  const first = route.decisions.findIndex(
+    (d) => d.kind === "condition" && d.departs,
+  );
+  if (first < 0) {
+    return route.steps.length;
+  }
+  const at = route.steps.findIndex((step) => step.decision >= first);
+  return at < 0 ? route.steps.length : at;
+};
 
 export interface ChoiceOverride {
   kind: "choice";
@@ -237,7 +267,10 @@ export interface SearchOptions {
   favoredChoices?: (number | undefined)[];
 
   /**
-   * If provided, these condition values will be given higher priority when searching for a route
+   * If provided, these condition values are tried first, matched to the
+   * decisions in the order the route meets them, wherever the program reaches
+   * no verdict of its own; elsewhere the program's verdict is tried first
+   * (see {@link DEPARTURE_COST}).
    */
   favoredConditions?: (boolean | undefined)[];
 
@@ -611,76 +644,52 @@ export interface SearchError {
 }
 
 /**
- * The nodes a search has yet to expand: fewest forced loop tests first
- * ({@link SearchNode.loopDepartures}), then fewest choices and branch
- * decisions ({@link SearchNode.depth}), and among equals first in, first out
- * for a breadth-first search or last in, first out for a depth-first one.
+ * The nodes a search has yet to expand, cheapest first
+ * ({@link SearchNode.cost}), and among equals first in, first out for a
+ * breadth-first search or last in, first out for a depth-first one.
  *
- * A loop's test decides how many passes the loop runs, so a route that
- * forces one runs a different number of passes than the program does and
- * reaches what follows the loop with other values. Forcing a loop's test
- * false the first time it is asked reaches the line after the loop sooner
- * than letting the loop run, so a search that counted it as one more
- * decision would replay that line with the store as it stood before the loop
- * (#637). No route that forces a loop's test is therefore expanded while one
- * that forces none waits. A loop's own test adds no depth either: the passes
- * the program runs cost nothing, and a branch queued beside a loop that never
- * ends is still taken before the loop's next pass.
+ * Counting one for every decision, as a plain breadth-first search does,
+ * prefers whatever reaches the target in fewer decisions, and forcing a loop's
+ * test false the first time it is asked reaches the line after the loop in one,
+ * so the line was replayed with the store as it stood before the loop (#637).
+ * A verdict forced against the program costs {@link DEPARTURE_COST} instead.
+ *
+ * A node's children never cost less than the node, so the cheapest bucket
+ * that may still hold a node only moves up.
  */
 class SearchQueue {
-  /** The nodes of each loop departure count and depth, and how far each has
-   *  been taken. */
-  protected _tiers: { nodes: SearchNode[]; head: number }[][] = [];
-  /** How many nodes wait in each loop departure count. */
-  protected _tierLengths: number[] = [];
-  /** The lowest depth that may still hold a node, in each loop departure
-   *  count. */
-  protected _lowestDepths: number[] = [];
-  /** The lowest loop departure count that may still hold a node. */
-  protected _lowestTier = 0;
+  /** The nodes of each cost, and how far each has been taken. */
+  protected _buckets: { nodes: SearchNode[]; head: number }[] = [];
+  /** The lowest cost that may still hold a node. */
+  protected _lowest = 0;
   /** How many nodes wait. */
   length = 0;
 
   constructor(protected readonly _fifo: boolean) {}
 
   push(node: SearchNode): void {
-    const t = node.loopDepartures;
-    const tier = (this._tiers[t] ??= []);
-    const bucket = (tier[node.depth] ??= { nodes: [], head: 0 });
+    const bucket = (this._buckets[node.cost] ??= { nodes: [], head: 0 });
     bucket.nodes.push(node);
-    this._tierLengths[t] = (this._tierLengths[t] ?? 0) + 1;
     this.length += 1;
-    if (node.depth < (this._lowestDepths[t] ?? Infinity)) {
-      this._lowestDepths[t] = node.depth;
-    }
-    if (t < this._lowestTier) {
-      this._lowestTier = t;
+    if (node.cost < this._lowest) {
+      this._lowest = node.cost;
     }
   }
 
   take(): SearchNode | undefined {
-    for (; this._lowestTier < this._tiers.length; this._lowestTier += 1) {
-      const t = this._lowestTier;
-      if (!this._tierLengths[t]) {
+    for (; this._lowest < this._buckets.length; this._lowest += 1) {
+      const bucket = this._buckets[this._lowest];
+      if (!bucket || bucket.head >= bucket.nodes.length) {
         continue;
       }
-      const tier = this._tiers[t]!;
-      for (let d = this._lowestDepths[t]!; d < tier.length; d += 1) {
-        const bucket = tier[d];
-        if (!bucket || bucket.head >= bucket.nodes.length) {
-          continue;
-        }
-        this._lowestDepths[t] = d;
-        this._tierLengths[t]! -= 1;
-        this.length -= 1;
-        if (!this._fifo) {
-          return bucket.nodes.pop();
-        }
-        const node = bucket.nodes[bucket.head]!;
-        bucket.nodes[bucket.head] = undefined!;
-        bucket.head += 1;
-        return node;
+      this.length -= 1;
+      if (!this._fifo) {
+        return bucket.nodes.pop();
       }
+      const node = bucket.nodes[bucket.head]!;
+      bucket.nodes[bucket.head] = undefined!;
+      bucket.head += 1;
+      return node;
     }
     return undefined;
   }
@@ -1078,22 +1087,19 @@ const runUntilDecisionOrBranch = (
           break;
         }
 
-        // At a loop's test the program's own verdict costs nothing and the
-        // other is a loop departure (see `SearchQueue`). A favored verdict
-        // does not apply there: favored verdicts are matched to decisions by
-        // their order along an earlier route, so one forced at a loop's test
-        // ends the loop at that route's count. At any other decision both
-        // branches go one deeper, the favored verdict first, then the
-        // program's own, so a route through a loop's passes takes each
-        // branch the program takes.
+        // The verdict the program reaches here costs one and the other
+        // departs from the program (see `SearchQueue`). A favored verdict
+        // only orders the two where the program reaches none: favored
+        // verdicts are matched to decisions by their order along an earlier
+        // route, so one that outranked the program would end a loop at that
+        // route's count after an edit changed it.
         const natural = story.pausedConditionVerdict;
-        const loop = story.pausedAtLoopTest;
-        const first = loop
-          ? (natural ?? true)
-          : (favoredConditionalValues[node.conditions.length] ??
-            natural ??
-            true);
+        const first =
+          natural ??
+          favoredConditionalValues[node.conditions.length] ??
+          true;
         for (const value of [first, !first]) {
+          const departs = natural !== null && value !== natural;
           branches.push(
             forkCondition(
               forkState,
@@ -1103,14 +1109,9 @@ const runUntilDecisionOrBranch = (
                 kind: "condition",
                 site: story.pausedBeforeCondition,
                 value,
+                ...(departs ? { departs: true as const } : {}),
               },
-              loop
-                ? {
-                    loopDepartures:
-                      node.loopDepartures + (value === natural ? 0 : 1),
-                    depth: node.depth,
-                  }
-                : { loopDepartures: node.loopDepartures, depth: node.depth + 1 },
+              node.cost + (departs ? DEPARTURE_COST : 1),
             ),
           );
         }
@@ -1178,8 +1179,7 @@ const makeStartNode = (
     conditions: [],
     choices: [],
     overrides: [],
-    loopDepartures: 0,
-    depth: 0,
+    cost: 0,
   };
 };
 
@@ -1201,8 +1201,7 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   conditions: [...resumeFrom.conditions],
   choices: [...resumeFrom.choices],
   overrides: [],
-  loopDepartures: 0,
-  depth: 0,
+  cost: 0,
 });
 
 const isRootLevel = (knot: string): boolean =>
@@ -1238,7 +1237,7 @@ const forkCondition = (
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ConditionOverride,
-  order: Pick<SearchNode, "loopDepartures" | "depth">,
+  cost: number,
 ): SearchNode => {
   return {
     state,
@@ -1253,7 +1252,7 @@ const forkCondition = (
     conditions: [...parent.conditions, { selected: ov.value }],
     choices: [...parent.choices],
     overrides: [ov],
-    ...order,
+    cost,
   };
 };
 
@@ -1273,8 +1272,7 @@ const forkChoice = (
     conditions: [...parent.conditions],
     choices: [...parent.choices, choice],
     overrides: [ov],
-    loopDepartures: parent.loopDepartures,
-    depth: parent.depth + 1,
+    cost: parent.cost + 1,
   };
 };
 

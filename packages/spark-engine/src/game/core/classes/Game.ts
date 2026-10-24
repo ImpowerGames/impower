@@ -24,6 +24,7 @@ import {
   buildRouteSimulator,
   lastSearchStats,
   planRoute,
+  stepsBeforeDeparture,
   type SearchOptions,
   type RoutePlan,
   type RouteResumePoint,
@@ -2224,7 +2225,24 @@ export class Game<T extends M = {}> {
       this._program.changes,
       this._plannedRouteChangeId,
     );
-    const resume = this.findResumePoint(validSteps);
+    // The route still ends where it is wanted, so it is worth replaying it
+    // before searching for another. Replaying is what happens after a search
+    // in any case, and from no deeper a checkpoint than this one — so trying
+    // it first costs a second replay when the route no longer holds, and
+    // saves the whole search when it does.
+    // The route's own steps are kept only while every one of them still
+    // holds: a step past the valid prefix names a statement the compile
+    // emitted again, whose decisions the route's forced ones no longer
+    // name, so the rest is searched for.
+    const replayOnly = route.to === to && validSteps === route.steps.length;
+    // A search resumed inside the route keeps every decision before the
+    // point it resumes from, and a search from the top forces a verdict
+    // against the program only where the target needs it (`planRoute`).
+    // So a search resumes no later than the route's first such verdict, or
+    // the preview would show a branch the route took for another line.
+    const resume = this.findResumePoint(
+      replayOnly ? validSteps : Math.min(validSteps, stepsBeforeDeparture(route)),
+    );
     if (!resume) {
       return { validSteps, replayOnly: false };
     }
@@ -2233,17 +2251,7 @@ export class Game<T extends M = {}> {
       stepIndex: resume.stepIndex,
       resumeFrom: resume.point,
       checkpointIndex: resume.checkpointIndex,
-      // The route still ends where it is wanted, so it is worth replaying it
-      // before searching for another. Replaying is what happens after a search
-      // in any case, and from no deeper a checkpoint than this one — so trying
-      // it first costs a second replay when the route no longer holds, and
-      // saves the whole search when it does.
-      // The route's own steps are kept only while every one of them still
-      // holds: a step past the valid prefix names a statement the compile
-      // emitted again, whose decisions the route's forced ones no longer
-      // name, so the rest is searched for.
-      replayOnly:
-        route.to === to && validSteps === route.steps.length,
+      replayOnly,
     };
   }
 

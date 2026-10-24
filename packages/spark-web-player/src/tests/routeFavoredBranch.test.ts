@@ -1,13 +1,14 @@
-// A branch the preview forced on the way to one line is remembered, and the
-// next line of the same scene previews the same timeline whether the search
-// resumes inside the earlier route or starts from the top (#637).
+// A branch the preview forced on the way to one line does not carry over to
+// the next line of the same scene, whether the search for that line resumes
+// inside the earlier route or starts from the top (#637).
 //
 // Previewing a line inside a branch the program skips forces that branch, and
 // the worker remembers the verdict (`searchRouteTo`'s `simulationOptions`). A
-// later preview of a line after the branch resumes from a checkpoint of that
-// route when one is still good, so it keeps the forced branch; a fresh search
-// of the same program with the same remembered verdicts must take it too, or
-// the value the preview shows depends on whether a checkpoint was reusable.
+// later preview of a line after the branch shows the program's own timeline:
+// a fresh search forces nothing the line does not need, and a search resumed
+// from a checkpoint of the earlier route resumes no later than its forced
+// verdict, so the value the preview shows does not depend on whether a
+// checkpoint was reusable.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, test } from "vitest";
@@ -76,8 +77,8 @@ const TEXT = [
   "",
 ].join("\n");
 
-describe("a remembered branch", () => {
-  test("previews the same value resumed and searched afresh", () => {
+describe("a forced branch", () => {
+  test("does not carry over to a later line, resumed or searched afresh", () => {
     const { compiler, program } = compile(TEXT);
     const kept = gameOf(program);
     const config: any = {};
@@ -109,6 +110,6 @@ describe("a remembered branch", () => {
     expect({
       resumed: kept.story.variablesState["total"],
       fresh: fresh.story.variablesState["total"],
-    }).toEqual({ resumed: 7, fresh: 7 });
+    }).toEqual({ resumed: 0, fresh: 0 });
   }, 120_000);
 });

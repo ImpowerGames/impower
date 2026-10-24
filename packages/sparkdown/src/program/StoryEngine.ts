@@ -152,8 +152,6 @@ export interface StoryEngine {
   /** The verdict that decision reaches unless a simulator forces one, or
    *  null when its condition is no value a decision can test. */
   pausedConditionVerdict: boolean | null;
-  /** Whether that decision is a loop's test. */
-  pausedAtLoopTest: boolean;
 
   // Checkpoints and saves (section 7).
   keepBeatImages: boolean;
