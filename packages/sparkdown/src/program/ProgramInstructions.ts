@@ -195,6 +195,10 @@ export const JUMP_LUAU = 1;
 /** The jump is a decision the route planner can pause at and force, as a
  *  conditional divert is today. */
 export const JUMP_DECISION = 2;
+/** The decision is a loop's test. The route planner follows the program's
+ *  own verdict there before any other, since a route that forces a loop's
+ *  test runs a different number of passes than the program does. */
+export const JUMP_LOOP = 4;
 
 /** `BindRoot`'s and `VarPtr`'s flag: `arg` names the root frame's slot that
  *  keeps the binding of one declaration of a name the document declares more

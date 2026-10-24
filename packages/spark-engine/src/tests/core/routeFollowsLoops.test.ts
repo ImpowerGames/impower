@@ -7,9 +7,10 @@
 // the loop run, so a search that counts every decision alike replays the
 // shorter route and the preview shows the store as it was before the loop.
 //
-// What must hold: a route follows the verdict the program itself reaches at a
-// decision whenever that verdict leads to the target, and forces the opposite
-// verdict only when it is the way there.
+// What must hold: a route runs a loop the passes the program runs, branches
+// inside the loop included, wherever that leads to the target; it forces a
+// loop's test only when that is the way there; and a branch the program skips
+// stays reachable beside a loop that never ends.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -146,6 +147,26 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(previewedStore(src, 9, "total", [true, true, false])).toBe(6);
   }, 120_000);
 
+  test("a branch inside a loop takes the program's side on every pass", () => {
+    const src = [
+      "store total = 0",
+      "",
+      "-> main",
+      "",
+      "scene main",
+      "  for i = 1, 3 do",
+      "    if i == 2 then",
+      "      total += 10",
+      "    end",
+      "    total += i",
+      "  end",
+      "  The loop counted {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 12, "total")).toBe(16);
+  }, 120_000);
+
   test("a for loop at story scope", () => {
     const src = [
       "store x = 0",
@@ -176,5 +197,45 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "",
     ].join("\n");
     expect(previewedStore(src, 8, "seen")).toBe(7);
+  }, 120_000);
+
+  test("a branch the program skips is reached beside a loop that never ends", () => {
+    // The program's own side runs a loop forever, each pass changing the
+    // store; the forced side is the only way to the line.
+    const src = [
+      "store flag = false",
+      "store laps = 0",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  if flag then",
+      "    Target branch.",
+      "  else",
+      "    while true do",
+      "      laps += 1",
+      "    end",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const lines = src.split("\n");
+    const program = compileSrc(src);
+    const game: any = newGame(program);
+    game.setStartFrom({
+      file: URI,
+      line: lines.findIndex((l) => l.includes("Target branch.")),
+    });
+    const to = game.startAddress;
+    const route = Game.planRoute(
+      game.story,
+      program as any,
+      game.routeStartOf(to),
+      to,
+      undefined,
+      { maxSteps: 2000, maxNodes: 200 },
+    );
+    expect(route?.steps.at(-1)?.address).toBe(to);
+    expect(route?.conditions.map((c) => c.selected)).toEqual([true]);
   }, 120_000);
 });

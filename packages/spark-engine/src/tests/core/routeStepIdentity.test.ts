@@ -224,25 +224,12 @@ describe("branches do not share an identity", () => {
   // two sibling branches identical identities for every path they later share,
   // which a re-plan would read as "already simulated" and resume from the
   // wrong branch's checkpoint.
-  //
-  // A route forces a condition only where the program's own verdict does not
-  // reach the target, so the choice before the condition is what sends the
-  // two routes down different sides of it to the beats they share.
   const BRANCHY = `store flag = false
 
 -> start
 
 scene start
   Opening beat.
-  choose
-  + [Raise the flag]
-    & flag = true
-    Raised.
-  + [Leave it down]
-    Left down.
-  then
-    Chosen.
-  end
   if flag then
     True branch beat.
   else
@@ -252,9 +239,6 @@ scene start
   Another shared beat.
 end
 `;
-  const ANOTHER_SHARED_BEAT = BRANCHY.split("\n").findIndex((l) =>
-    l.includes("Another shared beat."),
-  );
 
   test("a step after a fork differs from the same path on the other branch", () => {
     const program = compileSrc(BRANCHY);
@@ -267,18 +251,15 @@ end
           return 0;
         }) as any,
       } as any);
-      game.setStartFrom({ file: URI, line: ANOTHER_SHARED_BEAT });
+      game.setStartFrom({ file: URI, line: 12 });
       const toPath = game.startAddress!;
       const route = Game.planRoute(
         game.story,
         program as any,
         game.routeStartOf(toPath),
         toPath,
-        {
-          [game.routeStartOf(toPath)]: { favoredChoices: [favored ? 0 : 1] },
-        },
+        { [game.routeStartOf(toPath)]: { favoredConditions: [favored] } },
       );
-      expect(route?.conditions.map((c) => c.selected)).toEqual([favored]);
       return route?.steps ?? [];
     };
 

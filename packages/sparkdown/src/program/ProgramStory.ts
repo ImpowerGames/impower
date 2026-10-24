@@ -85,6 +85,7 @@ import {
   COUNT_TURNS,
   ConstValue,
   JUMP_DECISION,
+  JUMP_LOOP,
   JUMP_LUAU,
   KEEP_OR,
   LEAVE_CONTINUE,
@@ -499,6 +500,9 @@ export class ProgramStory implements StoryEngine {
    *  simulator forces one: its condition is already on the evaluation stack.
    *  Null when that condition is no value a decision can test. */
   pausedConditionVerdict: boolean | null = null;
+  /** Whether the decision `pausedBeforeCondition` names is a loop's test
+   *  (`JUMP_LOOP`). */
+  pausedAtLoopTest = false;
 
   /** Every instruction this story has run. */
   stepCount = 0;
@@ -2545,11 +2549,15 @@ export class ProgramStory implements StoryEngine {
           condition instanceof Value && !(condition instanceof SymbolValue)
             ? condition.isTruthy
             : null;
+        const w0 = chunk[HEADER_WORDS + position.offset]!;
+        this.pausedAtLoopTest =
+          opOf(w0) === Op.JumpIfFalse && (flagsOf(w0) & JUMP_LOOP) !== 0;
         return;
       }
     }
     this.pausedBeforeCondition = null;
     this.pausedConditionVerdict = null;
+    this.pausedAtLoopTest = false;
     this.stepCount++;
     if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
       throw new StepLimitExceeded();

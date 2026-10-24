@@ -47,12 +47,12 @@ export interface SearchNode {
    *  them all from the top in order (`decisions`): forcing one again here
    *  would apply it to a later visit of its site, as a loop's test makes. */
   overrides: RouteOverride[];
-  /** How many of those decisions depart from what the program would do
-   *  unforced: every choice, and every condition verdict the program would
-   *  not reach itself. The search expands the node that departs least
-   *  first, so a route follows the program wherever the program leads to
-   *  the target. */
-  departures: number;
+  /** How many loop tests the route to this node forced to a verdict the
+   *  program does not reach there. */
+  loopDepartures: number;
+  /** How many choices and branch decisions (every decision but a loop's
+   *  test) the route to this node took. */
+  depth: number;
 }
 
 /**
@@ -523,9 +523,9 @@ const searchBudgetExhausted = (budget: SearchBudget): boolean => {
  * its first step consumes ({@link SearchNode.overrides}), so no forced
  * decision is still queued at a fork. A second arrival at the same site and
  * state would enqueue the same children the first arrival already did, and
- * expanding it again is wasted work. The search expands nodes
- * in order of departures ({@link SearchQueue}), so the arrival that was kept is
- * also the route to that position that departs least from the program.
+ * expanding it again is wasted work. The search expands the nodes in the
+ * order {@link SearchQueue} gives them, so the arrival that was kept is also
+ * the route to that position the search prefers.
  *
  * This prunes repetition; it is not what makes the search terminate. A story
  * that loops does not generally come back to the same state, because visit
@@ -611,50 +611,76 @@ export interface SearchError {
 }
 
 /**
- * The nodes a search has yet to expand, taken fewest departures first
- * ({@link SearchNode.departures}), and among equals first in, first out for a
- * breadth-first search or last in, first out for a depth-first one.
+ * The nodes a search has yet to expand: fewest forced loop tests first
+ * ({@link SearchNode.loopDepartures}), then fewest choices and branch
+ * decisions ({@link SearchNode.depth}), and among equals first in, first out
+ * for a breadth-first search or last in, first out for a depth-first one.
  *
- * A route that departs less is the one the program takes more of on its own,
- * so the state it reaches the target with is the state the program reaches it
- * with. A route that forces a loop's test false the first time it is asked
- * reaches the line after the loop in fewer decisions than one that lets the
- * loop run, so a search that counted every decision alike would replay the
- * line with the store as it stood before the loop (#637).
+ * A loop's test decides how many passes the loop runs, so a route that
+ * forces one runs a different number of passes than the program does and
+ * reaches what follows the loop with other values. Forcing a loop's test
+ * false the first time it is asked reaches the line after the loop sooner
+ * than letting the loop run, so a search that counted it as one more
+ * decision would replay that line with the store as it stood before the loop
+ * (#637). No route that forces a loop's test is therefore expanded while one
+ * that forces none waits. A loop's own test adds no depth either: the passes
+ * the program runs cost nothing, and a branch queued beside a loop that never
+ * ends is still taken before the loop's next pass.
  */
 class SearchQueue {
-  /** The nodes of each departure count, and how far each has been taken. */
-  protected _buckets: { nodes: SearchNode[]; head: number }[] = [];
-  /** The lowest departure count that may still hold a node. */
-  protected _lowest = 0;
+  /** The nodes of each loop departure count and depth, and how far each has
+   *  been taken. */
+  protected _tiers: { nodes: SearchNode[]; head: number }[][] = [];
+  /** How many nodes wait in each loop departure count. */
+  protected _tierLengths: number[] = [];
+  /** The lowest depth that may still hold a node, in each loop departure
+   *  count. */
+  protected _lowestDepths: number[] = [];
+  /** The lowest loop departure count that may still hold a node. */
+  protected _lowestTier = 0;
   /** How many nodes wait. */
   length = 0;
 
   constructor(protected readonly _fifo: boolean) {}
 
   push(node: SearchNode): void {
-    const bucket = (this._buckets[node.departures] ??= { nodes: [], head: 0 });
+    const t = node.loopDepartures;
+    const tier = (this._tiers[t] ??= []);
+    const bucket = (tier[node.depth] ??= { nodes: [], head: 0 });
     bucket.nodes.push(node);
+    this._tierLengths[t] = (this._tierLengths[t] ?? 0) + 1;
     this.length += 1;
-    if (node.departures < this._lowest) {
-      this._lowest = node.departures;
+    if (node.depth < (this._lowestDepths[t] ?? Infinity)) {
+      this._lowestDepths[t] = node.depth;
+    }
+    if (t < this._lowestTier) {
+      this._lowestTier = t;
     }
   }
 
   take(): SearchNode | undefined {
-    for (; this._lowest < this._buckets.length; this._lowest += 1) {
-      const bucket = this._buckets[this._lowest];
-      if (!bucket || bucket.head >= bucket.nodes.length) {
+    for (; this._lowestTier < this._tiers.length; this._lowestTier += 1) {
+      const t = this._lowestTier;
+      if (!this._tierLengths[t]) {
         continue;
       }
-      this.length -= 1;
-      if (!this._fifo) {
-        return bucket.nodes.pop();
+      const tier = this._tiers[t]!;
+      for (let d = this._lowestDepths[t]!; d < tier.length; d += 1) {
+        const bucket = tier[d];
+        if (!bucket || bucket.head >= bucket.nodes.length) {
+          continue;
+        }
+        this._lowestDepths[t] = d;
+        this._tierLengths[t]! -= 1;
+        this.length -= 1;
+        if (!this._fifo) {
+          return bucket.nodes.pop();
+        }
+        const node = bucket.nodes[bucket.head]!;
+        bucket.nodes[bucket.head] = undefined!;
+        bucket.head += 1;
+        return node;
       }
-      const node = bucket.nodes[bucket.head]!;
-      bucket.nodes[bucket.head] = undefined!;
-      bucket.head += 1;
-      return node;
     }
     return undefined;
   }
@@ -1052,17 +1078,21 @@ const runUntilDecisionOrBranch = (
           break;
         }
 
-        // The verdict the program reaches here departs from nothing, so a
-        // route that follows it is expanded before one that forces the other.
-        // A favored verdict cannot outrank it: favored verdicts are matched to
-        // decisions by their order along an earlier route, and a loop's test
-        // forced to that route's verdict ends the loop at that route's count.
-        // It orders the branches only where the program reaches no verdict.
+        // At a loop's test the program's own verdict costs nothing and the
+        // other is a loop departure (see `SearchQueue`). A favored verdict
+        // does not apply there: favored verdicts are matched to decisions by
+        // their order along an earlier route, so one forced at a loop's test
+        // ends the loop at that route's count. At any other decision both
+        // branches go one deeper, the favored verdict first, then the
+        // program's own, so a route through a loop's passes takes each
+        // branch the program takes.
         const natural = story.pausedConditionVerdict;
-        const first =
-          natural ??
-          favoredConditionalValues[node.conditions.length] ??
-          true;
+        const loop = story.pausedAtLoopTest;
+        const first = loop
+          ? (natural ?? true)
+          : (favoredConditionalValues[node.conditions.length] ??
+            natural ??
+            true);
         for (const value of [first, !first]) {
           branches.push(
             forkCondition(
@@ -1074,7 +1104,13 @@ const runUntilDecisionOrBranch = (
                 site: story.pausedBeforeCondition,
                 value,
               },
-              value !== natural,
+              loop
+                ? {
+                    loopDepartures:
+                      node.loopDepartures + (value === natural ? 0 : 1),
+                    depth: node.depth,
+                  }
+                : { loopDepartures: node.loopDepartures, depth: node.depth + 1 },
             ),
           );
         }
@@ -1142,7 +1178,8 @@ const makeStartNode = (
     conditions: [],
     choices: [],
     overrides: [],
-    departures: 0,
+    loopDepartures: 0,
+    depth: 0,
   };
 };
 
@@ -1164,7 +1201,8 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   conditions: [...resumeFrom.conditions],
   choices: [...resumeFrom.choices],
   overrides: [],
-  departures: 0,
+  loopDepartures: 0,
+  depth: 0,
 });
 
 const isRootLevel = (knot: string): boolean =>
@@ -1200,7 +1238,7 @@ const forkCondition = (
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ConditionOverride,
-  departs: boolean,
+  order: Pick<SearchNode, "loopDepartures" | "depth">,
 ): SearchNode => {
   return {
     state,
@@ -1215,7 +1253,7 @@ const forkCondition = (
     conditions: [...parent.conditions, { selected: ov.value }],
     choices: [...parent.choices],
     overrides: [ov],
-    departures: parent.departures + (departs ? 1 : 0),
+    ...order,
   };
 };
 
@@ -1235,7 +1273,8 @@ const forkChoice = (
     conditions: [...parent.conditions],
     choices: [...parent.choices, choice],
     overrides: [ov],
-    departures: parent.departures + 1,
+    loopDepartures: parent.loopDepartures,
+    depth: parent.depth + 1,
   };
 };
 
