@@ -113,12 +113,13 @@ const inFlightGenerations = new Map<string, Promise<string>>();
 // Blob bytes are immutable. Reuse their read/hash only by object identity; two
 // files with identical timestamps and lengths may still contain different art.
 const sourceReads = new WeakMap<Blob, Promise<{ text: string; digest: string }>>();
-const readSource = async (file: FilteredSvgFile): Promise<{ text: string; digest: string }> => {
+/** A file's normalized SVG text and its SHA-256 digest, read once per Blob. */
+export const readSvgSource = async (file: FilteredSvgFile): Promise<{ text: string; digest: string }> => {
   const pending = sourceReads.get(file);
   if (pending) {
     try { return await pending; } catch {
       if (sourceReads.get(file) === pending) sourceReads.delete(file);
-      return readSource(file);
+      return readSvgSource(file);
     }
   }
   const read = (async () => {
@@ -206,7 +207,7 @@ export const getOrCreateFilteredSvg = async (
     return undefined;
   }
   let source: { text: string; digest: string };
-  try { source = await readSource(file); } catch { return undefined; }
+  try { source = await readSvgSource(file); } catch { return undefined; }
   const variantPrefix = `${keyPrefix}${path}?attributes=${encodeURIComponent(
     canonical,
   )}&sig=`;
