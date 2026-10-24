@@ -274,11 +274,46 @@ end
     expect(Object.keys(events.click ?? {})).toEqual([]);
   });
 
+  test("a labelled widget's order and growth place its label in the row", async () => {
+    const h = createHarness(
+      `store first = 2
+layout settings with
+  row {
+    slider "A" #order={first} #grow=1 #value=20
+    slider "B" #order=1 #value=80
+  }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
+    const labels = ui()
+      .filter((m) => m.method === "ui/create" && m.params.type === "label")
+      .map((m) => m.params);
+    const inputs = ui()
+      .filter((m) => m.method === "ui/create" && m.params.type === "input")
+      .map((m) => m.params);
+    expect(labels.map((l) => l.style?.order)).toEqual(["2", "1"]);
+    expect(labels[0].style?.grow).toBe("1");
+    expect(inputs.map((i) => i.style?.order)).toEqual([undefined, undefined]);
+    expect(inputs[0].style?.grow).toBeUndefined();
+
+    const seen = ui().length;
+    (h.game.story as any).variablesState.$("first", 0);
+    (h.game.module.ui as any).refreshLayouts();
+    const reordered = ui()
+      .slice(seen)
+      .filter((m) => m.method === "ui/update" && m.params.style?.order === "0");
+    expect(reordered.map((m) => m.params.element)).toEqual([labels[0].element]);
+  });
+
   test("props, bindings and write-back stay on the control", async () => {
     const h = createHarness(
       `store volume = 80
 layout settings with
-  slider "Master Volume" #min=0 #max=100 #value={volume} #margin-bottom=18 @input={ volume = event.value }
+  slider "Master Volume" #min=0 #max=100 #value={volume} #background-color="red" #margin-bottom=18 @input={ volume = event.value }
 end
 `,
       0,
@@ -287,9 +322,12 @@ end
     await h.ready;
     const [input] = createdOfType(h, "input");
     expect(input.attributes).toMatchObject({ min: "0", max: "100", value: "80" });
-    expect(input.style?.["margin-bottom"]).toBe("18");
+    expect(input.style?.["background-color"]).toBe("red");
     const [label] = createdOfType(h, "label");
-    expect(label.style?.["margin-bottom"]).toBeUndefined();
+    expect(label.style?.["background-color"]).toBeUndefined();
+    // Margin places the widget among its siblings, so it is the label's.
+    expect(label.style?.["margin-bottom"]).toBe("18");
+    expect(input.style?.["margin-bottom"]).toBeUndefined();
     // The control is the one element observed for events.
     const observed = h.observedElementIds();
     expect(observed).toHaveLength(1);
