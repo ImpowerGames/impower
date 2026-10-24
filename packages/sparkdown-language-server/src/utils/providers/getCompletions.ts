@@ -54,6 +54,15 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
+const MOVIE_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
+// The verbs offered inside `[[ ]]`: the image verbs and the cutscene verb.
+const BRACKET_CONTROL_KEYWORDS = [
+  ...IMAGE_CONTROL_KEYWORDS,
+  ...MOVIE_CONTROL_KEYWORDS,
+];
+// The clauses a `[[play NAME]]` cutscene takes.
+const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
 
 const IMAGE_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
@@ -92,6 +101,7 @@ const STYLING_DEFINE_TYPES: string[] = [];
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
+const VIDEO_TYPES = ["video"];
 const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
 
@@ -1652,7 +1662,7 @@ export const getCompletions = (
     );
     if (beforeImageNode) {
       if (isCursorAfterNodeText(beforeImageNode)) {
-        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
         addStructReferenceCompletions(
           completions,
           program,
@@ -1664,7 +1674,7 @@ export const getCompletions = (
     }
     if (leftStack[0]?.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(leftStack[0])) {
-        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
       }
       return buildCompletions();
     }
@@ -1680,6 +1690,11 @@ export const getCompletions = (
       );
       const control = getNodeText(controlNode);
       if (isCursorAfterNodeText(leftStack[0])) {
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          // A cutscene's target is the video it plays.
+          addStructReferenceCompletions(completions, program, VIDEO_TYPES);
+          return buildCompletions();
+        }
         addScreenElementReferenceCompletions(
           completions,
           program,
@@ -1702,6 +1717,11 @@ export const getCompletions = (
           leftStack,
         );
         const control = getNodeText(controlNode);
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          // A cutscene plays one video: only its clauses follow the name.
+          addKeywordCompletions(completions, "clause", CUTSCENE_CLAUSE_KEYWORDS);
+          return buildCompletions();
+        }
         const clauses =
           control === "animate"
             ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
@@ -1723,6 +1743,17 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFileName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
+        const controlNode = getDescendentInsideParent(
+          "AssetCommandControl",
+          "ImageCommand",
+          leftStack,
+        );
+        if (MOVIE_CONTROL_KEYWORDS.includes(getNodeText(controlNode))) {
+          // A cutscene takes no second name, so a word typed after its
+          // video is the start of a clause.
+          addKeywordCompletions(completions, "clause", CUTSCENE_CLAUSE_KEYWORDS);
+          return buildCompletions();
+        }
         addStructReferenceCompletions(
           completions,
           program,
@@ -1755,7 +1786,7 @@ export const getCompletions = (
         const types =
           control === "animate"
             ? ["animation"]
-            : control === "show"
+            : control === "show" || MOVIE_CONTROL_KEYWORDS.includes(control)
               ? ["transition"]
               : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);
@@ -1773,6 +1804,21 @@ export const getCompletions = (
         addStructReferenceCompletions(completions, program, ["ease"]);
       }
       return buildCompletions();
+    }
+    if (leftStack[0]?.name === "NameValue") {
+      const controlNode = getDescendentInsideParent(
+        "AssetCommandControl",
+        "ImageCommand",
+        leftStack,
+      );
+      if (MOVIE_CONTROL_KEYWORDS.includes(getNodeText(controlNode))) {
+        // A word typed after a cutscene's flag is the start of its next
+        // clause (a `with` value was answered above).
+        if (isCursorAfterNodeText(leftStack[0])) {
+          addKeywordCompletions(completions, "clause", CUTSCENE_CLAUSE_KEYWORDS);
+        }
+        return buildCompletions();
+      }
     }
     if (
       isWhitespaceNode(leftStack[0]?.name) &&
@@ -1796,10 +1842,17 @@ export const getCompletions = (
             tree,
             read,
           );
+          const controlNode = getDescendentInsideParent(
+            "AssetCommandControl",
+            "ImageCommand",
+            leftStack,
+          );
           addKeywordCompletions(
             completions,
             "clause",
-            IMAGE_CLAUSE_KEYWORDS,
+            MOVIE_CONTROL_KEYWORDS.includes(getNodeText(controlNode))
+              ? CUTSCENE_CLAUSE_KEYWORDS
+              : IMAGE_CLAUSE_KEYWORDS,
             exclude,
           );
         }

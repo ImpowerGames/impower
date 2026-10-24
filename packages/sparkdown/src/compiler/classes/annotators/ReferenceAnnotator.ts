@@ -140,6 +140,11 @@ const LAYOUT_CONTROL_KEYWORDS: string[] =
 const LOAD_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
 
+// `[[play <name>]]` — the one name, in the target slot, is a video. Any
+// further name is the validator's to report, so it references nothing.
+const MOVIE_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
+
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
 > {
@@ -745,6 +750,19 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           annotations.push(this.loadTargetReference(name, nodeRef));
           return annotations;
         }
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          if (!name.includes("+")) {
+            annotations.push(
+              SparkdownAnnotation.mark<Reference>({
+                selectors: [{ types: ["video"], name, displayType: "video" }],
+                symbolIds: [`video.${name}`],
+                kind: "read",
+                linkable: true,
+              }).range(nodeRef.from, nodeRef.to),
+            );
+          }
+          return annotations;
+        }
         const types: string[] = ["layer"];
         const displayType = `layer`;
         annotations.push(
@@ -783,6 +801,19 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       // Record image name (and filter) reference
       if (context.includes("ImageCommand")) {
+        const instruction = ancestorMatching(
+          nodeRef.node,
+          ASSET_COMMAND_INSTRUCTION,
+        );
+        const controlNode = instruction
+          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
+          : null;
+        const control = controlNode
+          ? this.read(controlNode.from, controlNode.to).trim()
+          : "";
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          return annotations;
+        }
         const types = ["filtered_image", "layered_image", "image", "graphic"];
         const name = sortFilteredName(this.read(nodeRef.from, nodeRef.to));
         const displayType = "image";
@@ -816,6 +847,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           : "";
         if (LOAD_CONTROL_KEYWORDS.includes(control)) {
           annotations.push(this.loadTargetReference(name, nodeRef));
+          return annotations;
+        }
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
           return annotations;
         }
         const types = ["filtered_image", "layered_image", "image", "graphic"];

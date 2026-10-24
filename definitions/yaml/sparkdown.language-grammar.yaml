@@ -360,6 +360,10 @@ variables:
   # loading layout before the story goes on. Every `load` arrow (`-> load X`,
   # `-> load X ->`, `<- load X`) lowers to this directive on its own line.
   LOAD_CONTROL_KEYWORDS: ["load"]
+  # `[[play NAME]]` — play the video NAME full screen as a cutscene. Inside
+  # `(( ))` the same word is the audio verb (AUDIO_CONTROL_KEYWORDS), so a
+  # consumer tells the two apart by the bracket.
+  MOVIE_CONTROL_KEYWORDS: ["play"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
   # referenced-from: packages/sparkdown-language-server/src/utils/providers/getCompletions.ts
@@ -4520,7 +4524,7 @@ repository:
           - { include: "#NameValue" }
 
   AssetCommandInstruction:
-    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
+    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
     captures:
       1:
         patterns:
