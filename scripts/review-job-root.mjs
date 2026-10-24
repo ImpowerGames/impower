@@ -27,6 +27,40 @@ export function testScratch(prefix, from) {
   return dir;
 }
 
+// The files under a PR's job directory (`pr-<P>`) where the review workflow
+// writes launch plans, journals and launcher logs: its round directories and
+// the launch-state and supervisor job directories inside them, under any name
+// the launcher accepts. A reviewer's workspace (`reviewer-<id>-<attempt>`), a
+// reviewer tool's private home the launcher creates (`codex-home-*`,
+// `gh-config-*`), a Git checkout or clone, an install and a package cache
+// hold none of these, and reviewers fill them with probes, caches and
+// fixtures that can hold copies of other PRs' journals, so the walk never
+// enters one. Each file comes with its size from a single stat, sorted by
+// name within its directory. An entry removed while the walk reads it (a
+// reviewer deleting its probe) is skipped.
+const NOT_JOB_STATE = /^(?:reviewer-.*|codex-home-.*|gh-config-.*|\.git|node_modules|npm-cache|\.npm|_cacache)$/;
+const vanished = (error) => error.code === "ENOENT" || error.code === "ENOTDIR";
+export function reviewJobFiles(jobDir) {
+  const files = [];
+  const walk = (directory) => {
+    let entries;
+    try { entries = fs.readdirSync(directory, { withFileTypes: true }); }
+    catch (error) { if (vanished(error)) return; throw error; }
+    if (directory !== jobDir && entries.some((entry) => entry.name === ".git")) return;
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) { if (!NOT_JOB_STATE.test(entry.name)) walk(file); continue; }
+      if (!entry.isFile()) continue;
+      let size;
+      try { size = fs.statSync(file).size; }
+      catch (error) { if (vanished(error)) continue; throw error; }
+      files.push({ file, size });
+    }
+  };
+  walk(jobDir);
+  return files;
+}
+
 const lexicallyInside =(child, parent) => {
   const relative = path.relative(parent, child);
   return relative !== "" && !relative.startsWith(".." + path.sep) && relative !== ".." && !path.isAbsolute(relative);

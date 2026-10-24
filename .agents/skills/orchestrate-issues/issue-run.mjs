@@ -27,6 +27,7 @@ import { writeExclusive, readJson, alive, currentIdentity } from "../../../scrip
 import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 import { routeVendor, writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
+import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { liveDeps, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
@@ -801,20 +802,20 @@ function transcriptOf(owner) {
 // only to the plan's .coordinator.err.log, so nothing else would show it.
 // start-coordinator writes those logs into the job directory it is given,
 // which the review workflow makes the plan's own directory or its journal's
-// launch-state directory, so both are searched. A failed process census
-// proves no launch dead.
+// launch-state directory, so both are searched. The walk reads only where the
+// review workflow writes plans (reviewJobFiles), never a reviewer's workspace,
+// and a file removed while it runs is skipped. A failed process census proves
+// no launch dead.
 const launcherLogs = (plan, journal, kind) => [...new Set([path.dirname(plan), path.dirname(journal)])].map((dir) => path.join(dir, `${path.basename(plan, path.extname(plan))}.coordinator.${kind}.log`));
-function launchPlans(dir) {
+function launchPlans(files) {
   const plans = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const file = path.join(dir, entry.name);
-    if (entry.isDirectory()) { if (![".git", "node_modules"].includes(entry.name)) plans.push(...launchPlans(file)); continue; }
+  for (const { file, size } of files) {
     // The launcher takes a plan from any path, so a plan is recognized by its
     // content, as the review-checkpoint scanner does.
-    if (!entry.isFile() || fs.statSync(file).size === 0 || fs.statSync(file).size > 4 * 2 ** 20) continue;
+    if (size === 0 || size > 4 * 2 ** 20) continue;
     let plan;
     try { plan = readJson(file); } catch { continue; }
-    if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.push({ file, journal: path.resolve(dir, plan.journal) });
+    if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.push({ file, journal: path.resolve(path.dirname(file), plan.journal) });
   }
   return plans;
 }
@@ -822,17 +823,18 @@ export function deadLaunches(jobRoot, prs, census = processCensus) {
   const dead = [];
   let list;
   for (const { ticket, pr } of prs) {
-    const dir = path.join(jobRoot, `pr-${pr}`);
-    if (!fs.existsSync(dir)) continue;
-    for (const { file, journal } of launchPlans(dir)) {
+    const files = reviewJobFiles(path.join(jobRoot, `pr-${pr}`));
+    const sizes = new Map(files.map(({ file, size }) => [file, size]));
+    for (const { file, journal } of launchPlans(files)) {
       const started = ["out", "err"].some((kind) => launcherLogs(file, journal, kind).some((log) => fs.existsSync(log)));
-      if (!started || (fs.existsSync(journal) && fs.statSync(journal).size > 0)) continue;
+      if (!started || (sizes.get(journal) ?? fs.statSync(journal, { throwIfNoEntry: false })?.size) > 0) continue;
       if (list === undefined) { try { list = census(); } catch { list = null; } }
       if (!Array.isArray(list)) return [];
       if (usersOf(file, list, process.pid).length) continue;
       const errLogs = launcherLogs(file, journal, "err");
       const errLog = errLogs.find((log) => fs.existsSync(log)) ?? errLogs[0];
-      const error = fs.existsSync(errLog) ? fs.readFileSync(errLog, "utf8").trim().split(/\r?\n/).slice(-5).join("\n") : "";
+      let error = "";
+      try { error = fs.readFileSync(errLog, "utf8").trim().split(/\r?\n/).slice(-5).join("\n"); } catch (failure) { if (failure.code !== "ENOENT") throw failure; }
       dead.push({ ticket, pr, plan: file, journal, errLog, error });
     }
   }
