@@ -4,7 +4,7 @@
 // route search to it fails and `start` jumps to it; the run then shows the
 // scene's first line and waits there, as PLAY from that line does.
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
 const SOURCE = `-> start
 scene start
@@ -12,28 +12,6 @@ scene start
   done
 end
 `;
-
-/** Everything the run wrote to the screen, in order: a line is written a
- *  character at a time, and a played beat's writes reach the page inside its
- *  composed beat. */
-const writtenText = (sent: any[]): string => {
-  const texts: string[] = [];
-  const collect = (value: any) => {
-    if (value && typeof value === "object") {
-      if (typeof value.text === "string") texts.push(value.text);
-      for (const item of Object.values(value)) collect(item);
-    }
-  };
-  for (const m of sent) {
-    if (m.method === "ui/write-text") collect(m.params);
-    if (m.method === "ui/beat") {
-      for (const op of m.params?.messages ?? []) {
-        if (op.method === "ui/write-text") collect(op.params);
-      }
-    }
-  }
-  return texts.join("");
-};
 
 /** PLAY from `line` (zero-based) and a second of frames; answers what the run
  *  showed and how the game stood afterwards. */
