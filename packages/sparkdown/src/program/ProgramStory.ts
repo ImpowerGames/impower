@@ -3093,7 +3093,8 @@ export class ProgramStory implements StoryEngine {
         break;
       case Op.End:
         state.ForceEnd();
-        this.endedAt = addressOf(chunkId(chunk), position.offset);
+        // The position has already moved past the instruction.
+        this.endedAt = this.runningAddress() ?? null;
         break;
       case Op.JumpSym:
         if (!(flags & JUMP_ARGUMENTS)) {

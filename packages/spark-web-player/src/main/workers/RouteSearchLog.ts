@@ -46,23 +46,19 @@ export interface RouteSearchOutcome {
    *  not it reached the address; for a search that found no route, which
    *  replayed nothing, the errors that stopped it. */
   errors?: SimulationError[];
-  /** Whether a run from the address displays a beat before the story ends
-   *  (`Game.routeTargetShows`); known when the replay reached it. */
+  /** Whether a run from the address's checkpoint displays a beat before the
+   *  story ends, the beat on screen there included (`Game.routeTargetShows`);
+   *  known when the replay reached it. */
   shows?: boolean;
-  /** A step of the last beat the replay displayed before it reached the
-   *  address (`Game.routeShownBeat`). */
-  shownBeat?: ProgramAddress;
-  /** The search ran from the story's start rather than from the top of the
-   *  flow the address stands in. */
+  /** A route from the story's start has been searched for: this search ran
+   *  from it, or one that did found no route and this one stands. */
   fromStart?: boolean;
   /** For an address no route reaches: whether a run jumped to it displays a
    *  beat, once that has been asked. */
   jumpShows?: boolean;
-  /** For an address a run from which displays nothing: the line of the beat
-   *  on screen when the story reaches the address, or for an address no
-   *  route reaches, the nearest line above it whose jumped run shows one,
-   *  and what the search for that line established, which the display and
-   *  PLAY take (#1606). */
+  /** For an address no route reaches whose jumped run displays nothing: the
+   *  nearest line above it whose jumped run shows a beat, and what the search
+   *  for that line established, which the display and PLAY take (#1606). */
   shown?: {
     point: { file: string; line: number };
     outcome: RouteSearchOutcome;

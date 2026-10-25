@@ -23,6 +23,16 @@ const FIN_TOP = `Hello.
 fin
 `;
 
+// A line between the beat on screen and the `done` writes the story's state.
+const SCORED = `store score = 0
+
+scene start
+  Shown.
+  & score = 2
+  done
+end
+`;
+
 // The beat above the `done` in the text is one the run skips.
 const SKIPPED = `scene start
   Shown.
@@ -87,6 +97,11 @@ const playFrom = async (source: string, line: number) => {
     const started = await h.controller.startGameAndApp();
     await settle(40);
     await h.tick(1000 / 60, 60);
+    const score = h
+      .playing()
+      ?.programStory.variablesState.GetVariableWithName("score") as {
+      value?: unknown;
+    } | null;
     const outcome = {
       started,
       state: h.playing()?.state,
@@ -94,9 +109,26 @@ const playFrom = async (source: string, line: number) => {
         .filter((m) => m.method === "game/exited")
         .map((m) => m.params?.reason),
       text: writtenText(h.toRouter.slice(sentBefore)),
+      score: score?.value,
     };
     await h.controller.destroyGameAndApp();
     return outcome;
+  } finally {
+    h.dispose();
+  }
+};
+
+/** The text the first preview of `source` at `line` (zero-based) writes. */
+const previewAt = async (source: string, line: number) => {
+  const h = await createPlayerHarness({
+    files: [{ uri: MAIN_URI, text: source }],
+    startFrom: { file: MAIN_URI, line },
+  });
+  try {
+    await h.compile();
+    await h.select(line);
+    await settle(40);
+    return writtenText(h.toRouter);
   } finally {
     h.dispose();
   }
@@ -123,6 +155,26 @@ describe("PLAY from a line that ends the story inside a scene", () => {
     },
     120_000,
   );
+});
+
+describe("PLAY from a line whose run shows nothing starts as the story stands there", () => {
+  it("keeps what the lines after the beat on screen did", async () => {
+    const outcome = await playFrom(SCORED, 5);
+    expect(outcome.started).toBe(true);
+    expect(outcome.state).toBe("running");
+    expect(outcome.text).toContain("Shown.");
+    expect(outcome.score).toBe(2);
+  }, 120_000);
+});
+
+describe("the preview at a line whose run shows nothing", () => {
+  it.each([
+    ["a done", 2],
+    // No line below it has an address, and nothing was previewed before.
+    ["the closing end at the end of the script", 3],
+  ])("at %s, shows the last beat the run displayed", async (_name, line) => {
+    expect(await previewAt(DONE, line)).toContain("Hello.");
+  }, 120_000);
 });
 
 describe("PLAY inside a branch only a divert from outside its scene enters", () => {

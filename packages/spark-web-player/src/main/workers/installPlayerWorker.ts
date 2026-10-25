@@ -536,9 +536,11 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   /** The route to `point`'s `beat` in `entry`, with the game holding the
    *  entry's program: the search its log already holds for that path, or one
-   *  run now. A point whose run displays nothing before the story ends
-   *  answers the route to the beat on screen when the story reaches it
-   *  (`shownRoute`). */
+   *  run now. A route that displays nothing on the way to a point a run
+   *  from which displays nothing is searched for from the story's start
+   *  (`showingOutcome`). A point no route reaches whose jumped run displays
+   *  nothing answers the line above it that shows a beat
+   *  (`jumpedShownRoute`). */
   const routeTo = (
     game: Game,
     entry: DisplayableProgram,
@@ -553,7 +555,11 @@ export function installPlayerWorker(connection: MessageConnection) {
       searchIn(entry, false),
       compiler.profilerId,
     );
-    const shown = shownRoute(game, entry, to);
+    const outcome = showingOutcome(game, entry, to);
+    const shown =
+      outcome && !outcome.reachedTarget && !outcome.checkpoint
+        ? jumpedShownRoute(game, entry, outcome)
+        : undefined;
     if (!shown) {
       return reportOf(entry.log, to);
     }
@@ -578,69 +584,30 @@ export function installPlayerWorker(connection: MessageConnection) {
       });
 
   /**
-   * For an address a run from which displays nothing before the story ends
-   * (a `done`, a `fin`, a divert into a flow that ends at once), the route to
-   * the beat on screen when the story reaches it: the last beat the route
-   * there displayed (#1606). The display shows that beat at the address, and
-   * PLAY from the address starts there, waiting, so the next click runs on
-   * into the address. A route from the top of the address's flow that
-   * displays nothing on the way is searched again from the story's start,
-   * whose flows before it may have left a beat on screen. Nothing when the
-   * run from the address shows a beat, or no beat was displayed before it.
-   *
-   * What it finds is kept on the address's record in `entry`'s log, so a
-   * display or PLAY that asks again searches nothing.
+   * What `entry`'s log holds about `to`, once a route that displays nothing
+   * on the way to an address a run from which displays nothing (a `done` at
+   * the top of a scene a divert enters) has been searched for again from the
+   * story's start, whose flows before it may have left a beat on screen
+   * (#1606). The replay of a route puts that beat in its checkpoint
+   * (`Game.noteRouteTarget`). The route from the flow stands when the
+   * story's start does not reach the address.
    */
-  const shownRoute = (
+  const showingOutcome = (
     game: Game,
     entry: DisplayableProgram,
     to: ProgramAddress | null | undefined,
-  ): RouteSearchOutcome["shown"] => {
-    let outcome = entry.log.outcomeFor(to);
-    if (to == null || !outcome) {
-      return undefined;
+  ): RouteSearchOutcome | undefined => {
+    const outcome = entry.log.outcomeFor(to);
+    if (to == null || outcome?.shows !== false || outcome.fromStart) {
+      return outcome;
     }
-    if (!outcome.reachedTarget && !outcome.checkpoint) {
-      return jumpedShownRoute(game, entry, outcome);
+    searchIn(entry, true)(game, to);
+    const fromStart = entry.log.outcomeFor(to);
+    if (fromStart?.reachedTarget) {
+      return fromStart;
     }
-    if (outcome.shows !== false) {
-      return undefined;
-    }
-    if (outcome.shown) {
-      return outcome.shown;
-    }
-    if (outcome.shownBeat == null && !outcome.fromStart) {
-      const fromFlow = outcome;
-      searchIn(entry, true)(game, to);
-      outcome = entry.log.outcomeFor(to);
-      if (!outcome?.reachedTarget) {
-        // The story's start does not reach it: the route from the flow
-        // stands.
-        entry.log.record(fromFlow);
-        return undefined;
-      }
-    }
-    const location =
-      outcome.shownBeat != null
-        ? programLocator(entry.program).locationOf(outcome.shownBeat)
-        : undefined;
-    if (!location) {
-      entry.log.record(outcome);
-      return undefined;
-    }
-    const point = { file: location.uri, line: location.startLine };
-    const address = routeGameTo(
-      game,
-      point,
-      "last",
-      entry.log,
-      searchIn(entry, false),
-      compiler.profilerId,
-    );
-    const reached = entry.log.outcomeFor(address);
-    const shown = reached ? { point, outcome: reached } : undefined;
-    entry.log.record({ ...outcome, shown });
-    return shown;
+    entry.log.record({ ...outcome, fromStart: true });
+    return entry.log.outcomeFor(to);
   };
 
   /**
@@ -649,7 +616,7 @@ export function installPlayerWorker(connection: MessageConnection) {
    * ends, the nearest line above it in the same scene whose jumped run shows
    * a beat, and what the search for that line established (#1606). No run
    * reaches the address, so no beat was on screen when one did. Kept on the
-   * address's record, as `shownRoute` keeps what it finds.
+   * address's record, so a display or PLAY that asks again jumps nothing.
    */
   const jumpedShownRoute = (
     game: Game,
@@ -745,12 +712,14 @@ export function installPlayerWorker(connection: MessageConnection) {
         updateGameProgram(game, entry.program);
       }
       const touches = gameTouches;
-      const route = routeTo(
-        game,
-        entry,
+      // A line with no address of its own and none below it shows what the
+      // line above it shows, as PLAY from it starts there (`startPoint`).
+      const shown = startPoint(
+        entry.program,
         { file: params.file, line: params.line },
         "last",
       );
+      const route = routeTo(game, entry, shown.point, shown.beat);
       displayedId = entry.id;
       releaseUnneeded();
       const stepErrors: SimulationError[] = [];
@@ -768,8 +737,8 @@ export function installPlayerWorker(connection: MessageConnection) {
       const displaying = displayPreviewFrom(game, {
         program: entry.program,
         programChanged,
-        file: params.file,
-        line: params.line,
+        file: shown.point.file,
+        line: shown.point.line,
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
@@ -890,8 +859,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program);
     }
+    // PLAY from a line starts at its first beat (#721).
     const start = params.startFrom
-      ? playStart(program, params.startFrom)
+      ? startPoint(program, params.startFrom, "first")
       : undefined;
     const route: RouteReport = start
       ? routeTo(game, entry, start.point, start.beat)
@@ -904,13 +874,12 @@ export function installPlayerWorker(connection: MessageConnection) {
       restarted: params.restarted,
     });
     profile("end", compiler.profilerId + " " + "play/create");
-    if (start) {
-      // A line whose run displays nothing starts on the beat on screen when
-      // the story reaches it (`shownRoute`).
-      running.setStartFrom(
-        route.shownFrom ?? start.point,
-        route.shownFrom ? "last" : start.beat,
-      );
+    if (route.shownFrom) {
+      // A line no route reaches whose jumped run shows nothing starts at the
+      // line above it that shows a beat (`jumpedShownRoute`).
+      running.setStartFrom(route.shownFrom, "last");
+    } else if (start && start.point !== params.startFrom) {
+      running.setStartFrom(start.point, start.beat);
     }
     const errors = player.putAtStartPoint(
       running,
@@ -943,21 +912,23 @@ export function installPlayerWorker(connection: MessageConnection) {
   };
 
   /**
-   * The line and beat PLAY from `point` starts at. A line starts at its first
-   * beat (#721). A line with no address, and none below it in its script (a
+   * The line and beat a display or PLAY of `point` routes to: the point's own
+   * `beat`. A line with no address, and none below it in its script (a
    * scene's closing `end` at the end of the script, the blank lines after
    * it), is where the story stands once the line above it that has one has
-   * run: PLAY from it starts as PLAY from after that line's last beat would,
-   * which is that beat when it shows one (#1606). With no such line above,
-   * the run starts from the top of the top-level content.
+   * run, so it routes to that line's last beat, whose route puts the beat on
+   * screen there in its checkpoint (#1606). With no such line above, the
+   * point stands, and a run from it starts from the top of the top-level
+   * content.
    */
-  const playStart = (
+  const startPoint = (
     program: SparkProgram,
     point: { file: string; line: number },
+    beat: "first" | "last",
   ): { point: { file: string; line: number }; beat: "first" | "last" } => {
     const locator = programLocator(program);
     if (locator.addressAt(point.file, point.line) != null) {
-      return { point, beat: "first" };
+      return { point, beat };
     }
     for (let line = point.line - 1; line >= 0; line -= 1) {
       const address = locator.addressAt(point.file, line, { beat: "last" });
@@ -966,7 +937,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         return { point: { file: point.file, line }, beat: "last" };
       }
     }
-    return { point, beat: "first" };
+    return { point, beat };
   };
 
   /** End PLAY's game, answering where it last executed: the run the page

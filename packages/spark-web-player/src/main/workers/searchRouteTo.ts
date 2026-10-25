@@ -124,7 +124,6 @@ export const searchRouteFor = (
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
-      shownBeat: reachedTarget ? game.routeShownBeat : undefined,
       fromStart,
     });
     if (checkpoint && remember) {

@@ -444,7 +444,7 @@ const UNTAKEN = `define HAPPY as image with
   src = "https://example.com/happy.png"
 end
 
-store skip = false
+store skip = true
 
 -> start
 
@@ -650,7 +650,7 @@ end
  *  where the story last ran. An untaken branch before the menu holds the
  *  edit. */
 const RETAINED = `store stamp = 7
-store skip = false
+store skip = true
 
 layout main with
   badge {

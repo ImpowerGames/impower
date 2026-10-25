@@ -897,17 +897,8 @@ const runUntilDecisionOrBranch = (
         }
       }
 
-      // A) Target reached? A statement that ends the story (a `fin`) runs
-      // from its start to its `End` in one continue, so a target before the
-      // `End` in that statement was reached on the way.
-      if (
-        previous !== undefined &&
-        (previous === target ||
-          (target !== null &&
-            previous === story.endedAt &&
-            chunkOfAddress(target) === chunkOfAddress(previous) &&
-            target < previous))
-      ) {
+      // A) Target reached?
+      if (previous !== undefined && previous === target) {
         hitTarget = true;
         terminal = true;
         break;

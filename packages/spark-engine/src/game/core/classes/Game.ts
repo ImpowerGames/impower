@@ -660,30 +660,20 @@ export class Game<T extends M = {}> {
    *  was captured; see {@link checkpoint}. */
   protected _checkpointStepCursors: (number | undefined)[] = [];
 
-  /** The last step the story ran that stands on a line of a script. */
-  protected _executingLineAddress?: ProgramAddress;
-
-  /** A step of the last beat the replay under way displayed: the last step
-   *  of it that stands on a line. Nothing before the replay displays one. */
-  protected _shownBeat?: ProgramAddress;
+  /** The last beat the replay under way displayed: the instructions its
+   *  flush took. Nothing before the replay displays one. */
+  protected _shownBeat?: Instructions;
 
   /** Per checkpoint, the replay's `_shownBeat` when it was captured, which a
    *  replay resumed from the checkpoint starts from. */
-  protected _checkpointShownBeats: (ProgramAddress | undefined)[] = [];
+  protected _checkpointShownBeats: (Instructions | undefined)[] = [];
 
   /** Whether a run from where the last replay reached its target displays a
-   *  beat before the story ends; unknown until a replay reached one. */
+   *  beat before the story ends, the beat on screen there included
+   *  (`noteRouteTarget`); unknown until a replay reached one. */
   protected _routeTargetShows?: boolean;
   get routeTargetShows() {
     return this._routeTargetShows;
-  }
-
-  /** A step of the last beat the last replay displayed before it reached its
-   *  target (`_shownBeat`), which is the beat on screen when the story
-   *  reaches the target; nothing when it displayed none. */
-  protected _routeShownBeat?: ProgramAddress;
-  get routeShownBeat() {
-    return this._routeShownBeat;
   }
 
   protected _checkpoints!: CheckpointStore;
@@ -2161,7 +2151,6 @@ export class Game<T extends M = {}> {
     this._checkpointStepCursors.length = fromCheckpoint + 1;
     this._checkpointShownBeats.length = fromCheckpoint + 1;
     this._routeTargetShows = undefined;
-    this._routeShownBeat = undefined;
     this._routeErrors = this._routeErrors.filter(
       (e) => e.at <= fromCheckpoint,
     );
@@ -2222,24 +2211,41 @@ export class Game<T extends M = {}> {
   }
 
   /**
-   * After a replay reached its target, note the beat it last displayed and
-   * whether a run from the target displays one before the story ends. A
-   * target whose own beat is queued displays it; any other (a `done`, a
-   * divert, a line of logic) is run on as far as the next thing it shows, by
-   * the story alone (`showsBeatAhead`), and the target's checkpoint puts the
-   * game back where the replay left it (#1606).
+   * After a replay reached its target, put the beat on screen there in the
+   * target's checkpoint when a run from the target would display none (#1606).
+   *
+   * A target whose own beat is queued displays it. Any other (a `done`, a
+   * `fin`, a divert, a line of logic) is run on as far as the next thing it
+   * shows, by the story alone (`showsBeatAhead`), and the target's checkpoint
+   * puts the game back where the replay left it. A run that would show
+   * nothing before the story ends gets the last beat the replay displayed
+   * queued again, and the checkpoint is taken again with it: the story stands
+   * where it reached the target, with everything the lines before it did,
+   * and the display and PLAY from there show that beat first, waiting, so the
+   * next click runs on into the target.
    */
   protected noteRouteTarget(): void {
     if (this._simulation !== "success") {
       return;
     }
-    this._routeShownBeat = this._shownBeat;
     if (this.module.interpreter.hasQueuedBeats) {
       this._routeTargetShows = true;
       return;
     }
-    this._routeTargetShows = showsBeatAhead(this._story);
-    this.restoreCheckpoint(this._checkpoints.length - 1);
+    const last = this._checkpoints.length - 1;
+    const shows = showsBeatAhead(this._story);
+    this.restoreCheckpoint(last);
+    if (shows || !this._shownBeat) {
+      this._routeTargetShows = shows;
+      return;
+    }
+    this.module.interpreter.requeue(this._shownBeat);
+    const cursor = this._checkpointStepCursors[last];
+    this._checkpoints.truncate(last);
+    this.checkpoint();
+    this._checkpointStepCursors[last] = cursor;
+    this._checkpointShownBeats[last] = this._shownBeat;
+    this._routeTargetShows = true;
   }
 
   /** Whether a run jumped straight to `address`, as a preview or PLAY of a
@@ -2294,7 +2300,6 @@ export class Game<T extends M = {}> {
 
     this._executingAddress = null;
     this._executingLocation = null;
-    this._executingLineAddress = undefined;
 
     if (this._plannedRouteStepCursor >= route.steps.length - 1) {
       // The replay resumes at the target, or the step before it.
@@ -3411,6 +3416,8 @@ export class Game<T extends M = {}> {
           if (this._simulation !== "simulating") {
             // A route replay presents nothing on the page.
             this.noteShownChoices(instructions);
+          } else {
+            this._shownBeat = instructions;
           }
           if (
             !this._coordinator.shouldContinue() &&
@@ -3536,11 +3543,9 @@ export class Game<T extends M = {}> {
         }
 
         const prevExecutedLocation = this._executingLocation;
-        const previous = this._positions.previous();
-        const location = this.scriptLocationOf(previous);
+        const location = this.scriptLocationOf(this._positions.previous());
         if (location) {
           this._executingLocation = location;
-          this._executingLineAddress = previous ?? undefined;
         }
 
         // A continue returns at its line's newline, so the one after a line
@@ -3564,9 +3569,6 @@ export class Game<T extends M = {}> {
             this._story.currentChoices.map((c) => c.text),
             this._story.currentText || "",
           );
-          if (this._simulation === "simulating") {
-            this._shownBeat = this._executingLineAddress;
-          }
         }
 
         if (this._simulation !== "simulating") {
