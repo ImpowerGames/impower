@@ -26,13 +26,14 @@ Mis-grouping is the costly failure. A Bug that does not belong holds every other
 
 1. File each slice as a Task through the [filing routes](../../references/runner-filing.md), as a sub-issue of the parent or of the container its Bugs came from. The prompt names the Bugs it holds, the shared mechanism with its `file:line` evidence, the file set, the Effort to set and the blocker. Under file-task, the blocker is a "Blocked by" sentence that `record-blockers.mjs` records.
 2. Move each Bug under its slice with `gh api -X POST repos/<tickets>/issues/<slice>/sub_issues -F sub_issue_id=<id> -F replace_parent=true`, where `<id>` is `gh api repos/<tickets>/issues/<N> --jq .id`. Then read the slice's sub-issues back.
-3. Run `snapshot` again, so the plan reads the new tree.
+3. Copy the parent's milestone to the slice, since GitHub copies none from a parent: read its number with `gh api repos/<tickets>/issues/<parent> --jq .milestone.number`, set it with `gh api -X PATCH repos/<tickets>/issues/<slice> -F milestone=<number>`, and read `.milestone.title` back. A parent with no milestone leaves the slice without one.
+4. Run `snapshot` again, so the plan reads the new tree.
 
 ## Dispatched slices and Bugs that arrive mid-run
 
 A slice is dispatched once it is claimed. Its brief fixes the tickets its PR delivers when it is printed, so a Bug added afterwards has no closing reference in that PR. The PR then merges and leaves the Bug open, and the planner plans the Bug as `decision-needed`. So a Bug never joins a dispatched slice.
 
-A Bug that a later snapshot shows under the parent goes through this step again. Two or more new loose Bugs that share a mechanism get a new slice, and a slice that is not claimed yet may take a Bug on the same evidence. A Bug that is alone stays its own ticket.
+A Bug that a later snapshot shows under the parent goes through this step again, and so does a Bug the coordinator attached after triaging it as one the parent needs ([tickets filed during the run](writer-reports.md#tickets-filed-during-the-run)). Two or more new loose Bugs that share a mechanism get a new slice, and a slice that is not claimed yet may take a Bug on the same evidence. A Bug that is alone stays its own ticket.
 
 ## Reporting
 

@@ -159,7 +159,7 @@ try {
   ].map((r) => JSON.stringify(r)).join("\n") + "\n");
   fs.writeFileSync(worktreePaths(wt503).lock, JSON.stringify({ host: SRC, processIdentity: { pid: 4242, start: "9" }, journal: path.join(jobDir, "journal.jsonl") }));
   // The writer's report, with its reviewed head and rounds, is in the record.
-  const report = write("report-503.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: null, pr: 603, reviewedHead: "a".repeat(40), rounds: { "gpt-6.1-sol": 1 }, findings: "two blocking, awaiting adjudication", verification: "red/green", ci: "pending", next: "adjudicate round 1" });
+  const report = write("report-503.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: null, pr: 603, reviewedHead: "a".repeat(40), rounds: { "gpt-6.1-sol": 1 }, findings: "two blocking, awaiting adjudication", verification: "red/green", ci: "pending", filed: "None", next: "adjudicate round 1" });
   mutate(rec500, "local_src", (r) => run.result(r, { ticket: 503, report }));
   // A later round's reviewer attempt was launched and blocked before it
   // completed; its round, reviewer, attempt and planned reviewers are known

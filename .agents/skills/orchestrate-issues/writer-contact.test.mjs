@@ -250,7 +250,7 @@ try {
     assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 334).action, "stop-writer");
     assert.match(run.readRecord(w.f.file).tickets[334].owner.mismatch, /confirmed claude-opus-5-5 at low in bypassPermissions, not .* at medium in bypassPermissions/);
     w.f.change((r) => { delete r.tickets[334].owner.mismatch; });
-    const report = (more) => write(`report-${Date.now()}.json`, { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 901, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, next: "x", ...more });
+    const report = (more) => write(`report-${Date.now()}.json`, { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 901, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, filed: "None", next: "x", ...more });
     assert.throws(() => w.f.change((r) => run.result(r, { ticket: 334, report: write("no-mode.json", { model: "claude-opus-5-5", effort: "medium", pr: 901, reviewedHead: "f1", rounds: {}, findings: "None", verification: "check", ci: {}, next: "x" }) })), /lacks permissionMode/);
     w.f.change((r) => run.result(r, { ticket: 334, report: report({ permissionMode: "acceptEdits" }) }));
     assert.equal(run.readRecord(w.f.file).tickets[334].results.length, 1, "the report is kept");
@@ -323,7 +323,7 @@ try {
     assert.throws(() => resumeIt(resumeArgs(WRITER_SESSION)), /is live .*only a writer whose turn has ended is resumed/);
     fs.writeFileSync(stop, "");
     waitFor(() => run.ownerStatus(run.readRecord(w.f.file).tickets[371].owner).status === "exited", "the resumed writer to exit");
-    const report = write("cli-resume-report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 971, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 4 }, findings: "None", verification: "check", ci: {}, next: "await the merge" });
+    const report = write("cli-resume-report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 971, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 4 }, findings: "None", verification: "check", ci: {}, filed: "None", next: "await the merge" });
     w.f.change((r) => run.result(r, { ticket: 371, report }));
     assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).action, "release", "a writer that ended with its final report recorded is released");
   });
