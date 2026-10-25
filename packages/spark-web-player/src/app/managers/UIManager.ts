@@ -2273,6 +2273,7 @@ export default class UIManager extends Manager {
       return;
     }
     (video as any).__sdMovie = true;
+    this.anchorMovie(video, video.currentTime);
     if (!video.loop && !(video as any).__sdHoldsEnd) {
       (video as any).__sdHoldsEnd = true;
       video.addEventListener("ended", () => video.pause());
@@ -2342,19 +2343,46 @@ export default class UIManager extends Manager {
     }
   }
 
+  /** Record that `video` stands at `time` (seconds into the movie, counted
+   *  without wrapping a loop) at the game clock's current time. */
+  protected anchorMovie(video: HTMLVideoElement, time: number) {
+    const clock = this.app.clock?.elapsedTime;
+    (video as any).__sdAnchor =
+      clock != null ? { time, clock } : undefined;
+  }
+
+  /** Where the game clock puts `video` now: where it was anchored plus the
+   *  game time since, which stops while the game is paused. A seek holds
+   *  the element's own position back while it decodes, so that position
+   *  falls behind the clock on every skip; without a clock it is all
+   *  there is. */
+  protected moviePosition(video: HTMLVideoElement): number {
+    const anchor = (video as any).__sdAnchor as
+      | { time: number; clock: number }
+      | undefined;
+    const clock = this.app.clock?.elapsedTime;
+    return anchor && clock != null
+      ? anchor.time + (clock - anchor.clock)
+      : video.currentTime;
+  }
+
   /** The game clock moved `seconds` (back, when negative): so does every
-   *  movie, a looping one around its loop and one that plays once within
-   *  its start and end. */
+   *  movie, from where the clock puts it, a looping one around its loop and
+   *  one that plays once within its start and end. */
   override onSkip(seconds: number): void {
     for (const video of this.movies()) {
+      const target = video.loop
+        ? this.moviePosition(video) + seconds
+        : Math.max(0, this.moviePosition(video) + seconds);
+      this.anchorMovie(video, target);
       const duration = video.duration;
-      let time = video.currentTime + seconds;
+      let time = Math.max(0, target);
       if (Number.isFinite(duration) && duration > 0) {
         time = video.loop
-          ? ((time % duration) + duration) % duration
-          : Math.min(time, duration);
+          ? ((target % duration) + duration) % duration
+          : Math.min(target, duration);
       }
-      video.currentTime = Math.max(0, time);
+      video.currentTime = time;
     }
   }
 

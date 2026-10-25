@@ -199,6 +199,31 @@ describe("a movie on a layer, in play", () => {
     expect(video.currentTime).toBeCloseTo(2.5);
   });
 
+  test("skips from where the game clock puts the movie, not from where a seek held it", async () => {
+    const { h } = await playing();
+    // The game clock's elapsed time, which stops while the game is paused
+    // and which a skip does not add to.
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    (video as any).__duration = 30;
+    // Half a second of game time later, a seek still decoding holds the
+    // element at 0.2: the step goes from 0.5, where the clock puts it.
+    clock.elapsedTime = 10.5;
+    video.currentTime = 0.2;
+    h.ui.onSkip(0.1);
+    expect(video.currentTime).toBeCloseTo(0.6);
+    // And the next step from 0.6 plus the game time since.
+    clock.elapsedTime = 10.6;
+    video.currentTime = 0.45;
+    h.ui.onSkip(0.1);
+    expect(video.currentTime).toBeCloseTo(0.8);
+    // Back past the start of a loop wraps to its end.
+    h.ui.onSkip(-1);
+    expect(video.currentTime).toBeCloseTo(29.8);
+  });
+
   test("a movie shown while the game is paused starts when it resumes", async () => {
     const { h, media } = await playing();
     appOf(h).paused = true;
