@@ -305,12 +305,11 @@ export interface SearchOptions {
    * deciding differently earlier is NOT found. A caller that wants the full
    * answer searches again without this when a resumed search comes back empty.
    *
-   * A resumed search runs only the first phase (see {@link planRoute}), and
-   * charges that phase's share for the part of the route it starts past: its
-   * steps and decisions, and a node for each choice. A route it finds is then
-   * the program's own route from the top, which a search from the top finds
-   * too, and a search that needs to force a verdict, or that the share cuts,
-   * comes back empty, leaving the answer to a search from the top.
+   * A resumed search charges its first phase's share (see {@link planRoute})
+   * for the part of the route it starts past: its steps and decisions, and a
+   * node for each choice. When that share runs out, it comes back empty and
+   * leaves the answer to a search from the top, so that a loop the share
+   * cuts is cut on the same pass either way.
    */
   resumeFrom?: RouteResumePoint;
 
@@ -563,6 +562,8 @@ interface FirstPhase {
   /** Where the run the share ran out in stood, as a node the second phase
    *  takes up. */
   cutAt: SearchNode | null;
+  /** Whether the share ran out before the phase ran the story out. */
+  spent: boolean;
 }
 
 /** The second phase's queue, taking up where the first stopped (see
@@ -589,17 +590,25 @@ const secondPhaseQueue = (
   ];
 };
 
-/** Whether the first phase has spent its share of the ceilings: never in the
- *  second phase (`null`), and not before the first has met a condition. */
+/** Whether the first phase has spent its share of the ceilings, which it
+ *  records: never in the second phase (`null`), and not before the first has
+ *  met a condition. */
 const firstPhaseSpent = (
   phase: FirstPhase | null,
   budget: SearchBudget,
-): boolean =>
-  !!phase &&
-  phase.sawCondition &&
-  (budget.stepsRemaining <= phase.stepsFloor ||
-    budget.nodesRemaining <= phase.nodesFloor ||
-    now() >= phase.deadlineTime);
+): boolean => {
+  if (
+    !!phase &&
+    phase.sawCondition &&
+    (budget.stepsRemaining <= phase.stepsFloor ||
+      budget.nodesRemaining <= phase.nodesFloor ||
+      now() >= phase.deadlineTime)
+  ) {
+    phase.spent = true;
+    return true;
+  }
+  return false;
+};
 
 /** Whether another node may be expanded. */
 const searchBudgetExhausted = (budget: SearchBudget): boolean => {
@@ -835,6 +844,7 @@ export const planRoute = (
       deadlineTime: startTime + searchTimeout * FIRST_PHASE_SHARE,
       notTaken: [],
       cutAt: null,
+      spent: false,
     };
     let queue: (SearchNode | (() => SearchNode) | undefined)[] = [start];
     let head = 0;
@@ -843,10 +853,10 @@ export const planRoute = (
         break;
       }
       if (!phase) {
-        if (resume || !firstPhase.sawCondition) {
-          // The second phase forks only where the first met a condition,
-          // and a resumed search leaves forcing one to a search from the
-          // top.
+        if (!firstPhase.sawCondition || (resume && firstPhase.spent)) {
+          // The second phase forks only where the first met a condition. A
+          // resumed search whose share ran out leaves the rest to a search
+          // from the top, whose share runs out where the cut lands.
           break;
         }
         queue = secondPhaseQueue(
@@ -1227,6 +1237,7 @@ const runUntilDecisionOrBranch = (
         if (budget.stepsRemaining <= 0) {
           budget.cut ??= "max-steps";
         } else if (firstPhase) {
+          firstPhase.spent = true;
           firstPhase.cutAt = nodeAt(
             lastFork.state,
             lastFork.steps,

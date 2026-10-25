@@ -112,6 +112,8 @@ describe("a search resumed inside an earlier route", () => {
   }, 120_000);
 
   test("leaves a loop longer than the share on the pass a search from the top does", () => {
+    // The loop's steps run well inside the share's time, so its step
+    // allowance is what cuts it, on the same pass in both searches.
     const text = [
       "store total = 0",
       "-> start",
@@ -120,7 +122,6 @@ describe("a search resumed inside an earlier route", () => {
       "  Second beat.",
       "  for i = 1, 40000 do",
       "    total += 1",
-      "    Pass {total}.",
       "  end",
       "  Target total {total}.",
       "end",
