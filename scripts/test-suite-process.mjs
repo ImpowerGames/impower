@@ -180,9 +180,10 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   catch (error) { throw denied(error) || error; }
   const guard = path.join(root, "guard.json");
   const deadline = Date.now() + waitMs;
-  let fd, identity, cause;
+  let identity, cause;
+  sweepCreating(root, identify);
   for (;;) {
-    try { fd = fs.openSync(guard, "wx"); break; }
+    try { identity = publishOwned(root, guard); break; }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       if (error.code === "EEXIST" && recover && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
@@ -192,22 +193,11 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
       throw Object.assign(new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`), { guardHeld: error.code === "EEXIST" });
     }
   }
-  let lost = false;
   try {
-    identity = fs.fstatSync(fd, { bigint: true });
-    fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
-    fs.fsyncSync(fd);
-    // A creator stalled past `emptyAbandonMs` before that write may have had
-    // its empty guard set aside by a recoverer; it then holds nothing.
-    if (!stillOwned(guard, identity)) {
-      lost = true;
-      throw Object.assign(new Error(`Reservation transaction unavailable at ${guard}: the guard was recovered before its owner was recorded`), { guardHeld: true });
-    }
     return action(path.join(root, "reservation.json"));
   } catch (error) { cause = error; throw error; }
   finally {
-    fs.closeSync(fd);
-    if (!lost) try { removeGuard(guard, identity); }
+    try { removeGuard(guard, identity); }
     catch (error) {
       if (!cause) throw error;
       cause.guardCleanupError = error.message;
@@ -216,13 +206,53 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   }
 }
 
-// A guard or claim is created empty by an exclusive open and gets its owner
-// written by the next synchronous call, so a live creator leaves it empty for
-// microseconds. An empty file this much older than its last write was left by
-// a creator killed between the two calls, or by one suspended there. A
-// suspended creator that resumes writes its owner into the renamed file, then
-// finds the path no longer names that file and holds nothing: it refuses
-// without acting or removing anything, so age alone never lets two holders act.
+// Guards and claims are published with their owner already written: the
+// creator writes `creating-<pid>-<start>-<id>.tmp` beside the target, then
+// hard-links it into place, which fails with EEXIST exactly as an exclusive
+// open does. The private file is removed on every path; one left by a creator
+// that died before removing it names that creator and is swept once its pid
+// and start time name no live process. Returns the published file's identity.
+const creatingName = /^creating-(\d+)-(.+)-[0-9a-f]{8}\.tmp$/;
+function publishOwned(root, file) {
+  const owner = processIdentity(process.pid);
+  const temp = path.join(root, `creating-${owner.pid}-${owner.start}-${randomUUID().slice(0, 8)}.tmp`);
+  let fd, identity;
+  try {
+    fd = fs.openSync(temp, "wx");
+    identity = fs.fstatSync(fd, { bigint: true });
+    fs.writeFileSync(fd, JSON.stringify({ owner }));
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.linkSync(temp, file);
+    return identity;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+    try { fs.unlinkSync(temp); } catch {}
+  }
+}
+
+// Remove private files whose creator is dead. Only names matching
+// `creatingName` are considered; a live or unidentifiable creator's file stays.
+function sweepCreating(root, identify) {
+  let names;
+  try { names = fs.readdirSync(root); } catch { return; }
+  for (const name of names) {
+    const match = creatingName.exec(name);
+    if (!match) continue;
+    const owner = { pid: Number(match[1]), start: match[2] };
+    try {
+      if (same(owner, identify(owner.pid))) continue;
+      fs.unlinkSync(path.join(root, name));
+    } catch {}
+  }
+}
+
+// This code never leaves a guard or claim empty. Checkouts still on older code
+// create one empty by an exclusive open and write its owner in the next call,
+// so their live creator leaves it empty for microseconds. An empty file this
+// much older than its last write was left by such a creator killed between the
+// two calls (or, the residual until those checkouts update, suspended there).
 export const emptyAbandonMs = 60_000;
 const claimDepth = 4;
 
@@ -274,9 +304,9 @@ function setAside(root, file, identity, prefix, admitting) {
 // takeover left after its claim was set aside names a generation that no
 // longer exists and is never consulted again.
 function withClaim(root, file, identify, admitting, action, depth = 0) {
-  let fd;
-  for (let attempt = 0; fd === undefined; attempt++) {
-    try { fd = fs.openSync(file, "wx"); }
+  let identity;
+  for (let attempt = 0; identity === undefined; attempt++) {
+    try { identity = publishOwned(root, file); }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       if (error.code !== "EEXIST" || attempt > 0 || depth >= claimDepth) return false;
@@ -288,25 +318,8 @@ function withClaim(root, file, identify, admitting, action, depth = 0) {
       }
     }
   }
-  let identity;
-  try {
-    // Recorded so an abandoned claim can be judged by its owner's liveness.
-    try {
-      identity = fs.fstatSync(fd, { bigint: true });
-      fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
-      fs.fsyncSync(fd);
-      if (!stillOwned(file, identity)) return false;
-    } catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return false;
-    }
-    return action();
-  } finally {
-    fs.closeSync(fd);
-    // A claim set aside before its owner was written belongs to nobody now,
-    // and the path may name a successor's claim.
-    if (identity && stillOwned(file, identity)) fs.unlinkSync(file);
-  }
+  try { return action(); }
+  finally { if (stillOwned(file, identity)) fs.unlinkSync(file); }
 }
 
 // Rename an abandoned guard (see `judge`) aside as `recovered-guard-<time>.json`.

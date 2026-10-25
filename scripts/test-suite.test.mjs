@@ -929,27 +929,47 @@ fs.unlinkSync(claimFile);
   assert.equal(fs.readFileSync(guardFile, "utf8"), "", "a guard its creator may still be writing is untouched");
   fs.unlinkSync(guardFile);
 
-  // A creator suspended past the bound between creating its guard and writing
-  // its owner loses the guard to a recoverer. On resuming it must find that out
-  // and refuse, never act alongside the recoverer or remove the successor.
-  const write = fs.writeFileSync;
-  let successor = null, stalled = false;
-  fs.writeFileSync = (target, ...rest) => {
-    if (!stalled && typeof target === "number" && fs.existsSync(guardFile) && fs.readFileSync(guardFile, "utf8") === "") {
-      stalled = true;
-      age(guardFile);
-      successor = acquire("recoverer of a stalled guard", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 });
-    }
-    return write(target, ...rest);
+  // Guards are published with their owner already written, by hard-linking a
+  // private file into place, so a guard this code creates is never empty.
+  const creating = () => fs.readdirSync(lockRoot).filter(name => /^creating-/.test(name));
+  const link = fs.linkSync;
+  let published = null;
+  fs.linkSync = (from, to) => {
+    if (to === guardFile) published ??= fs.readFileSync(from, "utf8");
+    return link(from, to);
   };
-  try {
-    assert.throws(() => acquire("stalled creator", { root: lockRoot, census: () => [], identify, guardWaitMs: 0 }),
-      error => error.guardHeld === true && /recovered before its owner was recorded/.test(error.message), "a creator whose empty guard was recovered refuses");
-  } finally { fs.writeFileSync = write; }
-  assert.ok(stalled && successor, "the recoverer took the stalled creator's guard");
-  assert.equal(recoveredGuards().length, ++count, "the stalled creator's guard was set aside");
-  assert.ok(fs.existsSync(path.join(lockRoot, "reservation.json")), "the recoverer's reservation is left in place by the stalled creator");
-  successor.release();
+  try { acquire("published guard", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release(); }
+  finally { fs.linkSync = link; }
+  assert.deepEqual(JSON.parse(published), { owner: live }, "the guard carries its owner when it appears");
+  assert.deepEqual(creating(), [], "the private file is removed after publishing");
+
+  // Two creators racing: the one whose link lands second gets EEXIST, refuses
+  // as for a held guard, removes its private file and leaves the winner's guard.
+  const winner = JSON.stringify({ owner: live, token: "winner" });
+  fs.linkSync = (from, to) => {
+    if (to === guardFile && !fs.existsSync(guardFile)) fs.writeFileSync(guardFile, winner);
+    return link(from, to);
+  };
+  try { held("a creator that loses the link race"); }
+  finally { fs.linkSync = link; }
+  assert.equal(fs.readFileSync(guardFile, "utf8"), winner, "the winner's guard is untouched");
+  assert.deepEqual(creating(), [], "the loser's private file is removed");
+  fs.unlinkSync(guardFile);
+
+  // A creator killed after writing its private file but before linking it left
+  // no guard; its file is swept once its recorded pid and start name no live
+  // process. A live creator's file stays however old, and other names stay.
+  const deadTemp = path.join(lockRoot, `creating-${deadOwner.pid}-${deadOwner.start}-0badc0de.tmp`);
+  const liveTemp = path.join(lockRoot, `creating-${live.pid}-${live.start}-0000beef.tmp`);
+  const unrelated = path.join(lockRoot, "creating-notes.txt");
+  for (const file of [deadTemp, liveTemp, unrelated]) { fs.writeFileSync(file, abandoned); age(file); }
+  acquire("after a killed creator", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+  assert.equal(fs.existsSync(guardFile), false, "a killed creator's private file never became a guard");
+  assert.equal(fs.existsSync(deadTemp), false, "a dead creator's private file is swept");
+  assert.equal(fs.existsSync(liveTemp), true, "a live creator's private file is kept however old");
+  assert.equal(fs.existsSync(unrelated), true, "the sweep touches only private creation files");
+  fs.unlinkSync(liveTemp);
+  fs.unlinkSync(unrelated);
 }
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
 
