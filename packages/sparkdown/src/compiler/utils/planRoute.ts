@@ -69,11 +69,12 @@ export const FIRST_PHASE_SHARE = 0.25;
  * condition, at most (and at most its {@link FIRST_PHASE_SHARE} of
  * {@link SearchOptions.maxNodes}).
  *
- * The first phase forks only at choices, so its nodes count the ways through
- * the menus before the line: this many covers every combination of nine
- * two-option menus. Past it the first phase is enumerating the menus after a
- * branch the program skips, which no way through them reaches, and the second
- * phase, which forces the branch, finds the line in a few nodes.
+ * The first phase forks only at choices and takes the latest first, so a line
+ * the program reaches through a run of menus costs it about one node per menu.
+ * Many more than that, and it is enumerating the ways through menus none of
+ * which reaches the line, as the menus after a branch the program skips are,
+ * and the second phase, which forces the branch, finds the line in a few
+ * nodes.
  */
 export const FIRST_PHASE_NODES = 512;
 
@@ -588,9 +589,8 @@ const searchBudgetExhausted = (budget: SearchBudget): boolean => {
  * its first step consumes ({@link SearchNode.overrides}), so no forced
  * decision is still queued at a fork. A second arrival at the same site and
  * state would enqueue the same children the first arrival already did, and
- * expanding it again is wasted work. Each phase of the search is breadth
- * first, so the arrival that was kept is also the shortest route to that
- * position in its phase.
+ * expanding it again is wasted work. The second phase is breadth first, so
+ * the arrival it kept is also its shortest route to that position.
  *
  * This prunes repetition; it is not what makes the search terminate. A story
  * that loops does not generally come back to the same state, because visit
@@ -681,20 +681,23 @@ export interface SearchError {
  * address of the position it stands at (docs/engine/binary-program.md,
  * section 8), folded into a running identity (`extendSeq`).
  *
- * The search runs in two phases, each breadth first from the same start.
+ * The search runs in two phases from the same start.
  *
  * The first follows the program: at every condition it takes the verdict the
  * program reaches there (`pausedConditionVerdict`) and forks only at choices,
- * which the program leaves to the player. A route it finds runs what the
- * program runs, so the line is replayed with the state the game reaches it
- * with: a loop runs its passes, a `break` leaves where the program leaves, and
- * a branch is taken as the program takes it (#637).
+ * which the program leaves to the player, taking the latest choice's options
+ * first (the favored one first), so that one way through a run of menus is
+ * finished before the next is begun. A route it finds runs what the program
+ * runs, so the line is replayed with the state the game reaches it with: a
+ * loop runs its passes, a `break` leaves where the program leaves, and a
+ * branch is taken as the program takes it (#637).
  *
  * The second runs only when the first finds no way there: the line is inside a
  * branch the program skips, or the first phase spent its share of the ceilings
- * ({@link FIRST_PHASE_SHARE}). It forks at every condition as well, trying the
- * favored verdict, or else true, first, and records each verdict it forces
- * against the program on the route (`departs`).
+ * ({@link FIRST_PHASE_SHARE}, {@link FIRST_PHASE_NODES}). It is breadth first
+ * and forks at every condition as well, trying the favored verdict, or else
+ * true, first, and records each verdict it forces against the program on the
+ * route (`departs`).
  */
 export const planRoute = (
   story: Story,
@@ -809,7 +812,8 @@ export const planRoute = (
         budget.nodesRemaining -= 1;
         lastSearchStats.nodesExpanded += 1;
 
-        const node = isBfs ? queue.shift()! : queue.pop()!;
+        // The first phase takes the latest fork's first branch first.
+        const node = isBfs && !phase ? queue.shift()! : queue.pop()!;
         try {
           const result = runUntilDecisionOrBranch(
             story,
@@ -838,7 +842,10 @@ export const planRoute = (
             break;
           }
 
-          for (const b of result.branches) {
+          // Taken from the end in the first phase, so pushed in reverse
+          // there: the favored choice is still the first tried.
+          const branches = phase ? [...result.branches].reverse() : result.branches;
+          for (const b of branches) {
             queue.push(b);
           }
         } catch {
@@ -1081,9 +1088,13 @@ const runUntilDecisionOrBranch = (
 
       // One step was charged above. A Luau callback runs all of its steps
       // inside the step that called it, and those count too: the limit stops
-      // them where the budget runs out, and what they took is charged after.
+      // them where the budget runs out, or the first phase's share once it
+      // binds, and what they took is charged after.
       const stepsBefore = story.stepCount;
-      story.stepLimit = stepsBefore + 1 + budget.stepsRemaining;
+      const allowed = firstPhase?.sawCondition
+        ? Math.max(0, budget.stepsRemaining - firstPhase.stepsFloor)
+        : budget.stepsRemaining;
+      story.stepLimit = stepsBefore + 1 + allowed;
       let stopped = false;
       try {
         story.ContinueAsync(); // this may hit a condition divert
@@ -1097,8 +1108,12 @@ const runUntilDecisionOrBranch = (
         budget.stepsRemaining -= Math.max(0, story.stepCount - stepsBefore - 1);
       }
       if (stopped) {
-        // The budget ran out part way through the step.
-        budget.cut ??= "max-steps";
+        // The budget, or the first phase's share of it, ran out part way
+        // through the step. Only the budget's own end cuts the search: the
+        // second phase has the rest of it.
+        if (budget.stepsRemaining <= 0) {
+          budget.cut ??= "max-steps";
+        }
         terminal = true;
         break;
       }

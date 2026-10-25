@@ -330,6 +330,68 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(previewedStore(src, 19, "total")).toBe(6);
   }, 120_000);
 
+  test("a run of menus after a loop leaves the loop's writes in place", () => {
+    // Every way through the nine menus reaches the line, each with its own
+    // `path`, so none of them merges with another.
+    const menus = Array.from({ length: 9 }, (_, i) => [
+      "  choose",
+      `  + [Left ${i}]`,
+      "    & path = path * 2 + 1",
+      `  + [Right ${i}]`,
+      "    & path = path * 2 + 2",
+      "  end",
+    ]).flat();
+    const src = [
+      "store total = 0",
+      "store path = 0",
+      "-> start",
+      "scene start",
+      "  for i = 1, 3 do",
+      "    total += i",
+      "  end",
+      ...menus,
+      "  Target total {total}.",
+      "end",
+      "",
+    ].join("\n");
+    const line = src.split("\n").findIndex((l) => l.includes("Target total")) + 1;
+    expect(previewedStore(src, line, "total")).toBe(6);
+  }, 120_000);
+
+  test("a branch the program skips is reached beside a single call that works past the first phase's share", () => {
+    const src = [
+      "store flag = false",
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  if flag then",
+      "    Target branch.",
+      "  else",
+      "    while true do",
+      "      & table.foreachi(table.create(500000, 1), function(k, v) total += v end)",
+      "    end",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const lines = src.split("\n");
+    const program = compileSrc(src);
+    const game: any = newGame(program);
+    game.setStartFrom({
+      file: URI,
+      line: lines.findIndex((l) => l.includes("Target branch.")),
+    });
+    const to = game.startAddress;
+    const route = Game.planRoute(
+      game.story,
+      program as any,
+      game.routeStartOf(to),
+      to,
+    );
+    expect(route?.steps.at(-1)?.address).toBe(to);
+    expect(route?.conditions.map((c) => c.selected)).toEqual([true]);
+  }, 120_000);
+
   test("a branch the program skips is reached beside a loop that works hard and never ends", () => {
     const src = [
       "store flag = false",
