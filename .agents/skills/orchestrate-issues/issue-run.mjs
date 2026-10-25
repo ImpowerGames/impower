@@ -12,8 +12,8 @@
 // Commands: init, snapshot, plan, claim, launch, launched, acknowledged,
 // deliver, delivered, request, relay, answer, answered, adopt, reconcile,
 // withdraw, verify, release, result, open, opened, resume, contact, contacted,
-// schedule, check-in, checked-in, disk-recovery, filed, triage, interim,
-// brief, recover-lock.
+// schedule, check-in, checked-in, disk-recovery, filed, dismiss, triage,
+// interim, brief, recover-lock.
 // Every command that changes the record takes --record, --coordinator and
 // --expect-revision, prints the new record revision, and refuses a stale
 // revision or another coordinator's session.
@@ -411,7 +411,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, ...(ticketsRepository !== undefined && { ticketsRepository }), issue, checkout, coordinator: self,
     invocation: { text: invocation, merging, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: authorityFor(merging),
-    writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [], ...(carried.filed && { filed: carried.filed }),
+    writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [], ...(carried.filed && { filed: carried.filed }), ...(carried.filedDismissed && { filedDismissed: carried.filedDismissed }),
     ...(title && { title }), ...carried.run,
     log: [{ time: self.since, event: carried.tickets ? "takeover" : "init", coordinator, writer: writer.model, concurrency: concurrency.limit }],
   });
@@ -441,7 +441,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     try {
       const old = readRecord(existing.record);
       if (!sameRepository(repositoriesOf(old).tickets, ticketsRepository ?? repository)) throw new Error(`Takeover refused: the run's tickets live in ${repositoriesOf(old).tickets}, but this takeover would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
-      writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, filed: old.filed, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }], run: carriedRun(old, { file, record: { issue, coordinator: self }, defaults }) }));
+      writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, filed: old.filed, filedDismissed: old.filedDismissed, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }], run: carriedRun(old, { file, record: { issue, coordinator: self }, defaults }) }));
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
     } finally { releaseOld(); }
     return { action: "takeover", record: readRecord(file), pointer };
@@ -915,7 +915,7 @@ export function verificationGaps(record, snapshot, { running = null } = {}) {
   for (const t of slices) if (!(t.state === "closed" && t.delivered) && !closedBeforeRun(record, t)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
   const open = (record.operations ?? []).filter((o) => o.id !== running && OPEN_OPERATION.has(o.state));
   if (open.length) gaps.push(`${open.map((o) => (o.kind === "close" ? `closing issue #${o.pr} (${o.id})` : `${o.kind} ${o.id} of PR #${o.pr}`)).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled; settle it with checkpoint.mjs reconcile-operations`);
-  gaps.push(...filedActions(record).map((f) => `#${f.number} ${f.action === "triage-filed" ? "was filed during the run and has no triage outcome; triage it with issue-run.mjs triage" : `is named as filed in #${f.from}'s writer's report but not recorded; confirm it with issue-run.mjs filed and triage it`}`));
+  gaps.push(...filedActions(record).map((f) => `#${f.number} ${f.action === "triage-filed" ? "was filed during the run and has no triage outcome; triage it with issue-run.mjs triage" : `is named as filed in #${f.from}'s writer's report but not recorded; confirm it with issue-run.mjs filed and triage it, or dismiss it with GitHub's evidence`}`));
   return gaps;
 }
 export const verificationHolds = (record, snapshot) => verificationGaps(record, snapshot).length === 0;
@@ -1027,6 +1027,22 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
   }
   const blockedDelivery = (n) => blockedDeliverers.get(n) ?? null;
+  // A ticket filed during the run waits on its triage, for a new writer and
+  // for one continuing its existing work alike. One raised with the
+  // maintainer waits on their answer. One that completes a slice's fix waits
+  // until that slice is delivered: the slice's PR takes the proper fix with a
+  // closing reference, or, under the maintainer's interim, the ticket removes
+  // the narrow fix once that PR has merged. A slice the tree no longer lists
+  // gives no evidence of either, so the ticket waits on the coordinator.
+  const triageHold = (t) => {
+    const triaged = record.filed?.[t.number]?.outcome;
+    if (triaged?.kind === "maintainer") return { action: "decision-needed", reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
+    if (triaged?.kind !== "completes") return null;
+    const fixOf = snapshot.tickets.find((x) => x.number === triaged.slice);
+    if (!fixOf) return { action: "decision-needed", reason: `it completes #${triaged.slice}'s fix (${triaged.reason}), but #${triaged.slice} is not in the parent's tree, so whether its PR made the proper fix is unknown; re-triage the ticket or restore #${triaged.slice}` };
+    if (met(fixOf)) return null;
+    return { action: "wait-dependency", waitingFor: [fixOf.number], reason: `it completes #${fixOf.number}'s fix (${triaged.reason}); ${triaged.interim ? `the maintainer accepted #${fixOf.number}'s narrow fix as an interim, so this ticket removes it once #${fixOf.number}'s PR has merged` : `#${fixOf.number}'s writer makes the proper fix in its PR with a closing reference to #${t.number}, which delivers it`}` };
+  };
   const blockedText = (list) => list.map((x) => `#${x.ticket}, which its PR delivers, waits for #${x.blocker.number} (${x.blocker.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join("; ");
   // Each owner is observed once per plan; the sweep below reuses it.
   const statuses = new Map();
@@ -1188,15 +1204,8 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (t.worktrees.length) { const reserves = !writerKnownEnded(own); if (reserves) active++; existingWork.push({ t, reserves, entry: add(t, "adopt-worktree", `worktree ${t.worktrees.map((w) => w.path).join(", ")} already holds this ticket's work; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue`, { worktrees: t.worktrees }) }); continue; }
     if (!t.effort) { add(t, "assign-effort", "the ticket has no Effort value: estimate one, publish and read it back through the issue-fields procedure, then snapshot and plan again"); continue; }
     if (!writerEffortOf(t.effort)) { add(t, "decision-needed", `Effort ${t.effort} has no writer effort`); continue; }
-    // A ticket filed during the run that completes a slice's fix waits until
-    // that slice is delivered: the slice's PR takes the proper fix with a
-    // closing reference, or, under the maintainer's interim, the ticket
-    // removes the narrow fix once that PR has merged. One raised with the
-    // maintainer waits on their answer.
-    const triaged = record.filed?.[t.number]?.outcome;
-    if (triaged?.kind === "maintainer") { add(t, "decision-needed", `filed during the run and raised with the maintainer: "${triaged.question}"; it is not dispatched until their answer is recorded with triage or interim`); continue; }
-    const fixOf = triaged?.kind === "completes" ? snapshot.tickets.find((x) => x.number === triaged.slice) : null;
-    if (fixOf && !met(fixOf)) { add(t, "wait-dependency", `it completes #${fixOf.number}'s fix (${triaged.reason}); ${triaged.interim ? `the maintainer accepted #${fixOf.number}'s narrow fix as an interim, so this ticket removes it once #${fixOf.number}'s PR has merged` : `#${fixOf.number}'s writer makes the proper fix in its PR with a closing reference to #${t.number}, which delivers it`}`, { waitingFor: [fixOf.number] }); continue; }
+    const hold = triageHold(t);
+    if (hold) { add(t, hold.action, hold.reason, hold.waitingFor ? { waitingFor: hold.waitingFor } : {}); continue; }
     const waiting = undelivered(t);
     if (waiting.length) { add(t, "wait-dependency", waitingFor(waiting), { waitingFor: waiting.map((b) => b.number) }); continue; }
     const held = heldAncestor(t);
@@ -1225,6 +1234,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   for (const { t, entry, reserves } of existingWork.sort((a, b) => a.t.number - b.t.number)) {
     const waiting = undelivered(t);
     if (!writerEffortOf(t.effort)) { entry.continueBlocked = t.effort ? `Effort ${t.effort} has no writer effort` : "the ticket has no Effort value; assign one through the issue-fields procedure and plan again"; continue; }
+    if (triageHold(t)) { entry.continueBlocked = triageHold(t).reason; continue; }
     if (waiting.length) { entry.continueBlocked = waitingFor(waiting); continue; }
     if (heldAncestor(t) !== null) { entry.continueBlocked = `its parent #${heldAncestor(t)} is still held by a writer`; continue; }
     if (heldDelivery(t.number)) { entry.continueBlocked = `${heldDelivery(t.number).map((n) => `#${n}`).join(", ")}, which its PR delivers, still holds a writer or work of its own`; continue; }
@@ -1621,6 +1631,7 @@ export function result(record, { ticket: number, report: file }) {
   const ticket = ticketOf(record, number);
   const missing = reportFieldsOf(ticket).filter((f) => report?.[f] === undefined);
   if (missing.length) throw new Error(`The writer's report lacks ${missing.join(", ")}; ask the writer for them`);
+  if (report.filed !== undefined) checkFiledField(report.filed);
   ticket.results.push({ time: new Date().toISOString(), report });
   if (ticket.owner) noteSession(ticket.owner);
   // The report carries what the writer's metadata confirmed; one that differs
@@ -1648,13 +1659,17 @@ export function result(record, { ticket: number, report: file }) {
 // by it, unless the maintainer accepted the narrow fix as an interim.
 export const FILED_OUTCOMES = ["completes", "needed", "separate", "maintainer"];
 
-// The ticket numbers a report's filed field names: a list of numbers or of
-// entries with a number, or text naming them as #N; "None" names nothing.
-export function filedNumbers(value) {
-  if (value === undefined || value === null) return [];
-  const items = Array.isArray(value) ? value.map((x) => (typeof x === "object" && x !== null ? x.number ?? x.ticket : x)) : [...String(value).matchAll(/#(\d+)/g)].map((m) => m[1]);
-  return [...new Set(items.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))];
+// A report's filed field is "None" or a list of entries, each a ticket number
+// or { number, reading }. Prose is refused: the writer's reading of how a
+// ticket relates to its fix names the slice and the parent too, and a number
+// scraped from it would stand as a filing nothing on GitHub can confirm.
+const isTicketNumber = (n) => Number.isSafeInteger(n) && n > 0;
+export function checkFiledField(value) {
+  if (typeof value === "string" && /^none\.?$/i.test(value.trim())) return;
+  if (Array.isArray(value) && value.every((x) => isTicketNumber(x) || (typeof x === "object" && x !== null && isTicketNumber(x.number)))) return;
+  throw new Error(`The report's filed field must be "None" or a list of entries, each a ticket number or { "number": N, "reading": "<how it relates to the fix>" }, not ${JSON.stringify(value)}; ask the writer for it in that shape`);
 }
+export const filedNumbers = (value) => (Array.isArray(value) ? [...new Set(value.map((x) => (typeof x === "object" && x !== null ? x.number : x)).filter(isTicketNumber))] : []);
 
 const filedEntry = (record, number) => {
   const entry = record.filed?.[number];
@@ -1668,8 +1683,22 @@ export function filed(record, { filed: number, ticket: from, pr, source, reading
   if (number === record.issue) throw new Error(`#${number} is the parent issue`);
   if (from !== undefined && from === number) throw new Error(`#${number} cannot have been filed from its own fix`);
   if (record.filed?.[number]) throw new Error(`#${number} was already recorded as filed at ${record.filed[number].time}`);
-  (record.filed ??= {})[number] = { number, from: from ?? null, pr: pr ?? null, source, reading: reading ?? null, time: new Date().toISOString(), outcome: null };
+  if (record.filedDismissed?.[number]) throw new Error(`#${number} was dismissed at ${record.filedDismissed[number].time} as not filed during the run (${record.filedDismissed[number].evidence})`);
+  (record.filed ??= {})[number] ={ number, from: from ?? null, pr: pr ?? null, source, reading: reading ?? null, time: new Date().toISOString(), outcome: null };
   log(record, "filed", { filed: number, from: from ?? null, pr: pr ?? null });
+}
+
+// A ticket a writer's report names that GitHub shows was not filed during the
+// run (an existing issue, a mistyped number) is dismissed with that evidence,
+// so it stops holding the plan and the parent's closure.
+export function dismiss(record, { filed: number, ticket: from, evidence }) {
+  if (!isTicketNumber(number) || !evidence) throw new Error("--filed must be the ticket number the report names and --evidence say what GitHub shows about it");
+  if (record.filed?.[number]) throw new Error(`#${number} is recorded as filed during the run; triage it instead`);
+  const named = Object.entries(record.tickets ?? {}).filter(([, t]) => (t.results ?? []).some((r) => filedNumbers(r.report?.filed).includes(number))).map(([n]) => Number(n));
+  if (!named.length) throw new Error(`No writer's report names #${number} as filed`);
+  if (from !== undefined && !named.includes(from)) throw new Error(`#${from}'s writer's report does not name #${number}; ${named.map((n) => `#${n}`).join(", ")} ${named.length > 1 ? "do" : "does"}`);
+  (record.filedDismissed ??= {})[number] = { number, from: from ?? named[0], evidence, time: new Date().toISOString() };
+  log(record, "filed-dismissed", { filed: number, from: from ?? named[0] });
 }
 
 export function triage(record, { filed: number, outcome: kind, slice, under, reason, question }) {
@@ -1718,8 +1747,8 @@ export function filedActions(record) {
   const out = [];
   for (const e of Object.values(record.filed ?? {})) if (!e.outcome) out.push({ number: e.number, action: "triage-filed", reason: `filed during the run${e.from ? ` from #${e.from}'s fix${e.pr ? ` (PR #${e.pr})` : ""}` : " by the coordinator"}, with no triage outcome; read it against the PR it came from and record triage`, ...(e.from && { from: e.from }) });
   const named = new Map();
-  for (const [n, t] of Object.entries(record.tickets ?? {})) for (const r of t.results ?? []) for (const f of filedNumbers(r.report?.filed)) if (!record.filed?.[f] && !named.has(f)) named.set(f, Number(n));
-  for (const [f, from] of named) out.push({ number: f, action: "confirm-filed", reason: `#${from}'s writer reports it filed it; confirm on GitHub that it was filed during the run, then record it with filed and triage it`, from });
+  for (const [n, t] of Object.entries(record.tickets ?? {})) for (const r of t.results ?? []) for (const f of filedNumbers(r.report?.filed)) if (!record.filed?.[f] && !record.filedDismissed?.[f] && !named.has(f)) named.set(f, Number(n));
+  for (const [f, from] of named) out.push({ number: f, action: "confirm-filed", reason: `#${from}'s writer reports it filed it; confirm on GitHub that it was filed during the run, then record it with filed and triage it, or, when GitHub shows it was not, record dismiss with that evidence`, from });
   return out.sort((a, b) => a.number - b.number);
 }
 
@@ -2131,7 +2160,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
     "Your review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.",
     "Never merge, and never mark the PR ready before the review gates pass.",
     `The root-cause fix of #${number}'s own defect is never filed: it belongs in your PR even when it crosses subsystems, and only an unsettled behavior decision turns it into a question to ${coordinator}, never a ticket. Every filing prompt you or your outstanding-work sweep send names ${parent} as the coordinated parent, and each filed ticket states how it relates to that parent's goal and to the fix it came from.`,
-    `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; every ticket you, your filing routes or review-pr filed or reused, each with your reading of how it relates to your fix, and each follow-up you proposed in your handoff without filing, or None; your next action), plus any changes after the reviewed commit.`,
+    `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; the tickets you, your filing routes or review-pr filed or reused, as a list of { number, reading } entries giving your reading of how each relates to your fix, or None; your next action), plus each follow-up you proposed in your handoff without filing and any changes after the reviewed commit.`,
     how.mechanism
       ? `Send every report, blocker and question to ${coordinator} as a cross-session message (${how.mechanism}), then end your turn: what you end a turn with does not reach it.`
       : `Since you cannot message ${coordinator}, end each decision point with the report, blocker or question as your turn's last message; ${defaults.reportFallback}.`,
@@ -2233,11 +2262,12 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "result": return mutate((r) => result(r, { ticket: number(), report: absolute(o.report, "report") }));
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "filed": return mutate((r) => filed(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), pr: o.pr === undefined ? undefined : integer(o.pr, "pr"), source: o.source, reading: o.reading }));
+    case "dismiss": return mutate((r) => dismiss(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), evidence: o.evidence }));
     case "triage": return mutate((r) => triage(r, { filed: integer(o.filed, "filed"), outcome: o.outcome, slice: o.slice === undefined ? undefined : integer(o.slice, "slice"), under: o.under === undefined ? undefined : integer(o.under, "under"), reason: o.reason, question: o.question }));
     case "interim": { if ((o.decision?.length ?? 0) > 1) throw new Error("--decision given twice"); return mutate((r) => interim(r, { filed: integer(o.filed, "filed"), decision: o.decision?.[0], evidence: o.evidence })); }
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|filed|triage|interim|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
   }
 }
 

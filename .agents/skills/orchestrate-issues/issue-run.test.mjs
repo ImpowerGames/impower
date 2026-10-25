@@ -1205,7 +1205,12 @@ try {
     f.change((r) => { r.tickets[3009] = { owner: { route: "claude-cli", model: "claude-opus-5-5", effort: "medium", handle: { kind: "session", id: "local_old" }, adopted: { pr: null, rounds: 0 }, since: new Date().toISOString() }, pending: null, history: [], results: [] }; });
     assert.match(f.change((r) => run.result(r, { ticket: 3009, report: write("filed-r2.json", { ...base, pr: 3909 }) })).filed, /read what #3009's writer filed from GitHub/, "an older writer's report still records");
     assert.equal(run.readRecord(f.file).tickets[3009].results.length, 1);
-    assert.deepEqual(run.filedNumbers("Filed #3002 and #3003; reused #3002"), [3002, 3003]);
+    // The field is None or a list of entries; prose is refused, since a
+    // reading names the slice and the parent too.
+    assert.throws(() => f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r3.json", { ...base, filed: "#3002: removes the guard in #3001, needed by parent #300" }) })), /filed field must be "None" or a list of entries/);
+    assert.throws(() => f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r4.json", { ...base, filed: [{ reading: "no number" }] }) })), /filed field must be "None" or a list/);
+    f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r5.json", { ...base, filed: "None." }) }));
+    assert.deepEqual(run.filedNumbers([3002, { number: 3003, reading: "x" }, 3002]), [3002, 3003]);
     assert.deepEqual(run.filedNumbers("None"), []);
     // A ticket a report names and the record lacks plans as confirm-filed;
     // once recorded, as triage-filed until it has an outcome.
@@ -1267,6 +1272,33 @@ try {
     const after = run.readRecord(f.file).filed[3005].outcome;
     assert.deepEqual([after.kind, after.slice, after.interim.decision], ["completes", 3001, "Keep the narrow fix for now"]);
     assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002], "an interim releases the slice's PR");
+    // The triage hold applies to a writer continuing existing work too: a
+    // ticket raised with the maintainer, or completing an undelivered slice's
+    // fix, offers no continuation.
+    f.change((r) => run.filed(r, { filed: 3006, ticket: 3001, pr: 3901, source: "ticket #3006's provenance line" }));
+    f.change((r) => run.triage(r, { filed: 3006, outcome: "maintainer", question: "Does the cache key change?" }));
+    const draft = (n) => ({ number: 3900 + n, state: "OPEN", isDraft: true, branch: `fix/${n}-thing`, head: "h", rounds: 1 });
+    const continuing = run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: snapshotOf(300, [{ ...ticket(3001), parent: 300 }, { ...ticket(3006), parent: 300, prs: [{ ...draft(3006), number: 3966 }] }, { ...ticket(3002), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-3002"), branch: "fix/3002-thing", head: "h" }] }]), preflights: [available("claude-cli", "claude-opus-5-5", [3001, 3002, 3006])], freeBytes: 100 * GB, defaults });
+    const entryOf = (p, n) => p.tickets.find((t) => t.number === n);
+    assert.deepEqual([entryOf(continuing, 3006).action, entryOf(continuing, 3006).continueWith], ["adopt-pr", undefined], "no continuation while the maintainer decides");
+    assert.match(entryOf(continuing, 3006).continueBlocked, /raised with the maintainer: "Does the cache key change\?"/);
+    assert.deepEqual([entryOf(continuing, 3002).action, entryOf(continuing, 3002).continueWith], ["adopt-worktree", undefined], "no continuation of a completing ticket before its slice is delivered");
+    assert.match(entryOf(continuing, 3002).continueBlocked, /completes #3001's fix/);
+    // A completing ticket whose slice has left the tree waits on the
+    // coordinator rather than dispatching.
+    const orphan = run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: snapshotOf(300, [{ ...ticket(3002), parent: 300 }]), preflights: [available("claude-cli", "claude-opus-5-5", [3002])], freeBytes: 100 * GB, defaults });
+    assert.equal(actions(orphan)[3002], "decision-needed");
+    assert.match(entryOf(orphan, 3002).reason, /#3001 is not in the parent's tree/);
+    // A number a report names that GitHub shows was not filed during the run
+    // is dismissed with that evidence and stops holding the plan.
+    f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r6.json", { ...base, filed: [3002, 3007] }) }));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), { 3007: "confirm-filed" });
+    assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3008, evidence: "x" })), /No writer's report names #3008/);
+    assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3002, evidence: "x" })), /recorded as filed during the run; triage it instead/);
+    assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3009, evidence: "x" })), /#3009's writer's report does not name #3007/);
+    f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3001, evidence: "#3007 is an issue opened in 2025, before the run" }));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {}, "a dismissed number holds nothing");
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 3007, source: "x" })), /was dismissed at .* as not filed during the run/);
   }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
