@@ -50,10 +50,11 @@ export interface SearchNode {
 }
 
 /**
- * The share of the step, node and time ceilings ({@link SearchOptions.maxSteps},
- * {@link SearchOptions.maxNodes}, {@link SearchOptions.searchTimeout}) the
- * first phase of a search may spend once it has met a condition (see
- * {@link planRoute}).
+ * The share of the step and node ceilings ({@link SearchOptions.maxSteps},
+ * {@link SearchOptions.maxNodes}) the first phase of a search may spend once
+ * it has met a condition (see {@link planRoute}). The share is of work, not
+ * of time, so where it runs out does not depend on how busy the machine is,
+ * and a resumed search and a search from the top cut a loop on the same pass.
  *
  * The first phase follows the program's own verdicts, and a line the program
  * reaches is found there within the work it takes the program to get there:
@@ -553,8 +554,6 @@ interface FirstPhase {
   stepsFloor: number;
   /** The budget's `nodesRemaining` at which its share is spent. */
   nodesFloor: number;
-  /** When its share of the time is spent. */
-  deadlineTime: number;
   /** The verdict the program does not reach at each condition the phase
    *  took, in the order it took them: a child forked there to force it,
    *  built when the second phase takes it up. */
@@ -567,9 +566,11 @@ interface FirstPhase {
 }
 
 /** The second phase's queue, taking up where the first stopped (see
- *  {@link planRoute}): the run the share cut, then the latest verdict the
- *  first did not take at each site, latest first, then the nodes it did not
- *  expand, then its other verdicts not taken, latest first. */
+ *  {@link planRoute}): the latest verdict the first did not take at each
+ *  site, latest first, then the run the share cut, then the nodes it did not
+ *  expand, then its other verdicts not taken, latest first. The verdicts not
+ *  taken come before the run the share cut, which may have to run a long
+ *  step again from the condition before it. */
 const secondPhaseQueue = (
   phase: FirstPhase,
   unexpanded: SearchNode[],
@@ -583,8 +584,8 @@ const secondPhaseQueue = (
     sites.add(site);
   }
   return [
-    ...(phase.cutAt ? [phase.cutAt] : []),
     ...latest,
+    ...(phase.cutAt ? [phase.cutAt] : []),
     ...unexpanded,
     ...earlier,
   ];
@@ -601,8 +602,7 @@ const firstPhaseSpent = (
     !!phase &&
     phase.sawCondition &&
     (budget.stepsRemaining <= phase.stepsFloor ||
-      budget.nodesRemaining <= phase.nodesFloor ||
-      now() >= phase.deadlineTime)
+      budget.nodesRemaining <= phase.nodesFloor)
   ) {
     phase.spent = true;
     return true;
@@ -841,7 +841,6 @@ export const planRoute = (
         startingNodes -
         Math.floor(startingNodes * FIRST_PHASE_SHARE) +
         (resume?.choices.length ?? 0),
-      deadlineTime: startTime + searchTimeout * FIRST_PHASE_SHARE,
       notTaken: [],
       cutAt: null,
       spent: false,
