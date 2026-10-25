@@ -5756,7 +5756,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   : {}),
               };
             }
-            const morph = $.getMorphContent(e.assets);
+            // Counted in the images the background paints, which a movie is
+            // not among.
+            const morph = $.getMorphContent(imageAssets);
             if (morph) {
               content.morph = morph;
             }

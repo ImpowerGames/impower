@@ -8,8 +8,13 @@
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { WriteImageInstruction } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
-import { describe, expect, test } from "vitest";
+import { cssList } from "@impower/sparkdown/src/morph/cssList";
+import { createMorphHost, inlineMorphSource } from "@impower/sparkdown/src/morph/hosts";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
+import { blinkScript, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
+import { describe, expect, test, vi } from "vitest";
 import AssetManager from "../../app/managers/AssetManager";
+import { MorphPlayback } from "../../app/morph/MorphPlayback";
 import UIManager from "../../app/managers/UIManager";
 import {
   createDOMHarness,
@@ -18,6 +23,10 @@ import {
   installJSDOM,
   untilShown,
 } from "./domTestHarness";
+
+// A real game compiles, replays its route and, beside a morph, bakes for
+// each test here; on a busy machine that can outlast the default timeout.
+vi.setConfig({ testTimeout: 60_000 });
 
 const WAVE = "/file:/proj/bunny_wave.webm?v=1";
 const RAIN = "/file:/proj/rain.webm?v=1";
@@ -224,6 +233,29 @@ describe("a movie on a layer, in play", () => {
     expect(video.currentTime).toBeCloseTo(29.8);
   });
 
+  test("a `once` movie skipped to its end while paused holds its last frame when the game resumes", async () => {
+    const { h, media } = await playing();
+    await playNext(h);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.loop).toBe(false);
+    (video as any).__duration = 3;
+    video.currentTime = 1;
+    h.ui.onPause();
+    h.ui.onSkip(5);
+    expect(video.currentTime).toBe(3);
+    const plays = media.of(video, "play");
+    h.ui.onUnpause();
+    expect(media.of(video, "play")).toBe(plays);
+    expect(video.paused).toBe(true);
+    // Back inside it, it plays on with the game.
+    h.ui.onPause();
+    h.ui.onSkip(-1.5);
+    expect(video.currentTime).toBe(1.5);
+    h.ui.onUnpause();
+    expect(media.of(video, "play")).toBe(plays + 1);
+  });
+
   test("a movie shown while the game is paused starts when it resumes", async () => {
     const { h, media } = await playing();
     appOf(h).paused = true;
@@ -379,6 +411,85 @@ describe("a movie on a layer, across runs", () => {
     );
     expect(overlay.querySelector("video")).toBeNull();
     expect([...assets.derivedPins()]).not.toContain(RAIN);
+  });
+});
+
+describe("a movie beside a morphed image", () => {
+  const MORPH_SOURCE = `${blinkScript(`  timing {
+    duration = 0.25
+    easing = linear
+    iterations = infinite
+  }
+`)}
+define rain as video with
+  src = "${RAIN}"
+end
+
+-> start
+
+scene start
+  HERO:
+    [[show portrait bunny]]
+    First line.
+end
+`;
+  const MORPH_FILES = [
+    {
+      uri: "inmemory:///bunny.svg",
+      type: "image",
+      name: "bunny",
+      ext: "svg",
+      data: portrait({ dx: 0, dy: 0 }),
+    },
+  ];
+
+  test.each([
+    [["rain", "bunny"]],
+    [["bunny", "rain"]],
+  ])("the image's morph keeps its place among the images the layer paints (%j)", async (assets) => {
+    const writes: any[] = [];
+    const h = createDOMHarness(MORPH_SOURCE, 0, {
+      files: MORPH_FILES,
+      afterEachMessage: (message) => {
+        const ops =
+          message?.method === "ui/batch" ? message.params.messages : [message];
+        for (const op of ops) {
+          if (op?.method === "ui/write-image") {
+            writes.push(op);
+          }
+        }
+      },
+    });
+    stubMedia(h.overlay);
+    MorphPlayback.for(h.overlay).configure({
+      host: createMorphHost({
+        service: new MorphBakeService(),
+        channel: () => h.game.program.morphs,
+        readSource: inlineMorphSource(() => h.game.program.context),
+      }),
+      seed: "test",
+      requestFrame: () => 0,
+      cancelFrame: () => {},
+    });
+    await h.ready;
+    await h.preview(
+      MORPH_SOURCE.split("\n").findIndex((l) => l.includes("First line.")),
+    );
+    await flushMicrotasks(10);
+    await h.game.module.ui.image.write(
+      "portrait",
+      [{ control: "show", assets } as any],
+      true,
+    );
+    await flushMicrotasks(10);
+    const content = writes
+      .filter((w) => w.params.target === "portrait")
+      .flatMap((w) => w.params.instructions)
+      .filter((i: any) => i.content)
+      .at(-1)?.content;
+    expect(content.video?.src).toBe(RAIN);
+    expect(cssList(content.background)).toHaveLength(1);
+    expect(content.morph.plays.map((p: any) => p.layer)).toEqual([0]);
   });
 });
 

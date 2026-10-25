@@ -548,7 +548,6 @@ export default class UIManager extends Manager {
       video.pause();
       delete (video as any).__sdMovie;
     }
-    this._pausedMovies.clear();
     // The morphs on the screen this leaves go on, on their own frames, until
     // the next display replaces them; a pause was this run's.
     const morphs = this.morphs;
@@ -2390,11 +2389,10 @@ export default class UIManager extends Manager {
       (video as any).__sdHoldsEnd = true;
       video.addEventListener("ended", () => video.pause());
     }
-    if (this.app.paused) {
-      this._pausedMovies.add(video);
-      return;
+    // While the game is paused it starts when the game resumes.
+    if (!this.app.paused) {
+      this.playMovie(video);
     }
-    this.playMovie(video);
   }
 
   protected playMovie(video: HTMLVideoElement) {
@@ -2422,7 +2420,6 @@ export default class UIManager extends Manager {
         : Array.from(root.querySelectorAll("video"))
     ) as HTMLVideoElement[];
     for (const video of videos) {
-      this._pausedMovies.delete(video);
       delete (video as any).__sdMovie;
       video.pause();
       video.removeAttribute("src");
@@ -2430,31 +2427,44 @@ export default class UIManager extends Manager {
     }
   }
 
-  /** The movies the game had playing when it paused, which resume with it. */
-  protected _pausedMovies = new Set<HTMLVideoElement>();
-
   /** Whether this manager's run is over (`onDispose`). */
   protected _disposed = false;
 
-  /** The game paused: so does every movie it had playing. */
+  /** The game paused: so does every movie it plays. */
   protected pauseMovies() {
     for (const video of this.movies()) {
-      if (!video.paused && !video.ended) {
+      if (!video.paused) {
         video.pause();
-        this._pausedMovies.add(video);
       }
     }
   }
 
-  /** The game resumed: so do the movies it paused, and any shown since. */
+  /** The game resumed: so does every movie it plays, but one that plays
+   *  once and stands at its end, which holds its last frame; `play()` would
+   *  start it again from the beginning. */
   protected resumeMovies() {
-    const resumed = [...this._pausedMovies];
-    this._pausedMovies.clear();
-    for (const video of resumed) {
-      if (video.isConnected && (video as any).__sdMovie) {
+    for (const video of this.movies()) {
+      if (!this.heldAtEnd(video)) {
         this.playMovie(video);
       }
     }
+  }
+
+  /** Whether `video` plays once and the game clock has it at its end. The
+   *  element's own `ended` lags a skip's seek, so the clock decides too. */
+  protected heldAtEnd(video: HTMLVideoElement): boolean {
+    if (video.loop) {
+      return false;
+    }
+    if (video.ended) {
+      return true;
+    }
+    const duration = video.duration;
+    return (
+      Number.isFinite(duration) &&
+      duration > 0 &&
+      Math.max(this.moviePosition(video), video.currentTime) >= duration
+    );
   }
 
   /** Record that `video` stands at `time` (seconds into the movie, counted
