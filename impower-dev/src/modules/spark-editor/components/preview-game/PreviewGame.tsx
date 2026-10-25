@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { showSnackbar } from "../../utils/snackbar";
-import workspace from "../../workspace/WorkspaceStore";
+import { createPlayerPreferenceSync } from "./playerPreferences";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
 
@@ -123,7 +123,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/InitializeMessage"),
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
-      import("@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
@@ -134,7 +133,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage"),
-      import("@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage"),
       import("@impower/spark-engine/src/game/core/utils/executedLineRanges"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
@@ -148,7 +146,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { ChangedEditorPinpointsMessage },
         { InitializeMessage },
         { MessageProtocol, sendProtocolMessage },
-        { ConnectedPreviewMessage },
         { ExecuteCommandMessage },
         { RuntimeDiagnosticsMessage },
         { EnterGameFullscreenModeMessage },
@@ -159,7 +156,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameStartedMessage },
         { GameToggledFullscreenModeMessage },
         { GameWorkerRestartedMessage },
-        { SetAnimatePortraitsMessage },
         { expandLineRanges },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
@@ -180,25 +176,13 @@ export default function PreviewGame(_props: PreviewGameProps) {
           };
         };
 
-        // A new player starts with portraits animating, and its controller
-        // handles nothing until it announces itself, which can come before
-        // or after Initialize completes; it hears the preference at both.
-        const sendAnimatePortraits = () => {
-          iframeChannelRef.current?.postMessage(
-            SetAnimatePortraitsMessage.type.request({
-              enabled: workspace.animatePortraits.peek(),
-            }),
-          );
-        };
+        const preferences = createPlayerPreferenceSync((message) =>
+          iframeChannelRef.current?.postMessage(message),
+        );
 
         const onChannelMessage = async (e: MessageEvent) => {
           const message = e.data;
-          if (
-            ConnectedPreviewMessage.type.isNotification(message) &&
-            message.params.type === "game"
-          ) {
-            sendAnimatePortraits();
-          }
+          preferences.received(message);
           if (ExecuteCommandMessage.type.is(message)) {
             const result = await Workspace.fs.executeCommand(message.params);
             iframeChannelRef.current?.sendResponse(message, result);
@@ -290,7 +274,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
             capabilities: {},
             workspaceFolders: [{ uri: projectPath, name: "Project" }],
           });
-          sendAnimatePortraits();
+          preferences.initialized();
           initializedRef.current = true;
           initializingResolveRef.current?.();
           setupInFlight = false;

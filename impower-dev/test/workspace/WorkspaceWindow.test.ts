@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The Workspace singleton instantiates 3 Workers at module load and
 // circular-imports WorkspaceWindow. Stub it; the only method our tested actions
-// reach is fs.writeProjectMetadata (the project-rename path).
+// reach is fs.writeProjectMetadata (the project-rename path). `window` is the
+// window a test sets, which the preview toolbar's controls reach.
+const current = vi.hoisted(() => ({ window: undefined as unknown }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: {
@@ -14,9 +16,51 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       getFileUri: (projectId: string, filename: string) =>
         `file://${projectId}/${filename}`,
     },
+    get window() {
+      return current.window;
+    },
   },
 }));
 
+// impower-ui's barrel pulls Radix primitives whose CommonJS helpers require
+// "react", which only the app's bundler aliases to preact/compat. The toolbar
+// is rendered against plain elements instead: a button keeps every prop it is
+// given, so labels, state and handlers are the toolbar's own.
+vi.mock("@impower/impower-ui/components", async () => {
+  const { h } = await import("preact");
+  const element =
+    (tag: string) =>
+    ({ asChild: _asChild, variant: _v, size: _s, onCheckedChange: _c, checked: _k, ...props }: Record<string, unknown>) =>
+      h(tag, props);
+  const icons = [
+    "BugOff",
+    "Check",
+    "Eye",
+    "EyeClosed",
+    "Gear",
+    "Notes",
+    "PlayerPauseFill",
+    "PlayerPlay",
+    "PlayerPlayFill",
+    "PlayerSkipBackwardFill",
+    "PlayerSkipForwardFill",
+    "PlayerStop",
+    "PlayerTrackNextFill",
+    "PlayerTrackPreviousFill",
+  ];
+  return {
+    Button: element("button"),
+    DropdownRoot: element("div"),
+    DropdownTrigger: element("div"),
+    DropdownContent: element("div"),
+    DropdownCheckboxItem: element("div"),
+    ...Object.fromEntries(icons.map((name) => [name, element("svg")])),
+  };
+});
+
+import { h, render } from "preact";
+import { createPlayerPreferenceSync } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
+import PreviewGameToolbar from "../../src/modules/spark-editor/components/preview-game-toolbar/PreviewGameToolbar";
 import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/WorkspaceConstants";
 import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
@@ -258,5 +302,94 @@ describe("Animate portraits preference", () => {
     win.unpauseGame();
     expect(workspace.animatePortraits.value).toBe(false);
     expect(sent.map((m) => m.params.enabled)).toEqual([false]);
+  });
+
+  describe("the preview toolbar control", () => {
+    let container: HTMLElement;
+
+    const control = () =>
+      container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Animate portraits"]',
+      );
+
+    const show = (running: boolean) => {
+      workspace.current = {
+        ...workspace.current,
+        preview: {
+          ...workspace.current.preview,
+          modes: {
+            ...workspace.current.preview.modes,
+            game: { running },
+          },
+        },
+      };
+      render(h(PreviewGameToolbar, {}), container);
+    };
+
+    beforeEach(() => {
+      current.window = load();
+      container = document.createElement("div");
+      document.body.append(container);
+    });
+
+    afterEach(() => {
+      render(null, container);
+      container.remove();
+      current.window = undefined;
+    });
+
+    for (const running of [false, true]) {
+      it(`turns portraits off and on while the game is ${running ? "playing" : "stopped"}`, async () => {
+        show(running);
+        expect(control()?.getAttribute("aria-pressed")).toBe("true");
+        control()!.click();
+        await vi.waitFor(() =>
+          expect(control()?.getAttribute("aria-pressed")).toBe("false"),
+        );
+        control()!.click();
+        await vi.waitFor(() =>
+          expect(control()?.getAttribute("aria-pressed")).toBe("true"),
+        );
+        expect(sent.map((m) => m.params.enabled)).toEqual([false, true]);
+      });
+    }
+
+    it("shows a saved off preference after a reload", () => {
+      load().setAnimatePortraits(false);
+      workspace.animatePortraits.value = true;
+      load();
+      show(false);
+      expect(control()?.getAttribute("aria-pressed")).toBe("false");
+    });
+  });
+
+  describe("a connecting player", () => {
+    const connected = (type: "game" | "screenplay") => ({
+      jsonrpc: "2.0",
+      method: "preview/connected",
+      params: { type },
+    });
+
+    it("hears the current preference when it connects and when it has initialized", () => {
+      load().setAnimatePortraits(false);
+      const posted: SetAnimatePortraitsMessage.Request[] = [];
+      const sync = createPlayerPreferenceSync((m) =>
+        posted.push(m as SetAnimatePortraitsMessage.Request),
+      );
+      sync.received(connected("game"));
+      sync.initialized();
+      expect(posted.map((m) => [m.method, m.params.enabled])).toEqual([
+        ["game/setAnimatePortraits", false],
+        ["game/setAnimatePortraits", false],
+      ]);
+    });
+
+    it("ignores the screenplay preview and other messages", () => {
+      const posted: unknown[] = [];
+      const sync = createPlayerPreferenceSync((m) => posted.push(m));
+      sync.received(connected("screenplay"));
+      sync.received({ jsonrpc: "2.0", method: "game/started", params: {} });
+      expect(posted).toEqual([]);
+    });
   });
 });
