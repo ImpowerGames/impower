@@ -73,6 +73,27 @@ export interface MorphRef {
   src?: string;
 }
 
+/**
+ * When a morph plays, with its defaults applied: what a player schedules an
+ * occurrence by (`timeline.ts`). Not part of the recipe, so retiming a morph
+ * bakes nothing again.
+ */
+export interface MorphTiming {
+  /** Seconds one play lasts. */
+  duration: number;
+  /** Seconds before the first play. */
+  delay: number;
+  /** A CSS timing function, applied once to each play's directed progress. */
+  easing: string;
+  /** Plays, or `infinite`; `0` never plays. */
+  iterations: number | "infinite";
+  direction: "normal" | "reverse" | "alternate" | "alternate-reverse";
+  /** Shortest quiet time between plays, in seconds; set with the max. */
+  iteration_delay_min?: number;
+  /** Longest quiet time between plays, in seconds; set with the min. */
+  iteration_delay_max?: number;
+}
+
 /** The program channel compilation fills; see `SparkProgram.morphs`. */
 export interface MorphProgramChannel {
   /** Each morph's recipe as canonical JSON (`serializeMorphRecipe`). */

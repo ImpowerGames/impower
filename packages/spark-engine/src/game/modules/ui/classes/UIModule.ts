@@ -5,6 +5,18 @@ import { ErrorType } from "../../../core/enums/ErrorType";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
+import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { cssList } from "@impower/sparkdown/src/morph/cssList";
+import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
+import {
+  MorphArtifactMessage,
+  type MorphArtifactParams,
+} from "./messages/MorphArtifactMessage";
+import { MorphNeedMessage } from "./messages/MorphNeedMessage";
+import { hashText } from "@impower/sparkdown/src/morph/hash";
+import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
+import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
@@ -110,6 +122,8 @@ import {
   type UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
 import {
+  type MorphImageContent,
+  type MorphLayerPlay,
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
@@ -866,6 +880,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onReset() {
     this._events = {};
     this._mountedLayouts = new Map();
+    this._morphEpoch += 1;
+  }
+
+  override async onLoad() {
+    this._morphEpoch += 1;
+  }
+
+  override onRestart() {
+    this._morphEpoch += 1;
   }
 
   /** Forget which images are currently displayed, without emitting anything.
@@ -1211,6 +1234,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override async onConnected() {
+    // A new page stream has none of the artifacts sent on an earlier one.
+    this._morphSent.clear();
+    this._morphWritten.clear();
+    // A bake still under way finishes and sends; the new stream's asks are
+    // answered regardless.
+    this._morphBaking = new Set();
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
@@ -2106,6 +2135,143 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scan(value, 0);
     }
     return [...referenced];
+  }
+
+  /** Counts loads, restarts and resets: a portrait's morph starts at rest in each epoch. */
+  protected _morphEpoch = 0;
+
+  /** The images whose morph claims have been reported as conflicting, so each is reported once. */
+  protected _morphConflicts = new Set<string>();
+
+  /** Bakes the references the page cannot resolve itself, from the program's inline art. */
+  protected _morphHost?: MorphHost;
+
+  /** The artifact keys sent on this connection. */
+  protected _morphSent = new Set<string>();
+
+  /**
+   * Every inline-art reference written on this connection, by key: the only
+   * ones a page's `MorphNeedMessage` may ask for again.
+   */
+  protected _morphWritten = new Map<string, MorphRef>();
+
+  /** The keys whose artifact is being baked to send on this connection. */
+  protected _morphBaking = new Set<string>();
+
+  /**
+   * Sends the page the artifact for a reference with no asset service
+   * behind it: the art is inline in the program, which the page does not
+   * hold, so the game bakes it (`MorphArtifactMessage`). Once per key and
+   * connection; the write itself carries only the reference.
+   */
+  protected deliverMorphArtifact(ref: MorphRef, again = false) {
+    if (ref.src) {
+      return;
+    }
+    this._morphWritten.set(ref.key, ref);
+    // A send under way answers any ask that arrives before it does: the
+    // page asks on every miss, including a first mount racing the first send.
+    if (this._morphBaking.has(ref.key) || (this._morphSent.has(ref.key) && !again)) {
+      return;
+    }
+    this._morphSent.add(ref.key);
+    this._morphBaking.add(ref.key);
+    this._morphHost ??= createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => this._game.program?.morphs,
+      readSource: inlineMorphSource(() => this.context as any),
+    });
+    const baking = this._morphBaking;
+    const send = (params: MorphArtifactParams) => {
+      baking.delete(ref.key);
+      return this._game.connection.emit(MorphArtifactMessage.type.notification(params));
+    };
+    this._morphHost.resolve(ref).then(
+      (handle) => {
+        // As plain JSON, the form an asset service's response takes: the
+        // bake's tables have no prototype, which a thread's copy would not
+        // keep.
+        void send({ key: ref.key, artifact: JSON.parse(JSON.stringify(handle.artifact)) });
+        handle.release();
+      },
+      (error) => {
+        void send({ key: ref.key, error: error instanceof Error ? error.message : String(error) });
+      },
+    );
+  }
+
+  /**
+   * What an image write of `assets` carries for the morphs that play on its
+   * images: the reference, timing and definition of each image a morph
+   * plays on, with the image's place among the write's images bottom first
+   * (the order `background` lists them in reverse). Undefined when none
+   * does, so a write without morphs is the write it always was.
+   */
+  getMorphContent(assets: string[]): MorphImageContent | undefined {
+    const channel = this._game.program?.morphs;
+    if (!channel || !this.context) {
+      return undefined;
+    }
+    const plays: MorphLayerPlay[] = [];
+    // Each asset's place is counted in the images of the CSS it is painted
+    // with, as the page splits the write's `background`: a literal may list
+    // several (`"linear-gradient(…), linear-gradient(…)"`).
+    let next = 0;
+    for (const asset of assets) {
+      const first = next;
+      const count = cssList(this.getBackgroundImageFromString(asset)).length;
+      next += count;
+      if (asset.at(0) === '"' && asset.at(-1) === '"') {
+        continue;
+      }
+      const imageName = sortFilteredName(asset);
+      const image = resolveImageReference(this.context, { $type: "", $name: imageName });
+      const resolved = resolveImageLayers(this.context, image);
+      if (resolved.length !== count) {
+        continue;
+      }
+      for (const [offset, layer] of resolved.entries()) {
+        const index = first + offset;
+        const refs = morphRefsForStruct(this.context, channel, layer.struct);
+        if (refs.length > 1) {
+          // Each artifact draws the whole image, so two morphs cannot both
+          // play on it, and which one would is not the author's to infer
+          // from declaration order: the image stays still and says why.
+          this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
+          continue;
+        }
+        const ref = refs[0];
+        if (!ref) {
+          continue;
+        }
+        this.deliverMorphArtifact(ref);
+        const timing = { ...default_morph().timing, ...(this.context.morph?.[ref.morph]?.timing ?? {}) } as MorphTiming;
+        plays.push({
+          layer: index,
+          ref,
+          timing,
+          definition: hashText(`${channel.recipes[ref.morph] ?? ""}\n${JSON.stringify(timing)}`),
+        });
+      }
+    }
+    return plays.length > 0 ? { plays, epoch: this._morphEpoch } : undefined;
+  }
+
+  protected reportMorphConflict(image: string, refs: MorphRef[]) {
+    const names = refs.map((r) => r.morph).sort();
+    const key = `${image}\n${names.join("\n")}`;
+    if (this._morphConflicts.has(key)) {
+      return;
+    }
+    this._morphConflicts.add(key);
+    const shared = refs[0]!.groups.filter((g) => refs.slice(1).some((r) => r.groups.includes(g)));
+    const list = names.map((n) => `\`${n}\``).join(", ");
+    this._game.log(
+      shared.length > 0
+        ? `\`${image}\` is claimed by ${list}, which all drive ${shared.map((g) => `\`${g}\``).join(", ")}; it stays still until only one morph plays on it.`
+        : `\`${image}\` has more than one morph (${list}); one image plays one morph, so it stays still until only one plays on it.`,
+      "warning",
+    );
   }
 
   getImageSrcsByName(name: string) {
@@ -5590,6 +5756,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   : {}),
               };
             }
+            const morph = $.getMorphContent(e.assets);
+            if (morph) {
+              content.morph = morph;
+            }
             if (e.control === "show") {
               const showEvent = {
                 name: showWith,
@@ -5903,6 +6073,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   attributes = new this.Attributes();
 
   override onReceiveNotification(msg: NotificationMessage): void {
+    if (MorphNeedMessage.type.isNotification(msg)) {
+      // The page let an artifact go that it needs again.
+      const ref = this._morphWritten.get(msg.params.key);
+      if (ref) {
+        this.deliverMorphArtifact(ref, true);
+      }
+      return;
+    }
     if (EventMessage.type.isNotification(msg)) {
       const params = msg.params;
       if (params.currentTargetId) {

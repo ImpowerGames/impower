@@ -71,7 +71,7 @@ export interface DOMHarness {
 /** A fixture's program, compiled to statement chunks for the binary
  *  program's engine (#692); a fixture the compile makes no chunks for is
  *  refused, with the errors it reported. */
-export function compile(source: string) {
+export function compile(source: string, files: Record<string, unknown>[] = []) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     // Builtins come from the implicitly-imported builtins prelude (the compiler
@@ -90,7 +90,8 @@ export function compile(source: string) {
         version: 1,
         languageId: "sparkdown",
       },
-    ],
+      ...files,
+    ] as any,
   });
   const result = compiler.compile({ textDocument: { uri: MAIN_URI } });
   if (!result.program.chunks) {
@@ -309,9 +310,12 @@ export function createDOMHarness(
      *  page handles each message as a task of its own, and a frame can
      *  render between any two, so this sees every state a frame can show. */
     afterEachMessage?: (message: any) => void;
+    /** Asset files compiled beside the script, such as an image's artwork. */
+    files?: Record<string, unknown>[];
   },
 ): DOMHarness {
-  const program = compile(source);
+  const files = opts?.files;
+  const program = compile(source, files);
   const { overlay } = installJSDOM();
 
   // Timers armed with a real delay (an asset gate's timeout, the loading
@@ -415,7 +419,7 @@ export function createDOMHarness(
      * rebuilt. Returns once settled.
      */
     async rerender(newSource: string, line = startLine, opts) {
-      const newProgram = compile(newSource);
+      const newProgram = compile(newSource, files);
       game = makeGame(newProgram);
       router = makeRouter();
       // Faithfully model GamePlayerController.buildApp on an edit: the OLD

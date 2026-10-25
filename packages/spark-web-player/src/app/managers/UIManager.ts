@@ -27,9 +27,13 @@ import {
   WriteImageMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
+import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
+import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
+import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
 import { Manager } from "../Manager";
+import { MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import {
@@ -89,6 +93,9 @@ type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
  *  is a clock out of step, not a wait. The delay before the beat's first
  *  letter comes on top. */
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+/** Counts PLAY sessions, each of which starts every portrait morph at rest. */
+let playSessions = 0;
 
 /** A beat's ops in order, each batch's ops in its place. */
 function beatOps(params: BeatParams): IMessage[] {
@@ -310,6 +317,11 @@ export default class UIManager extends Manager {
 
   override async onInit() {
     await super.onInit();
+    // The morphs ask the game this manager hears for an artifact they let go.
+    const morphs = this.morphs;
+    if (morphs) {
+      morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
+    }
     // A fresh UIManager built for a re-render inherits the prior render's overlay
     // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
     // the incoming create stream reuses them instead of duplicating.
@@ -331,6 +343,8 @@ export default class UIManager extends Manager {
     if (!content) {
       this._placeCursor.clear();
     }
+    // A target this pass empties and writes again keeps its morphs' phase.
+    this.morphs?.beginPass();
     const overlay = this.app.overlay;
     if (overlay) {
       // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
@@ -382,6 +396,7 @@ export default class UIManager extends Manager {
       }
     }
     this._staleTextTargets.clear();
+    this.morphs?.endPass();
   }
 
   /** Drop the text a target's writes left, as a `ui/write-text` carrying no
@@ -429,6 +444,7 @@ export default class UIManager extends Manager {
     for (const tag of ["image", "mask"]) {
       for (const contentEl of this.getContentElements(el, tag)) {
         this.releaseMovies(contentEl);
+        this.morphs?.releaseWithin(contentEl);
         contentEl.replaceChildren();
       }
     }
@@ -465,9 +481,55 @@ export default class UIManager extends Manager {
         }
       });
       this.releaseMovies(el);
+      this.morphs?.releaseWithin(el);
       el.remove();
     }
     this._staleIds.delete(id);
+  }
+
+  /** The overlay's live portrait morphs, which outlive this manager with its DOM. */
+  get morphs(): MorphPlayback | undefined {
+    const overlay = this.app.overlay;
+    return overlay ? MorphPlayback.for(overlay) : undefined;
+  }
+
+  // PLAY's application clock drives the morphs once it starts; a preview,
+  // which never starts, leaves them on the playback's own frames.
+  override onStart() {
+    const morphs = this.morphs;
+    morphs?.attachClock(this);
+    morphs?.setSession(`play:${++playSessions}`);
+    this._morphClockSeen = undefined;
+  }
+
+  /** The clock's elapsed time at the last update the morphs were moved by. */
+  protected _morphClockSeen?: number;
+
+  // Moved by the clock's elapsed time rather than its last frame's delta:
+  // `Application.skip` steps the morphs itself (`onSkip`) and then updates
+  // with the delta of the frame before, which elapsed time does not repeat.
+  override onUpdate(time: Clock) {
+    const elapsed = time.elapsedTime;
+    const seen = this._morphClockSeen;
+    this._morphClockSeen = elapsed;
+    if (seen !== undefined && elapsed > seen) {
+      this.morphs?.advance(elapsed - seen);
+    }
+  }
+
+  override onSkip(seconds: number) {
+    this.morphs?.step(seconds);
+    this.skipMovies(seconds);
+  }
+
+  override onPause() {
+    this.morphs?.setPaused(true);
+    this.pauseMovies();
+  }
+
+  override onUnpause() {
+    this.morphs?.setPaused(false);
+    this.resumeMovies();
   }
 
   override onDispose() {
@@ -487,6 +549,11 @@ export default class UIManager extends Manager {
       delete (video as any).__sdMovie;
     }
     this._pausedMovies.clear();
+    // The morphs on the screen this leaves go on, on their own frames, until
+    // the next display replaces them; a pause was this run's.
+    const morphs = this.morphs;
+    morphs?.detachClock(this);
+    morphs?.setPaused(false);
     // A played beat still waiting for its commit belonged to the run being
     // torn down (STOP, or the rebuild a new run makes): it never goes up, and
     // the screen stays as it is until the next display (#1820). The engine
@@ -1126,6 +1193,8 @@ export default class UIManager extends Manager {
       const touched: (Element | null | undefined)[] = [];
       if ((existing as any).__sdCreate !== createSignature(params)) {
         touched.push(params.content ? existing : existing.parentElement);
+      } else if ((existing as any).__sdUpdatedContent && params.content) {
+        touched.push(existing);
       }
       if (parent && existing.parentElement !== parent) {
         touched.push(existing.parentElement, parent);
@@ -1178,6 +1247,9 @@ export default class UIManager extends Manager {
     // does the going of a layout that has retired.
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
+      // A style or class the op changes can move the image a live morph
+      // stands in for without resizing its span.
+      this.morphs?.requestRelayout();
     }
     // What the op changes leaves the signatures written above it older than
     // their subtree (#1820), whichever handler below applies it.
@@ -1258,6 +1330,8 @@ export default class UIManager extends Manager {
         // Full-replace className so a reused node matches the new render exactly.
         el.className = params.name || "";
         if (params.content) {
+          // The content replaces whatever the node holds, image layers too.
+          this.morphs?.releaseWithin(el);
           el.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1322,6 +1396,19 @@ export default class UIManager extends Manager {
         // layout's faces to `document.fonts` before the layout mounts, and
         // removes them when nothing needs them any more.
         (el as any).__sdCreate = sig;
+      } else if ((el as any).__sdUpdatedContent && params.content) {
+        // An update replaced the content this unchanged create carries; only
+        // the content goes back. Style and attributes stay as the updates
+        // left them, which is what a beat-only display of the same state
+        // shows.
+        this.morphs?.releaseWithin(el);
+        el.textContent = getElementContent(params.content, {
+          breakpoints: params.breakpoints,
+          scope: "spark-web-player #game",
+        });
+      }
+      if (params.content) {
+        delete (el as any).__sdUpdatedContent;
       }
       const parent = this.getElement(params.parent);
       if (parent) {
@@ -1375,6 +1462,11 @@ export default class UIManager extends Manager {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
+          this.morphs?.releaseWithin(element);
+          // The node no longer holds the content its last create carried, so
+          // the next create of it writes that content back even when its
+          // signature is unchanged (#1223).
+          (element as any).__sdUpdatedContent = true;
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1473,9 +1565,17 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    if (MorphArtifactMessage.type.isNotification(msg)) {
+      this.morphs?.deliver(msg.params);
+      return;
+    }
     if (BeatMessage.type.isNotification(msg)) {
       this.receiveBeat(msg.params);
+      this.morphs?.requestRelayout();
       return;
+    }
+    if (msg.method.startsWith("ui/")) {
+      this.morphs?.requestRelayout();
     }
     // A screen op that arrives after a beat waiting for its commit goes up
     // after it. Messages for the page's other managers (assets, audio, the
@@ -2070,12 +2170,10 @@ export default class UIManager extends Manager {
       if (instructions.length === 0) {
         // Clear path (the engine cleared image + mask content then set
         // display:none on the wrapper, which it still emits via ui/update).
-        for (const imageEl of imageEls) {
-          this.releaseMovies(imageEl);
-          imageEl.replaceChildren();
-        }
-        for (const maskEl of maskEls) {
-          maskEl.replaceChildren();
+        for (const contentEl of [...imageEls, ...maskEls]) {
+          this.releaseMovies(contentEl);
+          this.morphs?.releaseWithin(contentEl);
+          contentEl.replaceChildren();
         }
         continue;
       }
@@ -2157,6 +2255,17 @@ export default class UIManager extends Manager {
               content.video && !video
                 ? content.srcs.filter((src) => src !== content.video?.src)
                 : content.srcs;
+            // The morphs on its images: live in an image, the rest render in
+            // a mask. A layer built only to fade out holds still.
+            if (content.morph && instruction.control !== "hide") {
+              this.morphs?.mount(
+                newSpanEl,
+                content.morph,
+                content.background,
+                property === "mask_image" ? "mask" : "background",
+                `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
+              );
+            }
             if (instruction.control === "show") {
               // 'show' fades out + destroys the previous layers (the crossfade).
               // The engine only ever destroyed spans it had enqueued an exit
@@ -2164,6 +2273,8 @@ export default class UIManager extends Manager {
               // previous layer is faded out then destroyed.
               if (content.previousHideAnimation) {
                 for (const prevSpanEl of prevSpanEls) {
+                  // An outgoing morph holds its frame through the fade.
+                  this.morphs?.freezeWithin(prevSpanEl);
                   this.addAnimationEffects(exitEffects, prevSpanEl, [
                     content.previousHideAnimation,
                   ]);
@@ -2235,6 +2346,7 @@ export default class UIManager extends Manager {
     // 3. destroy the faded-out previous layers
     for (const el of toDestroy) {
       this.releaseMovies(el);
+      this.morphs?.releaseWithin(el);
       el.remove();
     }
     // A hidden movie's layer goes with it, once the hide has played.
@@ -2324,7 +2436,8 @@ export default class UIManager extends Manager {
   /** Whether this manager's run is over (`onDispose`). */
   protected _disposed = false;
 
-  override onPause(): void {
+  /** The game paused: so does every movie it had playing. */
+  protected pauseMovies() {
     for (const video of this.movies()) {
       if (!video.paused && !video.ended) {
         video.pause();
@@ -2333,7 +2446,8 @@ export default class UIManager extends Manager {
     }
   }
 
-  override onUnpause(): void {
+  /** The game resumed: so do the movies it paused, and any shown since. */
+  protected resumeMovies() {
     const resumed = [...this._pausedMovies];
     this._pausedMovies.clear();
     for (const video of resumed) {
@@ -2369,7 +2483,7 @@ export default class UIManager extends Manager {
   /** The game clock moved `seconds` (back, when negative): so does every
    *  movie, from where the clock puts it, a looping one around its loop and
    *  one that plays once within its start and end. */
-  override onSkip(seconds: number): void {
+  protected skipMovies(seconds: number) {
     for (const video of this.movies()) {
       const target = video.loop
         ? this.moviePosition(video) + seconds

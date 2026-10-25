@@ -317,7 +317,11 @@ function coerceScalarLiteral(value: DefineValue, ctx: LowerContext): unknown {
   if (!first || !last) return undefined;
   if (ctx.lineNumber(first.from) !== ctx.lineNumber(last.to)) return undefined;
   if (!value.isLuau) return ctx.read(first.from, last.to).trim();
-  const expr = value.expr;
+  // Parentheses do not change a value: `(hero)` is the reference `hero`,
+  // which keeps its live runtime lookup and the resolver's report when it
+  // names nothing.
+  let expr = value.expr;
+  while (expr instanceof AstExprGroup) expr = expr.expr;
   const range = rangeOf(expr.location, ctx);
   const text = ctx.read(range.from, range.to);
   if (expr instanceof AstExprConstantString) {
@@ -345,7 +349,6 @@ function coerceScalarLiteral(value: DefineValue, ctx: LowerContext): unknown {
     expr instanceof AstExprSparkdownRegex ||
     expr instanceof AstExprTable ||
     expr instanceof AstExprCall ||
-    expr instanceof AstExprGroup ||
     expr instanceof AstExprFunction ||
     (expr instanceof AstExprBinary && expr.op === BinaryOp.Concat)
   ) {

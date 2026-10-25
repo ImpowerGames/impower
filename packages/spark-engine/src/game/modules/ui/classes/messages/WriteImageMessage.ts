@@ -1,4 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
+import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import type { Animation } from "../../types/Animation";
 
 /**
@@ -65,7 +66,34 @@ export interface WriteImageInstruction {
      * before they are destroyed (the crossfade, control: show).
      */
     previousHideAnimation?: Animation;
+    /** The morphs that play on the layer's images, when any do. */
+    morph?: MorphImageContent;
   };
+}
+
+/** One morph playing on one image of an image write. */
+export interface MorphLayerPlay {
+  /** The image's place in the write's `background`, counted bottom first. */
+  layer: number;
+  /** The compact reference compilation made for the image's variant. */
+  ref: MorphRef;
+  timing: MorphTiming;
+  /**
+   * Identity of the morph's definition (its recipe and timing): an edited
+   * definition starts the portrait's morph again at rest.
+   */
+  definition: string;
+}
+
+/**
+ * What an image write carries for the morphs that play on it: references,
+ * never artifacts, so a write stays small and its JSON deduplicates as
+ * before. The page resolves each reference itself.
+ */
+export interface MorphImageContent {
+  plays: MorphLayerPlay[];
+  /** Counts the game's loads and restarts; a new epoch starts every morph at rest. */
+  epoch: number;
 }
 
 export type WriteImageMethod = typeof WriteImageMessage.method;
