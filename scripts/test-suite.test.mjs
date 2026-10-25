@@ -970,6 +970,22 @@ fs.unlinkSync(claimFile);
   assert.equal(fs.existsSync(unrelated), true, "the sweep touches only private creation files");
   fs.unlinkSync(liveTemp);
   fs.unlinkSync(unrelated);
+
+  // Windows can refuse the private file's removal while another reader holds
+  // it. The creator's own later transaction removes what it left.
+  const unlink = fs.unlinkSync;
+  let refusing = true;
+  fs.unlinkSync = file => {
+    if (refusing && /^creating-/.test(path.basename(String(file)))) throw Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM" });
+    return unlink(file);
+  };
+  try {
+    acquire("private file removal refused", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+    assert.ok(creating().length > 0, "a refused removal leaves the private file for now");
+    refusing = false;
+    acquire("after a refused removal", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+  } finally { fs.unlinkSync = unlink; }
+  assert.deepEqual(creating(), [], "the creator's next transaction removes the private files it left");
 }
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
 

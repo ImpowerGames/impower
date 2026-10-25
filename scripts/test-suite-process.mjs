@@ -228,13 +228,39 @@ function publishOwned(root, file) {
     return identity;
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
-    try { fs.unlinkSync(temp); } catch {}
+    removeCreating(temp);
+  }
+}
+
+// Windows can refuse an unlink with EPERM or EBUSY while another reader (an
+// indexer, antivirus) has the file open. Such a refusal is retried briefly;
+// a file still left is retried at each later transaction and at exit, and
+// once this process is gone any other process's sweep removes it.
+const leftCreating = new Set();
+let exitRetry = false;
+function removeCreating(temp, retryMs = 1000) {
+  const deadline = Date.now() + retryMs;
+  for (;;) {
+    try { fs.unlinkSync(temp); leftCreating.delete(temp); return; }
+    catch (error) {
+      if (error.code === "ENOENT") { leftCreating.delete(temp); return; }
+      if (!["EPERM", "EBUSY", "EACCES"].includes(error.code) || Date.now() >= deadline) {
+        if (!exitRetry) {
+          exitRetry = true;
+          process.once("exit", () => { for (const file of [...leftCreating]) removeCreating(file, 0); });
+        }
+        leftCreating.add(temp);
+        return;
+      }
+      Atomics.wait(sleeper, 0, 0, 10);
+    }
   }
 }
 
 // Remove private files whose creator is dead. Only names matching
 // `creatingName` are considered; a live or unidentifiable creator's file stays.
 function sweepCreating(root, identify) {
+  for (const file of [...leftCreating]) removeCreating(file, 0);
   let names;
   try { names = fs.readdirSync(root); } catch { return; }
   for (const name of names) {
