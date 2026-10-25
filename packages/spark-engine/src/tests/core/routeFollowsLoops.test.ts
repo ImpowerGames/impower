@@ -480,3 +480,136 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(previewedStore(src, 10, "total")).toBe(6);
   }, 120_000);
 });
+
+/** The route a search with `options` finds to the line holding `label`. */
+function routeTo(lines: string[], label: string, options?: object) {
+  const program = compileSrc(lines.join("\n"));
+  const game: any = newGame(program);
+  game.setStartFrom({
+    file: URI,
+    line: lines.findIndex((l) => l.includes(label)),
+  });
+  const to = game.startAddress;
+  const route = Game.planRoute(
+    game.story,
+    program as any,
+    game.routeStartOf(to),
+    to,
+    undefined,
+    options,
+  );
+  expect(route?.steps.at(-1)?.address).toBe(to);
+  return route!;
+}
+
+describe("a search whose first phase spends its share", () => {
+  const HUB = [
+    "store total = 0",
+    "-> start",
+    "scene start",
+    "  choose",
+    "  + [Again]",
+    "    -> start",
+    "  + [Leave]",
+    "    Leaving.",
+    "  end",
+    "  Target total {total}.",
+    "end",
+    "",
+  ];
+
+  test("reaches the exit of a menu that can repeat forever, within small ceilings", () => {
+    const route = routeTo(HUB, "Target total", {
+      maxSteps: 4000,
+      maxNodes: 500,
+      searchTimeout: 30_000,
+    });
+    expect(route.choices.map((c) => c.selected)).toEqual([1]);
+  }, 120_000);
+
+  test("reaches the exit of a menu that can repeat forever, within the default ceilings", () => {
+    const route = routeTo(HUB, "Target total");
+    expect(route.choices.map((c) => c.selected)).toEqual([1]);
+  }, 120_000);
+
+  test("does not run a long call before the first condition twice", () => {
+    // The call takes more than the first phase's share before the search
+    // meets its first condition; the second phase takes up where the first
+    // stopped instead of starting again from the top.
+    const src = [
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  & table.foreachi(table.create(150000, 1), function(k, v) total += v end)",
+      "  if total > 0 then",
+      "    Target total {total}.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 6, "total")).toBe(150000);
+  }, 120_000);
+
+  test("a loop of menus within the share runs every pass", () => {
+    const src = [
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  for i = 1, 600 do",
+      "    choose",
+      "    + [Continue]",
+      "      & total += 1",
+      "    end",
+      "  end",
+      "  Target total {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 10, "total")).toBe(600);
+  }, 120_000);
+
+  test("a loop longer than the share is left at the pass the share ran out on", () => {
+    // A finite search cannot tell this loop from one that never ends. The
+    // second phase takes up the run where the share ran out, so the passes
+    // the first phase ran are kept.
+    const lines = [
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  for i = 1, 40000 do",
+      "    total += 1",
+      "  end",
+      "  Target total {total}.",
+      "end",
+      "",
+    ];
+    const total = previewedStore(lines.join("\n"), 7, "total") as number;
+    expect(total).toBeGreaterThan(0);
+    expect(total).toBeLessThan(40000);
+    const route = routeTo(lines, "Target total");
+    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(1);
+    expect(route.conditions.filter((c) => !c.selected)).toHaveLength(1);
+    expect(route.conditions).toHaveLength(total + 1);
+  }, 120_000);
+
+  test("a branch the program skips before the loop that spent it is still reached", () => {
+    const lines = [
+      "store flag = false",
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  if flag then",
+      "    Inside the branch {total}.",
+      "  end",
+      "  for i = 1, 400000 do",
+      "    total += 1",
+      "  end",
+      "  After the loop.",
+      "end",
+      "",
+    ];
+    const route = routeTo(lines, "Inside the branch");
+    expect(route.conditions.map((c) => c.selected)).toEqual([true]);
+    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(1);
+  }, 120_000);
+});
