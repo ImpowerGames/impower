@@ -1115,6 +1115,8 @@ export default class UIManager extends Manager {
       const touched: (Element | null | undefined)[] = [];
       if ((existing as any).__sdCreate !== createSignature(params)) {
         touched.push(params.content ? existing : existing.parentElement);
+      } else if ((existing as any).__sdUpdatedContent && params.content) {
+        touched.push(existing);
       }
       if (parent && existing.parentElement !== parent) {
         touched.push(existing.parentElement, parent);
@@ -1311,6 +1313,18 @@ export default class UIManager extends Manager {
         // layout's faces to `document.fonts` before the layout mounts, and
         // removes them when nothing needs them any more.
         (el as any).__sdCreate = sig;
+      } else if ((el as any).__sdUpdatedContent && params.content) {
+        // An update replaced the content this unchanged create carries; only
+        // the content goes back. Style and attributes stay as the updates
+        // left them, which is what a beat-only display of the same state
+        // shows.
+        el.textContent = getElementContent(params.content, {
+          breakpoints: params.breakpoints,
+          scope: "spark-web-player #game",
+        });
+      }
+      if (params.content) {
+        delete (el as any).__sdUpdatedContent;
       }
       const parent = this.getElement(params.parent);
       if (parent) {
@@ -1364,6 +1378,10 @@ export default class UIManager extends Manager {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
+          // The node no longer holds the content its last create carried, so
+          // the next create of it writes that content back even when its
+          // signature is unchanged (#1223).
+          (element as any).__sdUpdatedContent = true;
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
