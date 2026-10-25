@@ -461,24 +461,20 @@ class DeliveredArtifacts {
   static readonly LIMIT = 32;
   protected settled = new Map<string, { artifact?: MorphArtifact; error?: string }>();
   protected waiting = new Map<string, Set<() => void>>();
-  /**
-   * Keys delivered once and since let go: the game, which sends each key
-   * once per connection, is asked for these again (`MorphNeedMessage`).
-   */
-  protected forgotten = new Set<string>();
 
-  /** Asks the game to send `key` again; set by the UI manager that hears the game. */
+  /**
+   * Asks the game for `key` (`MorphNeedMessage`); set by the UI manager that
+   * hears the game. Asked on every miss: the game, which sends each key once
+   * per connection on its own, sends it again unless that first send is
+   * still under way.
+   */
   ask?: (key: string) => void;
 
   deliver(key: string, outcome: { artifact?: MorphArtifact; error?: string }) {
     this.settled.delete(key);
-    this.forgotten.delete(key);
     this.settled.set(key, outcome);
     while (this.settled.size > DeliveredArtifacts.LIMIT) {
-      const oldest = this.settled.keys().next().value!;
-      this.settled.delete(oldest);
-      this.forgotten.add(oldest);
-      if (this.forgotten.size > 1024) this.forgotten.delete(this.forgotten.values().next().value!);
+      this.settled.delete(this.settled.keys().next().value!);
     }
     for (const wake of this.waiting.get(key) ?? []) wake();
     this.waiting.delete(key);
@@ -486,7 +482,7 @@ class DeliveredArtifacts {
 
   /** The artifact for `key` once the game has sent it. */
   wait(key: string, signal: AbortSignal): Promise<MorphArtifact> {
-    if (!this.settled.has(key) && this.forgotten.has(key)) this.ask?.(key);
+    if (!this.settled.has(key)) this.ask?.(key);
     return new Promise((resolve, reject) => {
       const settle = () => {
         signal.removeEventListener("abort", abort);

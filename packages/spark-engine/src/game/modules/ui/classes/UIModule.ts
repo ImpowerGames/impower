@@ -1237,6 +1237,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // A new page stream has none of the artifacts sent on an earlier one.
     this._morphSent.clear();
     this._morphWritten.clear();
+    // A bake still under way finishes and sends; the new stream's asks are
+    // answered regardless.
+    this._morphBaking = new Set();
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
@@ -2152,6 +2155,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    */
   protected _morphWritten = new Map<string, MorphRef>();
 
+  /** The keys whose artifact is being baked to send on this connection. */
+  protected _morphBaking = new Set<string>();
+
   /**
    * Sends the page the artifact for a reference with no asset service
    * behind it: the art is inline in the program, which the page does not
@@ -2163,17 +2169,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this._morphWritten.set(ref.key, ref);
-    if (this._morphSent.has(ref.key) && !again) {
+    // A send under way answers any ask that arrives before it does: the
+    // page asks on every miss, including a first mount racing the first send.
+    if (this._morphBaking.has(ref.key) || (this._morphSent.has(ref.key) && !again)) {
       return;
     }
     this._morphSent.add(ref.key);
+    this._morphBaking.add(ref.key);
     this._morphHost ??= createMorphHost({
       service: new MorphBakeService(),
       channel: () => this._game.program?.morphs,
       readSource: inlineMorphSource(() => this.context as any),
     });
-    const send = (params: MorphArtifactParams) =>
-      this._game.connection.emit(MorphArtifactMessage.type.notification(params));
+    const baking = this._morphBaking;
+    const send = (params: MorphArtifactParams) => {
+      baking.delete(ref.key);
+      return this._game.connection.emit(MorphArtifactMessage.type.notification(params));
+    };
     this._morphHost.resolve(ref).then(
       (handle) => {
         // As plain JSON, the form an asset service's response takes: the

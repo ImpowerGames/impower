@@ -187,13 +187,17 @@ describe("morph playback in the page", () => {
     MorphPlayback.for(h.overlay);
     await h.ready;
     await h.preview(lineOf(SOURCE, "First line."));
-    await until(() => sent.length === 1, "the first delivery");
+    await until(() => sent.length >= 1, "the first delivery");
+    // The page's own ask on mounting raced the first bake, which answered it.
+    await new Promise((r) => setTimeout(r, 200));
     const key = sent[0]!;
+    const before = sent.length;
+    expect(sent.every((k) => k === key)).toBe(true);
     h.game.connection.receive({ jsonrpc: "2.0", method: "morph/need", params: { key: "not-written" } } as any);
     h.game.connection.receive({ jsonrpc: "2.0", method: "morph/need", params: { key } } as any);
-    await until(() => sent.length === 2, "the second delivery");
+    await until(() => sent.length === before + 1, "the delivery asked for");
     await new Promise((r) => setTimeout(r, 200));
-    expect(sent).toEqual([key, key]);
+    expect(sent.slice(before)).toEqual([key]);
   });
 
   test("a write without a morph is the write it always was", async () => {
@@ -604,8 +608,10 @@ describe("live drawing presentation", () => {
       asked.push(key);
       playback.deliver({ key, artifact: artifactFor(key) });
     };
-    // More deliveries than the page keeps: the first one is let go.
-    for (let i = 0; i < 40; i++) playback.deliver({ key: `k${i}`, artifact: artifactFor(`k${i}`) });
+    // Far more deliveries than the page keeps, or remembers keeping: the
+    // first one is long gone.
+    const artifact = artifactFor("k");
+    for (let i = 0; i < 1100; i++) playback.deliver({ key: `k${i}`, artifact: { ...artifact, key: `k${i}` } });
     const span = env.overlay.ownerDocument.createElement("span");
     env.overlay.appendChild(span);
     playback.mount(span, { ...content, plays: [{ ...content.plays[0]!, ref: { ...ref, key: "k0" } }] }, 'url("bunny.svg")', "background", "portrait:0");
@@ -614,7 +620,7 @@ describe("live drawing presentation", () => {
     // One still held is not asked for.
     const other = env.overlay.ownerDocument.createElement("span");
     env.overlay.appendChild(other);
-    playback.mount(other, { ...content, plays: [{ ...content.plays[0]!, ref: { ...ref, key: "k39" } }] }, 'url("bunny.svg")', "background", "portrait:1");
+    playback.mount(other, { ...content, plays: [{ ...content.plays[0]!, ref: { ...ref, key: "k1099" } }] }, 'url("bunny.svg")', "background", "portrait:1");
     await until(() => playback.stats.live === 2, "the held artifact");
     expect(asked).toEqual(["k0"]);
   });
