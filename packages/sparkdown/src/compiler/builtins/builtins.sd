@@ -1273,10 +1273,11 @@ style layouts with
     -- has to opt the element IN -- otherwise the bubble is styled perfectly
     -- and simply never appears.
     --
-    -- Except the `control` inside a labelled widget: it takes the pointer
-    -- from its label, so a widget locked with `interactable = false` stays
-    -- locked when its control carries a tooltip.
-    &:where(:not(.control)) {
+    -- Except the `control` a labelled widget holds in its `label`: it takes
+    -- the pointer from that label, so a widget locked with
+    -- `interactable = false` stays locked when its control carries a
+    -- tooltip. An author's own element with a `control` class still opts in.
+    &:where(:not(label>.control)) {
       pointer_events = auto
     }
     -- BUBBLE.
@@ -1792,9 +1793,12 @@ end
 //   wording beside it, shrunk to its content so only the two are a hit target.
 // - `&:where(:not(label)), > :where(.control)` is the control itself, bare or
 //   inside the label. The variant classes (`search`, `file_input`, `invalid`,
-//   `valid`) use the same pair. Both selectors sit in `:where`, so every rule,
-//   states included, keeps the specificity of the plain class and an author's
-//   own rule for the same name still wins.
+//   `valid`) use the same pair. Both selectors sit in `:where`, so the wrapper
+//   adds no specificity: each rule keeps the specificity it has written
+//   directly on the class. The control's own declarations stay at one class,
+//   where an author's later rule for the same name wins over them, and a
+//   state rule (`@checked`, `@focused`, `@disabled`) keeps its extra
+//   pseudo-class, as before.
 // - `> :where(.control)`, last, hands the label's pointer setting to the
 //   control, so `interactable = false` on the widget, as a prop or a class,
 //   reaches it. It follows the control's own `pointer_events = auto` so it

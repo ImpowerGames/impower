@@ -9,8 +9,9 @@
 // pointer-events, and the control inherits it through its builtin style. That
 // rule follows the control's own `pointer-events: auto` at the same
 // specificity, so it wins over it while an author's `> control` rule and
-// `@disabled` still win over it; and the tooltip opt-in leaves a `control`
-// alone, or a locked checkbox with a tooltip would toggle on click. jsdom has
+// `@disabled` still win over it; and the tooltip opt-in leaves a labelled
+// widget's `control` alone, or a locked checkbox with a tooltip would toggle
+// on click, while still opting in an author's own `.control` element. jsdom has
 // no cascade for nested rules, so these tests pin the emitted rules; the
 // rendered lock is checked in the browser.
 
@@ -85,10 +86,14 @@ end
     const layouts = ruleBody(css, ".layouts");
     expect(layouts).toBeDefined();
     const tooltip = layouts!.slice(layouts!.indexOf("& [data-tooltip] {"));
-    const optIn = tooltip.match(/&:where\(:not\(\.control\)\) \{\s*pointer-events: auto;/);
+    // Only the shape the engine mounts, a `control` directly in a `label`, is
+    // left out: an author's own `box.control` still opts in.
+    const optIn = tooltip.match(
+      /&:where\(:not\(label>\.control\)\) \{\s*pointer-events: auto;/,
+    );
     expect(optIn, tooltip.slice(0, 400)).not.toBeNull();
     // The opt-in is not also stated for every tooltip element.
-    const head = tooltip.slice(0, tooltip.indexOf("&:where(:not(.control))"));
+    const head = tooltip.slice(0, tooltip.indexOf("&:where(:not(label>.control))"));
     expect(head).not.toMatch(/pointer-events: auto;/);
   });
 });

@@ -491,7 +491,7 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(.control)) {
+    &:where(:not(label>.control)) {
       pointer-events: auto;
     }
     &::before {

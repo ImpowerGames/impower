@@ -2255,7 +2255,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "layouts",
                   "$type": "style",
                   "& >> #tooltip": {
-                    "&:where(:not(.control))": {
+                    "&:where(:not(label>.control))": {
                       "pointer_events": "auto",
                     },
                     "@after": {
