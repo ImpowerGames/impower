@@ -472,11 +472,11 @@ const holdAfterFinalizer = async value => {
 const heldOptions = {...options,files:["a.test.ts"],stdio:"ignore",ownedChild:holdAfterFinalizer,
   identify:processIdentity,
   enginePath:fileURLToPath(new URL("./fixtures/test-suite-engine-control.mjs",import.meta.url))};
-const openFile = fs.openSync;
+const linkFile = fs.linkSync;
 let refusedGuard = 0;
 let freeOnFirstRefusal = false;
-fs.openSync = function(target, ...args) {
-  try { return openFile.call(this, target, ...args); }
+fs.linkSync = function(source, target, ...args) {
+  try { return linkFile.call(this, source, target, ...args); }
   catch (error) {
     if (error.code === "EEXIST" && path.resolve(String(target)) === guardFile && ++refusedGuard === 1 && freeOnFirstRefusal) fs.writeFileSync(freeGuard, "");
     throw error;
@@ -499,7 +499,7 @@ try {
   assert.equal(stuck.exit, 0, "the test result survives a release that cannot complete");
   assert.match(stuck.releaseError, /Reservation transaction unavailable.*guard\.json/, "the unreleased reservation is reported separately");
 } finally {
-  fs.openSync = openFile; fs.writeFileSync(freeGuard, "");
+  fs.linkSync = linkFile; fs.writeFileSync(freeGuard, "");
   for(const holder of guardHolders)assert.deepEqual(await holder.close,{exit:0,signal:null});
 }
 for (const holder of guardHolders) assert.deepEqual(await holder.close,{exit:0,signal:null});
@@ -566,20 +566,21 @@ if (process.platform === "win32") {
   assert.deepEqual(fs.readdirSync(store), [], "expired admission leaves no ownership or ambiguous temp evidence");
   for (const code of ["EPERM", "EACCES", "EBUSY"]) {
     fs.writeFileSync(path.join(store, "guard.json"), JSON.stringify({ owner: { pid: 42, start: "dead" } }));
-    const open = fs.openSync;
+    const open = fs.openSync, link = fs.linkSync;
     let probes = 0, claims = 0, waits = 0;
+    const denial = () => Object.assign(new Error("store-wide denial with existing guard"), { code });
     fs.openSync = (target, ...args) => {
-      if (String(target).startsWith(store + path.sep) && target !== path.join(store, "guard.json")) {
-        if (path.basename(target).startsWith("write-probe-")) probes++;
-        if (path.basename(target) === "guard-recovery.json") claims++;
-        throw Object.assign(new Error("store-wide denial with existing guard"), { code });
-      }
+      if (path.basename(String(target)).startsWith("write-probe-")) { probes++; throw denial(); }
       return open(target, ...args);
+    };
+    fs.linkSync = (source, target) => {
+      if (target === path.join(store, "guard-recovery.json")) { claims++; throw denial(); }
+      return link(source, target);
     };
     try { await assert.rejects(acquireWaiting("existing guard denied store", { root: store, waitMs: 5000,
       guardWaitMs: 100, census: () => [], onWait: () => waits++ }),
       error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
-    finally { fs.openSync = open; }
+    finally { fs.openSync = open; fs.linkSync = link; }
     assert.equal(probes, 1);
     assert.equal(claims, 1, "existing guard store denial refuses on its first recovery claim");
     assert.equal(waits, 0);
@@ -606,18 +607,25 @@ if (process.platform === "win32") {
   for (const operation of ["open", "write", "read", "rename"]) {
     const guard = path.join(store, "guard.json");
     fs.writeFileSync(guard, JSON.stringify({ owner: { pid: 42, start: "dead" } }));
-    const method = { open: "openSync", write: "writeFileSync", read: "readFileSync", rename: "renameSync" }[operation];
-    const originalMethod = fs[method], open = fs.openSync;
-    let claimFd, guardReadFd, denied = 0;
+    // "open" is the claim's publication (its link into place); "write" is the
+    // owner write into the claim's private file, the first opened after the
+    // guard's own publication was refused.
+    const method = { open: "linkSync", write: "writeFileSync", read: "readFileSync", rename: "renameSync" }[operation];
+    const originalMethod = fs[method], open = fs.openSync, link = fs.linkSync;
+    let claimFd, guardReadFd, guardRefused = false, denied = 0;
     fs.openSync = (target, ...args) => {
       const fd = open(target, ...args);
-      if (target === path.join(store, "guard-recovery.json")) claimFd = fd;
+      if (guardRefused && claimFd === undefined && path.basename(String(target)).startsWith("creating-")) claimFd = fd;
       if (target === guard && args[0] === "r") guardReadFd = fd;
       return fd;
     };
+    fs.linkSync = (source, target) => {
+      try { return link(source, target); }
+      catch (error) { if (target === guard && error.code === "EEXIST") guardRefused = true; throw error; }
+    };
     const dispatch = fs[method];
     fs[method] = (target, ...args) => {
-      const affected = operation === "open" ? target === path.join(store, "guard-recovery.json")
+      const affected = operation === "open" ? args[0] === path.join(store, "guard-recovery.json")
         : operation === "write" ? target === claimFd : operation === "read" ? target === guard || target === guardReadFd : target === guard;
       if (affected && denied++ < 1) throw Object.assign(new Error("recovery file contention"), { code: "EBUSY" });
       return dispatch(target, ...args);
@@ -626,7 +634,7 @@ if (process.platform === "win32") {
     let reservation;
     try { reservation = await acquireWaiting(`recovery ${operation}`, { root: store, waitMs: 30000, pollMs: 5,
       census: () => [], identify: pid => pid === 42 ? null : processIdentity(pid), onWait: value => waits.push(value.waiting) }); }
-    finally { fs[method] = originalMethod; fs.openSync = open; }
+    finally { fs[method] = originalMethod; fs.openSync = open; fs.linkSync = link; }
     assert.ok(waits.includes("reservation files"), `recovery ${operation} waits using writable proof`);
     reservation.release();
     const archive = fs.readdirSync(store);
@@ -638,21 +646,22 @@ if (process.platform === "win32") {
   // A held peer survives file-specific denial, including the probe.
   const peer = JSON.stringify({ token: "peer", owner: { pid: 42, start: "peer" }, phase: "reserved" });
   fs.writeFileSync(path.join(store, "reservation.json"), peer);
-  const open = fs.openSync;
-  fs.openSync = (target, ...args) => {
+  const open = fs.openSync, link = fs.linkSync;
+  fs.linkSync = (source, target) => {
     if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EBUSY" });
-    return open(target, ...args);
+    return link(source, target);
   };
   try { await assert.rejects(acquireWaiting("peer preserved", { root: store, waitMs: 50, pollMs: 5, census: () => [] }), /Reservation files busy/); }
-  finally { fs.openSync = open; }
+  finally { fs.linkSync = link; }
+  assert.deepEqual(fs.readdirSync(store).filter(name => name.startsWith("creating-")), [], "a refused publication removes its private file");
   assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
   fs.unlinkSync(path.join(store, "reservation.json"));
   // Failure cleaning the private probe cannot claim writable proof or retry.
   const unlink = fs.unlinkSync;
   let cleanupProbe;
-  fs.openSync = (target, ...args) => {
+  fs.linkSync = (source, target) => {
     if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
-    return open(target, ...args);
+    return link(source, target);
   };
   fs.unlinkSync = target => {
     if (path.basename(target).startsWith("write-probe-")) {
@@ -663,13 +672,16 @@ if (process.platform === "win32") {
   };
   try { await assert.rejects(acquireWaiting("uncertain cleanup", { root: store, waitMs: 5000, census: () => [],
     onWait: () => assert.fail("uncertain probe cleanup retried") }), /private probe cleanup denied/); }
-  finally { fs.openSync = open; fs.unlinkSync = unlink; }
+  finally { fs.linkSync = link; fs.unlinkSync = unlink; }
   assert.equal(fs.existsSync(path.join(store, "reservation.json")), false);
   fs.unlinkSync(cleanupProbe);
   const fstat = fs.fstatSync;
   let unknownProbe, probeFd;
-  fs.openSync = (target, ...args) => {
+  fs.linkSync = (source, target) => {
     if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
+    return link(source, target);
+  };
+  fs.openSync = (target, ...args) => {
     const fd = open(target, ...args);
     if (path.basename(target).startsWith("write-probe-")) { unknownProbe = target; probeFd = fd; }
     return fd;
@@ -680,7 +692,7 @@ if (process.platform === "win32") {
   };
   try { await assert.rejects(acquireWaiting("unknown probe identity", { root: store, waitMs: 5000, census: () => [],
     onWait: () => assert.fail("unknown probe identity retried") }), /Private reservation probe identity unavailable/); }
-  finally { fs.openSync = open; fs.fstatSync = fstat; }
+  finally { fs.openSync = open; fs.linkSync = link; fs.fstatSync = fstat; }
   assert.equal(fs.existsSync(unknownProbe), true, "a probe with uncertain identity remains for inspection");
   fs.unlinkSync(unknownProbe);
   // A failed atomic replacement preserves old published ownership bytes.
