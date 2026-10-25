@@ -24,18 +24,6 @@ export class Element {
     return this._name;
   }
 
-  /** The name a target matches exactly. It is the element's name, except on
-   *  an element whose name also carries structural classes, such as a
-   *  labelled input widget's `slider label field_label`, which is the exact
-   *  match for the widget's own name (`slider`). */
-  protected _targetName?: string;
-  get targetName() {
-    return this._targetName ?? this._name;
-  }
-  set targetName(value: string) {
-    this._targetName = value;
-  }
-
   /** Monotonic id-sequence per child base name. Never reuses a number even after
    *  a child is removed, so structural ids stay collision-free under dynamic
    *  `for`/`if` reconcile (where a new iteration is mounted before the displaced
@@ -75,7 +63,7 @@ export class Element {
   }
 
   isMatch(selector: string): boolean {
-    if (this.targetName === selector) {
+    if (this.name === selector) {
       return true;
     }
     const classes = selector.split(" ");
@@ -83,9 +71,7 @@ export class Element {
   }
 
   findChild(selector: string): Element | undefined {
-    const exactMatch = this._children.find(
-      (child) => child.targetName === selector,
-    );
+    const exactMatch = this._children.find((child) => child.name === selector);
     if (exactMatch) {
       return exactMatch;
     }

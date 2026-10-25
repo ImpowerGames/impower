@@ -1771,14 +1771,43 @@ end
 
 // A form control with quoted content (`slider "Master Volume"`) renders as a
 // `label` holding its wording and a `control`. The label carries the widget's
-// name and classes, so a class or prop that hides, places or fades the widget
-// acts on all of it. The control styles (`checkbox`, `input`, `radio`,
-// `switch`, `slider`) and their variant classes (`search`, `file_input`,
-// `invalid`, `valid`) draw the control itself, so each targets a bare control
-// or the `control` inside such a label, and never the label. Both selectors
-// sit in `:where`, so every rule here, states included, keeps the specificity
-// of the plain class and an author's own rule for the same name still wins.
+// name and classes and nothing else, so a class or prop that hides, places or
+// fades the widget acts on all of it, and the widget's name finds it whether
+// or not it is labelled.
+//
+// Each control style (`checkbox`, `input`, `radio`, `switch`, `slider`) draws
+// both shapes:
+//
+// - `&:where(label)` is the label. A text field or slider takes its wording
+//   above the control and the full width the control would take on its own,
+//   since the control's `width = 100%` resolves against the label; in a `row`
+//   a label sized to its text would shrink the slider to the width of its
+//   wording. A checkbox, radio or switch is one row, the control first and its
+//   wording beside it, shrunk to its content so only the two are a hit target.
+//   An enabled control inherits the label's pointer setting, so
+//   `interactable = false` on the widget reaches its control. That rule is
+//   specific enough to outrank the opt-ins that set `pointer_events = auto`,
+//   such as a `#tooltip`.
+// - `&:where(:not(label)), > :where(.control)` is the control itself, bare or
+//   inside the label. The variant classes (`search`, `file_input`, `invalid`,
+//   `valid`) use the same pair. Both selectors sit in `:where`, so every rule,
+//   states included, keeps the specificity of the plain class and an author's
+//   own rule for the same name still wins.
 style checkbox with
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    display = flex
+    flex_direction = row
+    align_items = center
+    align_self = flex-start
+    gap = 0.5rem
+    cursor = pointer
+    > control@enabled {
+      pointer_events = inherit
+    }
+  }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
     appearance = none
@@ -1832,6 +1861,18 @@ end
 // under each one that nothing asked for and no gap accounts for. Spacing a
 // form is the FORM's business, and the showcase states it per control.
 style input with
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    width = 100%
+    > control {
+      margin-top = 0.25rem
+    }
+    > control@enabled {
+      pointer_events = inherit
+    }
+  }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
     color-scheme = dark
@@ -1914,6 +1955,20 @@ style input with
 end
 
 style radio with
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    display = flex
+    flex_direction = row
+    align_items = center
+    align_self = flex-start
+    gap = 0.5rem
+    cursor = pointer
+    > control@enabled {
+      pointer_events = inherit
+    }
+  }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
     appearance = none
@@ -1948,6 +2003,20 @@ end
 // appearance is dropped and the thumb is an `@before` pseudo-element that
 // translates across on `@checked`.
 style switch with
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    display = flex
+    flex_direction = row
+    align_items = center
+    align_self = flex-start
+    gap = 0.5rem
+    cursor = pointer
+    > control@enabled {
+      pointer_events = inherit
+    }
+  }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
     appearance = none
@@ -2033,6 +2102,18 @@ style textarea with
 end
 
 style slider with
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    width = 100%
+    > control {
+      margin-top = 0.25rem
+    }
+    > control@enabled {
+      pointer_events = inherit
+    }
+  }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
     -- Fills its field like every other form control; a fixed 200px made it the
@@ -3278,41 +3359,6 @@ style label with
   -- collapse to the larger of the pair, not the sum, so it would vanish.
   > input, > slider, > dropdown, > textarea {
     margin-top = 0.25rem
-  }
-end
-
-// The label a text field or slider gets from its own quoted content
-// (`slider "Master Volume"`): the text above the control. It takes the full
-// width the control would take on its own, since the control's `width = 100%`
-// resolves against this label; in a `row` a label sized to its text would
-// shrink the slider to the width of its wording.
-style field_label with
-  width = 100%
-  > :where(.control) {
-    -- The same offset `label` gives a control nested in its block.
-    margin-top = 0.25rem
-    -- The label decides whether the widget takes the pointer, so
-    -- `#interactable = false` on the widget reaches its control too.
-    pointer_events = inherit
-  }
-end
-
-// The label a checkbox, radio or switch gets from its own quoted content
-// (`checkbox "Mute Music"`): the control first and its wording beside it, the
-// same row the showcase builds by hand as `label.row` around the control and a
-// `text`. It shrinks to its content so only the control and its wording are a
-// hit target, not the empty width beside them.
-style toggle_label with
-  display = flex
-  flex_direction = row
-  align_items = center
-  align_self = flex-start
-  gap = 0.5rem
-  cursor = pointer
-  > :where(.control) {
-    -- The label decides whether the widget takes the pointer, as in
-    -- `field_label`.
-    pointer_events = inherit
   }
 end
 

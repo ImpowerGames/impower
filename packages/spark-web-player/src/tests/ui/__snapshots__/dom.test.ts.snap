@@ -862,6 +862,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -895,6 +909,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -965,6 +991,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -995,6 +1035,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -1072,6 +1126,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -1865,24 +1931,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -3065,6 +3113,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -3098,6 +3160,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -3168,6 +3242,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -3198,6 +3286,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -3275,6 +3377,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -4068,24 +4182,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -5230,6 +5326,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -5263,6 +5373,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -5333,6 +5455,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -5363,6 +5499,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -5440,6 +5590,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -6233,24 +6395,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -7517,6 +7661,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -7550,6 +7708,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -7620,6 +7790,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -7650,6 +7834,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -7727,6 +7925,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -8520,24 +8730,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -9663,6 +9855,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -9696,6 +9902,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -9766,6 +9984,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -9796,6 +10028,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -9873,6 +10119,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -10666,24 +10924,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -11791,6 +12031,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -11824,6 +12078,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -11894,6 +12160,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -11924,6 +12204,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -12001,6 +12295,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -12794,24 +13100,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -13969,6 +14257,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -14002,6 +14304,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -14072,6 +14386,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -14102,6 +14430,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -14179,6 +14521,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -14972,24 +15326,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -16114,6 +16450,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -16147,6 +16497,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -16217,6 +16579,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -16247,6 +16623,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -16324,6 +16714,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -17117,24 +17519,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -18259,6 +18643,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -18292,6 +18690,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -18362,6 +18772,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -18392,6 +18816,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -18469,6 +18907,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -19262,24 +19712,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -20404,6 +20836,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -20437,6 +20883,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -20507,6 +20965,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -20537,6 +21009,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -20614,6 +21100,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -21407,24 +21905,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {
@@ -22549,6 +23029,20 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -22582,6 +23076,18 @@ spark-web-player #game .checkbox {
   }
 }
 spark-web-player #game .input {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     color-scheme: dark;
@@ -22652,6 +23158,20 @@ spark-web-player #game .input {
   }
 }
 spark-web-player #game .radio {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -22682,6 +23202,20 @@ spark-web-player #game .radio {
   }
 }
 spark-web-player #game .switch {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     appearance: none;
@@ -22759,6 +23293,18 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
+    }
+    >.control:enabled {
+      pointer-events: inherit;
+    }
+  }
   &:where(:not(label)), >:where(.control) {
     pointer-events: auto;
     width: 100%;
@@ -23552,24 +24098,6 @@ spark-web-player #game .label {
   margin-bottom: 0.375rem;
   >.input, >.slider, >.dropdown, >.textarea {
     margin-top: 0.25rem;
-  }
-}
-spark-web-player #game .field_label {
-  width: 100%;
-  >:where(.control) {
-    margin-top: 0.25rem;
-    pointer-events: inherit;
-  }
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-  >:where(.control) {
-    pointer-events: inherit;
   }
 }
 spark-web-player #game .hint {

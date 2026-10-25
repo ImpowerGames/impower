@@ -211,7 +211,7 @@ end
     ).params;
     // The label's wording would otherwise activate the control natively. The
     // control inherits the label's pointer setting through its builtin style
-    // (`field_label` and `toggle_label` in builtins.sd).
+    // (the `&:where(label)` rule of each control style in builtins.sd).
     expect(label.style?.interactable).toBe("false");
     expect(input.name).toBe("control");
     expect(input.style?.interactable).toBeUndefined();
@@ -436,13 +436,13 @@ end
     );
     await h.ready;
     const [label] = createdOfType(h, "label");
-    expect(label.name).toBe("checkbox big label toggle_label");
+    expect(label.name).toBe("checkbox big");
     // The control inside it is named `control`, so the widget's name finds the
     // label alone.
     const found = (h.game.module.ui as any)
       .findElements("checkbox big")
-      .map((el: any) => el.name);
-    expect(found).toEqual(["checkbox big label toggle_label"]);
+      .map((el: any) => el.type);
+    expect(found).toEqual(["label"]);
   });
 
   test("a widget's name finds it labelled or bare alike", async () => {
@@ -459,11 +459,15 @@ end
     );
     await h.ready;
     // A bare slider is named exactly `slider`, so the labelled one must be an
-    // exact match too or `[[hide slider]]` would skip it.
+    // exact match too or `[[hide slider]]` would skip it. The player resolves a
+    // transition's targets by the same rule against the created names.
     const found = (h.game.module.ui as any)
       .findElements("slider")
-      .map((el: any) => el.name);
-    expect(found).toEqual(["slider label field_label", "slider"]);
+      .map((el: any) => [el.type, el.name]);
+    expect(found).toEqual([
+      ["label", "slider"],
+      ["input", "slider"],
+    ]);
   });
 
   test("style props act on the widget; attributes, bindings and write-back on the control", async () => {

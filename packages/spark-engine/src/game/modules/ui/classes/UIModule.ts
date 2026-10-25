@@ -2680,18 +2680,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // box; a text field or slider takes its label above, as `label "X" { … }`
     // lays it out.
     const toggle = widget.inputType === "checkbox" || widget.inputType === "radio";
+    // The label is named exactly as the widget, with no classes of its own:
+    // the engine and the player both prefer an exact name match, so a
+    // labelled slider beside a bare one is found by `slider` as the bare one
+    // is. The builtin control styles draw the label through `&:where(label)`.
     const label = this.createElement(
       parent,
       {
         type: "label",
-        name: `${name} label ${toggle ? "toggle_label" : "field_label"}`,
+        name,
         ...(Object.keys(style).length > 0 ? { style } : {}),
       },
       before,
     );
-    // The label's structural classes are not part of the widget's name, so
-    // `[[hide slider]]` finds a labelled slider as it finds a bare one.
-    label.targetName = name;
     for (const r of reactiveStyles) {
       scope.styles.push({ element: label, ...r });
     }
@@ -4897,7 +4898,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const found: Element[] = [];
     if (this._root && name) {
       const matches = this.searchForAll(this._root, name, found);
-      const named = matches.filter((el) => el.targetName === name);
+      const named = matches.filter((el) => el.name === name);
       const elements =
         named.length > 0
           ? named
