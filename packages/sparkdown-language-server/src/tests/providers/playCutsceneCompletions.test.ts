@@ -33,21 +33,24 @@ describe("[[play NAME]] completions", () => {
   });
 
   it("offers only the cutscene clauses after a clause", () => {
-    expect(complete("[[play intro loop @0]]")).not.toContain("over");
-    expect(complete("[[play intro loop @0]]")).toEqual(
-      expect.arrayContaining(["mute", "with"]),
-    );
+    expect(complete("[[play intro loop @0]]")).toEqual(["mute", "with"]);
   });
 
   it("offers the cutscene clauses, not image names, for a clause being typed", () => {
-    for (const source of [
-      "[[play intro l@0]]",
-      "[[play intro m@0]]",
-      "[[play intro loop m@0]]",
-      "[[play intro with fade l@0]]",
-    ]) {
+    // A clause the command already has is not offered again (I-1597).
+    for (const [source, offered] of [
+      ["[[play intro l@0]]", ["loop", "mute", "with"]],
+      ["[[play intro m@0]]", ["loop", "mute", "with"]],
+      ["[[play intro loop m@0]]", ["mute", "with"]],
+      ["[[play intro with fade l@0]]", ["loop", "mute"]],
+    ] as const) {
       const labels = complete(source);
-      expect(labels, source).toEqual(expect.arrayContaining(["loop", "mute", "with"]));
+      expect(labels, source).toEqual(expect.arrayContaining([...offered]));
+      for (const clause of ["loop", "mute", "with"]) {
+        if (!(offered as readonly string[]).includes(clause)) {
+          expect(labels, source).not.toContain(clause);
+        }
+      }
       expect(labels, source).not.toContain("bunny");
       expect(labels, source).not.toContain("over");
     }

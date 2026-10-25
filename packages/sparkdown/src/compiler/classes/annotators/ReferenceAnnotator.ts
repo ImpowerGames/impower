@@ -852,7 +852,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
           return annotations;
         }
-        const types = ["filtered_image", "layered_image", "image", "graphic"];
+        // A video shows on a layer like an image does, so its name is a
+        // candidate too.
+        const types = [
+          "filtered_image",
+          "layered_image",
+          "image",
+          "graphic",
+          "video",
+        ];
         const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({

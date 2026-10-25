@@ -11,6 +11,8 @@ import type { ProgramAddress } from "./ProgramAddress";
  */
 export interface SceneBeat {
   address: ProgramAddress;
+  /** The names the beat's image commands show. A name may resolve to a
+   *  video, which the engine's asset module turns into a video item. */
   image?: string[];
   audio?: string[];
   /** Targets of `[[open X]]` / `[[navigate S to X]]`, whose fonts the layout needs. */

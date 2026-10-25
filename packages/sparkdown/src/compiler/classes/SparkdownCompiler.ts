@@ -6629,6 +6629,24 @@ export class SparkdownCompiler {
               )}`,
             );
           }
+          // An image command's name may be an image or a video; a name that
+          // is both leaves the command unable to tell which to display.
+          const name = selector?.name;
+          if (
+            name &&
+            selector.types?.includes("video") &&
+            getContextEntry(program.context, "video", name) !== undefined &&
+            selector.types.some(
+              (type) =>
+                type !== "video" &&
+                getContextEntry(program.context, type, name) !== undefined,
+            )
+          ) {
+            report(
+              DiagnosticSeverity.Error,
+              `\`${name}\` is defined as both an image and a video, so \`[[show]]\` and \`[[animate]]\` cannot tell which to display: rename one of them`,
+            );
+          }
         } else if (readsLayout(reads) && namesLayoutElement(selector)) {
           // Valid layer: an element declared in the UI tree
         } else if (
