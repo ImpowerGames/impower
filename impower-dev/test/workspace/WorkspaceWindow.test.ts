@@ -58,7 +58,46 @@ vi.mock("@impower/impower-ui/components", async () => {
   };
 });
 
+// The game preview's channel to its player iframe. Each connection records
+// what the editor posts and hands its listeners whatever the player "sends".
+const channels = vi.hoisted(() => ({
+  all: [] as {
+    posted: unknown[];
+    listeners: ((e: { data: unknown }) => void)[];
+    receive: (message: unknown) => void;
+  }[],
+}));
+vi.mock("@impower/jsonrpc/src/browser/classes/IFrameMessageConnection", () => ({
+  IFrameMessageConnection: class {},
+}));
+vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
+  Port1MessageConnection: class {
+    posted: unknown[] = [];
+    listeners: ((e: { data: unknown }) => void)[] = [];
+    constructor() {
+      channels.all.push(this);
+    }
+    receive(message: unknown) {
+      this.listeners.forEach((listener) => listener({ data: message }));
+    }
+    async connect() {}
+    addEventListener(_type: string, listener: (e: { data: unknown }) => void) {
+      this.listeners.push(listener);
+    }
+    removeEventListener() {}
+    postMessage(message: unknown) {
+      this.posted.push(message);
+    }
+    async sendRequest() {
+      return {};
+    }
+    sendResponse() {}
+  },
+}));
+
 import { h, render } from "preact";
+import PreviewGame from "../../src/modules/spark-editor/components/preview-game/PreviewGame";
+import { Workspace } from "../../src/modules/spark-editor/workspace/Workspace";
 import { createPlayerPreferenceSync } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
 import PreviewGameToolbar from "../../src/modules/spark-editor/components/preview-game-toolbar/PreviewGameToolbar";
 import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/WorkspaceConstants";
@@ -383,6 +422,54 @@ describe("Animate portraits preference", () => {
         ["game/setAnimatePortraits", false],
       ]);
     });
+
+    it("is what the game preview sends each player it connects to", async () => {
+      const win = load();
+      win.setAnimatePortraits(false);
+      current.window = win;
+      Object.assign(Workspace.fs, {
+        getFiles: async () => ({}),
+        getDirectoryUri: async () => "file://local",
+      });
+      (Workspace as unknown as { configuration: unknown }).configuration = {
+        settings: {},
+      };
+      const container = document.createElement("div");
+      document.body.append(container);
+      const portraits = (posted: unknown[]) =>
+        posted
+          .filter((m) => SetAnimatePortraitsMessage.type.is(m))
+          .map((m) => (m as SetAnimatePortraitsMessage.Request).params.enabled);
+      try {
+        channels.all = [];
+        render(h(PreviewGame, {}), container);
+        const iframe = container.querySelector("iframe")!;
+        iframe.dispatchEvent(new Event("load"));
+        // Initialize completes: the new player hears the saved value.
+        await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+          timeout: 15000,
+        });
+        const channel = channels.all[0]!;
+        await vi.waitFor(() => expect(portraits(channel.posted)).toEqual([false]));
+        // Its controller announces itself later: it hears it again.
+        channel.receive({
+          jsonrpc: "2.0",
+          method: "preview/connected",
+          params: { type: "game" },
+        });
+        expect(portraits(channel.posted)).toEqual([false, false]);
+        // A reloaded player gets a new channel and the same value.
+        iframe.dispatchEvent(new Event("load"));
+        await vi.waitFor(() => expect(channels.all).toHaveLength(2));
+        await vi.waitFor(() =>
+          expect(portraits(channels.all[1]!.posted)).toEqual([false]),
+        );
+      } finally {
+        render(null, container);
+        container.remove();
+        current.window = undefined;
+      }
+    }, 30000);
 
     it("ignores the screenplay preview and other messages", () => {
       const posted: unknown[] = [];
