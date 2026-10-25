@@ -481,6 +481,7 @@ export default class UIManager extends Manager {
     this._elements.clear();
     // The run is over (STOP, or the rebuild a new run makes): its movies stop
     // where they are. The next display replaces or sweeps their layers.
+    this._disposed = true;
     for (const video of this.movies()) {
       video.pause();
       delete (video as any).__sdMovie;
@@ -2025,6 +2026,25 @@ export default class UIManager extends Manager {
             (el as any).__sdImgRev === ((el as any).__sdRev ?? 0),
         ))
     ) {
+      // A movie this write would play that the page holds from the run before
+      // (a new run's restore over the overlay it adopted) is not playing:
+      // it starts again from its first frame.
+      if (
+        instructions.some((i) => i.content?.video && !i.content.video.preview)
+      ) {
+        for (const el of targetEls) {
+          for (const imageEl of this.getContentElements(el, "image")) {
+            for (const video of Array.from(
+              imageEl.querySelectorAll("video.object"),
+            ) as HTMLVideoElement[]) {
+              if (!(video as any).__sdMovie) {
+                video.currentTime = 0;
+                this.startMovie(video);
+              }
+            }
+          }
+        }
+      }
       return;
     }
     for (const el of targetEls) {
@@ -2131,8 +2151,12 @@ export default class UIManager extends Manager {
             }
             // What this layer paints stays resident while it is on screen
             // (`AssetManager.derivedPins`). Kept on the node, which outlives
-            // this manager across a re-render.
-            (newSpanEl as any).__sdSrcs = content.srcs;
+            // this manager across a re-render. A mask span paints the images
+            // and not the movie, which goes with its own span.
+            (newSpanEl as any).__sdSrcs =
+              content.video && !video
+                ? content.srcs.filter((src) => src !== content.video?.src)
+                : content.srcs;
             if (instruction.control === "show") {
               // 'show' fades out + destroys the previous layers (the crossfade).
               // The engine only ever destroyed spans it had enqueued an exit
@@ -2243,11 +2267,14 @@ export default class UIManager extends Manager {
   /** Start a layer's movie in play, or, while the game is paused, once it
    *  resumes. A movie that does not loop stops on its last frame. */
   protected startMovie(video: HTMLVideoElement) {
-    if (!video.isConnected) {
+    // A write still revealing when its run ended (STOP) starts nothing: the
+    // overlay it leaves belongs to the next display.
+    if (this._disposed || !video.isConnected) {
       return;
     }
     (video as any).__sdMovie = true;
-    if (!video.loop) {
+    if (!video.loop && !(video as any).__sdHoldsEnd) {
+      (video as any).__sdHoldsEnd = true;
       video.addEventListener("ended", () => video.pause());
     }
     if (this.app.paused) {
@@ -2262,7 +2289,11 @@ export default class UIManager extends Manager {
     // Play mode starts on a gesture, so sound is allowed; a browser that
     // refuses it anyway still shows the movie, without its sound.
     played?.catch((e: unknown) => {
-      if ((e as Error)?.name === "NotAllowedError" && !video.muted) {
+      if (
+        (e as Error)?.name === "NotAllowedError" &&
+        !video.muted &&
+        (video as any).__sdMovie
+      ) {
         video.muted = true;
         video.play()?.catch(() => {});
       }
@@ -2288,6 +2319,9 @@ export default class UIManager extends Manager {
 
   /** The movies the game had playing when it paused, which resume with it. */
   protected _pausedMovies = new Set<HTMLVideoElement>();
+
+  /** Whether this manager's run is over (`onDispose`). */
+  protected _disposed = false;
 
   override onPause(): void {
     for (const video of this.movies()) {

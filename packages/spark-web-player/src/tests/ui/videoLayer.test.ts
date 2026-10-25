@@ -6,10 +6,16 @@
 // and lets its media go.
 
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
+import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
+import type { WriteImageInstruction } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { describe, expect, test } from "vitest";
+import AssetManager from "../../app/managers/AssetManager";
+import UIManager from "../../app/managers/UIManager";
 import {
   createDOMHarness,
+  createStubApp,
   flushMicrotasks,
+  installJSDOM,
   untilShown,
 } from "./domTestHarness";
 
@@ -228,6 +234,126 @@ describe("a movie on a layer, in play", () => {
     expect(first!.isConnected).toBe(false);
     expect(media.of(first, "pause")).toBeGreaterThanOrEqual(1);
     expect(first!.hasAttribute("src")).toBe(false);
+  });
+});
+
+/** A page with one layer, `layer`, holding `image` and `mask` content, and
+ *  the write that shows `src` on it as a movie. */
+function pageWithLayer() {
+  const { overlay } = installJSDOM();
+  const media = stubMedia(overlay);
+  const app = createStubApp(overlay, () => {});
+  const doc = overlay.ownerDocument;
+  const layer = doc.createElement("div");
+  layer.className = "backdrop";
+  for (const name of ["image", "mask"]) {
+    const content = doc.createElement("div");
+    content.className = name;
+    layer.appendChild(content);
+  }
+  overlay.appendChild(layer);
+  const show = (
+    src: string,
+    targetAnimations?: WriteImageInstruction["targetAnimations"],
+  ) =>
+    WriteImageMessage.type.request({
+      target: "backdrop",
+      instructions: [
+        {
+          control: "show",
+          ...(targetAnimations ? { targetAnimations } : {}),
+          content: {
+            background: "none",
+            imageNames: "rain",
+            srcs: [src],
+            video: { src, loop: true, muted: false },
+          },
+        },
+      ],
+      instant: true,
+    });
+  return { overlay, media, app, show };
+}
+
+describe("a movie on a layer, across runs", () => {
+  test("a new run restoring the same movie over the overlay it adopted plays it from its first frame", async () => {
+    const { overlay, media, app, show } = pageWithLayer();
+    const first = new UIManager(app);
+    await first.onInit();
+    await first.onReceiveRequest(show(RAIN));
+    const video = overlay.querySelector("video.object") as HTMLVideoElement;
+    expect(media.of(video, "play")).toBe(1);
+    video.currentTime = 1.5;
+    // STOP, then a new run whose restore writes the same movie.
+    first.onDispose();
+    expect(video.paused).toBe(true);
+    const next = new UIManager(app);
+    await next.onInit();
+    await next.onReceiveRequest(show(RAIN));
+    expect(overlay.querySelector("video.object")).toBe(video);
+    expect(video.currentTime).toBe(0);
+    expect(media.of(video, "play")).toBe(2);
+    expect(video.paused).toBe(false);
+    // And the new run's clock reaches it.
+    next.onPause();
+    expect(video.paused).toBe(true);
+  });
+
+  test("a movie still waiting for its layer's reveal when the run ends never starts", async () => {
+    const { overlay, media, app, show } = pageWithLayer();
+    const g = globalThis as any;
+    const Base = g.Animation;
+    let reveal!: () => void;
+    const revealed = new Promise<void>((resolve) => {
+      reveal = resolve;
+    });
+    g.Animation = class extends Base {
+      finished = revealed.then(() => this);
+    };
+    try {
+      const ui = new UIManager(app);
+      await ui.onInit();
+      const writing = ui.onReceiveRequest(
+        show(RAIN, [
+          {
+            $type: "animation",
+            $name: "show",
+            target: { $type: "layer", $name: "self" },
+            keyframes: [{ opacity: 0 }, { opacity: 1 }],
+            timing: { duration: 0.5 },
+          } as any,
+        ]),
+      );
+      await flushMicrotasks(10);
+      const video = overlay.querySelector("video.object");
+      expect(video).not.toBeNull();
+      expect(media.of(video, "play")).toBe(0);
+      ui.onDispose();
+      reveal();
+      await writing;
+      expect(media.of(video, "play")).toBe(0);
+    } finally {
+      g.Animation = Base;
+    }
+  });
+
+  test("a hidden movie's file is not kept resident by its layer's mask", async () => {
+    const { overlay, app, show } = pageWithLayer();
+    const assets = new AssetManager(app);
+    await assets.onInit();
+    const ui = new UIManager(app);
+    await ui.onInit();
+    await ui.onReceiveRequest(show(RAIN));
+    expect([...assets.derivedPins()]).toContain(RAIN);
+    await ui.onReceiveRequest(
+      WriteImageMessage.type.request({
+        target: "backdrop",
+        instructions: [{ control: "hide" }],
+        instant: true,
+      }),
+    );
+    expect(overlay.querySelector("video")).toBeNull();
+    expect([...assets.derivedPins()]).not.toContain(RAIN);
   });
 });
 
