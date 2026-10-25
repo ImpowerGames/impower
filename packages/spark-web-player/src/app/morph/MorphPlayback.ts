@@ -62,6 +62,8 @@ interface PlayState {
   slot: MorphArtifactSlot;
   occurrence?: Occurrence;
   view?: LiveView;
+  /** Its artifact's parts would not parse: it stays with CSS. */
+  broken?: boolean;
 }
 
 const HOST_STYLE = "position:absolute;inset:0;overflow:hidden;pointer-events:none;mix-blend-mode:normal";
@@ -145,6 +147,11 @@ export class MorphPlayback {
     this.delivered.deliver(params.key, params);
   }
 
+  /** How to ask the game for an artifact again, through the page's current connection to it. */
+  set askGame(ask: ((key: string) => void) | undefined) {
+    this.delivered.ask = ask;
+  }
+
   protected relayoutQueued = false;
 
   /**
@@ -153,7 +160,7 @@ export class MorphPlayback {
    * draws without resizing the span the resize observer watches.
    */
   requestRelayout() {
-    if (this.relayoutQueued || ![...this.layers].some((layer) => layer.live)) return;
+    if (this.relayoutQueued || ![...this.layers].some((layer) => layer.drawable)) return;
     this.relayoutQueued = true;
     queueMicrotask(() => {
       this.relayoutQueued = false;
@@ -454,12 +461,24 @@ class DeliveredArtifacts {
   static readonly LIMIT = 32;
   protected settled = new Map<string, { artifact?: MorphArtifact; error?: string }>();
   protected waiting = new Map<string, Set<() => void>>();
+  /**
+   * Keys delivered once and since let go: the game, which sends each key
+   * once per connection, is asked for these again (`MorphNeedMessage`).
+   */
+  protected forgotten = new Set<string>();
+
+  /** Asks the game to send `key` again; set by the UI manager that hears the game. */
+  ask?: (key: string) => void;
 
   deliver(key: string, outcome: { artifact?: MorphArtifact; error?: string }) {
     this.settled.delete(key);
+    this.forgotten.delete(key);
     this.settled.set(key, outcome);
     while (this.settled.size > DeliveredArtifacts.LIMIT) {
-      this.settled.delete(this.settled.keys().next().value!);
+      const oldest = this.settled.keys().next().value!;
+      this.settled.delete(oldest);
+      this.forgotten.add(oldest);
+      if (this.forgotten.size > 1024) this.forgotten.delete(this.forgotten.values().next().value!);
     }
     for (const wake of this.waiting.get(key) ?? []) wake();
     this.waiting.delete(key);
@@ -467,6 +486,7 @@ class DeliveredArtifacts {
 
   /** The artifact for `key` once the game has sent it. */
   wait(key: string, signal: AbortSignal): Promise<MorphArtifact> {
+    if (!this.settled.has(key) && this.forgotten.has(key)) this.ask?.(key);
     return new Promise((resolve, reject) => {
       const settle = () => {
         signal.removeEventListener("abort", abort);
@@ -540,6 +560,16 @@ export class MorphLayer {
 
   get live(): boolean {
     return !this.frozen && !this.disposed && this.plays.some((p) => p.view);
+  }
+
+  /** Whether it holds a ready live artifact, drawn live now or kept static by its styles. */
+  get drawable(): boolean {
+    return (
+      !this.frozen &&
+      !this.disposed &&
+      this.kind === "background" &&
+      this.plays.some((p) => p.slot.state === "ready" && p.slot.artifact?.status === "live")
+    );
   }
 
   start() {
@@ -617,7 +647,13 @@ export class MorphLayer {
     const count = this.layers.length;
     for (let i = 0; i < count; i++) {
       const state = ready.find((s) => s.play.layer === i);
-      const view = state && this.placement(state.slot.artifact!, computed, count - 1 - i) ? this.liveView(state, doc) : undefined;
+      const view =
+        state && !state.broken && this.placement(state.slot.artifact!, computed, count - 1 - i)
+          ? this.liveView(state, doc)
+          : undefined;
+      if (state && !view && !state.broken && this.placement(state.slot.artifact!, computed, count - 1 - i)) {
+        state.broken = true;
+      }
       if (state && view) {
         state.view = view;
         root.appendChild(view.box);
@@ -722,6 +758,17 @@ export class MorphLayer {
     if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
+    // A style change can make a layer drawable live (`no-repeat`) or keep it
+    // to CSS (`repeat`, a value this cannot read): draw it again either way.
+    for (const state of this.plays) {
+      const artifact = state.slot.state === "ready" ? state.slot.artifact : undefined;
+      if (!artifact || artifact.status !== "live" || state.broken) continue;
+      const eligible = !!this.placement(artifact, computed, count - 1 - state.play.layer);
+      if (eligible !== !!state.view) {
+        this.build();
+        return;
+      }
+    }
     for (const { div, layer } of this.statics) {
       const style = `position:absolute;inset:0;background-image:${this.layers[layer]};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
@@ -831,7 +878,11 @@ function inert(root: Element) {
     for (const attribute of Array.from(element.attributes)) {
       const name = attribute.name.toLowerCase();
       const link = name === "href" || name.endsWith(":href") || name === "src";
-      if (name.startsWith("on") || (link && /^\s*javascript:/i.test(attribute.value))) {
+      // A browser drops whitespace and control characters from a URL's
+      // scheme (`java&#x09;script:` is `javascript:`), so they go before the
+      // scheme is read.
+      const scheme = [...attribute.value].filter((c) => c.charCodeAt(0) > 32 && c.charCodeAt(0) !== 127).join("");
+      if (name.startsWith("on") || (link && /^javascript:/i.test(scheme))) {
         element.removeAttribute(attribute.name);
       }
     }

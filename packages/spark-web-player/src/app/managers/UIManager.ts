@@ -27,6 +27,7 @@ import {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
+import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
@@ -315,6 +316,11 @@ export default class UIManager extends Manager {
 
   override async onInit() {
     await super.onInit();
+    // The morphs ask the game this manager hears for an artifact they let go.
+    const morphs = this.morphs;
+    if (morphs) {
+      morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
+    }
     // A fresh UIManager built for a re-render inherits the prior render's overlay
     // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
     // the incoming create stream reuses them instead of duplicating.

@@ -13,6 +13,7 @@ import {
   MorphArtifactMessage,
   type MorphArtifactParams,
 } from "./messages/MorphArtifactMessage";
+import { MorphNeedMessage } from "./messages/MorphNeedMessage";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { default_morph } from "../constructors/default_morph";
@@ -1166,6 +1167,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onConnected() {
     // A new page stream has none of the artifacts sent on an earlier one.
     this._morphSent.clear();
+    this._morphWritten.clear();
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
@@ -2053,13 +2055,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _morphSent = new Set<string>();
 
   /**
+   * Every inline-art reference written on this connection, by key: the only
+   * ones a page's `MorphNeedMessage` may ask for again.
+   */
+  protected _morphWritten = new Map<string, MorphRef>();
+
+  /**
    * Sends the page the artifact for a reference with no asset service
    * behind it: the art is inline in the program, which the page does not
    * hold, so the game bakes it (`MorphArtifactMessage`). Once per key and
    * connection; the write itself carries only the reference.
    */
-  protected deliverMorphArtifact(ref: MorphRef) {
-    if (ref.src || this._morphSent.has(ref.key)) {
+  protected deliverMorphArtifact(ref: MorphRef, again = false) {
+    if (ref.src) {
+      return;
+    }
+    this._morphWritten.set(ref.key, ref);
+    if (this._morphSent.has(ref.key) && !again) {
       return;
     }
     this._morphSent.add(ref.key);
@@ -5825,6 +5837,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   attributes = new this.Attributes();
 
   override onReceiveNotification(msg: NotificationMessage): void {
+    if (MorphNeedMessage.type.isNotification(msg)) {
+      // The page let an artifact go that it needs again.
+      const ref = this._morphWritten.get(msg.params.key);
+      if (ref) {
+        this.deliverMorphArtifact(ref, true);
+      }
+      return;
+    }
     if (EventMessage.type.isNotification(msg)) {
       const params = msg.params;
       if (params.currentTargetId) {

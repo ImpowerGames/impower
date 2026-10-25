@@ -176,6 +176,26 @@ describe("morph playback in the page", () => {
     expect(shadowOf(portraitSpan(h.overlay))?.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
   });
 
+  test("the game sends an inline artifact again when the page asks for a key it wrote, and only then", async () => {
+    const sent: string[] = [];
+    const h = createDOMHarness(SOURCE, 0, {
+      files: FILES,
+      afterEachMessage: (message) => {
+        if (message?.method === "morph/artifact") sent.push(message.params.key);
+      },
+    });
+    MorphPlayback.for(h.overlay);
+    await h.ready;
+    await h.preview(lineOf(SOURCE, "First line."));
+    await until(() => sent.length === 1, "the first delivery");
+    const key = sent[0]!;
+    h.game.connection.receive({ jsonrpc: "2.0", method: "morph/need", params: { key: "not-written" } } as any);
+    h.game.connection.receive({ jsonrpc: "2.0", method: "morph/need", params: { key } } as any);
+    await until(() => sent.length === 2, "the second delivery");
+    await new Promise((r) => setTimeout(r, 200));
+    expect(sent).toEqual([key, key]);
+  });
+
   test("a write without a morph is the write it always was", async () => {
     const source = `-> start
 
@@ -532,6 +552,73 @@ describe("live drawing presentation", () => {
     expect(box()).toEqual(["140px", "160px"]);
   });
 
+  test("a style change that makes the image repeat hands it back to CSS, and back again", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const host = createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { blink: recipeText }, variants: {} }),
+      readSource: async () => ({ text: ART }),
+    });
+    const playback = new MorphPlayback(env.overlay, { host, requestFrame: () => 0, cancelFrame: () => {} });
+    (env.overlay as any).__sdMorphs = playback;
+    const ui = new UIManager(createStubApp(env.overlay, () => {}));
+    const doc = env.overlay.ownerDocument;
+    const other = doc.createElement("div");
+    (other as any).__sdId = "other";
+    env.overlay.appendChild(other);
+    const span = doc.createElement("span");
+    span.setAttribute("style", "width:400px;height:300px;background-repeat:no-repeat");
+    env.overlay.appendChild(span);
+    playback.mount(span, content, 'url("bunny.svg")', "background", "portrait:0");
+    await until(() => playback.stats.live === 1, "the artifact");
+    const op = async () => {
+      await ui.onReceiveRequest(UpdateElementMessage.type.request({ element: "other", style: { opacity: "1" } } as any));
+      await flushMicrotasks(5);
+    };
+    span.style.backgroundRepeat = "repeat";
+    await op();
+    const shadow = span.querySelector(":scope > span.morph")!.shadowRoot!;
+    expect(playback.stats.live).toBe(0);
+    expect(shadow.querySelectorAll("[data-morph]")).toHaveLength(0);
+    expect(shadow.querySelector("div")!.getAttribute("style")).toContain("background-repeat:repeat");
+    span.style.backgroundRepeat = "no-repeat";
+    await op();
+    expect(playback.stats.live).toBe(1);
+    expect(shadow.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
+  });
+
+  test("an inline artifact the page let go is asked for again when a layer needs it", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const baked = await createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { blink: recipeText }, variants: {} }),
+      readSource: async () => ({ text: ART }),
+    }).resolve(ref);
+    const artifactFor = (key: string) => ({ ...structuredClone(baked.artifact), key });
+    // The production host, which waits for the game's deliveries.
+    const playback = new MorphPlayback(env.overlay, { requestFrame: () => 0, cancelFrame: () => {} });
+    const asked: string[] = [];
+    playback.askGame = (key) => {
+      asked.push(key);
+      playback.deliver({ key, artifact: artifactFor(key) });
+    };
+    // More deliveries than the page keeps: the first one is let go.
+    for (let i = 0; i < 40; i++) playback.deliver({ key: `k${i}`, artifact: artifactFor(`k${i}`) });
+    const span = env.overlay.ownerDocument.createElement("span");
+    env.overlay.appendChild(span);
+    playback.mount(span, { ...content, plays: [{ ...content.plays[0]!, ref: { ...ref, key: "k0" } }] }, 'url("bunny.svg")', "background", "portrait:0");
+    await until(() => playback.stats.live === 1, "the artifact asked for again");
+    expect(asked).toEqual(["k0"]);
+    // One still held is not asked for.
+    const other = env.overlay.ownerDocument.createElement("span");
+    env.overlay.appendChild(other);
+    playback.mount(other, { ...content, plays: [{ ...content.plays[0]!, ref: { ...ref, key: "k39" } }] }, 'url("bunny.svg")', "background", "portrait:1");
+    await until(() => playback.stats.live === 2, "the held artifact");
+    expect(asked).toEqual(["k0"]);
+  });
+
   test("a part's markup is made inert: no scripts, embedded documents, handlers or javascript links", async () => {
     const env = installJSDOM();
     restore = env.restore;
@@ -544,7 +631,7 @@ describe("live drawing presentation", () => {
     const live = artifact.parts.findIndex((p) => p.kind === "live");
     artifact.parts[live]!.svg = artifact.parts[live]!.svg
       .replace("<svg ", `<svg onload="window.__ran = 1" `)
-      .replace(/(<svg[^>]*>)/, `$1<script>window.__ran = 2</script><a href="javascript:alert(1)"><rect width="1" height="1" onclick="x()"/></a><foreignObject><iframe src="about:blank"></iframe></foreignObject>`);
+      .replace(/(<svg[^>]*>)/, `$1<script>window.__ran = 2</script><a href="javascript:alert(1)"><rect width="1" height="1" onclick="x()"/></a><a href="java&#x09;script:alert(2)"><rect width="1" height="1"/></a><foreignObject><iframe src="about:blank"></iframe></foreignObject>`);
     const service = new MorphBakeService();
     const host: MorphHost = { resolve: (r, o) => service.request(r.key, async () => ({ kind: "artifact", artifact }), o) };
     const playback = new MorphPlayback(env.overlay, { host, requestFrame: () => 0, cancelFrame: () => {} });
@@ -556,7 +643,8 @@ describe("live drawing presentation", () => {
     expect(shadow.querySelectorAll("script, iframe, object, embed")).toHaveLength(0);
     const attributes = Array.from(shadow.querySelectorAll("*")).flatMap((e) => Array.from(e.attributes));
     expect(attributes.filter((a) => a.name.toLowerCase().startsWith("on"))).toEqual([]);
-    expect(attributes.filter((a) => /javascript:/i.test(a.value))).toEqual([]);
+    // A browser reads `java<tab>script:` as `javascript:`.
+    expect(attributes.filter((a) => /javascript:/i.test(a.value.replace(/\s/g, "")))).toEqual([]);
     expect(shadow.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
   });
 });
