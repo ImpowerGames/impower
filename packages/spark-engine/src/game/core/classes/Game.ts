@@ -24,6 +24,7 @@ import {
   buildRouteSimulator,
   lastSearchStats,
   planRoute,
+  showsBeatAhead,
   type SearchOptions,
   type RoutePlan,
   type RouteResumePoint,
@@ -658,6 +659,32 @@ export class Game<T extends M = {}> {
   /** Per checkpoint, the planned-route step the story was about to run when it
    *  was captured; see {@link checkpoint}. */
   protected _checkpointStepCursors: (number | undefined)[] = [];
+
+  /** The last step the story ran that stands on a line of a script. */
+  protected _executingLineAddress?: ProgramAddress;
+
+  /** A step of the last beat the replay under way displayed: the last step
+   *  of it that stands on a line. Nothing before the replay displays one. */
+  protected _shownBeat?: ProgramAddress;
+
+  /** Per checkpoint, the replay's `_shownBeat` when it was captured, which a
+   *  replay resumed from the checkpoint starts from. */
+  protected _checkpointShownBeats: (ProgramAddress | undefined)[] = [];
+
+  /** Whether a run from where the last replay reached its target displays a
+   *  beat before the story ends; unknown until a replay reached one. */
+  protected _routeTargetShows?: boolean;
+  get routeTargetShows() {
+    return this._routeTargetShows;
+  }
+
+  /** A step of the last beat the last replay displayed before it reached its
+   *  target (`_shownBeat`), which is the beat on screen when the story
+   *  reaches the target; nothing when it displayed none. */
+  protected _routeShownBeat?: ProgramAddress;
+  get routeShownBeat() {
+    return this._routeShownBeat;
+  }
 
   protected _checkpoints!: CheckpointStore;
   get checkpoints() {
@@ -1977,12 +2004,59 @@ export class Game<T extends M = {}> {
   ) {
     // Plan a route from the top of the flow the target stands in, to the
     // target itself.
-    return planRoute(story, from, to, {
+    const route = planRoute(story, from, to, {
       ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
       favoredConditions: simulationOptions?.[from]?.favoredConditions,
       favoredChoices: simulationOptions?.[from]?.favoredChoices,
+    });
+    if (
+      route ||
+      from === "0" ||
+      budget?.resumeFrom ||
+      lastSearchStats.endReason !== "exhausted"
+    ) {
+      return route;
+    }
+    // The flow holds no way to the target from its top: a branch that only a
+    // divert from outside its scene enters is one. The story's start may
+    // reach it, through the divert that enters it and with the arguments
+    // that divert passes (#1606). Only a search that ran the flow out tries
+    // this one: a search cut short by a ceiling would only be cut short
+    // again, on more of the story.
+    return Game.planRouteFromStart(story, program, to, simulationOptions, budget);
+  }
+
+  /** Plan a route from the story's start to `to`, through whatever flows
+   *  the story diverts into on the way, so the flows the route enters take
+   *  the arguments the diverts that enter them pass. */
+  static planRouteFromStart(
+    story: ProgramStory,
+    program: SparkProgram,
+    to: ProgramAddress,
+    simulationOptions?: Record<
+      string,
+      {
+        favoredConditions?: (boolean | undefined)[];
+        favoredChoices?: (number | undefined)[];
+      }
+    >,
+    budget?: Pick<
+      SearchOptions,
+      | "maxSteps"
+      | "maxNodes"
+      | "searchTimeout"
+      | "callerResetsStory"
+      | "resumeFrom"
+    >,
+  ) {
+    return planRoute(story, "0", to, {
+      ...budget,
+      functions: Object.keys(program.functionLocations || {}),
+      stayWithinKnot: false,
+      favoredConditions: simulationOptions?.["0"]?.favoredConditions,
+      favoredChoices: simulationOptions?.["0"]?.favoredChoices,
     });
   }
 
@@ -2085,6 +2159,9 @@ export class Game<T extends M = {}> {
     const fromCheckpoint = fromCheckpointOverride ?? startStep?.checkpoint ?? -1;
     this._checkpoints.truncate(fromCheckpoint + 1);
     this._checkpointStepCursors.length = fromCheckpoint + 1;
+    this._checkpointShownBeats.length = fromCheckpoint + 1;
+    this._routeTargetShows = undefined;
+    this._routeShownBeat = undefined;
     this._routeErrors = this._routeErrors.filter(
       (e) => e.at <= fromCheckpoint,
     );
@@ -2118,9 +2195,14 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onReplay();
     }
+    let unrepeatable: boolean | undefined;
     try {
       // The checkpoint's image is restored in place.
       this.replayRoute(route, fromCheckpoint);
+      // Counted before the target is asked about, whose run draws and reads
+      // nothing the route's checkpoints keep.
+      unrepeatable = storyDraws.count !== drawn || ambientReads.count !== read;
+      this.noteRouteTarget();
     } finally {
       // A replay that stopped short of its target leaves the answer unknown.
       if (this._targetWatch) {
@@ -2129,7 +2211,8 @@ export class Game<T extends M = {}> {
         this._routeTargetVisits = undefined;
       }
       this._routeUnrepeatable =
-        storyDraws.count !== drawn || ambientReads.count !== read;
+        unrepeatable ??
+        (storyDraws.count !== drawn || ambientReads.count !== read);
       this._replaying = false;
       this._context.system.previewing = previewing;
       for (const k of this._moduleNames) {
@@ -2138,14 +2221,48 @@ export class Game<T extends M = {}> {
     }
   }
 
+  /**
+   * After a replay reached its target, note the beat it last displayed and
+   * whether a run from the target displays one before the story ends. A
+   * target whose own beat is queued displays it; any other (a `done`, a
+   * divert, a line of logic) is run on as far as the next thing it shows, by
+   * the story alone (`showsBeatAhead`), and the target's checkpoint puts the
+   * game back where the replay left it (#1606).
+   */
+  protected noteRouteTarget(): void {
+    if (this._simulation !== "success") {
+      return;
+    }
+    this._routeShownBeat = this._shownBeat;
+    if (this.module.interpreter.hasQueuedBeats) {
+      this._routeTargetShows = true;
+      return;
+    }
+    this._routeTargetShows = showsBeatAhead(this._story);
+    this.restoreCheckpoint(this._checkpoints.length - 1);
+  }
+
+  /** Whether a run jumped straight to `address`, as a preview or PLAY of a
+   *  line no route reaches runs, displays a beat before the story ends. The
+   *  story is left where that run stopped, so the game is put at its start
+   *  point again before it runs. */
+  jumpShowsBeat(address: ProgramAddress): boolean {
+    this.jumpTo(address);
+    return showsBeatAhead(this._story);
+  }
+
   protected replayRoute(route: RoutePlan, startCheckpoint: number) {
     const resumed =
       startCheckpoint >= 0 && this.restoreCheckpoint(startCheckpoint);
+    this._shownBeat = resumed
+      ? this._checkpointShownBeats[startCheckpoint]
+      : undefined;
     if (!resumed && startCheckpoint >= 0) {
       // A checkpoint the program can no longer place: the route replays
       // from its start, and every checkpoint and step it stamps is its own.
       this._checkpoints.truncate(0);
       this._checkpointStepCursors.length = 0;
+      this._checkpointShownBeats.length = 0;
       this._plannedRouteStepCursor = 0;
       this._routeErrors = [];
     }
@@ -2177,6 +2294,7 @@ export class Game<T extends M = {}> {
 
     this._executingAddress = null;
     this._executingLocation = null;
+    this._executingLineAddress = undefined;
 
     if (this._plannedRouteStepCursor >= route.steps.length - 1) {
       // The replay resumes at the target, or the step before it.
@@ -2689,11 +2807,15 @@ export class Game<T extends M = {}> {
     // Recorded only while replaying a route. During ordinary play the cursor
     // stands wherever the last replay left it and means nothing.
     this._checkpointStepCursors.length = this._checkpoints.length;
+    this._checkpointShownBeats.length = this._checkpoints.length;
     if (this._checkpoints.length > 0) {
-      this._checkpointStepCursors[this._checkpoints.length - 1] =
-        this._simulation === "simulating"
-          ? this._plannedRouteStepCursor
-          : undefined;
+      const simulating = this._simulation === "simulating";
+      this._checkpointStepCursors[this._checkpoints.length - 1] = simulating
+        ? this._plannedRouteStepCursor
+        : undefined;
+      this._checkpointShownBeats[this._checkpoints.length - 1] = simulating
+        ? this._shownBeat
+        : undefined;
     }
   }
 
@@ -3414,9 +3536,11 @@ export class Game<T extends M = {}> {
         }
 
         const prevExecutedLocation = this._executingLocation;
-        const location = this.scriptLocationOf(this._positions.previous());
+        const previous = this._positions.previous();
+        const location = this.scriptLocationOf(previous);
         if (location) {
           this._executingLocation = location;
+          this._executingLineAddress = previous ?? undefined;
         }
 
         // A continue returns at its line's newline, so the one after a line
@@ -3440,6 +3564,9 @@ export class Game<T extends M = {}> {
             this._story.currentChoices.map((c) => c.text),
             this._story.currentText || "",
           );
+          if (this._simulation === "simulating") {
+            this._shownBeat = this._executingLineAddress;
+          }
         }
 
         if (this._simulation !== "simulating") {
@@ -4382,7 +4509,13 @@ export class Game<T extends M = {}> {
    * over. Resolves to the path previewed; to null when the point resolves
    * to none, or when the preview was taken over while it waited.
    */
-  async preview(file: string, line: number): Promise<ProgramAddress | null> {
+  async preview(
+    file: string,
+    line: number,
+    /** Where a preview with no route runs from, when not the point's own
+     *  address: the line above it that shows a beat (#1606). */
+    runFrom?: ProgramAddress,
+  ): Promise<ProgramAddress | null> {
     if (this._state === "running") {
       // Don't preview while running
       return null;
@@ -4426,7 +4559,7 @@ export class Game<T extends M = {}> {
     let held: { instructions: Instructions | null } | null = null;
     try {
       this.observeScene(previewAddress);
-      this.runPreview(previewAddress);
+      this.runPreview(runFrom ?? previewAddress);
     } finally {
       this._holdingFlush = false;
       held = this._held;

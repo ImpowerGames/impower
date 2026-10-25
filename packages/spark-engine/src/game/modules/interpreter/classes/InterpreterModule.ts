@@ -789,6 +789,11 @@ export class InterpreterModule extends Module<
     );
   }
 
+  /** Whether a beat is queued that no flush has taken yet. */
+  get hasQueuedBeats(): boolean {
+    return (this._state.buffer?.length ?? 0) > 0;
+  }
+
   /**
    * Grabs the next set of instructions to execute.
    * @returns instructions to execute.

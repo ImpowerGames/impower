@@ -1,6 +1,7 @@
 import type { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -16,7 +17,10 @@ import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
-import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
@@ -54,6 +58,7 @@ import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
   RouteSearchLog,
+  type RouteSearchOutcome,
   type RouteSearchReportTarget,
 } from "./RouteSearchLog";
 import { searchRouteFor } from "./searchRouteTo";
@@ -510,11 +515,30 @@ export function installPlayerWorker(connection: MessageConnection) {
     simulatedProgramId?: string;
     simulationFailure?: any;
     simulationErrors?: SimulationError[];
+    /** The line whose last beat the report's route reaches, when that is not
+     *  the point asked for (`shownRoute`), and that beat's address. */
+    shownFrom?: { file: string; line: number };
+    shownAddress?: ProgramAddress;
+  };
+
+  /** What `log` holds about the address `to`, as the display and PLAY read
+   *  it. */
+  const reportOf = (
+    log: RouteSearchLog,
+    to: ProgramAddress | null | undefined,
+  ): RouteReport => {
+    const report: RouteSearchReportTarget = {};
+    log.report(report, to);
+    // The checkpoint as the log holds it, which `report` passes on only as a
+    // full save.
+    return { ...report, checkpoint: log.checkpointFor(to) };
   };
 
   /** The route to `point`'s `beat` in `entry`, with the game holding the
    *  entry's program: the search its log already holds for that path, or one
-   *  run now. */
+   *  run now. A point whose run displays nothing before the story ends
+   *  answers the route to the beat on screen when the story reaches it
+   *  (`shownRoute`). */
   const routeTo = (
     game: Game,
     entry: DisplayableProgram,
@@ -526,19 +550,161 @@ export function installPlayerWorker(connection: MessageConnection) {
       point,
       beat,
       entry.log,
-      (searched, address) =>
-        searchRouteFor(searched, address, entry.log, {
-          config: compiler.config,
-          profilerId: compiler.profilerId,
-          remember: entry.log === routeSearches,
-        }),
+      searchIn(entry, false),
       compiler.profilerId,
     );
-    const report: RouteSearchReportTarget = {};
-    entry.log.report(report, to);
-    // The checkpoint as the log holds it, which `report` passes on only as a
-    // full save.
-    return { ...report, checkpoint: entry.log.checkpointFor(to) };
+    const shown = shownRoute(game, entry, to);
+    if (!shown) {
+      return reportOf(entry.log, to);
+    }
+    const log = new RouteSearchLog();
+    log.record(shown.outcome);
+    return {
+      ...reportOf(log, shown.outcome.address),
+      shownFrom: shown.point,
+      shownAddress: shown.outcome.address,
+    };
+  };
+
+  /** A route search that records what it establishes in `entry`'s log. */
+  const searchIn =
+    (entry: DisplayableProgram, fromStart: boolean) =>
+    (searched: Game, address: ProgramAddress) =>
+      searchRouteFor(searched, address, entry.log, {
+        config: compiler.config,
+        profilerId: compiler.profilerId,
+        remember: entry.log === routeSearches,
+        fromStart,
+      });
+
+  /**
+   * For an address a run from which displays nothing before the story ends
+   * (a `done`, a `fin`, a divert into a flow that ends at once), the route to
+   * the beat on screen when the story reaches it: the last beat the route
+   * there displayed (#1606). The display shows that beat at the address, and
+   * PLAY from the address starts there, waiting, so the next click runs on
+   * into the address. A route from the top of the address's flow that
+   * displays nothing on the way is searched again from the story's start,
+   * whose flows before it may have left a beat on screen. Nothing when the
+   * run from the address shows a beat, or no beat was displayed before it.
+   *
+   * What it finds is kept on the address's record in `entry`'s log, so a
+   * display or PLAY that asks again searches nothing.
+   */
+  const shownRoute = (
+    game: Game,
+    entry: DisplayableProgram,
+    to: ProgramAddress | null | undefined,
+  ): RouteSearchOutcome["shown"] => {
+    let outcome = entry.log.outcomeFor(to);
+    if (to == null || !outcome) {
+      return undefined;
+    }
+    if (!outcome.reachedTarget && !outcome.checkpoint) {
+      return jumpedShownRoute(game, entry, outcome);
+    }
+    if (outcome.shows !== false) {
+      return undefined;
+    }
+    if (outcome.shown) {
+      return outcome.shown;
+    }
+    if (outcome.shownBeat == null && !outcome.fromStart) {
+      const fromFlow = outcome;
+      searchIn(entry, true)(game, to);
+      outcome = entry.log.outcomeFor(to);
+      if (!outcome?.reachedTarget) {
+        // The story's start does not reach it: the route from the flow
+        // stands.
+        entry.log.record(fromFlow);
+        return undefined;
+      }
+    }
+    const location =
+      outcome.shownBeat != null
+        ? programLocator(entry.program).locationOf(outcome.shownBeat)
+        : undefined;
+    if (!location) {
+      entry.log.record(outcome);
+      return undefined;
+    }
+    const point = { file: location.uri, line: location.startLine };
+    const address = routeGameTo(
+      game,
+      point,
+      "last",
+      entry.log,
+      searchIn(entry, false),
+      compiler.profilerId,
+    );
+    const reached = entry.log.outcomeFor(address);
+    const shown = reached ? { point, outcome: reached } : undefined;
+    entry.log.record({ ...outcome, shown });
+    return shown;
+  };
+
+  /**
+   * For an address no route reaches, which the display and PLAY jump
+   * straight to: when the run jumped there displays nothing before the story
+   * ends, the nearest line above it in the same scene whose jumped run shows
+   * a beat, and what the search for that line established (#1606). No run
+   * reaches the address, so no beat was on screen when one did. Kept on the
+   * address's record, as `shownRoute` keeps what it finds.
+   */
+  const jumpedShownRoute = (
+    game: Game,
+    entry: DisplayableProgram,
+    outcome: RouteSearchOutcome,
+  ): RouteSearchOutcome["shown"] => {
+    if (outcome.jumpShows !== undefined) {
+      return outcome.shown;
+    }
+    const to = outcome.address;
+    const keep = (shown: RouteSearchOutcome["shown"], jumpShows: boolean) => {
+      entry.log.record({ ...outcome, jumpShows, shown });
+      return shown;
+    };
+    if (to === TOP_LEVEL_START || game.jumpShowsBeat(to)) {
+      return keep(undefined, true);
+    }
+    const locator = programLocator(entry.program);
+    const at = locator.locationOf(to);
+    const scene = locator.sceneAt(to);
+    if (!at) {
+      return keep(undefined, false);
+    }
+    const tried = new Set<ProgramAddress>([to]);
+    for (let line = at.startLine - 1; line >= 0; line -= 1) {
+      const address = locator.addressAt(at.uri, line, { beat: "last" });
+      if (address == null || tried.has(address)) {
+        continue;
+      }
+      tried.add(address);
+      const location = locator.locationOf(address);
+      if (!location || location.startLine > line) {
+        // A line with no address of its own takes the one below it.
+        continue;
+      }
+      if (locator.sceneAt(address) !== scene) {
+        break;
+      }
+      if (!game.jumpShowsBeat(address)) {
+        continue;
+      }
+      const point = { file: at.uri, line };
+      const reached = entry.log.outcomeFor(
+        routeGameTo(
+          game,
+          point,
+          "last",
+          entry.log,
+          searchIn(entry, false),
+          compiler.profilerId,
+        ),
+      );
+      return keep(reached ? { point, outcome: reached } : undefined, false);
+    }
+    return keep(undefined, false);
   };
 
   const display = async (
@@ -607,6 +773,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
+        runFrom: route.shownAddress,
         beatOnly,
         onPath: (taken) => {
           path = taken;
@@ -723,9 +890,11 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program);
     }
-    // PLAY from a line starts at its first beat (#721).
-    const route: RouteReport = params.startFrom
-      ? routeTo(game, entry, params.startFrom, "first")
+    const start = params.startFrom
+      ? playStart(program, params.startFrom)
+      : undefined;
+    const route: RouteReport = start
+      ? routeTo(game, entry, start.point, start.beat)
       : {};
     releaseUnneeded();
     profile("start", compiler.profilerId + " " + "play/create");
@@ -735,6 +904,14 @@ export function installPlayerWorker(connection: MessageConnection) {
       restarted: params.restarted,
     });
     profile("end", compiler.profilerId + " " + "play/create");
+    if (start) {
+      // A line whose run displays nothing starts on the beat on screen when
+      // the story reaches it (`shownRoute`).
+      running.setStartFrom(
+        route.shownFrom ?? start.point,
+        route.shownFrom ? "last" : start.beat,
+      );
+    }
     const errors = player.putAtStartPoint(
       running,
       params.simulationOptions,
@@ -763,6 +940,33 @@ export function installPlayerWorker(connection: MessageConnection) {
       run: current.run,
       errors,
     };
+  };
+
+  /**
+   * The line and beat PLAY from `point` starts at. A line starts at its first
+   * beat (#721). A line with no address, and none below it in its script (a
+   * scene's closing `end` at the end of the script, the blank lines after
+   * it), is where the story stands once the line above it that has one has
+   * run: PLAY from it starts as PLAY from after that line's last beat would,
+   * which is that beat when it shows one (#1606). With no such line above,
+   * the run starts from the top of the top-level content.
+   */
+  const playStart = (
+    program: SparkProgram,
+    point: { file: string; line: number },
+  ): { point: { file: string; line: number }; beat: "first" | "last" } => {
+    const locator = programLocator(program);
+    if (locator.addressAt(point.file, point.line) != null) {
+      return { point, beat: "first" };
+    }
+    for (let line = point.line - 1; line >= 0; line -= 1) {
+      const address = locator.addressAt(point.file, line, { beat: "last" });
+      const location = locator.locationOf(address);
+      if (location && location.startLine <= line) {
+        return { point: { file: point.file, line }, beat: "last" };
+      }
+    }
+    return { point, beat: "first" };
   };
 
   /** End PLAY's game, answering where it last executed: the run the page

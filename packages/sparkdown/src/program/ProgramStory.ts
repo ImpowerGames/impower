@@ -496,6 +496,26 @@ export class ProgramStory implements StoryEngine {
   pauseBeforeEvaluatingConditions = false;
   pausedBeforeCondition: ProgramAddress | null = null;
 
+  /** The verdict the decision the story paused before would reach unforced:
+   *  the truth of the value its `JumpIfFalse` pops. Null when the story is
+   *  not paused before one, and for a decision whose value is not on the
+   *  evaluation stack (a Luau condition, a choice's). */
+  get pausedConditionValue(): boolean | null {
+    const position = this._state.position;
+    if (this.pausedBeforeCondition === null || !position) {
+      return null;
+    }
+    const chunk = this.fetch(position);
+    const w0 = chunk?.[HEADER_WORDS + position.offset];
+    if (w0 === undefined || opOf(w0) !== Op.JumpIfFalse || flagsOf(w0) & JUMP_LUAU) {
+      return null;
+    }
+    const value = this._state.evaluationStack.at(-1);
+    return value instanceof Value && !(value instanceof SymbolValue)
+      ? value.isTruthy
+      : null;
+  }
+
   /** Every instruction this story has run. */
   stepCount = 0;
   /** The `stepCount` past which a step throws `StepLimitExceeded`. */
@@ -2563,6 +2583,7 @@ export class ProgramStory implements StoryEngine {
     }
     const address = addressOf(chunkId(chunk), position.offset);
     state.previousAddress = address;
+    this.endedAt = null;
     if (this.onExecute !== null) this.onExecute(address);
     if (this.executedLog !== null) this.executedLog.push(address);
     if (state.holdsAddresses) {
@@ -3072,6 +3093,7 @@ export class ProgramStory implements StoryEngine {
         break;
       case Op.End:
         state.ForceEnd();
+        this.endedAt = addressOf(chunkId(chunk), position.offset);
         break;
       case Op.JumpSym:
         if (!(flags & JUMP_ARGUMENTS)) {
@@ -4031,6 +4053,10 @@ export class ProgramStory implements StoryEngine {
 
   /** The instruction the last step ran. */
   protected _running: RunningInstruction | null = null;
+
+  /** The address of the `End` the last step ran, which ended the story and
+   *  with it forgot `previousAddress`; null after any other step. */
+  endedAt: number | null = null;
 
   /** The start of the flow or label a qualified name names, the top-level
    *  content's flow as `""` or `"0"`; a position in the source is chosen
