@@ -1289,16 +1289,16 @@ try {
     const orphan = run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: snapshotOf(300, [{ ...ticket(3002), parent: 300 }]), preflights: [available("claude-cli", "claude-opus-5-5", [3002])], freeBytes: 100 * GB, defaults });
     assert.equal(actions(orphan)[3002], "decision-needed");
     assert.match(entryOf(orphan, 3002).reason, /#3001 is not in the parent's tree/);
-    // A number a report names that GitHub shows was not filed during the run
-    // is dismissed with that evidence and stops holding the plan.
+    // A number a report names that GitHub shows is no ticket the writer filed
+    // or reused is dismissed with that evidence and stops holding the plan.
     f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r6.json", { ...base, filed: [3002, 3007] }) }));
     assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), { 3007: "confirm-filed" });
     assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3008, evidence: "x" })), /No writer's report names #3008/);
     assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3002, evidence: "x" })), /recorded as filed during the run; triage it instead/);
     assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3009, evidence: "x" })), /#3009's writer's report does not name #3007/);
-    f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3001, evidence: "#3007 is an issue opened in 2025, before the run" }));
+    f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3001, evidence: "#3007 is a mistyped number: PR #3901's report lists #3006, and #3007 is an unrelated pull request" }));
     assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {}, "a dismissed number holds nothing");
-    assert.throws(() => f.change((r) => run.filed(r, { filed: 3007, source: "x" })), /was dismissed at .* as not filed during the run/);
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 3007, source: "x" })), /was dismissed at .* as no ticket a writer filed or reused/);
   }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");

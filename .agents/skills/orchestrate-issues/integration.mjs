@@ -187,14 +187,16 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   if (!(pull.closes ?? []).includes(number)) blockers.push(`PR #${pr} does not close ${ref} (its body has no Closes ${ref}), so merging it would leave the ticket open`);
   // A ticket filed during the run that completes this slice's fix is
   // delivered by this PR: while it is open, the PR closes it or waits, unless
-  // the maintainer accepted the narrow fix as an interim.
+  // the maintainer accepted the narrow fix as an interim. One raised with the
+  // maintainer for this slice holds the PR until their answer is recorded,
+  // whatever the PR or the ticket's state says, since a closing reference
+  // does not answer a decision that is theirs.
   for (const e of completingTickets(record, number)) {
+    const fref = names.split ? `${names.tickets}#${e.number}` : `#${e.number}`;
+    if (e.outcome.kind === "maintainer") { blockers.push(`${fref}, filed during the run, waits on the maintainer's answer to "${e.outcome.question}", and the PR holds until it is recorded (triage, or interim for an accepted narrow fix)`); continue; }
     const seen = facts.filed?.[e.number] ?? "unread";
     if (seen === "closed" || (pull.closes ?? []).includes(e.number)) continue;
-    const fref = names.split ? `${names.tickets}#${e.number}` : `#${e.number}`;
-    blockers.push(e.outcome.kind === "maintainer"
-      ? `${fref}, filed during the run, waits on the maintainer's answer to "${e.outcome.question}", and the PR holds until it is recorded (triage, or interim for an accepted narrow fix)`
-      : `${fref}, filed during the run, completes #${number}'s fix (${e.outcome.reason}) and is ${seen}, but PR #${pr} does not close it; send the PR back to its writer for the proper fix with Closes ${fref}, or record the maintainer's interim decision with issue-run.mjs interim`);
+    blockers.push(`${fref}, filed during the run, completes #${number}'s fix (${e.outcome.reason}) and is ${seen}, but PR #${pr} does not close it; send the PR back to its writer for the proper fix with Closes ${fref}, or record the maintainer's interim decision with issue-run.mjs interim`);
   }
   // The PR itself.
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);

@@ -1683,16 +1683,18 @@ export function filed(record, { filed: number, ticket: from, pr, source, reading
   if (number === record.issue) throw new Error(`#${number} is the parent issue`);
   if (from !== undefined && from === number) throw new Error(`#${number} cannot have been filed from its own fix`);
   if (record.filed?.[number]) throw new Error(`#${number} was already recorded as filed at ${record.filed[number].time}`);
-  if (record.filedDismissed?.[number]) throw new Error(`#${number} was dismissed at ${record.filedDismissed[number].time} as not filed during the run (${record.filedDismissed[number].evidence})`);
+  if (record.filedDismissed?.[number]) throw new Error(`#${number} was dismissed at ${record.filedDismissed[number].time} as no ticket a writer filed or reused (${record.filedDismissed[number].evidence})`);
   (record.filed ??= {})[number] ={ number, from: from ?? null, pr: pr ?? null, source, reading: reading ?? null, time: new Date().toISOString(), outcome: null };
   log(record, "filed", { filed: number, from: from ?? null, pr: pr ?? null });
 }
 
-// A ticket a writer's report names that GitHub shows was not filed during the
-// run (an existing issue, a mistyped number) is dismissed with that evidence,
-// so it stops holding the plan and the parent's closure.
+// A number a writer's report names that GitHub shows is no ticket the writer
+// filed or reused (a mistyped number, its own slice, the parent) is dismissed
+// with that evidence, so it stops holding the plan and the parent's closure.
+// A reused existing issue is a filing like any other: it is recorded with
+// filed and triaged, never dismissed for its age.
 export function dismiss(record, { filed: number, ticket: from, evidence }) {
-  if (!isTicketNumber(number) || !evidence) throw new Error("--filed must be the ticket number the report names and --evidence say what GitHub shows about it");
+  if (!isTicketNumber(number) || !evidence) throw new Error("--filed must be the number the report names and --evidence say what GitHub shows: that it is no ticket the writer filed or reused");
   if (record.filed?.[number]) throw new Error(`#${number} is recorded as filed during the run; triage it instead`);
   const named = Object.entries(record.tickets ?? {}).filter(([, t]) => (t.results ?? []).some((r) => filedNumbers(r.report?.filed).includes(number))).map(([n]) => Number(n));
   if (!named.length) throw new Error(`No writer's report names #${number} as filed`);
@@ -1748,7 +1750,7 @@ export function filedActions(record) {
   for (const e of Object.values(record.filed ?? {})) if (!e.outcome) out.push({ number: e.number, action: "triage-filed", reason: `filed during the run${e.from ? ` from #${e.from}'s fix${e.pr ? ` (PR #${e.pr})` : ""}` : " by the coordinator"}, with no triage outcome; read it against the PR it came from and record triage`, ...(e.from && { from: e.from }) });
   const named = new Map();
   for (const [n, t] of Object.entries(record.tickets ?? {})) for (const r of t.results ?? []) for (const f of filedNumbers(r.report?.filed)) if (!record.filed?.[f] && !record.filedDismissed?.[f] && !named.has(f)) named.set(f, Number(n));
-  for (const [f, from] of named) out.push({ number: f, action: "confirm-filed", reason: `#${from}'s writer reports it filed it; confirm on GitHub that it was filed during the run, then record it with filed and triage it, or, when GitHub shows it was not, record dismiss with that evidence`, from });
+  for (const [f, from] of named) out.push({ number: f, action: "confirm-filed", reason: `#${from}'s writer reports it filed it; confirm on GitHub that it was filed during the run, then record it with filed and triage it, or, when GitHub shows the writer neither filed nor reused it, record dismiss with that evidence`, from });
   return out.sort((a, b) => a.number - b.number);
 }
 

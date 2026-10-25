@@ -423,6 +423,12 @@ try {
     const raised = structuredClone(withFiled);
     run.triage(raised, { filed: 48, outcome: "maintainer", question: "Does the proper fix change agreed behavior?", slice: 41 });
     blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer to "Does the proper fix change agreed behavior\?"/, "a ticket raised with the maintainer holds its slice");
+    gh.pulls.get(141).closes = [41, 48];
+    blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer/, "a closing reference does not answer the maintainer's question");
+    gh.issues.get(48).state = "closed";
+    blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer/, "nor does the ticket's closure");
+    gh.issues.get(48).state = "open";
+    gh.pulls.get(141).closes = [41];
     run.interim(raised, { filed: 48, decision: "Merge the narrow fix as an interim", evidence: "the maintainer's comment on #40" });
     assert.deepEqual(filedGate(raised).blockers, [], "the maintainer's interim decision admits the head");
     assert.deepEqual(filedGate(record()).blockers, [], "the record as it is holds no filed ticket");
