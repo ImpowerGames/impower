@@ -1363,6 +1363,23 @@ export default class UIManager extends Manager {
       this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       if (element) {
+        // What this update writes is no longer what the last create carried,
+        // so the next create of this node re-applies in full (#1223). The
+        // attribute names it writes join the create's record, so that create
+        // clears the ones it does not carry.
+        if (
+          params.content != undefined ||
+          params.attributes != undefined ||
+          params.style != undefined
+        ) {
+          delete (element as any).__sdCreate;
+        }
+        if (params.attributes) {
+          const written: string[] = (element as any).__sdAttrs ?? [];
+          (element as any).__sdAttrs = [
+            ...new Set([...written, ...Object.keys(params.attributes)]),
+          ];
+        }
         if (params.content != undefined) {
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
