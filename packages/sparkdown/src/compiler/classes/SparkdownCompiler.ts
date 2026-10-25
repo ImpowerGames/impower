@@ -441,6 +441,16 @@ function rangeContains(range: Range, position: { line: number; character: number
   const beforeEnd = position.line < end.line || (position.line === end.line && position.character <= end.character);
   return afterStart && beforeEnd;
 }
+
+/** Whether two ranges start and end at the same positions. */
+function rangesEqual(a: Range, b: Range): boolean {
+  return (
+    a.start.line === b.start.line &&
+    a.start.character === b.start.character &&
+    a.end.line === b.end.line &&
+    a.end.character === b.end.character
+  );
+}
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 /**
@@ -6572,6 +6582,23 @@ export class SparkdownCompiler {
         }
         return;
       }
+      if (reference.asset) {
+        // A define property's value naming an asset. A bare name the
+        // program declares as an asset of any of its types resolves, so the
+        // resolver's report that no variable has that name does not hold; a
+        // bare name declared nowhere keeps that report. A typed name must be
+        // declared under its type.
+        const { types, name, typed } = reference.asset;
+        const declared = types.some((type) => {
+          readKey(reads, type, name);
+          return getContextEntry(program.context, type, name) !== undefined;
+        });
+        if (declared && !typed) {
+          outcomes.push({ from: from - offset, to: to - offset, declared: name });
+        } else if (!declared && typed) {
+          report(DiagnosticSeverity.Warning, `Cannot find ${types[0]} named \`${name}\``);
+        }
+      }
       if (reference.symbolIds) {
         for (const symbolId of reference.symbolIds) {
           if (this._config.definitions?.builtins?.[symbolId]) {
@@ -6775,6 +6802,17 @@ export class SparkdownCompiler {
             program.colorAnnotations ??= {};
             program.colorAnnotations[uri] ??= [];
             program.colorAnnotations[uri].push(range);
+          }
+          if (outcome.declared !== undefined) {
+            const unresolved = `Cannot find variable named \`${outcome.declared}\``;
+            const diagnostics = program.diagnostics?.[uri];
+            if (diagnostics) {
+              program.diagnostics![uri] = diagnostics.filter(
+                (d) =>
+                  (typeof d.message === "string" ? d.message : d.message.value) !== unresolved ||
+                  !rangesEqual(d.range, range),
+              );
+            }
           }
           if (outcome.diagnostic) {
             program.diagnostics ??= {};
