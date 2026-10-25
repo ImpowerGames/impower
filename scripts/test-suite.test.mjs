@@ -846,7 +846,7 @@ const outer = acquire("first recoverer", { root: lockRoot, census: () => [], gua
   if (!nestedBegan) {
     nestedBegan = true;
     claimDuringRecovery = JSON.parse(fs.readFileSync(path.join(lockRoot, "guard-recovery.json"), "utf8"));
-    try { acquire("second recoverer", { root: lockRoot, census: () => [], guardWaitMs: 100, identify: () => null }); }
+    try { acquire("second recoverer", { root: lockRoot, census: () => [], guardWaitMs: 100, identify: owner => owner === deadOwner.pid ? null : processIdentity(owner) }); }
     catch (error) { nestedFailure = error; }
     guardDuringNested = fs.readFileSync(guardFile, "utf8");
   }
@@ -872,6 +872,64 @@ const normalWithClaim = acquire("normal transaction with abandoned recovery clai
 normalWithClaim.release();
 assert.equal(fs.readFileSync(claimFile, "utf8"), "{}", "an abandoned recovery claim does not block or change normal transactions");
 fs.unlinkSync(claimFile);
+// A guard or claim is empty from its exclusive creation until its owner is
+// written. Once it is older than that window could last, its creator died
+// between the two calls, and it is set aside like a dead owner's file.
+{
+  const { emptyAbandonMs } = await import("./test-suite-process.mjs");
+  const age = file => { const old = (Date.now() - emptyAbandonMs - 10_000) / 1000; fs.utimesSync(file, old, old); };
+  const recoveredClaims = () => fs.readdirSync(lockRoot).filter(name => /^recovered-claim-.*\.json$/.test(name));
+  const strays = () => fs.readdirSync(lockRoot).filter(name => /^guard-recovery/.test(name));
+  const live = processIdentity(process.pid);
+  const identify = pid => pid === deadOwner.pid ? null : processIdentity(pid);
+  const held = (label) => assert.throws(() => acquire(label, { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }), error => error.guardHeld === true, `${label} keeps the guard held`);
+
+  let count = recoveredGuards().length;
+  fs.writeFileSync(guardFile, "");
+  age(guardFile);
+  acquire("old empty guard", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+  assert.equal(recoveredGuards().length, ++count, "an old empty guard is renamed aside");
+
+  for (const [label, claim] of [["an old empty claim", ""], ["a dead recoverer's claim", abandoned]]) {
+    const claims = recoveredClaims().length;
+    fs.writeFileSync(guardFile, abandoned);
+    fs.writeFileSync(claimFile, claim);
+    if (claim === "") age(claimFile);
+    acquire(label, { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+    assert.equal(recoveredClaims().length, claims + 1, `${label} is renamed aside`);
+    assert.equal(recoveredGuards().length, ++count, `${label} no longer blocks guard recovery`);
+    assert.deepEqual(strays(), [], `${label}: no claim or takeover is left behind`);
+  }
+
+  for (const [label, claim] of [["a fresh empty claim", ""], ["a live recoverer's claim", JSON.stringify({ owner: live })]]) {
+    fs.writeFileSync(guardFile, abandoned);
+    fs.writeFileSync(claimFile, claim);
+    held(label);
+    assert.equal(fs.readFileSync(claimFile, "utf8"), claim, `${label} is untouched`);
+    fs.unlinkSync(claimFile);
+    fs.unlinkSync(guardFile);
+  }
+
+  // Two recoverers of one abandoned claim serialize on a takeover named after
+  // its file identity; while another holds that takeover, this one backs off.
+  fs.writeFileSync(guardFile, abandoned);
+  fs.writeFileSync(claimFile, abandoned);
+  const generation = fs.statSync(claimFile, { bigint: true });
+  const takeover = path.join(lockRoot, `guard-recovery-${generation.ino}-${generation.birthtimeNs}.json`);
+  fs.writeFileSync(takeover, JSON.stringify({ owner: live }));
+  held("a claim another recoverer is taking over");
+  assert.equal(fs.readFileSync(claimFile, "utf8"), abandoned, "the claim under another's takeover is untouched");
+  // The takeover's own holder dying is recovered the same way, one level down.
+  fs.writeFileSync(takeover, abandoned);
+  acquire("dead takeover holder", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+  assert.equal(recoveredGuards().length, ++count, "a dead takeover holder no longer blocks recovery");
+  assert.deepEqual(strays(), [], "no claim or takeover is left behind after nested recovery");
+
+  fs.writeFileSync(guardFile, "");
+  held("a fresh empty guard");
+  assert.equal(fs.readFileSync(guardFile, "utf8"), "", "a guard its creator may still be writing is untouched");
+  fs.unlinkSync(guardFile);
+}
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
 
 // A normal transaction can remove its guard and exit while recovery's process

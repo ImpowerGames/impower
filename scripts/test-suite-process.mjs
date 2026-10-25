@@ -163,9 +163,10 @@ export function reservationState(record, identify = processIdentity, { uptime = 
 // Serialize acquisition, recovery and release, including the reservation's
 // creation window. A transaction holds the guard only for a few synchronous
 // file operations, so a held guard is retried until `waitMs` passes. A guard
-// whose recorded owner is no longer running was abandoned inside its transaction
-// and is renamed aside; any other guard, including one whose owner identity
-// cannot be read, is never guessed away.
+// whose recorded owner is no longer running, or that stayed empty past
+// `emptyAbandonMs`, was abandoned inside its transaction and is renamed aside;
+// any other guard, including one whose owner identity cannot be read, is never
+// guessed away.
 function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false, recover = true) {
   const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
     ? storeDenied(root, error)
@@ -203,30 +204,77 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   }
 }
 
-// Rename a guard whose recorded owner (pid and start time, the identity
-// `reservationState` compares) names no live process, keeping it as
-// `recovered-guard-<time>.json`. Returns whether the guard is gone and the
-// caller should try to take it again.
-//
-// The read, the identity check and the rename run under an exclusive
-// `guard-recovery.json` claim, so two recoverers cannot both judge the same
-// abandoned guard. Normal transactions may still finish and replace the guard
-// during the process lookup: verify the same file generation AFTER proving its
-// owner dead. That dead owner can no longer remove it, and the claim excludes
-// other recoverers, so no legitimate remover can change it before rename.
-// A claim left by a recoverer
-// that died inside it is never guessed away: no guard is recovered until it is
-// inspected, which is how every abandoned guard behaved before recovery existed.
-function recoverAbandonedGuard(root, guard, identify, admitting = false) {
-  const claim = path.join(root, "guard-recovery.json");
-  let fd;
-  try { fd = fs.openSync(claim, "wx"); }
-  catch (error) {
+// A guard or claim is created empty by an exclusive open and gets its owner
+// written by the next synchronous call, so a live creator leaves it empty for
+// microseconds. An empty file this much older than its last write was left by
+// a creator killed between the two calls.
+export const emptyAbandonMs = 60_000;
+const claimDepth = 4;
+
+// Judge one guard or claim file: abandoned when its recorded owner (pid and
+// start time, the identity `reservationState` compares) names no live process,
+// or when it is empty and older than `emptyAbandonMs`. Returns null when the
+// file is gone, otherwise its identity and verdict. Unparseable content and
+// an unreadable process table are never evidence that the owner is gone.
+function judge(root, file, identify, admitting) {
+  let fd, identity, text;
+  try {
+    fd = fs.openSync(file, "r");
+    identity = fs.fstatSync(fd, { bigint: true });
+    text = fs.readFileSync(fd, "utf8");
+  } catch (error) {
     if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-    return false;
+    return error.code === "ENOENT" ? null : { identity, abandoned: false };
+  } finally { if (fd !== undefined) fs.closeSync(fd); }
+  if (text === "") return { identity, abandoned: Date.now() - Number(identity.mtimeMs) > emptyAbandonMs };
+  let owner;
+  try { owner = JSON.parse(text)?.owner; } catch { return { identity, abandoned: false }; }
+  if (!owner?.pid || !owner.start) return { identity, abandoned: false };
+  try { return { identity, abandoned: !same(owner, identify(owner.pid)) }; }
+  catch { return { identity, abandoned: false }; }
+}
+
+// Rename `file` aside as `<prefix>-<time>.json` if it is still the generation
+// `identity`. Callers hold the exclusive claim that alone may move it, and its
+// owner is dead or never wrote itself, so nothing else replaces it in between.
+function setAside(root, file, identity, prefix, admitting) {
+  try {
+    if (!sameFile(fs.lstatSync(file, { bigint: true }), identity)) return false;
+    const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
+    fs.renameSync(file, path.join(root, `${prefix}-${stamp}-${randomUUID().slice(0, 8)}.json`));
+    return true;
+  } catch (error) {
+    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+    return error.code === "ENOENT";
+  }
+}
+
+// Take the exclusive claim `file` and run `action` under it, returning its
+// result, or false when the claim is held. A claim abandoned by a recoverer
+// that died inside it is set aside under a takeover claim named after that
+// claim's own file identity. Only one process can hold the takeover for a
+// given generation, and a dead or never-written owner cannot remove it, so the
+// generation the takeover holder verified is the one it renames. Takeover
+// claims nest the same way, to a fixed depth, if their holders die too; a
+// takeover left after its claim was set aside names a generation that no
+// longer exists and is never consulted again.
+function withClaim(root, file, identify, admitting, action, depth = 0) {
+  let fd;
+  for (let attempt = 0; fd === undefined; attempt++) {
+    try { fd = fs.openSync(file, "wx"); }
+    catch (error) {
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      if (error.code !== "EEXIST" || attempt > 0 || depth >= claimDepth) return false;
+      const held = judge(root, file, identify, admitting);
+      if (held && !held.abandoned) return false;
+      if (held) {
+        const takeover = path.join(root, `${path.basename(file, ".json")}-${held.identity.ino}-${held.identity.birthtimeNs}.json`);
+        if (!withClaim(root, takeover, identify, admitting, () => setAside(root, file, held.identity, "recovered-claim", admitting), depth + 1)) return false;
+      }
+    }
   }
   try {
-    // Recorded for the inspector of an abandoned claim; nothing reads it back.
+    // Recorded so an abandoned claim can be judged by its owner's liveness.
     try {
       fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
       fs.fsyncSync(fd);
@@ -234,35 +282,25 @@ function recoverAbandonedGuard(root, guard, identify, admitting = false) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       return false;
     }
-    let owner, identity, guardFd;
-    try {
-      guardFd = fs.openSync(guard, "r");
-      identity = fs.fstatSync(guardFd, { bigint: true });
-      owner = JSON.parse(fs.readFileSync(guardFd, "utf8"))?.owner;
-    }
-    catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return error.code === "ENOENT";
-    } finally { if (guardFd !== undefined) fs.closeSync(guardFd); }
-    if (!owner?.pid || !owner.start) return false;
-    // An unreadable process table is not evidence that the owner is gone.
-    let current;
-    try { current = identify(owner.pid); }
-    catch { return false; }
-    if (same(owner, current)) return false;
-    try { if (!sameFile(fs.lstatSync(guard, { bigint: true }), identity)) return false; }
-    catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return error.code === "ENOENT";
-    }
-    const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
-    try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
-    catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return error.code === "ENOENT";
-    }
-    return true;
-  } finally { fs.closeSync(fd); fs.unlinkSync(claim); }
+    return action();
+  } finally { fs.closeSync(fd); fs.unlinkSync(file); }
+}
+
+// Rename an abandoned guard (see `judge`) aside as `recovered-guard-<time>.json`.
+// Returns whether the guard is gone and the caller should try to take it again.
+//
+// The read, the judgment and the rename run under the exclusive
+// `guard-recovery.json` claim, so two recoverers cannot both judge the same
+// abandoned guard. Normal transactions may still finish and replace the guard
+// during the process lookup: `setAside` verifies the same file generation
+// AFTER the judgment. An abandoned guard's owner can no longer remove it, and
+// the claim excludes other recoverers, so nothing changes it before rename.
+function recoverAbandonedGuard(root, guard, identify, admitting = false) {
+  return withClaim(root, path.join(root, "guard-recovery.json"), identify, admitting, () => {
+    const held = judge(root, guard, identify, admitting);
+    if (!held) return true;
+    return held.abandoned && setAside(root, guard, held.identity, "recovered-guard", admitting);
+  });
 }
 
 const guardWaitMs = 5000;
