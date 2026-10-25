@@ -190,7 +190,7 @@ describe("MessageRouter", () => {
     ]);
   });
 
-  it("hands a beat from the current stream to the managers, which answer its animations", async () => {
+  it("hands a beat from the current stream to the managers and leaves its animations for them to answer", async () => {
     const received: string[] = [];
     const answering = new (class extends Manager {
       override onReceiveNotification(msg: { method: string }) {
