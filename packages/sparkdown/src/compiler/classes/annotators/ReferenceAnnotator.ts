@@ -61,6 +61,15 @@ export interface Reference {
 /** The asset types a define property value is checked against. */
 export const DEFINE_ASSET_TYPES = ["image", "layered_image", "filtered_image"];
 
+// Whether `node` and the siblings past it in `direction` are only whitespace
+// and comments.
+function onlyTrivia(node: SyntaxNode | null, direction: "prevSibling" | "nextSibling"): boolean {
+  for (let sibling = node; sibling; sibling = sibling[direction]) {
+    if (!sibling.name.endsWith("Whitespace") && !sibling.name.endsWith("Comment")) return false;
+  }
+  return true;
+}
+
 // The access path that is a define property's whole value (`image = warm`,
 // `image = filtered_image.warm`): its variable name and, in the typed
 // spelling, its property name. Null for any other path, such as a call, a
@@ -69,15 +78,19 @@ function definePropertyReference(
   path: SyntaxNode | null | undefined,
 ): { variable: SyntaxNode; property: SyntaxNode | null } | null {
   if (path?.name !== "LuauAccessPath") return null;
-  if (path.parent?.name !== "LuauAssignmentOperation_content") return null;
-  if (path.parent.parent?.parent?.parent?.parent?.parent?.name !== "LuauPropertyDefinition") {
-    return null;
-  }
-  for (let sibling = path.nextSibling; sibling; sibling = sibling.nextSibling) {
-    if (sibling.name !== "OptionalWhitespace" && !sibling.name.endsWith("Comment")) {
+  // Parentheses do not change the value: `image = (warm)` names `warm`.
+  let value: SyntaxNode = path;
+  while (value.parent?.name === "LuauParenthetical_content") {
+    if (!onlyTrivia(value.prevSibling, "prevSibling") || !onlyTrivia(value.nextSibling, "nextSibling")) {
       return null;
     }
+    value = value.parent.parent!;
   }
+  if (value.parent?.name !== "LuauAssignmentOperation_content") return null;
+  if (value.parent.parent?.parent?.parent?.parent?.parent?.name !== "LuauPropertyDefinition") {
+    return null;
+  }
+  if (!onlyTrivia(value.nextSibling, "nextSibling")) return null;
   const content = findChildByName(path, "LuauAccessPath_content");
   const parts: SyntaxNode[] = [];
   for (let part = content?.firstChild; part; part = part.nextSibling) {

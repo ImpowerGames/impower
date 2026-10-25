@@ -180,6 +180,58 @@ describe("asset references in define bodies", () => {
     expect(missing(program)).toEqual([]);
   });
 
+  // Parentheses do not change a value, so a parenthesized reference is
+  // checked as the same reference written without them.
+  it("warns on a parenthesized bare name declared nowhere (#1612)", () => {
+    const program = compile([
+      "First beat.",
+      "define a6 as filtered_image with",
+      "  image = (missing3)",
+      "end",
+      "define a7 as filtered_image with",
+      "  image = ((missing4))",
+      "end",
+    ]);
+    expect(missing(program)).toEqual([
+      { message: "Cannot find variable named `missing3`", line: 2, from: 11, to: 19 },
+      { message: "Cannot find variable named `missing4`", line: 5, from: 12, to: 20 },
+    ]);
+  });
+
+  it("accepts a parenthesized bare name of a declared asset", () => {
+    const program = compile(
+      [
+        "First beat.",
+        "define warm as filtered_image with",
+        "  image = (backdrop)",
+        "end",
+        "define cool as filtered_image with",
+        "  image = ((warm))",
+        "end",
+      ],
+      [asset("backdrop.png")],
+    );
+    expect(missing(program)).toEqual([]);
+  });
+
+  it("checks a parenthesized typed reference", () => {
+    const program = compile(
+      [
+        "First beat.",
+        "define warm as filtered_image with",
+        "  image = (filtered_image.missing)",
+        "end",
+        "define cool as filtered_image with",
+        "  image = (image.backdrop)",
+        "end",
+      ],
+      [asset("backdrop.png")],
+    );
+    expect(missing(program)).toEqual([
+      { message: "Cannot find filtered_image named `missing`", line: 2, from: 26, to: 33 },
+    ]);
+  });
+
   // Validation outcomes are kept between compiles; each compile after an edit
   // reports what a fresh compiler reports for the same text.
   it("follows edits to the asset and to the reference across compiles", () => {
