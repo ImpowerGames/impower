@@ -151,7 +151,7 @@ export interface StoryEngine {
   pausedBeforeCondition: ProgramAddress | null;
   /** The verdict that decision reaches unless a simulator forces one, or
    *  null when its condition is no value a decision can test. */
-  pausedConditionVerdict: boolean | null;
+  pausedConditionValue: boolean | null;
 
   // Checkpoints and saves (section 7).
   keepBeatImages: boolean;

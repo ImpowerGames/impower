@@ -760,7 +760,6 @@ export class SparkdownPreviewGamePanelManager {
               inset: 0;
               padding: 0;
               margin: 0;
-              opacity: 0;
               display: flex;
               flex-direction: column;
               font-family: var(--vscode-font-family);
@@ -769,13 +768,56 @@ export class SparkdownPreviewGamePanelManager {
               background-color: var(--vscode-editor-background);
             }
 
-            body.ready {
+            /* The player stays hidden until it has something to show, which
+               on a large project waits for it to mount and compile the whole
+               project in its own worker; the bar says the preview is coming
+               (#1221). It animates on the compositor, so it keeps moving
+               while the page's script loads and the player mounts. */
+            spark-web-player {
+              opacity: 0;
+            }
+
+            body.ready spark-web-player {
               opacity: 1;
               transition: 0.25s opacity;
+            }
+
+            .loading {
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 2px;
+              overflow: hidden;
+              pointer-events: none;
+            }
+
+            .loading::before {
+              content: "";
+              position: absolute;
+              inset: 0;
+              background-color: var(--vscode-progressBar-background);
+              transform-origin: left;
+              animation: loading-sweep 2.5s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+            }
+
+            @keyframes loading-sweep {
+              0% {
+                transform: translateX(-50%) scaleX(0.5);
+              }
+              75%,
+              100% {
+                transform: translateX(100%) scaleX(0.5);
+              }
+            }
+
+            body.ready .loading {
+              display: none;
             }
           </style>
         </head>
         <body>
+          <div class="loading" role="progressbar" aria-busy="true" aria-label="Loading Game Preview"></div>
           <spark-web-player toolbar play-button play-label="RUN"></spark-web-player>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>

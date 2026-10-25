@@ -13,6 +13,7 @@ import {
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { isLuauFile } from "@impower/sparkdown/src/compiler/typecheck/LuauUnitNodes";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import {
   hasLuauExtension,
   projectLuauFiles,
@@ -21,6 +22,11 @@ import {
   findRunName,
   findRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
+import { decodeSVGSource } from "@impower/sparkdown/src/attributes";
+import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { createMorphHost, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
+import type { MorphBakeDiagnostic, MorphRef } from "@impower/sparkdown/src/morph/types";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getDiagnosticActions } from "../utils/providers/getCodeActions";
@@ -440,6 +446,179 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
+  /**
+   * Morph bakes (packages/sparkdown/src/morph/README.md). This server holds
+   * every artwork's source on every host, so it bakes each compiled reference
+   * for its diagnostics and for the rest render previews show. Bake results
+   * are kept by artifact key, so a recompile that leaves a key unchanged
+   * republishes its diagnostics at once instead of dropping them until the
+   * bake answers again.
+   */
+  protected _morphService?: MorphBakeService;
+  protected _morphDiagnostics?: Map<string, MorphBakeDiagnostic[]>;
+  protected static readonly MORPH_DIAGNOSTIC_KEYS = 512;
+  /** How long a preview waits for a rest render before showing the static one. */
+  protected static readonly MORPH_PREVIEW_WAIT_MS = 1500;
+
+  protected get morphService() {
+    return (this._morphService ??= new MorphBakeService());
+  }
+
+  protected get morphDiagnostics() {
+    return (this._morphDiagnostics ??= new Map());
+  }
+
+  protected morphHost(program: SparkProgram): MorphHost {
+    return createMorphHost({
+      service: this.morphService,
+      channel: () => program.morphs,
+      readSource: async (ref) => {
+        const image = getContextEntry(program.context, "image", ref.image);
+        const uri = typeof image?.uri === "string" ? image.uri : undefined;
+        const file = uri ? this._watchedFiles.get(uri) : undefined;
+        const text =
+          file?.text ||
+          (file?.data ? decodeSVGSource(file.data) : undefined) ||
+          (typeof image?.data === "string" && image.data ? decodeSVGSource(image.data) : undefined);
+        return text ? { text, ...(uri ? { uri } : {}) } : undefined;
+      },
+    });
+  }
+
+  /**
+   * Every reference in a program with the variant it is for and the URI of
+   * its artwork. Several consumers can share one key (the same art in two
+   * files, two names for one selection): the bake runs once per key, but
+   * each consumer is its own place to report on.
+   */
+  protected morphRefs(program: SparkProgram): { variant: string; ref: MorphRef; uri?: string }[] {
+    const refs: { variant: string; ref: MorphRef; uri?: string }[] = [];
+    for (const [variant, list] of Object.entries(program.morphs?.variants ?? {})) {
+      for (const ref of list) {
+        const uri = getContextEntry(program.context, "image", ref.image)?.uri;
+        refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
+      }
+    }
+    return refs;
+  }
+
+  protected recordMorphDiagnostics(key: string, diagnostics: MorphBakeDiagnostic[]) {
+    this.morphDiagnostics.delete(key);
+    this.morphDiagnostics.set(key, diagnostics);
+    const limit = SparkdownLanguageServerWorkspace.MORPH_DIAGNOSTIC_KEYS;
+    while (this.morphDiagnostics.size > limit) {
+      this.morphDiagnostics.delete(this.morphDiagnostics.keys().next().value!);
+    }
+  }
+
+  /**
+   * The bake diagnostics of `program`'s references whose artwork is `uri`.
+   * A bake's diagnostics describe the art; where they are shown and which
+   * variants they name come from each consumer of the key as this program
+   * has it, never from whichever consumer happened to bake it. One problem in
+   * the art shows once, naming every variant it affects.
+   */
+  protected morphDiagnosticsFor(program: SparkProgram, uri: string) {
+    type Group = { diagnostic: MorphBakeDiagnostic; variants: string[] };
+    const grouped = new Map<string, Group>();
+    for (const { variant, ref, uri: artwork } of this.morphRefs(program)) {
+      if (artwork !== uri) continue;
+      for (const d of this.morphDiagnostics.get(ref.key) ?? []) {
+        const key = JSON.stringify([d.morph, d.code, d.severity, d.layer, d.message]);
+        const group: Group = grouped.get(key) ?? { diagnostic: d, variants: [] };
+        if (!group.variants.includes(variant)) group.variants.push(variant);
+        grouped.set(key, group);
+      }
+    }
+    const out: ReturnType<SparkdownWorkspace["getDiagnostics"]> = [];
+    for (const { diagnostic: d, variants } of grouped.values()) {
+      const shown = variants.slice(0, 3).map((v) => `\`${v}\``).join(", ");
+      const more = variants.length > 3 ? ` and ${variants.length - 3} more` : "";
+      const where = d.layer ? ` (layer "${d.layer}")` : "";
+      out.push({
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        severity: d.severity === "error" ? 1 : 2,
+        code: `morph-${d.code}`,
+        source: "sparkdown",
+        message: `Morph \`${d.morph}\` on ${shown}${more}${where}: ${d.message}`,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Bakes the references whose results this server does not have yet, then
+   * republishes the artwork they report on, if `program` is still its
+   * entry's latest compile. An older program's late results are kept by key
+   * but never published under the newer program.
+   */
+  protected bakeProgramMorphs(program: SparkProgram, owner: string | undefined) {
+    const consumers = this.morphRefs(program);
+    const pending = new Map<string, { variant: string; ref: MorphRef }>();
+    for (const { variant, ref } of consumers) {
+      if (!this.morphDiagnostics.has(ref.key) && !pending.has(ref.key)) pending.set(ref.key, { variant, ref });
+    }
+    if (pending.size === 0) return;
+    const host = this.morphHost(program);
+    void Promise.allSettled(
+      [...pending.values()].map(({ variant, ref }) =>
+        host.resolve(ref).then(
+          (handle) => {
+            this.recordMorphDiagnostics(ref.key, handle.artifact.diagnostics);
+            handle.release();
+          },
+          (error) => {
+            this.recordMorphDiagnostics(ref.key, [
+              {
+                code: "source-unreadable",
+                severity: "warning",
+                message: `It could not be baked: ${error instanceof Error ? error.message : String(error)}`,
+                morph: ref.morph,
+                variant,
+              },
+            ]);
+          },
+        ),
+      ),
+    ).then(() => {
+      if (owner && this._entryPrograms.get(owner) !== program) return;
+      // Every artwork a baked key reports on, not only the one that baked it.
+      const uris = new Set(
+        consumers.filter(({ ref, uri }) => uri && pending.has(ref.key)).map(({ uri }) => uri!),
+      );
+      for (const uri of uris) this.publishDiagnostics(uri, this.getDiagnostics(program, uri), owner);
+    });
+  }
+
+  /**
+   * The rest render of a variant a morph plays on, for a preview: the static
+   * render with its rest apertures applied. Undefined when no morph plays on
+   * the struct, when the bake fails, or when it does not answer in time; the
+   * bake keeps running, so a later preview finds it cached.
+   */
+  async morphRestRender(context: SparkProgram["context"], struct: any): Promise<string | undefined> {
+    if (!context) return undefined;
+    // A completion candidate resolves in a private copy of the context that
+    // shares the program's image table.
+    const program = [...this._entryPrograms.values()].find(
+      (p) => p.context === context || (!!p.context?.["image"] && p.context["image"] === context["image"]),
+    );
+    const ref = program ? morphRefsForStruct(context, program.morphs, struct)[0] : undefined;
+    if (!program || !ref) return undefined;
+    const wait = new Promise<undefined>((resolve) =>
+      setTimeout(() => resolve(undefined), SparkdownLanguageServerWorkspace.MORPH_PREVIEW_WAIT_MS),
+    );
+    const resolved = this.morphHost(program)
+      .resolve(ref)
+      .then((handle) => {
+        const rest = handle.artifact.status === "live" ? handle.artifact.rest : undefined;
+        handle.release();
+        return rest;
+      })
+      .catch(() => undefined);
+    return Promise.race([resolved, wait]);
+  }
+
   /** Publish `diagnostics` for `uri`, unless they are what was last
    *  published for the document at its current version. */
   protected publishDiagnostics(
@@ -593,7 +772,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
    *  requires, rather than rely on the report having done so. */
   override getDiagnostics(program: SparkProgram, uri: string) {
     const diagnostics = this.withDiagnosticActions(
-      super.getDiagnostics(program, uri),
+      [...super.getDiagnostics(program, uri), ...this.morphDiagnosticsFor(program, uri)],
       uri,
     );
     const report = this._runtimeDiagnostics;
@@ -625,11 +804,16 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       this._entryPrograms.set(owner, params.program);
     }
     // Assets need diagnostics even when they have never been opened as text.
-    // Include prior publications so warnings removed by repair are cleared.
+    // Include prior publications so warnings removed by repair are cleared,
+    // and artwork whose morph bakes reported something.
+    const morphUris = this.morphRefs(params.program)
+      .filter(({ ref, uri }) => uri && this.morphDiagnostics.get(ref.key)?.length)
+      .map(({ uri }) => uri!);
     const uris = new Set([
       ...this._documentVersions.keys(),
       ...Object.keys(params.program.diagnostics ?? {}),
       ...this._lastPublishedDiagnostics.keys(),
+      ...morphUris,
     ]);
     for (const uri of uris) {
       const last = this._lastPublishedDiagnostics.get(uri);
@@ -647,12 +831,14 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         !this.isScriptDocument(uri) &&
         last &&
         last.owner !== owner &&
-        !Object.prototype.hasOwnProperty.call(params.program.diagnostics ?? {}, uri)
+        !Object.prototype.hasOwnProperty.call(params.program.diagnostics ?? {}, uri) &&
+        !morphUris.includes(uri)
       ) {
         continue;
       }
       this.publishDiagnostics(uri, this.getDiagnostics(params.program, uri), owner);
     }
+    this.bakeProgramMorphs(params.program, owner);
     // These refreshes are workspace-wide and carry no params, so once per
     // compile is lossless. (They used to be sent inside the loop above --
     // 2 x tracked-uris redundant refresh storms per keystroke, each of which
@@ -716,6 +902,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     languageId?: string | null;
   }) {
     this._fileChanges += 1;
+    // Edited art gets new artifact keys; its old bakes only take memory.
+    this._morphService?.invalidate((entry) => entry.uri === file?.uri);
     if (
       file &&
       file.type === "script" &&
@@ -750,6 +938,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     languageId?: string | null;
   }) {
     this._fileChanges += 1;
+    this._morphService?.invalidate((entry) => entry.uri === file.uri);
     this._entryPrograms.delete(file.uri);
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);

@@ -289,6 +289,42 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
     ];
     expect(ops.some((m) => m.method === "ui/create" && m.params?.name === "hud")).toBe(false);
   });
+
+  test("a directive chain a newer connect superseded makes no later mount (#1218)", async () => {
+    // `[[open hud]] [[close hud]] [[open hud]]` runs as one chain. Its first
+    // open waits on the font; a newer connect begins; the rest of the chain
+    // belongs to the superseded stream and must not mount into the newer one.
+    const h = createHarness(hudStory("[[open hud]] [[close hud]] [[open hud]]"), 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.jumpToFlow("start");
+    const before = h.game.save() as string;
+    const beat = h.nextBeat();
+    const coordinator = new Coordinator(h.game, beat!);
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks(20);
+      coordinator.onUpdate(tick());
+    }
+    h.game.load(before);
+    void h.reconnect();
+    await flushMicrotasks(20);
+    const mark = h.messages.length;
+    await releaseFonts(h);
+
+    const after = h.messages.slice(mark);
+    const ops = [
+      ...screenOps(after),
+      ...beats(after).flatMap((b) => opsOf(b)),
+    ];
+    expect({
+      mounted: (h.game.module.ui as any)._mountedLayouts.has("hud"),
+      created: ops.some((m) => m.method === "ui/create" && m.params?.name === "hud"),
+    }).toEqual({ mounted: false, created: false });
+  });
 });
 
 const SPRITE: File = {

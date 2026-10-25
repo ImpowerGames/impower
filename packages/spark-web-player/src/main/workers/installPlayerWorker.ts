@@ -1,6 +1,7 @@
 import type { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -16,7 +17,10 @@ import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
-import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
@@ -54,6 +58,7 @@ import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
   RouteSearchLog,
+  type RouteSearchOutcome,
   type RouteSearchReportTarget,
 } from "./RouteSearchLog";
 import { searchRouteFor } from "./searchRouteTo";
@@ -510,11 +515,32 @@ export function installPlayerWorker(connection: MessageConnection) {
     simulatedProgramId?: string;
     simulationFailure?: any;
     simulationErrors?: SimulationError[];
+    /** The line whose last beat the report's route reaches, when that is not
+     *  the point asked for (`shownRoute`), and that beat's address. */
+    shownFrom?: { file: string; line: number };
+    shownAddress?: ProgramAddress;
+  };
+
+  /** What `log` holds about the address `to`, as the display and PLAY read
+   *  it. */
+  const reportOf = (
+    log: RouteSearchLog,
+    to: ProgramAddress | null | undefined,
+  ): RouteReport => {
+    const report: RouteSearchReportTarget = {};
+    log.report(report, to);
+    // The checkpoint as the log holds it, which `report` passes on only as a
+    // full save.
+    return { ...report, checkpoint: log.checkpointFor(to) };
   };
 
   /** The route to `point`'s `beat` in `entry`, with the game holding the
    *  entry's program: the search its log already holds for that path, or one
-   *  run now. */
+   *  run now. A route that displays nothing on the way to a point a run
+   *  from which displays nothing is searched for from the story's start
+   *  (`showingOutcome`). A point no route reaches whose jumped run displays
+   *  nothing answers the line above it that shows a beat
+   *  (`jumpedShownRoute`). */
   const routeTo = (
     game: Game,
     entry: DisplayableProgram,
@@ -526,19 +552,126 @@ export function installPlayerWorker(connection: MessageConnection) {
       point,
       beat,
       entry.log,
-      (searched, address) =>
-        searchRouteFor(searched, address, entry.log, {
-          config: compiler.config,
-          profilerId: compiler.profilerId,
-          remember: entry.log === routeSearches,
-        }),
+      searchIn(entry, false),
       compiler.profilerId,
     );
-    const report: RouteSearchReportTarget = {};
-    entry.log.report(report, to);
-    // The checkpoint as the log holds it, which `report` passes on only as a
-    // full save.
-    return { ...report, checkpoint: entry.log.checkpointFor(to) };
+    const outcome = showingOutcome(game, entry, to);
+    const shown =
+      outcome && !outcome.reachedTarget && !outcome.checkpoint
+        ? jumpedShownRoute(game, entry, outcome)
+        : undefined;
+    if (!shown) {
+      return reportOf(entry.log, to);
+    }
+    const log = new RouteSearchLog();
+    log.record(shown.outcome);
+    return {
+      ...reportOf(log, shown.outcome.address),
+      shownFrom: shown.point,
+      shownAddress: shown.outcome.address,
+    };
+  };
+
+  /** A route search that records what it establishes in `entry`'s log. */
+  const searchIn =
+    (entry: DisplayableProgram, fromStart: boolean) =>
+    (searched: Game, address: ProgramAddress) =>
+      searchRouteFor(searched, address, entry.log, {
+        config: compiler.config,
+        profilerId: compiler.profilerId,
+        remember: entry.log === routeSearches,
+        fromStart,
+      });
+
+  /**
+   * What `entry`'s log holds about `to`, once a route that displays nothing
+   * on the way to an address a run from which displays nothing (a `done` at
+   * the top of a scene a divert enters) has been searched for again from the
+   * story's start, whose flows before it may have left a beat on screen
+   * (#1606). The replay of a route puts that beat in its checkpoint
+   * (`Game.noteRouteTarget`). The route from the flow stands when the
+   * story's start does not reach the address.
+   */
+  const showingOutcome = (
+    game: Game,
+    entry: DisplayableProgram,
+    to: ProgramAddress | null | undefined,
+  ): RouteSearchOutcome | undefined => {
+    const outcome = entry.log.outcomeFor(to);
+    if (to == null || outcome?.shows !== false || outcome.fromStart) {
+      return outcome;
+    }
+    searchIn(entry, true)(game, to);
+    const fromStart = entry.log.outcomeFor(to);
+    if (fromStart?.reachedTarget) {
+      return fromStart;
+    }
+    entry.log.record({ ...outcome, fromStart: true });
+    return entry.log.outcomeFor(to);
+  };
+
+  /**
+   * For an address no route reaches, which the display and PLAY jump
+   * straight to: when the run jumped there displays nothing before the story
+   * ends, the nearest line above it in the same scene whose jumped run shows
+   * a beat, and what the search for that line established (#1606). No run
+   * reaches the address, so no beat was on screen when one did. Kept on the
+   * address's record, so a display or PLAY that asks again jumps nothing.
+   */
+  const jumpedShownRoute = (
+    game: Game,
+    entry: DisplayableProgram,
+    outcome: RouteSearchOutcome,
+  ): RouteSearchOutcome["shown"] => {
+    if (outcome.jumpShows !== undefined) {
+      return outcome.shown;
+    }
+    const to = outcome.address;
+    const keep = (shown: RouteSearchOutcome["shown"], jumpShows: boolean) => {
+      entry.log.record({ ...outcome, jumpShows, shown });
+      return shown;
+    };
+    if (to === TOP_LEVEL_START || game.jumpShowsBeat(to)) {
+      return keep(undefined, true);
+    }
+    const locator = programLocator(entry.program);
+    const at = locator.locationOf(to);
+    const scene = locator.sceneAt(to);
+    if (!at) {
+      return keep(undefined, false);
+    }
+    const tried = new Set<ProgramAddress>([to]);
+    for (let line = at.startLine - 1; line >= 0; line -= 1) {
+      const address = locator.addressAt(at.uri, line, { beat: "last" });
+      if (address == null || tried.has(address)) {
+        continue;
+      }
+      tried.add(address);
+      const location = locator.locationOf(address);
+      if (!location || location.startLine > line) {
+        // A line with no address of its own takes the one below it.
+        continue;
+      }
+      if (locator.sceneAt(address) !== scene) {
+        break;
+      }
+      if (!game.jumpShowsBeat(address)) {
+        continue;
+      }
+      const point = { file: at.uri, line };
+      const reached = entry.log.outcomeFor(
+        routeGameTo(
+          game,
+          point,
+          "last",
+          entry.log,
+          searchIn(entry, false),
+          compiler.profilerId,
+        ),
+      );
+      return keep(reached ? { point, outcome: reached } : undefined, false);
+    }
+    return keep(undefined, false);
   };
 
   const display = async (
@@ -579,12 +712,14 @@ export function installPlayerWorker(connection: MessageConnection) {
         updateGameProgram(game, entry.program);
       }
       const touches = gameTouches;
-      const route = routeTo(
-        game,
-        entry,
+      // A line with no address of its own and none below it shows what the
+      // line above it shows, as PLAY from it starts there (`startPoint`).
+      const shown = startPoint(
+        entry.program,
         { file: params.file, line: params.line },
         "last",
       );
+      const route = routeTo(game, entry, shown.point, shown.beat);
       displayedId = entry.id;
       releaseUnneeded();
       const stepErrors: SimulationError[] = [];
@@ -602,11 +737,12 @@ export function installPlayerWorker(connection: MessageConnection) {
       const displaying = displayPreviewFrom(game, {
         program: entry.program,
         programChanged,
-        file: params.file,
-        line: params.line,
+        file: shown.point.file,
+        line: shown.point.line,
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
+        runFrom: route.shownAddress,
         beatOnly,
         onPath: (taken) => {
           path = taken;
@@ -724,8 +860,11 @@ export function installPlayerWorker(connection: MessageConnection) {
       updateGameProgram(game, entry.program);
     }
     // PLAY from a line starts at its first beat (#721).
-    const route: RouteReport = params.startFrom
-      ? routeTo(game, entry, params.startFrom, "first")
+    const start = params.startFrom
+      ? startPoint(program, params.startFrom, "first")
+      : undefined;
+    const route: RouteReport = start
+      ? routeTo(game, entry, start.point, start.beat)
       : {};
     releaseUnneeded();
     profile("start", compiler.profilerId + " " + "play/create");
@@ -735,6 +874,13 @@ export function installPlayerWorker(connection: MessageConnection) {
       restarted: params.restarted,
     });
     profile("end", compiler.profilerId + " " + "play/create");
+    if (route.shownFrom) {
+      // A line no route reaches whose jumped run shows nothing starts at the
+      // line above it that shows a beat (`jumpedShownRoute`).
+      running.setStartFrom(route.shownFrom, "last");
+    } else if (start && start.point !== params.startFrom) {
+      running.setStartFrom(start.point, start.beat);
+    }
     const errors = player.putAtStartPoint(
       running,
       params.simulationOptions,
@@ -763,6 +909,35 @@ export function installPlayerWorker(connection: MessageConnection) {
       run: current.run,
       errors,
     };
+  };
+
+  /**
+   * The line and beat a display or PLAY of `point` routes to: the point's own
+   * `beat`. A line with no address, and none below it in its script (a
+   * scene's closing `end` at the end of the script, the blank lines after
+   * it), is where the story stands once the line above it that has one has
+   * run, so it routes to that line's last beat, whose route puts the beat on
+   * screen there in its checkpoint (#1606). With no such line above, the
+   * point stands, and a run from it starts from the top of the top-level
+   * content.
+   */
+  const startPoint = (
+    program: SparkProgram,
+    point: { file: string; line: number },
+    beat: "first" | "last",
+  ): { point: { file: string; line: number }; beat: "first" | "last" } => {
+    const locator = programLocator(program);
+    if (locator.addressAt(point.file, point.line) != null) {
+      return { point, beat };
+    }
+    for (let line = point.line - 1; line >= 0; line -= 1) {
+      const address = locator.addressAt(point.file, line, { beat: "last" });
+      const location = locator.locationOf(address);
+      if (location && location.startLine <= line) {
+        return { point: { file: point.file, line }, beat: "last" };
+      }
+    }
+    return { point, beat };
   };
 
   /** End PLAY's game, answering where it last executed: the run the page
@@ -859,10 +1034,16 @@ export function installPlayerWorker(connection: MessageConnection) {
         running.channel = channel;
         // A game STOP ends while it connects never finishes its restore:
         // what the page answers from then on is not delivered to it.
-        await Promise.race([
-          game.connect(sendFromPlay(game, channel)),
-          stopped,
+        const connected = await Promise.race([
+          game.connect(sendFromPlay(game, channel)).then(() => true),
+          stopped.then(() => false),
         ]);
+        if (connected) {
+          // The connect opened a reconcile pass on the page; its stream has
+          // gone out, so the page removes what it still shows that PLAY's
+          // restored state did not write (#1222).
+          game.module.ui.sweepReconcile();
+        }
         return {};
       });
       return;

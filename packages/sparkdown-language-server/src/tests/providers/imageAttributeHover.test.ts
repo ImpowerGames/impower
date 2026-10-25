@@ -14,7 +14,7 @@ describe("attribute directive hover", () => {
         "mia~hat": { $type: "filtered_image", $name: "mia~hat", image: { $name: "mia" }, attributes: ["hat"] },
       },
     } } as any;
-    const hover = await getHover(documents.get(uri), documents.annotations(uri), program, undefined, { line: 0, character });
+    const hover = await getHover(documents.get(uri), documents.tree(uri), documents.annotations(uri), program, undefined, { line: 0, character });
     expect(JSON.stringify(hover)).toContain("hat-layer");
   });
 });

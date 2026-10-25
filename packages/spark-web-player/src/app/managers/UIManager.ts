@@ -26,9 +26,13 @@ import {
   WriteImageMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
+import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
+import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
+import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
 import { Manager } from "../Manager";
+import { MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import {
@@ -88,6 +92,9 @@ type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
  *  is a clock out of step, not a wait. The delay before the beat's first
  *  letter comes on top. */
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+/** Counts PLAY sessions, each of which starts every portrait morph at rest. */
+let playSessions = 0;
 
 /** A beat's ops in order, each batch's ops in its place. */
 function beatOps(params: BeatParams): IMessage[] {
@@ -309,6 +316,11 @@ export default class UIManager extends Manager {
 
   override async onInit() {
     await super.onInit();
+    // The morphs ask the game this manager hears for an artifact they let go.
+    const morphs = this.morphs;
+    if (morphs) {
+      morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
+    }
     // A fresh UIManager built for a re-render inherits the prior render's overlay
     // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
     // the incoming create stream reuses them instead of duplicating.
@@ -330,6 +342,8 @@ export default class UIManager extends Manager {
     if (!content) {
       this._placeCursor.clear();
     }
+    // A target this pass empties and writes again keeps its morphs' phase.
+    this.morphs?.beginPass();
     const overlay = this.app.overlay;
     if (overlay) {
       // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
@@ -381,6 +395,7 @@ export default class UIManager extends Manager {
       }
     }
     this._staleTextTargets.clear();
+    this.morphs?.endPass();
   }
 
   /** Drop the text a target's writes left, as a `ui/write-text` carrying no
@@ -427,6 +442,7 @@ export default class UIManager extends Manager {
   protected clearImageLayers(el: HTMLElement) {
     for (const tag of ["image", "mask"]) {
       for (const contentEl of this.getContentElements(el, tag)) {
+        this.morphs?.releaseWithin(contentEl);
         contentEl.replaceChildren();
       }
     }
@@ -462,9 +478,52 @@ export default class UIManager extends Manager {
           this._staleIds.delete(childId);
         }
       });
+      this.morphs?.releaseWithin(el);
       el.remove();
     }
     this._staleIds.delete(id);
+  }
+
+  /** The overlay's live portrait morphs, which outlive this manager with its DOM. */
+  get morphs(): MorphPlayback | undefined {
+    const overlay = this.app.overlay;
+    return overlay ? MorphPlayback.for(overlay) : undefined;
+  }
+
+  // PLAY's application clock drives the morphs once it starts; a preview,
+  // which never starts, leaves them on the playback's own frames.
+  override onStart() {
+    const morphs = this.morphs;
+    morphs?.attachClock(this);
+    morphs?.setSession(`play:${++playSessions}`);
+    this._morphClockSeen = undefined;
+  }
+
+  /** The clock's elapsed time at the last update the morphs were moved by. */
+  protected _morphClockSeen?: number;
+
+  // Moved by the clock's elapsed time rather than its last frame's delta:
+  // `Application.skip` steps the morphs itself (`onSkip`) and then updates
+  // with the delta of the frame before, which elapsed time does not repeat.
+  override onUpdate(time: Clock) {
+    const elapsed = time.elapsedTime;
+    const seen = this._morphClockSeen;
+    this._morphClockSeen = elapsed;
+    if (seen !== undefined && elapsed > seen) {
+      this.morphs?.advance(elapsed - seen);
+    }
+  }
+
+  override onSkip(seconds: number) {
+    this.morphs?.step(seconds);
+  }
+
+  override onPause() {
+    this.morphs?.setPaused(true);
+  }
+
+  override onUnpause() {
+    this.morphs?.setPaused(false);
   }
 
   override onDispose() {
@@ -476,14 +535,28 @@ export default class UIManager extends Manager {
     }
     this._listeners = {};
     this._elements.clear();
+    // The morphs on the screen this leaves go on, on their own frames, until
+    // the next display replaces them; a pause was this run's.
+    const morphs = this.morphs;
+    morphs?.detachClock(this);
+    morphs?.setPaused(false);
     // A played beat still waiting for its commit belonged to the run being
     // torn down (STOP, or the rebuild a new run makes): it never goes up, and
-    // the screen stays as it is until the next display (#1820).
+    // the screen stays as it is until the next display (#1820). The engine
+    // waits on each animation it carries, so each is answered with an error.
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const pending = overlay?.__sdBeat;
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      for (const op of pending.ops) {
+        if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
+          this.app.answer(
+            op as RequestMessage,
+            Promise.reject(new Error("the beat was called off")),
+          );
+        }
+      }
     }
   }
 
@@ -1106,6 +1179,8 @@ export default class UIManager extends Manager {
       const touched: (Element | null | undefined)[] = [];
       if ((existing as any).__sdCreate !== createSignature(params)) {
         touched.push(params.content ? existing : existing.parentElement);
+      } else if ((existing as any).__sdUpdatedContent && params.content) {
+        touched.push(existing);
       }
       if (parent && existing.parentElement !== parent) {
         touched.push(existing.parentElement, parent);
@@ -1158,6 +1233,9 @@ export default class UIManager extends Manager {
     // does the going of a layout that has retired.
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
+      // A style or class the op changes can move the image a live morph
+      // stands in for without resizing its span.
+      this.morphs?.requestRelayout();
     }
     // What the op changes leaves the signatures written above it older than
     // their subtree (#1820), whichever handler below applies it.
@@ -1238,6 +1316,8 @@ export default class UIManager extends Manager {
         // Full-replace className so a reused node matches the new render exactly.
         el.className = params.name || "";
         if (params.content) {
+          // The content replaces whatever the node holds, image layers too.
+          this.morphs?.releaseWithin(el);
           el.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1302,6 +1382,19 @@ export default class UIManager extends Manager {
         // layout's faces to `document.fonts` before the layout mounts, and
         // removes them when nothing needs them any more.
         (el as any).__sdCreate = sig;
+      } else if ((el as any).__sdUpdatedContent && params.content) {
+        // An update replaced the content this unchanged create carries; only
+        // the content goes back. Style and attributes stay as the updates
+        // left them, which is what a beat-only display of the same state
+        // shows.
+        this.morphs?.releaseWithin(el);
+        el.textContent = getElementContent(params.content, {
+          breakpoints: params.breakpoints,
+          scope: "spark-web-player #game",
+        });
+      }
+      if (params.content) {
+        delete (el as any).__sdUpdatedContent;
       }
       const parent = this.getElement(params.parent);
       if (parent) {
@@ -1355,6 +1448,11 @@ export default class UIManager extends Manager {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
+          this.morphs?.releaseWithin(element);
+          // The node no longer holds the content its last create carried, so
+          // the next create of it writes that content back even when its
+          // signature is unchanged (#1223).
+          (element as any).__sdUpdatedContent = true;
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1453,9 +1551,17 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    if (MorphArtifactMessage.type.isNotification(msg)) {
+      this.morphs?.deliver(msg.params);
+      return;
+    }
     if (BeatMessage.type.isNotification(msg)) {
       this.receiveBeat(msg.params);
+      this.morphs?.requestRelayout();
       return;
+    }
+    if (msg.method.startsWith("ui/")) {
+      this.morphs?.requestRelayout();
     }
     // A screen op that arrives after a beat waiting for its commit goes up
     // after it. Messages for the page's other managers (assets, audio, the
@@ -1534,9 +1640,13 @@ export default class UIManager extends Manager {
    * Resolve a `target` selector (a className plus optional `#index`) to the
    * matching structural element(s) in the live DOM.
    *
-   * Mirrors the engine's `UIModule.findElements`: it recursively collects
-   * every element whose className includes the requested name, then (when an
-   * `#index` instance suffix is present) narrows to that single occurrence.
+   * Mirrors the engine's `UIModule.findElements`: it takes the elements whose
+   * className is the requested name, or, when there are none, every element
+   * whose className includes all of its classes, then (when an `#index`
+   * instance suffix is present) narrows to that single occurrence. The page
+   * cannot tell a layout's declared target from an author's element with the
+   * same classes, so a write the engine resolved by class names its elements
+   * and never reaches this.
    * The engine owns the `Element` tree and only forwards the original `target`
    * string, so the consumer re-resolves it here against the real DOM. (D13 may
    * later replace this with a consumer-side id→element map.)
@@ -1556,9 +1666,11 @@ export default class UIManager extends Manager {
     if (!selector) {
       return [];
     }
-    const matches = Array.from(
+    const classed = Array.from(
       overlay.querySelectorAll(selector),
     ) as HTMLElement[];
+    const named = classed.filter((el) => el.className === name);
+    const matches = named.length > 0 ? named : classed;
     if (instance) {
       const instanceIndex = Number(instance);
       if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
@@ -2021,11 +2133,9 @@ export default class UIManager extends Manager {
       if (instructions.length === 0) {
         // Clear path (the engine cleared image + mask content then set
         // display:none on the wrapper, which it still emits via ui/update).
-        for (const imageEl of imageEls) {
-          imageEl.replaceChildren();
-        }
-        for (const maskEl of maskEls) {
-          maskEl.replaceChildren();
+        for (const contentEl of [...imageEls, ...maskEls]) {
+          this.morphs?.releaseWithin(contentEl);
+          contentEl.replaceChildren();
         }
         continue;
       }
@@ -2068,6 +2178,17 @@ export default class UIManager extends Manager {
             // (`AssetManager.derivedPins`). Kept on the node, which outlives
             // this manager across a re-render.
             (newSpanEl as any).__sdSrcs = content.srcs;
+            // The morphs on its images: live in an image, the rest render in
+            // a mask. A layer built only to fade out holds still.
+            if (content.morph && instruction.control !== "hide") {
+              this.morphs?.mount(
+                newSpanEl,
+                content.morph,
+                content.background,
+                property === "mask_image" ? "mask" : "background",
+                `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
+              );
+            }
             if (instruction.control === "show") {
               // 'show' fades out + destroys the previous layers (the crossfade).
               // The engine only ever destroyed spans it had enqueued an exit
@@ -2075,6 +2196,8 @@ export default class UIManager extends Manager {
               // previous layer is faded out then destroyed.
               if (content.previousHideAnimation) {
                 for (const prevSpanEl of prevSpanEls) {
+                  // An outgoing morph holds its frame through the fade.
+                  this.morphs?.freezeWithin(prevSpanEl);
                   this.addAnimationEffects(exitEffects, prevSpanEl, [
                     content.previousHideAnimation,
                   ]);
@@ -2141,6 +2264,7 @@ export default class UIManager extends Manager {
     await Promise.all([playEffects(enterEffects), playEffects(exitEffects)]);
     // 3. destroy the faded-out previous layers
     for (const el of toDestroy) {
+      this.morphs?.releaseWithin(el);
       el.remove();
     }
   }

@@ -375,7 +375,10 @@ const storyPositions = (story: Story): StoryPositions => {
   return {
     previous: () => {
       const address = story.previousAddress;
-      return address >= 0 ? address : undefined;
+      // An `End` (a `fin`) forgets where the story stood as it ends it; the
+      // step that ran it is still a step of the route, and can reach its
+      // target.
+      return address >= 0 ? address : (story.endedAt ?? undefined);
     },
     knot: () => {
       const sequence = story.state.position?.sequence ?? null;
@@ -714,7 +717,7 @@ export interface SearchError {
  * The search runs in two phases, both breadth first.
  *
  * The first follows the program: at every condition it takes the verdict the
- * program reaches there (`pausedConditionVerdict`) and forks only at choices,
+ * program reaches there (`pausedConditionValue`) and forks only at choices,
  * which the program leaves to the player. A route it finds runs what the
  * program runs, so the line is replayed with the state the game reaches it
  * with: a loop runs its passes, a `break` leaves where the program leaves, and
@@ -982,6 +985,8 @@ const runUntilDecisionOrBranch = (
   // 1) Restore snapshot
   port.restore(node.state);
   story.state.ResetErrors();
+  // No step of this node has run, so none has ended the story.
+  story.endedAt = null;
 
   const prevPauseBeforeEvaluatingConditions =
     story.pauseBeforeEvaluatingConditions;
@@ -1237,7 +1242,7 @@ const runUntilDecisionOrBranch = (
 
       if (story.pausedBeforeCondition !== null) {
         const site = story.pausedBeforeCondition;
-        const natural = story.pausedConditionVerdict;
+        const natural = story.pausedConditionValue;
         // Pop the last encountered step,
         // because we're going to encounter it again on the next run
         stepsEncountered.pop();
@@ -1288,11 +1293,13 @@ const runUntilDecisionOrBranch = (
           continue;
         }
 
-        // Both verdicts: the favored one first, or else true, as a search
-        // that knows nothing of the program would try them. A verdict the
+        // Both verdicts: the favored one first, or else the one the program
+        // reaches, or else true. Of two routes the search can find at the
+        // same depth it then finds the one the story runs, and a beat a false
+        // condition skips is not shown on the way (#1606). A verdict the
         // program does not reach here is recorded as one the route forces.
         const first =
-          favoredConditionalValues[here.conditions.length] ?? true;
+          favoredConditionalValues[here.conditions.length] ?? natural ?? true;
         for (const value of [first, !first]) {
           const departs = natural !== null && value !== natural;
           branches.push(
@@ -1554,3 +1561,60 @@ const now = () =>
     : Date.now();
 
 const NOOP = () => {};
+
+/**
+ * Whether the story, run on from where it stands, shows something (text, a
+ * display instruction or a menu) before it ends. A run that ends, or that a
+ * runtime error ends, first shows nothing, and so does one that runs past
+ * `maxSteps`. Conditions are evaluated as the story evaluates them, with no
+ * decision forced.
+ *
+ * The story runs as a search runs it: under silent hooks, keeping no beat
+ * images. It is left where the run stopped, so the caller replaces its state
+ * before anything else reads it.
+ */
+export const showsBeatAhead = (
+  story: Story,
+  maxSteps = DEFAULT_MAX_STEPS,
+): boolean => {
+  const prevOnError = story.onError;
+  const prevOnExecute = story.onExecute;
+  const prevOnMakeChoice = story.onMakeChoice;
+  const prevOnEvaluateCondition = story.onEvaluateCondition;
+  const beatImages = story as unknown as { keepBeatImages?: boolean };
+  const prevKeepBeatImages = beatImages.keepBeatImages;
+  if (prevKeepBeatImages !== undefined) {
+    beatImages.keepBeatImages = false;
+  }
+  story.onError = NOOP;
+  story.onExecute = null;
+  story.onMakeChoice = NOOP;
+  story.onEvaluateCondition = NOOP;
+  story.stepLimit = story.stepCount + maxSteps;
+  try {
+    story.state.ResetErrors();
+    while (story.canContinue) {
+      story.Continue();
+      if (story.hasError) {
+        return false;
+      }
+      if (story.continueShowedSomething) {
+        return true;
+      }
+    }
+    return story.currentChoices.length > 0;
+  } catch {
+    // The step limit, or a failure the engine does not report as a runtime
+    // error: either way the run showed nothing.
+    return false;
+  } finally {
+    story.stepLimit = null;
+    story.onError = prevOnError;
+    story.onExecute = prevOnExecute;
+    story.onMakeChoice = prevOnMakeChoice;
+    story.onEvaluateCondition = prevOnEvaluateCondition;
+    if (prevKeepBeatImages !== undefined) {
+      beatImages.keepBeatImages = prevKeepBeatImages;
+    }
+  }
+};

@@ -497,8 +497,9 @@ export class ProgramStory implements StoryEngine {
   pausedBeforeCondition: ProgramAddress | null = null;
   /** The verdict the decision `pausedBeforeCondition` names reaches unless a
    *  simulator forces one: its condition is already on the evaluation stack.
-   *  Null when that condition is no value a decision can test. */
-  pausedConditionVerdict: boolean | null = null;
+   *  Null when the story is not paused before one, and when that condition
+   *  is no value a decision can test. */
+  pausedConditionValue: boolean | null = null;
 
   /** Every instruction this story has run. */
   stepCount = 0;
@@ -1434,7 +1435,12 @@ export class ProgramStory implements StoryEngine {
       return;
     }
     this._state.didSafeExit = false;
-    this._state.variablesState.CompleteVariableObservation();
+    // The abandoned line's writes are not announced, but they are in the
+    // state until a caller replaces it, so the state is no longer the one a
+    // reset built.
+    if (this._state.variablesState.DiscardVariableObservation()) {
+      this._stateIsPristine = false;
+    }
     this._asyncContinueActive = false;
   }
 
@@ -1496,6 +1502,13 @@ export class ProgramStory implements StoryEngine {
     this._currentBeat = null;
     this._state.DiscardLineEnd();
     this.passArguments(args);
+    // A flow entered at its start takes the host's arguments as a call gives
+    // them (`arrangeArgsFor`), nil for each parameter left out and an empty
+    // `...`, so its entry binds a value to every parameter (#664).
+    const entry = this.flowEntryTarget(target);
+    if (entry) {
+      arrangeArgsFor(this, entry, args?.length ?? 0);
+    }
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
     this.land(target.position, this._state.blockStack);
@@ -2538,10 +2551,15 @@ export class ProgramStory implements StoryEngine {
       const address = ProgramStory.addressOf(chunk, position.offset);
       if (!this.simulator?.willForceCondition(address)) {
         this.pausedBeforeCondition = address;
-        // Both decisions pop their condition first. A divert target is
-        // refused when the decision runs, so it has no verdict here.
-        const condition = state.PeekEvaluationStack();
-        this.pausedConditionVerdict =
+        // Both decisions pop their condition first, a choice only when it
+        // has one. A divert target is refused when the decision runs, so it
+        // has no verdict here.
+        const w0 = chunk[HEADER_WORDS + position.offset]!;
+        const condition =
+          opOf(w0) === Op.Choice && !(flagsOf(w0) & CHOICE_CONDITION)
+            ? null
+            : state.PeekEvaluationStack();
+        this.pausedConditionValue =
           condition instanceof Value && !(condition instanceof SymbolValue)
             ? condition.isTruthy
             : null;
@@ -2549,7 +2567,7 @@ export class ProgramStory implements StoryEngine {
       }
     }
     this.pausedBeforeCondition = null;
-    this.pausedConditionVerdict = null;
+    this.pausedConditionValue = null;
     this.stepCount++;
     if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
       throw new StepLimitExceeded();
@@ -2563,6 +2581,7 @@ export class ProgramStory implements StoryEngine {
     }
     const address = addressOf(chunkId(chunk), position.offset);
     state.previousAddress = address;
+    this.endedAt = null;
     if (this.onExecute !== null) this.onExecute(address);
     if (this.executedLog !== null) this.executedLog.push(address);
     if (state.holdsAddresses) {
@@ -3072,6 +3091,8 @@ export class ProgramStory implements StoryEngine {
         break;
       case Op.End:
         state.ForceEnd();
+        // The position has already moved past the instruction.
+        this.endedAt = this.runningAddress() ?? null;
         break;
       case Op.JumpSym:
         if (!(flags & JUMP_ARGUMENTS)) {
@@ -3606,6 +3627,35 @@ export class ProgramStory implements StoryEngine {
     packTuple(this, 0);
   }
 
+  /** What the entry of the scene or branch `target` starts binds, when the
+   *  target is the start of that flow and its entry binds parameters, or
+   *  null: the `SetVar`s its first chunk starts with, the first of which
+   *  binds the last parameter. */
+  protected flowEntryTarget(target: {
+    position: ProgramPosition;
+    symbol?: number;
+  }): FunctionTarget | null {
+    const { position, symbol } = target;
+    if (symbol === undefined) {
+      return null;
+    }
+    const kind = this.root.kindOf(symbol);
+    if (kind !== SymbolKind.Scene && kind !== SymbolKind.Branch) {
+      return null;
+    }
+    const chunk = position.sequence.arrays.chunks[0];
+    if (
+      !chunk ||
+      position.entry !== 0 ||
+      position.offset !== 0 ||
+      this.root.flow(symbol) !== position.sequence
+    ) {
+      return null;
+    }
+    const bound = entryBindings(chunk, 0);
+    return bound.bindings > 0 ? bound : null;
+  }
+
   /** A jump to a label counts too the labels written right before it with
    *  nothing between, as the object engine's did: its weave nested a label
    *  as the first content of the label before it, and a divert counts each
@@ -4002,6 +4052,10 @@ export class ProgramStory implements StoryEngine {
 
   /** The instruction the last step ran. */
   protected _running: RunningInstruction | null = null;
+
+  /** The address of the `End` the last step ran, which ended the story and
+   *  with it forgot `previousAddress`; null after any other step. */
+  endedAt: number | null = null;
 
   /** The start of the flow or label a qualified name names, the top-level
    *  content's flow as `""` or `"0"`; a position in the source is chosen

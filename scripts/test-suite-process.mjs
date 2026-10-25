@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -55,6 +56,11 @@ function unlinkOwned(file, identity) {
 const sameFile = (current, identity) => current.isFile() && identity?.isFile() && current.ino !== 0n
   && current.ino === identity.ino && current.birthtimeNs === identity.birthtimeNs
   && (process.platform === "win32" || current.dev === identity.dev);
+
+function stillOwned(file, identity) {
+  try { return sameFile(fs.lstatSync(file, { bigint: true }), identity); }
+  catch (error) { if (error.code === "ENOENT") return false; throw error; }
+}
 
 function removeGuard(file, identity) {
   if (!identity) throw new Error(`Reservation guard identity unavailable at ${file}; preserve it for inspection`);
@@ -116,13 +122,20 @@ export function vitestProcesses({ within } = {}) {
   return pids;
 }
 
-export function reservationState(record, identify = processIdentity) {
+// A supervised reservation taken before the current boot is interrupted once
+// its recorded identities are absent: no process from before a restart can
+// still run, so the tree proof its supervisor never wrote is not needed. The
+// restart is detected by the system uptime falling below the uptime recorded
+// at acquisition, which no wall-clock correction can produce. A record without
+// that uptime, or a boot that has since run longer than it, stays unknown.
+export function reservationState(record, identify = processIdentity, { uptime = os.uptime } = {}) {
   if (!record?.owner?.pid || !record.owner.start) return "unknown";
   const owner = identify(record.owner.pid);
   if (same(record.owner, owner)) return "running";
   if (record.version === 2) {
     if (owner !== null && (!owner?.pid || !owner.start)) return "unknown";
-    if (!record.supervision) return record.phase === "reserved" ? "interrupted" : "unknown";
+    const preBoot = () => Number.isFinite(record.heldUptime) && uptime() < record.heldUptime;
+    if (!record.supervision) return record.phase === "reserved" || preBoot() ? "interrupted" : "unknown";
     const expected = record.supervision;
     if (expected.reservationToken !== record.token) return "unknown";
     try {
@@ -134,6 +147,7 @@ export function reservationState(record, identify = processIdentity) {
         if (current !== null && (!current?.pid || !current.start)) return "unknown";
         if (same(original, current)) return "running";
       }
+      if (preBoot()) return "interrupted";
       // This terminal refusal was observed while the strict nonce handshake
       // could not authorize a root. A partial may-launch publication can never
       // use this shortcut, even when the coordinator did not send its nonce.
@@ -154,9 +168,10 @@ export function reservationState(record, identify = processIdentity) {
 // Serialize acquisition, recovery and release, including the reservation's
 // creation window. A transaction holds the guard only for a few synchronous
 // file operations, so a held guard is retried until `waitMs` passes. A guard
-// whose recorded owner is no longer running was abandoned inside its transaction
-// and is renamed aside; any other guard, including one whose owner identity
-// cannot be read, is never guessed away.
+// whose recorded owner is no longer running, or that stayed empty past
+// `emptyAbandonMs`, was abandoned inside its transaction and is renamed aside;
+// any other guard, including one whose owner identity cannot be read, is never
+// guessed away.
 function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false, recover = true) {
   const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
     ? storeDenied(root, error)
@@ -165,9 +180,10 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   catch (error) { throw denied(error) || error; }
   const guard = path.join(root, "guard.json");
   const deadline = Date.now() + waitMs;
-  let fd, identity, cause;
+  let identity, cause;
+  sweepCreating(root, identify);
   for (;;) {
-    try { fd = fs.openSync(guard, "wx"); break; }
+    try { identity = publishOwned(root, guard); break; }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
       if (error.code === "EEXIST" && recover && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
@@ -178,13 +194,9 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
     }
   }
   try {
-    identity = fs.fstatSync(fd, { bigint: true });
-    fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
-    fs.fsyncSync(fd);
     return action(path.join(root, "reservation.json"));
   } catch (error) { cause = error; throw error; }
   finally {
-    fs.closeSync(fd);
     try { removeGuard(guard, identity); }
     catch (error) {
       if (!cause) throw error;
@@ -194,66 +206,163 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   }
 }
 
-// Rename a guard whose recorded owner (pid and start time, the identity
-// `reservationState` compares) names no live process, keeping it as
-// `recovered-guard-<time>.json`. Returns whether the guard is gone and the
-// caller should try to take it again.
+// Guards and claims are published with their owner already written: the
+// creator writes `creating-<pid>-<start>-<id>.tmp` beside the target, then
+// hard-links it into place, which fails with EEXIST exactly as an exclusive
+// open does. The private file is removed on every path; one left by a creator
+// that died before removing it names that creator and is swept once its pid
+// and start time name no live process. Returns the published file's identity.
+const creatingName = /^creating-(\d+)-(.+)-[0-9a-f]{8}\.tmp$/;
+function publishOwned(root, file) {
+  const owner = processIdentity(process.pid);
+  const temp = path.join(root, `creating-${owner.pid}-${owner.start}-${randomUUID().slice(0, 8)}.tmp`);
+  let fd, identity;
+  try {
+    fd = fs.openSync(temp, "wx");
+    identity = fs.fstatSync(fd, { bigint: true });
+    fs.writeFileSync(fd, JSON.stringify({ owner }));
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.linkSync(temp, file);
+    return identity;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+    removeCreating(temp);
+  }
+}
+
+// Windows can refuse an unlink with EPERM or EBUSY while another reader (an
+// indexer, antivirus) has the file open. Such a refusal is retried briefly;
+// a file still left is retried at each later transaction and at exit, and
+// once this process is gone any other process's sweep removes it.
+const leftCreating = new Set();
+let exitRetry = false;
+function removeCreating(temp, retryMs = 1000) {
+  const deadline = Date.now() + retryMs;
+  for (;;) {
+    try { fs.unlinkSync(temp); leftCreating.delete(temp); return; }
+    catch (error) {
+      if (error.code === "ENOENT") { leftCreating.delete(temp); return; }
+      if (!["EPERM", "EBUSY", "EACCES"].includes(error.code) || Date.now() >= deadline) {
+        if (!exitRetry) {
+          exitRetry = true;
+          process.once("exit", () => { for (const file of [...leftCreating]) removeCreating(file, 0); });
+        }
+        leftCreating.add(temp);
+        return;
+      }
+      Atomics.wait(sleeper, 0, 0, 10);
+    }
+  }
+}
+
+// Remove private files whose creator is dead. Only names matching
+// `creatingName` are considered; a live or unidentifiable creator's file stays.
+function sweepCreating(root, identify) {
+  for (const file of [...leftCreating]) removeCreating(file, 0);
+  let names;
+  try { names = fs.readdirSync(root); } catch { return; }
+  for (const name of names) {
+    const match = creatingName.exec(name);
+    if (!match) continue;
+    const owner = { pid: Number(match[1]), start: match[2] };
+    try {
+      if (same(owner, identify(owner.pid))) continue;
+      fs.unlinkSync(path.join(root, name));
+    } catch {}
+  }
+}
+
+// This code never leaves a guard or claim empty. Checkouts still on older code
+// create one empty by an exclusive open and write its owner in the next call,
+// so their live creator leaves it empty for microseconds. An empty file this
+// much older than its last write was left by such a creator killed between the
+// two calls (or, the residual until those checkouts update, suspended there).
+export const emptyAbandonMs = 60_000;
+const claimDepth = 4;
+
+// Judge one guard or claim file: abandoned when its recorded owner (pid and
+// start time, the identity `reservationState` compares) names no live process,
+// or when it is empty and older than `emptyAbandonMs`. Returns null when the
+// file is gone, otherwise its identity and verdict. Unparseable content and
+// an unreadable process table are never evidence that the owner is gone.
+function judge(root, file, identify, admitting) {
+  let fd, identity, text;
+  try {
+    fd = fs.openSync(file, "r");
+    identity = fs.fstatSync(fd, { bigint: true });
+    text = fs.readFileSync(fd, "utf8");
+  } catch (error) {
+    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+    return error.code === "ENOENT" ? null : { identity, abandoned: false };
+  } finally { if (fd !== undefined) fs.closeSync(fd); }
+  if (text === "") return { identity, abandoned: Date.now() - Number(identity.mtimeMs) > emptyAbandonMs };
+  let owner;
+  try { owner = JSON.parse(text)?.owner; } catch { return { identity, abandoned: false }; }
+  if (!owner?.pid || !owner.start) return { identity, abandoned: false };
+  try { return { identity, abandoned: !same(owner, identify(owner.pid)) }; }
+  catch { return { identity, abandoned: false }; }
+}
+
+// Rename `file` aside as `<prefix>-<time>.json` if it is still the generation
+// `identity`. Callers hold the exclusive claim that alone may move it, and its
+// owner is dead or never wrote itself, so nothing else replaces it in between.
+function setAside(root, file, identity, prefix, admitting) {
+  try {
+    if (!sameFile(fs.lstatSync(file, { bigint: true }), identity)) return false;
+    const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
+    fs.renameSync(file, path.join(root, `${prefix}-${stamp}-${randomUUID().slice(0, 8)}.json`));
+    return true;
+  } catch (error) {
+    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+    return error.code === "ENOENT";
+  }
+}
+
+// Take the exclusive claim `file` and run `action` under it, returning its
+// result, or false when the claim is held. A claim abandoned by a recoverer
+// that died inside it is set aside under a takeover claim named after that
+// claim's own file identity. Only one process can hold the takeover for a
+// given generation, and a dead or never-written owner cannot remove it, so the
+// generation the takeover holder verified is the one it renames. Takeover
+// claims nest the same way, to a fixed depth, if their holders die too; a
+// takeover left after its claim was set aside names a generation that no
+// longer exists and is never consulted again.
+function withClaim(root, file, identify, admitting, action, depth = 0) {
+  let identity;
+  for (let attempt = 0; identity === undefined; attempt++) {
+    try { identity = publishOwned(root, file); }
+    catch (error) {
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      if (error.code !== "EEXIST" || attempt > 0 || depth >= claimDepth) return false;
+      const held = judge(root, file, identify, admitting);
+      if (held && !held.abandoned) return false;
+      if (held) {
+        const takeover = path.join(root, `${path.basename(file, ".json")}-${held.identity.ino}-${held.identity.birthtimeNs}.json`);
+        if (!withClaim(root, takeover, identify, admitting, () => setAside(root, file, held.identity, "recovered-claim", admitting), depth + 1)) return false;
+      }
+    }
+  }
+  try { return action(); }
+  finally { if (stillOwned(file, identity)) fs.unlinkSync(file); }
+}
+
+// Rename an abandoned guard (see `judge`) aside as `recovered-guard-<time>.json`.
+// Returns whether the guard is gone and the caller should try to take it again.
 //
-// The read, the identity check and the rename run under an exclusive
+// The read, the judgment and the rename run under the exclusive
 // `guard-recovery.json` claim, so two recoverers cannot both judge the same
 // abandoned guard. Normal transactions may still finish and replace the guard
-// during the process lookup: verify the same file generation AFTER proving its
-// owner dead. That dead owner can no longer remove it, and the claim excludes
-// other recoverers, so no legitimate remover can change it before rename.
-// A claim left by a recoverer
-// that died inside it is never guessed away: no guard is recovered until it is
-// inspected, which is how every abandoned guard behaved before recovery existed.
+// during the process lookup: `setAside` verifies the same file generation
+// AFTER the judgment. An abandoned guard's owner can no longer remove it, and
+// the claim excludes other recoverers, so nothing changes it before rename.
 function recoverAbandonedGuard(root, guard, identify, admitting = false) {
-  const claim = path.join(root, "guard-recovery.json");
-  let fd;
-  try { fd = fs.openSync(claim, "wx"); }
-  catch (error) {
-    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-    return false;
-  }
-  try {
-    // Recorded for the inspector of an abandoned claim; nothing reads it back.
-    try {
-      fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
-      fs.fsyncSync(fd);
-    } catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return false;
-    }
-    let owner, identity, guardFd;
-    try {
-      guardFd = fs.openSync(guard, "r");
-      identity = fs.fstatSync(guardFd, { bigint: true });
-      owner = JSON.parse(fs.readFileSync(guardFd, "utf8"))?.owner;
-    }
-    catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return error.code === "ENOENT";
-    } finally { if (guardFd !== undefined) fs.closeSync(guardFd); }
-    if (!owner?.pid || !owner.start) return false;
-    // An unreadable process table is not evidence that the owner is gone.
-    let current;
-    try { current = identify(owner.pid); }
-    catch { return false; }
-    if (same(owner, current)) return false;
-    try { if (!sameFile(fs.lstatSync(guard, { bigint: true }), identity)) return false; }
-    catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return error.code === "ENOENT";
-    }
-    const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
-    try { fs.renameSync(guard, path.join(root, `recovered-guard-${stamp}-${randomUUID().slice(0, 8)}.json`)); }
-    catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      return error.code === "ENOENT";
-    }
-    return true;
-  } finally { fs.closeSync(fd); fs.unlinkSync(claim); }
+  return withClaim(root, path.join(root, "guard-recovery.json"), identify, admitting, () => {
+    const held = judge(root, guard, identify, admitting);
+    if (!held) return true;
+    return held.abandoned && setAside(root, guard, held.identity, "recovered-guard", admitting);
+  });
 }
 
 const guardWaitMs = 5000;
@@ -305,11 +414,11 @@ const elapsedSince = (value, now) => {
 
 // `admitWaitMs` bounds only the acquiring transaction's guard wait, so a caller
 // with a deadline can keep it inside that deadline; release keeps the full bound.
-export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, supervised = false } = {}) {
+export function acquire(run, { root = machineRoot, identify = processIdentity, uptime = os.uptime, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, supervised = false } = {}) {
   return guarded(root, file => {
     if (fs.existsSync(file)) {
       const previous = read(file);
-      const state = reservationState(previous, identify);
+      const state = reservationState(previous, identify, { uptime });
       const observedAt = Date.now();
       if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`), {
         holder: { run: previous.run, phase: previous.phase, attempt: previous.attempt,
@@ -327,7 +436,7 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
     const existing = census();
     if (existing.length) throw new Error(`Vitest processes already running: ${existing.join(", ")}`);
     const record = { ...(supervised ? { version: 2 } : {}), token: randomUUID(), owner: identify(process.pid), run,
-      heldSince: new Date().toISOString(), phase: "reserved" };
+      heldSince: new Date().toISOString(), heldUptime: uptime(), phase: "reserved" };
     if (!record.owner) throw new Error("Coordinator identity unavailable");
     atomic(file, record, { admissionRoot: root });
     const update = (values) => {

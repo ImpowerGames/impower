@@ -166,7 +166,7 @@ The continue stops when:
 - the output ends in a newline outside a capture (a line was written: `display` writes its table and then a newline),
 - the story can no longer continue (`canContinue` is false: a `Done` that stops the flow, an `End`, the end of content, or choices raised),
 - a `StoryException` is raised (it becomes an error that `onError` receives), or
-- `pauseBeforeEvaluatingConditions` is set and the next instruction is a decision (a `JumpIfFalse` or `Choice` with the decision flag); `pausedBeforeCondition` names its address and `pausedConditionVerdict` the verdict the decision reaches unforced (its condition is already on the evaluation stack). The route planner uses this together with `simulator`, which forces a decision's verdict.
+- `pauseBeforeEvaluatingConditions` is set and the next instruction is a decision (a `JumpIfFalse` or `Choice` with the decision flag); `pausedBeforeCondition` names its address and `pausedConditionValue` the verdict the decision reaches unforced (its condition is already on the evaluation stack). The route planner uses this together with `simulator`, which forces a decision's verdict.
 
 What happens around the loop:
 

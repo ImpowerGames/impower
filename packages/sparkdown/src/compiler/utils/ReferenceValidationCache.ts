@@ -2,12 +2,15 @@ import type { DiagnosticSeverity } from "../types/SparkDiagnostic";
 
 /** What validating one reference produced, at offsets relative to a start the
  *  holder names (its chunk's, or its own): a diagnostic, a color annotation,
- *  or both. */
+ *  a declared name, or a combination. */
 export interface ReferenceOutcome {
   from: number;
   to: number;
   diagnostic?: { severity: DiagnosticSeverity; message: string };
   color?: boolean;
+  /** A name the range spells that the program declares as an asset, so the
+   *  resolver's report that no variable has that name does not hold there. */
+  declared?: string;
 }
 
 /** The entries of the context a validation read that the context's

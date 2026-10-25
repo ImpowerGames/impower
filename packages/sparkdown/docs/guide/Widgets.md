@@ -29,6 +29,8 @@ depending on the control.
 A widget's quoted content, when given, is its **label**: `slider "Master Volume"`
 labels the slider.
 
+A style class on a labelled widget styles the control, not its label, so hide a labelled widget with `#displayed` or an `if` block rather than with a class.
+
 ---
 
 ## 5.2 Button & link

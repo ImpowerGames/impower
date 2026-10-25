@@ -78,7 +78,7 @@ A union at the comparison sites is blocked by the shape of the data: `program.co
 
 ### CSS property names in the Sparkle style transformer
 
-`STYLE_TRANSFORMERS` in `packages/sparkle-style-transformer/src/constants/` is an object literal keyed by property name, so `keyof typeof STYLE_TRANSFORMERS` is available with no data change. The names arrive at runtime from user-written style blocks, so a union cannot check the input; it can check the two alias tables, `STYLE_ALIASES` and `CSS_ALIASES`, whose values name transformer keys and would silently stop working if a transformer were renamed. One already has: `CSS_ALIASES` maps `clip-path` to `clip`, and there is no `clip` transformer. Recommendation: declare a `StylePropertyName` union from the transformer keys and mark both alias tables `satisfies Record<string, StylePropertyName>`, which surfaces that alias on the first compile. Cost: an hour.
+`STYLE_TRANSFORMERS` in `packages/sparkle-style-transformer/src/constants/` is an object literal keyed by property name, so `keyof typeof STYLE_TRANSFORMERS` is available with no data change. The names arrive at runtime from user-written style blocks, so a union cannot check the input; it can check the two alias tables, `STYLE_ALIASES` and `CSS_ALIASES`, whose values name transformer keys and would silently stop resolving their values if a transformer were renamed. Recommendation: declare a `StylePropertyName` union from the transformer keys and mark both alias tables `satisfies Record<string, StylePropertyName>`. Cost: an hour.
 
 ## Type or script
 

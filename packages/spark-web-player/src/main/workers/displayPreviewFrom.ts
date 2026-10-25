@@ -32,7 +32,11 @@ export interface DisplayingGame {
   /** Why a display at `cursor` must connect, or null when it can be
    *  beat-only, as far as the game knows (#657). */
   beatOnlyRefusal?(cursor: ProgramAddress | null | undefined): string | null;
-  preview(file: string, line: number): Promise<ProgramAddress | null>;
+  preview(
+    file: string,
+    line: number,
+    runFrom?: ProgramAddress,
+  ): Promise<ProgramAddress | null>;
   module: { ui: { forgetDisplayedImages(): void; sweepReconcile(): void } };
 }
 
@@ -56,6 +60,9 @@ export interface DisplayRequest {
    *  save. */
   checkpoint?: string | StoredCheckpoint;
   simulationFailure?: SimulationFailure;
+  /** Where a display with no route runs from, when not the point's own
+   *  address (`Game.preview`). */
+  runFrom?: ProgramAddress;
   /** Whether the worker lets the display be beat-only (#657): `true`, or
    *  the reason it does not (`classifyDisplay`). Absent, it connects. */
   beatOnly?: true | string;
@@ -147,7 +154,11 @@ export async function displayPreviewFrom(
   }
   // The preview waits for the beat's pictures before it writes the beat, so
   // the sweep waits for the preview.
-  await game.preview(validPreviewFrom.file, validPreviewFrom.line);
+  await game.preview(
+    validPreviewFrom.file,
+    validPreviewFrom.line,
+    request.runFrom,
+  );
   if (superseded()) {
     return false;
   }
