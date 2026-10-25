@@ -168,6 +168,23 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(previewedStore(src, 12, "total")).toBe(16);
   }, 120_000);
 
+  test("a long loop runs every pass", () => {
+    const src = [
+      "store total = 0",
+      "",
+      "-> main",
+      "",
+      "scene main",
+      "  for i = 1, 2000 do",
+      "    total += 1",
+      "  end",
+      "  The loop counted {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 9, "total")).toBe(2000);
+  }, 120_000);
+
   test("a for loop at story scope", () => {
     const src = [
       "store x = 0",
@@ -281,6 +298,67 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       to,
       undefined,
       { maxNodes: 200 },
+    );
+    expect(route?.steps.at(-1)?.address).toBe(to);
+    expect(route?.conditions.map((c) => c.selected)).toEqual([true]);
+  }, 120_000);
+
+  test("menus after a loop leave the loop's writes in place", () => {
+    const src = [
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  for i = 1, 3 do",
+      "    total += i",
+      "  end",
+      "  Middle beat.",
+      "  Another middle beat.",
+      "  if total > 0 then",
+      "    choose",
+      "    + [Only 0]",
+      "      Picked.",
+      "    end",
+      "    choose",
+      "    + [Only 1]",
+      "      Picked.",
+      "    end",
+      "  end",
+      "  Target total {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 19, "total")).toBe(6);
+  }, 120_000);
+
+  test("a branch the program skips is reached beside a loop that works hard and never ends", () => {
+    const src = [
+      "store flag = false",
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  if flag then",
+      "    Target branch.",
+      "  else",
+      "    while true do",
+      "      & table.foreachi(table.create(10000, 1), function(k, v) total += v end)",
+      "    end",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const lines = src.split("\n");
+    const program = compileSrc(src);
+    const game: any = newGame(program);
+    game.setStartFrom({
+      file: URI,
+      line: lines.findIndex((l) => l.includes("Target branch.")),
+    });
+    const to = game.startAddress;
+    const route = Game.planRoute(
+      game.story,
+      program as any,
+      game.routeStartOf(to),
+      to,
     );
     expect(route?.steps.at(-1)?.address).toBe(to);
     expect(route?.conditions.map((c) => c.selected)).toEqual([true]);
