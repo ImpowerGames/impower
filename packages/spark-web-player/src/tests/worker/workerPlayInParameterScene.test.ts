@@ -1,0 +1,128 @@
+// PLAY and the preview inside a scene that takes parameters (I-1608). A
+// line inside the scene starts as the run that reaches it stands there, with
+// the arguments the divert that enters the scene passes; a scene no run
+// reaches binds nil for each parameter (#664). The story saves either way.
+import { describe, expect, it } from "vitest";
+import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
+
+const ONE = `-> s(10)
+
+scene s(a)
+  First {a}.
+  Second {a}.
+end
+`;
+
+const TWO = `store keep = function() return 0 end
+-> s(10, 0)
+
+scene s(a, b)
+  & keep = function() return a end
+  First {a} {keep()}.
+  Second {a} {keep()}.
+end
+`;
+
+// No divert enters the scene.
+const UNREACHED = `Top.
+
+scene s(a)
+  First {a}.
+end
+`;
+
+/** PLAY `source` from `line` (zero-based) and a second of frames; answers
+ *  what the run showed and whether the story it plays saves and loads. */
+const playFrom = async (source: string, line: number) => {
+  const h = await createPlayerHarness({
+    files: [{ uri: MAIN_URI, text: source }],
+    startFrom: { file: MAIN_URI, line },
+    manualClock: true,
+  });
+  const win = h.overlay.ownerDocument.defaultView as any;
+  win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+  try {
+    await h.compile();
+    await h.select(line);
+    await settle(40);
+    const sentBefore = h.toRouter.length;
+    const started = await h.controller.startGameAndApp();
+    await settle(40);
+    await h.tick(1000 / 60, 60);
+    const story = h.playing()?.programStory;
+    const save = story?.toSave();
+    const session = story?.state.ToJson();
+    const outcome = {
+      started,
+      state: h.playing()?.state,
+      exited: h.toEditor
+        .filter((m) => m.method === "game/exited")
+        .map((m) => m.params?.reason),
+      text: writtenText(h.toRouter.slice(sentBefore)),
+      saved: typeof save === "string" || (save != null && typeof save === "object"),
+      session: typeof session === "string" ? session : undefined,
+    };
+    await h.controller.destroyGameAndApp();
+    return outcome;
+  } finally {
+    h.dispose();
+  }
+};
+
+/** The text the first preview of `source` at `line` (zero-based) writes. */
+const previewAt = async (source: string, line: number) => {
+  const h = await createPlayerHarness({
+    files: [{ uri: MAIN_URI, text: source }],
+    startFrom: { file: MAIN_URI, line },
+  });
+  try {
+    await h.compile();
+    await h.select(line);
+    await settle(40);
+    return writtenText(h.toRouter);
+  } finally {
+    h.dispose();
+  }
+};
+
+describe("PLAY inside a scene a divert enters with arguments", () => {
+  it.each([
+    // The control: the divert's own line.
+    ["the divert", ONE, 0, "First 10."],
+    ["the scene's first line", ONE, 3, "First 10."],
+    ["the scene's second line", ONE, 4, "Second 10."],
+    ["a line that reads two parameters", TWO, 5, "First 10 10."],
+    ["the next line that reads them", TWO, 6, "Second 10 10."],
+  ])("from %s, runs with the divert's arguments", async (_name, source, line, shown) => {
+    const outcome = await playFrom(source, line);
+    expect(outcome.started).toBe(true);
+    expect(outcome.exited).toEqual([]);
+    expect(outcome.state).toBe("running");
+    expect(outcome.text).toContain(shown);
+    expect(outcome.text).not.toContain("nil");
+    // The story PLAY started saves (#664, #1204).
+    expect(outcome.saved).toBe(true);
+    expect(outcome.session).toBeDefined();
+  }, 120_000);
+
+  it("from a scene no run reaches, binds nil and still saves", async () => {
+    const outcome = await playFrom(UNREACHED, 3);
+    expect(outcome.started).toBe(true);
+    expect(outcome.state).toBe("running");
+    expect(outcome.text).toContain("First nil.");
+    expect(outcome.saved).toBe(true);
+    expect(outcome.session).toBeDefined();
+  }, 120_000);
+});
+
+describe("the preview inside a scene a divert enters with arguments", () => {
+  it.each([
+    [ONE, 3, "First 10."],
+    [ONE, 4, "Second 10."],
+    [TWO, 5, "First 10 10."],
+  ])("at line %#, shows the divert's arguments", async (source, line, shown) => {
+    const text = await previewAt(source, line);
+    expect(text).toContain(shown);
+    expect(text).not.toContain("nil");
+  }, 120_000);
+});

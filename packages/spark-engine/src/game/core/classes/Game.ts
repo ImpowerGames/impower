@@ -1992,6 +1992,26 @@ export class Game<T extends M = {}> {
       | "resumeFrom"
     >,
   ) {
+    // A scene that takes parameters binds the arguments the divert that
+    // enters it passes, which a route from the scene's top has none of: it
+    // binds nil for each (#664). So a route from the story's start, through
+    // that divert, is tried first, and the scene's own route stands only
+    // when no run from the start reaches the target (#1608). A resumed
+    // search continues a route from the scene's top, the one that stood.
+    const withArguments =
+      from !== "0" && !budget?.resumeFrom && story.takesParameters(from);
+    if (withArguments) {
+      const route = Game.planRouteFromStart(
+        story,
+        program,
+        to,
+        simulationOptions,
+        budget,
+      );
+      if (route) {
+        return route;
+      }
+    }
     // Plan a route from the top of the flow the target stands in, to the
     // target itself.
     const route = planRoute(story, from, to, {
@@ -2004,6 +2024,7 @@ export class Game<T extends M = {}> {
     if (
       route ||
       from === "0" ||
+      withArguments ||
       budget?.resumeFrom ||
       lastSearchStats.endReason !== "exhausted"
     ) {
