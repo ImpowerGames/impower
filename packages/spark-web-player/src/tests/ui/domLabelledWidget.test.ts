@@ -7,12 +7,32 @@
 //
 // The lock: `interactable = false` on the widget sets the label's
 // pointer-events, and the control inherits it through its builtin style. That
-// rule has to outrank the opt-ins that set `pointer-events: auto` on a control,
-// such as the tooltip rule, or a locked checkbox with a tooltip toggles on
-// click.
+// rule follows the control's own `pointer-events: auto` at the same
+// specificity, so it wins over it while an author's `> control` rule and
+// `@disabled` still win over it; and the tooltip opt-in leaves a `control`
+// alone, or a locked checkbox with a tooltip would toggle on click. jsdom has
+// no cascade for nested rules, so these tests pin the emitted rules; the
+// rendered lock is checked in the browser.
 
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
+
+async function builtinCss(source: string): Promise<string> {
+  const h = createDOMHarness(source, 0, { autoOpenAll: true });
+  await h.ready;
+  await flushMicrotasks(20);
+  return [...h.overlay.querySelectorAll("style")]
+    .map((s) => s.textContent ?? "")
+    .join("\n");
+}
+
+/** A top-level rule's body, up to its closing brace at column 0. */
+function ruleBody(css: string, selector: string): string | undefined {
+  const start = css.indexOf(`spark-web-player #game ${selector} {\n`);
+  if (start < 0) return undefined;
+  const end = css.indexOf("\n}", start);
+  return css.slice(start, end);
+}
 
 describe("labelled input widgets in the page", () => {
   test("a widget's name finds it labelled or bare alike", async () => {
@@ -38,33 +58,37 @@ end
     expect((h.ui as any).findTargetElements("slider")).toEqual([label, bare]);
   });
 
-  test("an enabled control inherits its label's lock over a tooltip's opt-in", async () => {
-    const h = createDOMHarness(
-      `layout main with
+  test("each control style hands its label's pointer to the control last", async () => {
+    const css = await builtinCss(`layout main with
   checkbox "Locked" #interactable=false #tooltip="Help"
 end
-`,
-      0,
-      { autoOpenAll: true },
-    );
-    await h.ready;
-    await flushMicrotasks(20);
-    const css = [...h.overlay.querySelectorAll("style")]
-      .map((s) => s.textContent ?? "")
-      .join("\n");
-    // The tooltip opt-in is `.layouts [data-tooltip]`, two classes' worth.
-    // Each control style's label rule hands the lock to an enabled control at
-    // three classes' worth (`.checkbox > .control:enabled`), so it wins.
+`);
     for (const name of ["checkbox", "radio", "switch", "input", "slider"]) {
-      const rule = css.match(
-        new RegExp(
-          `spark-web-player #game \\.${name} \\{\\n  &:where\\(label\\) \\{[\\s\\S]*?\\n  \\}`,
-        ),
+      const body = ruleBody(css, `.${name}`);
+      expect(body, name).toBeDefined();
+      const own = body!.indexOf("&:where(:not(label)), >:where(.control) {");
+      const inherit = body!.indexOf(
+        "  >:where(.control) {\n    pointer-events: inherit;",
       );
-      expect(rule, name).not.toBeNull();
-      expect(rule![0], name).toMatch(
-        />\.control:enabled \{\s*pointer-events: inherit;/,
-      );
+      expect(own, name).toBeGreaterThan(0);
+      // After the control's own `pointer-events: auto`, at the same
+      // specificity, so it wins over it.
+      expect(inherit, name).toBeGreaterThan(own);
     }
+  });
+
+  test("the tooltip opt-in leaves a labelled widget's control to its label", async () => {
+    const css = await builtinCss(`layout main with
+  checkbox "Locked" #interactable=false #tooltip="Help"
+end
+`);
+    const layouts = ruleBody(css, ".layouts");
+    expect(layouts).toBeDefined();
+    const tooltip = layouts!.slice(layouts!.indexOf("& [data-tooltip] {"));
+    const optIn = tooltip.match(/&:where\(:not\(\.control\)\) \{\s*pointer-events: auto;/);
+    expect(optIn, tooltip.slice(0, 400)).not.toBeNull();
+    // The opt-in is not also stated for every tooltip element.
+    const head = tooltip.slice(0, tooltip.indexOf("&:where(:not(.control))"));
+    expect(head).not.toMatch(/pointer-events: auto;/);
   });
 });

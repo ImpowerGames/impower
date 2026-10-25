@@ -297,9 +297,6 @@ exports[`style > authored style block content payload 1`] = `
         "width": "1.25rem",
       },
       "&:where(label)": {
-        "> control@enabled": {
-          "pointer_events": "inherit",
-        },
         "align_items": "center",
         "align_self": "flex-start",
         "cursor": "pointer",
@@ -309,6 +306,9 @@ exports[`style > authored style block content payload 1`] = `
         "margin-bottom": "0.375rem",
         "pointer_events": "auto",
         "text-weight": "400",
+      },
+      "> :where(.control)": {
+        "pointer_events": "inherit",
       },
     },
     "choice": {
@@ -869,13 +869,13 @@ exports[`style > authored style block content payload 1`] = `
         "> control": {
           "margin-top": "0.25rem",
         },
-        "> control@enabled": {
-          "pointer_events": "inherit",
-        },
         "margin-bottom": "0.375rem",
         "pointer_events": "auto",
         "text-weight": "400",
         "width": "100%",
+      },
+      "> :where(.control)": {
+        "pointer_events": "inherit",
       },
     },
     "inserted": {
@@ -942,6 +942,9 @@ exports[`style > authored style block content payload 1`] = `
       "$name": "layouts",
       "$type": "style",
       "& >> #tooltip": {
+        "&:where(:not(.control))": {
+          "pointer_events": "auto",
+        },
         "@after": {
           "background-color": "transparent",
           "border-left-color": "transparent",
@@ -997,7 +1000,6 @@ exports[`style > authored style block content payload 1`] = `
           "animation-name": "tooltip_slide",
           "opacity": "1",
         },
-        "pointer_events": "auto",
         "position": "relative",
       },
       "& >> @busy": {
@@ -1427,9 +1429,6 @@ exports[`style > authored style block content payload 1`] = `
         "width": "1.25rem",
       },
       "&:where(label)": {
-        "> control@enabled": {
-          "pointer_events": "inherit",
-        },
         "align_items": "center",
         "align_self": "flex-start",
         "cursor": "pointer",
@@ -1439,6 +1438,9 @@ exports[`style > authored style block content payload 1`] = `
         "margin-bottom": "0.375rem",
         "pointer_events": "auto",
         "text-weight": "400",
+      },
+      "> :where(.control)": {
+        "pointer_events": "inherit",
       },
     },
     "row": {
@@ -1535,13 +1537,13 @@ exports[`style > authored style block content payload 1`] = `
         "> control": {
           "margin-top": "0.25rem",
         },
-        "> control@enabled": {
-          "pointer_events": "inherit",
-        },
         "margin-bottom": "0.375rem",
         "pointer_events": "auto",
         "text-weight": "400",
         "width": "100%",
+      },
+      "> :where(.control)": {
+        "pointer_events": "inherit",
       },
     },
     "small": {
@@ -1645,9 +1647,6 @@ exports[`style > authored style block content payload 1`] = `
         "width": "2.25rem",
       },
       "&:where(label)": {
-        "> control@enabled": {
-          "pointer_events": "inherit",
-        },
         "align_items": "center",
         "align_self": "flex-start",
         "cursor": "pointer",
@@ -1657,6 +1656,9 @@ exports[`style > authored style block content payload 1`] = `
         "margin-bottom": "0.375rem",
         "pointer_events": "auto",
         "text-weight": "400",
+      },
+      "> :where(.control)": {
+        "pointer_events": "inherit",
       },
     },
     "table": {
@@ -3376,9 +3378,6 @@ exports[`style > style + variables construction stream 1`] = `
               "width": "1.25rem",
             },
             "&:where(label)": {
-              "> control@enabled": {
-                "pointer_events": "inherit",
-              },
               "align_items": "center",
               "align_self": "flex-start",
               "cursor": "pointer",
@@ -3388,6 +3387,9 @@ exports[`style > style + variables construction stream 1`] = `
               "margin-bottom": "0.375rem",
               "pointer_events": "auto",
               "text-weight": "400",
+            },
+            "> :where(.control)": {
+              "pointer_events": "inherit",
             },
           },
           "choice": {
@@ -3948,13 +3950,13 @@ exports[`style > style + variables construction stream 1`] = `
               "> control": {
                 "margin-top": "0.25rem",
               },
-              "> control@enabled": {
-                "pointer_events": "inherit",
-              },
               "margin-bottom": "0.375rem",
               "pointer_events": "auto",
               "text-weight": "400",
               "width": "100%",
+            },
+            "> :where(.control)": {
+              "pointer_events": "inherit",
             },
           },
           "inserted": {
@@ -4021,6 +4023,9 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "layouts",
             "$type": "style",
             "& >> #tooltip": {
+              "&:where(:not(.control))": {
+                "pointer_events": "auto",
+              },
               "@after": {
                 "background-color": "transparent",
                 "border-left-color": "transparent",
@@ -4076,7 +4081,6 @@ exports[`style > style + variables construction stream 1`] = `
                 "animation-name": "tooltip_slide",
                 "opacity": "1",
               },
-              "pointer_events": "auto",
               "position": "relative",
             },
             "& >> @busy": {
@@ -4506,9 +4510,6 @@ exports[`style > style + variables construction stream 1`] = `
               "width": "1.25rem",
             },
             "&:where(label)": {
-              "> control@enabled": {
-                "pointer_events": "inherit",
-              },
               "align_items": "center",
               "align_self": "flex-start",
               "cursor": "pointer",
@@ -4518,6 +4519,9 @@ exports[`style > style + variables construction stream 1`] = `
               "margin-bottom": "0.375rem",
               "pointer_events": "auto",
               "text-weight": "400",
+            },
+            "> :where(.control)": {
+              "pointer_events": "inherit",
             },
           },
           "row": {
@@ -4614,13 +4618,13 @@ exports[`style > style + variables construction stream 1`] = `
               "> control": {
                 "margin-top": "0.25rem",
               },
-              "> control@enabled": {
-                "pointer_events": "inherit",
-              },
               "margin-bottom": "0.375rem",
               "pointer_events": "auto",
               "text-weight": "400",
               "width": "100%",
+            },
+            "> :where(.control)": {
+              "pointer_events": "inherit",
             },
           },
           "small": {
@@ -4724,9 +4728,6 @@ exports[`style > style + variables construction stream 1`] = `
               "width": "2.25rem",
             },
             "&:where(label)": {
-              "> control@enabled": {
-                "pointer_events": "inherit",
-              },
               "align_items": "center",
               "align_self": "flex-start",
               "cursor": "pointer",
@@ -4736,6 +4737,9 @@ exports[`style > style + variables construction stream 1`] = `
               "margin-bottom": "0.375rem",
               "pointer_events": "auto",
               "text-weight": "400",
+            },
+            "> :where(.control)": {
+              "pointer_events": "inherit",
             },
           },
           "table": {

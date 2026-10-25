@@ -1272,7 +1272,13 @@ style layouts with
     -- pointer by default (see spark-web-player.css), so carrying `#tooltip`
     -- has to opt the element IN -- otherwise the bubble is styled perfectly
     -- and simply never appears.
-    pointer_events = auto
+    --
+    -- Except the `control` inside a labelled widget: it takes the pointer
+    -- from its label, so a widget locked with `interactable = false` stays
+    -- locked when its control carries a tooltip.
+    &:where(:not(.control)) {
+      pointer_events = auto
+    }
     -- BUBBLE.
     @before {
       content = attr(data-tooltip)
@@ -1784,15 +1790,18 @@ end
 //   a label sized to its text would shrink the slider to the width of its
 //   wording. A checkbox, radio or switch is one row, the control first and its
 //   wording beside it, shrunk to its content so only the two are a hit target.
-//   An enabled control inherits the label's pointer setting, so
-//   `interactable = false` on the widget reaches its control. That rule is
-//   specific enough to outrank the opt-ins that set `pointer_events = auto`,
-//   such as a `#tooltip`.
 // - `&:where(:not(label)), > :where(.control)` is the control itself, bare or
 //   inside the label. The variant classes (`search`, `file_input`, `invalid`,
 //   `valid`) use the same pair. Both selectors sit in `:where`, so every rule,
 //   states included, keeps the specificity of the plain class and an author's
 //   own rule for the same name still wins.
+// - `> :where(.control)`, last, hands the label's pointer setting to the
+//   control, so `interactable = false` on the widget, as a prop or a class,
+//   reaches it. It follows the control's own `pointer_events = auto` so it
+//   wins over it at the same specificity, while `@disabled` and an author's
+//   own `> control` rule still win over it. The engine and the tooltip rule
+//   in `style layouts` leave such a control's pointer to its label for the
+//   same reason.
 style checkbox with
   &:where(label) {
     pointer_events = auto
@@ -1804,9 +1813,6 @@ style checkbox with
     align_self = flex-start
     gap = 0.5rem
     cursor = pointer
-    > control@enabled {
-      pointer_events = inherit
-    }
   }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
@@ -1843,6 +1849,9 @@ style checkbox with
       pointer-events = none
     }
   }
+  > :where(.control) {
+    pointer_events = inherit
+  }
 end
 
 // `input` is the generic form control (`input #type="email|search|date|…"`).
@@ -1868,9 +1877,6 @@ style input with
     width = 100%
     > control {
       margin-top = 0.25rem
-    }
-    > control@enabled {
-      pointer_events = inherit
     }
   }
   &:where(:not(label)), > :where(.control) {
@@ -1952,6 +1958,9 @@ style input with
       shadow = none
     }
   }
+  > :where(.control) {
+    pointer_events = inherit
+  }
 end
 
 style radio with
@@ -1965,9 +1974,6 @@ style radio with
     align_self = flex-start
     gap = 0.5rem
     cursor = pointer
-    > control@enabled {
-      pointer_events = inherit
-    }
   }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
@@ -1996,6 +2002,9 @@ style radio with
       pointer-events = none
     }
   }
+  > :where(.control) {
+    pointer_events = inherit
+  }
 end
 
 // A `switch` is a checkbox carrying role="switch". Pico draws it as a pill
@@ -2013,9 +2022,6 @@ style switch with
     align_self = flex-start
     gap = 0.5rem
     cursor = pointer
-    > control@enabled {
-      pointer_events = inherit
-    }
   }
   &:where(:not(label)), > :where(.control) {
     pointer_events = auto
@@ -2058,6 +2064,9 @@ style switch with
       cursor = not-allowed
       pointer-events = none
     }
+  }
+  > :where(.control) {
+    pointer_events = inherit
   }
 end
 
@@ -2109,9 +2118,6 @@ style slider with
     width = 100%
     > control {
       margin-top = 0.25rem
-    }
-    > control@enabled {
-      pointer_events = inherit
     }
   }
   &:where(:not(label)), > :where(.control) {
@@ -2221,6 +2227,9 @@ style slider with
       cursor = not-allowed
       pointer-events = none
     }
+  }
+  > :where(.control) {
+    pointer_events = inherit
   }
 end
 

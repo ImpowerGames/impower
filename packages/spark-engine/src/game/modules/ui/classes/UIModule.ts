@@ -2706,6 +2706,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       "control",
       widget,
       null,
+      true,
     );
     if (toggle) {
       this.mountTextContent(label, node.content, scope);
@@ -2713,7 +2714,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return label;
   }
 
-  /** The `<input>` itself, with the widget's props, bindings and events. */
+  /** The `<input>` itself, with the widget's props, bindings and events.
+   *  `labelled` is a control inside a widget's label, which takes the pointer
+   *  from that label rather than for itself. */
   protected mountInputControl(
     parent: Element,
     node: ElementNode,
@@ -2721,6 +2724,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     name: string,
     widget: { inputType: string; attributes?: Record<string, string> },
     before: Element | null,
+    labelled = false,
   ): Element {
     const vs = this._game.story.variablesState;
     // The control's defining attributes first, so authored props can still
@@ -2787,7 +2791,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.mountSliderFill(el, node, scope);
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope);
+      this.mountEvent(el, ev, scope, !labelled);
     }
     return el;
   }
@@ -3102,7 +3106,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  `observe()` path and `onReceiveNotification` use. The handler reads
    *  `scope.env` at fire time (mutated in place per for-iteration), so a handler
    *  inside a `for` uses that row's current loop values. */
-  protected mountEvent(el: Element, ev: EventBinding, scope: ReactiveScope): void {
+  protected mountEvent(
+    el: Element,
+    ev: EventBinding,
+    scope: ReactiveScope,
+    takesPointer = true,
+  ): void {
     const handler = ev.handler;
     const callback = (event: Event): void => {
       // Build a Luau `event` table from the DOM event payload so write-back
@@ -3122,8 +3131,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._events[ev.event] ??= {};
     this._events[ev.event]![el.id] = callback;
     // Make the element clickable + ask the renderer to forward the DOM event
-    // (mirrors setEventListener's observe).
-    this.updateElement(el, { style: { pointer_events: "auto" } });
+    // (mirrors setEventListener's observe). A labelled widget's control does
+    // not take the pointer itself: it inherits its label's, so a lock on the
+    // widget reaches it, and an inline style here would outrank that lock.
+    if (takesPointer) {
+      this.updateElement(el, { style: { pointer_events: "auto" } });
+    }
     this.enqueueUI(
       ObserveElementMessage.type.notification({
         element: el.id,

@@ -227,6 +227,49 @@ end
     expect(unlocked.map((m) => m.params.element)).toEqual([label.element]);
   });
 
+  test("a labelled control with a handler leaves the pointer to its label", async () => {
+    const h = createHarness(
+      `store locked = false
+store muted = false
+layout settings with
+  checkbox "Mute Music" #interactable={not locked} #checked={muted} @change={ muted = event.checked }
+  checkbox #checked={muted} @change={ muted = event.checked }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
+    const pointerStyles = (element: string) =>
+      ui()
+        .filter(
+          (m) =>
+            m.params?.element === element &&
+            (m.method === "ui/create" || m.method === "ui/update"),
+        )
+        .map((m) => m.params.style?.pointer_events)
+        .filter((v) => v !== undefined);
+    const [label] = createdOfType(h, "label");
+    const [control, bare] = createdOfType(h, "input");
+    expect(control.parent).toBe(label.element);
+    // An inline opt-in on the control would outrank the lock it inherits from
+    // the label, so a locked widget's box would still toggle.
+    expect(pointerStyles(control.element)).toEqual([]);
+    // A bare control still opts itself in.
+    expect(pointerStyles(bare.element)).toEqual(["auto"]);
+    // Both controls are still observed for their handlers.
+    expect(h.observedElementIds()).toHaveLength(2);
+
+    (h.game.story as any).variablesState.$("locked", true);
+    (h.game.module.ui as any).refreshLayouts();
+    expect(pointerStyles(control.element)).toEqual([]);
+    const locks = ui().filter(
+      (m) => m.method === "ui/update" && m.params.style?.interactable === "false",
+    );
+    expect(locks.map((m) => m.params.element)).toEqual([label.element]);
+  });
+
   test("removing a labelled widget drops its control's event handler", async () => {
     const h = createHarness(
       `store show = true
