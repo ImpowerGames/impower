@@ -876,8 +876,7 @@ fs.unlinkSync(claimFile);
 // written. Once it is older than that window could last, its creator died
 // between the two calls, and it is set aside like a dead owner's file.
 {
-  const { emptyAbandonMs } = await import("./test-suite-process.mjs");
-  const age = file => { const old = (Date.now() - emptyAbandonMs - 10_000) / 1000; fs.utimesSync(file, old, old); };
+  const age = file => { const old = (Date.now() - 10 * 60_000) / 1000; fs.utimesSync(file, old, old); };
   const recoveredClaims = () => fs.readdirSync(lockRoot).filter(name => /^recovered-claim-.*\.json$/.test(name));
   const strays = () => fs.readdirSync(lockRoot).filter(name => /^guard-recovery/.test(name));
   const live = processIdentity(process.pid);
@@ -929,6 +928,28 @@ fs.unlinkSync(claimFile);
   held("a fresh empty guard");
   assert.equal(fs.readFileSync(guardFile, "utf8"), "", "a guard its creator may still be writing is untouched");
   fs.unlinkSync(guardFile);
+
+  // A creator suspended past the bound between creating its guard and writing
+  // its owner loses the guard to a recoverer. On resuming it must find that out
+  // and refuse, never act alongside the recoverer or remove the successor.
+  const write = fs.writeFileSync;
+  let successor = null, stalled = false;
+  fs.writeFileSync = (target, ...rest) => {
+    if (!stalled && typeof target === "number" && fs.existsSync(guardFile) && fs.readFileSync(guardFile, "utf8") === "") {
+      stalled = true;
+      age(guardFile);
+      successor = acquire("recoverer of a stalled guard", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 });
+    }
+    return write(target, ...rest);
+  };
+  try {
+    assert.throws(() => acquire("stalled creator", { root: lockRoot, census: () => [], identify, guardWaitMs: 0 }),
+      error => error.guardHeld === true && /recovered before its owner was recorded/.test(error.message), "a creator whose empty guard was recovered refuses");
+  } finally { fs.writeFileSync = write; }
+  assert.ok(stalled && successor, "the recoverer took the stalled creator's guard");
+  assert.equal(recoveredGuards().length, ++count, "the stalled creator's guard was set aside");
+  assert.ok(fs.existsSync(path.join(lockRoot, "reservation.json")), "the recoverer's reservation is left in place by the stalled creator");
+  successor.release();
 }
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
 
