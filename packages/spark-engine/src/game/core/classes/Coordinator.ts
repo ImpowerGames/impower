@@ -124,6 +124,10 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (instructions.hold) {
+      // A held beat advances only when the player asks.
+      return this.continueOnInteraction(waitingForChoice);
+    }
     if (instructions.load && !waitingForChoice) {
       // A `load` beat has nothing to read; it advances on its own once its
       // loading (and the loading layout's minimum display) has finished. One
@@ -156,6 +160,12 @@ export class Coordinator<G extends Game> {
         return 1;
       }
     }
+    return this.continueOnInteraction(waitingForChoice);
+  }
+
+  /** Whether the player's click advances the beat: 2 once its display has
+   *  finished; a click before then finishes the display at once. */
+  protected continueOnInteraction(waitingForChoice: boolean | undefined): number {
     // Player clicked to advance
     if (this._interacted) {
       this._interacted = false;

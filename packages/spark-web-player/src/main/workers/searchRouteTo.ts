@@ -24,6 +24,9 @@ export interface RouteSearchSettings {
   profilerId?: string;
   /** False for a search the real program must not learn from. */
   remember?: boolean;
+  /** Search from the story's start (`Game.planRouteFromStart`) rather than
+   *  from the top of the flow the address stands in. */
+  fromStart?: boolean;
 }
 
 /** Plan a route to the address `to` and replay it, recording what the search
@@ -61,8 +64,8 @@ export const searchRouteFor = (
   log: RouteSearchLog,
   settings: RouteSearchSettings,
 ): StoredCheckpoint | undefined => {
-  const { config, profilerId, remember = true } = settings;
-  const from = game.routeStartOf(to);
+  const { config, profilerId, remember = true, fromStart = false } = settings;
+  const from = fromStart ? "0" : game.routeStartOf(to);
   // Asked before anything replaces the planned route, because every question it
   // answers is about that route. Measured under its own name: it walks the
   // route's steps and reads a checkpoint back, so it is work in its own right
@@ -74,17 +77,26 @@ export const searchRouteFor = (
 
   const planRouteTo = (resumeFrom?: RouteResumePoint) => {
     profile("start", profilerId + " " + "game/planRoute");
-    const route = Game.planRoute(
-      game.story,
-      game.program,
-      from,
-      to,
-      config.simulationOptions,
-      // `replayPatchedRoute` below loads a checkpoint or jumps to the route's
-      // start, so a route found here can be left where the search stopped rather
-      // than resetting the story into a state nothing reads.
-      { callerResetsStory: true, resumeFrom },
-    );
+    // `replayPatchedRoute` below loads a checkpoint or jumps to the route's
+    // start, so a route found here can be left where the search stopped rather
+    // than resetting the story into a state nothing reads.
+    const budget = { callerResetsStory: true, resumeFrom };
+    const route = fromStart
+      ? Game.planRouteFromStart(
+          game.story,
+          game.program,
+          to,
+          config.simulationOptions,
+          budget,
+        )
+      : Game.planRoute(
+          game.story,
+          game.program,
+          from,
+          to,
+          config.simulationOptions,
+          budget,
+        );
     profile("end", profilerId + " " + "game/planRoute");
     return route;
   };
@@ -111,6 +123,8 @@ export const searchRouteFor = (
       // than the search; the game recorded which (`"diverged"`).
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
+      shows: reachedTarget ? game.routeTargetShows : undefined,
+      fromStart,
     });
     if (checkpoint && remember) {
       // Cache favored conditions and choices
@@ -172,6 +186,7 @@ export const searchRouteFor = (
       simulationFailure: game.describeFailedRouteSearch(to),
       // Nothing was replayed; an error that stopped the search is why.
       errors: game.searchErrors(),
+      fromStart,
     });
     return undefined;
   }
