@@ -445,6 +445,27 @@ end
     expect(found).toEqual(["checkbox big label toggle_label"]);
   });
 
+  test("a widget's name finds it labelled or bare alike", async () => {
+    const h = createHarness(
+      `layout settings with
+  column {
+    slider "Named volume" #value=50
+    slider #value=50
+  }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    // A bare slider is named exactly `slider`, so the labelled one must be an
+    // exact match too or `[[hide slider]]` would skip it.
+    const found = (h.game.module.ui as any)
+      .findElements("slider")
+      .map((el: any) => el.name);
+    expect(found).toEqual(["slider label field_label", "slider"]);
+  });
+
   test("style props act on the widget; attributes, bindings and write-back on the control", async () => {
     const h = createHarness(
       `store volume = 80

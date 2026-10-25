@@ -2689,6 +2689,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       before,
     );
+    // The label's structural classes are not part of the widget's name, so
+    // `[[hide slider]]` finds a labelled slider as it finds a bare one.
+    label.targetName = name;
     for (const r of reactiveStyles) {
       scope.styles.push({ element: label, ...r });
     }
@@ -4894,7 +4897,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const found: Element[] = [];
     if (this._root && name) {
       const matches = this.searchForAll(this._root, name, found);
-      const named = matches.filter((el) => el.name === name);
+      const named = matches.filter((el) => el.targetName === name);
       const elements =
         named.length > 0
           ? named
