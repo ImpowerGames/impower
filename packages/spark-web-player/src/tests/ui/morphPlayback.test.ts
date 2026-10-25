@@ -3,7 +3,7 @@
 // clock (`app/morph/MorphPlayback.ts`). Artifacts are baked in process from
 // the artwork the program carries, as a host without an asset service does.
 
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
@@ -16,6 +16,10 @@ import UIManager from "../../app/managers/UIManager";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { createDOMHarness, createStubApp, flushMicrotasks, installJSDOM } from "./domTestHarness";
+
+// A real game compiles, replays its route and bakes for each test here; on
+// a busy machine that alone can outlast the default five seconds.
+vi.setConfig({ testTimeout: 60_000 });
 
 const TIMING = `  timing {
     duration = 0.25
@@ -63,7 +67,7 @@ function manualFrames() {
 }
 
 async function until(check: () => boolean, what: string) {
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < 2000; i++) {
     if (check()) return;
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
@@ -159,6 +163,17 @@ describe("morph playback in the page", () => {
     expect(images).toHaveLength(3);
     expect(content.morph.plays.map((p: any) => p.layer)).toEqual([2]);
     expect(images[2]).toContain("url(");
+  });
+
+  test("inline art animates with the page's own host: the game bakes it and sends the artifact", async () => {
+    const h = createDOMHarness(SOURCE, 0, { files: FILES });
+    // The production host: no in-process baking on the page.
+    const playback = MorphPlayback.for(h.overlay);
+    await h.ready;
+    await h.preview(lineOf(SOURCE, "First line."));
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 1, "the artifact the game sends");
+    expect(shadowOf(portraitSpan(h.overlay))?.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
   });
 
   test("a write without a morph is the write it always was", async () => {
@@ -476,6 +491,73 @@ describe("morph lifecycle at the page's boundaries", () => {
     await ui.onReceiveRequest(UpdateElementMessage.type.request({ element: "box", content: { text: "Replaced." } } as any));
     expect(playback.stats.layers).toBe(0);
     expect(aborted).toBe(true);
+  });
+});
+
+describe("live drawing presentation", () => {
+  const recipeText = serializeMorphRecipe(blink());
+  const ref: MorphRef = { morph: "blink", key: "k1", image: "bunny", selection: "{}", groups: ["eyes"] };
+  const timing: MorphTiming = { duration: 0.25, delay: 0, easing: "linear", iterations: "infinite", direction: "normal" };
+  const content: MorphImageContent = { plays: [{ layer: 0, ref, timing, definition: "d1" }], epoch: 0 };
+
+  test("a style change that moves the image moves the live drawing with it, without a resize", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const host = createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { blink: recipeText }, variants: {} }),
+      readSource: async () => ({ text: ART }),
+    });
+    const playback = new MorphPlayback(env.overlay, { host, requestFrame: () => 0, cancelFrame: () => {} });
+    (env.overlay as any).__sdMorphs = playback;
+    const ui = new UIManager(createStubApp(env.overlay, () => {}));
+    const doc = env.overlay.ownerDocument;
+    const other = doc.createElement("div");
+    (other as any).__sdId = "other";
+    env.overlay.appendChild(other);
+    const span = doc.createElement("span");
+    span.setAttribute("style", "width:400px;height:300px;background-repeat:no-repeat;background-position:0% 0%");
+    env.overlay.appendChild(span);
+    playback.mount(span, content, 'url("bunny.svg")', "background", "portrait:0");
+    await until(() => playback.stats.live === 1, "the artifact");
+    const box = () => {
+      const b = span.querySelector(":scope > span.morph")!.shadowRoot!.querySelector("div") as HTMLElement;
+      return [b.style.left, b.style.top];
+    };
+    expect(box()).toEqual(["0px", "0px"]);
+    // Any screen op may restyle the span; the span keeps its size.
+    span.style.backgroundPosition = "100% 100%";
+    await ui.onReceiveRequest(UpdateElementMessage.type.request({ element: "other", style: { opacity: "1" } } as any));
+    await flushMicrotasks(5);
+    expect(box()).toEqual(["140px", "160px"]);
+  });
+
+  test("a part's markup is made inert: no scripts, embedded documents, handlers or javascript links", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const baked = await createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { blink: recipeText }, variants: {} }),
+      readSource: async () => ({ text: ART }),
+    }).resolve(ref);
+    const artifact = structuredClone(baked.artifact);
+    const live = artifact.parts.findIndex((p) => p.kind === "live");
+    artifact.parts[live]!.svg = artifact.parts[live]!.svg
+      .replace("<svg ", `<svg onload="window.__ran = 1" `)
+      .replace(/(<svg[^>]*>)/, `$1<script>window.__ran = 2</script><a href="javascript:alert(1)"><rect width="1" height="1" onclick="x()"/></a><foreignObject><iframe src="about:blank"></iframe></foreignObject>`);
+    const service = new MorphBakeService();
+    const host: MorphHost = { resolve: (r, o) => service.request(r.key, async () => ({ kind: "artifact", artifact }), o) };
+    const playback = new MorphPlayback(env.overlay, { host, requestFrame: () => 0, cancelFrame: () => {} });
+    const span = env.overlay.ownerDocument.createElement("span");
+    env.overlay.appendChild(span);
+    playback.mount(span, content, 'url("bunny.svg")', "background", "portrait:0");
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(span)!;
+    expect(shadow.querySelectorAll("script, iframe, object, embed")).toHaveLength(0);
+    const attributes = Array.from(shadow.querySelectorAll("*")).flatMap((e) => Array.from(e.attributes));
+    expect(attributes.filter((a) => a.name.toLowerCase().startsWith("on"))).toEqual([]);
+    expect(attributes.filter((a) => /javascript:/i.test(a.value))).toEqual([]);
+    expect(shadow.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
   });
 });
 

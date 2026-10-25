@@ -85,6 +85,7 @@ export class MorphPlayback {
   }
 
   protected host: MorphHost;
+  protected delivered = new DeliveredArtifacts();
   protected seed = "";
   protected requestFrame: (callback: (now: number) => void) => number;
   protected cancelFrame: (handle: number) => void;
@@ -108,10 +109,17 @@ export class MorphPlayback {
     options: MorphPlaybackOptions = {},
   ) {
     const view = overlay.ownerDocument.defaultView;
-    this.host = options.host ?? defaultHost();
+    this.host = options.host ?? defaultHost(this.delivered);
     this.seed = options.seed ?? "";
-    this.requestFrame = options.requestFrame ?? ((cb) => (view ?? window).requestAnimationFrame(cb));
-    this.cancelFrame = options.cancelFrame ?? ((h) => (view ?? window).cancelAnimationFrame(h));
+    // A window without animation frames (a DOM without rendering) gets a
+    // timer at the same rate.
+    const host = (view ?? window) as Window & typeof globalThis;
+    const frames = typeof host.requestAnimationFrame === "function";
+    this.requestFrame =
+      options.requestFrame ??
+      (frames ? (cb) => host.requestAnimationFrame(cb) : (cb) => host.setTimeout(() => cb(host.performance.now()), 16));
+    this.cancelFrame =
+      options.cancelFrame ?? (frames ? (h) => host.cancelAnimationFrame(h) : (h) => host.clearTimeout(h));
     const Observer = (view as (Window & typeof globalThis) | null)?.ResizeObserver;
     if (Observer) {
       this.resizeObserver = new Observer((entries) => {
@@ -130,6 +138,27 @@ export class MorphPlayback {
 
   get resolver(): MorphHost {
     return this.host;
+  }
+
+  /** An artifact the game baked for a reference with no asset service behind it. */
+  deliver(params: { key: string; artifact?: MorphArtifact; error?: string }) {
+    this.delivered.deliver(params.key, params);
+  }
+
+  protected relayoutQueued = false;
+
+  /**
+   * Places every live drawing again, once the current task's page updates
+   * are done: a style or class change can move or resize the image CSS
+   * draws without resizing the span the resize observer watches.
+   */
+  requestRelayout() {
+    if (this.relayoutQueued || ![...this.layers].some((layer) => layer.live)) return;
+    this.relayoutQueued = true;
+    queueMicrotask(() => {
+      this.relayoutQueued = false;
+      for (const layer of this.layers) layer.layout();
+    });
   }
 
   get now(): number {
@@ -417,16 +446,73 @@ export class MorphPlayback {
   }
 }
 
-function defaultHost(): MorphHost {
+/**
+ * Artifacts the game sent for references the page cannot resolve itself
+ * (`MorphArtifactMessage`): kept by key until a layer asks, a bounded few.
+ */
+class DeliveredArtifacts {
+  static readonly LIMIT = 32;
+  protected settled = new Map<string, { artifact?: MorphArtifact; error?: string }>();
+  protected waiting = new Map<string, Set<() => void>>();
+
+  deliver(key: string, outcome: { artifact?: MorphArtifact; error?: string }) {
+    this.settled.delete(key);
+    this.settled.set(key, outcome);
+    while (this.settled.size > DeliveredArtifacts.LIMIT) {
+      this.settled.delete(this.settled.keys().next().value!);
+    }
+    for (const wake of this.waiting.get(key) ?? []) wake();
+    this.waiting.delete(key);
+  }
+
+  /** The artifact for `key` once the game has sent it. */
+  wait(key: string, signal: AbortSignal): Promise<MorphArtifact> {
+    return new Promise((resolve, reject) => {
+      const settle = () => {
+        signal.removeEventListener("abort", abort);
+        const outcome = this.settled.get(key)!;
+        if (outcome.artifact) resolve(outcome.artifact);
+        else reject(new Error(outcome.error ?? `The game could not bake ${key}.`));
+      };
+      const abort = () => {
+        this.waiting.get(key)?.delete(settle);
+        reject(signal.reason);
+      };
+      if (this.settled.has(key)) {
+        settle();
+        return;
+      }
+      signal.addEventListener("abort", abort, { once: true });
+      const set = this.waiting.get(key) ?? new Set();
+      set.add(settle);
+      this.waiting.set(key, set);
+    });
+  }
+}
+
+/**
+ * Resolves a reference through the asset service that serves its art (the
+ * web editor's service worker), or, for one with no asset service behind
+ * it (inline art: VS Code, local compiles), with the artifact the game
+ * bakes from the program and sends.
+ */
+function defaultHost(delivered: DeliveredArtifacts): MorphHost {
   const service = new MorphBakeService({
     ...(typeof URL.createObjectURL === "function"
       ? { createObjectURL: (blob: Blob) => URL.createObjectURL(blob), revokeObjectURL: (url: string) => URL.revokeObjectURL(url) }
       : {}),
   });
-  // Artifacts come from the asset service that serves the art (the web
-  // editor's service worker). A reference without one names art the page
-  // holds no source for, and stays static.
-  return createMorphHost({ service, channel: () => undefined, fetch: (url, init) => fetch(url, init) });
+  const served = createMorphHost({ service, channel: () => undefined, fetch: (url, init) => fetch(url, init) });
+  return {
+    resolve: (ref, options) =>
+      ref.src
+        ? served.resolve(ref, options)
+        : service.request(
+            ref.key,
+            async (signal) => ({ kind: "artifact", artifact: await delivered.wait(ref.key, signal) }),
+            options,
+          ),
+  };
 }
 
 /** The morphs of one written image layer (an `instance` span). */
@@ -435,6 +521,8 @@ export class MorphLayer {
   protected frozen = false;
   protected disposed = false;
   protected shadowHost?: HTMLElement;
+  /** The drawing's images CSS paints, by their place among the layers. */
+  protected statics: { div: HTMLElement; layer: number }[] = [];
 
   /** Each image's CSS value, bottom first. */
   protected layers: string[];
@@ -524,6 +612,7 @@ export class MorphLayer {
     }
     const root = this.shadowHost.shadowRoot!;
     root.replaceChildren();
+    this.statics = [];
     const computed = doc.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
     for (let i = 0; i < count; i++) {
@@ -534,10 +623,10 @@ export class MorphLayer {
         root.appendChild(view.box);
         continue;
       }
-      // The layer CSS paints, with its own size, position and repeat.
+      // The layer CSS paints, with its own size, position and repeat
+      // (`layout` copies them from the span).
       const div = doc.createElement("div");
-      const css = this.layerStyle(computed, count - 1 - i);
-      div.setAttribute("style", `position:absolute;inset:0;background-image:${this.layers[i]};${css}`);
+      this.statics.push({ div, layer: i });
       root.appendChild(div);
     }
     // The span's own background is drawn layer by layer inside the host now.
@@ -550,6 +639,7 @@ export class MorphLayer {
     if (!this.shadowHost) return;
     this.shadowHost.remove();
     this.shadowHost = undefined;
+    this.statics = [];
     this.span.style.setProperty("background-image", [...this.layers].reverse().join(", "));
   }
 
@@ -581,6 +671,7 @@ export class MorphLayer {
       const svg = parsed.documentElement;
       if (!svg || svg.localName !== "svg" || parsed.getElementsByTagName("parsererror").length) return undefined;
       const node = doc.importNode(svg, true);
+      inert(node);
       node.setAttribute("x", "0");
       node.setAttribute("y", "0");
       node.setAttribute("width", "100%");
@@ -630,10 +721,14 @@ export class MorphLayer {
   layout() {
     if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    const count = this.layers.length;
+    for (const { div, layer } of this.statics) {
+      const style = `position:absolute;inset:0;background-image:${this.layers[layer]};${this.layerStyle(computed, count - 1 - layer)}`;
+      if (div.getAttribute("style") !== style) div.setAttribute("style", style);
+    }
     const area = positioningArea(this.span, computed);
     // A span with no size yet (its target hidden) is placed once it has one.
     if (!(area.width > 0 && area.height > 0)) return;
-    const count = this.layers.length;
     for (const state of this.plays) {
       const view = state.view;
       if (!view) continue;
@@ -717,6 +812,30 @@ function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | unde
         width: width + sum("padding-left", "padding-right"),
         height: height + sum("padding-top", "padding-bottom"),
       };
+}
+
+const EXECUTABLE = new Set(["script", "iframe", "object", "embed"]);
+
+/**
+ * Makes a part's markup as inert as the image it replaces. Art drawn as a
+ * CSS background image runs nothing; drawn inline in the page it could, so
+ * scripts and embedded documents go, as do event handler attributes and
+ * `javascript:` links.
+ */
+function inert(root: Element) {
+  for (const element of [root, ...Array.from(root.querySelectorAll("*"))]) {
+    if (EXECUTABLE.has(element.localName.toLowerCase())) {
+      element.remove();
+      continue;
+    }
+    for (const attribute of Array.from(element.attributes)) {
+      const name = attribute.name.toLowerCase();
+      const link = name === "href" || name.endsWith(":href") || name === "src";
+      if (name.startsWith("on") || (link && /^\s*javascript:/i.test(attribute.value))) {
+        element.removeAttribute(attribute.name);
+      }
+    }
+  }
 }
 
 /** Writes a frame into a live drawing, starting every element from its markup. */

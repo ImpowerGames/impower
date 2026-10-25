@@ -7,6 +7,12 @@ import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/res
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
+import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
+import {
+  MorphArtifactMessage,
+  type MorphArtifactParams,
+} from "./messages/MorphArtifactMessage";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { default_morph } from "../constructors/default_morph";
@@ -1158,6 +1164,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override async onConnected() {
+    // A new page stream has none of the artifacts sent on an earlier one.
+    this._morphSent.clear();
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
@@ -2038,6 +2046,44 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   /** The images whose morph claims have been reported as conflicting, so each is reported once. */
   protected _morphConflicts = new Set<string>();
 
+  /** Bakes the references the page cannot resolve itself, from the program's inline art. */
+  protected _morphHost?: MorphHost;
+
+  /** The artifact keys sent on this connection. */
+  protected _morphSent = new Set<string>();
+
+  /**
+   * Sends the page the artifact for a reference with no asset service
+   * behind it: the art is inline in the program, which the page does not
+   * hold, so the game bakes it (`MorphArtifactMessage`). Once per key and
+   * connection; the write itself carries only the reference.
+   */
+  protected deliverMorphArtifact(ref: MorphRef) {
+    if (ref.src || this._morphSent.has(ref.key)) {
+      return;
+    }
+    this._morphSent.add(ref.key);
+    this._morphHost ??= createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => this._game.program?.morphs,
+      readSource: inlineMorphSource(() => this.context as any),
+    });
+    const send = (params: MorphArtifactParams) =>
+      this._game.connection.emit(MorphArtifactMessage.type.notification(params));
+    this._morphHost.resolve(ref).then(
+      (handle) => {
+        // As plain JSON, the form an asset service's response takes: the
+        // bake's tables have no prototype, which a thread's copy would not
+        // keep.
+        void send({ key: ref.key, artifact: JSON.parse(JSON.stringify(handle.artifact)) });
+        handle.release();
+      },
+      (error) => {
+        void send({ key: ref.key, error: error instanceof Error ? error.message : String(error) });
+      },
+    );
+  }
+
   /**
    * What an image write of `assets` carries for the morphs that play on its
    * images: the reference, timing and definition of each image a morph
@@ -2082,6 +2128,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (!ref) {
           continue;
         }
+        this.deliverMorphArtifact(ref);
         const timing = { ...default_morph().timing, ...(this.context.morph?.[ref.morph]?.timing ?? {}) } as MorphTiming;
         plays.push({
           layer: index,

@@ -26,6 +26,7 @@ import {
   WriteImageMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
+import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
@@ -1215,6 +1216,9 @@ export default class UIManager extends Manager {
     // does the going of a layout that has retired.
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
+      // A style or class the op changes can move the image a live morph
+      // stands in for without resizing its span.
+      this.morphs?.requestRelayout();
     }
     // What the op changes leaves the signatures written above it older than
     // their subtree (#1820), whichever handler below applies it.
@@ -1513,9 +1517,17 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    if (MorphArtifactMessage.type.isNotification(msg)) {
+      this.morphs?.deliver(msg.params);
+      return;
+    }
     if (BeatMessage.type.isNotification(msg)) {
       this.receiveBeat(msg.params);
+      this.morphs?.requestRelayout();
       return;
+    }
+    if (msg.method.startsWith("ui/")) {
+      this.morphs?.requestRelayout();
     }
     // A screen op that arrives after a beat waiting for its commit goes up
     // after it. Messages for the page's other managers (assets, audio, the
