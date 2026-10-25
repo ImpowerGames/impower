@@ -530,11 +530,12 @@ if (process.platform === "win32") {
   console.log(`Reservation contention scratch: ${store}`);
   for (const code of ["EPERM", "EACCES", "EBUSY"]) {
     for (const operation of ["guard", "create", "rename"]) {
-      const method = operation === "rename" ? "renameSync" : "openSync";
+      // The guard is published by hard-linking a private file into place.
+      const method = { guard: "linkSync", create: "openSync", rename: "renameSync" }[operation];
       const original = fs[method];
       let failures = 0;
       fs[method] = (target, ...args) => {
-        const affected = operation === "guard" ? target === path.join(store, "guard.json")
+        const affected = operation === "guard" ? args[0] === path.join(store, "guard.json")
           : operation === "create" ? String(target).startsWith(path.join(store, "reservation.json."))
           : args[0] === path.join(store, "reservation.json");
         if (affected && failures++ < 2) throw Object.assign(new Error("scanner holds reservation file"), { code });
