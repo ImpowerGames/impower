@@ -33,6 +33,17 @@ scene start
 end
 `;
 
+// The beat on screen at the `done` shows no text, so in a run it advances
+// on its own.
+const LAYOUT_ONLY = `layout hud with
+  text "Static."
+end
+scene start
+  [[open hud]]
+  done
+end
+`;
+
 // The beat above the `done` in the text is one the run skips.
 const SKIPPED = `scene start
   Shown.
@@ -164,6 +175,13 @@ describe("PLAY from a line whose run shows nothing starts as the story stands th
     expect(outcome.state).toBe("running");
     expect(outcome.text).toContain("Shown.");
     expect(outcome.score).toBe(2);
+  }, 120_000);
+
+  it("waits on a beat on screen that showed no text", async () => {
+    const outcome = await playFrom(LAYOUT_ONLY, 5);
+    expect(outcome.started).toBe(true);
+    expect(outcome.exited).toEqual([]);
+    expect(outcome.state).toBe("running");
   }, 120_000);
 });
 

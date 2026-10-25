@@ -2239,7 +2239,9 @@ export class Game<T extends M = {}> {
       this._routeTargetShows = shows;
       return;
     }
-    this.module.interpreter.requeue(this._shownBeat);
+    // Held: it waits for the player even where it first advanced on its own
+    // (a layout-only beat, an auto beat). A run from the top never meets it.
+    this.module.interpreter.requeue({ ...this._shownBeat, hold: true });
     const cursor = this._checkpointStepCursors[last];
     this._checkpoints.truncate(last);
     this.checkpoint();
