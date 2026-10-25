@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -116,13 +117,20 @@ export function vitestProcesses({ within } = {}) {
   return pids;
 }
 
-export function reservationState(record, identify = processIdentity) {
+// A supervised reservation taken before the current boot is interrupted once
+// its recorded identities are absent: no process from before a restart can
+// still run, so the tree proof its supervisor never wrote is not needed. The
+// restart is detected by the system uptime falling below the uptime recorded
+// at acquisition, which no wall-clock correction can produce. A record without
+// that uptime, or a boot that has since run longer than it, stays unknown.
+export function reservationState(record, identify = processIdentity, { uptime = os.uptime } = {}) {
   if (!record?.owner?.pid || !record.owner.start) return "unknown";
   const owner = identify(record.owner.pid);
   if (same(record.owner, owner)) return "running";
   if (record.version === 2) {
     if (owner !== null && (!owner?.pid || !owner.start)) return "unknown";
-    if (!record.supervision) return record.phase === "reserved" ? "interrupted" : "unknown";
+    const preBoot = () => Number.isFinite(record.heldUptime) && uptime() < record.heldUptime;
+    if (!record.supervision) return record.phase === "reserved" || preBoot() ? "interrupted" : "unknown";
     const expected = record.supervision;
     if (expected.reservationToken !== record.token) return "unknown";
     try {
@@ -134,6 +142,7 @@ export function reservationState(record, identify = processIdentity) {
         if (current !== null && (!current?.pid || !current.start)) return "unknown";
         if (same(original, current)) return "running";
       }
+      if (preBoot()) return "interrupted";
       // This terminal refusal was observed while the strict nonce handshake
       // could not authorize a root. A partial may-launch publication can never
       // use this shortcut, even when the coordinator did not send its nonce.
@@ -305,11 +314,11 @@ const elapsedSince = (value, now) => {
 
 // `admitWaitMs` bounds only the acquiring transaction's guard wait, so a caller
 // with a deadline can keep it inside that deadline; release keeps the full bound.
-export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, supervised = false } = {}) {
+export function acquire(run, { root = machineRoot, identify = processIdentity, uptime = os.uptime, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, supervised = false } = {}) {
   return guarded(root, file => {
     if (fs.existsSync(file)) {
       const previous = read(file);
-      const state = reservationState(previous, identify);
+      const state = reservationState(previous, identify, { uptime });
       const observedAt = Date.now();
       if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`), {
         holder: { run: previous.run, phase: previous.phase, attempt: previous.attempt,
@@ -327,7 +336,7 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
     const existing = census();
     if (existing.length) throw new Error(`Vitest processes already running: ${existing.join(", ")}`);
     const record = { ...(supervised ? { version: 2 } : {}), token: randomUUID(), owner: identify(process.pid), run,
-      heldSince: new Date().toISOString(), phase: "reserved" };
+      heldSince: new Date().toISOString(), heldUptime: uptime(), phase: "reserved" };
     if (!record.owner) throw new Error("Coordinator identity unavailable");
     atomic(file, record, { admissionRoot: root });
     const update = (values) => {

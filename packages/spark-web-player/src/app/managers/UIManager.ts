@@ -542,12 +542,21 @@ export default class UIManager extends Manager {
     morphs?.setPaused(false);
     // A played beat still waiting for its commit belonged to the run being
     // torn down (STOP, or the rebuild a new run makes): it never goes up, and
-    // the screen stays as it is until the next display (#1820).
+    // the screen stays as it is until the next display (#1820). The engine
+    // waits on each animation it carries, so each is answered with an error.
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const pending = overlay?.__sdBeat;
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      for (const op of pending.ops) {
+        if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
+          this.app.answer(
+            op as RequestMessage,
+            Promise.reject(new Error("the beat was called off")),
+          );
+        }
+      }
     }
   }
 
@@ -1170,6 +1179,8 @@ export default class UIManager extends Manager {
       const touched: (Element | null | undefined)[] = [];
       if ((existing as any).__sdCreate !== createSignature(params)) {
         touched.push(params.content ? existing : existing.parentElement);
+      } else if ((existing as any).__sdUpdatedContent && params.content) {
+        touched.push(existing);
       }
       if (parent && existing.parentElement !== parent) {
         touched.push(existing.parentElement, parent);
@@ -1371,6 +1382,19 @@ export default class UIManager extends Manager {
         // layout's faces to `document.fonts` before the layout mounts, and
         // removes them when nothing needs them any more.
         (el as any).__sdCreate = sig;
+      } else if ((el as any).__sdUpdatedContent && params.content) {
+        // An update replaced the content this unchanged create carries; only
+        // the content goes back. Style and attributes stay as the updates
+        // left them, which is what a beat-only display of the same state
+        // shows.
+        this.morphs?.releaseWithin(el);
+        el.textContent = getElementContent(params.content, {
+          breakpoints: params.breakpoints,
+          scope: "spark-web-player #game",
+        });
+      }
+      if (params.content) {
+        delete (el as any).__sdUpdatedContent;
       }
       const parent = this.getElement(params.parent);
       if (parent) {
@@ -1425,6 +1449,10 @@ export default class UIManager extends Manager {
       if (element) {
         if (params.content != undefined) {
           this.morphs?.releaseWithin(element);
+          // The node no longer holds the content its last create carried, so
+          // the next create of it writes that content back even when its
+          // signature is unchanged (#1223).
+          (element as any).__sdUpdatedContent = true;
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",

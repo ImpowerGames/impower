@@ -52,6 +52,48 @@ export interface Reference {
   prop?: boolean;
   linkable?: boolean;
   stylingStringIdentifier?: boolean;
+  /** A define property's whole value naming an asset: a bare name, which may
+   *  name a declared asset of any of `types`, or a typed one (`typed`), whose
+   *  name must be declared under its one type. */
+  asset?: { types: string[]; name: string; typed?: boolean };
+}
+
+/** The asset types a define property value is checked against. */
+export const DEFINE_ASSET_TYPES = ["image", "layered_image", "filtered_image"];
+
+// The access path that is a define property's whole value (`image = warm`,
+// `image = filtered_image.warm`): its variable name and, in the typed
+// spelling, its property name. Null for any other path, such as a call, a
+// longer path, or a path that is one operand of an expression.
+function definePropertyReference(
+  path: SyntaxNode | null | undefined,
+): { variable: SyntaxNode; property: SyntaxNode | null } | null {
+  if (path?.name !== "LuauAccessPath") return null;
+  if (path.parent?.name !== "LuauAssignmentOperation_content") return null;
+  if (path.parent.parent?.parent?.parent?.parent?.parent?.name !== "LuauPropertyDefinition") {
+    return null;
+  }
+  for (let sibling = path.nextSibling; sibling; sibling = sibling.nextSibling) {
+    if (sibling.name !== "OptionalWhitespace" && !sibling.name.endsWith("Comment")) {
+      return null;
+    }
+  }
+  const content = findChildByName(path, "LuauAccessPath_content");
+  const parts: SyntaxNode[] = [];
+  for (let part = content?.firstChild; part; part = part.nextSibling) {
+    if (part.name !== "LuauAccessPart") return null;
+    parts.push(part);
+  }
+  if (parts.length < 1 || parts.length > 2) return null;
+  const variable = parts[0]!.firstChild;
+  const variableName =
+    variable?.name === "LuauVariable" ? getDescendent("LuauVariableName", variable) : null;
+  if (!variableName) return null;
+  if (parts.length === 1) return { variable: variableName, property: null };
+  const accessor = parts[1]!.firstChild;
+  const propertyName =
+    accessor?.name === "LuauPropertyAccessor" ? getDescendent("LuauPropertyName", accessor) : null;
+  return propertyName ? { variable: variableName, property: propertyName } : null;
 }
 
 // DFS in-order: first descendant (or self) whose name is in `names`, else null.
@@ -139,6 +181,11 @@ const LAYOUT_CONTROL_KEYWORDS: string[] =
 // exists.
 const LOAD_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+
+// `[[play <name>]]` — the one name, in the target slot, is a video. Any
+// further name is the validator's to report, so it references nothing.
+const MOVIE_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
@@ -667,6 +714,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
+      // A define property whose whole value is this bare name may name a
+      // declared asset (`image = warm`).
+      const valueReference = definePropertyReference(
+        nodeRef.node.parent?.parent?.parent?.parent?.parent,
+      );
+      const asset =
+        valueReference && !valueReference.property
+          ? { types: DEFINE_ASSET_TYPES, name }
+          : undefined;
       // Value read: reference the binding by bare name (and `.name` scoped form
       // for divert-style resolution).
       annotations.push(
@@ -675,9 +731,30 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           kind: "read",
           linkable: true,
           firstMatchOnly: true,
+          ...(asset ? { asset } : {}),
         }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
+    }
+    if (nodeRef.name === "LuauPropertyName") {
+      // A define property whose whole value is a typed asset reference
+      // (`image = filtered_image.warm`) names an asset of that type.
+      const valueReference = definePropertyReference(
+        nodeRef.node.parent?.parent?.parent?.parent?.parent,
+      );
+      if (valueReference?.property) {
+        const type = this.read(valueReference.variable.from, valueReference.variable.to);
+        if (DEFINE_ASSET_TYPES.includes(type)) {
+          const name = this.read(nodeRef.from, nodeRef.to);
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              kind: "read",
+              asset: { types: [type], name, typed: true },
+            }).range(nodeRef.from, nodeRef.to),
+          );
+          return annotations;
+        }
+      }
     }
     if (nodeRef.name === "LuauLayoutScreenName") {
       // The `in <screen>` clause on a layout header (`layout X in SCREEN`):
@@ -745,6 +822,19 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           annotations.push(this.loadTargetReference(name, nodeRef));
           return annotations;
         }
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          if (!name.includes("+")) {
+            annotations.push(
+              SparkdownAnnotation.mark<Reference>({
+                selectors: [{ types: ["video"], name, displayType: "video" }],
+                symbolIds: [`video.${name}`],
+                kind: "read",
+                linkable: true,
+              }).range(nodeRef.from, nodeRef.to),
+            );
+          }
+          return annotations;
+        }
         const types: string[] = ["layer"];
         const displayType = `layer`;
         annotations.push(
@@ -783,6 +873,19 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       // Record image name (and filter) reference
       if (context.includes("ImageCommand")) {
+        const instruction = ancestorMatching(
+          nodeRef.node,
+          ASSET_COMMAND_INSTRUCTION,
+        );
+        const controlNode = instruction
+          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
+          : null;
+        const control = controlNode
+          ? this.read(controlNode.from, controlNode.to).trim()
+          : "";
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          return annotations;
+        }
         const types = ["filtered_image", "layered_image", "image", "graphic"];
         const name = sortFilteredName(this.read(nodeRef.from, nodeRef.to));
         const displayType = "image";
@@ -818,7 +921,18 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           annotations.push(this.loadTargetReference(name, nodeRef));
           return annotations;
         }
-        const types = ["filtered_image", "layered_image", "image", "graphic"];
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          return annotations;
+        }
+        // A video shows on a layer like an image does, so its name is a
+        // candidate too.
+        const types = [
+          "filtered_image",
+          "layered_image",
+          "image",
+          "graphic",
+          "video",
+        ];
         const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({

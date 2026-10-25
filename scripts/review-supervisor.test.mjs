@@ -62,6 +62,9 @@ try {
     const inside=path.join(fs.realpathSync.native(scratch),'repo.review-jobs','pr-547','round-1');fs.mkdirSync(inside,{recursive:true});
     const insidePrompt=path.join(inside,'prompt.txt');fs.writeFileSync(insidePrompt,'fixture');
     assert.doesNotThrow(()=>actualValidate({...input,jobDir:path.join(inside,'job'),reviews:[{...input.reviews[0],prompt:insidePrompt}]},unseamed),'a plan inside the default root is accepted');
+    // The review-job readers never enter a reviewer workspace or tool home, so
+    // a job directory there would hide its journal from the checkpoint and gate.
+    for(const name of ['reviewer-supervisor','codex-home-x'])assert.throws(()=>actualValidate({...input,jobDir:path.join(inside,name),reviews:[{...input.reviews[0],prompt:insidePrompt}]},unseamed),new RegExp(`must not lie inside a reviewer workspace.*jobDir .*${name}`),`a job directory named ${name} is refused`);
     console.log('PASS: the supervised route refuses a job directory or prompt outside the default job root before writing anything');
   }
   let index=0;

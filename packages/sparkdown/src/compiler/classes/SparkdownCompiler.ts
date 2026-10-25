@@ -3,6 +3,7 @@ import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textd
 import type { SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { resolveImageAttributes } from "../utils/filterImage";
+import { fingerprintSource } from "../utils/fingerprintSource";
 import {
   collectEffectiveMorphs,
   collectMorphIssues,
@@ -439,6 +440,16 @@ function rangeContains(range: Range, position: { line: number; character: number
   const afterStart = position.line > start.line || (position.line === start.line && position.character >= start.character);
   const beforeEnd = position.line < end.line || (position.line === end.line && position.character <= end.character);
   return afterStart && beforeEnd;
+}
+
+/** Whether two ranges start and end at the same positions. */
+function rangesEqual(a: Range, b: Range): boolean {
+  return (
+    a.start.line === b.start.line &&
+    a.start.character === b.start.character &&
+    a.end.line === b.end.line &&
+    a.end.character === b.end.character
+  );
 }
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
@@ -4083,6 +4094,21 @@ export class SparkdownCompiler {
     const textOf = (a: number, b: number) =>
       this.documents.get(uri)?.getText().slice(a, b) ?? "";
     const sourceOf = () => (source ??= textOf(place.from, endOf()));
+    // A fingerprint reads the script's parse, offsets relative to the
+    // statement's start (`fingerprintSource`).
+    const fingerprintOf = (
+      a: number,
+      b: number,
+      cuts: readonly { from: number; to: number }[] = [],
+    ) =>
+      fingerprintSource(
+        this.documents.tree(uri),
+        this.documents.get(uri)?.getText() ?? "",
+        place.from + a,
+        place.from + b,
+        cuts.map((cut) => ({ from: place.from + cut.from, to: place.from + cut.to })),
+      );
+    let fingerprint: string | undefined;
     const columnOf = () =>
       this.documents.get(uri)?.positionAt(place.from).character ?? 0;
     const first = block.content?.[0];
@@ -4090,6 +4116,8 @@ export class SparkdownCompiler {
       uri,
       line,
       source: sourceOf,
+      fingerprint: () => (fingerprint ??= fingerprintOf(0, endOf() - place.from)),
+      fingerprintOf,
       syntax: () =>
         (syntax ??= `${block.node ?? ""}\u0000${columnOf()}\u0000${sourceOf()}`),
       reads: JSON.stringify([
@@ -6554,6 +6582,23 @@ export class SparkdownCompiler {
         }
         return;
       }
+      if (reference.asset) {
+        // A define property's value naming an asset. A bare name the
+        // program declares as an asset of any of its types resolves, so the
+        // resolver's report that no variable has that name does not hold; a
+        // bare name declared nowhere keeps that report. A typed name must be
+        // declared under its type.
+        const { types, name, typed } = reference.asset;
+        const declared = types.some((type) => {
+          readKey(reads, type, name);
+          return getContextEntry(program.context, type, name) !== undefined;
+        });
+        if (declared && !typed) {
+          outcomes.push({ from: from - offset, to: to - offset, declared: name });
+        } else if (!declared && typed) {
+          report(DiagnosticSeverity.Warning, `Cannot find ${types[0]} named \`${name}\``);
+        }
+      }
       if (reference.symbolIds) {
         for (const symbolId of reference.symbolIds) {
           if (this._config.definitions?.builtins?.[symbolId]) {
@@ -6609,6 +6654,24 @@ export class SparkdownCompiler {
               `Type '${found.$type}' is not assignable to type ${formatList(
                 expectedSelectorTypes,
               )}`,
+            );
+          }
+          // An image command's name may be an image or a video; a name that
+          // is both leaves the command unable to tell which to display.
+          const name = selector?.name;
+          if (
+            name &&
+            selector.types?.includes("video") &&
+            getContextEntry(program.context, "video", name) !== undefined &&
+            selector.types.some(
+              (type) =>
+                type !== "video" &&
+                getContextEntry(program.context, type, name) !== undefined,
+            )
+          ) {
+            report(
+              DiagnosticSeverity.Error,
+              `\`${name}\` is defined as both an image and a video, so \`[[show]]\` and \`[[animate]]\` cannot tell which to display: rename one of them`,
             );
           }
         } else if (readsLayout(reads) && namesLayoutElement(selector)) {
@@ -6739,6 +6802,17 @@ export class SparkdownCompiler {
             program.colorAnnotations ??= {};
             program.colorAnnotations[uri] ??= [];
             program.colorAnnotations[uri].push(range);
+          }
+          if (outcome.declared !== undefined) {
+            const unresolved = `Cannot find variable named \`${outcome.declared}\``;
+            const diagnostics = program.diagnostics?.[uri];
+            if (diagnostics) {
+              program.diagnostics![uri] = diagnostics.filter(
+                (d) =>
+                  (typeof d.message === "string" ? d.message : d.message.value) !== unresolved ||
+                  !rangesEqual(d.range, range),
+              );
+            }
           }
           if (outcome.diagnostic) {
             program.diagnostics ??= {};

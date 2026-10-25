@@ -10,7 +10,7 @@ import { withJob,retryBusy,git,failureDetails,sameIdentity } from './review-job-
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs,codexReviewMode,discardCodexAuthCopy} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-defaults.mjs";
-import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
+import { reviewJobRoot, assertInsideJobRoot, assertWalkedJobState, reviewJobFiles } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
@@ -439,6 +439,66 @@ function blockedReview(rows, blocked) {
   return { pending: { index, step: launching.step, head: launching.head, ...report }, completed };
 }
 
+// A journal that settle-launch ended `blocked` after the launcher died before
+// journalling the review's exit, read as the review whose reviewer posted its
+// own report: the launch with its reviewed head, report token and launch
+// time, the review thread, the time its child was confirmed absent, the
+// transitions its plan declares and the completion artifact the reviewer
+// wrote, if any. Anything else about the journal is refused.
+function settledReview(rows, journalFile) {
+  const launching = rows.findLast((row) => row.event === "launching");
+  if (!launching || launching.role !== "review" || typeof launching.reportToken !== "string" || !Number.isSafeInteger(launching.index) || !Number.isFinite(Date.parse(launching.reportNotBefore))) throw new Error("Settled journal records no review launch with a report token and launch time");
+  const { index } = launching;
+  const evidence = launchEvidence(rows, index);
+  if (evidence.exited) throw new Error(`Launch ${index} has an exited row, which settle-launch never settles; inspect the journal by hand`);
+  const absent = rows.find((row) => row.event === "confirmed-absent" && row.index === index);
+  if (!absent || !Number.isFinite(Date.parse(absent.time))) throw new Error(`Launch ${index} records no child confirmed absent, so its reviewer may still run`);
+  if (evidence.running?.head !== launching.head) throw new Error(`Launch ${index} records no running row for reviewed head ${launching.head}`);
+  if (rows.some((row) => row.event === "completed" && row.index === index)) throw new Error(`Launch ${index} already has a completed row`);
+  const thread = rows.find((row) => row.event === "coordinator")?.thread;
+  if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("Settled journal's coordinator row names no review thread on which its reviewer posted");
+  const plan = planNaming(journalFile);
+  const step = plan && Object.hasOwn(plan.steps, launching.step) ? plan.steps[launching.step] : null;
+  if (!step || !Array.isArray(step.next)) throw new Error(`Launch ${index}: no launcher plan in its job directory names this journal and step ${launching.step}`);
+  if (typeof launching.completion !== "string") throw new Error(`Launch ${index} records no completion artifact path`);
+  // Whether the reviewer wrote an artifact is kept apart from what it holds,
+  // so an artifact holding null, false, 0 or "" is validated, not ignored.
+  const wroteArtifact = fs.existsSync(launching.completion);
+  let done = null;
+  if (wroteArtifact) {
+    try { done = read(launching.completion); }
+    catch (error) { throw new Error(`Launch ${index} completion artifact at ${launching.completion} is unreadable: ${error.message}`); }
+  }
+  return { index, step: launching.step, head: launching.head, launching, thread, reportToken: launching.reportToken, notBefore: launching.reportNotBefore, absentAt: absent.time, next: step.next, wroteArtifact, done };
+}
+
+// The `completed` row for a settled review, from the reviewer's own comment
+// as read back: its body names the reviewed head and ends with the launch's
+// report token (only this launch's prompt carries it), and it was created
+// during the launch, between the launch time and its child confirmed absent.
+// A completion artifact the reviewer wrote supplies the summary and
+// transition, and names no comment or only this one; without it the plan must
+// declare a single transition.
+function reviewerPostedCompletion(review, posted, body, commentId) {
+  const content = normalizeBody(body.replace(attributionFooter, ""));
+  const lines = content.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (!content.includes(review.head) || lines.at(-1) !== review.reportToken) throw new Error(`Comment ${commentId} must be the reviewer's report: it must name reviewed head ${review.head} and end with the launch's report token`);
+  const created = Date.parse(posted.created_at);
+  if (!Number.isFinite(created)) throw new Error(`The read-back of comment ${commentId} has no created_at; supply the comment as GitHub's REST API returns it`);
+  if (created < Math.floor(Date.parse(review.notBefore) / 1000) * 1000 || created > Date.parse(review.absentAt)) throw new Error(`Comment ${commentId} was created at ${posted.created_at}, outside launch ${review.index}'s run from ${review.notBefore} until its child was confirmed absent at ${review.absentAt}`);
+  let next, summary;
+  if (review.wroteArtifact) {
+    const done = review.done;
+    if (done?.head !== review.head || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.every((id) => id === commentId) || !review.next.includes(done.next)) throw new Error(`Launch ${review.index} completion artifact at ${review.launching.completion} must name head ${review.head}, a summary, a declared transition and no comment but ${commentId}`);
+    ({ next, summary } = done);
+  } else {
+    if (review.next.length !== 1) throw new Error(`Launch ${review.index} wrote no completion artifact and its step declares ${review.next.length} transitions, so the transition its report takes is unknown`);
+    next = review.next[0];
+    summary = `Reviewer-posted report ${commentId}; the launcher died before journalling the reviewer's exit and settle-launch settled the launch`;
+  }
+  return { ...lateCompletion(review.launching, { time: new Date(created).toISOString() }, { head: review.head, next, commentIds: [], summary }), postedBy: "reviewer" };
+}
+
 // The `completed` row the launcher would have written for a review launch
 // whose completion it could not record, from the round accounting its
 // launching row started from. It is dated at the reviewer's exit, when the
@@ -515,31 +575,34 @@ function filesUnder(directory) {
 // The launcher plan that names a journal, found by its content under any
 // name, as the orchestrate checkpoint finds it: first beside the journal,
 // then anywhere in the PR's job directory (the `pr-<N>` directory holding
-// the journal), skipping Git directories and installs.
+// the journal) where the review workflow writes plans (reviewJobFiles),
+// never inside a reviewer's workspace.
 function planNaming(journalFile) {
   const same = (a, b) => process.platform === "win32" ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
-  const naming = (file) => {
+  const naming = (file, size) => {
+    if (size === 0 || size > 4 * 2 ** 20) return null;
     try {
-      const stat = fs.lstatSync(file);
-      if (!stat.isFile() || stat.size === 0 || stat.size > 4 * 2 ** 20) return null;
       const plan = read(file);
       return typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object" && same(plan.journal, journalFile) ? plan : null;
     } catch { return null; }
   };
   const beside = path.dirname(journalFile);
-  for (const name of fs.readdirSync(beside).sort()) { const plan = naming(path.join(beside, name)); if (plan) return plan; }
+  for (const name of fs.readdirSync(beside).sort()) {
+    const file = path.join(beside, name);
+    let stat;
+    try { stat = fs.lstatSync(file); } catch { continue; }
+    const plan = stat.isFile() ? naming(file, stat.size) : null;
+    if (plan) return plan;
+  }
   let jobDir = beside;
   while (!/^pr-\d+$/.test(path.basename(jobDir)) && path.dirname(jobDir) !== jobDir) jobDir = path.dirname(jobDir);
   if (!/^pr-\d+$/.test(path.basename(jobDir))) return null;
-  const walk = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const file = path.join(directory, entry.name);
-      if (entry.isDirectory()) { if (![".git", "node_modules"].includes(entry.name)) { const plan = walk(file); if (plan) return plan; } }
-      else if (entry.isFile()) { const plan = naming(file); if (plan) return plan; }
-    }
-    return null;
-  };
-  return walk(jobDir);
+  for (const { file, size } of reviewJobFiles(jobDir)) {
+    if (path.dirname(file) === beside) continue;
+    const plan = naming(file, size);
+    if (plan) return plan;
+  }
+  return null;
 }
 
 // Windows creation ticks (100 ns since 0001-01-01 UTC) of a time in ms.
@@ -913,6 +976,14 @@ function readBackText(file) {
 // the code repository while the switch is off. A journal whose last rows are
 // this command's own rows for this same comment (its `finished` row was
 // never written) takes the missing rows without a second post.
+//
+// It also records the report a reviewer with GitHub access posted itself
+// when its launcher died before journalling the reviewer's exit, so that
+// settle-launch ended the journal `blocked`: the read-back is then the
+// reviewer's own comment on the review thread, bound to the launch by the
+// checks in reviewerPostedCompletion, and the command appends the
+// `completed` row the launcher could not write, `report-posted` and
+// `finished`, without relaunching the reviewer.
 export function recordCoordinatorReport(journalFile, commentId, readBackFile, { repos = readRepos() } = {}) {
   if (!/^[1-9][0-9]*$/.test(String(commentId)) || !Number.isSafeInteger(Number(commentId))) throw new Error("Supply the posted comment's numeric ID");
   const rows = fs.readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
@@ -924,21 +995,26 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile, { 
   const written = anchorAt < 0 ? [] : rows.slice(anchorAt + 1);
   const expected = anchor?.event === "blocked" ? ["completed", "report-posted"] : ["report-posted"];
   if (!anchor || written.length > expected.length || !written.every((row, i) => row.event === expected[i])) throw new Error("Journal does not end awaiting a coordinator-posted report");
+  const settled = anchor.event === "blocked" && anchor.settledBy === "settle-launch";
   let pending, completed;
-  if (anchor.event === "blocked") ({ pending, completed } = blockedReview(rows.slice(0, anchorAt + 1), anchor));
+  if (settled) pending = settledReview(rows.slice(0, anchorAt + 1), journalFile);
+  else if (anchor.event === "blocked") ({ pending, completed } = blockedReview(rows.slice(0, anchorAt + 1), anchor));
   else pending = anchor;
-  const report = fs.readFileSync(pending.report, "utf8");
-  if (sha256(report) !== pending.reportSha256) throw new Error(`Reviewer report at ${pending.report} changed since the launcher recorded it`);
+  const report = settled ? null : fs.readFileSync(pending.report, "utf8");
+  if (!settled && sha256(report) !== pending.reportSha256) throw new Error(`Reviewer report at ${pending.report} changed since the launcher recorded it`);
   let posted;
   try { posted = JSON.parse(readBackText(readBackFile)); }
   catch (error) { throw new Error(`The read-back ${readBackFile} must be the posted comment as GitHub's REST API returns it, with its id, issue_url and body (gh api repos/<repository>/issues/comments/<id>): ${error.message}`); }
   if (typeof posted?.body !== "string") throw new Error(`The read-back ${readBackFile} has no comment body; supply the comment as GitHub's REST API returns it, with its id, issue_url and body`);
   const body = normalizeBody(posted.body);
-  const content = normalizeBody(body.replace(attributionFooter, ""));
-  const split = content.indexOf("\n\n");
-  const prefix = split > 0 ? content.slice(0, split) : "";
-  if (!prefix || prefix.includes("\n") || !/behalf/i.test(prefix) || content.slice(split + 2) !== normalizeBody(report)) throw new Error("The posted comment must be one line saying it is posted on the reviewer's behalf and why, a blank line, then the reviewer's report verbatim");
-  const record = { event: "report-posted", index: pending.index, step: pending.step, head: pending.head, commentId: Number(commentId), postedBy: "coordinator", readBackSha256: sha256(body) };
+  if (settled) completed = reviewerPostedCompletion(pending, posted, body, Number(commentId));
+  else {
+    const content = normalizeBody(body.replace(attributionFooter, ""));
+    const split = content.indexOf("\n\n");
+    const prefix = split > 0 ? content.slice(0, split) : "";
+    if (!prefix || prefix.includes("\n") || !/behalf/i.test(prefix) || content.slice(split + 2) !== normalizeBody(report)) throw new Error("The posted comment must be one line saying it is posted on the reviewer's behalf and why, a blank line, then the reviewer's report verbatim");
+  }
+  const record = { event: "report-posted", index: pending.index, step: pending.step, head: pending.head, commentId: Number(commentId), postedBy: settled ? "reviewer" : "coordinator", readBackSha256: sha256(body) };
   // Every row this command writes names the comment and read-back, so the
   // first row to survive an interruption fixes them for the retry.
   const recorded = written.findLast((row) => row.event === "report-posted" || row.event === "completed");
@@ -1287,6 +1363,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   // Claude reviewer's directory exists only inside its built prompt, which
   // scripts/build-review-prompt.mjs checks when it fills REVDIR and DIFF.
   assertInsideJobRoot([["plan file", configFile], ["journal", journal], ...Object.entries(config.steps).flatMap(([name, step]) => [[`step ${name} prompt`, step?.prompt], ...(step?.permissions?.cwd !== undefined ? [[`step ${name} reviewer directory`, step.permissions.cwd]] : [])])], root, `in pr-${config.pr}${path.sep}round-<R>`);
+  assertWalkedJobState([["plan file", configFile, "file"], ["journal", journal, "file"]], root);
   const selection = resolveReviewer(config, cwd);
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");

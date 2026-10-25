@@ -79,8 +79,8 @@ describe("layout lifecycle directive validation ([[open/close LAYOUT]])", () => 
   });
 
   test("a control verb used in the wrong bracket still warns", () => {
-    // `play` is an audio verb; in `[[…]]` (visual brackets) it's invalid.
-    const diags = diagnosticsFor(LAYOUT + `[[play hud]]\n`);
+    // `stop` is an audio verb; in `[[…]]` (visual brackets) it's invalid.
+    const diags = diagnosticsFor(LAYOUT + `[[stop hud]]\n`);
     expect(diags.some((m) => m.includes("Unrecognized"))).toBe(true);
   });
 });

@@ -9,7 +9,7 @@ import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/c
 import { describe, expect, it } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { programIdentity } from "../../utils/programIdentity";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, holdFirstInit, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `define SPRITE_A as image with
   src = "https://example.com/a.png"
@@ -337,27 +337,6 @@ describe("a preview displayed from the worker's game", () => {
       h.dispose();
     }
   }, 120_000);
-
-  /** Hold the first application the controller builds inside its `init`,
-   *  and record every application it builds. */
-  const holdFirstInit = (h: any) => {
-    let release!: () => void;
-    const held = new Promise<void>((resolve) => (release = resolve));
-    const apps: any[] = [];
-    const createApp = h.controller.createApp.bind(h.controller);
-    h.controller.createApp = (...args: unknown[]) => {
-      const app = createApp(...args);
-      if (apps.push(app) === 1) {
-        const init = app.init.bind(app);
-        app.init = async () => {
-          await held;
-          await init();
-        };
-      }
-      return app;
-    };
-    return { apps, release };
-  };
 
   it("settles the preview once the player goes while its application initializes", async () => {
     const h = await createPlayerHarness({

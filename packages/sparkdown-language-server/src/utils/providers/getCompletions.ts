@@ -27,7 +27,6 @@ import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
 import { getDescendentsInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentsInsideParent";
-import { getOtherMatchesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherMatchesInsideParent";
 import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherNodesInsideParent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type SyntaxNode, type Tree } from "@lezer/common";
@@ -54,6 +53,15 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
+const MOVIE_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
+// The verbs offered inside `[[ ]]`: the image verbs and the cutscene verb.
+const BRACKET_CONTROL_KEYWORDS = [
+  ...IMAGE_CONTROL_KEYWORDS,
+  ...MOVIE_CONTROL_KEYWORDS,
+];
+// The clauses a `[[play NAME]]` cutscene takes.
+const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
 
 const IMAGE_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
@@ -91,7 +99,15 @@ const LOCAL_DECLARATION_KEYWORDS =
 const STYLING_DEFINE_TYPES: string[] = [];
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
+// The names an image command shows: images, and videos, which play on a layer.
+const IMAGE_COMMAND_NAME_TYPES = [...IMAGE_TYPES, "video"];
+// The clauses a video takes on a layer, offered on every image command that
+// names what it shows.
+const MOVIE_CLAUSE_KEYWORDS = ["loop", "once", "mute"];
+// The clauses whose next word is their value.
+const VALUE_CLAUSE_KEYWORDS = ["after", "over", "with", "to", "ease"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
+const VIDEO_TYPES = ["video"];
 const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
 
@@ -1342,6 +1358,50 @@ export const getCompletions = (
   const getNodeText = (node: SyntaxNode | undefined | null) =>
     node ? read(node.from, node.to) : "";
 
+  // The clause keywords written in the `[[…]]` or `((…))` command at the
+  // cursor, except one the cursor is in or at the end of, which is the word
+  // being typed. A cursor at a keyword's start inserts before it. They can sit
+  // on either side of the cursor, and the space before the closing marks is
+  // not their sibling.
+  const writtenClauses = (commandName: SparkdownNodeName) => {
+    const command = leftStack.find((n) => n.type.name === commandName);
+    const written: string[] = [];
+    if (command) {
+      tree.iterate({
+        from: command.from,
+        to: command.to,
+        enter: (node) => {
+          if (
+            node.name === "AssetCommandClauseKeyword" &&
+            (documentCursorOffset <= node.from || documentCursorOffset > node.to)
+          ) {
+            written.push(read(node.from, node.to));
+          }
+        },
+      });
+    }
+    return written;
+  };
+
+  // A name typed after a space follows another name, so it may as well be the
+  // start of a clause: the grammar reads a clause keyword only once it is whole.
+  const isNameAfterName = (node: SyntaxNode | undefined) =>
+    node?.name === "AssetCommandFileName" &&
+    node.prevSibling?.name === "RequiredWhitespace";
+
+  // A word after a clause that takes no value, or after a clause's value, is
+  // the start of the next clause.
+  const isClauseStart = (node: SyntaxNode | undefined) => {
+    if (node?.name !== "NameValue") {
+      return false;
+    }
+    const before = node.prevSibling?.prevSibling;
+    return !(
+      before?.name === "AssetCommandClauseKeyword" &&
+      VALUE_CLAUSE_KEYWORDS.includes(getNodeText(before))
+    );
+  };
+
   const getCursorOffset = (node: SyntaxNode | undefined) =>
     node
       ? documentCursorOffset < node.from
@@ -1647,16 +1707,46 @@ export const getCompletions = (
 
   // ImageCommand
   if (leftStack.some((n) => n.type.name === "ImageCommand")) {
+    // `show`, `animate` and the bare `[[NAME]]` name what they display, which
+    // may be a video.
+    const takesMovieClauses = (control: string) =>
+      control === "" || control === "show" || control === "animate";
+    const imageControl = () =>
+      getNodeText(
+        getDescendentInsideParent(
+          "AssetCommandControl",
+          "ImageCommand",
+          leftStack,
+        ),
+      );
+    // A cutscene takes its own clauses; `animate` is mostly followed by
+    // `with`, so it comes first there.
+    const addImageClauseCompletions = (control: string) => {
+      const clauses = MOVIE_CONTROL_KEYWORDS.includes(control)
+        ? CUTSCENE_CLAUSE_KEYWORDS
+        : control === "animate"
+          ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
+          : IMAGE_CLAUSE_KEYWORDS;
+      addKeywordCompletions(
+        completions,
+        "clause",
+        [
+          ...clauses,
+          ...(takesMovieClauses(control) ? MOVIE_CLAUSE_KEYWORDS : []),
+        ],
+        writtenClauses("ImageCommand"),
+      );
+    };
     const beforeImageNode = leftStack.find(
       (n) => n.type.name === "ImageBeginMark",
     );
     if (beforeImageNode) {
       if (isCursorAfterNodeText(beforeImageNode)) {
-        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
         addStructReferenceCompletions(
           completions,
           program,
-          IMAGE_TYPES,
+          IMAGE_COMMAND_NAME_TYPES,
           isPrefilteredName,
         );
       }
@@ -1664,7 +1754,7 @@ export const getCompletions = (
     }
     if (leftStack[0]?.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(leftStack[0])) {
-        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
       }
       return buildCompletions();
     }
@@ -1680,6 +1770,11 @@ export const getCompletions = (
       );
       const control = getNodeText(controlNode);
       if (isCursorAfterNodeText(leftStack[0])) {
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          // A cutscene's target is the video it plays.
+          addStructReferenceCompletions(completions, program, VIDEO_TYPES);
+          return buildCompletions();
+        }
         addScreenElementReferenceCompletions(
           completions,
           program,
@@ -1696,22 +1791,14 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandAddOperator"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
-        const controlNode = getDescendentInsideParent(
-          "AssetCommandControl",
-          "ImageCommand",
-          leftStack,
-        );
-        const control = getNodeText(controlNode);
-        const clauses =
-          control === "animate"
-            ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
-            : IMAGE_CLAUSE_KEYWORDS;
-        addKeywordCompletions(completions, "clause", clauses);
-        if (control !== "hide" && control !== "animate") {
+        const control = imageControl();
+        addImageClauseCompletions(control);
+        // A cutscene plays one video: only its clauses follow the name.
+        if (control !== "hide" && !MOVIE_CONTROL_KEYWORDS.includes(control)) {
           addStructReferenceCompletions(
             completions,
             program,
-            IMAGE_TYPES,
+            IMAGE_COMMAND_NAME_TYPES,
             isPrefilteredName,
           );
         }
@@ -1723,10 +1810,20 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFileName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
+        const control = imageControl();
+        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
+          // A cutscene takes no second name, so a word typed after its
+          // video is the start of a clause.
+          addImageClauseCompletions(control);
+          return buildCompletions();
+        }
+        if (isNameAfterName(leftStack[0]?.node)) {
+          addImageClauseCompletions(control);
+        }
         addStructReferenceCompletions(
           completions,
           program,
-          IMAGE_TYPES,
+          IMAGE_COMMAND_NAME_TYPES,
           isPrefilteredName,
         );
       }
@@ -1755,7 +1852,7 @@ export const getCompletions = (
         const types =
           control === "animate"
             ? ["animation"]
-            : control === "show"
+            : control === "show" || MOVIE_CONTROL_KEYWORDS.includes(control)
               ? ["transition"]
               : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);
@@ -1774,6 +1871,12 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
+    if (isClauseStart(leftStack[0]?.node)) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        addImageClauseCompletions(imageControl());
+      }
+      return buildCompletions();
+    }
     if (
       isWhitespaceNode(leftStack[0]?.name) &&
       nextNode?.name !== "AssetCommandAddOperator" &&
@@ -1789,19 +1892,7 @@ export const getCompletions = (
             prevText === "with" ||
             prevText === "to");
         if (!prevClauseTakesArgument) {
-          const exclude = getOtherMatchesInsideParent(
-            "AssetCommandClauseKeyword",
-            "ImageCommand",
-            leftStack,
-            tree,
-            read,
-          );
-          addKeywordCompletions(
-            completions,
-            "clause",
-            IMAGE_CLAUSE_KEYWORDS,
-            exclude,
-          );
+          addImageClauseCompletions(imageControl());
         }
       }
       return buildCompletions();
@@ -1850,7 +1941,12 @@ export const getCompletions = (
           leftStack,
         );
         const control = getNodeText(controlNode);
-        addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
+        addKeywordCompletions(
+          completions,
+          "clause",
+          AUDIO_CLAUSE_KEYWORDS,
+          writtenClauses("AudioCommand"),
+        );
         if (control !== "stop") {
           addStructReferenceCompletions(completions, program, AUDIO_TYPES);
         }
@@ -1862,6 +1958,14 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFileName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
+        if (isNameAfterName(leftStack[0]?.node)) {
+          addKeywordCompletions(
+            completions,
+            "clause",
+            AUDIO_CLAUSE_KEYWORDS,
+            writtenClauses("AudioCommand"),
+          );
+        }
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       }
       return buildCompletions();
@@ -1870,6 +1974,17 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFilterOperator" ||
       leftStack[0]?.name === "AssetCommandFilterName"
     ) {
+      return buildCompletions();
+    }
+    if (isClauseStart(leftStack[0]?.node)) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        addKeywordCompletions(
+          completions,
+          "clause",
+          AUDIO_CLAUSE_KEYWORDS,
+          writtenClauses("AudioCommand"),
+        );
+      }
       return buildCompletions();
     }
     if (
@@ -1898,18 +2013,11 @@ export const getCompletions = (
             prevText === "with" ||
             prevText === "to");
         if (!prevClauseTakesArgument) {
-          const exclude = getOtherMatchesInsideParent(
-            "AssetCommandClauseKeyword",
-            "AudioCommand",
-            leftStack,
-            tree,
-            read,
-          );
           addKeywordCompletions(
             completions,
             "clause",
             AUDIO_CLAUSE_KEYWORDS,
-            exclude,
+            writtenClauses("AudioCommand"),
           );
         }
         return buildCompletions();

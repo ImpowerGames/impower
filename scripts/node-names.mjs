@@ -51,7 +51,6 @@ const NAME_FIRST_HELPERS = [
   "getDescendentsInsideParent",
   "getNodesInsideParent",
   "getOtherNodesInsideParent",
-  "getOtherMatchesInsideParent",
 ];
 
 // Lookup helpers that take the parent first and the name second: the

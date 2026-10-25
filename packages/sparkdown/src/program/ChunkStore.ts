@@ -27,7 +27,6 @@ import {
   factHash,
   factsText,
   NO_FACTS,
-  normalizeSource,
   type BlockInput,
   type FunctionInput,
 } from "./BinaryProgramWriter";
@@ -104,9 +103,13 @@ export interface StatementSource {
   range: DebugMetadata | null;
   /** The statement's first line in its script, counting from 0. */
   firstLine: number;
-  /** The statement's source text, which its fingerprint hashes: a block
-   *  statement's own parts, without its bodies. */
+  /** The statement's source text: a block statement's own parts, without
+   *  its bodies. */
   source: () => string;
+  /** The text the statement's fingerprint hashes, its source as the
+   *  script's parse reads it (`compiler/utils/fingerprintSource.ts`), or
+   *  without one its source as written. */
+  fingerprint?: () => string;
   /** The statement's syntax: its node's name, the column it starts at and its
    *  own source text, which together settle every position its chunk's line
    *  rows hold. Read only for a statement whose block is not the one a chunk
@@ -114,10 +117,11 @@ export interface StatementSource {
   syntax: () => string;
   /** The lowering inputs the statement recorded, with the answers they got. */
   reads: string;
-  /** The text between two offsets relative to the start of the top-level
-   *  node the statement was lowered in, from which an alternator's own
-   *  source is read (`alternatorSourceOf`). */
-  text?: (from: number, to: number) => string;
+  /** The text a fingerprint hashes of the source between two offsets
+   *  relative to the start of the top-level node the statement was lowered
+   *  in, from which a choice's or an alternator's is read
+   *  (`alternatorSourceOf`). */
+  fingerprintOf?: (from: number, to: number) => string;
   /** The bodies of a block statement, in the order it runs them, and the
    *  bodies of the functions the statement writes. */
   bodies?: readonly BodySource[];
@@ -151,17 +155,18 @@ export interface BodySource {
   /** The lines of the owner's parts between the body above it (or the
    *  owner's first line) and this body. */
   headLines: number;
-  /** The source of the part that heads the body (a branch's condition or
-   *  its `else`, a loop's header, a `then` clause), by which the body keeps
-   *  its sequence id when the statement is emitted again in place
-   *  (docs/engine/binary-program.md, section 2). */
-  headSource?: () => string;
+  /** The text a fingerprint hashes of the part that heads the body (a
+   *  branch's condition or its `else`, a loop's header, a `then` clause), by
+   *  which the body keeps its sequence id when the statement is emitted again
+   *  in place (docs/engine/binary-program.md, section 2). */
+  headFingerprint?: () => string;
   /** For a function's body, the function (a `FlowBase`). */
   fn?: ParsedObject;
-  /** For a function's body, the function's own source text, which aligns it
-   *  with the functions of the statement's previous chunk when the statement
-   *  is emitted again (docs/engine/binary-program.md, section 2). */
-  partSource?: () => string;
+  /** For a function's body, the text a fingerprint hashes of the function's
+   *  own source, which aligns it with the functions of the statement's
+   *  previous chunk when the statement is emitted again
+   *  (docs/engine/binary-program.md, section 2). */
+  partFingerprint?: () => string;
 }
 
 /** A global a declaration statement declares. */
@@ -1882,6 +1887,7 @@ export class ChunkStore {
       range: DebugMetadata | null;
       firstLine: number;
       source: string;
+      fingerprint: string;
       chunkId: number;
       blocks: BlockInput[];
       lineEnd?: (line: number) => number;
@@ -1905,7 +1911,7 @@ export class ChunkStore {
     // clause's) by the source of the part that heads it.
     const choices = choicesOf(statement);
     const choicePrints = choices.map((choice) =>
-      choiceFingerprint(choice, statement.text),
+      choiceFingerprint(choice, statement.fingerprintOf),
     );
     const choiceAlignment = oldInfo
       ? alignParts(
@@ -1983,7 +1989,7 @@ export class ChunkStore {
     // other takes a new anonymous symbol when the writer first asks for it.
     const alternators = alternatorsOf(statement);
     const fingerprints = alternators.map((sequence) =>
-      alternatorFingerprint(sequence, statement.text),
+      alternatorFingerprint(sequence, statement.fingerprintOf),
     );
     const alternatorPlan = new Map<object, number>();
     choices.forEach((choice, i) => {
@@ -2016,6 +2022,7 @@ export class ChunkStore {
         range: statement.range,
         firstLine: statement.firstLine,
         source: statement.source(),
+        fingerprint: statement.fingerprint?.() ?? statement.source(),
         chunkId: this._nextChunkId++,
         blocks,
         lineEnd: statement.lineEnd,
@@ -4519,29 +4526,30 @@ const choicesOf = (statement: StatementSource): Choice[] => {
 };
 
 /** What a choice is aligned by when its statement is emitted again, which
- *  its count symbol and its body go with (section 2): its own source,
- *  normalized, read through the statement's `text` from the range its
- *  lowering recorded, or without one the text of its start and choice-only
- *  content. */
+ *  its count symbol and its body go with (section 2): its own source as a
+ *  fingerprint reads it, through the statement's `fingerprintOf` from the
+ *  range its lowering recorded, or without one the text of its start and
+ *  choice-only content. */
 const choiceFingerprint = (
   choice: Choice,
-  source?: (from: number, to: number) => string,
+  fingerprintOf?: (from: number, to: number) => string,
 ): string => {
   const range = alternatorSourceOf.get(choice);
-  if (range && source) {
-    return `choice|${normalizeSource(source(range.from, range.to))}`;
+  if (range && fingerprintOf) {
+    return `choice|${fingerprintOf(range.from, range.to)}`;
   }
   const text = (list: ParsedObject): string =>
     list.content
       .map((obj) => (obj instanceof Text ? obj.text : obj.typeName))
       .join("");
-  return `choice|${normalizeSource(`${text(choice.startContent)}[${text(choice.choiceOnlyContent)}]`)}`;
+  return `choice|${text(choice.startContent)}[${text(choice.choiceOnlyContent)}]`;
 };
 
 /** What an alternator is aligned by when its statement is emitted again,
- *  and its shuffle seeded from: its own source, normalized, as a function
- *  part's is (docs/engine/binary-program.md, section 2), read through the
- *  statement's `text` from the range its lowering recorded. Without one, its
+ *  and its shuffle seeded from: its own source as a fingerprint reads it, as
+ *  a function part's is (docs/engine/binary-program.md, section 2), through
+ *  the statement's `fingerprintOf` from the range its lowering recorded.
+ *  Without one, its
  *  kind and its arms, read as their text, each object's kind and what each
  *  object prints as (a name, a number, a string, a call, an operation), with
  *  the objects it holds, and a nested alternator by its own kind and arms. A
@@ -4551,11 +4559,11 @@ const choiceFingerprint = (
  *  above the statement in that flow renumbers them. */
 const alternatorFingerprint = (
   sequence: Sequence,
-  source?: (from: number, to: number) => string,
+  fingerprintOf?: (from: number, to: number) => string,
 ): string => {
   const range = alternatorSourceOf.get(sequence);
-  if (range && source) {
-    return `${sequence.sequenceType}|${normalizeSource(source(range.from, range.to))}`;
+  if (range && fingerprintOf) {
+    return `${sequence.sequenceType}|${fingerprintOf(range.from, range.to)}`;
   }
   const arms = (seq: Sequence): string =>
     `${seq.sequenceType}|${seq.sequenceElements.map(text).join("|")}`;
@@ -4574,7 +4582,7 @@ const alternatorFingerprint = (
     return children.length > 0 ? `${own}(${children.map(text).join("")})` : own;
   };
   const generated = new Map<string, number>();
-  return normalizeSource(arms(sequence)).replace(NUMBERED_SYNTHETIC_NAMES, (name) => {
+  return arms(sequence).replace(NUMBERED_SYNTHETIC_NAMES, (name) => {
     if (!generated.has(name)) {
       generated.set(name, generated.size);
     }
@@ -4582,13 +4590,13 @@ const alternatorFingerprint = (
   });
 };
 
-/** The hash a function part is aligned by: its own source, normalized. */
-const fingerprintOf = (body: BodySource): string =>
-  normalizeSource(body.partSource?.() ?? "");
+/** The hash a function part is aligned by: its own source as a fingerprint
+ *  reads it. */
+const fingerprintOf = (body: BodySource): string => body.partFingerprint?.() ?? "";
 
 /** What a body that neither a choice nor a function heads is aligned by
  *  when its statement is emitted again in place (section 2): the source of
- *  the part that heads it, normalized (a branch's condition or its `else`,
+ *  the part that heads it as a fingerprint reads it (a branch's condition or its `else`,
  *  a loop's header, a `do`, a `then` clause with its label), and for a `then`
  *  clause the depth of the `choose` block it closes, which tells a block's
  *  own clause from that of a block written in its preamble. */
@@ -4596,7 +4604,7 @@ const headFingerprint = (body: BodySource): string => {
   const part = partOfBody.get(body.shape as BodyShape);
   const depth =
     part instanceof Gather ? `then:${part.indentationDepth}|` : "head|";
-  return `${depth}${normalizeSource(body.headSource?.() ?? "")}`;
+  return `${depth}${body.headFingerprint?.() ?? ""}`;
 };
 
 /** A flow's qualified name, or nothing for a flow a statement writes. */

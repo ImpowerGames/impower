@@ -9,7 +9,31 @@ import {
   SUPERSEDED,
   type StreamMessage,
 } from "../../../spark-engine/src/game/core/classes/Connection";
+import { AnimateElementsMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
+import { BatchElementsMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/BatchElementsMessage";
+import { BeatMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import type { Manager } from "./Manager";
+
+/** The requests a notification carries for the page to answer: the
+ *  animations of a composed beat, on their own or inside a batch. */
+function carriedRequests(message: Message): RequestMessage[] {
+  if (!BeatMessage.type.isNotification(message as NotificationMessage)) {
+    return [];
+  }
+  const { messages } = (message as NotificationMessage).params as {
+    messages?: Message[];
+  };
+  return (messages ?? [])
+    .flatMap((op) =>
+      BatchElementsMessage.type.isNotification(op as NotificationMessage)
+        ? (((op as NotificationMessage).params as { messages?: Message[] })
+            ?.messages ?? [])
+        : [op],
+    )
+    .filter((op): op is RequestMessage =>
+      AnimateElementsMessage.type.isRequest(op as RequestMessage),
+    );
+}
 
 type Answer =
   | { error: ResponseError; transfer?: ArrayBuffer[] }
@@ -26,8 +50,8 @@ type Answer =
  * disconnects.
  *
  * Every stream the game sends carries an epoch. A message from an older
- * stream than the newest one seen is dropped (a request among them is
- * answered with an error), so what a superseded preview still had in flight
+ * stream than the newest one seen is dropped (a request among them, or one a
+ * dropped beat carries, is answered with an error), so what a superseded preview still had in flight
  * cannot paint over the one that replaced it.
  */
 export class MessageRouter {
@@ -61,17 +85,19 @@ export class MessageRouter {
       return;
     }
     if (this._disconnected) {
-      if (isRequest) {
-        this.answerError(message, DISCONNECTED, "the page disconnected");
+      for (const request of isRequest ? [message] : carriedRequests(message)) {
+        this.answerError(request, DISCONNECTED, "the page disconnected");
       }
       return;
     }
     const epoch = message.epoch;
     if (typeof epoch === "number") {
       if (epoch < this._epoch) {
-        if (isRequest) {
+        for (const request of isRequest
+          ? [message]
+          : carriedRequests(message)) {
           this.answerError(
-            message,
+            request,
             SUPERSEDED,
             `stream ${epoch} was superseded by stream ${this._epoch}`,
           );
@@ -118,6 +144,8 @@ export class MessageRouter {
   answer(message: RequestMessage, work: Promise<Answer>): void {
     if (this._disconnected) {
       this.answerError(message, DISCONNECTED, "the page disconnected");
+      // Its outcome no longer reaches the game.
+      void work.catch(() => {});
       return;
     }
     this._pending.set(message.id, message.method);
