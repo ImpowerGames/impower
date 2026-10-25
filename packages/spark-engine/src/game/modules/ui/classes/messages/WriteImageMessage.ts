@@ -46,6 +46,16 @@ export interface WriteImageInstruction {
      *  the keys the page keeps resident for as long as the layer is on
      *  screen. */
     srcs: string[];
+    /** The movie the layer plays, when a name is a video rather than an
+     *  image: the page builds a `<video>` for it in place of the `img`. */
+    video?: {
+      /** The video file's src, which the page's asset cache is keyed by. */
+      src: string;
+      loop: boolean;
+      muted: boolean;
+      /** Written by a preview, which shows the first frame and never plays. */
+      preview?: boolean;
+    };
     /** Reveal/animate animation for the new layer (control: show | animate). */
     enterAnimation?: Animation;
     /** Hide animation for the new layer (control: hide). */

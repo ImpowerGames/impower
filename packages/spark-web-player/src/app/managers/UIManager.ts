@@ -3,6 +3,7 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
+import { createVideoElement } from "../../../../spark-dom/src/utils/createVideoElement";
 import { resolveAnimationTargets } from "../../../../spark-dom/src/utils/resolveAnimationTargets";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
@@ -427,6 +428,7 @@ export default class UIManager extends Manager {
   protected clearImageLayers(el: HTMLElement) {
     for (const tag of ["image", "mask"]) {
       for (const contentEl of this.getContentElements(el, tag)) {
+        this.releaseMovies(contentEl);
         contentEl.replaceChildren();
       }
     }
@@ -462,6 +464,7 @@ export default class UIManager extends Manager {
           this._staleIds.delete(childId);
         }
       });
+      this.releaseMovies(el);
       el.remove();
     }
     this._staleIds.delete(id);
@@ -476,6 +479,13 @@ export default class UIManager extends Manager {
     }
     this._listeners = {};
     this._elements.clear();
+    // The run is over (STOP, or the rebuild a new run makes): its movies stop
+    // where they are. The next display replaces or sweeps their layers.
+    for (const video of this.movies()) {
+      video.pause();
+      delete (video as any).__sdMovie;
+    }
+    this._pausedMovies.clear();
     // A played beat still waiting for its commit belonged to the run being
     // torn down (STOP, or the rebuild a new run makes): it never goes up, and
     // the screen stays as it is until the next display (#1820). The engine
@@ -2027,6 +2037,10 @@ export default class UIManager extends Manager {
     const enterEffects: { element: HTMLElement; animations: Animation[] }[] = [];
     const exitEffects: { element: HTMLElement; animations: Animation[] }[] = [];
     const toDestroy: HTMLElement[] = [];
+    /** The movies this write builds that play once their layer shows. */
+    const newMovies: HTMLVideoElement[] = [];
+    /** The movies of the layers this write hides. */
+    const hiddenMovies: HTMLVideoElement[] = [];
 
     const applyStyle = this.applyStyle.bind(this);
 
@@ -2037,6 +2051,7 @@ export default class UIManager extends Manager {
         // Clear path (the engine cleared image + mask content then set
         // display:none on the wrapper, which it still emits via ui/update).
         for (const imageEl of imageEls) {
+          this.releaseMovies(imageEl);
           imageEl.replaceChildren();
         }
         for (const maskEl of maskEls) {
@@ -2065,20 +2080,55 @@ export default class UIManager extends Manager {
         }
         const content = instruction.content;
         if (!content) {
+          // A hidden layer's movies stop and let their media go (I-1380).
+          if (instruction.control === "hide") {
+            for (const imageEl of imageEls) {
+              for (const video of Array.from(imageEl.querySelectorAll("video"))) {
+                if (!hiddenMovies.includes(video)) {
+                  hiddenMovies.push(video);
+                }
+              }
+            }
+          }
           continue;
         }
         for (const { els, property } of contentTargets) {
           for (const contentEl of els) {
             // Capture existing layers BEFORE creating the new one (crossfade).
             const prevSpanEls = Array.from(contentEl.children) as HTMLElement[];
-            const newSpanEl = createImageElement(
-              contentEl,
-              property,
-              content.background,
-              content.imageNames,
-              content.src,
-              applyStyle,
-            );
+            // A movie plays in the image content; a mask cannot be one, so
+            // a mask gets the layer's images only.
+            const video =
+              content.video && property === "background_image"
+                ? content.video
+                : undefined;
+            const newSpanEl = video
+              ? createVideoElement(
+                  contentEl,
+                  property,
+                  content.background,
+                  content.imageNames,
+                  {
+                    src: this.getVideoSrc(video.src),
+                    fileSrc: video.src,
+                    loop: video.loop,
+                    muted: video.muted,
+                    preview: video.preview,
+                  },
+                  applyStyle,
+                )
+              : createImageElement(
+                  contentEl,
+                  property,
+                  content.background,
+                  content.imageNames,
+                  content.src,
+                  applyStyle,
+                );
+            const videoEl = newSpanEl.querySelector("video");
+            if (videoEl && !video?.preview && instruction.control !== "hide") {
+              newMovies.push(videoEl);
+            }
             // What this layer paints stays resident while it is on screen
             // (`AssetManager.derivedPins`). Kept on the node, which outlives
             // this manager across a re-render.
@@ -2140,6 +2190,10 @@ export default class UIManager extends Manager {
         startTime += player.endTime;
       }
     }
+    // The layer is up: its movies start with its content reveal.
+    for (const video of newMovies) {
+      this.startMovie(video);
+    }
     // 2. enter + exit content animations in parallel
     const playEffects = (
       effects: { element: HTMLElement; animations: Animation[] }[],
@@ -2156,7 +2210,117 @@ export default class UIManager extends Manager {
     await Promise.all([playEffects(enterEffects), playEffects(exitEffects)]);
     // 3. destroy the faded-out previous layers
     for (const el of toDestroy) {
+      this.releaseMovies(el);
       el.remove();
+    }
+    // A hidden movie's layer goes with it, once the hide has played.
+    for (const video of hiddenMovies) {
+      const span = video.closest("span.instance");
+      this.releaseMovies(video);
+      (span ?? video).remove();
+    }
+  }
+
+  /** What a movie loads: the asset cache's object URL for its file when the
+   *  file is resident, the file itself otherwise. */
+  protected getVideoSrc(fileSrc: string): string {
+    const cache = this.app.assets?.cache ?? this.app.assetCache;
+    return cache?.getVideoUrl(fileSrc) ?? fileSrc;
+  }
+
+  /** The movies this page plays, on screen now: a preview's show their
+   *  first frame and are never started. */
+  protected movies(): HTMLVideoElement[] {
+    const overlay = this.app.overlay;
+    if (!overlay) {
+      return [];
+    }
+    return (
+      Array.from(overlay.querySelectorAll("video.object")) as HTMLVideoElement[]
+    ).filter((video) => (video as any).__sdMovie);
+  }
+
+  /** Start a layer's movie in play, or, while the game is paused, once it
+   *  resumes. A movie that does not loop stops on its last frame. */
+  protected startMovie(video: HTMLVideoElement) {
+    if (!video.isConnected) {
+      return;
+    }
+    (video as any).__sdMovie = true;
+    if (!video.loop) {
+      video.addEventListener("ended", () => video.pause());
+    }
+    if (this.app.paused) {
+      this._pausedMovies.add(video);
+      return;
+    }
+    this.playMovie(video);
+  }
+
+  protected playMovie(video: HTMLVideoElement) {
+    const played = video.play();
+    // Play mode starts on a gesture, so sound is allowed; a browser that
+    // refuses it anyway still shows the movie, without its sound.
+    played?.catch((e: unknown) => {
+      if ((e as Error)?.name === "NotAllowedError" && !video.muted) {
+        video.muted = true;
+        video.play()?.catch(() => {});
+      }
+    });
+  }
+
+  /** Stop every movie under `root` (or `root` itself) and let its media
+   *  go, before its layer leaves the page. */
+  protected releaseMovies(root: Element) {
+    const videos = (
+      root.tagName === "VIDEO"
+        ? [root]
+        : Array.from(root.querySelectorAll("video"))
+    ) as HTMLVideoElement[];
+    for (const video of videos) {
+      this._pausedMovies.delete(video);
+      delete (video as any).__sdMovie;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    }
+  }
+
+  /** The movies the game had playing when it paused, which resume with it. */
+  protected _pausedMovies = new Set<HTMLVideoElement>();
+
+  override onPause(): void {
+    for (const video of this.movies()) {
+      if (!video.paused && !video.ended) {
+        video.pause();
+        this._pausedMovies.add(video);
+      }
+    }
+  }
+
+  override onUnpause(): void {
+    const resumed = [...this._pausedMovies];
+    this._pausedMovies.clear();
+    for (const video of resumed) {
+      if (video.isConnected && (video as any).__sdMovie) {
+        this.playMovie(video);
+      }
+    }
+  }
+
+  /** The game clock moved `seconds` (back, when negative): so does every
+   *  movie, a looping one around its loop and one that plays once within
+   *  its start and end. */
+  override onSkip(seconds: number): void {
+    for (const video of this.movies()) {
+      const duration = video.duration;
+      let time = video.currentTime + seconds;
+      if (Number.isFinite(duration) && duration > 0) {
+        time = video.loop
+          ? ((time % duration) + duration) % duration
+          : Math.min(time, duration);
+      }
+      video.currentTime = Math.max(0, time);
     }
   }
 

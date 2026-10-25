@@ -1930,6 +1930,15 @@ export class InterpreterModule extends Module<
               if (easeValue != null) {
                 event.ease = easeValue;
               }
+              if (c.clauses?.loop) {
+                event.loop = true;
+              }
+              if (c.clauses?.once) {
+                event.once = true;
+              }
+              if (c.clauses?.mute) {
+                event.mute = true;
+              }
             }
             result.image ??= {};
             result.image[target] ??= [];

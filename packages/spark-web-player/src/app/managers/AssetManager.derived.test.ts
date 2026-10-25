@@ -82,6 +82,67 @@ describe("AssetManager derived pins", () => {
     ]);
   });
 
+  it("pins a displayed movie's file, so eviction leaves its object URL alone", async () => {
+    const overlay = document.createElement("div");
+    const revoked: string[] = [];
+    let n = 0;
+    const cache = new AssetCache({
+      createImage: () => new FakeImage(),
+      fetchBytes: async () => ({ bytes: new ArrayBuffer(100), type: "video/webm" }),
+      createObjectURL: () => `blob:page/${++n}`,
+      revokeObjectURL: (url) => revoked.push(url),
+    });
+    cache.configure({ predictBytes: 150, loadBytes: 0 });
+    const app: any = {
+      overlay,
+      audio: { playingKeys: () => [], decodeAudioBuffer: async () => null },
+      assetCache: cache,
+      emit: () => {},
+    };
+    const manager = new AssetManager(app);
+    await manager.onInit();
+    const wave = "/file:/wave.webm?v=1";
+    await cache.request([{ kind: "video", src: wave }], 1, "beat:1");
+    cache.release(["beat:1"], false);
+    const ui = new UIManager(app);
+    const portrait = document.createElement("div");
+    portrait.className = "portrait";
+    const content = document.createElement("div");
+    content.className = "image";
+    portrait.appendChild(content);
+    overlay.appendChild(portrait);
+    await ui.onReceiveRequest(
+      WriteImageMessage.type.request({
+        target: "portrait",
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background: "none",
+              imageNames: "wave",
+              srcs: [wave],
+              video: { src: wave, loop: true, muted: false, preview: true },
+            },
+          },
+        ],
+        instant: true,
+      }),
+    );
+    const video = content.querySelector("video.object");
+    expect(video?.getAttribute("src")).toBe("blob:page/1");
+    expect([...manager.derivedPins()]).toContain(wave);
+    // Two more movies predicted past the budget: the oldest that is not on
+    // screen goes, and the one on screen stays resident under its element.
+    cache.prefetch([{ kind: "video", src: "/file:/a.webm?v=1" }], 2);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    cache.prefetch([{ kind: "video", src: "/file:/b.webm?v=1" }], 2);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cache.bytes).toBeGreaterThan(150);
+    expect(cache.has("/file:/a.webm?v=1")).toBe(false);
+    expect(revoked).toEqual(["blob:page/2"]);
+    expect(cache.getVideoUrl(wave)).toBe("blob:page/1");
+  });
+
   it("withdraws its providers and forgets failures on dispose, leaving a successor's alone", async () => {
     const { manager, cache, overlay } = makeApp();
     await manager.onInit();
