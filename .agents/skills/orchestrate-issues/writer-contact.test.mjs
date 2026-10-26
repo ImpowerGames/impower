@@ -54,7 +54,7 @@ try {
   const ticket = (number, more = {}) => ({ number, title: `ticket ${number}`, state: "open", parent: 300, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [], ...more });
   const snapshotOf = (tickets, issue = 300) => ({ repository: "acme/widgets", issue: { number: issue, state: "open" }, originMain: "abc", tickets });
   const available = (route, model, numbers) => ({ route, model, verdicts: numbers.map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) });
-  const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [], ...more });
+  const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [], env: {}, ...more });
   const entryOf = (plan, n) => plan.tickets.find((t) => t.number === n);
   const standIn = write("stand-in-writer.mjs", [
     'import fs from "node:fs";',
@@ -628,7 +628,7 @@ try {
     assert.ok(spec.prompt.includes(f.file) && spec.prompt.includes("references/writer-reports.md"), "the job's prompt names the record and the wake routine");
     assert.equal(spec.command, `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${f.file}'`);
     assert.ok(spec.capability.includes("CronCreate"), "the capability comes from the runner configuration");
-    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults }));
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env: {} }));
     const recorded = run.readRecord(f.file).checkIn;
     assert.deepEqual([recorded.job, recorded.command, recorded.interval], ["cron-1", spec.command, 30]);
     assert.equal(planOf(f, snap).checkIn.state, "scheduled");
@@ -645,27 +645,86 @@ try {
   scenario("a coordinator taking over finds the check-in to recreate, and its recorded command schedules a working job", () => {
     const f = fresh("check-in-takeover", { issue: 1775 });
     const snap = snapshotOf([ticket(362)], 1775);
-    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults }));
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env: {} }));
     const takeoverFile = path.join(f.artifacts, "takeover.json");
     const NEXT = "local_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
     run.initRecord({ record: takeoverFile, checkout: f.dir, repository: "acme/widgets", issue: 1775, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #1775.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     const carried = run.readRecord(takeoverFile);
     assert.deepEqual([carried.checkIn.job, carried.checkIn.state, carried.title], [null, "recreate on this coordinator's runner", "ORCH #1775: resumable feature orchestration"]);
     assert.equal(carried.checkIn.command, `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${takeoverFile}'`);
-    assert.equal(run.planDispatch({ record: carried, snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [] }).checkIn.state, "recreate");
+    assert.equal(run.planDispatch({ record: carried, snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [], env: {} }).checkIn.state, "recreate");
     const printed = run.main(["schedule", "--record", takeoverFile], { defaults });
     const scheduled = [];
     const scheduler = ({ cron, prompt, recurring }) => { if (cron.split(" ").length !== 5 || recurring !== true || !prompt.includes(takeoverFile)) throw new Error("not a working job"); scheduled.push(cron); return "cron-2"; };
     const job = scheduler({ cron: printed.cron, prompt: printed.prompt, recurring: true });
-    run.updateRecord(takeoverFile, { expectRevision: carried.revision, coordinator: NEXT }, (r) => run.recordCheckIn(r, { job, file: takeoverFile, defaults }));
+    run.updateRecord(takeoverFile, { expectRevision: carried.revision, coordinator: NEXT }, (r) => run.recordCheckIn(r, { job, file: takeoverFile, defaults, env: {} }));
     assert.deepEqual([run.readRecord(takeoverFile).checkIn.job, run.readRecord(takeoverFile).checkIn.state, scheduled.length], ["cron-2", "scheduled", 1]);
+  });
+
+  // The runner process is named by an environment variable from the runner
+  // configuration and identified by its start time; the tracking log lives
+  // under an environment-relative path, so a scratch directory stands in.
+  const runner = defaults.orchestrators.claude.checkIn;
+  const instanceEnv = (pid, extra = {}) => ({ [runner.instance.pidEnv]: String(pid), ...extra });
+  const identifyAs = (starts) => (pid) => (pid in starts ? { pid, start: starts[pid] } : null);
+  const desktopEnv = (f, pid) => { const logs = path.join(f.artifacts, "app"); fs.mkdirSync(logs, { recursive: true }); return instanceEnv(pid, { [runner.confirm.where.env]: runner.confirm.where.equals, LOCALAPPDATA: logs }); };
+  const trackingLog = (env) => runner.confirm.log.replace(/%(\w+)%/g, (_, name) => env[name]);
+
+  scenario("a check-in armed by an earlier runner process is reported for re-arming, with the commands to run", () => {
+    const f = fresh("check-in-restart", { issue: 1775 });
+    const snap = snapshotOf([ticket(363)], 1775);
+    const identify = identifyAs({ 4100: "100", 4200: "200" });
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env: instanceEnv(4100), identify }));
+    const armed = run.readRecord(f.file).checkIn;
+    assert.deepEqual([armed.instance, armed.tracked], [{ pid: 4100, start: "100" }, "unavailable"], "the record keeps the arming process, and a runner outside the desktop app has no confirmation");
+    assert.equal(planOf(f, snap, { env: instanceEnv(4100), identify }).checkIn.state, "scheduled", "the arming process sees its job as scheduled");
+    const restarted = planOf(f, snap, { env: instanceEnv(4200), identify }).checkIn;
+    assert.equal(restarted.state, "rearm", "a restart keeps the job id and expiry but needs the job re-armed");
+    assert.match(restarted.next, /CronDelete/);
+    assert.ok(restarted.next.includes(armed.command) && restarted.next.includes("check-in --job"), "the next step names the remove, recreate and record commands");
+    assert.equal(planOf(f, snap, { env: instanceEnv(4100), identify: identifyAs({ 4100: "300" }) }).checkIn.state, "rearm", "a reused process id with another start time is another process");
+    f.change((r) => run.recordCheckIn(r, { job: "cron-2", file: f.file, defaults, env: instanceEnv(4200), identify }));
+    assert.equal(planOf(f, snap, { env: instanceEnv(4200), identify }).checkIn.state, "scheduled", "re-arming in the new process clears the state");
+  });
+
+  scenario("a check-in armed longer ago than the runner's tracking window is re-armed before the job expires", () => {
+    const f = fresh("check-in-window", { issue: 1775 });
+    const snap = snapshotOf([ticket(364)], 1775);
+    const env = instanceEnv(4100), identify = identifyAs({ 4100: "100" });
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env, identify }));
+    const since = Date.parse(run.readRecord(f.file).checkIn.since);
+    assert.ok(runner.trackedForDays < runner.expiresAfterDays, "the tracking window is shorter than the job's own expiry");
+    assert.equal(planOf(f, snap, { env, identify, now: since + (runner.trackedForDays * 24 * 60 - 1) * MINUTE }).checkIn.state, "scheduled");
+    const aged = planOf(f, snap, { env, identify, now: since + (runner.trackedForDays * 24 * 60 + 1) * MINUTE }).checkIn;
+    assert.equal(aged.state, "rearm");
+    assert.match(aged.next, new RegExp(`${runner.trackedForDays} days`));
+  });
+
+  scenario("arming on the desktop app confirms the runner's tracking from its log, and an unconfirmed job is re-armed", () => {
+    const f = fresh("check-in-confirm", { issue: 1775 });
+    const snap = snapshotOf([ticket(365)], 1775);
+    const env = desktopEnv(f, 4100), identify = identifyAs({ 4100: "100" });
+    const log = trackingLog(env);
+    fs.mkdirSync(path.dirname(log), { recursive: true });
+    fs.writeFileSync(log, `[CCD] Session ${COORDINATOR} cron cron-0 confirmed (active: 1)\n`);
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env, identify }));
+    assert.equal(run.readRecord(f.file).checkIn.tracked, "unconfirmed", "another job's line does not confirm this one");
+    const unconfirmed = planOf(f, snap, { env, identify }).checkIn;
+    assert.equal(unconfirmed.state, "unconfirmed");
+    assert.ok(unconfirmed.next.includes("CronDelete") && unconfirmed.next.includes("check-in --job"));
+    fs.appendFileSync(log, `[CCD] Session ${COORDINATOR} cron cron-1 confirmed (active: 1)\n`);
+    assert.equal(planOf(f, snap, { env, identify }).checkIn.state, "scheduled", "a confirmation logged after arming is found by the next plan");
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env, identify }));
+    const confirmed = run.readRecord(f.file).checkIn;
+    assert.deepEqual([confirmed.tracked, confirmed.instance], ["confirmed", { pid: 4100, start: "100" }]);
+    assert.equal(run.readRecord(f.file).log.at(-1).tracked, "confirmed", "the log keeps the confirmation");
   });
 
   scenario("a runner without a scheduling capability records none and runs the wake routine at every turn", () => {
     const f = fresh("check-in-codex", { harness: "codex", coordinator: CODEX_THREAD });
     assert.equal(run.scheduleSpec(run.readRecord(f.file), f.file, defaults).capability, null);
-    assert.throws(() => f.change((r) => run.recordCheckIn(r, { file: f.file, defaults })), /--job .*--none/);
-    f.change((r) => run.recordCheckIn(r, { none: "Codex offers no scheduling capability", file: f.file, defaults }));
+    assert.throws(() => f.change((r) => run.recordCheckIn(r, { file: f.file, defaults, env: {} })), /--job .*--none/);
+    f.change((r) => run.recordCheckIn(r, { none: "Codex offers no scheduling capability", file: f.file, defaults, env: {} }));
     assert.match(planOf(f, snapshotOf([ticket(371)])).checkIn.next, /wake routine at the start of every turn/);
   });
 

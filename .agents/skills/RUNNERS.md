@@ -8,7 +8,7 @@
 | Read and edit files     | Read, Grep, Glob, Write/Edit                                           | File reading and apply_patch/editor capability exposed by the host                  |
 | Rename a session        | set_session_title via tool search when offered; else the hook's acknowledgement | set_thread_title when offered; else the hook's acknowledgement |
 | Own model, effort, mode | Desktop `get_session` on `self`, mode set in the app; CLI launch flags and `CLAUDE_EFFORT` | Latest `turn_context` row of the session rollout file                               |
-| Periodic check-in       | `CronCreate`, recurring; ends with the session, expires after 7 days   | None verified; wake routine each turn                                               |
+| Periodic check-in       | `CronCreate`, recurring; desktop pauses idle sessions unless tracking it, lost on restart or after 2 days; see `checkIn` config | None verified; wake routine each turn                                               |
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
 | Private artifacts       | Exclusive directory per agent/attempt; parent scratchpads may be shared; resolve-issue writers use its [allocator](resolve-issue/SKILL.md#0-preflight) | Same                                                                                |
 | Observe completion      | Await task status or CLI process exit, then read the review thread's paginated comments | Same                                                                                |
