@@ -182,15 +182,32 @@ describe("a live morph's baked apertures", () => {
     expect(artifact.status).toBe("live");
     expect(artifact.apertures.length).toBeGreaterThan(0);
     const crossed: string[] = [];
-    artifact.apertures.forEach((samples, a) =>
-      samples.forEach((loops, s) =>
+    const areas: number[][] = [];
+    artifact.apertures.forEach((samples, a) => {
+      areas.push([]);
+      samples.forEach((loops, s) => {
+        let area = 0;
         loops.forEach((flat, l) => {
           const pts: Point[] = [];
           for (let k = 0; k + 1 < flat.length; k += 2) pts.push([flat[k]!, flat[k + 1]!]);
           if (properlyCrosses(pts)) crossed.push(`aperture ${a} sample ${s} loop ${l}`);
-        }),
-      ),
-    );
+          for (let k = 0; k < pts.length; k++) {
+            const [x1, y1] = pts[k]!,
+              [x2, y2] = pts[(k + 1) % pts.length]!;
+            area += (x1 * y2 - x2 * y1) / 2;
+          }
+        });
+        areas[a]!.push(Math.abs(area));
+      });
+    });
     expect(crossed).toEqual([]);
+    // The opening is really there between the poses, not collapsed to a
+    // simple but empty loop: every sample but the closed end has area.
+    for (const table of areas) {
+      const [open, shut] = table[0]! > table[table.length - 1]! ? [table[0]!, table[table.length - 1]!] : [table[table.length - 1]!, table[0]!];
+      expect(open).toBeGreaterThan(500);
+      expect(shut).toBeLessThan(1);
+      expect(table.filter((a) => a > 1).length, JSON.stringify(table)).toBe(table.length - 1);
+    }
   });
 });

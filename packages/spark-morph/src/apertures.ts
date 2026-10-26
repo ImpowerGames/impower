@@ -159,17 +159,6 @@ export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}
   return { apertures, diagnostics };
 }
 
-/** Twice the signed area of a closed polyline; positive when it winds with its interior on the left. */
-const area2 = (pts: Point[]): number => {
-  let s = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i]!,
-      q = pts[(i + 1) % pts.length]!;
-    s += p[0] * q[1] - q[0] * p[1];
-  }
-  return s;
-};
-
 /**
  * The first proper crossing between two non-adjacent segments of a closed
  * polyline: segment `i` runs from point `i` to point `i + 1`, `j > i`, and
@@ -215,8 +204,8 @@ function untangle(loop: Point[], sign: number): Point[] {
     const { i, j, x } = hit;
     const inner = [x, ...pts.slice(i + 1, j + 1)];
     const outer = [...pts.slice(0, i + 1), x, ...pts.slice(j + 1)];
-    const ai = area2(inner),
-      ao = area2(outer);
+    const ai = polygonArea(inner),
+      ao = polygonArea(outer);
     const innerRight = Math.sign(ai) === sign,
       outerRight = Math.sign(ao) === sign;
     pts = innerRight !== outerRight ? (innerRight ? inner : outer) : Math.abs(ai) >= Math.abs(ao) ? inner : outer;
