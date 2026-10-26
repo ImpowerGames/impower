@@ -156,6 +156,15 @@ describe("Sparkle #prop name validation", () => {
       ),
     ).toBe(true);
   });
+
+  test("the reserved data-ui-handler attribute warns", () => {
+    expect(
+      propWarns(`layout main with\n  box #data-ui-handler=1\nend\n`),
+    ).toBe(true);
+    expect(
+      propWarns(`layout main with\n  box #Data-UI-Handler=1\nend\n`),
+    ).toBe(true);
+  });
 });
 
 describe("Sparkle @event handler resolution", () => {

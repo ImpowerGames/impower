@@ -147,19 +147,33 @@ export const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
  * (`slider "Master Volume"`), whose pointer setting comes from its label.
  * Builtin styles select it to tell that control from anything an author
  * writes, so only the ui writes it: an authored `#data-widget-control` is not
- * an attribute prop, and the validator reports it.
+ * an attribute prop, and the validator reports it ({@link isReservedAttribute}).
  */
 export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
 
-/** Whether an authored prop names the ui's reserved widget-control marker.
- *  HTML attribute names are case-insensitive, so `#Data-Widget-Control`
- *  would write the same attribute and is reserved too. */
-export const isWidgetControlAttribute = (prop: string): boolean =>
-  prop.toLowerCase() === WIDGET_CONTROL_ATTRIBUTE;
+/**
+ * The attribute the ui sets on an element it attaches an event handler to.
+ * Builtin styles opt it into the pointer with rules that any author lock
+ * outranks, so `interactable = false` on the element, as a prop or from a
+ * class, still holds. Only the ui writes it, so an element without a handler
+ * never takes the pointer through it.
+ */
+export const HANDLER_ATTRIBUTE = "data-ui-handler";
+
+const RESERVED_ATTRIBUTES = new Set([
+  WIDGET_CONTROL_ATTRIBUTE,
+  HANDLER_ATTRIBUTE,
+]);
+
+/** Whether an authored prop names one of the ui's reserved markers. HTML
+ *  attribute names are case-insensitive, so `#Data-Widget-Control` would
+ *  write the same attribute and is reserved too. */
+export const isReservedAttribute = (prop: string): boolean =>
+  RESERVED_ATTRIBUTES.has(prop.toLowerCase());
 
 /** Whether a prop is written to the DOM as an attribute (in any spelling). */
 export const isAttributeProp = (prop: string): boolean =>
-  !isWidgetControlAttribute(prop) &&
+  !isReservedAttribute(prop) &&
   (ATTRIBUTE_PROPS.has(prop) ||
     isAliasedAttributeProp(prop) ||
     prop.startsWith("aria-") ||

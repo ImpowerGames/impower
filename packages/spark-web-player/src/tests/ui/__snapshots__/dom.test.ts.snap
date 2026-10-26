@@ -489,6 +489,11 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -606,8 +611,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -707,9 +714,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -2742,6 +2751,11 @@ exports[`dom render > image show renders background span + img 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -2859,8 +2873,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -2960,9 +2976,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -4957,6 +4975,11 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -5074,8 +5097,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -5175,9 +5200,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -7294,6 +7321,11 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -7411,8 +7443,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -7512,9 +7546,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -9490,6 +9526,11 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -9607,8 +9648,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -9708,9 +9751,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -11140,6 +11185,9 @@ spark-web-player #game .continue_indicator {
                   "tag": "div",
                 },
                 {
+                  "attrs": {
+                    "data-ui-handler": "",
+                  },
                   "children": [
                     {
                       "class": "text",
@@ -11147,10 +11195,13 @@ spark-web-player #game .continue_indicator {
                     },
                   ],
                   "class": "choice 0",
-                  "style": "pointer-events: auto; display: none;",
+                  "style": "display: none;",
                   "tag": "div",
                 },
                 {
+                  "attrs": {
+                    "data-ui-handler": "",
+                  },
                   "children": [
                     {
                       "class": "text",
@@ -11158,7 +11209,7 @@ spark-web-player #game .continue_indicator {
                     },
                   ],
                   "class": "choice 1",
-                  "style": "pointer-events: auto; display: none;",
+                  "style": "display: none;",
                   "tag": "div",
                 },
               ],
@@ -11668,6 +11719,11 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -11785,8 +11841,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -11886,9 +11944,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -13319,6 +13379,7 @@ spark-web-player #game .continue_indicator {
                 },
                 {
                   "attrs": {
+                    "data-ui-handler": "",
                     "text": "Apple",
                   },
                   "children": [
@@ -13348,11 +13409,11 @@ spark-web-player #game .continue_indicator {
                     },
                   ],
                   "class": "choice 0",
-                  "style": "pointer-events: auto;",
                   "tag": "div",
                 },
                 {
                   "attrs": {
+                    "data-ui-handler": "",
                     "text": "Banana",
                   },
                   "children": [
@@ -13382,7 +13443,6 @@ spark-web-player #game .continue_indicator {
                     },
                   ],
                   "class": "choice 1",
-                  "style": "pointer-events: auto;",
                   "tag": "div",
                 },
               ],
@@ -13896,6 +13956,11 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -14013,8 +14078,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -14114,9 +14181,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -16091,6 +16160,11 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -16208,8 +16282,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -16309,9 +16385,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -18286,6 +18364,11 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -18403,8 +18486,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -18504,9 +18589,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -20481,6 +20568,11 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -20598,8 +20690,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -20699,9 +20793,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -22676,6 +22772,11 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -22793,8 +22894,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -22894,9 +22997,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }

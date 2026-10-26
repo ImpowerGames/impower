@@ -489,6 +489,11 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {
@@ -606,8 +611,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -707,9 +714,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }

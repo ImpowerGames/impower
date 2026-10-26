@@ -20,8 +20,9 @@ import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
+  HANDLER_ATTRIBUTE,
   isAttributeProp,
-  isWidgetControlAttribute,
+  isReservedAttribute,
   toDataAttributeName,
   WIDGET_CONTROL_ATTRIBUTE,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
@@ -2963,7 +2964,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.mountSliderFill(el, node, scope);
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope, !labelled);
+      this.mountEvent(el, ev, scope);
     }
     return el;
   }
@@ -3195,8 +3196,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     let hasValue = false;
     for (const [prop, propValue] of Object.entries(node.props)) {
       // Every other prop becomes an attribute here, but not the ui's own
-      // widget-control marker, which no author may write.
-      if (isWidgetControlAttribute(prop)) {
+      // reserved markers, which no author may write.
+      if (isReservedAttribute(prop)) {
         continue;
       }
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
@@ -3275,6 +3276,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return resolved == null ? null : String(resolved);
   }
 
+  /** Opt an element with a handler into the pointer. The marker is matched by
+   *  a builtin `layouts` rule at the lowest specificity an element rule has,
+   *  never an inline style, so `interactable = false` on the element, as a
+   *  prop or from any class rule, outranks it, and a labelled widget's control
+   *  keeps taking its pointer from its label. */
+  protected markHandler(el: Element): void {
+    this.updateElement(el, { attributes: { [HANDLER_ATTRIBUTE]: "" } });
+  }
+
   /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
    *  the handler when it fires, then flush reactive layouts. `@e=name` calls the
    *  named Luau function; `@e=expr(args)` evaluates the call expression (its
@@ -3287,7 +3297,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     el: Element,
     ev: EventBinding,
     scope: ReactiveScope,
-    takesPointer = true,
   ): void {
     const handler = ev.handler;
     const callback = (event: Event): void => {
@@ -3308,12 +3317,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._events[ev.event] ??= {};
     this._events[ev.event]![el.id] = callback;
     // Make the element clickable + ask the renderer to forward the DOM event
-    // (mirrors setEventListener's observe). A labelled widget's control does
-    // not take the pointer itself: it inherits its label's, so a lock on the
-    // widget reaches it, and an inline style here would outrank that lock.
-    if (takesPointer) {
-      this.updateElement(el, { style: { pointer_events: "auto" } });
-    }
+    // (mirrors setEventListener's observe).
+    this.markHandler(el);
     this.enqueueUI(
       ObserveElementMessage.type.notification({
         element: el.id,
@@ -5258,8 +5263,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): boolean {
     const targetEls = this.findElements(target);
     for (const targetEl of targetEls) {
-      const style = { pointer_events: "auto" };
-      this.updateElement(targetEl, { style });
+      this.markHandler(targetEl);
       if (callback) {
         this.enqueueUI(
           ObserveElementMessage.type.notification({

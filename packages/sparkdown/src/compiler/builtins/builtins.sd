@@ -1253,6 +1253,20 @@ end
 // to `& >> …` descendant rules, since the element itself is positioned by the
 // engine with inline styles.
 style layouts with
+  -- HANDLERS. The ui marks every element it attaches an event handler to with
+  -- `data-ui-handler`, and this rule opts it into the pointer, which the
+  -- overlay leaves off by default (see spark-web-player.css). `:where()` keeps
+  -- the rule at the specificity of one class and it comes before every author
+  -- style, so `interactable = false` on the element, as a prop or from a class
+  -- (at any breakpoint or state), still wins. The builtin styles that turn the
+  -- pointer off (`stroke`, `screen`) leave marked elements out. The control
+  -- inside a labelled widget keeps taking its pointer from its label. Only the
+  -- ui writes the marker; an authored `#data-ui-handler` is reserved.
+  & >> :where(#data-ui-handler) {
+    &:where(:not(#data-widget-control)) {
+      pointer_events = auto
+    }
+  }
   -- TOOLTIPS. Any element carrying `#tooltip="…"` grows a bubble above it with
   -- a caret beneath, on hover and on keyboard focus:
   --
@@ -1455,7 +1469,11 @@ end
 
 style stroke with
   display = block
-  pointer_events = none
+  -- An element with a handler (`data-ui-handler`) keeps the pointer the
+  -- `layouts` rule gives it.
+  &:where(:not(#data-ui-handler)) {
+    pointer_events = none
+  }
   user_select = none
   text_wrap = wrap
   position = absolute
@@ -1576,8 +1594,12 @@ end
 style screen with
   position = absolute
   inset = 0
-  pointer_events = none
-  >> * {
+  -- An element with a handler (`data-ui-handler`) keeps the pointer the
+  -- `layouts` rule gives it.
+  &:where(:not(#data-ui-handler)) {
+    pointer_events = none
+  }
+  >> :where(:not(#data-ui-handler)) {
     pointer_events = none
   }
 end
