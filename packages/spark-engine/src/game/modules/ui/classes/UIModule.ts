@@ -20,8 +20,13 @@ import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
+  DISPLAY_TARGET_ATTRIBUTE,
+  DISPLAY_TARGETS,
+  HANDLER_ATTRIBUTE,
   isAttributeProp,
+  isReservedAttribute,
   toDataAttributeName,
+  WIDGET_CONTROL_ATTRIBUTE,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
 import type {
   Binding,
@@ -132,8 +137,6 @@ import {
   WriteTextMessage,
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
-import { CSS_ALIASES } from "../../../../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
-import { STYLE_ALIASES } from "../../../../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 
 /** Whether two values of a program's layout trees hold the same: the same
  *  object, or plain data of the same shape and values (#657). */
@@ -317,9 +320,6 @@ interface ReactiveSliderFill {
  *  binding, so `#background-color={team_color}` re-applies when its deps change. */
 interface ReactiveStyle {
   element: Element;
-  /** A second element that takes the same value from the one evaluation: the
-   *  control of a labelled input widget, for its widget-wide props. */
-  mirror?: Element;
   prop: string;
   propValue: PropValue;
   last: string | null;
@@ -459,67 +459,6 @@ const INPUT_WIDGETS: Record<
   radio: { inputType: "radio" },
   switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
-
-/** Props that place an element among its siblings and in its parent (Margin,
- *  Position, and the Layout props an element sets on itself), by canonical
- *  sparkle name (see widgetPropName). On a widget with a label it is the label
- *  that sits in the parent, so these style the label instead of the control.
- *  `flex`, `flex-basis` and `z-index` have no sparkle alias and keep their CSS
- *  names. */
-const WIDGET_PLACEMENT_PROPS = new Set([
-  "margin",
-  "margin-top",
-  "margin-right",
-  "margin-bottom",
-  "margin-left",
-  "position",
-  "anchor",
-  "anchor-top",
-  "anchor-right",
-  "anchor-bottom",
-  "anchor-left",
-  "anchor-to",
-  "anchor-placement",
-  "anchor-try",
-  "anchor-try-fallbacks",
-  "anchor-try-order",
-  "z",
-  "z-index",
-  "self-align",
-  "grow",
-  "shrink",
-  "basis",
-  "flex-basis",
-  "flex",
-  "order",
-]);
-
-/** Props that govern a whole input widget, by canonical sparkle name: whether
- *  it shows, whether it takes the pointer, and how its changes transition. On
- *  a widget with a label they style the label as well as the control, so the
- *  text hides with its control, is never a way to activate a control that is
- *  not interactable, and each element transitions what changes on it. */
-const WIDGET_WIDE_PROPS = new Set([
-  "displayed",
-  "visible",
-  "interactable",
-  "transition",
-  "transition-property",
-  "transition-duration",
-  "transition-delay",
-  "transition-easing",
-]);
-
-/** A prop's canonical sparkle name, for classifying it against the widget
- *  prop sets: underscores read as dashes, then the short and CSS spellings
- *  the style transformer accepts (`i-l`, `m-t`, `align-self`, `pointer-events`)
- *  resolve to the names they alias. */
-function widgetPropName(prop: string): string {
-  const dashed = prop.replace(/_/g, "-");
-  const long =
-    (STYLE_ALIASES as Record<string, string>)[dashed] ?? dashed;
-  return (CSS_ALIASES as Record<string, string>)[long] ?? long;
-}
 
 /**
  * Builtin tag → the real DOM tag it renders as. Anything absent renders as a
@@ -721,9 +660,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _clearOnContinue: Set<string> = new Set();
 
-  /** A labelled input widget's control → the `<label>` that wraps it. */
-  protected _widgetLabels: WeakMap<Element, Element> = new WeakMap();
-
   // Phase 3 reactive runtime: render layouts from program.sparkle (the typed AST)
   // instead of the static context.layout struct, with coarse per-turn binding
   // re-eval. OFF by default — the static path stays the golden-master fallback
@@ -739,6 +675,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  navigated, a loading screen, a binding's update. A display whose beat
    *  leaves it where its restore did changed only content. */
   protected _screenEdits = 0;
+
+  /** Whether an element carrying a display target's class was made or
+   *  destroyed since the display targets were last marked (I-1595). */
+  protected _displayTargetsChanged = false;
+
+  /** The `DISPLAY_TARGET_ATTRIBUTE` value the page was last told each
+   *  element carries, null for none. */
+  protected _displayTargetMarks = new WeakMap<Element, string | null>();
 
   /** Whether `refreshLayouts` is applying the bindings' updates. */
   protected _refreshing = false;
@@ -1450,12 +1394,95 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  targets them) and by the microtask net. No-op when the buffer is empty. */
   protected flushUIBatch(): void {
     this._uiBatchScheduled = false;
+    this.markDisplayTargets();
     if (this._uiBatch.length === 0) {
       return;
     }
     const messages = this._uiBatch;
     this._uiBatch = [];
     this.emit(BatchElementsMessage.type.notification({ messages }));
+  }
+
+  /** The elements a text or image write to a display target reaches. The
+   *  story writes each choice to `choice 0`, `choice 1` and so on, so
+   *  `choice` reaches what each of those reaches, for every index an element
+   *  carrying `choice` names. */
+  protected displayTargetElements(root: Element, target: string): Element[] {
+    if (target !== "choice") {
+      return this.findElements(target, true);
+    }
+    const indexes = new Set<string>();
+    for (const element of this.searchForAll(root, target)) {
+      for (const c of element.name.split(" ")) {
+        if (/^\d+$/.test(c)) {
+          indexes.add(c);
+        }
+      }
+    }
+    return [...indexes].flatMap((i) =>
+      this.findElements(`${target} ${i}`, true),
+    );
+  }
+
+  /** Whether an element's classes name one of the display targets. */
+  protected carriesDisplayTarget(element: Element): boolean {
+    return element.name.split(" ").some((c) => DISPLAY_TARGETS.includes(c));
+  }
+
+  /** Mark each element with the display targets whose writes reach it, as
+   *  the space-separated value of `DISPLAY_TARGET_ATTRIBUTE`, and unmark the
+   *  rest. The builtin style named after a target selects that target's name
+   *  in the value (I-1595), so a `row.dialogue.title` that is only the
+   *  `dialogue` slot takes the dialogue style and not the title style. Which
+   *  elements a target reaches depends on the whole tree: a container
+   *  carrying `title` is the target's slot only while no element is named
+   *  `title`. So the marks are worked out again before a batch goes whenever
+   *  an element carrying a target's class came or went, and go in that
+   *  batch, before the page paints. Each element that carries a target's
+   *  class is told its mark once, even unmarked: a live preview reuses a node
+   *  the last render may have marked. */
+  protected markDisplayTargets(): void {
+    if (!this._displayTargetsChanged || this._game.replaying) {
+      return;
+    }
+    this._displayTargetsChanged = false;
+    const root = this._root;
+    if (!root) {
+      return;
+    }
+    const reached = new Map<Element, string[]>();
+    for (const target of DISPLAY_TARGETS) {
+      for (const element of this.displayTargetElements(root, target)) {
+        const targets = reached.get(element);
+        if (targets) {
+          if (!targets.includes(target)) {
+            targets.push(target);
+          }
+        } else {
+          reached.set(element, [target]);
+        }
+      }
+    }
+    const visit = (element: Element) => {
+      if (this.carriesDisplayTarget(element)) {
+        const mark = reached.get(element)?.join(" ") ?? null;
+        if (this._displayTargetMarks.get(element) !== mark) {
+          this._displayTargetMarks.set(element, mark);
+          // Sent as is rather than through `updateElement`: the mark is not
+          // a change to what the element shows (#657).
+          this._uiBatch.push(
+            UpdateElementMessage.type.request({
+              element: element.id,
+              attributes: { [DISPLAY_TARGET_ATTRIBUTE]: mark },
+            }),
+          );
+        }
+      }
+      for (const child of element.children) {
+        visit(child);
+      }
+    };
+    visit(root);
   }
 
   /**
@@ -1754,6 +1781,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const breakpoints = this.context.config?.ui?.breakpoints;
     const el = new Element(parent, id, type, name, before);
     this._screenEdits += 1;
+    if (this.carriesDisplayTarget(el)) {
+      this._displayTargetsChanged = true;
+    }
     const isRootElement = !parent;
     if (isRootElement) {
       this._root = el;
@@ -1822,6 +1852,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const subtree: string[] = [];
     const collect = (el: Element) => {
       subtree.push(el.id);
+      if (this.carriesDisplayTarget(el)) {
+        this._displayTargetsChanged = true;
+      }
       for (const child of el.children) {
         collect(child);
       }
@@ -1960,17 +1993,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   show(target: string): void {
     // TODO: use transition classes to apply show style instead
     for (const targetEl of this.findElements(target)) {
-      for (const el of this.widgetElements(targetEl)) {
-        this.updateElement(el, { style: { display: "flex" } });
-      }
+      this.updateElement(targetEl, { style: { display: "flex" } });
     }
-  }
-
-  /** A labelled input widget's label and control, which show and hide
-   *  together; any other element alone. */
-  protected widgetElements(el: Element): Element[] {
-    const label = this._widgetLabels.get(el);
-    return label ? [label, el] : [el];
   }
 
   showAll(targets: string[]): void {
@@ -1982,11 +2006,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   hide(target: string): void {
     // TODO: use transition classes to apply hide style instead
     for (const targetEl of this.findElements(target)) {
-      for (const el of this.widgetElements(targetEl)) {
-        this.updateElement(el, {
-          style: { display: "none" },
-        });
-      }
+      this.updateElement(targetEl, {
+        style: { display: "none" },
+      });
     }
   }
 
@@ -2888,11 +2910,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  updates (UI follows state; write-back is via the element's `@input`/
    *  `@change` handler). Inputs are void, so quoted content is the widget's
    *  LABEL: `slider "Master Volume"` mounts a real `<label>` holding the text
-   *  and the control, and that label is the element returned. Classes, events,
-   *  bindings and most props stay on the control. The placement props
-   *  (WIDGET_PLACEMENT_PROPS) style the label instead, since the label is what
-   *  sits in the parent; the widget-wide props (WIDGET_WIDE_PROPS) style both,
-   *  so the label shows, hides and takes the pointer with its control. */
+   *  and the control, and that label is the widget's element. The label
+   *  carries the widget's name, classes and style props, so a class or prop
+   *  that hides, places, sizes or fades the widget acts on all of it. The
+   *  `<input>` inside, named `control`, takes the attribute props, bindings
+   *  and events, and the builtin control styles in builtins.sd draw it there. */
   protected mountInputWidget(
     parent: Element,
     node: ElementNode,
@@ -2904,22 +2926,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!node.content || node.content.length === 0) {
       return this.mountInputControl(parent, node, scope, name, widget, before);
     }
-    // Placement props move to the label. Each widget-wide prop is evaluated
-    // ONCE and its value given to both the label and the control: a binding
-    // with side effects, or one that reads differently on a second call, must
-    // not run twice or leave the two elements disagreeing. Props are matched by
-    // canonical name, so every spelling of one prop lands on the same element.
     const vs = this._game.story.variablesState;
-    const wideStyle: Record<string, string | null> = {};
-    const placementStyle: Record<string, string | null> = {};
-    const reactiveStyles: (Omit<ReactiveStyle, "element"> & {
-      wide: boolean;
-    })[] = [];
+    const style: Record<string, string | null> = {};
+    const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const controlProps: ElementNode["props"] = {};
     for (const [prop, propValue] of Object.entries(node.props)) {
-      const key = widgetPropName(prop);
-      const wide = WIDGET_WIDE_PROPS.has(key);
-      if (!wide && !WIDGET_PLACEMENT_PROPS.has(key)) {
+      if (isAttributeProp(prop)) {
         controlProps[prop] = propValue;
         continue;
       }
@@ -2927,43 +2939,43 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
       const val = resolved == null ? null : String(resolved);
-      (wide ? wideStyle : placementStyle)[prop] = val;
+      style[prop] = val;
       if (this.isReactiveProp(propValue)) {
-        reactiveStyles.push({ prop, propValue, last: val, deps, wide });
+        reactiveStyles.push({ prop, propValue, last: val, deps });
       }
     }
-    const hasWideStyle = Object.keys(wideStyle).length > 0;
-    const labelStyle = { ...placementStyle, ...wideStyle };
     // A checkbox, radio or switch reads as one row with its wording after the
     // box; a text field or slider takes its label above, as `label "X" { … }`
     // lays it out.
     const toggle = widget.inputType === "checkbox" || widget.inputType === "radio";
+    // The label is named exactly as the widget, with no classes of its own:
+    // the engine and the player both prefer an exact name match, so a
+    // labelled slider beside a bare one is found by `slider` as the bare one
+    // is. The builtin control styles draw the label through `&:where(label)`.
     const label = this.createElement(
       parent,
       {
         type: "label",
-        name: toggle ? "label toggle_label" : "label field_label",
-        ...(Object.keys(labelStyle).length > 0 ? { style: labelStyle } : {}),
+        name,
+        ...(Object.keys(style).length > 0 ? { style } : {}),
       },
       before,
     );
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: label, ...r });
+    }
     if (!toggle) {
       this.mountTextContent(label, node.content, scope);
     }
-    const control = this.mountInputControl(
+    this.mountInputControl(
       label,
       { ...node, props: controlProps },
       scope,
-      name,
+      "control",
       widget,
       null,
-      hasWideStyle ? wideStyle : undefined,
+      true,
     );
-    for (const { wide, ...r } of reactiveStyles) {
-      scope.styles.push({ element: label, ...(wide ? { mirror: control } : {}), ...r });
-    }
-    // `show`/`hide` find the control by its name; they act on both.
-    this._widgetLabels.set(control, label);
     if (toggle) {
       this.mountTextContent(label, node.content, scope);
     }
@@ -2971,8 +2983,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /** The `<input>` itself, with the widget's props, bindings and events.
-   *  `sharedStyle` is a labelled widget's already-evaluated widget-wide props,
-   *  whose refresh the label's entries carry. */
+   *  `labelled` is a control inside a widget's label, which takes the pointer
+   *  from that label rather than for itself. */
   protected mountInputControl(
     parent: Element,
     node: ElementNode,
@@ -2980,7 +2992,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     name: string,
     widget: { inputType: string; attributes?: Record<string, string> },
     before: Element | null,
-    sharedStyle?: Record<string, string | null>,
+    labelled = false,
   ): Element {
     const vs = this._game.story.variablesState;
     // The control's defining attributes first, so authored props can still
@@ -2988,6 +3000,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {
       type: widget.inputType,
       ...widget.attributes,
+      // The builtin styles find a labelled widget's control by this marker,
+      // which no author can write, so nothing an author builds is taken for
+      // it.
+      ...(labelled ? { [WIDGET_CONTROL_ATTRIBUTE]: "" } : {}),
     };
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     // A control takes STYLE props too, exactly as a container does. Every prop
@@ -2999,7 +3015,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // This matters because form controls carry no margin of their own (see
     // builtins.sd), so stating the spacing at the call site is the ONLY way to
     // space one -- and it was the one thing that could not be done.
-    const style: Record<string, string | null> = { ...sharedStyle };
+    const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
       // Every presence-semantics attribute, not just `checked`. HTML reads
@@ -3278,6 +3294,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     let hasValue = false;
     for (const [prop, propValue] of Object.entries(node.props)) {
+      // Every other prop becomes an attribute here, but not the ui's own
+      // reserved markers, which no author may write.
+      if (isReservedAttribute(prop)) {
+        continue;
+      }
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
@@ -3354,6 +3375,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return resolved == null ? null : String(resolved);
   }
 
+  /** Opt an element with a handler into the pointer. The marker is matched by
+   *  a builtin `layouts` rule at the lowest specificity an element rule has,
+   *  never an inline style, so `interactable = false` on the element, as a
+   *  prop or from any class rule, outranks it, and a labelled widget's control
+   *  keeps taking its pointer from its label. */
+  protected markHandler(el: Element): void {
+    this.updateElement(el, { attributes: { [HANDLER_ATTRIBUTE]: "" } });
+  }
+
   /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
    *  the handler when it fires, then flush reactive layouts. `@e=name` calls the
    *  named Luau function; `@e=expr(args)` evaluates the call expression (its
@@ -3362,7 +3392,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  `observe()` path and `onReceiveNotification` use. The handler reads
    *  `scope.env` at fire time (mutated in place per for-iteration), so a handler
    *  inside a `for` uses that row's current loop values. */
-  protected mountEvent(el: Element, ev: EventBinding, scope: ReactiveScope): void {
+  protected mountEvent(
+    el: Element,
+    ev: EventBinding,
+    scope: ReactiveScope,
+  ): void {
     const handler = ev.handler;
     const callback = (event: Event): void => {
       // Build a Luau `event` table from the DOM event payload so write-back
@@ -3383,7 +3417,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._events[ev.event]![el.id] = callback;
     // Make the element clickable + ask the renderer to forward the DOM event
     // (mirrors setEventListener's observe).
-    this.updateElement(el, { style: { pointer_events: "auto" } });
+    this.markHandler(el);
     this.enqueueUI(
       ObserveElementMessage.type.notification({
         element: el.id,
@@ -4160,11 +4194,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.updateElement(entry.element, {
             style: { [entry.prop]: next },
           });
-          if (entry.mirror) {
-            this.updateElement(entry.mirror, {
-              style: { [entry.prop]: next },
-            });
-          }
         }
       }
     }
@@ -5333,8 +5362,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): boolean {
     const targetEls = this.findElements(target);
     for (const targetEl of targetEls) {
-      const style = { pointer_events: "auto" };
-      this.updateElement(targetEl, { style });
+      this.markHandler(targetEl);
       if (callback) {
         this.enqueueUI(
           ObserveElementMessage.type.notification({

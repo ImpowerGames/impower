@@ -12,7 +12,9 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
           "kind": "request",
           "method": "ui/update",
           "params": {
-            "attributes": undefined,
+            "attributes": {
+              "data-ui-handler": "",
+            },
             "breakpoints": {
               "lg": 1024,
               "md": 768,
@@ -22,9 +24,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
             },
             "content": undefined,
             "element": "e-1",
-            "style": {
-              "pointer_events": "auto",
-            },
+            "style": undefined,
           },
         },
         {
@@ -42,7 +42,9 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
           "kind": "request",
           "method": "ui/update",
           "params": {
-            "attributes": undefined,
+            "attributes": {
+              "data-ui-handler": "",
+            },
             "breakpoints": {
               "lg": 1024,
               "md": 768,
@@ -52,9 +54,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
             },
             "content": undefined,
             "element": "e-2",
-            "style": {
-              "pointer_events": "auto",
-            },
+            "style": undefined,
           },
         },
         {
@@ -72,7 +72,9 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
           "kind": "request",
           "method": "ui/update",
           "params": {
-            "attributes": undefined,
+            "attributes": {
+              "data-ui-handler": "",
+            },
             "breakpoints": {
               "lg": 1024,
               "md": 768,
@@ -82,9 +84,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
             },
             "content": undefined,
             "element": "e-3",
-            "style": {
-              "pointer_events": "auto",
-            },
+            "style": undefined,
           },
         },
         {
@@ -476,7 +476,9 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
           "kind": "request",
           "method": "ui/update",
           "params": {
-            "attributes": undefined,
+            "attributes": {
+              "data-ui-handler": "",
+            },
             "breakpoints": {
               "lg": 1024,
               "md": 768,
@@ -486,9 +488,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
             },
             "content": undefined,
             "element": "e-1",
-            "style": {
-              "pointer_events": "auto",
-            },
+            "style": undefined,
           },
         },
         {

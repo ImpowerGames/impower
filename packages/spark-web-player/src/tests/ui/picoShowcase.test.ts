@@ -303,7 +303,8 @@ describe("pico showcase example", () => {
     for (const label of ["Launch demo modal", "Cancel", "Confirm"]) {
       const el = byLabel(label);
       expect(el, `expected a "${label}" button`).toBeTruthy();
-      expect(el!.style.pointerEvents).toBe("auto");
+      // Opted in by the builtin rule for handler elements, not inline.
+      expect(el!.hasAttribute("data-ui-handler")).toBe(true);
       expect(
         typeof registered[el!.id],
         `expected a click handler registered for "${label}"`,

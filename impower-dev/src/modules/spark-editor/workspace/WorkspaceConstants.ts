@@ -3,4 +3,5 @@ export class WorkspaceConstants {
   static readonly DEFAULT_PROJECT_NAME = "Untitled Game";
   static readonly LOADED_PROJECT_STORAGE_KEY = "project";
   static readonly WORKSPACE_STATE_STORAGE_KEY_PREFIX = "workspace/";
+  static readonly ANIMATE_PORTRAITS_STORAGE_KEY = "preferences/animatePortraits";
 }

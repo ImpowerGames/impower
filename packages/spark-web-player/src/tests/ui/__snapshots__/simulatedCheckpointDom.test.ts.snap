@@ -489,9 +489,16 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
-    pointer-events: auto;
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
     &::before {
       content: attr(data-tooltip);
       display: block;
@@ -604,8 +611,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -705,9 +714,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -719,23 +730,27 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  position: absolute;
-  inset: 0px;
-  background-position: center;
-  background-size: cover;
+  &:where([data-display-target~=backdrop]) {
+    position: absolute;
+    inset: 0px;
+    background-position: center;
+    background-size: cover;
+  }
 }
 spark-web-player #game .portrait {
-  position: absolute;
-  top: 10%;
-  right: 0px;
-  bottom: 0px;
-  left: 0px;
-  display: flex;
-  flex-direction: column;
-  background-size: auto 100%;
-  background-position: center;
-  >.image * {
-    mix-blend-mode: plus-lighter;
+  &:where([data-display-target~=portrait]) {
+    position: absolute;
+    top: 10%;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    display: flex;
+    flex-direction: column;
+    background-size: auto 100%;
+    background-position: center;
+    >.image * {
+      mix-blend-mode: plus-lighter;
+    }
   }
 }
 spark-web-player #game .choices {
@@ -753,21 +768,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -862,171 +879,233 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .checkbox {
-  pointer-events: auto;
-  appearance: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 0.25rem;
-  border-width: 0.125rem;
-  border-style: solid;
-  border-color: var(--theme-color-slate_40);
-  background-color: var(--theme-color-slate_30);
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  &:checked {
-    background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-sky_40);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
-    background-position: center;
-    background-size: 0.75rem auto;
-    background-repeat: no-repeat;
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
   }
-  &:focus {
-    border-color: var(--theme-color-sky_40);
-    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  &:where(:not(label)), >:where(.control) {
+    pointer-events: auto;
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 0.25rem;
+    border-width: 0.125rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_40);
+    background-color: var(--theme-color-slate_30);
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    &:checked {
+      background-color: var(--theme-color-sky_40);
+      border-color: var(--theme-color-sky_40);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+      background-position: center;
+      background-size: 0.75rem auto;
+      background-repeat: no-repeat;
+    }
+    &:focus {
+      border-color: var(--theme-color-sky_40);
+      box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+      cursor: default;
+    }
   }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-    cursor: default;
+  >:where([data-widget-control]) {
+    pointer-events: inherit;
   }
 }
 spark-web-player #game .input {
-  pointer-events: auto;
-  color-scheme: dark;
-  line-height: 1.5;
-  width: 100%;
-  +.small {
-    margin-top: 0.25rem;
-    margin-bottom: 1rem;
-  }
-  height: 3.125rem;
-  &[type="color"] {
-    &::-webkit-color-swatch-wrapper {
-      padding: 0px;
-    }
-    &::-webkit-color-swatch {
-      border-width: 0px;
-      border-radius: 0.125rem;
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    width: 100%;
+    >.control {
+      margin-top: 0.25rem;
     }
   }
-  &[type="date"] {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    padding-right: 1.75rem;
-    &::-webkit-calendar-picker-indicator {
-      opacity: 0;
-      cursor: pointer;
+  &:where(:not(label)), >:where(.control) {
+    pointer-events: auto;
+    color-scheme: dark;
+    line-height: 1.5;
+    width: 100%;
+    +.small {
+      margin-top: 0.25rem;
+      margin-bottom: 1rem;
     }
-  }
-  &[type="time"] {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    padding-right: 1.75rem;
-    &::-webkit-calendar-picker-indicator {
-      opacity: 0;
-      cursor: pointer;
+    height: 3.125rem;
+    &[type="color"] {
+      &::-webkit-color-swatch-wrapper {
+        padding: 0px;
+      }
+      &::-webkit-color-swatch {
+        border-width: 0px;
+        border-radius: 0.125rem;
+      }
     }
-  }
-  padding: 0.75rem 1rem;
-  border-radius: 0.25rem;
-  border-width: 0.0625rem;
-  border-style: solid;
-  border-color: var(--theme-color-slate_40);
-  background-color: var(--theme-color-slate_30);
-  color: var(--theme-color-slate_90);
-  transition: all 0.2s ease-in-out;
-  accent-color: var(--theme-color-sky_60);
-  &::placeholder {
-    color: var(--theme-color-slate_70);
-  }
-  &:focus {
-    border-color: var(--theme-color-sky_40);
-    box-shadow: 0 0 0 0.0625rem var(--theme-color-sky_40);
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-    cursor: default;
-  }
-  &:read-only:focus {
+    &[type="date"] {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+      background-position: right 0.75rem center;
+      background-size: 1rem auto;
+      background-repeat: no-repeat;
+      padding-right: 1.75rem;
+      &::-webkit-calendar-picker-indicator {
+        opacity: 0;
+        cursor: pointer;
+      }
+    }
+    &[type="time"] {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+      background-position: right 0.75rem center;
+      background-size: 1rem auto;
+      background-repeat: no-repeat;
+      padding-right: 1.75rem;
+      &::-webkit-calendar-picker-indicator {
+        opacity: 0;
+        cursor: pointer;
+      }
+    }
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
     border-color: var(--theme-color-slate_40);
-    box-shadow: none;
+    background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_90);
+    transition: all 0.2s ease-in-out;
+    accent-color: var(--theme-color-sky_60);
+    &::placeholder {
+      color: var(--theme-color-slate_70);
+    }
+    &:focus {
+      border-color: var(--theme-color-sky_40);
+      box-shadow: 0 0 0 0.0625rem var(--theme-color-sky_40);
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+      cursor: default;
+    }
+    &:read-only:focus {
+      border-color: var(--theme-color-slate_40);
+      box-shadow: none;
+    }
+  }
+  >:where([data-widget-control]) {
+    pointer-events: inherit;
   }
 }
 spark-web-player #game .radio {
-  pointer-events: auto;
-  appearance: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  border-width: 0.125rem;
-  border-style: solid;
-  border-color: var(--theme-color-slate_40);
-  background-color: var(--theme-color-slate_30);
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  &:checked {
-    border-width: 0.35rem;
-    border-color: var(--theme-color-sky_40);
-    background-color: white;
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
   }
-  &:focus {
-    border-color: var(--theme-color-sky_40);
-    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  &:where(:not(label)), >:where(.control) {
+    pointer-events: auto;
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    border-width: 0.125rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_40);
+    background-color: var(--theme-color-slate_30);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    &:checked {
+      border-width: 0.35rem;
+      border-color: var(--theme-color-sky_40);
+      background-color: white;
+    }
+    &:focus {
+      border-color: var(--theme-color-sky_40);
+      box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+      cursor: default;
+    }
   }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-    cursor: default;
+  >:where([data-widget-control]) {
+    pointer-events: inherit;
   }
 }
 spark-web-player #game .switch {
-  pointer-events: auto;
-  appearance: none;
-  width: 2.25rem;
-  height: 1.25rem;
-  border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_45);
-  border-width: 0.1875rem;
-  border-style: solid;
-  border-color: var(--theme-color-slate_45);
-  cursor: pointer;
-  position: relative;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    width: 0.875rem;
-    height: 0.875rem;
-    border-radius: 50%;
-    background-color: white;
-    transition: transform 0.1s ease-in-out;
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.5rem;
+    cursor: pointer;
   }
-  &:checked {
-    background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-sky_40);
+  &:where(:not(label)), >:where(.control) {
+    pointer-events: auto;
+    appearance: none;
+    width: 2.25rem;
+    height: 1.25rem;
+    border-radius: 1.25rem;
+    background-color: var(--theme-color-slate_45);
+    border-width: 0.1875rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_45);
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
     &::before {
-      transform: translateX(1rem);
+      content: "";
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      width: 0.875rem;
+      height: 0.875rem;
+      border-radius: 50%;
+      background-color: white;
+      transition: transform 0.1s ease-in-out;
+    }
+    &:checked {
+      background-color: var(--theme-color-sky_40);
+      border-color: var(--theme-color-sky_40);
+      &::before {
+        transform: translateX(1rem);
+      }
+    }
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+      cursor: default;
     }
   }
-  &:focus {
-    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-    cursor: default;
+  >:where([data-widget-control]) {
+    pointer-events: inherit;
   }
 }
 spark-web-player #game .textarea {
@@ -1064,52 +1143,66 @@ spark-web-player #game .textarea {
   }
 }
 spark-web-player #game .slider {
-  pointer-events: auto;
-  width: 100%;
-  height: 1.25rem;
-  border-radius: 0.25rem;
-  background-color: transparent;
-  cursor: pointer;
-  appearance: none;
-  &::-webkit-slider-runnable-track {
+  &:where(label) {
+    pointer-events: auto;
+    font-weight: 400;
+    margin-bottom: 0.375rem;
     width: 100%;
-    height: 0.375rem;
-    border-radius: 0.25rem;
-    background-color: var(--theme-color-slate_30);
-    transition: background-color 0.2s ease-in-out;
-    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
+    >.control {
+      margin-top: 0.25rem;
+    }
   }
-  &::-webkit-slider-thumb {
-    appearance: none;
-    width: 1.25rem;
+  &:where(:not(label)), >:where(.control) {
+    pointer-events: auto;
+    width: 100%;
     height: 1.25rem;
-    border-radius: 50%;
-    background-color: var(--theme-color-slate_50);
-    border-width: 2px;
-    border-style: solid;
-    border-color: var(--theme-color-slate_20);
+    border-radius: 0.25rem;
+    background-color: transparent;
     cursor: pointer;
-    margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
-  }
-  &:active, &:focus {
+    appearance: none;
     &::-webkit-slider-runnable-track {
-      background-color: var(--theme-color-slate_40);
+      width: 100%;
+      height: 0.375rem;
+      border-radius: 0.25rem;
+      background-color: var(--theme-color-slate_30);
+      transition: background-color 0.2s ease-in-out;
+      background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
     }
     &::-webkit-slider-thumb {
-      background-color: var(--theme-color-sky_40);
+      appearance: none;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      background-color: var(--theme-color-slate_50);
+      border-width: 2px;
+      border-style: solid;
+      border-color: var(--theme-color-slate_20);
+      cursor: pointer;
+      margin-top: -0.4375rem;
+      transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+    }
+    &:active, &:focus {
+      &::-webkit-slider-runnable-track {
+        background-color: var(--theme-color-slate_40);
+      }
+      &::-webkit-slider-thumb {
+        background-color: var(--theme-color-sky_40);
+      }
+    }
+    &:active {
+      &::-webkit-slider-thumb {
+        transform: scale(1.25);
+      }
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+      cursor: default;
     }
   }
-  &:active {
-    &::-webkit-slider-thumb {
-      transform: scale(1.25);
-    }
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-    cursor: default;
+  >:where([data-widget-control]) {
+    pointer-events: inherit;
   }
 }
 spark-web-player #game .link {
@@ -1588,45 +1681,49 @@ spark-web-player #game .menu {
   }
 }
 spark-web-player #game .search {
-  border-radius: 5rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: left 1.125rem center;
-  background-size: 1rem auto;
-  padding-left: 2.75rem;
+  &:where(:not(label)), >:where(.control) {
+    border-radius: 5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 1.125rem center;
+    background-size: 1rem auto;
+    padding-left: 2.75rem;
+  }
 }
 spark-web-player #game .file_input {
-  background-color: transparent;
-  border-style: none;
-  border-width: 0px;
-  border-radius: 0px;
-  padding: 0.375rem 0px 0.375rem 0.125rem;
-  color: var(--theme-color-slate_60);
-  &::file-selector-button {
-    line-height: 1.5;
-    background-color: var(--theme-color-slate_50);
-    border-width: 0.0625rem;
-    border-style: solid;
-    border-color: var(--theme-color-slate_50);
-    border-radius: 0.25rem;
-    padding: 0.375rem 1rem;
-    margin-right: 0.5rem;
-    margin-left: 0px;
-    color: white;
-    font-size: 1rem;
-    font-weight: 400;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
-    &:hover {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
+  &:where(:not(label)), >:where(.control) {
+    background-color: transparent;
+    border-style: none;
+    border-width: 0px;
+    border-radius: 0px;
+    padding: 0.375rem 0px 0.375rem 0.125rem;
+    color: var(--theme-color-slate_60);
+    &::file-selector-button {
+      line-height: 1.5;
+      background-color: var(--theme-color-slate_50);
+      border-width: 0.0625rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_50);
+      border-radius: 0.25rem;
+      padding: 0.375rem 1rem;
+      margin-right: 0.5rem;
+      margin-left: 0px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 400;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+      &:hover {
+        background-color: var(--theme-color-slate_60);
+        border-color: var(--theme-color-slate_60);
+      }
     }
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-    cursor: default;
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+      cursor: default;
+    }
   }
 }
 spark-web-player #game .scroller {
@@ -1853,43 +1950,36 @@ spark-web-player #game .label {
     margin-top: 0.25rem;
   }
 }
-spark-web-player #game .field_label {
-  width: 100%;
-}
-spark-web-player #game .toggle_label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-start;
-  gap: 0.5rem;
-  cursor: pointer;
-}
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
 }
 spark-web-player #game .invalid {
-  border-color: #964a50;
-  padding-right: 2.5rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E");
-  background-position: center right 0.75rem;
-  background-size: 1rem auto;
-  background-repeat: no-repeat;
-  &:focus {
+  &:where(:not(label)), >:where(.control) {
     border-color: #964a50;
-    box-shadow: 0 0 0 0.0625rem #ce7e7b;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E");
+    background-position: center right 0.75rem;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    &:focus {
+      border-color: #964a50;
+      box-shadow: 0 0 0 0.0625rem #ce7e7b;
+    }
   }
 }
 spark-web-player #game .valid {
-  border-color: #2a7b6f;
-  padding-right: 2.5rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
-  background-position: center right 0.75rem;
-  background-size: 1rem auto;
-  background-repeat: no-repeat;
-  &:focus {
+  &:where(:not(label)), >:where(.control) {
     border-color: #2a7b6f;
-    box-shadow: 0 0 0 0.0625rem #62af9a;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    background-position: center right 0.75rem;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    &:focus {
+      border-color: #2a7b6f;
+      box-shadow: 0 0 0 0.0625rem #62af9a;
+    }
   }
 }
 spark-web-player #game .textbox {
@@ -1936,71 +2026,85 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  padding-bottom: 8px;
-  font-weight: 600;
+  &:where([data-display-target~=character_name]) {
+    padding-bottom: 8px;
+    font-weight: 600;
+  }
 }
 spark-web-player #game .character_parenthetical {
-  padding-bottom: 8px;
-  font-weight: 400;
-  font-size: 1rem;
-  @container screen (max-width:640px) {
-    font-size: 0.875rem;
+  &:where([data-display-target~=character_parenthetical]) {
+    padding-bottom: 8px;
+    font-weight: 400;
+    font-size: 1rem;
+    @container screen (max-width:640px) {
+      font-size: 0.875rem;
+    }
   }
 }
 spark-web-player #game .title {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: center;
-  text-align: center;
-  font-weight: 700;
+  &:where([data-display-target~=title]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    text-align: center;
+    font-weight: 700;
+  }
 }
 spark-web-player #game .heading {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: center;
-  text-align: center;
-  font-weight: 700;
+  &:where([data-display-target~=heading]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    text-align: center;
+    font-weight: 700;
+  }
 }
 spark-web-player #game .transitional {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  padding-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: flex-end;
-  text-align: right;
-  width: 100%;
+  &:where([data-display-target~=transitional]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: flex-end;
+    text-align: right;
+    width: 100%;
+  }
 }
 spark-web-player #game .dialogue {
-  margin: 0px auto;
-  width: 68%;
-  @container screen (max-width:640px) {
-    width: 80%;
+  &:where([data-display-target~=dialogue]) {
+    margin: 0px auto;
+    width: 68%;
+    @container screen (max-width:640px) {
+      width: 80%;
+    }
   }
 }
 spark-web-player #game .action {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: center;
-  text-align: center;
+  &:where([data-display-target~=action]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    text-align: center;
+  }
 }
 spark-web-player #game .continue_indicator {
   opacity: 0;
@@ -2059,6 +2163,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "backdrop",
+                      },
                       "children": [
                         {
                           "children": [
@@ -2075,6 +2182,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "portrait",
+                      },
                       "children": [
                         {
                           "children": [
@@ -2110,6 +2220,9 @@ spark-web-player #game .continue_indicator {
                 {
                   "children": [
                     {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
                       "children": [
                         {
                           "class": "text",
@@ -2121,6 +2234,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
                       "children": [
                         {
                           "class": "text",
@@ -2132,6 +2248,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
                       "children": [
                         {
                           "class": "text",
@@ -2143,6 +2262,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
                       "children": [
                         {
                           "class": "text",
@@ -2154,6 +2276,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
                       "children": [
                         {
                           "class": "text",
@@ -2165,6 +2290,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
                       "children": [
                         {
                           "class": "text",
@@ -2191,6 +2319,7 @@ spark-web-player #game .continue_indicator {
                           "children": [
                             {
                               "attrs": {
+                                "data-display-target": "character_name",
                                 "text": "HERO",
                               },
                               "children": [
@@ -2247,6 +2376,9 @@ spark-web-player #game .continue_indicator {
                               "tag": "div",
                             },
                             {
+                              "attrs": {
+                                "data-display-target": "character_parenthetical",
+                              },
                               "children": [
                                 {
                                   "class": "stroke",
@@ -2266,6 +2398,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "title",
+                          },
                           "children": [
                             {
                               "class": "stroke",
@@ -2281,6 +2416,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "heading",
+                          },
                           "children": [
                             {
                               "class": "stroke",
@@ -2296,6 +2434,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "transitional",
+                          },
                           "children": [
                             {
                               "class": "stroke",
@@ -2312,6 +2453,7 @@ spark-web-player #game .continue_indicator {
                         },
                         {
                           "attrs": {
+                            "data-display-target": "dialogue",
                             "text": "(quietly)The line being previewed.",
                           },
                           "children": [
@@ -2768,6 +2910,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "action",
+                          },
                           "children": [
                             {
                               "class": "stroke",

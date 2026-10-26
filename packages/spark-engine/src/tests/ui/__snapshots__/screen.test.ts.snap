@@ -1353,15 +1353,17 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "action": {
                   "$name": "action",
                   "$type": "style",
-                  "align_self": "center",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "center",
+                  "&:where(#data-display-target~=action)": {
+                    "align_self": "center",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "center",
+                  },
                 },
                 "article": {
                   "$name": "article",
@@ -1404,10 +1406,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "backdrop": {
                   "$name": "backdrop",
                   "$type": "style",
-                  "background_position": "center",
-                  "background_size": "cover",
-                  "inset": "0",
-                  "position": "absolute",
+                  "&:where(#data-display-target~=backdrop)": {
+                    "background_position": "center",
+                    "background_size": "cover",
+                    "inset": "0",
+                    "position": "absolute",
+                  },
                 },
                 "badge": {
                   "$name": "badge",
@@ -1581,70 +1585,92 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "character_name": {
                   "$name": "character_name",
                   "$type": "style",
-                  "font_weight": "600",
-                  "padding_bottom": "8px",
+                  "&:where(#data-display-target~=character_name)": {
+                    "font_weight": "600",
+                    "padding_bottom": "8px",
+                  },
                 },
                 "character_parenthetical": {
                   "$name": "character_parenthetical",
                   "$type": "style",
-                  "@screen_size(sm)": {
-                    "font_size": "0.875rem",
+                  "&:where(#data-display-target~=character_parenthetical)": {
+                    "@screen_size(sm)": {
+                      "font_size": "0.875rem",
+                    },
+                    "font_size": "1rem",
+                    "font_weight": "400",
+                    "padding_bottom": "8px",
                   },
-                  "font_size": "1rem",
-                  "font_weight": "400",
-                  "padding_bottom": "8px",
                 },
                 "checkbox": {
                   "$name": "checkbox",
                   "$type": "style",
-                  "@checked": {
-                    "background-color": "sky_40",
-                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")",
-                    "background-position": "center",
-                    "background-repeat": "no-repeat",
-                    "background-size": "0.75rem auto",
-                    "border-color": "sky_40",
+                  "&:where(:not(label)), > :where(.control)": {
+                    "@checked": {
+                      "background-color": "sky_40",
+                      "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")",
+                      "background-position": "center",
+                      "background-repeat": "no-repeat",
+                      "background-size": "0.75rem auto",
+                      "border-color": "sky_40",
+                    },
+                    "@disabled": {
+                      "cursor": "not-allowed",
+                      "opacity": "0.5",
+                      "pointer-events": "none",
+                    },
+                    "@focused": {
+                      "border-color": "sky_40",
+                      "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
+                    },
+                    "appearance": "none",
+                    "background-color": "slate_30",
+                    "border-color": "slate_40",
+                    "border-style": "solid",
+                    "border-width": "0.125rem",
+                    "corner": "0.25rem",
+                    "cursor": "pointer",
+                    "height": "1.25rem",
+                    "pointer_events": "auto",
+                    "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+                    "width": "1.25rem",
                   },
-                  "@disabled": {
-                    "cursor": "not-allowed",
-                    "opacity": "0.5",
-                    "pointer-events": "none",
+                  "&:where(label)": {
+                    "align_items": "center",
+                    "align_self": "flex-start",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex_direction": "row",
+                    "gap": "0.5rem",
+                    "margin-bottom": "0.375rem",
+                    "pointer_events": "auto",
+                    "text-weight": "400",
                   },
-                  "@focused": {
-                    "border-color": "sky_40",
-                    "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
+                  "> :where(#data-widget-control)": {
+                    "pointer_events": "inherit",
                   },
-                  "appearance": "none",
-                  "background-color": "slate_30",
-                  "border-color": "slate_40",
-                  "border-style": "solid",
-                  "border-width": "0.125rem",
-                  "corner": "0.25rem",
-                  "cursor": "pointer",
-                  "height": "1.25rem",
-                  "pointer_events": "auto",
-                  "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
-                  "width": "1.25rem",
                 },
                 "choice": {
                   "$name": "choice",
                   "$type": "style",
-                  "@hovered": {
-                    "background_color": "black",
-                    "transition": "all 0.15s linear",
+                  "&:where(#data-display-target~=choice)": {
+                    "@hovered": {
+                      "background_color": "black",
+                      "transition": "all 0.15s linear",
+                    },
+                    "align_items": "center",
+                    "background_color": "rgb(0 0 0 / 65%)",
+                    "border": "1px solid",
+                    "border_radius": "8px",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex_direction": "row",
+                    "justify_content": "center",
+                    "max_width": "800px",
+                    "padding": "8px",
+                    "text_align": "center",
+                    "width": "90%",
                   },
-                  "align_items": "center",
-                  "background_color": "rgb(0 0 0 / 65%)",
-                  "border": "1px solid",
-                  "border_radius": "8px",
-                  "cursor": "pointer",
-                  "display": "flex",
-                  "flex_direction": "row",
-                  "justify_content": "center",
-                  "max_width": "800px",
-                  "padding": "8px",
-                  "text_align": "center",
-                  "width": "90%",
                 },
                 "choices": {
                   "$name": "choices",
@@ -1716,11 +1742,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "dialogue": {
                   "$name": "dialogue",
                   "$type": "style",
-                  "@screen_size(sm)": {
-                    "width": "80%",
+                  "&:where(#data-display-target~=dialogue)": {
+                    "@screen_size(sm)": {
+                      "width": "80%",
+                    },
+                    "margin": "0 auto",
+                    "width": "68%",
                   },
-                  "margin": "0 auto",
-                  "width": "68%",
                 },
                 "divider": {
                   "$name": "divider",
@@ -1785,11 +1813,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "display": "inline",
                   "text-style": "italic",
                 },
-                "field_label": {
-                  "$name": "field_label",
-                  "$type": "style",
-                  "width": "100%",
-                },
                 "fieldset": {
                   "$name": "fieldset",
                   "$type": "style",
@@ -1807,37 +1830,39 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "file_input": {
                   "$name": "file_input",
                   "$type": "style",
-                  "@disabled": {
-                    "cursor": "not-allowed",
-                    "opacity": "0.5",
-                    "pointer-events": "none",
-                  },
-                  "@file_button": {
-                    "@hovered": {
-                      "background-color": "slate_60",
-                      "border-color": "slate_60",
+                  "&:where(:not(label)), > :where(.control)": {
+                    "@disabled": {
+                      "cursor": "not-allowed",
+                      "opacity": "0.5",
+                      "pointer-events": "none",
                     },
-                    "background-color": "slate_50",
-                    "border-color": "slate_50",
-                    "border-style": "solid",
-                    "border-width": "0.0625rem",
-                    "corner": "0.25rem",
-                    "cursor": "pointer",
-                    "margin-left": "0",
-                    "margin-right": "0.5rem",
-                    "padding": "0.375rem 1rem",
-                    "text-color": "white",
-                    "text-leading": "1.5",
-                    "text-size": "1rem",
-                    "text-weight": "400",
-                    "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out",
+                    "@file_button": {
+                      "@hovered": {
+                        "background-color": "slate_60",
+                        "border-color": "slate_60",
+                      },
+                      "background-color": "slate_50",
+                      "border-color": "slate_50",
+                      "border-style": "solid",
+                      "border-width": "0.0625rem",
+                      "corner": "0.25rem",
+                      "cursor": "pointer",
+                      "margin-left": "0",
+                      "margin-right": "0.5rem",
+                      "padding": "0.375rem 1rem",
+                      "text-color": "white",
+                      "text-leading": "1.5",
+                      "text-size": "1rem",
+                      "text-weight": "400",
+                      "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out",
+                    },
+                    "background-color": "transparent",
+                    "border-style": "none",
+                    "border-width": "0",
+                    "corner": "0",
+                    "padding": "0.375rem 0 0.375rem 0.125rem",
+                    "text-color": "slate_60",
                   },
-                  "background-color": "transparent",
-                  "border-style": "none",
-                  "border-width": "0",
-                  "corner": "0",
-                  "padding": "0.375rem 0 0.375rem 0.125rem",
-                  "text-color": "slate_60",
                 },
                 "foldout": {
                   "$name": "foldout",
@@ -2046,16 +2071,18 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "heading": {
                   "$name": "heading",
                   "$type": "style",
-                  "align_self": "center",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "font_weight": "bold",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "center",
+                  "&:where(#data-display-target~=heading)": {
+                    "align_self": "center",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "font_weight": "bold",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "center",
+                  },
                 },
                 "highlight": {
                   "$name": "highlight",
@@ -2098,71 +2125,85 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "input": {
                   "$name": "input",
                   "$type": "style",
-                  "+ small": {
-                    "margin-bottom": "1rem",
-                    "margin-top": "0.25rem",
-                  },
-                  "@disabled": {
-                    "cursor": "not-allowed",
-                    "opacity": "0.5",
-                    "pointer-events": "none",
-                  },
-                  "@focused": {
-                    "border-color": "sky_40",
-                    "shadow": "0 0 0 0.0625rem var(--theme-color-sky_40)",
-                  },
-                  "@placeholder": {
-                    "text-color": "slate_70",
-                  },
-                  "@readonly @focused": {
+                  "&:where(:not(label)), > :where(.control)": {
+                    "+ small": {
+                      "margin-bottom": "1rem",
+                      "margin-top": "0.25rem",
+                    },
+                    "@disabled": {
+                      "cursor": "not-allowed",
+                      "opacity": "0.5",
+                      "pointer-events": "none",
+                    },
+                    "@focused": {
+                      "border-color": "sky_40",
+                      "shadow": "0 0 0 0.0625rem var(--theme-color-sky_40)",
+                    },
+                    "@placeholder": {
+                      "text-color": "slate_70",
+                    },
+                    "@readonly @focused": {
+                      "border-color": "slate_40",
+                      "shadow": "none",
+                    },
+                    "@type_color": {
+                      "@swatch": {
+                        "border-width": "0",
+                        "corner": "0.125rem",
+                      },
+                      "@swatch_wrapper": {
+                        "padding": "0",
+                      },
+                    },
+                    "@type_date": {
+                      "@picker": {
+                        "cursor": "pointer",
+                        "opacity": "0",
+                      },
+                      "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E")",
+                      "background-position": "right 0.75rem center",
+                      "background-repeat": "no-repeat",
+                      "background-size": "1rem auto",
+                      "padding-right": "1.75rem",
+                    },
+                    "@type_time": {
+                      "@picker": {
+                        "cursor": "pointer",
+                        "opacity": "0",
+                      },
+                      "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E")",
+                      "background-position": "right 0.75rem center",
+                      "background-repeat": "no-repeat",
+                      "background-size": "1rem auto",
+                      "padding-right": "1.75rem",
+                    },
+                    "accent-color": "sky_60",
+                    "background-color": "slate_30",
                     "border-color": "slate_40",
-                    "shadow": "none",
+                    "border-style": "solid",
+                    "border-width": "0.0625rem",
+                    "color-scheme": "dark",
+                    "corner": "0.25rem",
+                    "height": "3.125rem",
+                    "padding": "0.75rem 1rem",
+                    "pointer_events": "auto",
+                    "text-color": "slate_90",
+                    "text-leading": "1.5",
+                    "transition": "all 0.2s ease-in-out",
+                    "width": "100%",
                   },
-                  "@type_color": {
-                    "@swatch": {
-                      "border-width": "0",
-                      "corner": "0.125rem",
+                  "&:where(label)": {
+                    "> control": {
+                      "margin-top": "0.25rem",
                     },
-                    "@swatch_wrapper": {
-                      "padding": "0",
-                    },
+                    "margin-bottom": "0.375rem",
+                    "pointer_events": "auto",
+                    "text-weight": "400",
+                    "width": "100%",
                   },
-                  "@type_date": {
-                    "@picker": {
-                      "cursor": "pointer",
-                      "opacity": "0",
-                    },
-                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E")",
-                    "background-position": "right 0.75rem center",
-                    "background-repeat": "no-repeat",
-                    "background-size": "1rem auto",
-                    "padding-right": "1.75rem",
+                  "> :where(#data-widget-control)": {
+                    "pointer_events": "inherit",
                   },
-                  "@type_time": {
-                    "@picker": {
-                      "cursor": "pointer",
-                      "opacity": "0",
-                    },
-                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E")",
-                    "background-position": "right 0.75rem center",
-                    "background-repeat": "no-repeat",
-                    "background-size": "1rem auto",
-                    "padding-right": "1.75rem",
-                  },
-                  "accent-color": "sky_60",
-                  "background-color": "slate_30",
-                  "border-color": "slate_40",
-                  "border-style": "solid",
-                  "border-width": "0.0625rem",
-                  "color-scheme": "dark",
-                  "corner": "0.25rem",
-                  "height": "3.125rem",
-                  "padding": "0.75rem 1rem",
-                  "pointer_events": "auto",
-                  "text-color": "slate_90",
-                  "text-leading": "1.5",
-                  "transition": "all 0.2s ease-in-out",
-                  "width": "100%",
                 },
                 "inserted": {
                   "$name": "inserted",
@@ -2172,16 +2213,18 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "invalid": {
                   "$name": "invalid",
                   "$type": "style",
-                  "@focused": {
+                  "&:where(:not(label)), > :where(.control)": {
+                    "@focused": {
+                      "border-color": "#964a50",
+                      "shadow": "0 0 0 0.0625rem #ce7e7b",
+                    },
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")",
+                    "background-position": "center right 0.75rem",
+                    "background-repeat": "no-repeat",
+                    "background-size": "1rem auto",
                     "border-color": "#964a50",
-                    "shadow": "0 0 0 0.0625rem #ce7e7b",
+                    "padding-right": "2.5rem",
                   },
-                  "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")",
-                  "background-position": "center right 0.75rem",
-                  "background-repeat": "no-repeat",
-                  "background-size": "1rem auto",
-                  "border-color": "#964a50",
-                  "padding-right": "2.5rem",
                 },
                 "italic": {
                   "$name": "italic",
@@ -2226,6 +2269,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "layouts",
                   "$type": "style",
                   "& >> #tooltip": {
+                    "&:where(:not(#data-widget-control))": {
+                      "pointer_events": "auto",
+                    },
                     "@after": {
                       "background-color": "transparent",
                       "border-left-color": "transparent",
@@ -2281,8 +2327,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                       "animation-name": "tooltip_slide",
                       "opacity": "1",
                     },
-                    "pointer_events": "auto",
                     "position": "relative",
+                  },
+                  "& >> :where(#data-ui-handler)": {
+                    "&:where(:not(#data-widget-control))": {
+                      "pointer_events": "auto",
+                    },
                   },
                   "& >> @busy": {
                     "@before": {
@@ -2607,18 +2657,20 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "portrait": {
                   "$name": "portrait",
                   "$type": "style",
-                  "> image >> *": {
-                    "mix_blend_mode": "plus-lighter",
+                  "&:where(#data-display-target~=portrait)": {
+                    "> image >> *": {
+                      "mix_blend_mode": "plus-lighter",
+                    },
+                    "background_position": "center",
+                    "background_size": "auto 100%",
+                    "bottom": "0",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "left": "0",
+                    "position": "absolute",
+                    "right": "0",
+                    "top": "10%",
                   },
-                  "background_position": "center",
-                  "background_size": "auto 100%",
-                  "bottom": "0",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "left": "0",
-                  "position": "absolute",
-                  "right": "0",
-                  "top": "10%",
                 },
                 "progress": {
                   "$name": "progress",
@@ -2683,31 +2735,47 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "radio": {
                   "$name": "radio",
                   "$type": "style",
-                  "@checked": {
-                    "background-color": "white",
-                    "border-color": "sky_40",
-                    "border-width": "0.35rem",
+                  "&:where(:not(label)), > :where(.control)": {
+                    "@checked": {
+                      "background-color": "white",
+                      "border-color": "sky_40",
+                      "border-width": "0.35rem",
+                    },
+                    "@disabled": {
+                      "cursor": "not-allowed",
+                      "opacity": "0.5",
+                      "pointer-events": "none",
+                    },
+                    "@focused": {
+                      "border-color": "sky_40",
+                      "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
+                    },
+                    "appearance": "none",
+                    "background-color": "slate_30",
+                    "border-color": "slate_40",
+                    "border-style": "solid",
+                    "border-width": "0.125rem",
+                    "corner": "50%",
+                    "cursor": "pointer",
+                    "height": "1.25rem",
+                    "pointer_events": "auto",
+                    "transition": "all 0.2s ease-in-out",
+                    "width": "1.25rem",
                   },
-                  "@disabled": {
-                    "cursor": "not-allowed",
-                    "opacity": "0.5",
-                    "pointer-events": "none",
+                  "&:where(label)": {
+                    "align_items": "center",
+                    "align_self": "flex-start",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex_direction": "row",
+                    "gap": "0.5rem",
+                    "margin-bottom": "0.375rem",
+                    "pointer_events": "auto",
+                    "text-weight": "400",
                   },
-                  "@focused": {
-                    "border-color": "sky_40",
-                    "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
+                  "> :where(#data-widget-control)": {
+                    "pointer_events": "inherit",
                   },
-                  "appearance": "none",
-                  "background-color": "slate_30",
-                  "border-color": "slate_40",
-                  "border-style": "solid",
-                  "border-width": "0.125rem",
-                  "corner": "50%",
-                  "cursor": "pointer",
-                  "height": "1.25rem",
-                  "pointer_events": "auto",
-                  "transition": "all 0.2s ease-in-out",
-                  "width": "1.25rem",
                 },
                 "row": {
                   "$name": "row",
@@ -2718,11 +2786,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "screen": {
                   "$name": "screen",
                   "$type": "style",
-                  ">> *": {
+                  "&:where(:not(#data-ui-handler))": {
+                    "pointer_events": "none",
+                  },
+                  ">> :where(:not(#data-ui-handler))": {
                     "pointer_events": "none",
                   },
                   "inset": "0",
-                  "pointer_events": "none",
                   "position": "absolute",
                 },
                 "scroller": {
@@ -2733,12 +2803,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "search": {
                   "$name": "search",
                   "$type": "style",
-                  "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")",
-                  "background-position": "left 1.125rem center",
-                  "background-repeat": "no-repeat",
-                  "background-size": "1rem auto",
-                  "corner": "5rem",
-                  "padding-left": "2.75rem",
+                  "&:where(:not(label)), > :where(.control)": {
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")",
+                    "background-position": "left 1.125rem center",
+                    "background-repeat": "no-repeat",
+                    "background-size": "1rem auto",
+                    "corner": "5rem",
+                    "padding-left": "2.75rem",
+                  },
                 },
                 "section": {
                   "$name": "section",
@@ -2749,52 +2821,66 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "slider": {
                   "$name": "slider",
                   "$type": "style",
-                  "@disabled": {
-                    "cursor": "not-allowed",
-                    "opacity": "0.5",
-                    "pointer-events": "none",
-                  },
-                  "@pressed": {
-                    "@thumb": {
-                      "transform": "scale(1.25)",
+                  "&:where(:not(label)), > :where(.control)": {
+                    "@disabled": {
+                      "cursor": "not-allowed",
+                      "opacity": "0.5",
+                      "pointer-events": "none",
                     },
-                  },
-                  "@pressed, @focused": {
+                    "@pressed": {
+                      "@thumb": {
+                        "transform": "scale(1.25)",
+                      },
+                    },
+                    "@pressed, @focused": {
+                      "@thumb": {
+                        "background-color": "sky_40",
+                      },
+                      "@track": {
+                        "background-color": "slate_40",
+                      },
+                    },
                     "@thumb": {
-                      "background-color": "sky_40",
+                      "appearance": "none",
+                      "background-color": "slate_50",
+                      "border-color": "slate_20",
+                      "border-style": "solid",
+                      "border-width": "2px",
+                      "corner": "50%",
+                      "cursor": "pointer",
+                      "height": "1.25rem",
+                      "margin-top": "-0.4375rem",
+                      "transition": "background-color 0.2s ease-in-out, transform 0.2s ease-in-out",
+                      "width": "1.25rem",
                     },
                     "@track": {
-                      "background-color": "slate_40",
+                      "background-color": "slate_30",
+                      "background-image": "linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))",
+                      "corner": "0.25rem",
+                      "height": "0.375rem",
+                      "transition": "background-color 0.2s ease-in-out",
+                      "width": "100%",
                     },
-                  },
-                  "@thumb": {
                     "appearance": "none",
-                    "background-color": "slate_50",
-                    "border-color": "slate_20",
-                    "border-style": "solid",
-                    "border-width": "2px",
-                    "corner": "50%",
+                    "background-color": "transparent",
+                    "corner": "0.25rem",
                     "cursor": "pointer",
                     "height": "1.25rem",
-                    "margin-top": "-0.4375rem",
-                    "transition": "background-color 0.2s ease-in-out, transform 0.2s ease-in-out",
-                    "width": "1.25rem",
-                  },
-                  "@track": {
-                    "background-color": "slate_30",
-                    "background-image": "linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))",
-                    "corner": "0.25rem",
-                    "height": "0.375rem",
-                    "transition": "background-color 0.2s ease-in-out",
+                    "pointer_events": "auto",
                     "width": "100%",
                   },
-                  "appearance": "none",
-                  "background-color": "transparent",
-                  "corner": "0.25rem",
-                  "cursor": "pointer",
-                  "height": "1.25rem",
-                  "pointer_events": "auto",
-                  "width": "100%",
+                  "&:where(label)": {
+                    "> control": {
+                      "margin-top": "0.25rem",
+                    },
+                    "margin-bottom": "0.375rem",
+                    "pointer_events": "auto",
+                    "text-weight": "400",
+                    "width": "100%",
+                  },
+                  "> :where(#data-widget-control)": {
+                    "pointer_events": "inherit",
+                  },
                 },
                 "small": {
                   "$name": "small",
@@ -2834,13 +2920,15 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "stroke": {
                   "$name": "stroke",
                   "$type": "style",
+                  "&:where(:not(#data-ui-handler))": {
+                    "pointer_events": "none",
+                  },
                   ">> *": {
                     "display": "inline",
                   },
                   "color": "black",
                   "display": "block",
                   "inset": "0",
-                  "pointer_events": "none",
                   "position": "absolute",
                   "text_stroke": "1",
                   "text_wrap": "wrap",
@@ -2856,44 +2944,60 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "switch": {
                   "$name": "switch",
                   "$type": "style",
-                  "@before": {
-                    "background-color": "white",
-                    "content": "",
-                    "corner": "50%",
-                    "height": "0.875rem",
-                    "left": "0",
-                    "position": "absolute",
-                    "top": "0",
-                    "transition": "transform 0.1s ease-in-out",
-                    "width": "0.875rem",
-                  },
-                  "@checked": {
+                  "&:where(:not(label)), > :where(.control)": {
                     "@before": {
-                      "transform": "translateX(1rem)",
+                      "background-color": "white",
+                      "content": "",
+                      "corner": "50%",
+                      "height": "0.875rem",
+                      "left": "0",
+                      "position": "absolute",
+                      "top": "0",
+                      "transition": "transform 0.1s ease-in-out",
+                      "width": "0.875rem",
                     },
-                    "background-color": "sky_40",
-                    "border-color": "sky_40",
+                    "@checked": {
+                      "@before": {
+                        "transform": "translateX(1rem)",
+                      },
+                      "background-color": "sky_40",
+                      "border-color": "sky_40",
+                    },
+                    "@disabled": {
+                      "cursor": "not-allowed",
+                      "opacity": "0.5",
+                      "pointer-events": "none",
+                    },
+                    "@focused": {
+                      "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
+                    },
+                    "appearance": "none",
+                    "background-color": "slate_45",
+                    "border-color": "slate_45",
+                    "border-style": "solid",
+                    "border-width": "0.1875rem",
+                    "corner": "1.25rem",
+                    "cursor": "pointer",
+                    "height": "1.25rem",
+                    "pointer_events": "auto",
+                    "position": "relative",
+                    "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out",
+                    "width": "2.25rem",
                   },
-                  "@disabled": {
-                    "cursor": "not-allowed",
-                    "opacity": "0.5",
-                    "pointer-events": "none",
+                  "&:where(label)": {
+                    "align_items": "center",
+                    "align_self": "flex-start",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex_direction": "row",
+                    "gap": "0.5rem",
+                    "margin-bottom": "0.375rem",
+                    "pointer_events": "auto",
+                    "text-weight": "400",
                   },
-                  "@focused": {
-                    "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
+                  "> :where(#data-widget-control)": {
+                    "pointer_events": "inherit",
                   },
-                  "appearance": "none",
-                  "background-color": "slate_45",
-                  "border-color": "slate_45",
-                  "border-style": "solid",
-                  "border-width": "0.1875rem",
-                  "corner": "1.25rem",
-                  "cursor": "pointer",
-                  "height": "1.25rem",
-                  "pointer_events": "auto",
-                  "position": "relative",
-                  "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out",
-                  "width": "2.25rem",
                 },
                 "table": {
                   "$name": "table",
@@ -3039,41 +3143,35 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "title": {
                   "$name": "title",
                   "$type": "style",
-                  "align_self": "center",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "font_weight": "bold",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "center",
-                },
-                "toggle_label": {
-                  "$name": "toggle_label",
-                  "$type": "style",
-                  "align_items": "center",
-                  "align_self": "flex-start",
-                  "cursor": "pointer",
-                  "display": "flex",
-                  "flex_direction": "row",
-                  "gap": "0.5rem",
+                  "&:where(#data-display-target~=title)": {
+                    "align_self": "center",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "font_weight": "bold",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "center",
+                  },
                 },
                 "transitional": {
                   "$name": "transitional",
                   "$type": "style",
-                  "align_self": "flex-end",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_bottom": "24px",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "right",
-                  "width": "100%",
+                  "&:where(#data-display-target~=transitional)": {
+                    "align_self": "flex-end",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_bottom": "24px",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "right",
+                    "width": "100%",
+                  },
                 },
                 "underline": {
                   "$name": "underline",
@@ -3083,16 +3181,18 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "valid": {
                   "$name": "valid",
                   "$type": "style",
-                  "@focused": {
+                  "&:where(:not(label)), > :where(.control)": {
+                    "@focused": {
+                      "border-color": "#2a7b6f",
+                      "shadow": "0 0 0 0.0625rem #62af9a",
+                    },
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")",
+                    "background-position": "center right 0.75rem",
+                    "background-repeat": "no-repeat",
+                    "background-size": "1rem auto",
                     "border-color": "#2a7b6f",
-                    "shadow": "0 0 0 0.0625rem #62af9a",
+                    "padding-right": "2.5rem",
                   },
-                  "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")",
-                  "background-position": "center right 0.75rem",
-                  "background-repeat": "no-repeat",
-                  "background-size": "1rem auto",
-                  "border-color": "#2a7b6f",
-                  "padding-right": "2.5rem",
                 },
               },
             },
@@ -3711,11 +3811,66 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
           },
         },
+        {
+          "id": "req-34",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "backdrop",
+            },
+            "element": "e-14",
+          },
+        },
+        {
+          "id": "req-35",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "portrait",
+            },
+            "element": "e-17",
+          },
+        },
+        {
+          "id": "req-36",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "character_name",
+            },
+            "element": "e-24",
+          },
+        },
+        {
+          "id": "req-37",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "character_parenthetical",
+            },
+            "element": "e-26",
+          },
+        },
+        {
+          "id": "req-38",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "dialogue",
+            },
+            "element": "e-28",
+          },
+        },
       ],
     },
   },
   {
-    "id": "req-34",
+    "id": "req-39",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3730,7 +3885,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-35",
+          "id": "req-40",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3755,7 +3910,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-36",
+    "id": "req-41",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3770,7 +3925,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-37",
+          "id": "req-42",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3795,7 +3950,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-38",
+    "id": "req-43",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3810,7 +3965,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-39",
+          "id": "req-44",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3835,7 +3990,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-40",
+    "id": "req-45",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3850,7 +4005,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-41",
+          "id": "req-46",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3875,7 +4030,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-42",
+    "id": "req-47",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3890,7 +4045,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-43",
+          "id": "req-48",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3913,7 +4068,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-44",
+    "id": "req-49",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -3928,7 +4083,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-45",
+          "id": "req-50",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3951,7 +4106,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-46",
+    "id": "req-51",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -3966,7 +4121,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-47",
+          "id": "req-52",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3989,7 +4144,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-48",
+    "id": "req-53",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4004,7 +4159,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-49",
+          "id": "req-54",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4027,7 +4182,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-50",
+    "id": "req-55",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4042,7 +4197,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-51",
+          "id": "req-56",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4065,7 +4220,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-52",
+    "id": "req-57",
     "kind": "request",
     "method": "ui/write-image",
     "params": {

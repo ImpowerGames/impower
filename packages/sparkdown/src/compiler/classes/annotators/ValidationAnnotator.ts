@@ -11,6 +11,7 @@ import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
 import {
   CUSTOM_PROPERTY_ALIASES,
   isAliasedAttributeProp,
+  isReservedAttribute,
 } from "../../constants/dataAttributeProps";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -2082,9 +2083,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // `--custom` CSS variables and `data-*` / `aria-*` attributes are always
       // valid on any element, so they're never flagged. So are the named
       // non-standard props (`#tooltip`), which the ui writes out as `data-*`.
+      // The `data-*` names the ui reserves for itself are not written, so
+      // they are flagged like any other prop that has no effect.
       const isPassThrough =
         name.startsWith("--") ||
-        name.startsWith("data-") ||
+        (name.startsWith("data-") && !isReservedAttribute(name)) ||
         name.startsWith("aria-") ||
         isAliasedAttributeProp(name) ||
         CUSTOM_PROPERTY_ALIASES.has(normalizeStylePropName(name));

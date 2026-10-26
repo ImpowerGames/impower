@@ -43,6 +43,7 @@ import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/ba
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
@@ -97,6 +98,7 @@ export default class WorkspaceWindow {
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
     this.restoreProjectWorkspace(id);
     this.cacheProjectId(id);
+    this.restoreAnimatePortraits();
     this.registerProtocolHandlers();
     const mediaQuery = window.matchMedia("(min-width: 960px)");
     mediaQuery.addEventListener("change", this.handleScreenSizeChange);
@@ -1003,6 +1005,32 @@ export default class WorkspaceWindow {
     } else {
       this.pauseGame();
     }
+  }
+
+  protected restoreAnimatePortraits() {
+    const cached = localStorage.getItem(
+      WorkspaceConstants.ANIMATE_PORTRAITS_STORAGE_KEY,
+    );
+    workspace.animatePortraits.value = cached !== "false";
+  }
+
+  /**
+   * Turn idle portrait motion on or off, for this browser and every project.
+   * Independent of story pause: off returns portraits to rest, on starts a
+   * fresh cycle. The preview sends the current value again whenever a player
+   * connects.
+   */
+  setAnimatePortraits(enabled: boolean) {
+    workspace.animatePortraits.value = enabled;
+    localStorage.setItem(
+      WorkspaceConstants.ANIMATE_PORTRAITS_STORAGE_KEY,
+      String(enabled),
+    );
+    sendProtocolMessage(SetAnimatePortraitsMessage.type.request({ enabled }));
+  }
+
+  toggleAnimatePortraits() {
+    this.setAnimatePortraits(!workspace.animatePortraits.peek());
   }
 
   enableDebugging() {
