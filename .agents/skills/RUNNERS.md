@@ -13,6 +13,7 @@
 | Private artifacts       | Exclusive directory per agent/attempt; parent scratchpads may be shared; resolve-issue writers use its [allocator](resolve-issue/SKILL.md#0-preflight) | Same                                                                                |
 | Observe completion      | Await task status or CLI process exit, then read the review thread's paginated comments | Same                                                                                |
 | Shell backslashes       | Bash tool collapses `\\` to `\`; PowerShell tool preserves them        | Not measured                                                                        |
+| Leading-slash arguments | Bash tool (Git Bash) rewrites `/word …` into `C:/Program Files/Git/word …` before the program starts; prefix `MSYS_NO_PATHCONV=1` or use the PowerShell tool | Not measured |
 
 ## Review execution
 
