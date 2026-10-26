@@ -122,16 +122,17 @@ export const ATTRIBUTE_PROPS: ReadonlySet<string> = new Set([
   "autofocus", "controls", "autoplay", "loop", "muted", "inert", "popover",
   // tables
   "colspan", "rowspan", "scope", "headers", "span",
-  // universal / misc
+  // universal / misc (`translate` is absent: it names the CSS property, as it
+  // does in a `style` block, not the HTML translation hint)
   "id", "role", "title", "lang", "dir", "tabindex", "datetime", "draggable",
-  "translate", "part", "slot",
+  "part", "slot",
 ]);
 
 /**
  * Attributes whose PRESENCE is the signal, so a false value must remove them.
  *
  * Deliberately excludes the enumerated ones — `draggable`, `spellcheck`,
- * `translate`, `crossorigin`, `contenteditable` — where `="false"` is a real,
+ * `crossorigin`, `contenteditable` — where `="false"` is a real,
  * different value from absence. Treating those as boolean would silently drop
  * the author's explicit "no".
  */
