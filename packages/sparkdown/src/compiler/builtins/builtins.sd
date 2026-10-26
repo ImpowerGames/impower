@@ -1641,22 +1641,28 @@ style choices with
   }
 end
 
+// The story writes each choice to `choice 0`, `choice 1` and so on, and the
+// ui marks every element those writes reach with `choice`, so this style
+// reaches the story's choices and not an author's `button.choice`, as
+// `style backdrop` describes for the other display targets.
 style choice with
-  display = flex
-  flex_direction = row
-  width = 90%
-  max_width = 800px
-  background_color = rgb(0 0 0 / 65%)
-  padding = 8px
-  border_radius = 8px
-  border = 1px solid
-  text_align = center
-  align_items = center
-  justify_content = center
-  cursor = pointer
-  @hovered {
-    background_color = black
-    transition = all 0.15s linear
+  &:where(#data-display-target~=choice) {
+    display = flex
+    flex_direction = row
+    width = 90%
+    max_width = 800px
+    background_color = rgb(0 0 0 / 65%)
+    padding = 8px
+    border_radius = 8px
+    border = 1px solid
+    text_align = center
+    align_items = center
+    justify_content = center
+    cursor = pointer
+    @hovered {
+      background_color = black
+      transition = all 0.15s linear
+    }
   }
 end
 

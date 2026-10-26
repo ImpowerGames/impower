@@ -135,6 +135,51 @@ end
     expect(authored!.matches(styleSelector(css, "heading"))).toBe(false);
   });
 
+  test("reaches the story's choices and not an author's element with the choice class", async () => {
+    const h = createDOMHarness(
+      `layout inventory with
+  column.panel {
+    button.choice "Use"
+    text "Rope"
+  }
+end
+
+-> start
+
+scene start
+  [[open inventory]]
+  Pick:
+  choose
+    + (a) Apple
+      -> DONE
+    + (b) Banana
+      -> DONE
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    await h.display(h.nextBeat()!, true);
+    await flushMicrotasks(10);
+    const selector = styleSelector(stylesheet(h), "choice");
+    const shown = [0, 1].map((i) =>
+      [...h.overlay.querySelectorAll<HTMLElement>(".choice")].find(
+        (el) => el.className === `choice ${i}`,
+      ),
+    );
+    for (const choice of shown) {
+      expect(choice, h.overlay.innerHTML).toBeDefined();
+      expect(choice!.matches(selector), choice!.outerHTML).toBe(true);
+    }
+    const authored = h.overlay.querySelector<HTMLElement>(".panel > .choice");
+    expect(authored, h.overlay.innerHTML).not.toBeNull();
+    expect(authored!.textContent).toContain("Use");
+    expect(authored!.matches(selector), authored!.outerHTML).toBe(false);
+  });
+
   test("reaches a slot through the target it is the slot of, not another class it carries", async () => {
     const { h, css } = await play(`define HERO as character with
   name = "HERO"

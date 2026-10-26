@@ -161,7 +161,8 @@ export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
 export const DISPLAY_TARGET_ATTRIBUTE = "data-display-target";
 
 /** The story's display targets whose builtin styles the ui scopes to
- *  {@link DISPLAY_TARGET_ATTRIBUTE}. */
+ *  {@link DISPLAY_TARGET_ATTRIBUTE}. `choice` stands for the targets the
+ *  story writes each choice to, `choice 0`, `choice 1` and so on. */
 export const DISPLAY_TARGETS: readonly string[] = [
   "backdrop",
   "portrait",
@@ -172,6 +173,7 @@ export const DISPLAY_TARGETS: readonly string[] = [
   "transitional",
   "dialogue",
   "action",
+  "choice",
 ];
 
 /** Whether an authored prop names one of the ui's reserved markers.

@@ -1402,6 +1402,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.emit(BatchElementsMessage.type.notification({ messages }));
   }
 
+  /** The elements a text or image write to a display target reaches. The
+   *  story writes each choice to `choice 0`, `choice 1` and so on, so
+   *  `choice` reaches what each of those reaches, for every index an element
+   *  carrying `choice` names. */
+  protected displayTargetElements(root: Element, target: string): Element[] {
+    if (target !== "choice") {
+      return this.findElements(target, true);
+    }
+    const indexes = new Set<string>();
+    for (const element of this.searchForAll(root, target)) {
+      for (const c of element.name.split(" ")) {
+        if (/^\d+$/.test(c)) {
+          indexes.add(c);
+        }
+      }
+    }
+    return [...indexes].flatMap((i) =>
+      this.findElements(`${target} ${i}`, true),
+    );
+  }
+
   /** Whether an element's classes name one of the display targets. */
   protected carriesDisplayTarget(element: Element): boolean {
     return element.name.split(" ").some((c) => DISPLAY_TARGETS.includes(c));
@@ -1430,10 +1451,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const reached = new Map<Element, string[]>();
     for (const target of DISPLAY_TARGETS) {
-      for (const element of this.findElements(target, true)) {
+      for (const element of this.displayTargetElements(root, target)) {
         const targets = reached.get(element);
         if (targets) {
-          targets.push(target);
+          if (!targets.includes(target)) {
+            targets.push(target);
+          }
         } else {
           reached.set(element, [target]);
         }

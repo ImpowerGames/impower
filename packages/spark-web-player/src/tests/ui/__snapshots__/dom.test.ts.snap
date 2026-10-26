@@ -759,21 +759,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -3035,21 +3037,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -5277,21 +5281,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -7637,21 +7643,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -9860,21 +9868,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -11261,6 +11271,9 @@ spark-web-player #game .continue_indicator {
                   "tag": "div",
                 },
                 {
+                  "attrs": {
+                    "data-display-target": "choice",
+                  },
                   "children": [
                     {
                       "class": "text",
@@ -11272,6 +11285,9 @@ spark-web-player #game .continue_indicator {
                   "tag": "div",
                 },
                 {
+                  "attrs": {
+                    "data-display-target": "choice",
+                  },
                   "children": [
                     {
                       "class": "text",
@@ -12059,21 +12075,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -13461,6 +13479,7 @@ spark-web-player #game .continue_indicator {
                 },
                 {
                   "attrs": {
+                    "data-display-target": "choice",
                     "text": "Apple",
                   },
                   "children": [
@@ -13495,6 +13514,7 @@ spark-web-player #game .continue_indicator {
                 },
                 {
                   "attrs": {
+                    "data-display-target": "choice",
                     "text": "Banana",
                   },
                   "children": [
@@ -14308,21 +14328,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -16527,21 +16549,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -18746,21 +18770,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -20965,21 +20991,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
@@ -23184,21 +23212,23 @@ spark-web-player #game .choices {
   }
 }
 spark-web-player #game .choice {
-  display: flex;
-  flex-direction: row;
-  width: 90%;
-  max-width: 800px;
-  background-color: rgb(0 0 0 / 65%);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  &:hover {
-    background-color: black;
-    transition: all 0.15s linear;
+  &:where([data-display-target~=choice]) {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 800px;
+    background-color: rgb(0 0 0 / 65%);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    &:hover {
+      background-color: black;
+      transition: all 0.15s linear;
+    }
   }
 }
 spark-web-player #game .button {
