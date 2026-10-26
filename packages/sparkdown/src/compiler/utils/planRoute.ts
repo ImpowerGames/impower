@@ -107,7 +107,30 @@ export interface SearchNode {
   /** How many verdicts the route to here forces against the program: the
    *  level of the search it belongs to (see {@link planRoute}). */
   forced: number;
+  /** The work the route has followed since the latest of its last beat,
+   *  the first condition after that beat and its last forced verdict, or -1
+   *  before that condition (see {@link BEAT_WORK_CAP}). */
+  beatWork: number;
 }
+
+/**
+ * The work, in steps (Luau calls' included), a route may follow without a
+ * beat (see {@link planRoute}), counted from the latest of its last beat, the
+ * first condition after that beat and its last forced verdict. A run past it
+ * goes no further, so a long loop with no beat in it is left at the pass
+ * where this ran out, by forcing its exit there; forcing a verdict starts the
+ * count again, so the forced route can go on to the line.
+ *
+ * The preview replays a route from its last checkpoint, and the game takes a
+ * checkpoint at each beat, so a stretch with no beat is replayed whole on
+ * every scrub after it, and so is the search's run through it. Both cost
+ * about 6 microseconds a step in the worker; at this size the two stay within
+ * about 100 ms of a preview that does not follow the loop. Work before the
+ * first condition is not counted: a route that forces nothing there runs it
+ * as the program does, as a search that cut every loop at its first test
+ * would too.
+ */
+export const BEAT_WORK_CAP = 8_192;
 
 /**
  * The share of the step and node work remaining that each level of a search
@@ -230,6 +253,8 @@ export interface RouteStep {
   spentNodes?: number;
   /** The level of the search it was recorded in (see {@link planRoute}). */
   level?: number;
+  /** The route's {@link SearchNode.beatWork} when it was recorded. */
+  beatWork?: number;
 }
 
 /** What a search from the top had spent when it recorded the step a resumed
@@ -240,6 +265,8 @@ export interface RouteCharge {
   steps: number;
   /** The nodes expanded ({@link RouteStep.spentNodes}). */
   nodes: number;
+  /** The route's work since its last beat ({@link RouteStep.beatWork}). */
+  beatWork: number;
   /** Level zero's bound, when the search met its first condition before
    *  that step ({@link RoutePlan.levelZero}). */
   levelZero?: LevelZeroBound;
@@ -285,6 +312,7 @@ export const routeChargeAt = (
   if (
     step?.spentSteps == null ||
     step.spentNodes == null ||
+    step.beatWork == null ||
     step.level !== 0
   ) {
     return null;
@@ -296,6 +324,7 @@ export const routeChargeAt = (
   return {
     steps: step.spentSteps,
     nodes: step.spentNodes,
+    beatWork: step.beatWork,
     ...(levelZero ? { levelZero } : {}),
   };
 };
@@ -1218,12 +1247,27 @@ const runUntilDecisionOrBranch = (
   let seq = node.seq;
   const stepsEncountered: RouteStep[] = [];
 
+  // The work followed since the route's last beat ({@link SearchNode.beatWork}).
+  let beatWork = node.beatWork;
+  const charge = (steps: number) => {
+    budget.stepsRemaining -= steps;
+    if (beatWork >= 0) {
+      beatWork += steps;
+    }
+  };
+
   /** Where the run stands: how much of each of its records it has made. */
-  type Mark = { steps: number; decisions: number; conditions: number };
+  type Mark = {
+    steps: number;
+    decisions: number;
+    conditions: number;
+    beatWork: number;
+  };
   const mark = (): Mark => ({
     steps: stepsEncountered.length,
     decisions: runDecisions.length,
     conditions: runConditions.length,
+    beatWork,
   });
 
   /** A node standing where this run stood at `at`, which forces
@@ -1259,6 +1303,8 @@ const runUntilDecisionOrBranch = (
       overrides,
       forced:
         node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
+      // A forced verdict starts the count of work without a beat again.
+      beatWork: add?.kind === "condition" && add.departs ? 0 : at.beatWork,
     };
   };
   // What the run forces next, which the first step after a fork or a
@@ -1287,6 +1333,12 @@ const runUntilDecisionOrBranch = (
         terminal = true;
         break;
       }
+      if (beatWork >= BEAT_WORK_CAP) {
+        // It has followed as much as a route follows without a beat: it goes
+        // no further, and the verdicts it did not take lead on.
+        terminal = true;
+        break;
+      }
       if (spentSteps(budget) >= turnEnd) {
         // Its turn is over: it goes back to the end of the queue, to go on
         // from here.
@@ -1294,7 +1346,7 @@ const runUntilDecisionOrBranch = (
         terminal = true;
         break;
       }
-      budget.stepsRemaining -= 1;
+      charge(1);
 
       const previous = positions.previous();
 
@@ -1313,6 +1365,7 @@ const runUntilDecisionOrBranch = (
             spentSteps: again?.spentSteps ?? spentSteps(budget),
             spentNodes: again?.spentNodes ?? spentNodes(budget),
             level: level.index,
+            beatWork: again?.beatWork ?? beatWork,
           });
         }
         putBack = undefined;
@@ -1404,11 +1457,15 @@ const runUntilDecisionOrBranch = (
       // One step was charged above. A Luau callback runs all of its steps
       // inside the step that called it, and those count too: the limit stops
       // them where the budget runs out, or the level's bound once it binds,
-      // and what they took is charged after.
+      // or the route's work since its last beat, and what they took is
+      // charged after.
       const stepsBefore = story.stepCount;
-      const allowed = level.bound
+      let allowed = level.bound
         ? Math.max(0, level.bound.steps - spentSteps(budget))
         : budget.stepsRemaining;
+      if (beatWork >= 0) {
+        allowed = Math.min(allowed, BEAT_WORK_CAP - beatWork);
+      }
       story.stepLimit = stepsBefore + 1 + allowed;
       let stopped = false;
       try {
@@ -1420,23 +1477,28 @@ const runUntilDecisionOrBranch = (
         stopped = true;
       } finally {
         story.stepLimit = null;
-        budget.stepsRemaining -= Math.max(0, story.stepCount - stepsBefore - 1);
+        charge(Math.max(0, story.stepCount - stepsBefore - 1));
       }
       if (stopped) {
-        // The budget, or the level's bound, ran out part way through the
-        // step. Only the budget's own end cuts the search: the next level
-        // has the rest of it, from the last fork, since a step stopped part
-        // way leaves no state to take up.
+        // The budget, the level's bound or the route's work since its last
+        // beat ran out part way through the step. Only the budget's own end
+        // cuts the search. A level's bound hands the rest to the next level,
+        // from the last fork, since a step stopped part way leaves no state
+        // to take up; a route past its work since its last beat goes no
+        // further.
         if (budget.stepsRemaining <= 0) {
           budget.cut ??= "max-steps";
-        } else {
-          level.spent = true;
+        } else if (levelSpent(level, budget)) {
           level.cutAt = nodeAt(lastFork.state, lastFork.at, lastFork.overrides);
         }
         terminal = true;
         break;
       }
       pending = [];
+      if (story.asyncContinueComplete && story.continueShowedSomething) {
+        // A beat, where the game takes a checkpoint a replay resumes from.
+        beatWork = -1;
+      }
 
       if (story.pausedBeforeCondition !== null) {
         const site = story.pausedBeforeCondition;
@@ -1454,6 +1516,10 @@ const runUntilDecisionOrBranch = (
           // already queued, or the program's own way has been here before.
           terminal = true;
           break;
+        }
+        // The work a route follows since its last beat counts from here.
+        if (beatWork < 0) {
+          beatWork = 0;
         }
 
         if (natural !== null) {
@@ -1570,6 +1636,7 @@ const makeStartNode = (
     choices: null,
     overrides: [],
     forced: 0,
+    beatWork: -1,
   };
 };
 
@@ -1581,7 +1648,9 @@ const makeStartNode = (
  * the story nor moves it.
  *
  * The node forces nothing: every decision of the resume point was taken
- * before the state it stands in.
+ * before the state it stands in. Its work since the last beat is what the
+ * search from the top recorded at that step, one step short, as the budget
+ * is: its first step charges it again.
  */
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   state: resumeFrom.state,
@@ -1592,6 +1661,10 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   choices: extendTrail(null, resumeFrom.choices),
   overrides: [],
   forced: 0,
+  beatWork:
+    resumeFrom.charge.beatWork < 0
+      ? -1
+      : Math.max(0, resumeFrom.charge.beatWork - 1),
 });
 
 const isRootLevel = (knot: string): boolean =>

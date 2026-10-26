@@ -2625,33 +2625,24 @@ export class Game<T extends M = {}> {
       limits == null
         ? newRoute.steps.length
         : Math.max(0, Math.min(limits.steps, newRoute.steps.length));
-    const validSteps = newRoute.steps.slice(0, considered);
-    const newSteps = newRoute.steps.slice(considered);
-    let lastValidNewRouteStep = validSteps.at(-1);
-    // The resume below is positional (`validSteps.length - 1` indexes the OLD
-    // route), so the match has to agree on that index, not merely on identity.
-    let lastValidOldRouteCheckpoint = this.stepCheckpoint(
-      lastValidNewRouteStep?.seq || "",
-      {
-        address: lastValidNewRouteStep?.address,
-        index: validSteps.length - 1,
+    // The deepest of those steps with a checkpoint to resume from, looked for
+    // by index from the last: a route can hold hundreds of thousands of steps
+    // past its last checkpoint (a loop with no beat in it). The resume below
+    // is positional (`valid - 1` indexes the OLD route), so the match has to
+    // agree on that index, not merely on identity.
+    let valid = considered;
+    let lastValidOldRouteCheckpoint: number | null = null;
+    while (valid > 0) {
+      const step = newRoute.steps[valid - 1]!;
+      lastValidOldRouteCheckpoint = this.stepCheckpoint(step.seq || "", {
+        address: step.address,
+        index: valid - 1,
         maxCheckpoint: limits?.checkpoint,
-      },
-    );
-    while (lastValidNewRouteStep && lastValidOldRouteCheckpoint === null) {
-      const invalidStep = validSteps.pop();
-      if (invalidStep) {
-        newSteps.unshift(invalidStep);
+      });
+      if (lastValidOldRouteCheckpoint !== null) {
+        break;
       }
-      lastValidNewRouteStep = validSteps.at(-1);
-      lastValidOldRouteCheckpoint = this.stepCheckpoint(
-        lastValidNewRouteStep?.seq || "",
-        {
-          address: lastValidNewRouteStep?.address,
-          index: validSteps.length - 1,
-          maxCheckpoint: limits?.checkpoint,
-        },
-      );
+      valid -= 1;
     }
 
     if (lastValidOldRouteCheckpoint === null) {
@@ -2661,11 +2652,11 @@ export class Game<T extends M = {}> {
       return this.newestCheckpoint();
     }
 
-    // Keep valid steps, trim away invalid steps
-    const patchedSteps = this._plannedRoute.steps.slice(0, validSteps.length);
-    // Add on new steps
-    for (const newStep of newSteps) {
-      patchedSteps.push(newStep);
+    // Keep valid steps, trim away invalid steps, and add on the new route's
+    // steps after them.
+    const patchedSteps = this._plannedRoute.steps.slice(0, valid);
+    for (let i = valid; i < newRoute.steps.length; i += 1) {
+      patchedSteps.push(newRoute.steps[i]!);
     }
     const patchedRoute = {
       from: newRoute.from,
@@ -2677,7 +2668,7 @@ export class Game<T extends M = {}> {
     };
 
     // Add new checkpoints onto the previous simulation
-    const fromStep = validSteps.length - 1;
+    const fromStep = valid - 1;
     this.simulateRoute(patchedRoute, fromStep);
     return this.newestCheckpoint();
   }
