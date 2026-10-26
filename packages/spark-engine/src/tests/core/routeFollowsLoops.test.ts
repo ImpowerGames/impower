@@ -358,7 +358,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(previewedStore(src, line, "total")).toBe(6);
   }, 120_000);
 
-  test("a branch the program skips is reached beside a single call that works past the first phase's share", () => {
+  test("a branch the program skips is reached beside a single call that works past its level's bound", () => {
     const src = [
       "store flag = false",
       "store total = 0",
@@ -502,7 +502,7 @@ function routeTo(lines: string[], label: string, options?: object) {
   return route!;
 }
 
-describe("a search whose first phase spends its share", () => {
+describe("a search whose level spends its bound", () => {
   const HUB = [
     "store total = 0",
     "-> start",
@@ -533,9 +533,9 @@ describe("a search whose first phase spends its share", () => {
   }, 120_000);
 
   test("does not run a long call before the first condition twice", () => {
-    // The call takes more than the first phase's share before the search
-    // meets its first condition; the second phase takes up where the first
-    // stopped instead of starting again from the top.
+    // The call takes more than a level's bound before the search meets its
+    // first condition. The bound is counted from that condition, so the call
+    // is charged against no bound, and nothing runs it a second time.
     const src = [
       "store total = 0",
       "-> start",
@@ -550,7 +550,7 @@ describe("a search whose first phase spends its share", () => {
     expect(previewedStore(src, 6, "total")).toBe(150000);
   }, 120_000);
 
-  test("a loop of menus within the share runs every pass", () => {
+  test("a loop of menus within its level's bound runs every pass", () => {
     const src = [
       "store total = 0",
       "-> start",
@@ -568,10 +568,10 @@ describe("a search whose first phase spends its share", () => {
     expect(previewedStore(src, 10, "total")).toBe(600);
   }, 120_000);
 
-  test("a loop longer than the share is left at the pass the share ran out on", () => {
+  test("a loop longer than its level's bound is left at the pass the bound ran out on", () => {
     // A finite search cannot tell this loop from one that never ends. The
-    // second phase takes up the run where the share ran out, so the passes
-    // the first phase ran are kept.
+    // next level takes up the run where the bound ran out, so the passes
+    // level zero ran are kept.
     const lines = [
       "store total = 0",
       "-> start",
@@ -611,5 +611,80 @@ describe("a search whose first phase spends its share", () => {
     const route = routeTo(lines, "Inside the branch");
     expect(route.conditions.map((c) => c.selected)).toEqual([true]);
     expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(1);
+  }, 120_000);
+});
+
+describe("a route that forces a verdict follows the program everywhere else", () => {
+  test("a loop inside the branch the line needs runs its passes", () => {
+    const src = [
+      "store flag = false",
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  if flag then",
+      "    for i = 1, 3 do",
+      "      total += i",
+      "    end",
+      "    Target total {total}.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 9, "total")).toBe(6);
+  }, 120_000);
+
+  test("a loop the program never leaves inside a forced branch leaves the line to another forced route", () => {
+    // Forcing `flag` runs a loop that never ends; the line needs `a` and `b`
+    // forced instead, two verdicts to the loop's one.
+    const lines = [
+      "store flag = false",
+      "store a = false",
+      "store b = false",
+      "store laps = 0",
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  if a then",
+      "    if b then",
+      "      Target total {total}.",
+      "    end",
+      "  end",
+      "  if flag then",
+      "    while true do",
+      "      laps += 1",
+      "      if laps % 2 == 0 then",
+      "        total += 1",
+      "      end",
+      "    end",
+      "  end",
+      "end",
+      "",
+    ];
+    const route = routeTo(lines, "Target total");
+    expect(route.conditions.map((c) => c.selected)).toEqual([true, true]);
+    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(2);
+  }, 120_000);
+
+  test("a line inside a skipped branch after a long loop with a branch in its body is reached", () => {
+    // Every pass of the loop is two conditions whose verdicts not taken wait
+    // for the next level, and the loop outlasts level zero's bound.
+    const lines = [
+      "store flag = false",
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  for i = 1, 60000 do",
+      "    if i % 3 == 0 then",
+      "      total += 1",
+      "    end",
+      "  end",
+      "  if flag then",
+      "    Target total {total}.",
+      "  end",
+      "end",
+      "",
+    ];
+    const route = routeTo(lines, "Target total");
+    expect(route.conditions.at(-1)?.selected).toBe(true);
   }, 120_000);
 });

@@ -167,7 +167,7 @@ export const searchRouteFor = (
   if (!route) {
     // Either there was nothing to resume from, or resuming found no way to the
     // target — which it cannot rule out, having only ever looked at the branches
-    // reachable from one position, or its share of the ceilings ran out there
+    // reachable from one position, or its level zero's bound ran out there
     // (`SearchOptions.resumeFrom`). The scene as a whole still has to be
     // searched before anything is reported about it.
     route = planRouteTo();

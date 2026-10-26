@@ -1,11 +1,13 @@
 // A search resumed inside an earlier route shows a line after a loop with the
 // same value as a search from the top (#637).
 //
-// The route search follows the program for a share of its ceilings, and a
-// loop that outlasts that share is left at the pass the share ran out on. A
-// search resumed part way along an earlier route is charged for the part it
-// starts past, so it runs out on the same pass, and the value the preview
-// shows does not depend on whether a checkpoint was reusable.
+// Each level of the route search may spend a bound of work, counted from the
+// first condition it meets, and a loop that outlasts it is left at the pass
+// the bound ran out on. A search resumed part way along an earlier route is
+// charged what the search from the top had spent when it recorded the step it
+// resumes on, Luau callbacks included, so it runs out on the same pass, and
+// the value the preview shows does not depend on whether a checkpoint was
+// reusable.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, test } from "vitest";
@@ -135,5 +137,30 @@ describe("a search resumed inside an earlier route", () => {
     expect(fresh).toBeGreaterThan(0);
     expect(fresh).toBeLessThan(40000);
     expect(resumed).toBe(fresh);
+  }, 120_000);
+
+  test("is charged the work of a long call before it, as a search from the top is", () => {
+    // The call's instructions are not steps of the route, but they are work
+    // the search from the top spent before the step this one resumes on.
+    const text = [
+      "store total = 0",
+      "store work = 0",
+      "-> start",
+      "scene start",
+      "  & table.foreachi(table.create(150000, 1), function(k, v) work += v end)",
+      "  Opening beat.",
+      "  Second beat.",
+      "  Third beat.",
+      "  for i = 1, 100 do",
+      "    total += 1",
+      "  end",
+      "  Target total {total}.",
+      "end",
+      "",
+    ].join("\n");
+    expect(resumedAndFresh(text, "Third beat", "Target total")).toEqual({
+      resumed: 100,
+      fresh: 100,
+    });
   }, 120_000);
 });

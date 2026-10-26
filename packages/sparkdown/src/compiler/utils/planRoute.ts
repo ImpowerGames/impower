@@ -21,12 +21,69 @@ export interface RoutePlan {
   conditions: { selected: boolean }[];
   /** The choices in the order you'll encounter them along the route */
   choices: { options: string[]; selected: number }[];
+  /** The work the search had spent when level zero's bound began, at the
+   *  first condition it met, and the work at which that bound ran out
+   *  (see {@link planRoute}); absent when it met none. A search resumed past
+   *  that condition is charged the same bound ({@link RouteCharge}). */
+  levelZero?: LevelZeroBound;
+}
+
+/** Where level zero's work bound began and where it runs out, as work the
+ *  search had spent: its steps and its nodes. */
+export interface LevelZeroBound {
+  /** The steps spent when level zero met its first condition. */
+  startSteps: number;
+  /** The steps spent at which its bound runs out. */
+  steps: number;
+  /** The nodes expanded at which its bound runs out. */
+  nodes: number;
 }
 
 /** The state a search node runs from: an image of the program engine's
  *  state (docs/engine/binary-program.md, section 7), or the state as
  *  `story.state.toJson()` writes it. */
 export type SearchState = string | ProgramImage;
+
+/**
+ * A sequence a node shares with the nodes forked from it: everything in
+ * `prev`, then the first `count` items of `items`. Extending one copies
+ * nothing, so a node costs the same however long the route to it; the
+ * route's own arrays are built once, for the route the search finds.
+ */
+interface Trail<T> {
+  readonly prev: Trail<T> | null;
+  readonly items: readonly T[];
+  readonly count: number;
+  readonly length: number;
+}
+
+/** `prev` followed by the first `count` of `items`, which must not change
+ *  below `count` afterwards. */
+const extendTrail = <T>(
+  prev: Trail<T> | null,
+  items: readonly T[],
+  count = items.length,
+): Trail<T> | null =>
+  count === 0
+    ? prev
+    : { prev, items, count, length: (prev?.length ?? 0) + count };
+
+const trailLength = <T>(trail: Trail<T> | null): number => trail?.length ?? 0;
+
+const flattenTrail = <T>(trail: Trail<T> | null): T[] => {
+  const parts: Trail<T>[] = [];
+  for (let part = trail; part; part = part.prev) {
+    parts.push(part);
+  }
+  const all: T[] = [];
+  for (let i = parts.length - 1; i >= 0; i -= 1) {
+    const part = parts[i]!;
+    for (let j = 0; j < part.count; j += 1) {
+      all.push(part.items[j]!);
+    }
+  }
+  return all;
+};
 
 export interface SearchNode {
   /** The state the node runs from, which siblings share. */
@@ -35,38 +92,54 @@ export interface SearchNode {
    *  (see {@link extendSeq}) */
   seq: string;
   /** The sequence of steps that led here */
-  steps: RouteStep[];
-  /** The sequence of forced decisions that led here */
-  decisions: RouteOverride[];
-  /** The sequence of forced conditions that led here */
-  conditions: { selected: boolean }[];
-  /** The sequence of forced choices that led here */
-  choices: { options: string[]; selected: number }[];
+  steps: Trail<RouteStep> | null;
+  /** The sequence of decisions that led here */
+  decisions: Trail<RouteOverride> | null;
+  /** The sequence of conditions that led here */
+  conditions: Trail<{ selected: boolean }> | null;
+  /** The sequence of choices that led here */
+  choices: Trail<{ options: string[]; selected: number }> | null;
   /** The decision this node was forked to make, which its first step takes.
    *  Every earlier decision is already part of `state`, and the replay forces
    *  them all from the top in order (`decisions`): forcing one again here
    *  would apply it to a later visit of its site, as a loop's test makes. */
   overrides: RouteOverride[];
+  /** How many verdicts the route to here forces against the program: the
+   *  level of the search it belongs to (see {@link planRoute}). */
+  forced: number;
 }
 
 /**
- * The share of the step and node ceilings ({@link SearchOptions.maxSteps},
- * {@link SearchOptions.maxNodes}) the first phase of a search may spend once
- * it has met a condition (see {@link planRoute}). The share is of work, not
- * of time, so where it runs out does not depend on how busy the machine is,
- * and a resumed search and a search from the top cut a loop on the same pass.
+ * The share of the step and node work remaining that each level of a search
+ * may spend (see {@link planRoute}): level zero from the first condition it
+ * meets, every later level from when it begins. The share is of work, not of
+ * time, so where it runs out does not depend on how busy the machine is, and
+ * a resumed search and a search from the top cut a loop on the same pass.
  *
- * The first phase follows the program's own verdicts, and a line the program
+ * Level zero follows the program's own verdicts, and a line the program
  * reaches is found there within the work it takes the program to get there:
  * the largest real project's longest scene (8,325 lines) takes about 300,000
  * advances, under a quarter of {@link DEFAULT_MAX_STEPS}. A finite search
- * cannot tell a loop the program leaves after more work than this from one it
- * never leaves, so the second phase takes over where the share ran out, and a
- * route through a loop that outlasts it leaves the loop at the pass the share
- * ran out on. The share is also what a loop the program never leaves costs a
- * preview before the second phase starts.
+ * cannot tell a loop the program leaves after more work than its level's
+ * bound from one it never leaves, so the next level takes over where the
+ * bound ran out, and a route through a loop that outlasts it leaves the loop
+ * at the pass the bound ran out on. The bound is also what a loop the program
+ * never leaves costs a preview before the next level starts.
  */
-export const FIRST_PHASE_SHARE = 0.25;
+export const LEVEL_SHARE = 0.25;
+
+/**
+ * The steps a run may take before it goes back to the end of its level's
+ * queue, to go on from where it stopped when its turn comes round again
+ * (see {@link planRoute}). Without it the first run of a level that enters a
+ * long loop spends the level's whole bound, and every route behind it waits
+ * for the next level, where the same happens again.
+ *
+ * A turn ends when the search's spent steps pass a multiple of this, not a
+ * count from the run's start, so a resumed search, charged what the search
+ * from the top had spent, ends its turns at the same points.
+ */
+export const RUN_TURN_STEPS = 16_384;
 
 /**
  * Extend a step-sequence identity with one more path: a step's address, or a
@@ -149,6 +222,27 @@ export interface RouteStep {
   decision: number;
   /** The index of the latest checkpoint made so far */
   checkpoint?: number;
+  /** The steps the search had spent when it recorded the step, Luau
+   *  callbacks' included, which a search resumed here is charged
+   *  ({@link RouteCharge}). */
+  spentSteps?: number;
+  /** The nodes it had expanded then. */
+  spentNodes?: number;
+  /** The level of the search it was recorded in (see {@link planRoute}). */
+  level?: number;
+}
+
+/** What a search from the top had spent when it recorded the step a resumed
+ *  search starts on, which the resumed search is charged so that it runs
+ *  out of each bound where the search from the top would. */
+export interface RouteCharge {
+  /** The steps spent, Luau callbacks' included ({@link RouteStep.spentSteps}). */
+  steps: number;
+  /** The nodes expanded ({@link RouteStep.spentNodes}). */
+  nodes: number;
+  /** Level zero's bound, when the search met its first condition before
+   *  that step ({@link RoutePlan.levelZero}). */
+  levelZero?: LevelZeroBound;
 }
 
 /**
@@ -173,7 +267,38 @@ export interface RouteResumePoint {
   /** Those decisions split the way a plan reports them. */
   conditions: { selected: boolean }[];
   choices: { options: string[]; selected: number }[];
+  /** What the search from the top had spent when it recorded that step, in
+   *  level zero: a resumed search is charged it. */
+  charge: RouteCharge;
 }
+
+/** What a search resumed on `route`'s step `at` (whose story stands on that
+ *  step) is charged: what the search that planned the route had spent when it
+ *  recorded the step. Nothing when it recorded none there or recorded the
+ *  step past level zero, where a resumed search cannot stand where it stood:
+ *  a search then starts from the top. */
+export const routeChargeAt = (
+  route: RoutePlan,
+  at: number,
+): RouteCharge | null => {
+  const step = route.steps[at];
+  if (
+    step?.spentSteps == null ||
+    step.spentNodes == null ||
+    step.level !== 0
+  ) {
+    return null;
+  }
+  const levelZero =
+    route.levelZero && route.levelZero.startSteps < step.spentSteps
+      ? route.levelZero
+      : undefined;
+  return {
+    steps: step.spentSteps,
+    nodes: step.spentNodes,
+    ...(levelZero ? { levelZero } : {}),
+  };
+};
 
 export interface ConditionOverride {
   kind: "condition";
@@ -267,9 +392,11 @@ export interface SearchOptions {
   favoredChoices?: (number | undefined)[];
 
   /**
-   * If provided, these condition values are tried first in the second phase of
-   * a search, matched to the decisions in the order the route meets them (see
-   * {@link planRoute}); the first phase takes the program's own verdicts.
+   * If provided, these condition values are tried first at a condition the
+   * program leaves open (one whose condition is no value a decision can
+   * test), matched to the decisions in the order the route meets them (see
+   * {@link planRoute}); every other condition takes the program's own verdict
+   * unless the route forces the other.
    */
   favoredConditions?: (boolean | undefined)[];
 
@@ -306,11 +433,12 @@ export interface SearchOptions {
    * deciding differently earlier is NOT found. A caller that wants the full
    * answer searches again without this when a resumed search comes back empty.
    *
-   * A resumed search charges its first phase's share (see {@link planRoute})
-   * for the part of the route it starts past: its steps and decisions, and a
-   * node for each choice. When that share runs out, it comes back empty and
-   * leaves the answer to a search from the top, so that a loop the share
-   * cuts is cut on the same pass either way.
+   * A resumed search starts charged with what the search from the top had
+   * spent when it recorded the step resumed on ({@link RouteResumePoint.charge}),
+   * so each bound (see {@link planRoute}) runs out where it ran out there.
+   * When level zero's bound runs out, it comes back empty and leaves the
+   * answer to a search from the top, so that a loop the bound cuts is cut on
+   * the same pass either way.
    */
   resumeFrom?: RouteResumePoint;
 
@@ -515,6 +643,9 @@ interface SearchBudget {
   stepsRemaining: number;
   /** Node expansions left before the search gives up */
   nodesRemaining: number;
+  /** The ceilings those count down from. */
+  maxSteps: number;
+  maxNodes: number;
   /** Wall-clock backstop */
   deadlineTime: number;
   /** Which ceiling actually stopped something, recorded at the point it did;
@@ -546,65 +677,96 @@ const stepBudgetExhausted = (budget: SearchBudget): boolean => {
   return false;
 };
 
-/** The first phase of a search (see {@link planRoute}). */
-interface FirstPhase {
-  /** Whether it has met a condition, after which its share binds. */
-  sawCondition: boolean;
-  /** The budget's `stepsRemaining` at which its share is spent. */
-  stepsFloor: number;
-  /** The budget's `nodesRemaining` at which its share is spent. */
-  nodesFloor: number;
-  /** The verdict the program does not reach at each condition the phase
-   *  took, in the order it took them: a child forked there to force it,
-   *  built when the second phase takes it up. */
-  notTaken: { site: ProgramAddress; node: () => SearchNode }[];
-  /** Where the run the share ran out in stood, as a node the second phase
+/** The steps a search has spent, Luau callbacks' included. */
+const spentSteps = (budget: SearchBudget): number =>
+  budget.maxSteps - budget.stepsRemaining;
+
+/** The nodes a search has expanded. */
+const spentNodes = (budget: SearchBudget): number =>
+  budget.maxNodes - budget.nodesRemaining;
+
+/** A child forked at a condition to force the verdict the program does not
+ *  reach there, built when its level takes it up. */
+interface NotTaken {
+  site: ProgramAddress;
+  node: () => SearchNode;
+}
+
+/** One level of a search: the routes that force a given number of verdicts
+ *  (see {@link planRoute}). */
+interface Level {
+  /** How many verdicts its routes force. */
+  index: number;
+  /** The work spent at which its bound runs out, and the steps spent when
+   *  the bound began; null until it binds (level zero, before its first
+   *  condition). */
+  bound: { startSteps: number; steps: number; nodes: number } | null;
+  /** The verdict the program does not reach at each condition its runs
+   *  took, in the order they took them, for the next level. */
+  notTaken: NotTaken[];
+  /** Where the run its bound ran out in stood, as a node the next level
    *  takes up. */
   cutAt: SearchNode | null;
-  /** Whether the share ran out before the phase ran the story out. */
+  /** Whether its bound ran out before it ran out of routes. */
   spent: boolean;
 }
 
-/** The second phase's queue, taking up where the first stopped (see
- *  {@link planRoute}): the latest verdict the first did not take at each
- *  site, latest first, then the run the share cut, then the nodes it did not
- *  expand, then its other verdicts not taken, latest first. The verdicts not
- *  taken come before the run the share cut, which may have to run a long
- *  step again from the condition before it. */
-const secondPhaseQueue = (
-  phase: FirstPhase,
+const newLevel = (index: number): Level => ({
+  index,
+  bound: null,
+  notTaken: [],
+  cutAt: null,
+  spent: false,
+});
+
+/** Start `level`'s bound: a {@link LEVEL_SHARE} of the work remaining, and
+ *  at least one step and one node. */
+const bindLevel = (level: Level, budget: SearchBudget): void => {
+  level.bound ??= {
+    startSteps: spentSteps(budget),
+    steps:
+      spentSteps(budget) +
+      Math.max(1, Math.floor(budget.stepsRemaining * LEVEL_SHARE)),
+    nodes:
+      spentNodes(budget) +
+      Math.max(1, Math.floor(budget.nodesRemaining * LEVEL_SHARE)),
+  };
+};
+
+/** The next level's queue, taking up where `level` stopped (see
+ *  {@link planRoute}): the latest verdict it did not take at each site,
+ *  latest first, then the nodes it did not expand, then the run its bound
+ *  cut, then its other verdicts not taken, latest first. The run the bound
+ *  cut has had its level's work already, so a loop the program never leaves
+ *  is not run first at every level. */
+const nextLevelQueue = (
+  level: Level,
   unexpanded: SearchNode[],
 ): (SearchNode | (() => SearchNode))[] => {
   const latest: (() => SearchNode)[] = [];
   const earlier: (() => SearchNode)[] = [];
   const sites = new Set<ProgramAddress>();
-  for (let i = phase.notTaken.length - 1; i >= 0; i -= 1) {
-    const { site, node } = phase.notTaken[i]!;
+  for (let i = level.notTaken.length - 1; i >= 0; i -= 1) {
+    const { site, node } = level.notTaken[i]!;
     (sites.has(site) ? earlier : latest).push(node);
     sites.add(site);
   }
   return [
     ...latest,
-    ...(phase.cutAt ? [phase.cutAt] : []),
     ...unexpanded,
+    ...(level.cutAt ? [level.cutAt] : []),
     ...earlier,
   ];
 };
 
-/** Whether the first phase has spent its share of the ceilings, which it
- *  records: never in the second phase (`null`), and not before the first has
- *  met a condition. */
-const firstPhaseSpent = (
-  phase: FirstPhase | null,
-  budget: SearchBudget,
-): boolean => {
+/** Whether `level` has spent its bound, which it records. */
+const levelSpent = (level: Level, budget: SearchBudget): boolean => {
   if (
-    !!phase &&
-    phase.sawCondition &&
-    (budget.stepsRemaining <= phase.stepsFloor ||
-      budget.nodesRemaining <= phase.nodesFloor)
+    level.bound &&
+    (spentSteps(budget) >= level.bound.steps ||
+      spentNodes(budget) >= level.bound.nodes)
   ) {
-    phase.spent = true;
+    level.spent = true;
     return true;
   }
   return false;
@@ -628,11 +790,12 @@ const searchBudgetExhausted = (budget: SearchBudget): boolean => {
  * its first step consumes ({@link SearchNode.overrides}), so no forced
  * decision is still queued at a fork. A second arrival at the same site and
  * state would enqueue the same children the first arrival already did, and
- * expanding it again is wasted work. A condition the first phase takes counts
- * as expanded, since it keeps the verdict it did not take for the second
- * ({@link FirstPhase.notTaken}), so the claims carry from one phase to the
- * next. Both phases are breadth first, so the arrival kept is also the
- * shortest route to that position the phase that kept it had.
+ * expanding it again is wasted work. A condition a run takes counts as
+ * expanded, since it keeps the verdict it did not take for the next level
+ * ({@link Level.notTaken}), so the claims carry from one level to the next.
+ * Levels go in order and each is breadth first, so the arrival kept is also
+ * the route to that position that forces fewest verdicts, and among those
+ * the shortest the search had.
  *
  * This prunes repetition; it is not what makes the search terminate. A story
  * that loops does not generally come back to the same state, because visit
@@ -723,28 +886,34 @@ export interface SearchError {
  * address of the position it stands at (docs/engine/binary-program.md,
  * section 8), folded into a running identity (`extendSeq`).
  *
- * The search runs in two phases, both breadth first.
+ * Every route follows the program except the verdicts it forces: at each
+ * condition a run takes the verdict the program reaches there
+ * (`pausedConditionValue`), and it forks only at choices, which the program
+ * leaves to the player, and at a condition with no value a decision can test.
+ * A route therefore runs what the program runs wherever it does not force, so
+ * the line is replayed with the state the game reaches it with: a loop runs
+ * its passes, a `break` leaves where the program leaves, and a branch is taken
+ * as the program takes it, inside a forced branch as well (#637). At each
+ * condition it takes, a run also keeps a child forked there to force the other
+ * verdict, which it records as a departure (`departs`).
  *
- * The first follows the program: at every condition it takes the verdict the
- * program reaches there (`pausedConditionValue`) and forks only at choices,
- * which the program leaves to the player. A route it finds runs what the
- * program runs, so the line is replayed with the state the game reaches it
- * with: a loop runs its passes, a `break` leaves where the program leaves, and
- * a branch is taken as the program takes it (#637). At each condition it takes
- * it also keeps a child forked there to force the other verdict, for the
- * second phase.
+ * Routes are searched in order of the number of verdicts they force, fewest
+ * first: level zero forces none, and a child forcing one more verdict than its
+ * route waits for the next level. Within a level the search is breadth first.
+ * The order is by that count alone; no amount of work the program does trades
+ * against a forced verdict.
  *
- * The second runs only when the first finds no way there: the line is inside a
- * branch the program skips, or the first phase spent its share of the ceilings
- * ({@link FIRST_PHASE_SHARE}). It takes up where the first stopped, re-running
- * none of its work: from the run the share cut, the verdicts the first did not
- * take and the nodes it did not expand ({@link secondPhaseQueue}). It forks at
- * every condition as well, trying the favored verdict, or else true, first,
- * and records each verdict a route forces against the program (`departs`).
+ * Each level may spend a {@link LEVEL_SHARE} of the work remaining, level zero
+ * from the first condition it meets (work before it, a long Luau call
+ * included, is not charged against the bound). A level that spends its bound
+ * hands on where it stopped, re-running none of its work
+ * ({@link nextLevelQueue}): the verdicts it did not take, the nodes it did not
+ * expand and the run the bound cut. So a loop whose work, counted from that
+ * point, outruns its level's bound is left at the pass the bound ran out on.
  *
- * One exception: a step the share stops part way through, a Luau callback,
- * leaves no state to take up, and the second phase runs that run again from
- * the last condition it took.
+ * One exception: a step a bound stops part way through, a Luau callback,
+ * leaves no state to take up, and the next level runs that run again from the
+ * last condition it took.
  */
 export const planRoute = (
   story: Story,
@@ -762,9 +931,19 @@ export const planRoute = (
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
   const searchTimeout = options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT;
+  const maxSteps = options?.maxSteps ?? DEFAULT_MAX_STEPS;
+  const maxNodes = options?.maxNodes ?? DEFAULT_MAX_NODES;
+  // A resumed search starts charged with what the search from the top had
+  // spent when it stood where this one starts, one step and one node short:
+  // its first run charges them again as it records that step.
+  const charge = options?.resumeFrom?.charge;
+  const prefixSteps = charge ? Math.max(0, charge.steps - 1) : 0;
+  const prefixNodes = charge ? Math.max(0, charge.nodes - 1) : 0;
   const budget: SearchBudget = {
-    stepsRemaining: options?.maxSteps ?? DEFAULT_MAX_STEPS,
-    nodesRemaining: options?.maxNodes ?? DEFAULT_MAX_NODES,
+    stepsRemaining: maxSteps - prefixSteps,
+    nodesRemaining: maxNodes - prefixNodes,
+    maxSteps,
+    maxNodes,
     deadlineTime: startTime + searchTimeout,
     cut: null,
     visited: new Set(),
@@ -778,7 +957,6 @@ export const planRoute = (
   /** Set when a node run threw (see the catch in the search loop). */
   let nodeErrored = false;
   const startingSteps = budget.stepsRemaining;
-  const startingNodes = budget.nodesRemaining;
 
   const port = statePort(story, options?.stateImages !== false);
   const prevOnError = story.onError;
@@ -826,46 +1004,29 @@ export const planRoute = (
     story.onMakeChoice = NOOP;
     story.onEvaluateCondition = NOOP;
 
-    // The first phase's share of the ceilings, which binds once it has met a
-    // condition: before that, the second phase would walk the same path. A
-    // resumed search is charged for the route it starts past, as a search
-    // from the top would have spent it.
-    const resume = options?.resumeFrom;
-    const firstPhase: FirstPhase = {
-      sawCondition: !!resume?.conditions.length,
-      stepsFloor:
-        startingSteps -
-        Math.floor(startingSteps * FIRST_PHASE_SHARE) +
-        (resume ? resume.steps.length + resume.decisions.length : 0),
-      nodesFloor:
-        startingNodes -
-        Math.floor(startingNodes * FIRST_PHASE_SHARE) +
-        (resume?.choices.length ?? 0),
-      notTaken: [],
-      cutAt: null,
-      spent: false,
-    };
+    // Level zero's bound begins at the first condition it meets: before
+    // that, the next level would walk the same path. A search resumed past
+    // that condition is given the bound the search from the top had.
+    let level = newLevel(0);
+    if (charge?.levelZero) {
+      level.bound = { ...charge.levelZero };
+    }
+    const levelZero = level;
     let queue: (SearchNode | (() => SearchNode) | undefined)[] = [start];
     let head = 0;
-    for (const phase of [firstPhase, null]) {
-      if (routePlan || budget.cut) {
-        break;
+    // A child forcing one more verdict than the level running waits for the
+    // next; one handed on from an earlier level that forces no more than the
+    // level running joins its queue.
+    const defer = (forced: number, notTaken: NotTaken) => {
+      if (forced > level.index) {
+        level.notTaken.push(notTaken);
+      } else {
+        queue.push(notTaken.node);
       }
-      if (!phase) {
-        if (!firstPhase.sawCondition || (resume && firstPhase.spent)) {
-          // The second phase forks only where the first met a condition. A
-          // resumed search whose share ran out leaves the rest to a search
-          // from the top, whose share runs out where the cut lands.
-          break;
-        }
-        queue = secondPhaseQueue(
-          firstPhase,
-          queue.slice(head).filter((n): n is SearchNode => !!n),
-        );
-        head = 0;
-      }
+    };
+    while (true) {
       while (head < queue.length) {
-        if (searchBudgetExhausted(budget) || firstPhaseSpent(phase, budget)) {
+        if (searchBudgetExhausted(budget) || levelSpent(level, budget)) {
           break;
         }
         budget.nodesRemaining -= 1;
@@ -895,7 +1056,8 @@ export const planRoute = (
             options?.stayWithinKnot !== false,
             options?.functions || [],
             budget,
-            phase,
+            level,
+            defer,
           );
 
           if (result.hitTarget) {
@@ -906,6 +1068,7 @@ export const planRoute = (
               decisions: result.decisions,
               conditions: result.conditions,
               choices: result.choices,
+              ...(levelZero.bound ? { levelZero: { ...levelZero.bound } } : {}),
             };
             break;
           }
@@ -921,6 +1084,28 @@ export const planRoute = (
           nodeErrored = true;
         }
       }
+      if (routePlan || budget.cut) {
+        break;
+      }
+      if (charge && level === levelZero && level.spent) {
+        // A resumed search whose level zero ran out leaves the rest to a
+        // search from the top, which runs out of it at the same point but
+        // also holds the verdicts not taken before this one started.
+        break;
+      }
+      // The level has stopped: it ran out of routes, or of its bound. The
+      // next takes up where it stopped.
+      const next = nextLevelQueue(
+        level,
+        queue.slice(head).filter((n): n is SearchNode => !!n),
+      );
+      if (!next.length) {
+        break;
+      }
+      level = newLevel(level.index + 1);
+      bindLevel(level, budget);
+      queue = next;
+      head = 0;
     }
 
     lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
@@ -989,7 +1174,8 @@ const runUntilDecisionOrBranch = (
   stayWithinKnot: boolean,
   functions: string[],
   budget: SearchBudget,
-  firstPhase: FirstPhase | null,
+  level: Level,
+  defer: (forced: number, notTaken: NotTaken) => void,
 ): RunResult => {
   // 1) Restore snapshot
   port.restore(node.state);
@@ -1002,17 +1188,18 @@ const runUntilDecisionOrBranch = (
   const prevSimulator = story.simulator;
 
   // A simulator that forces the decision this node was forked to make, and
-  // in the first phase each verdict the program reaches as the run meets it.
+  // each verdict the program reaches as the run meets it.
   const simulator = buildRouteSimulator(node.overrides);
   story.simulator = simulator;
 
-  // The node as it stands: the first phase takes conditions without forking,
-  // so the run adds to its decisions, and every child forks from them.
-  const here: SearchNode = {
-    ...node,
-    decisions: [...node.decisions],
-    conditions: [...node.conditions],
-  };
+  // What the run adds to the node's route: a run takes conditions without
+  // forking, so it adds decisions as well as steps, and every child forks
+  // from them.
+  const runDecisions: RouteOverride[] = [];
+  const runConditions: { selected: boolean }[] = [];
+  const decisionCount = () => trailLength(node.decisions) + runDecisions.length;
+  const conditionCount = () =>
+    trailLength(node.conditions) + runConditions.length;
 
   const branches: SearchNode[] = [];
   let hitTarget = false;
@@ -1021,47 +1208,61 @@ const runUntilDecisionOrBranch = (
   let seq = node.seq;
   const stepsEncountered: RouteStep[] = [];
 
-  /** A node standing where this run stood after its first `steps` steps and
-   *  `decisions` of its decisions (`conditions` of them conditions), which
-   *  forces `overrides` next, and is forked to make `add` when given. Built
-   *  from the run's own records, which only grow past those counts. */
+  /** Where the run stands: how much of each of its records it has made. */
+  type Mark = { steps: number; decisions: number; conditions: number };
+  const mark = (): Mark => ({
+    steps: stepsEncountered.length,
+    decisions: runDecisions.length,
+    conditions: runConditions.length,
+  });
+
+  /** A node standing where this run stood at `at`, which forces
+   *  `overrides` next, and is forked to make `add` (a condition's verdict, or
+   *  a choice) when given. Built on the run's own records, which only grow
+   *  past `at` afterwards. */
   const nodeAt = (
     state: SearchState,
-    steps: number,
-    decisions: number,
-    conditions: number,
+    at: Mark,
     overrides: RouteOverride[],
-    add?: ConditionOverride,
+    add?: RouteOverride,
+    choice?: { options: string[]; selected: number },
   ): SearchNode => {
-    const taken = stepsEncountered.slice(0, steps);
-    const madeDecisions = here.decisions.slice(0, decisions);
-    const madeConditions = here.conditions.slice(0, conditions);
+    let decisions = extendTrail(node.decisions, runDecisions, at.decisions);
+    let conditions = extendTrail(node.conditions, runConditions, at.conditions);
+    let choices = node.choices;
     if (add) {
-      madeDecisions.push(add);
-      madeConditions.push({ selected: add.value });
+      decisions = extendTrail(decisions, [add]);
+      if (add.kind === "condition") {
+        conditions = extendTrail(conditions, [{ selected: add.value }]);
+      }
+    }
+    if (choice) {
+      choices = extendTrail(choices, [choice]);
     }
     return {
       state,
-      seq: taken.at(-1)?.seq ?? node.seq,
-      steps: [...node.steps, ...taken],
-      decisions: madeDecisions,
-      conditions: madeConditions,
-      choices: here.choices,
+      seq: stepsEncountered[at.steps - 1]?.seq ?? node.seq,
+      steps: extendTrail(node.steps, stepsEncountered, at.steps),
+      decisions,
+      conditions,
+      choices,
       overrides,
+      forced:
+        node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
     };
   };
   // What the run forces next, which the first step after a fork or a
-  // condition the first phase takes consumes.
+  // condition the run takes consumes.
   let pending = node.overrides;
-  // The last position the run forked at, from which the second phase takes
-  // it up when the first phase's share runs out part way through a step.
-  let lastFork = {
-    state: node.state,
-    steps: 0,
-    overrides: node.overrides,
-    decisions: node.decisions.length,
-    conditions: node.conditions.length,
-  };
+  // The step a condition the run takes put back, which the run then meets
+  // again: it keeps what the search had spent when it first recorded it.
+  let putBack: RouteStep | undefined;
+  // Where the run's turn ends ({@link RUN_TURN_STEPS}).
+  const turnEnd =
+    (Math.floor(spentSteps(budget) / RUN_TURN_STEPS) + 1) * RUN_TURN_STEPS;
+  // The last position the run forked at, from which the next level takes it
+  // up when the level's bound runs out part way through a step.
+  let lastFork = { state: node.state, at: mark(), overrides: node.overrides };
 
   try {
     // Tight loop: advance until target or branch site
@@ -1070,15 +1271,16 @@ const runUntilDecisionOrBranch = (
         terminal = true;
         break;
       }
-      if (firstPhaseSpent(firstPhase, budget)) {
-        // The second phase takes the run up from here.
-        firstPhase!.cutAt = nodeAt(
-          port.fork().state,
-          stepsEncountered.length,
-          here.decisions.length,
-          here.conditions.length,
-          pending,
-        );
+      if (levelSpent(level, budget)) {
+        // The next level takes the run up from here.
+        level.cutAt = nodeAt(port.fork().state, mark(), pending);
+        terminal = true;
+        break;
+      }
+      if (spentSteps(budget) >= turnEnd) {
+        // Its turn is over: it goes back to the end of the queue, to go on
+        // from here.
+        branches.push(nodeAt(port.fork().state, mark(), pending));
         terminal = true;
         break;
       }
@@ -1092,13 +1294,18 @@ const runUntilDecisionOrBranch = (
           previous !== stepsEncountered.at(-1)?.address
         ) {
           seq = extendSeq(seq, previous);
+          const again = putBack?.address === previous ? putBack : undefined;
           stepsEncountered.push({
             checkpoint: undefined,
-            decision: here.decisions.length - 1,
+            decision: decisionCount() - 1,
             address: previous,
             seq,
+            spentSteps: again?.spentSteps ?? spentSteps(budget),
+            spentNodes: again?.spentNodes ?? spentNodes(budget),
+            level: level.index,
           });
         }
+        putBack = undefined;
       }
 
       // A) Target reached?
@@ -1138,28 +1345,22 @@ const runUntilDecisionOrBranch = (
             break;
           }
           const options = story.currentChoices.map((c) => c.text);
-          const favoredChoiceIndex = favoredChoiceIndices[here.choices.length];
-          if (favoredChoiceIndex != null) {
-            const choice = story.currentChoices[favoredChoiceIndex]!;
-            if (choice) {
-              // Fork choice branch
-              branches.push(
-                forkChoice(
-                  forkState,
-                  here,
-                  stepsEncountered,
-                  {
-                    kind: "choice",
-                    site,
-                    value: choice.sourcePath,
-                  },
-                  {
-                    options,
-                    selected: favoredChoiceIndex,
-                  },
-                ),
-              );
-            }
+          const at = mark();
+          const forkChoice = (selected: number) => {
+            const ov: ChoiceOverride = {
+              kind: "choice",
+              site,
+              value: story.currentChoices[selected]!.sourcePath,
+            };
+            return nodeAt(forkState, at, [ov], ov, { options, selected });
+          };
+          const favoredChoiceIndex =
+            favoredChoiceIndices[trailLength(node.choices)];
+          if (
+            favoredChoiceIndex != null &&
+            story.currentChoices[favoredChoiceIndex]
+          ) {
+            branches.push(forkChoice(favoredChoiceIndex));
           }
           for (let i = 0; i < story.currentChoices.length; i++) {
             if (i === favoredChoiceIndex) {
@@ -1167,24 +1368,7 @@ const runUntilDecisionOrBranch = (
               terminal = true;
               continue;
             }
-            const choice = story.currentChoices[i]!;
-            // Fork choice branch
-            branches.push(
-              forkChoice(
-                forkState,
-                here,
-                stepsEncountered,
-                {
-                  kind: "choice",
-                  site,
-                  value: choice.sourcePath,
-                },
-                {
-                  options,
-                  selected: i,
-                },
-              ),
-            );
+            branches.push(forkChoice(i));
           }
           break;
         }
@@ -1209,11 +1393,11 @@ const runUntilDecisionOrBranch = (
 
       // One step was charged above. A Luau callback runs all of its steps
       // inside the step that called it, and those count too: the limit stops
-      // them where the budget runs out, or the first phase's share once it
-      // binds, and what they took is charged after.
+      // them where the budget runs out, or the level's bound once it binds,
+      // and what they took is charged after.
       const stepsBefore = story.stepCount;
-      const allowed = firstPhase?.sawCondition
-        ? Math.max(0, budget.stepsRemaining - firstPhase.stepsFloor)
+      const allowed = level.bound
+        ? Math.max(0, level.bound.steps - spentSteps(budget))
         : budget.stepsRemaining;
       story.stepLimit = stepsBefore + 1 + allowed;
       let stopped = false;
@@ -1229,21 +1413,15 @@ const runUntilDecisionOrBranch = (
         budget.stepsRemaining -= Math.max(0, story.stepCount - stepsBefore - 1);
       }
       if (stopped) {
-        // The budget, or the first phase's share of it, ran out part way
-        // through the step. Only the budget's own end cuts the search: the
-        // second phase has the rest of it, from the last fork, since a step
-        // stopped part way leaves no state to take up.
+        // The budget, or the level's bound, ran out part way through the
+        // step. Only the budget's own end cuts the search: the next level
+        // has the rest of it, from the last fork, since a step stopped part
+        // way leaves no state to take up.
         if (budget.stepsRemaining <= 0) {
           budget.cut ??= "max-steps";
-        } else if (firstPhase) {
-          firstPhase.spent = true;
-          firstPhase.cutAt = nodeAt(
-            lastFork.state,
-            lastFork.steps,
-            lastFork.decisions,
-            lastFork.conditions,
-            lastFork.overrides,
-          );
+        } else {
+          level.spent = true;
+          level.cutAt = nodeAt(lastFork.state, lastFork.at, lastFork.overrides);
         }
         terminal = true;
         break;
@@ -1255,11 +1433,11 @@ const runUntilDecisionOrBranch = (
         const natural = story.pausedConditionValue;
         // Pop the last encountered step,
         // because we're going to encounter it again on the next run
-        stepsEncountered.pop();
-        seq = stepsEncountered.at(-1)?.seq ?? here.seq;
+        putBack = stepsEncountered.pop();
+        seq = stepsEncountered.at(-1)?.seq ?? node.seq;
 
         // The state here, which both branches of a fork share, and by which
-        // the first phase knows a loop that came back to where it was.
+        // a run knows a loop that came back to where it was.
         const fork = port.fork();
         if (!claimForkSite(budget, site, fork.key)) {
           // Already expanded from this exact position, so both branches are
@@ -1268,58 +1446,43 @@ const runUntilDecisionOrBranch = (
           break;
         }
 
-        if (firstPhase && natural !== null) {
+        if (natural !== null) {
           // Take the program's verdict and run on: it is recorded as a
           // forked child would record it, and the step popped above is met
           // again after it. The other verdict is kept, forked here, for the
-          // second phase.
-          firstPhase.sawCondition = true;
-          const steps = stepsEncountered.length;
-          const decisions = here.decisions.length;
-          const conditions = here.conditions.length;
+          // level that forces one more verdict. Level zero's bound begins at
+          // the first condition it meets.
+          if (level.index === 0) {
+            bindLevel(level, budget);
+          }
+          const at = mark();
           const other: ConditionOverride = {
             kind: "condition",
             site,
             value: !natural,
             departs: true,
           };
-          firstPhase.notTaken.push({
+          defer(node.forced + 1, {
             site,
-            node: () =>
-              nodeAt(fork.state, steps, decisions, conditions, [other], other),
+            node: () => nodeAt(fork.state, at, [other], other),
           });
           const ov: ConditionOverride = { kind: "condition", site, value: natural };
-          here.decisions.push(ov);
-          here.conditions.push({ selected: natural });
+          runDecisions.push(ov);
+          runConditions.push({ selected: natural });
           simulator.add(ov);
           pending = [ov];
-          lastFork = {
-            state: fork.state,
-            steps,
-            overrides: pending,
-            decisions: here.decisions.length,
-            conditions: here.conditions.length,
-          };
+          lastFork = { state: fork.state, at: mark(), overrides: pending };
           continue;
         }
 
-        // Both verdicts: the favored one first, or else the one the program
-        // reaches, or else true. Of two routes the search can find at the
-        // same depth it then finds the one the story runs, and a beat a false
-        // condition skips is not shown on the way (#1606). A verdict the
-        // program does not reach here is recorded as one the route forces.
-        const first =
-          favoredConditionalValues[here.conditions.length] ?? natural ?? true;
+        // A condition with no value a decision can test, which the program
+        // leaves open: both verdicts, at this level, the favored one first,
+        // or else true.
+        const first = favoredConditionalValues[conditionCount()] ?? true;
+        const at = mark();
         for (const value of [first, !first]) {
-          const departs = natural !== null && value !== natural;
-          branches.push(
-            forkCondition(fork.state, here, stepsEncountered, {
-              kind: "condition",
-              site,
-              value,
-              ...(departs ? { departs: true as const } : {}),
-            }),
-          );
+          const ov: ConditionOverride = { kind: "condition", site, value };
+          branches.push(nodeAt(fork.state, at, [ov], ov));
         }
         break;
       }
@@ -1332,13 +1495,24 @@ const runUntilDecisionOrBranch = (
     story.simulator = prevSimulator;
   }
 
+  // The route's own records are built only for the route found; a run that
+  // did not reach the target hands on only its branches.
+  const route = (all: Mark) => ({
+    steps: flattenTrail(extendTrail(node.steps, stepsEncountered, all.steps)),
+    decisions: flattenTrail(
+      extendTrail(node.decisions, runDecisions, all.decisions),
+    ),
+    conditions: flattenTrail(
+      extendTrail(node.conditions, runConditions, all.conditions),
+    ),
+    choices: flattenTrail(node.choices),
+  });
   return {
     hitTarget,
     branches,
-    steps: [...node.steps, ...stepsEncountered],
-    decisions: here.decisions,
-    conditions: here.conditions,
-    choices: here.choices,
+    ...(hitTarget
+      ? route(mark())
+      : { steps: [], decisions: [], conditions: [], choices: [] }),
     terminal,
   };
 };
@@ -1380,11 +1554,12 @@ const makeStartNode = (
   return {
     state: port.fork().state,
     seq: "",
-    steps: [],
-    decisions: [],
-    conditions: [],
-    choices: [],
+    steps: null,
+    decisions: null,
+    conditions: null,
+    choices: null,
     overrides: [],
+    forced: 0,
   };
 };
 
@@ -1401,11 +1576,12 @@ const makeStartNode = (
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   state: resumeFrom.state,
   seq: resumeFrom.steps.at(-1)?.seq ?? "",
-  steps: [...resumeFrom.steps],
-  decisions: [...resumeFrom.decisions],
-  conditions: [...resumeFrom.conditions],
-  choices: [...resumeFrom.choices],
+  steps: extendTrail(null, resumeFrom.steps),
+  decisions: extendTrail(null, resumeFrom.decisions),
+  conditions: extendTrail(null, resumeFrom.conditions),
+  choices: extendTrail(null, resumeFrom.choices),
   overrides: [],
+  forced: 0,
 });
 
 const isRootLevel = (knot: string): boolean =>
@@ -1434,47 +1610,6 @@ const exitedKnot = (
   }
 
   return !positions.stackHolds(knotName);
-};
-
-const forkCondition = (
-  state: SearchState,
-  parent: SearchNode,
-  stepsEncountered: RouteStep[],
-  ov: ConditionOverride,
-): SearchNode => {
-  return {
-    state,
-    // Falls back to the PARENT's identity, not to "": a fork commonly happens
-    // with `stepsEncountered` empty (the pending step is popped just before
-    // forking), and restarting the chain there would give two sibling branches
-    // the same identity for every path they later share — which
-    // `Game.patchAndSimulateRoute` would read as "already simulated".
-    seq: stepsEncountered.at(-1)?.seq ?? parent.seq,
-    steps: [...parent.steps, ...stepsEncountered],
-    decisions: [...parent.decisions, ov],
-    conditions: [...parent.conditions, { selected: ov.value }],
-    choices: [...parent.choices],
-    overrides: [ov],
-  };
-};
-
-const forkChoice = (
-  state: SearchState,
-  parent: SearchNode,
-  stepsEncountered: RouteStep[],
-  ov: ChoiceOverride,
-  choice: { options: string[]; selected: number },
-): SearchNode => {
-  return {
-    state,
-    // See forkCondition: the parent's identity, never a fresh chain.
-    seq: stepsEncountered.at(-1)?.seq ?? parent.seq,
-    steps: [...parent.steps, ...stepsEncountered],
-    decisions: [...parent.decisions, ov],
-    conditions: [...parent.conditions],
-    choices: [...parent.choices, choice],
-    overrides: [ov],
-  };
 };
 
 /** A route simulator that can take another decision while it runs. */

@@ -25,6 +25,7 @@ import {
   lastSearchStats,
   planRoute,
   showsBeatAhead,
+  routeChargeAt,
   stepsBeforeDeparture,
   type SearchOptions,
   type RoutePlan,
@@ -2492,6 +2493,15 @@ export class Game<T extends M = {}> {
     if (at < 0) {
       return null;
     }
+    // A search resumed here is charged what the search that planned the route
+    // had spent when it recorded this step, so that every bound runs out
+    // where it ran out there; a step recorded without it, or past level zero,
+    // where no resumed search can stand as that search stood, is not resumed
+    // from (`routeChargeAt`).
+    const charge = routeChargeAt(route, at);
+    if (!charge) {
+      return null;
+    }
     if (program && at + 1 >= validSteps && !restsAfter(state, standingOn)) {
       // The step after this one is not one the new program takes the way
       // the route did (a statement was inserted before it, or it was
@@ -2526,6 +2536,7 @@ export class Game<T extends M = {}> {
       decisions,
       conditions: route.conditions.slice(0, conditions),
       choices: route.choices.slice(0, choices),
+      charge,
     };
   }
 
