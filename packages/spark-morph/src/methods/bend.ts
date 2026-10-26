@@ -563,8 +563,10 @@ export interface BendTrack extends SubpathTrack {
   /** Tip points at `progress`, in canonical order. */
   tips(progress: number): [Point, Point];
   /**
-   * The two edges at `progress` as polylines of `points` samples each, from
-   * tip one to tip two. Edge 0 runs along the first canonical edge.
+   * The two edges of the frame drawn at `progress` as polylines of `points`
+   * samples each, from tip one to tip two. Edge 0 runs along the first
+   * canonical edge. With the handoff on, they blend toward the authored
+   * outline by the frame's weight, so at a rest pose they lie on the art.
    */
   edges(progress: number, points: number): [Point[], Point[]];
   /** The thickness ratio the chosen correspondence achieved. */
@@ -699,7 +701,27 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     });
     return polylineLoop(pts);
   };
-  const edges = (t: number, points: number): [Point[], Point[]] => {
+  // The art's two edges at a rest pose, split at its tips: the first runs
+  // from tip one to tip two with the loop wound positively, the second the
+  // other way round. Sampled on the authored curves rather than the handoff
+  // polyline, and cached per point count since the art never moves.
+  const artHalves = new Map<string, [Point[], Point[]]>();
+  const halvesOf = (art: Cubic[], [T1, T2]: [Point, Point], points: number, key: string): [Point[], Point[]] => {
+    const cached = artHalves.get(`${key}:${points}`);
+    if (cached) return cached;
+    const L = withWinding(art, 1);
+    const arc = new ArcLoop(L);
+    const f1 = nearestFraction(L, T1);
+    const span = (((nearestFraction(L, T2) - f1) % 1) + 1) % 1;
+    const along = (length: number) => Array.from({ length: points }, (_, i) => arc.pointAt(f1 + (length * i) / (points - 1)));
+    const halves: [Point[], Point[]] = [along(span), along(span - 1)];
+    // Both halves end on the same point, not two roundings of it.
+    halves[1][points - 1] = halves[0][points - 1]!;
+    artHalves.set(`${key}:${points}`, halves);
+    return halves;
+  };
+  const edges = (tRaw: number, points: number): [Point[], Point[]] => {
+    const t = clamp01(tRaw);
     const fr = canonical(t);
     const [T1, T2] = tips(t);
     const inner = Math.max(2, points - 2);
@@ -707,8 +729,23 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     // flank to tip two's flank, segment 2+n1 is tip two, and the rest is
     // edge two from tip two's flank back to tip one's flank.
     const e1 = [T1, ...chainToPolyline(fr.slice(1, 2 + n1), inner), T2];
-    const e2 = [T2, ...chainToPolyline(fr.slice(3 + n1), inner), T1];
-    return [e1, e2.reverse()];
+    const e2 = [T2, ...chainToPolyline(fr.slice(3 + n1), inner), T1].reverse();
+    if (!o.handoff) return [e1, e2];
+    // The edges of the frame that is drawn: the canonical edges blended
+    // toward the art's by the weight `frame` uses, so at a rest pose they
+    // are the authored outline. Halves pair by winding as `frame` pairs its
+    // polylines, and the result keeps the canonical edge order.
+    const w = handoffWeight(t);
+    const forward = Math.sign(signedArea(fr) || 1) > 0;
+    const open = halvesOf(fromArt, tips(0), e1.length, "from"),
+      shut = halvesOf(toArt, tips(1), e1.length, "to");
+    const blend = (canon: Point[], k: 0 | 1): Point[] =>
+      canon.map((p, i) => {
+        const a = open[k][i]!,
+          b = shut[k][i]!;
+        return [p[0] * (1 - w) + (a[0] + (b[0] - a[0]) * t) * w, p[1] * (1 - w) + (a[1] + (b[1] - a[1]) * t) * w];
+      });
+    return forward ? [blend(e1, 0), blend(e2, 1)] : [blend(e1, 1), blend(e2, 0)];
   };
   // `from` and `to` share the frames' topology: with the handoff on they
   // are the rest-pose polylines, otherwise the canonical loops themselves.
