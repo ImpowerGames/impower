@@ -9,6 +9,7 @@ import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
   isAttributeProp,
+  isWidgetControlAttribute,
   toDataAttributeName,
   WIDGET_CONTROL_ATTRIBUTE,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
@@ -3027,6 +3028,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     let hasValue = false;
     for (const [prop, propValue] of Object.entries(node.props)) {
+      // Every other prop becomes an attribute here, but not the ui's own
+      // widget-control marker, which no author may write.
+      if (isWidgetControlAttribute(prop)) {
+        continue;
+      }
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);

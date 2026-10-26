@@ -149,6 +149,12 @@ describe("Sparkle #prop name validation", () => {
         `layout main with\n  row #data-widget-control=1 {\n    text "x"\n  }\nend\n`,
       ),
     ).toBe(true);
+    // HTML attribute names are case-insensitive, so every spelling is reserved.
+    expect(
+      propWarns(
+        `layout main with\n  row #data-Widget-Control=1 {\n    text "x"\n  }\nend\n`,
+      ),
+    ).toBe(true);
   });
 });
 

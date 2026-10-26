@@ -150,9 +150,15 @@ export const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
  */
 export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
 
+/** Whether an authored prop names the ui's reserved widget-control marker.
+ *  HTML attribute names are case-insensitive, so `#Data-Widget-Control`
+ *  would write the same attribute and is reserved too. */
+export const isWidgetControlAttribute = (prop: string): boolean =>
+  prop.toLowerCase() === WIDGET_CONTROL_ATTRIBUTE;
+
 /** Whether a prop is written to the DOM as an attribute (in any spelling). */
 export const isAttributeProp = (prop: string): boolean =>
-  prop !== WIDGET_CONTROL_ATTRIBUTE &&
+  !isWidgetControlAttribute(prop) &&
   (ATTRIBUTE_PROPS.has(prop) ||
     isAliasedAttributeProp(prop) ||
     prop.startsWith("aria-") ||

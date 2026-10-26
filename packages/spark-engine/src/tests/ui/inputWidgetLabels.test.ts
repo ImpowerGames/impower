@@ -272,10 +272,17 @@ end
 
   test("only the ui marks a labelled widget's control", async () => {
     const h = createHarness(
-      `layout settings with
+      `store flag = "yes"
+layout settings with
   checkbox "Labelled"
   checkbox
   box "Author box" #data-widget-control="yes" #data-other="kept"
+  box "Mixed case" #data-Widget-Control="yes"
+  box "Bound" #data-widget-control={flag}
+  checkbox "Labelled, authored too" #data-widget-control={flag}
+  dropdown {
+    option "Option" #data-widget-control="yes" #DATA-WIDGET-CONTROL="yes"
+  }
 end
 `,
       0,
@@ -289,7 +296,34 @@ end
     expect(bare.attributes?.["data-widget-control"]).toBeUndefined();
     const box = creates(h).find((p) => p.name === "box");
     expect(box.attributes?.["data-other"]).toBe("kept");
-    expect(box.attributes?.["data-widget-control"]).toBeUndefined();
+
+    /** Elements given the marker in any spelling (HTML attribute names are
+     *  case-insensitive), with the value given, across creates and updates,
+     *  beside the labelled controls, from one query so ids agree. */
+    const markedAndLabelled = () => {
+      const params = h.snapshotFiltered("ui/").map((m: any) => m.params);
+      const marked = params.flatMap((p: any) =>
+        Object.entries(p?.attributes ?? {})
+          .filter(([k]) => k.toLowerCase() === "data-widget-control")
+          .map(([, v]) => [p.element, v]),
+      );
+      const labels = new Set(
+        params.filter((p: any) => p?.type === "label").map((p: any) => p.element),
+      );
+      const labelled = params
+        .filter((p: any) => p?.type === "input" && labels.has(p.parent))
+        .map((p: any) => [p.element, ""]);
+      return { marked, labelled };
+    };
+    // Only the two labelled controls, each with the ui's own empty value: no
+    // authored spelling, bound value or option prop reaches the attribute.
+    const before = markedAndLabelled();
+    expect(before.labelled).toHaveLength(2);
+    expect(before.marked).toEqual(before.labelled);
+    (h.game.story as any).variablesState.$("flag", "changed");
+    (h.game.module.ui as any).refreshLayouts();
+    const after = markedAndLabelled();
+    expect(after.marked).toEqual(after.labelled);
   });
 
   test("removing a labelled widget drops its control's event handler", async () => {

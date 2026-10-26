@@ -11,7 +11,7 @@ import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
 import {
   CUSTOM_PROPERTY_ALIASES,
   isAliasedAttributeProp,
-  WIDGET_CONTROL_ATTRIBUTE,
+  isWidgetControlAttribute,
 } from "../../constants/dataAttributeProps";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -2008,7 +2008,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // it is flagged like any other prop that has no effect.
       const isPassThrough =
         name.startsWith("--") ||
-        (name.startsWith("data-") && name !== WIDGET_CONTROL_ATTRIBUTE) ||
+        (name.startsWith("data-") && !isWidgetControlAttribute(name)) ||
         name.startsWith("aria-") ||
         isAliasedAttributeProp(name) ||
         CUSTOM_PROPERTY_ALIASES.has(normalizeStylePropName(name));
