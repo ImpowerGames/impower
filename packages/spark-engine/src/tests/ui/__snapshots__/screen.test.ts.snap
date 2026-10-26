@@ -1353,15 +1353,17 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "action": {
                   "$name": "action",
                   "$type": "style",
-                  "align_self": "center",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "center",
+                  "&:where(#data-display-target)": {
+                    "align_self": "center",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "center",
+                  },
                 },
                 "article": {
                   "$name": "article",
@@ -1404,10 +1406,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "backdrop": {
                   "$name": "backdrop",
                   "$type": "style",
-                  "background_position": "center",
-                  "background_size": "cover",
-                  "inset": "0",
-                  "position": "absolute",
+                  "&:where(#data-display-target)": {
+                    "background_position": "center",
+                    "background_size": "cover",
+                    "inset": "0",
+                    "position": "absolute",
+                  },
                 },
                 "badge": {
                   "$name": "badge",
@@ -1581,18 +1585,22 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "character_name": {
                   "$name": "character_name",
                   "$type": "style",
-                  "font_weight": "600",
-                  "padding_bottom": "8px",
+                  "&:where(#data-display-target)": {
+                    "font_weight": "600",
+                    "padding_bottom": "8px",
+                  },
                 },
                 "character_parenthetical": {
                   "$name": "character_parenthetical",
                   "$type": "style",
-                  "@screen_size(sm)": {
-                    "font_size": "0.875rem",
+                  "&:where(#data-display-target)": {
+                    "@screen_size(sm)": {
+                      "font_size": "0.875rem",
+                    },
+                    "font_size": "1rem",
+                    "font_weight": "400",
+                    "padding_bottom": "8px",
                   },
-                  "font_size": "1rem",
-                  "font_weight": "400",
-                  "padding_bottom": "8px",
                 },
                 "checkbox": {
                   "$name": "checkbox",
@@ -1732,11 +1740,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "dialogue": {
                   "$name": "dialogue",
                   "$type": "style",
-                  "@screen_size(sm)": {
-                    "width": "80%",
+                  "&:where(#data-display-target)": {
+                    "@screen_size(sm)": {
+                      "width": "80%",
+                    },
+                    "margin": "0 auto",
+                    "width": "68%",
                   },
-                  "margin": "0 auto",
-                  "width": "68%",
                 },
                 "divider": {
                   "$name": "divider",
@@ -2059,16 +2069,18 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "heading": {
                   "$name": "heading",
                   "$type": "style",
-                  "align_self": "center",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "font_weight": "bold",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "center",
+                  "&:where(#data-display-target)": {
+                    "align_self": "center",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "font_weight": "bold",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "center",
+                  },
                 },
                 "highlight": {
                   "$name": "highlight",
@@ -2638,18 +2650,20 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "portrait": {
                   "$name": "portrait",
                   "$type": "style",
-                  "> image >> *": {
-                    "mix_blend_mode": "plus-lighter",
+                  "&:where(#data-display-target)": {
+                    "> image >> *": {
+                      "mix_blend_mode": "plus-lighter",
+                    },
+                    "background_position": "center",
+                    "background_size": "auto 100%",
+                    "bottom": "0",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "left": "0",
+                    "position": "absolute",
+                    "right": "0",
+                    "top": "10%",
                   },
-                  "background_position": "center",
-                  "background_size": "auto 100%",
-                  "bottom": "0",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "left": "0",
-                  "position": "absolute",
-                  "right": "0",
-                  "top": "10%",
                 },
                 "progress": {
                   "$name": "progress",
@@ -3118,31 +3132,35 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "title": {
                   "$name": "title",
                   "$type": "style",
-                  "align_self": "center",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "font_weight": "bold",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "center",
+                  "&:where(#data-display-target)": {
+                    "align_self": "center",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "font_weight": "bold",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "center",
+                  },
                 },
                 "transitional": {
                   "$name": "transitional",
                   "$type": "style",
-                  "align_self": "flex-end",
-                  "display": "flex",
-                  "flex_direction": "column",
-                  "inset": "0",
-                  "justify_content": "center",
-                  "padding_bottom": "24px",
-                  "padding_left": "40px",
-                  "padding_right": "40px",
-                  "position": "absolute",
-                  "text_align": "right",
-                  "width": "100%",
+                  "&:where(#data-display-target)": {
+                    "align_self": "flex-end",
+                    "display": "flex",
+                    "flex_direction": "column",
+                    "inset": "0",
+                    "justify_content": "center",
+                    "padding_bottom": "24px",
+                    "padding_left": "40px",
+                    "padding_right": "40px",
+                    "position": "absolute",
+                    "text_align": "right",
+                    "width": "100%",
+                  },
                 },
                 "underline": {
                   "$name": "underline",
@@ -3782,11 +3800,66 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
           },
         },
+        {
+          "id": "req-34",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "",
+            },
+            "element": "e-14",
+          },
+        },
+        {
+          "id": "req-35",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "",
+            },
+            "element": "e-17",
+          },
+        },
+        {
+          "id": "req-36",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "",
+            },
+            "element": "e-24",
+          },
+        },
+        {
+          "id": "req-37",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "",
+            },
+            "element": "e-26",
+          },
+        },
+        {
+          "id": "req-38",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "",
+            },
+            "element": "e-28",
+          },
+        },
       ],
     },
   },
   {
-    "id": "req-34",
+    "id": "req-39",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3801,7 +3874,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-35",
+          "id": "req-40",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3826,7 +3899,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-36",
+    "id": "req-41",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3841,7 +3914,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-37",
+          "id": "req-42",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3866,7 +3939,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-38",
+    "id": "req-43",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3881,7 +3954,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-39",
+          "id": "req-44",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3906,7 +3979,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-40",
+    "id": "req-45",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3921,7 +3994,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-41",
+          "id": "req-46",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3946,7 +4019,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-42",
+    "id": "req-47",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3961,7 +4034,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-43",
+          "id": "req-48",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3984,7 +4057,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-44",
+    "id": "req-49",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -3999,7 +4072,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-45",
+          "id": "req-50",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4022,7 +4095,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-46",
+    "id": "req-51",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4037,7 +4110,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-47",
+          "id": "req-52",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4060,7 +4133,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-48",
+    "id": "req-53",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4075,7 +4148,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-49",
+          "id": "req-54",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4098,7 +4171,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-50",
+    "id": "req-55",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4113,7 +4186,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-51",
+          "id": "req-56",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4136,7 +4209,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-52",
+    "id": "req-57",
     "kind": "request",
     "method": "ui/write-image",
     "params": {

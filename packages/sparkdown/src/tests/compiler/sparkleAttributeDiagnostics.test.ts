@@ -156,6 +156,21 @@ describe("Sparkle #prop name validation", () => {
       ),
     ).toBe(true);
   });
+
+  // The ui reserves `data-display-target` for the elements the story's
+  // display targets reach (I-1595), so an author's prop never writes it.
+  test("the reserved data-display-target attribute warns", () => {
+    expect(
+      propWarns(
+        `layout main with\n  row.title #data-display-target=1 {\n    text "x"\n  }\nend\n`,
+      ),
+    ).toBe(true);
+    expect(
+      propWarns(
+        `layout main with\n  row #DATA-DISPLAY-TARGET=1 {\n    text "x"\n  }\nend\n`,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("Sparkle @event handler resolution", () => {

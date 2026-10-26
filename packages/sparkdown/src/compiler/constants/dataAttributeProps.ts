@@ -150,15 +150,42 @@ export const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
  */
 export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
 
-/** Whether an authored prop names the ui's reserved widget-control marker.
+/**
+ * The attribute the ui sets on each element a write to one of the
+ * {@link DISPLAY_TARGETS} reaches: the builtin element named after it, or the
+ * container that is its slot in a layout that replaces `main`. The builtin
+ * style named after each target applies only through it, so an author's
+ * `text.title` keeps its own layout. Only the ui writes it.
+ */
+export const DISPLAY_TARGET_ATTRIBUTE = "data-display-target";
+
+/** The story's display targets whose builtin styles the ui scopes to
+ *  {@link DISPLAY_TARGET_ATTRIBUTE}. */
+export const DISPLAY_TARGETS: readonly string[] = [
+  "backdrop",
+  "portrait",
+  "character_name",
+  "character_parenthetical",
+  "title",
+  "heading",
+  "transitional",
+  "dialogue",
+  "action",
+];
+
+/** Whether an authored prop names one of the ui's reserved markers.
  *  HTML attribute names are case-insensitive, so `#Data-Widget-Control`
  *  would write the same attribute and is reserved too. */
-export const isWidgetControlAttribute = (prop: string): boolean =>
-  prop.toLowerCase() === WIDGET_CONTROL_ATTRIBUTE;
+export const isReservedAttribute = (prop: string): boolean => {
+  const name = prop.toLowerCase();
+  return (
+    name === WIDGET_CONTROL_ATTRIBUTE || name === DISPLAY_TARGET_ATTRIBUTE
+  );
+};
 
 /** Whether a prop is written to the DOM as an attribute (in any spelling). */
 export const isAttributeProp = (prop: string): boolean =>
-  !isWidgetControlAttribute(prop) &&
+  !isReservedAttribute(prop) &&
   (ATTRIBUTE_PROPS.has(prop) ||
     isAliasedAttributeProp(prop) ||
     prop.startsWith("aria-") ||

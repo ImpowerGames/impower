@@ -721,23 +721,27 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  position: absolute;
-  inset: 0px;
-  background-position: center;
-  background-size: cover;
+  &:where([data-display-target]) {
+    position: absolute;
+    inset: 0px;
+    background-position: center;
+    background-size: cover;
+  }
 }
 spark-web-player #game .portrait {
-  position: absolute;
-  top: 10%;
-  right: 0px;
-  bottom: 0px;
-  left: 0px;
-  display: flex;
-  flex-direction: column;
-  background-size: auto 100%;
-  background-position: center;
-  >.image * {
-    mix-blend-mode: plus-lighter;
+  &:where([data-display-target]) {
+    position: absolute;
+    top: 10%;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    display: flex;
+    flex-direction: column;
+    background-size: auto 100%;
+    background-position: center;
+    >.image * {
+      mix-blend-mode: plus-lighter;
+    }
   }
 }
 spark-web-player #game .choices {
@@ -2011,71 +2015,85 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  padding-bottom: 8px;
-  font-weight: 600;
+  &:where([data-display-target]) {
+    padding-bottom: 8px;
+    font-weight: 600;
+  }
 }
 spark-web-player #game .character_parenthetical {
-  padding-bottom: 8px;
-  font-weight: 400;
-  font-size: 1rem;
-  @container screen (max-width:640px) {
-    font-size: 0.875rem;
+  &:where([data-display-target]) {
+    padding-bottom: 8px;
+    font-weight: 400;
+    font-size: 1rem;
+    @container screen (max-width:640px) {
+      font-size: 0.875rem;
+    }
   }
 }
 spark-web-player #game .title {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: center;
-  text-align: center;
-  font-weight: 700;
+  &:where([data-display-target]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    text-align: center;
+    font-weight: 700;
+  }
 }
 spark-web-player #game .heading {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: center;
-  text-align: center;
-  font-weight: 700;
+  &:where([data-display-target]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    text-align: center;
+    font-weight: 700;
+  }
 }
 spark-web-player #game .transitional {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  padding-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: flex-end;
-  text-align: right;
-  width: 100%;
+  &:where([data-display-target]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: flex-end;
+    text-align: right;
+    width: 100%;
+  }
 }
 spark-web-player #game .dialogue {
-  margin: 0px auto;
-  width: 68%;
-  @container screen (max-width:640px) {
-    width: 80%;
+  &:where([data-display-target]) {
+    margin: 0px auto;
+    width: 68%;
+    @container screen (max-width:640px) {
+      width: 80%;
+    }
   }
 }
 spark-web-player #game .action {
-  position: absolute;
-  inset: 0px;
-  padding-left: 40px;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: center;
-  text-align: center;
+  &:where([data-display-target]) {
+    position: absolute;
+    inset: 0px;
+    padding-left: 40px;
+    padding-right: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    text-align: center;
+  }
 }
 spark-web-player #game .continue_indicator {
   opacity: 0;
@@ -2134,6 +2152,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "",
+                      },
                       "children": [
                         {
                           "children": [
@@ -2150,6 +2171,9 @@ spark-web-player #game .continue_indicator {
                       "tag": "div",
                     },
                     {
+                      "attrs": {
+                        "data-display-target": "",
+                      },
                       "children": [
                         {
                           "children": [
@@ -2266,6 +2290,7 @@ spark-web-player #game .continue_indicator {
                           "children": [
                             {
                               "attrs": {
+                                "data-display-target": "",
                                 "text": "HERO",
                               },
                               "children": [
@@ -2322,6 +2347,9 @@ spark-web-player #game .continue_indicator {
                               "tag": "div",
                             },
                             {
+                              "attrs": {
+                                "data-display-target": "",
+                              },
                               "children": [
                                 {
                                   "class": "stroke",
@@ -2341,6 +2369,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "",
+                          },
                           "children": [
                             {
                               "class": "stroke",
@@ -2356,6 +2387,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "",
+                          },
                           "children": [
                             {
                               "class": "stroke",
@@ -2371,6 +2405,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "",
+                          },
                           "children": [
                             {
                               "class": "stroke",
@@ -2387,6 +2424,7 @@ spark-web-player #game .continue_indicator {
                         },
                         {
                           "attrs": {
+                            "data-display-target": "",
                             "text": "(quietly)The line being previewed.",
                           },
                           "children": [
@@ -2843,6 +2881,9 @@ spark-web-player #game .continue_indicator {
                           "tag": "div",
                         },
                         {
+                          "attrs": {
+                            "data-display-target": "",
+                          },
                           "children": [
                             {
                               "class": "stroke",

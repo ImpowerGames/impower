@@ -1589,25 +1589,38 @@ style stage with
   flex_direction = column
 end
 
+// The style named after each of the story's display targets (`backdrop`,
+// `portrait`, and the textbox's `character_name` through `action` below)
+// applies through `&:where(#data-display-target)`. The ui marks with
+// `data-display-target` exactly the elements a write to such a target
+// reaches: the builtin element named after it, or the container that is its
+// slot in a layout that replaces `main`. No author can write that attribute,
+// so an author's `text.title` inside a column keeps the column's flow instead
+// of taking the target's absolute, centered box. The `:where` adds no
+// specificity, so each style keeps the specificity of its class.
 style backdrop with
-  position = absolute
-  inset = 0
-  background_position = center
-  background_size = cover
+  &:where(#data-display-target) {
+    position = absolute
+    inset = 0
+    background_position = center
+    background_size = cover
+  }
 end
 
 style portrait with
-  position = absolute
-  top = 10%
-  right = 0
-  bottom = 0
-  left = 0
-  display = flex
-  flex_direction = column
-  background_size = auto 100%
-  background_position = center
-  > image >> * {
-    mix_blend_mode = plus-lighter
+  &:where(#data-display-target) {
+    position = absolute
+    top = 10%
+    right = 0
+    bottom = 0
+    left = 0
+    display = flex
+    flex_direction = column
+    background_size = auto 100%
+    background_position = center
+    > image >> * {
+      mix_blend_mode = plus-lighter
+    }
   }
 end
 
@@ -3460,78 +3473,94 @@ style character_info with
   }
 end
 
+// The textbox's display targets, scoped to `data-display-target` as
+// `style backdrop` describes.
 style character_name with
-  padding_bottom = 8px
-  font_weight = 600
+  &:where(#data-display-target) {
+    padding_bottom = 8px
+    font_weight = 600
+  }
 end
 
 style character_parenthetical with
-  padding_bottom = 8px
-  font_weight = 400
-  font_size = 1rem
-  @screen_size(sm) {
-    font_size = 0.875rem
+  &:where(#data-display-target) {
+    padding_bottom = 8px
+    font_weight = 400
+    font_size = 1rem
+    @screen_size(sm) {
+      font_size = 0.875rem
+    }
   }
 end
 
 style title with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = center
-  text_align = center
-  font_weight = bold
+  &:where(#data-display-target) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = center
+    text_align = center
+    font_weight = bold
+  }
 end
 
 style heading with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = center
-  text_align = center
-  font_weight = bold
+  &:where(#data-display-target) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = center
+    text_align = center
+    font_weight = bold
+  }
 end
 
 style transitional with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  padding_bottom = 24px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = flex-end
-  text_align = right
-  width = 100%
+  &:where(#data-display-target) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    padding_bottom = 24px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = flex-end
+    text_align = right
+    width = 100%
+  }
 end
 
 style dialogue with
-  margin = 0 auto
-  width = 68%
-  @screen_size(sm) {
-    width = 80%
+  &:where(#data-display-target) {
+    margin = 0 auto
+    width = 68%
+    @screen_size(sm) {
+      width = 80%
+    }
   }
 end
 
 style action with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = center
-  text_align = center
+  &:where(#data-display-target) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = center
+    text_align = center
+  }
 end
 
 style continue_indicator with
