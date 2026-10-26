@@ -78,16 +78,21 @@ const mean = (pts: Point[]): Point => {
 
 /**
  * Builds apertures from edge tracks. Two edges form one aperture when their
- * tips coincide pairwise at progress 0. Groups of three or more mutually
- * adjacent edges are ambiguous and are reported rather than guessed; a lone
- * edge is reported as unpaired. Two apertures come back for two separate
- * eyes; the caller unions them within one clip entry.
+ * tips coincide pairwise at either rest pose, progress 0 or 1: open lashes
+ * whose corner tips do not quite meet still close onto one shared lash, and
+ * the shared pose identifies them. Groups of three or more mutually adjacent
+ * edges are ambiguous and are reported rather than guessed; a lone edge is
+ * reported as unpaired. Two apertures come back for two separate eyes; the
+ * caller unions them within one clip entry.
  */
 export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}): ApertureResult {
   const points = Math.max(4, options.points ?? 24);
   const tolFrac = options.tipTolerance ?? 0.2;
-  const tips = edges.map((e) => e.track.tips(0));
-  const spans = tips.map(([a, b]) => dist(a, b));
+  const poses = [0, 1].map((t) => {
+    const tips = edges.map((e) => e.track.tips(t));
+    return { tips, spans: tips.map(([a, b]) => dist(a, b)) };
+  });
+  const spans = poses[0]!.spans;
   const diagnostics: ApertureDiagnostic[] = [];
   // An edge whose two tips coincide has no span to measure adjacency
   // against and cannot bound an opening; it is reported, never paired.
@@ -98,15 +103,23 @@ export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}
       diagnostics.push({ code: "degenerate-edge", edgeIds: [e.id], message: `edge "${e.id}" (${e.label}) has coincident tips and no span` });
     }
   });
-  const adjacent = (i: number, j: number): boolean => {
+  /**
+   * How edge j's tips meet edge i's: `false` when they are not adjacent at
+   * either rest pose, otherwise whether j's tip one sits at i's tip two.
+   */
+  const meeting = (i: number, j: number): { crossed: boolean } | false => {
     if (degenerate.has(i) || degenerate.has(j)) return false;
-    const [a1, a2] = tips[i]!,
-      [b1, b2] = tips[j]!;
-    const span = Math.min(spans[i]!, spans[j]!);
-    const tol = Math.max(options.tipToleranceMin ?? 0.04 * span, tolFrac * span);
-    const straight = dist(a1, b1) <= tol && dist(a2, b2) <= tol;
-    const crossed = dist(a1, b2) <= tol && dist(a2, b1) <= tol;
-    return straight || crossed;
+    for (const { tips, spans } of poses) {
+      const span = Math.min(spans[i]!, spans[j]!);
+      if (!(span > 0)) continue;
+      const [a1, a2] = tips[i]!,
+        [b1, b2] = tips[j]!;
+      const tol = Math.max(options.tipToleranceMin ?? 0.04 * span, tolFrac * span);
+      const straight = dist(a1, b1) <= tol && dist(a2, b2) <= tol;
+      const crossed = dist(a1, b2) <= tol && dist(a2, b1) <= tol;
+      if (straight || crossed) return { crossed: dist(a1, b2) < dist(a1, b1) };
+    }
+    return false;
   };
   const seen = new Set<number>(degenerate);
   const groups: number[][] = [];
@@ -116,7 +129,7 @@ export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}
     seen.add(i);
     for (let k = 0; k < group.length; k++) {
       for (let j = 0; j < edges.length; j++) {
-        if (!seen.has(j) && adjacent(group[k]!, j)) {
+        if (!seen.has(j) && meeting(group[k]!, j)) {
           seen.add(j);
           group.push(j);
         }
@@ -140,17 +153,50 @@ export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}
       });
       continue;
     }
-    apertures.push(makeAperture(edges[group[0]!]!, edges[group[1]!]!, points));
+    const [i, j] = group as [number, number];
+    apertures.push(makeAperture(edges[i]!, edges[j]!, (meeting(i, j) as { crossed: boolean }).crossed, points));
   }
   return { apertures, diagnostics };
 }
 
-function makeAperture(A: EdgeTrack, B: EdgeTrack, points: number): Aperture {
-  const [a1] = A.track.tips(0);
-  const [b1, b2] = B.track.tips(0);
-  // B's boundary runs tip one to tip two; flip it when B's tip one sits at
-  // A's tip two so both boundaries run the same way.
-  const flipB = dist(a1, b2) < dist(a1, b1);
+/**
+ * The point closing an aperture's corner where its two boundaries end apart,
+ * as open lashes whose tips do not meet do: where the boundaries, continued
+ * past their tips, would meet, kept within the gap's own length of the gap's
+ * midpoint. The drawn eye white bulges past the straight line between the
+ * tips there, and the point reaches around it; a clip only hides, so a
+ * corner that reaches too far shows nothing the static image does not, and
+ * it shrinks with the gap as the tips converge. Empty when the boundaries
+ * meet or do not converge past their tips.
+ */
+function corner(p: Point, pBefore: Point, q: Point, qBefore: Point, extent: number): Point[] {
+  const g = dist(p, q);
+  if (!(g > 1e-6 * extent)) return [];
+  const px = p[0] - pBefore[0],
+    py = p[1] - pBefore[1],
+    qx = q[0] - qBefore[0],
+    qy = q[1] - qBefore[1];
+  const den = px * qy - py * qx;
+  if (den === 0) return [];
+  const wx = q[0] - p[0],
+    wy = q[1] - p[1];
+  const s = (wx * qy - wy * qx) / den,
+    u = (wx * py - wy * px) / den;
+  if (!(s > 0 && u > 0)) return [];
+  const m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  const x = p[0] + s * px - m[0],
+    y = p[1] + s * py - m[1],
+    reach = Math.hypot(x, y);
+  const k = reach > g ? g / reach : 1;
+  return [[m[0] + k * x, m[1] + k * y]];
+}
+
+/**
+ * `flipB` is set when B's tip one sits at A's tip two, at the rest pose where
+ * their tips meet; B's boundary, which runs tip one to tip two, is then
+ * reversed so both boundaries run the same way.
+ */
+function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number): Aperture {
   // Which side of each edge faces the other is decided at the progress
   // where the two edges are farthest apart, sampled at eleven points so an
   // opening that appears between the rest poses is still seen: at a closed
@@ -193,14 +239,27 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, points: number): Aperture {
     const dir: Point = closed ? [0, 0] : [ox / olen, oy / olen];
     // A crossed rib sits on its midline on both runs, so a closed stretch
     // is a zero-width slit the clip can ignore; a fully closed aperture is
-    // two points with no area.
+    // two points with no area. Each rib's gap is measured across A's
+    // tip-to-tip chord, along its normal turned toward the opening: the two
+    // boundaries' samples need not sit level along the lash, as when the
+    // open lashes' corner tips do not meet, and measuring along the opening
+    // direction alone would read that offset as an opening.
+    const across = ((): Point => {
+      const cx = a[points - 1]![0] - a[0]![0],
+        cy = a[points - 1]![1] - a[0]![1],
+        clen = Math.hypot(cx, cy);
+      const nx = -cy / (clen || 1),
+        ny = cx / (clen || 1);
+      const s = nx * dir[0] + ny * dir[1];
+      return clen > 0 && s !== 0 ? [Math.sign(s) * nx, Math.sign(s) * ny] : dir;
+    })();
     const top: Point[] = [],
       bottom: Point[] = [];
     let anyOpen = false;
     for (let i = 0; i < points; i++) {
       const p = a[i]!,
         q = b[i]!;
-      const gap = (q[0] - p[0]) * dir[0] + (q[1] - p[1]) * dir[1];
+      const gap = (q[0] - p[0]) * across[0] + (q[1] - p[1]) * across[1];
       if (closed || gap < 0) {
         const m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
         top.push(m);
@@ -212,7 +271,10 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, points: number): Aperture {
       }
     }
     if (!anyOpen) return [top[0]!, top[top.length - 1]!];
-    return [...top, ...bottom.reverse()];
+    const last = points - 1;
+    const end = corner(top[last]!, a[last - 1]!, bottom[last]!, b[last - 1]!, extent);
+    const start = corner(bottom[0]!, b[1]!, top[0]!, a[1]!, extent);
+    return [...top, ...end, ...bottom.reverse(), ...start];
   };
   return {
     edgeIds: [A.id, B.id],

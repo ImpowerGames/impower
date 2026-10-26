@@ -16,13 +16,20 @@ const CLOSED = "M20,50 C50,46 90,42 120,45 C90,48 50,52 20,50Z";
 const WHITE = "M20,50 C40,15 95,0 120,45 C95,72 50,75 20,50Z";
 const PUPIL = "M62,45 C62,33 82,33 82,45 C82,57 62,57 62,45Z";
 
-const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+// A lower lash whose inner tip stops 24 units short of the upper lash's, so
+// the open lashes' corner tips do not meet, as drawn on some portraits. The
+// white runs under it to its outer edge and bulges past the straight line
+// between the two tips, where no lash covers it.
+const LOWER_SHORT = "M40,64 C50,64 55,61 65,60 C85,58 100,62 120,45 C100,72 60,78 40,64Z";
+const WHITE_SHORT = "M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,66 18,60 20,50Z";
+
+const eye = (white: string, lower: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#c96"/>
 <g data-name="eyes.open:default">
-<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
+<path data-name="eyeball-white-left" d="${white}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
 <path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
-<path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
+<path data-name="eyelash-left" d="${lower}" fill="#111"/>
 </g>
 <g data-name="eyes.closed">
 <path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
@@ -109,7 +116,10 @@ const colourAt = (list: Painted[], p: Point): string => {
 };
 
 describe("a live morph's rest render", () => {
-  test("looks the same as the variant's static image away from the drawn outlines", () => {
+  test.each([
+    ["lashes that meet at both corners", eye(WHITE, LOWER)],
+    ["open lashes whose inner corner tips do not meet", eye(WHITE_SHORT, LOWER_SHORT)],
+  ])("looks the same as the variant's static image away from the drawn outlines: %s", (_name, SVG) => {
     const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
     expect(artifact.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(artifact.status).toBe("live");
