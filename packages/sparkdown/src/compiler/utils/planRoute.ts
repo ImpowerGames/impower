@@ -121,16 +121,18 @@ export interface SearchNode {
  * where this ran out, by forcing its exit there; forcing a verdict starts the
  * count again, so the forced route can go on to the line.
  *
- * The preview replays a route from its last checkpoint, and the game takes a
- * checkpoint at each beat, so a stretch with no beat is replayed whole on
- * every scrub after it, and so is the search's run through it. Both cost
- * about 6 microseconds a step in the worker; at this size the two stay within
- * about 100 ms of a preview that does not follow the loop. Work before the
+ * The game takes a checkpoint at each beat, so a stretch with no beat gives
+ * a replay nothing to resume from inside it, and a search resumed for a line
+ * after it starts no later than the verdict that left it, so it runs the
+ * stretch again on every scrub. Sized by preview-bench in the worker: a line
+ * in a skipped branch after a loop of 5,000 or 60,000 passes with an `if` in
+ * its body previews within about twice origin/main's time at this size, and
+ * at 8,192 the search alone took 160 to 190 ms a scrub. Work before the
  * first condition is not counted: a route that forces nothing there runs it
  * as the program does, as a search that cut every loop at its first test
  * would too.
  */
-export const BEAT_WORK_CAP = 8_192;
+export const BEAT_WORK_CAP = 2_048;
 
 /**
  * The share of the step and node work remaining that each level of a search

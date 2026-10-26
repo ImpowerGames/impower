@@ -2436,17 +2436,36 @@ export class Game<T extends M = {}> {
     // against the program only where the target needs it (`planRoute`).
     // So a search resumes no later than the route's first such verdict, or
     // the preview would show a branch the route took for another line.
-    const resume = this.findResumePoint(
-      replayOnly ? validSteps : Math.min(validSteps, stepsBeforeDeparture(route)),
-    );
+    const searchSteps = replayOnly
+      ? validSteps
+      : Math.min(validSteps, stepsBeforeDeparture(route));
+    // The replay after it is held only by what the new program still agrees
+    // with: it forces whatever the new route decides, so a checkpoint past
+    // the route's forced verdicts holds a state it can resume from wherever
+    // the new route takes the same steps (`replayPatchedRoute`). Looked for
+    // first, since each look leaves the story holding the checkpoint it
+    // read, and the search's own point is the one a search runs from.
+    const replayCheckpointIndex =
+      searchSteps < validSteps
+        ? this.findReplayCheckpoint(validSteps)
+        : undefined;
+    const resume = this.findResumePoint(searchSteps);
     if (!resume) {
-      return { validSteps, replayOnly: false };
+      return {
+        validSteps,
+        ...(replayCheckpointIndex != null ? { replayCheckpointIndex } : {}),
+        replayOnly: false,
+      };
     }
     return {
       validSteps,
       stepIndex: resume.stepIndex,
       resumeFrom: resume.point,
       checkpointIndex: resume.checkpointIndex,
+      replayCheckpointIndex: Math.max(
+        resume.checkpointIndex,
+        replayCheckpointIndex ?? -1,
+      ),
       replayOnly,
     };
   }
@@ -2502,6 +2521,34 @@ export class Game<T extends M = {}> {
   }
 
   /**
+   * The deepest checkpoint a replay of a route sharing the planned route's
+   * first `validSteps` steps may resume from: one whose story stands within
+   * them (`placeCheckpoint`). A replay forces the new route's decisions from
+   * there, so unlike a search it needs no charge, and it is not held before
+   * the route's forced verdicts.
+   */
+  protected findReplayCheckpoint(validSteps: number): number | undefined {
+    if (!this._plannedRoute || validSteps < 1) {
+      return undefined;
+    }
+    let tried = 0;
+    for (let i = this._checkpoints.length - 1; i >= 0; i -= 1) {
+      const cursor = this._checkpointStepCursors[i];
+      if (cursor == null || cursor < 1 || cursor > validSteps) {
+        continue;
+      }
+      if (tried >= Game.RESUME_CANDIDATES) {
+        return undefined;
+      }
+      tried += 1;
+      if (this.placeCheckpoint(i, cursor, validSteps)) {
+        return i;
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Restore checkpoint `checkpointIndex` far enough to see where its story
    * stands, and describe that position as a resume point.
    *
@@ -2522,10 +2569,65 @@ export class Game<T extends M = {}> {
     validSteps: number,
   ): RouteResumePoint | null {
     const route = this._plannedRoute;
+    const placed = this.placeCheckpoint(checkpointIndex, cursor, validSteps);
+    if (!route || !placed) {
+      return null;
+    }
+    const { state, at } = placed;
+    // A search resumed here is charged what the search that planned the route
+    // had spent when it recorded this step, so that every bound runs out
+    // where it ran out there; a step recorded without it, or past level zero,
+    // where no resumed search can stand as that search stood, is not resumed
+    // from (`routeChargeAt`).
+    const charge = routeChargeAt(route, at);
+    if (!charge) {
+      return null;
+    }
+    // A step records the decisions made BEFORE it, so the step the story is
+    // standing on is the one that says how many have been taken. The plan
+    // reports those same decisions split in two, and a search reads its favored
+    // answers by counting each list, so both have to be cut to the same point.
+    const taken = (route.steps[at - 1]?.decision ?? -1) + 1;
+    const decisions = route.decisions.slice(0, taken);
+    let conditions = 0;
+    let choices = 0;
+    for (const decision of decisions) {
+      if (decision.kind === "condition") {
+        conditions += 1;
+      } else {
+        choices += 1;
+      }
+    }
+    return {
+      state,
+      // Up to but not including the step the story is standing on, because a
+      // search reads the position it is standing on before advancing and would
+      // otherwise record it twice. This is the convention a fork already
+      // follows — it pops the step it is about to re-encounter.
+      steps: route.steps.slice(0, at),
+      decisions,
+      conditions: route.conditions.slice(0, conditions),
+      choices: route.choices.slice(0, choices),
+      charge,
+    };
+  }
+
+  /**
+   * Restore checkpoint `checkpointIndex` far enough to see where its story
+   * stands: the step of the planned route it stands on, within the first
+   * `validSteps`, and its image. Nothing when it stands past them, or
+   * somewhere the new program would not place it (see `readResumePoint`).
+   */
+  protected placeCheckpoint(
+    checkpointIndex: number,
+    cursor: number,
+    validSteps: number,
+  ): { state: ProgramImage; at: number } | null {
+    const route = this._plannedRoute;
     if (!route) {
       return null;
     }
-    let state: RouteResumePoint["state"] | undefined;
+    let state: ProgramImage | undefined;
     let standingOn: ProgramAddress | undefined;
     const program = this.programStory;
     // The checkpoint's image, restored in place, which a search node runs
@@ -2563,15 +2665,6 @@ export class Game<T extends M = {}> {
     if (at < 0) {
       return null;
     }
-    // A search resumed here is charged what the search that planned the route
-    // had spent when it recorded this step, so that every bound runs out
-    // where it ran out there; a step recorded without it, or past level zero,
-    // where no resumed search can stand as that search stood, is not resumed
-    // from (`routeChargeAt`).
-    const charge = routeChargeAt(route, at);
-    if (!charge) {
-      return null;
-    }
     if (program && at + 1 >= validSteps && !restsAfter(state, standingOn)) {
       // The step after this one is not one the new program takes the way
       // the route did (a statement was inserted before it, or it was
@@ -2581,33 +2674,7 @@ export class Game<T extends M = {}> {
       // program runs there.
       return null;
     }
-    // A step records the decisions made BEFORE it, so the step the story is
-    // standing on is the one that says how many have been taken. The plan
-    // reports those same decisions split in two, and a search reads its favored
-    // answers by counting each list, so both have to be cut to the same point.
-    const taken = (route.steps[at - 1]?.decision ?? -1) + 1;
-    const decisions = route.decisions.slice(0, taken);
-    let conditions = 0;
-    let choices = 0;
-    for (const decision of decisions) {
-      if (decision.kind === "condition") {
-        conditions += 1;
-      } else {
-        choices += 1;
-      }
-    }
-    return {
-      state,
-      // Up to but not including the step the story is standing on, because a
-      // search reads the position it is standing on before advancing and would
-      // otherwise record it twice. This is the convention a fork already
-      // follows — it pops the step it is about to re-encounter.
-      steps: route.steps.slice(0, at),
-      decisions,
-      conditions: route.conditions.slice(0, conditions),
-      choices: route.choices.slice(0, choices),
-      charge,
-    };
+    return { state, at };
   }
 
   /**
