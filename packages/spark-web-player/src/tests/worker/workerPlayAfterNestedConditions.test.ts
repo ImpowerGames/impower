@@ -101,4 +101,25 @@ describe("a line only a forced condition reaches", () => {
     expect(outcome.state).toBe("running");
     expect(outcome.text).toContain("Forced.");
   }, 120_000);
+
+  it("leaves no forced verdict behind for the next line the run reaches", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: FORCED_ONLY }],
+      startFrom: { file: MAIN_URI, line: 3 },
+    });
+    try {
+      await h.compile();
+      await h.select(3);
+      await settle(40);
+      expect(writtenText(h.toRouter)).toContain("Forced.");
+      const sentBefore = h.toRouter.length;
+      await h.select(5);
+      await settle(40);
+      const text = writtenText(h.toRouter.slice(sentBefore));
+      expect(text).toContain("Before.");
+      expect(text).not.toContain("Forced.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
 });

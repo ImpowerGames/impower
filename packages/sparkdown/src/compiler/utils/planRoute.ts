@@ -223,12 +223,16 @@ export interface SearchOptions {
   functions?: string[];
 
   /**
-   * If provided, these choices will be given higher priority when searching for a route
+   * If provided, these choices will be given higher priority when searching for a route.
+   * The story's own run, searched first, takes the favored choice at each choice it meets
+   * and ends at one with none favored.
    */
   favoredChoices?: (number | undefined)[];
 
   /**
-   * If provided, these condition values will be given higher priority when searching for a route
+   * If provided, these condition values will be given higher priority when the full search
+   * looks for a route. The story's own run, searched first, takes the verdict each condition
+   * reaches unforced, so they decide nothing on a line that run reaches.
    */
   favoredConditions?: (boolean | undefined)[];
 
@@ -802,27 +806,20 @@ export const planRoute = (
     // the story does not take, and shows a beat the run never leaves on
     // screen there.
     //
-    // The run gets at most half of each ceiling, and the full search keeps
-    // what it leaves: a story whose own run never ends (a loop that never
-    // reaches a choice) would otherwise spend the whole budget before the
-    // full search could find a route by forcing a way out. It keeps fork
-    // sites of its own, since it claims sites whose other branches the full
-    // search has to expand.
-    const unforcedBudget: SearchBudget = {
-      stepsRemaining: Math.floor(budget.stepsRemaining / 2),
-      nodesRemaining: Math.floor(budget.nodesRemaining / 2),
-      deadlineTime: startTime + searchTimeout / 2,
-      cut: null,
-      visited: new Set(),
-    };
-    const unforcedSteps = unforcedBudget.stepsRemaining;
-    const unforcedNodes = unforcedBudget.nodesRemaining;
-    routePlan = search(start, unforcedBudget, true);
-    budget.stepsRemaining -= unforcedSteps - unforcedBudget.stepsRemaining;
-    budget.nodesRemaining -= unforcedNodes - unforcedBudget.nodesRemaining;
-    // A line the story's own run does not reach is searched in full, from the
-    // same start.
-    routePlan ??= search(start, budget, false);
+    // The run draws on the search's own ceilings, and one that cuts it short
+    // ends the search: until the run has ended, nothing shows that it does not
+    // reach the line, so a forced route found afterwards is no answer. The
+    // run forces nothing but the verdict of the fork it stands at, so a
+    // condition it meets again takes the verdict the story reaches there
+    // then; the plan still records every verdict, in order, for the replay.
+    routePlan = search({ ...start, overrides: [] }, budget, true);
+    if (!routePlan && !budget.cut) {
+      // A line the story's own run does not reach is searched in full, from
+      // the same start. Its fork sites are its own, since the run claimed
+      // sites whose other branches the full search has to expand.
+      budget.visited = new Set();
+      routePlan = search(start, budget, false);
+    }
 
     lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
     // Read from the budget itself, not from where the loop happened to exit: the
@@ -997,22 +994,17 @@ const runUntilDecisionOrBranch = (
             const choice = story.currentChoices[favoredChoiceIndex]!;
             if (choice) {
               // Fork choice branch
-              branches.push(
-                forkChoice(
-                  forkState,
-                  node,
-                  stepsEncountered,
-                  {
-                    kind: "choice",
-                    site,
-                    value: choice.sourcePath,
-                  },
-                  {
-                    options,
-                    selected: favoredChoiceIndex,
-                  },
-                ),
-              );
+              const ov: ChoiceOverride = {
+                kind: "choice",
+                site,
+                value: choice.sourcePath,
+              };
+              const branch = forkChoice(forkState, node, stepsEncountered, ov, {
+                options,
+                selected: favoredChoiceIndex,
+              });
+              // The story's own run forces only the fork it stands at.
+              branches.push(unforced ? { ...branch, overrides: [ov] } : branch);
             }
           }
           for (
@@ -1121,13 +1113,15 @@ const runUntilDecisionOrBranch = (
           // here, and the full search decides.
           const natural = story.pausedConditionValue;
           if (natural !== null) {
-            branches.push(
-              forkCondition(forkState, node, stepsEncountered, {
-                kind: "condition",
-                site: story.pausedBeforeCondition,
-                value: natural,
-              }),
-            );
+            const ov: ConditionOverride = {
+              kind: "condition",
+              site: story.pausedBeforeCondition,
+              value: natural,
+            };
+            branches.push({
+              ...forkCondition(forkState, node, stepsEncountered, ov),
+              overrides: [ov],
+            });
           }
         } else if (favoredConditionalValue != null) {
           // Fork favored branch

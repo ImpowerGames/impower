@@ -224,7 +224,11 @@ describe("branches do not share an identity", () => {
   // two sibling branches identical identities for every path they later share,
   // which a re-plan would read as "already simulated" and resume from the
   // wrong branch's checkpoint.
-  const BRANCHY = `store flag = false
+  //
+  // The route to a shared line is the story's own run (I-1620), so each
+  // branch is taken by a story whose flag starts that way; the two programs
+  // differ in nothing else.
+  const branchy = (flag: boolean) => `store flag = ${flag}
 
 -> start
 
@@ -241,8 +245,8 @@ end
 `;
 
   test("a step after a fork differs from the same path on the other branch", () => {
-    const program = compileSrc(BRANCHY);
-    const seqsFor = (favored: boolean) => {
+    const seqsFor = (flag: boolean) => {
+      const program = compileSrc(branchy(flag));
       const game = new Game({
         program: program as any,
         now: () => 0,
@@ -258,7 +262,6 @@ end
         program as any,
         game.routeStartOf(toPath),
         toPath,
-        { [game.routeStartOf(toPath)]: { favoredConditions: [favored] } },
       );
       return route?.steps ?? [];
     };
@@ -271,6 +274,9 @@ end
     // Wherever the two routes reach the SAME path having taken different
     // branches, their identities must differ.
     const trueByPath = new Map(viaTrue.map((s) => [s.address, s.seq]));
+    // The two programs place the shared lines at the same addresses, so the
+    // routes do reach the same paths.
+    expect(viaFalse.some((s) => trueByPath.has(s.address))).toBe(true);
     let comparedAnySharedPath = false;
     for (const step of viaFalse) {
       const otherSeq = trueByPath.get(step.address);
