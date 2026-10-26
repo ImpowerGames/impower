@@ -6,6 +6,8 @@ import {
   DropdownContent,
   DropdownRoot,
   DropdownTrigger,
+  Eye,
+  EyeClosed,
   Gear,
   Notes,
   PlayerPauseFill,
@@ -33,6 +35,8 @@ export type PreviewGameToolbarProps = Partial<typeof propDefaults>;
  *   running=false → PLAY button + title + mode toggle
  *   running=true  → STOP button + playback controls + settings dropdown
  *
+ * The Animate portraits toggle shows in every state.
+ *
  * The step-backward/forward and fast-backward/forward buttons hold-to-
  * scrub via requestAnimationFrame + throttled stepGameClock — matches the
  * legacy spec-component's UX (pointerdown starts the rAF loop, pointerup
@@ -44,6 +48,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
   const paused = !!game?.paused;
   const debugging = !!game?.debugging;
   const loading = !!game?.loading;
+  const animatePortraits = workspace.animatePortraits.value;
 
   // Hold-to-scrub rAF id, kept in a ref so the cleanup function can cancel
   // even after the component re-renders.
@@ -94,7 +99,12 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
     Workspace.window.toggleGamePaused();
   };
 
-  const onDebugChange = async (next: boolean) => {
+  const onAnimatePortraitsToggle = async () => {
+    const { Workspace } = await import("../../workspace/Workspace");
+    Workspace.window.toggleAnimatePortraits();
+  };
+
+  const onDebugChange =async (next: boolean) => {
     const { Workspace } = await import("../../workspace/Workspace");
     if (next) Workspace.window.enableDebugging();
     else Workspace.window.disableDebugging();
@@ -159,7 +169,28 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 
       <span class="flex-1" />
 
-      {/* Right slot: mode toggle when stopped, settings dropdown when running. */}
+      {/* Right slot: the portrait-motion preference, which holds stopped or
+          playing, then the mode toggle when stopped or the settings dropdown
+          when running. */}
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        aria-label="Animate portraits"
+        aria-pressed={animatePortraits}
+        title="Animate portraits"
+        onClick={onAnimatePortraitsToggle}
+        class={
+          animatePortraits
+            ? "text-foreground"
+            : "text-foreground/50 hover:text-foreground"
+        }
+      >
+        {animatePortraits ? (
+          <Eye class="size-5" />
+        ) : (
+          <EyeClosed class="size-5" />
+        )}
+      </Button>
       {running ? (
         <DropdownRoot>
           <DropdownTrigger asChild>
