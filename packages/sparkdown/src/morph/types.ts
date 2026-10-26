@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 1;
+export const MORPH_BAKE_FORMAT = 2;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -194,10 +194,11 @@ export interface MorphGeometryRef {
  * of the artifact's `frames` table, in the node's own user space.
  *
  * - `morph`: between the ends the `draw` node's geometry follows the frames,
- *   then the `to` node takes over. `draw` is `from`, unless several tracks
- *   leave one drawing (a closed lash opening into two): then each track
- *   draws on its own `to`. `shared` marks a drawing several tracks share; it
- *   is drawn once at its end.
+ *   then the `to` node takes over. `draw` is whichever of `from` and `to`
+ *   the variant's rest pose shows (`from` when it shows neither), so the
+ *   moving drawing paints at its rest-pose depth; a second track drawing on
+ *   the same node draws on a hidden carrier copied right after it. `shared`
+ *   marks a drawing several tracks share; it is drawn once at its end.
  * - `fade`: `from` fades out while `to` fades in; either may be absent.
  * - `cut`: `from` holds until the segment ends, then `to` shows.
  * - `scale`: `node` shrinks to (or grows from) its own fixed centre; the zero

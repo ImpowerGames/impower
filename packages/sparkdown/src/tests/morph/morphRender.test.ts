@@ -85,6 +85,35 @@ describe("artifact playback", () => {
     }
   });
 
+  test("tracks sharing the drawing the variant rests on all paint at its depth", () => {
+    // At rest one lash is drawn below the brow; the other state draws two
+    // lashes above it.
+    const merged = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/></g>
+<path data-name="brow" d="M0,5H100V10H0Z" fill="#432"/>
+<g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
+</svg>`;
+    const recipe = blink({ clips: [] });
+    const resting = bakeMorphArtifact({ source: merged, selection: {}, recipe, key: "merged" });
+    expect(resting.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(resting.status).toBe("live");
+    for (const pose of [
+      { segment: 0, progress: 0.5 },
+      { segment: 1, progress: 0.5 },
+    ]) {
+      const frame = elements(renderMorphFrame(resting, pose));
+      const drawn = shown(frame).filter((e) => e.attributes["data-name"] === "lash");
+      // Two shapes, each its own track, both below the brow.
+      expect(drawn).toHaveLength(2);
+      expect(drawn[0]!.attributes["d"]).not.toBe(drawn[1]!.attributes["d"]);
+      const brow = frame.findIndex((e) => e.attributes["data-name"] === "brow");
+      expect(Math.max(...drawn.map((e) => frame.indexOf(e)))).toBeLessThan(brow);
+    }
+    // At rest the copies stay hidden, so the parts compose to the still.
+    const rest = shown(elements(renderMorphFrame(resting, { segment: 0, progress: 0 })));
+    expect(rest.map((e) => e.attributes["d"])).toEqual([UPPER_OPEN]);
+  });
+
   test("each part fills the composed picture's viewport", () => {
     const frame = elements(renderMorphFrame(artifact, { segment: 0, progress: 0 }));
     const nested = frame.filter((e, i) => i > 0 && e.tagName === "svg");

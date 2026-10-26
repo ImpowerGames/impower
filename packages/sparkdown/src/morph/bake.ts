@@ -472,6 +472,17 @@ export function* bakeSteps(
     leafOf.set(element, leaf);
   }
   const nodeOf = (leaf: Leaf) => leaf.node;
+  /**
+   * Nodes of hidden copies of a live drawing, written beside it in its part,
+   * each carrying one more moving shape at that drawing's depth.
+   */
+  const carriers = new Map<Leaf, string[]>();
+  const carrierOf = (leaf: Leaf, index: number): string => {
+    const list = carriers.get(leaf) ?? [];
+    while (list.length <= index) list.push(`n${nodeCount++}`);
+    carriers.set(leaf, list);
+    return list[index]!;
+  };
 
   // Policy by the nearest configured label, field by field.
   const policy = <F extends "blend" | "method" | "fallback">(leaf: Leaf, field: F): MorphRecipe[F] => {
@@ -628,19 +639,8 @@ export function* bakeSteps(
         report("pairing-count", "warning", `"${d.label}" has ${fewer} drawings in one pose and ${more} in the other; neither is a single drawing, so they cannot pair and each uses its fallback.`, { layer: d.label });
       }
       for (const u of pairing.unpaired) (u.side === "from" ? unpairedFrom : unpairedTo).push(byNode.get(u.shape.id)!);
-      // A drawing several tracks leave cannot carry them all; each draws on
-      // its own destination instead. Every other track of the segment then
-      // draws on its destination too, unless several tracks arrive there, so
-      // the moving drawings keep one pose's paint order: a shadow drawn where
-      // its closed copy sits would paint over lashes drawn where the open ones
-      // sit.
-      const departures = new Map<string, number>();
-      const arrivals = new Map<string, number>();
-      for (const pair of pairing.pairs) {
-        departures.set(pair.from.id, (departures.get(pair.from.id) ?? 0) + 1);
-        arrivals.set(pair.to.id, (arrivals.get(pair.to.id) ?? 0) + 1);
-      }
-      const drawOnDestination = [...departures.values()].some((count) => count > 1);
+      // Tracks of this segment already drawing on each home drawing.
+      const homed = new Map<Leaf, number>();
       for (const pair of pairing.pairs) {
         yield;
         const from = byNode.get(pair.from.id)!;
@@ -663,16 +663,26 @@ export function* bakeSteps(
           continue;
         }
         const { morph, cacheKey, reversed } = morphFor(from, to, method);
-        const split = (departures.get(pair.from.id) ?? 0) > 1;
-        const draw = split || (drawOnDestination && arrivals.get(pair.to.id) === 1) ? to : from;
-        const space = elementSpace(draw);
+        // A moving drawing paints at the depth its layer has in the
+        // variant's rest pose, the pose the static image shows, in both
+        // directions, so the live layer order always matches the still: it
+        // draws on whichever of its two drawings the rest pose shows, and on
+        // the one it leaves when the rest pose shows neither.
+        const home = visibleAt(to.element, restVisible) && !visibleAt(from.element, restVisible) ? to : from;
+        const space = elementSpace(home);
         if (!morph || !space) {
           unpairedFrom.push(from);
           unpairedTo.push(to);
           continue;
         }
+        // One element carries one shape, so a second track drawing on the
+        // same home (two open lashes converging on the closed lash a variant
+        // rests on) draws on a carrier copied beside it, at the same depth.
+        const count = homed.get(home) ?? 0;
+        homed.set(home, count + 1);
+        const draw = count === 0 ? nodeOf(home) : carrierOf(home, count - 1);
         const ref = addFrames(cacheKey, morph, space, reversed);
-        transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw: nodeOf(draw), shared: pair.shared, frames: ref });
+        transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
           if (!clip.between.includes(from.label)) continue;
           if (morph.tracks.length !== 1) {
@@ -948,7 +958,29 @@ export function* bakeSteps(
             const local = localGeometry(leaf.element);
             if (local) convertToPath(clone, pathData(local));
           }
-          return wrappers.has(leaf.element) ? wrap(leaf.element)(clone) : clone;
+          const place = (element: Element) => (wrappers.has(leaf.element) ? wrap(leaf.element)(element) : element);
+          const copies = carriers.get(leaf) ?? [];
+          if (!copies.length) return place(clone);
+          // Carriers paint right after the drawing they copy, hidden until a
+          // track draws on them, and with no ids of their own.
+          return {
+            tagName: "g",
+            attributes: {},
+            children: [
+              place(clone),
+              ...copies.map((node) => {
+                const copy = cloneElement(clone);
+                const unnamed = (element: Element) => {
+                  delete element.attributes["id"];
+                  for (const child of element.children) if (child && typeof child === "object") unnamed(child);
+                };
+                unnamed(copy);
+                copy.attributes["data-morph"] = node;
+                setStyleProperty(copy, "display", "none");
+                return place(copy);
+              }),
+            ],
+          };
         });
       }
       for (const [target, list] of wrappers) {
