@@ -20,6 +20,7 @@ import {
   roundedClosed,
   roundedOpen,
   runtimeProgress,
+  scaled,
   square,
   tiltedClosed,
   tiltedOpen,
@@ -239,6 +240,22 @@ describe("bendTrack", () => {
       for (const bow of [4, 14, 26]) {
         const rr = bendTrack(loop(ribbonLash(160, bow, thickness)), loop(ribbonClosed));
         expect(rr.ok ? "ok" : rr.failure.message, `thickness ${thickness}, bow ${bow}`).toBe("ok");
+      }
+    }
+  });
+
+  test("the default tip distance bends a closed pose drawn at another size than the open one", () => {
+    // Each loop places its flanks along its own span: a distance shared from
+    // the smaller loop sits too near the larger loop's rounded tips for its
+    // canonical loop to hold the drawn area.
+    for (const k of [0.1, 0.5, 2, 5, 10, 20]) {
+      for (const [name, open, closed] of [
+        ["rounded", roundedOpen, roundedClosed],
+        ["upper", upperOpen, closedLash],
+        ["ribbon", ribbonOpen, ribbonClosed],
+      ] as const) {
+        const r = bendTrack(loop(open), loop(scaled(closed, k)));
+        expect(r.ok ? "ok" : r.failure.message, `${name} lash, closed pose at ${k}x`).toBe("ok");
       }
     }
   });

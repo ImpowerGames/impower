@@ -34,7 +34,7 @@ export interface BendOptions {
   anchors?: number;
   /**
    * Distance in user units from each tip to its flanking anchors. When
-   * omitted, it is 8% of the shorter of the two loops' tip-to-tip spans.
+   * omitted, each loop uses 8% of its own tip-to-tip span.
    */
   tipDistance?: number;
   /**
@@ -133,11 +133,12 @@ export function findTips(loop: Cubic[]): TaperTips {
 }
 
 /**
- * The default tip distance as a fraction of the shorter tip-to-tip span. On
- * the portrait lashes, which span about 160 units, it puts the flanks about
- * 13 units in, near the prototype's fixed 16 pixels; a larger fraction
- * reaches past a rounded tip's arc and the canonical loop drifts from the
- * drawn area.
+ * The default tip distance as a fraction of each loop's own tip-to-tip span,
+ * so a closed pose drawn at another size than the open one keeps its flanks
+ * at the same place along its taper. On the portrait lashes, which span
+ * about 160 units, it puts the flanks about 13 units in, near the
+ * prototype's fixed 16 pixels; a larger fraction reaches past a rounded
+ * tip's arc and the canonical loop drifts from the drawn area.
  */
 const TIP_DISTANCE_SPAN = 0.08;
 
@@ -574,16 +575,16 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
       };
     }
   }
-  const tipPx = Number.isFinite(o.tipDistance)
-    ? o.tipDistance
-    : TIP_DISTANCE_SPAN * Math.min(dist(tipsOpen.p1, tipsOpen.p2), dist(tipsClosed.p1, tipsClosed.p2));
+  const tipPx = (tips: TaperTips) => (Number.isFinite(o.tipDistance) ? o.tipDistance : TIP_DISTANCE_SPAN * dist(tips.p1, tips.p2));
+  const tipPxOpen = tipPx(tipsOpen),
+    tipPxClosed = tipPx(tipsClosed);
   const wind = Math.sign(signedArea(open)) || 1;
   const area = (L: Cubic[]) => Math.abs(signedArea(L));
   const faithful = (canon: Cubic[], art: Cubic[]): boolean => {
     const target = area(art);
     return target > 0 && Math.abs(area(canon) - target) <= o.reconstructionTolerance * target;
   };
-  const a = canonicalTaper(open, anchors, tipPx, wind, tipsOpen);
+  const a = canonicalTaper(open, anchors, tipPxOpen, wind, tipsOpen);
   if (!faithful(a, open)) {
     return {
       ok: false,
@@ -603,9 +604,9 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     const lo = Math.min(area(a), area(b)) || 1;
     return Math.min(...[0.25, 0.5, 0.75].map((tt) => area(canonicalFrame(a, b, tt)) / lo));
   };
-  const candidates: Cubic[][] = [canonicalTaper(closed, anchors, tipPx, wind, tipsClosed)];
+  const candidates: Cubic[][] = [canonicalTaper(closed, anchors, tipPxClosed, wind, tipsClosed)];
   for (const ref of [tipsOpen.p1, tipsOpen.p2]) {
-    for (const w of [wind, -wind]) candidates.push(canonicalTaper(closed, anchors, tipPx, w, tipsClosed, ref));
+    for (const w of [wind, -wind]) candidates.push(canonicalTaper(closed, anchors, tipPxClosed, w, tipsClosed, ref));
   }
   const chosen = selectCandidate(a, candidates, score, o.thicknessRatio);
   const b = chosen.candidate,
