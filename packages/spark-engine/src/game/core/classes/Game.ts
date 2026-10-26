@@ -1300,20 +1300,47 @@ export class Game<T extends M = {}> {
     this._simulation = "simulating";
     this._simulationFailure = undefined;
     if (this._startAddress != null) {
-      // Plan a route from the top of the flow the start point stands in.
+      // Plan a route from the top of the flow the start point stands in, or
+      // first from the story's start inside a scene that takes parameters
+      // (`routesFromStartFirst`).
       const to = this._startAddress;
       const from = this.routeStartOf(to);
-      const route = Game.planRoute(
-        this._story,
-        this._program,
-        from,
-        to,
-        simulationOptions,
-        // The replay below starts by loading a checkpoint or jumping to the
-        // route's start, either of which replaces the story state, so the
-        // search need not restore one of its own first.
-        { callerResetsStory: true },
-      );
+      // The replay below starts by loading a checkpoint or jumping to the
+      // route's start, either of which replaces the story state, so the
+      // search need not restore one of its own first.
+      const budget = { callerResetsStory: true };
+      let route;
+      if (this.routesFromStartFirst(to)) {
+        route = Game.planRouteFromStart(
+          this._story,
+          this._program,
+          to,
+          simulationOptions,
+          budget,
+        );
+        // Only a search that ran the story out shows that no run reaches
+        // the address; one cut short by a ceiling, or stopped by an error,
+        // is what the author is told.
+        if (!route && lastSearchStats.endReason === "exhausted") {
+          route = Game.planRouteInFlow(
+            this._story,
+            this._program,
+            from,
+            to,
+            simulationOptions,
+            budget,
+          );
+        }
+      } else {
+        route = Game.planRoute(
+          this._story,
+          this._program,
+          from,
+          to,
+          simulationOptions,
+          budget,
+        );
+      }
       if (route) {
         this.simulateRoute(route, 0);
       } else {
@@ -1392,6 +1419,17 @@ export class Game<T extends M = {}> {
    *  address stands in, or the top-level content. */
   routeStartOf(address: ProgramAddress): string {
     return this.sceneOf(address) ?? "0";
+  }
+
+  /** Whether a route to `address` is searched from the story's start before
+   *  the top of its scene: the scene takes parameters, which bind what the
+   *  divert that enters it passes, and a route from its top passes none, so
+   *  binds nil for each (#664). The route from the scene's top is the one
+   *  that stands only when no run from the story's start reaches the
+   *  address (#1608). */
+  routesFromStartFirst(address: ProgramAddress): boolean {
+    const scene = this.sceneOf(address);
+    return scene !== null && this._story.takesParameters(scene);
   }
 
   /** The scenes of the positions on the call stack: where every open
@@ -1992,39 +2030,17 @@ export class Game<T extends M = {}> {
       | "resumeFrom"
     >,
   ) {
-    // A scene that takes parameters binds the arguments the divert that
-    // enters it passes, which a route from the scene's top has none of: it
-    // binds nil for each (#664). So a route from the story's start, through
-    // that divert, is tried first, and the scene's own route stands only
-    // when no run from the start reaches the target (#1608). A resumed
-    // search continues a route from the scene's top, the one that stood.
-    const withArguments =
-      from !== "0" && !budget?.resumeFrom && story.takesParameters(from);
-    if (withArguments) {
-      const route = Game.planRouteFromStart(
-        story,
-        program,
-        to,
-        simulationOptions,
-        budget,
-      );
-      if (route) {
-        return route;
-      }
-    }
-    // Plan a route from the top of the flow the target stands in, to the
-    // target itself.
-    const route = planRoute(story, from, to, {
-      ...budget,
-      functions: Object.keys(program.functionLocations || {}),
-      stayWithinKnot: true,
-      favoredConditions: simulationOptions?.[from]?.favoredConditions,
-      favoredChoices: simulationOptions?.[from]?.favoredChoices,
-    });
+    const route = Game.planRouteInFlow(
+      story,
+      program,
+      from,
+      to,
+      simulationOptions,
+      budget,
+    );
     if (
       route ||
       from === "0" ||
-      withArguments ||
       budget?.resumeFrom ||
       lastSearchStats.endReason !== "exhausted"
     ) {
@@ -2037,6 +2053,39 @@ export class Game<T extends M = {}> {
     // this one: a search cut short by a ceiling would only be cut short
     // again, on more of the story.
     return Game.planRouteFromStart(story, program, to, simulationOptions, budget);
+  }
+
+  /** Plan a route from the top of the flow `from` to `to`, within that
+   *  flow: the flow is entered with no arguments, so a scene that takes
+   *  parameters binds nil for each (#664). */
+  static planRouteInFlow(
+    story: ProgramStory,
+    program: SparkProgram,
+    from: string,
+    to: ProgramAddress,
+    simulationOptions?: Record<
+      string,
+      {
+        favoredConditions?: (boolean | undefined)[];
+        favoredChoices?: (number | undefined)[];
+      }
+    >,
+    budget?: Pick<
+      SearchOptions,
+      | "maxSteps"
+      | "maxNodes"
+      | "searchTimeout"
+      | "callerResetsStory"
+      | "resumeFrom"
+    >,
+  ) {
+    return planRoute(story, from, to, {
+      ...budget,
+      functions: Object.keys(program.functionLocations || {}),
+      stayWithinKnot: true,
+      favoredConditions: simulationOptions?.[from]?.favoredConditions,
+      favoredChoices: simulationOptions?.[from]?.favoredChoices,
+    });
   }
 
   /** Plan a route from the story's start to `to`, through whatever flows

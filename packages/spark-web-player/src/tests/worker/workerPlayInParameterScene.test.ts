@@ -2,7 +2,11 @@
 // line inside the scene starts as the run that reaches it stands there, with
 // the arguments the divert that enters the scene passes; a scene no run
 // reaches binds nil for each parameter (#664). The story saves either way.
-import { describe, expect, it } from "vitest";
+import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { describe, expect, it, vi } from "vitest";
+import { RouteSearchLog } from "../../main/workers/RouteSearchLog";
+import { searchRouteFor } from "../../main/workers/searchRouteTo";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
 const ONE = `-> s(10)
@@ -124,5 +128,125 @@ describe("the preview inside a scene a divert enters with arguments", () => {
     const text = await previewAt(source, line);
     expect(text).toContain(shown);
     expect(text).not.toContain("nil");
+  }, 120_000);
+
+  it("after an edit adds the divert that enters the scene, shows its arguments", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: UNREACHED.replace("First {a}.", "First {a}.\n  Second {a}.") }],
+      startFrom: { file: MAIN_URI, line: 4 },
+    });
+    try {
+      await h.compile();
+      await h.select(4);
+      await settle(40);
+      expect(writtenText(h.toRouter)).toContain("Second nil.");
+      const sentBefore = h.toRouter.length;
+      await h.edit([
+        {
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } },
+          text: "-> s(10)",
+        },
+      ]);
+      await h.compile();
+      await h.select(4);
+      await settle(40);
+      expect(writtenText(h.toRouter.slice(sentBefore))).toContain("Second 10.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+// Forty beats before the divert: a search from the story's start limited to
+// twenty steps stops before it reaches the divert.
+const DEEP = `${Array.from({ length: 40 }, (_, i) => `Top ${i}.`).join("\n")}
+-> s(10)
+
+scene s(a)
+  Target {a}.
+end
+`;
+
+/** A game started from `line` (zero-based) of `source`, with its compiler. */
+const gameAt = (source: string, line: number) => {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    seedBuiltinsIntoStory: true,
+    files: [
+      {
+        uri: MAIN_URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  } as never);
+  const { program } = compiler.compile({ textDocument: { uri: MAIN_URI } } as never);
+  const game = new Game({
+    program,
+    now: () => 0,
+    setTimeout: ((fn: () => void) => {
+      fn();
+      return 0;
+    }) as never,
+  } as never);
+  game.setStartFrom({ file: MAIN_URI, line });
+  return { compiler, game, to: game.startAddress! };
+};
+
+/** Limits every search from the story's start to twenty steps. */
+const limitStartSearch = () => {
+  const original = Game.planRouteFromStart.bind(Game);
+  return vi
+    .spyOn(Game, "planRouteFromStart")
+    .mockImplementation((story, program, to, options, budget) =>
+      original(story, program, to, options, { ...budget, maxSteps: 20 }),
+    );
+};
+
+describe("the route to a line inside a scene that takes parameters", () => {
+  it("is not the scene's own route when the search from the start is cut short", () => {
+    const { game, to } = gameAt(DEEP, 43);
+    const spy = limitStartSearch();
+    try {
+      game.simulate();
+      expect(game.simulation).not.toBe("success");
+      expect(game.simulationFailure).toBe("timeout");
+    } finally {
+      spy.mockRestore();
+    }
+    const log = new RouteSearchLog();
+    const worker = gameAt(DEEP, 43).game;
+    const limited = limitStartSearch();
+    try {
+      searchRouteFor(worker, to, log, { config: {} });
+      expect(log.outcomeFor(to)?.reachedTarget).toBe(false);
+      expect(log.outcomeFor(to)?.simulationFailure).toBe("timeout");
+    } finally {
+      limited.mockRestore();
+    }
+  }, 120_000);
+
+  it("is replayed from the story's start after a compile that changes nothing", () => {
+    const { compiler, game, to } = gameAt(DEEP, 43);
+    const log = new RouteSearchLog();
+    searchRouteFor(game, to, log, { config: {} });
+    expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
+    expect(log.outcomeFor(to)?.fromStart).toBe(true);
+    expect(game.plannedRoute?.from).toBe("0");
+    game.updateProgram(
+      compiler.compile({ textDocument: { uri: MAIN_URI } } as never).program,
+    );
+    const spy = vi.spyOn(Game, "planRouteFromStart");
+    try {
+      searchRouteFor(game, to, log, { config: {} });
+      expect(spy).not.toHaveBeenCalled();
+      expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   }, 120_000);
 });
