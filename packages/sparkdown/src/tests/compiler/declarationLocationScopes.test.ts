@@ -109,6 +109,27 @@ end
   });
 });
 
+// The `end` that closes a scene or branch belongs to that flow, which PLAY
+// and the preview at the line read (I-1618).
+describe("the lines of the ends that close scenes and branches", () => {
+  it("lists a scene's end with another scene below it", () => {
+    const program = compile(`scene start
+  First.
+  done
+end
+scene other
+  Other.
+end
+`);
+    expect(program.flowEndLines).toEqual({ [URI]: [3, 6] });
+  });
+
+  it("lists each branch's end and the scene's, and no other block's", () => {
+    const program = compile(CLOSED_BRANCH);
+    expect(program.flowEndLines).toEqual({ [URI]: [14, 23, 24]});
+  });
+});
+
 describe("declaration locations after a branch left without its end", () => {
   const program = compile(`scene A
   branch x

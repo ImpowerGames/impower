@@ -4740,6 +4740,8 @@ export class SparkdownCompiler {
               );
               if (closed >= 0) {
                 scopePathParts.length = closed;
+                program.flowEndLines ??= {};
+                (program.flowEndLines[uri] ??= []).push(range.start.line);
               }
             }
             if (cur.value.type === "scene") {

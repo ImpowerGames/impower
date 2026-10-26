@@ -913,13 +913,15 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   /**
    * The line and beat a display or PLAY of `point` routes to: the point's own
-   * `beat`. A line with no address, and none below it in its script (a
-   * scene's closing `end` at the end of the script, the blank lines after
-   * it), is where the story stands once the line above it that has one has
-   * run, so it routes to that line's last beat, whose route puts the beat on
-   * screen there in its checkpoint (#1606). With no such line above, the
-   * point stands, and a run from it starts from the top of the top-level
-   * content.
+   * `beat`. The `end` that closes a scene or branch belongs to that flow
+   * rather than to the line below it that has an address, which another
+   * flow holds (#1618), and a line with no address and none below it in its
+   * script (the blank lines after the script's last `end`) has no flow below
+   * it to belong to. Either is where the story stands once the line above it
+   * that has one has run, so it routes to that line's last beat, whose route
+   * puts the beat on screen there in its checkpoint (#1606). With no such
+   * line above, the point stands, and a run from it starts from where its
+   * address leads, or from the top of the top-level content.
    */
   const startPoint = (
     program: SparkProgram,
@@ -927,7 +929,10 @@ export function installPlayerWorker(connection: MessageConnection) {
     beat: "first" | "last",
   ): { point: { file: string; line: number }; beat: "first" | "last" } => {
     const locator = programLocator(program);
-    if (locator.addressAt(point.file, point.line) != null) {
+    if (
+      !program.flowEndLines?.[point.file]?.includes(point.line) &&
+      locator.addressAt(point.file, point.line) != null
+    ) {
       return { point, beat };
     }
     for (let line = point.line - 1; line >= 0; line -= 1) {
