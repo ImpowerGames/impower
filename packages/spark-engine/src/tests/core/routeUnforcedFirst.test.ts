@@ -63,6 +63,62 @@ const NESTED = `scene start
 end
 `;
 
+// The `done` (line 11) is reached one decision deep by forcing the outer
+// condition false, and four decisions deep by the run the story makes.
+const DEEP = `scene start
+  Before.
+  if true then
+    if true then
+      if true then
+        if true then
+          Natural.
+        end
+      end
+    end
+  end
+  done
+end
+`;
+
+// The story's own run never ends: only forcing the condition false reaches
+// the exit (line 8).
+const ENDLESS = `store n = 0
+
+scene start
+  Before {n}.
+  & n = n + 1
+  if true then
+    -> start
+  end
+  Forced exit.
+  done
+end
+`;
+
+// The story chooses for itself: the conditional choice is not shown, and
+// the invisible fallback runs on into the next scene, whose `done` is line
+// 17.
+const FALLBACK = `-> start
+
+scene start
+  Before.
+  choose
+    * if false Impossible.
+    * -> fallback(1)
+  end
+end
+
+scene fallback(n)
+  Fallback {n}.
+  if true then
+    if true then
+      Natural.
+    end
+  end
+  done
+end
+`;
+
 // The condition is true on the first lap and false on the second.
 const LOOP = `store n = 0
 
@@ -94,24 +150,32 @@ describe("the story's own run is the route where it reaches the line", () => {
     expect(route?.conditions).toEqual([{ selected: true }, { selected: true }]);
   });
 
-  test("under a ceiling the run fits in", () => {
-    const program = compileSrc(NESTED);
-    const route = planRoute(newGame(program).story, "start", addressOf(program, 7), {
-      maxNodes: 5,
+  test("when the run outlasts half the ceilings but fits in what the search leaves", () => {
+    // The run needs five nodes and gets four first; the full search finds
+    // the forced route in three, and the run goes on with the last one.
+    const program = compileSrc(DEEP);
+    const route = planRoute(newGame(program).story, "start", addressOf(program, 11), {
+      maxNodes: 8,
     });
-    expect(route?.conditions).toEqual([{ selected: true }, { selected: true }]);
+    expect(route?.conditions).toEqual([
+      { selected: true },
+      { selected: true },
+      { selected: true },
+      { selected: true },
+    ]);
     expect(lastSearchStats.endReason).toBe("found");
   });
 
-  test("and a ceiling that cuts the run short ends the search", () => {
-    // Two nodes run the story to its second condition, short of the line:
-    // the search gave up, and a forced route is no answer to that.
-    const program = compileSrc(NESTED);
-    const route = planRoute(newGame(program).story, "start", addressOf(program, 7), {
-      maxNodes: 2,
+  test("but not when the run cannot reach the line in what the search leaves", () => {
+    // Three nodes first, three for the full search, and one is not enough
+    // for the run's last two: the forced route stands, and the search says
+    // a ceiling stopped it.
+    const program = compileSrc(DEEP);
+    const route = planRoute(newGame(program).story, "start", addressOf(program, 11), {
+      maxNodes: 7,
     });
-    expect(route).toBeNull();
-    expect(lastSearchStats.endReason).toBe("max-nodes");
+    expect(route?.conditions).toEqual([{ selected: false }]);
+    expect(lastSearchStats.exhaustedBudget).toBe(true);
   });
 
   test("through a condition it meets again with another verdict", () => {
@@ -121,6 +185,17 @@ describe("the story's own run is the route where it reaches the line", () => {
     expect(route?.conditions).toEqual([{ selected: true }, { selected: false }]);
     // The run passes the lap twice, as the story does.
     expect(route?.steps.filter((s) => s.address === lap).length).toBe(2);
+  });
+
+  test("through a choice's condition the story evaluates itself", () => {
+    const program = compileSrc(FALLBACK);
+    const game = newGame(program);
+    const route = Game.planRouteFromStart(game.story, program as any, addressOf(program, 17));
+    expect(route?.conditions).toEqual([
+      { selected: false },
+      { selected: true },
+      { selected: true },
+    ]);
   });
 });
 
@@ -136,5 +211,15 @@ end
 `);
     const route = planRoute(newGame(program).story, "start", addressOf(program, 3));
     expect(route?.conditions).toEqual([{ selected: true }]);
+  });
+
+  test("is routed past a run of the story's own that never ends", () => {
+    const program = compileSrc(ENDLESS);
+    const route = planRoute(newGame(program).story, "start", addressOf(program, 8), {
+      maxSteps: 200,
+      searchTimeout: Number.MAX_SAFE_INTEGER,
+    });
+    expect(route?.conditions.at(-1)).toEqual({ selected: false });
+    expect(lastSearchStats.endReason).toBe("found");
   });
 });

@@ -158,7 +158,16 @@ export interface ConditionOverride {
   /** The address of the decision the verdict is for. */
   site: ProgramAddress;
   value: boolean;
+  /** Whether the verdict is the one the story reaches unforced; unknown when
+   *  the search could not read that verdict before the decision ran. */
+  unforced?: boolean;
 }
+
+/** Whether `decisions` force any condition against the verdict the story
+ *  reaches unforced, so that a route through them is not the story's own
+ *  run. */
+export const forcesCondition = (decisions: RouteOverride[]): boolean =>
+  decisions.some((d) => d.kind === "condition" && d.unforced === false);
 
 export interface ChoiceOverride {
   kind: "choice";
@@ -708,19 +717,19 @@ export const planRoute = (
     beatImages.keepBeatImages = false;
   }
 
-  /** Expand nodes from `start` until one reaches the target or `searchBudget`
-   *  runs out. `unforced` follows the story's own run alone; otherwise every
-   *  verdict and choice is searched, in the order `searchStrategy` gives. A
-   *  node run that throws is swallowed so one bad node cannot abort a search
-   *  that other branches might still complete; the full search remembers it,
-   *  because it means that search no longer covers the whole story and must
-   *  not claim that it does. */
+  /** Expand the nodes of `queue` until one reaches the target or
+   *  `searchBudget` runs out, leaving the nodes not yet expanded in it.
+   *  `unforced` follows the story's own run alone; otherwise every verdict and
+   *  choice is searched, in the order `searchStrategy` gives. A node run that
+   *  throws is swallowed so one bad node cannot abort a search that other
+   *  branches might still complete; the full search remembers it, because it
+   *  means that search no longer covers the whole story and must not claim
+   *  that it does. */
   const search = (
-    start: SearchNode,
+    queue: SearchNode[],
     searchBudget: SearchBudget,
     unforced: boolean,
   ): RoutePlan | null => {
-    const queue: SearchNode[] = [start];
     while (queue.length) {
       if (searchBudgetExhausted(searchBudget)) {
         break;
@@ -756,6 +765,12 @@ export const planRoute = (
           };
         }
 
+        if (searchBudget.cut !== null && !result.branches.length) {
+          // Cut part way through the node, which goes back to run again from
+          // its start should the search go on.
+          queue.unshift(node);
+          break;
+        }
         for (const b of result.branches) {
           queue.push(b);
         }
@@ -806,19 +821,53 @@ export const planRoute = (
     // the story does not take, and shows a beat the run never leaves on
     // screen there.
     //
-    // The run draws on the search's own ceilings, and one that cuts it short
-    // ends the search: until the run has ended, nothing shows that it does not
-    // reach the line, so a forced route found afterwards is no answer. The
-    // run forces nothing but the verdict of the fork it stands at, so a
+    // The run forces nothing but the verdict of the fork it stands at, so a
     // condition it meets again takes the verdict the story reaches there
     // then; the plan still records every verdict, in order, for the replay.
-    routePlan = search({ ...start, overrides: [] }, budget, true);
-    if (!routePlan && !budget.cut) {
+    // It keeps fork sites of its own, since it claims sites whose other
+    // branches the full search has to expand.
+    const ownRun: SearchNode[] = [{ ...start, overrides: [] }];
+    const ownRunSites = new Set<string>();
+    /** Run the story's own run on under `share` of the ceilings, charging
+     *  the search for what it uses. */
+    const runOwn = (share: Omit<SearchBudget, "cut" | "visited">) => {
+      const ownBudget: SearchBudget = { ...share, cut: null, visited: ownRunSites };
+      const plan = search(ownRun, ownBudget, true);
+      budget.stepsRemaining -= share.stepsRemaining - ownBudget.stepsRemaining;
+      budget.nodesRemaining -= share.nodesRemaining - ownBudget.nodesRemaining;
+      return { plan, cut: ownBudget.cut };
+    };
+    // First under half of each ceiling, so that a run that never ends (a
+    // loop that never reaches a choice) leaves the full search room to find
+    // a forced way out.
+    const first = runOwn({
+      stepsRemaining: Math.floor(budget.stepsRemaining / 2),
+      nodesRemaining: Math.floor(budget.nodesRemaining / 2),
+      deadlineTime: startTime + searchTimeout / 2,
+    });
+    routePlan = first.plan;
+    if (!routePlan) {
       // A line the story's own run does not reach is searched in full, from
-      // the same start. Its fork sites are its own, since the run claimed
-      // sites whose other branches the full search has to expand.
-      budget.visited = new Set();
-      routePlan = search(start, budget, false);
+      // the same start.
+      routePlan = search([start], budget, false);
+      if (
+        routePlan &&
+        first.cut !== null &&
+        ownRun.length > 0 &&
+        forcesCondition(routePlan.decisions)
+      ) {
+        // The run was cut short, so it has not shown that it does not reach
+        // the line, and the route the full search found forces a condition.
+        // The run goes on with what the search has left, and a route it
+        // finds is the route; the forced one stands only when it does not.
+        const rest = runOwn({
+          stepsRemaining: budget.stepsRemaining,
+          nodesRemaining: budget.nodesRemaining,
+          deadlineTime: budget.deadlineTime,
+        });
+        routePlan = rest.plan ?? routePlan;
+        budget.cut ??= rest.cut;
+      }
     }
 
     lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
@@ -1105,19 +1154,20 @@ const runUntilDecisionOrBranch = (
           break;
         }
 
+        const site = story.pausedBeforeCondition;
+        const natural = story.pausedConditionValue;
+        const verdict = (value: boolean): ConditionOverride =>
+          natural === null
+            ? { kind: "condition", site, value }
+            : { kind: "condition", site, value, unforced: value === natural };
         const favoredConditionalValue =
           favoredConditionalValues[node.conditions.length];
         if (unforced) {
           // Only the verdict the story reaches unforced. A decision whose
           // verdict cannot be read before it runs ends the story's own run
           // here, and the full search decides.
-          const natural = story.pausedConditionValue;
           if (natural !== null) {
-            const ov: ConditionOverride = {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: natural,
-            };
+            const ov = verdict(natural);
             branches.push({
               ...forkCondition(forkState, node, stepsEncountered, ov),
               overrides: [ov],
@@ -1126,33 +1176,20 @@ const runUntilDecisionOrBranch = (
         } else if (favoredConditionalValue != null) {
           // Fork favored branch
           branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: favoredConditionalValue,
-            }),
+            forkCondition(forkState, node, stepsEncountered, verdict(favoredConditionalValue)),
           );
           // Fork opposite of favored branch
           branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: !favoredConditionalValue,
-            }),
+            forkCondition(forkState, node, stepsEncountered, verdict(!favoredConditionalValue)),
           );
         } else {
           // The verdict the story reaches unforced is searched first, so of
           // two routes the search can find at the same depth it finds the one
           // the story runs, and a beat a false condition skips is not shown
           // on the way (#1606).
-          const natural = story.pausedConditionValue;
           for (const value of natural === false ? [false, true] : [true, false]) {
             branches.push(
-              forkCondition(forkState, node, stepsEncountered, {
-                kind: "condition",
-                site: story.pausedBeforeCondition,
-                value,
-              }),
+              forkCondition(forkState, node, stepsEncountered, verdict(value)),
             );
           }
         }

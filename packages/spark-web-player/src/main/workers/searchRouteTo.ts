@@ -1,8 +1,9 @@
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
-import type {
-  RoutePlan,
-  RouteResumePoint,
+import {
+  forcesCondition,
+  type RoutePlan,
+  type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { profile } from "../../utils/profile";
@@ -196,7 +197,11 @@ export const searchRouteFor = (
 
   let route: RoutePlan | null = null;
   let resumedSearch = false;
-  if (resumption.resumeFrom) {
+  // A resume point the earlier route reached by forcing a condition is not
+  // where the story's own run stands, and a search resumed there would keep
+  // the forced beat on screen at a line the run reaches with another (#1620),
+  // so the scene is searched from the top.
+  if (resumption.resumeFrom && !forcesCondition(resumption.resumeFrom.decisions)) {
     route = planRouteTo(resumption.resumeFrom);
     resumedSearch = route != null;
   }

@@ -497,9 +497,10 @@ export class ProgramStory implements StoryEngine {
   pausedBeforeCondition: ProgramAddress | null = null;
 
   /** The verdict the decision the story paused before would reach unforced:
-   *  the truth of the value its `JumpIfFalse` pops. Null when the story is
-   *  not paused before one, and for a decision whose value is not on the
-   *  evaluation stack (a Luau condition, a choice's). */
+   *  the truth of the value its `JumpIfFalse` pops, or the condition a
+   *  `Choice` pops first. Null when the story is not paused before one, and
+   *  for a decision whose value is not on the evaluation stack (a Luau
+   *  condition). */
   get pausedConditionValue(): boolean | null {
     const position = this._state.position;
     if (this.pausedBeforeCondition === null || !position) {
@@ -507,7 +508,15 @@ export class ProgramStory implements StoryEngine {
     }
     const chunk = this.fetch(position);
     const w0 = chunk?.[HEADER_WORDS + position.offset];
-    if (w0 === undefined || opOf(w0) !== Op.JumpIfFalse || flagsOf(w0) & JUMP_LUAU) {
+    if (w0 === undefined) {
+      return null;
+    }
+    const op = opOf(w0);
+    const readable =
+      op === Op.JumpIfFalse
+        ? !(flagsOf(w0) & JUMP_LUAU)
+        : op === Op.Choice && (flagsOf(w0) & CHOICE_CONDITION) !== 0;
+    if (!readable) {
       return null;
     }
     const value = this._state.evaluationStack.at(-1);
