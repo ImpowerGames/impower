@@ -141,12 +141,28 @@ export const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
   "inert", "popover",
 ]);
 
+/**
+ * The attribute the ui sets on the `<input>` inside a labelled input widget
+ * (`slider "Master Volume"`), whose pointer setting comes from its label.
+ * Builtin styles select it to tell that control from anything an author
+ * writes, so only the ui writes it: an authored `#data-widget-control` is not
+ * an attribute prop, and the validator reports it.
+ */
+export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
+
+/** Whether an authored prop names the ui's reserved widget-control marker.
+ *  HTML attribute names are case-insensitive, so `#Data-Widget-Control`
+ *  would write the same attribute and is reserved too. */
+export const isWidgetControlAttribute = (prop: string): boolean =>
+  prop.toLowerCase() === WIDGET_CONTROL_ATTRIBUTE;
+
 /** Whether a prop is written to the DOM as an attribute (in any spelling). */
 export const isAttributeProp = (prop: string): boolean =>
-  ATTRIBUTE_PROPS.has(prop) ||
-  isAliasedAttributeProp(prop) ||
-  prop.startsWith("aria-") ||
-  prop.startsWith("data-");
+  !isWidgetControlAttribute(prop) &&
+  (ATTRIBUTE_PROPS.has(prop) ||
+    isAliasedAttributeProp(prop) ||
+    prop.startsWith("aria-") ||
+    prop.startsWith("data-"));
 
 // NOTE: there is deliberately no `toCustomPropertyName` helper. One existed and
 // was used to rename the prop in the renderer, which is the wrong layer — the

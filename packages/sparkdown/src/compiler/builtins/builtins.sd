@@ -1272,7 +1272,15 @@ style layouts with
     -- pointer by default (see spark-web-player.css), so carrying `#tooltip`
     -- has to opt the element IN -- otherwise the bubble is styled perfectly
     -- and simply never appears.
-    pointer_events = auto
+    --
+    -- Except the control inside a labelled widget, which the ui marks with
+    -- `data-widget-control`: it takes the pointer from its label, so a widget
+    -- locked with `interactable = false` stays locked when its control
+    -- carries a tooltip. Only the ui writes that marker, so every element an
+    -- author builds still opts in, whatever its classes or parent.
+    &:where(:not(#data-widget-control)) {
+      pointer_events = auto
+    }
     -- BUBBLE.
     @before {
       content = attr(data-tooltip)
@@ -1769,40 +1777,87 @@ style button with
   }
 end
 
-
+// A form control with quoted content (`slider "Master Volume"`) renders as a
+// `label` holding its wording and a `control`. The label carries the widget's
+// name and classes and nothing else, so a class or prop that hides, places or
+// fades the widget acts on all of it, and the widget's name finds it whether
+// or not it is labelled.
+//
+// Each control style (`checkbox`, `input`, `radio`, `switch`, `slider`) draws
+// both shapes:
+//
+// - `&:where(label)` is the label. A text field or slider takes its wording
+//   above the control and the full width the control would take on its own,
+//   since the control's `width = 100%` resolves against the label; in a `row`
+//   a label sized to its text would shrink the slider to the width of its
+//   wording. A checkbox, radio or switch is one row, the control first and its
+//   wording beside it, shrunk to its content so only the two are a hit target.
+// - `&:where(:not(label)), > :where(.control)` is the control itself, bare or
+//   inside the label. The variant classes (`search`, `file_input`, `invalid`,
+//   `valid`) use the same pair. Both selectors sit in `:where`, so the wrapper
+//   adds no specificity: each rule keeps the specificity it has written
+//   directly on the class. The control's own declarations stay at one class,
+//   where an author's later rule for the same name wins over them, and a
+//   state rule (`@checked`, `@focused`, `@disabled`) keeps its extra
+//   pseudo-class, as before.
+// - `> :where(#data-widget-control)`, last, hands the label's pointer setting
+//   to the control, so `interactable = false` on the widget, as a prop or a
+//   class, reaches it. The ui marks a labelled widget's control with
+//   `data-widget-control` and no author can write that attribute, so the rule
+//   reaches that control and nothing an author builds. It follows the
+//   control's own `pointer_events = auto` so it wins over it at the same
+//   specificity, while `@disabled` and an author's own `> control` rule still
+//   win over it. The engine and the tooltip rule in `style layouts` leave
+//   such a control's pointer to its label for the same reason.
 style checkbox with
-  pointer_events = auto
-  appearance = none
-  width = 1.25rem
-  height = 1.25rem
-  corner = 0.25rem
-  border-width = 0.125rem
-  border-style = solid
-  border-color = slate_40
-  background-color = slate_30
-  cursor = pointer
-  -- Deliberately NOT `all`. `@checked` brings the tick in as a background-image
-  -- and sets its position and size; transitioning those animates the mark from
-  -- the box's top-left corner (the initial `0% 0%` / `auto`) rather than simply
-  -- appearing, which reads as the checkmark growing out of the corner. Only the
-  -- colours should move. `switch` narrows its transition for the same reason.
-  transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out
-  @checked {
-    background-color = sky_40
-    border-color = sky_40
-    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
-    background-position = center
-    background-size = 0.75rem auto
-    background-repeat = no-repeat
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    display = flex
+    flex_direction = row
+    align_items = center
+    align_self = flex-start
+    gap = 0.5rem
+    cursor = pointer
   }
-  @focused {
-    border-color = sky_40
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+  &:where(:not(label)), > :where(.control) {
+    pointer_events = auto
+    appearance = none
+    width = 1.25rem
+    height = 1.25rem
+    corner = 0.25rem
+    border-width = 0.125rem
+    border-style = solid
+    border-color = slate_40
+    background-color = slate_30
+    cursor = pointer
+    -- Deliberately NOT `all`. `@checked` brings the tick in as a background-image
+    -- and sets its position and size; transitioning those animates the mark from
+    -- the box's top-left corner (the initial `0% 0%` / `auto`) rather than simply
+    -- appearing, which reads as the checkmark growing out of the corner. Only the
+    -- colours should move. `switch` narrows its transition for the same reason.
+    transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out
+    @checked {
+      background-color = sky_40
+      border-color = sky_40
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+      background-position = center
+      background-size = 0.75rem auto
+      background-repeat = no-repeat
+    }
+    @focused {
+      border-color = sky_40
+      shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    }
+    @disabled {
+      opacity = 0.5
+      cursor = not-allowed
+      pointer-events = none
+    }
   }
-  @disabled {
-    opacity = 0.5
-    cursor = not-allowed
-    pointer-events = none
+  > :where(#data-widget-control) {
+    pointer_events = inherit
   }
 end
 
@@ -1822,110 +1877,140 @@ end
 // under each one that nothing asked for and no gap accounts for. Spacing a
 // form is the FORM's business, and the showcase states it per control.
 style input with
-  pointer_events = auto
-  color-scheme = dark
-  text-leading = 1.5
-  width = 100%
-  + small {
-    margin-top = 0.25rem
-    margin-bottom = 1rem
-  }
-  -- Every input gets the SAME explicit height, exactly as Pico does — content
-  -- height + vertical padding + borders. Deriving it from content instead only
-  -- works for inputs that HAVE text: a colour input's content is its swatch,
-  -- which has no intrinsic height, so it collapsed to 29px. Special-casing the
-  -- colour input's height/padding was the old workaround, and it left it 7px
-  -- TALLER than its neighbours; stating the shared height fixes both.
-  height = 3.125rem
-  -- A colour input needs no special box beyond that. The swatch is made to fill
-  -- it by zeroing the wrapper's own padding, which is what would otherwise
-  -- squeeze it to a hairline.
-  @type_color {
-    @swatch_wrapper {
-      padding = 0
-    }
-    @swatch {
-      border-width = 0
-      corner = 0.125rem
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    width = 100%
+    > control {
+      margin-top = 0.25rem
     }
   }
-  -- Chrome's own picker glyph is white and cannot be recoloured; hide it and
-  -- paint the icon on the field, keeping the native click target.
-  @type_date {
-    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E")
-    background-position = right 0.75rem center
-    background-size = 1rem auto
-    background-repeat = no-repeat
-    padding-right = 1.75rem
-    @picker {
-      opacity = 0
-      cursor = pointer
+  &:where(:not(label)), > :where(.control) {
+    pointer_events = auto
+    color-scheme = dark
+    text-leading = 1.5
+    width = 100%
+    + small {
+      margin-top = 0.25rem
+      margin-bottom = 1rem
     }
-  }
-  @type_time {
-    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E")
-    background-position = right 0.75rem center
-    background-size = 1rem auto
-    background-repeat = no-repeat
-    padding-right = 1.75rem
-    @picker {
-      opacity = 0
-      cursor = pointer
+    -- Every input gets the SAME explicit height, exactly as Pico does — content
+    -- height + vertical padding + borders. Deriving it from content instead only
+    -- works for inputs that HAVE text: a colour input's content is its swatch,
+    -- which has no intrinsic height, so it collapsed to 29px. Special-casing the
+    -- colour input's height/padding was the old workaround, and it left it 7px
+    -- TALLER than its neighbours; stating the shared height fixes both.
+    height = 3.125rem
+    -- A colour input needs no special box beyond that. The swatch is made to fill
+    -- it by zeroing the wrapper's own padding, which is what would otherwise
+    -- squeeze it to a hairline.
+    @type_color {
+      @swatch_wrapper {
+        padding = 0
+      }
+      @swatch {
+        border-width = 0
+        corner = 0.125rem
+      }
     }
-  }
-  padding = 0.75rem 1rem
-  corner = 0.25rem
-  border-width = 0.0625rem
-  border-style = solid
-  border-color = slate_40
-  background-color = slate_30
-  text-color = slate_90
-  transition = all 0.2s ease-in-out
-  accent-color = sky_60
-  @placeholder {
-    text-color = slate_70
-  }
-  @focused {
-    border-color = sky_40
-    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
-  }
-  @disabled {
-    opacity = 0.5
-    cursor = not-allowed
-    pointer-events = none
-  }
-  -- A read-only field is not editable, so it must not light up like one.
-  @readonly @focused {
+    -- Chrome's own picker glyph is white and cannot be recoloured; hide it and
+    -- paint the icon on the field, keeping the native click target.
+    @type_date {
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E")
+      background-position = right 0.75rem center
+      background-size = 1rem auto
+      background-repeat = no-repeat
+      padding-right = 1.75rem
+      @picker {
+        opacity = 0
+        cursor = pointer
+      }
+    }
+    @type_time {
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E")
+      background-position = right 0.75rem center
+      background-size = 1rem auto
+      background-repeat = no-repeat
+      padding-right = 1.75rem
+      @picker {
+        opacity = 0
+        cursor = pointer
+      }
+    }
+    padding = 0.75rem 1rem
+    corner = 0.25rem
+    border-width = 0.0625rem
+    border-style = solid
     border-color = slate_40
-    shadow = none
+    background-color = slate_30
+    text-color = slate_90
+    transition = all 0.2s ease-in-out
+    accent-color = sky_60
+    @placeholder {
+      text-color = slate_70
+    }
+    @focused {
+      border-color = sky_40
+      shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+    }
+    @disabled {
+      opacity = 0.5
+      cursor = not-allowed
+      pointer-events = none
+    }
+    -- A read-only field is not editable, so it must not light up like one.
+    @readonly @focused {
+      border-color = slate_40
+      shadow = none
+    }
+  }
+  > :where(#data-widget-control) {
+    pointer_events = inherit
   }
 end
 
 style radio with
-  pointer_events = auto
-  appearance = none
-  width = 1.25rem
-  height = 1.25rem
-  corner = 50%
-  border-width = 0.125rem
-  border-style = solid
-  border-color = slate_40
-  background-color = slate_30
-  cursor = pointer
-  transition = all 0.2s ease-in-out
-  @checked {
-    border-width = 0.35rem
-    border-color = sky_40
-    background-color = white
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    display = flex
+    flex_direction = row
+    align_items = center
+    align_self = flex-start
+    gap = 0.5rem
+    cursor = pointer
   }
-  @focused {
-    border-color = sky_40
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+  &:where(:not(label)), > :where(.control) {
+    pointer_events = auto
+    appearance = none
+    width = 1.25rem
+    height = 1.25rem
+    corner = 50%
+    border-width = 0.125rem
+    border-style = solid
+    border-color = slate_40
+    background-color = slate_30
+    cursor = pointer
+    transition = all 0.2s ease-in-out
+    @checked {
+      border-width = 0.35rem
+      border-color = sky_40
+      background-color = white
+    }
+    @focused {
+      border-color = sky_40
+      shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    }
+    @disabled {
+      opacity = 0.5
+      cursor = not-allowed
+      pointer-events = none
+    }
   }
-  @disabled {
-    opacity = 0.5
-    cursor = not-allowed
-    pointer-events = none
+  > :where(#data-widget-control) {
+    pointer_events = inherit
   }
 end
 
@@ -1934,45 +2019,61 @@ end
 // appearance is dropped and the thumb is an `@before` pseudo-element that
 // translates across on `@checked`.
 style switch with
-  pointer_events = auto
-  appearance = none
-  width = 2.25rem
-  height = 1.25rem
-  corner = 1.25rem
-  background-color = slate_45
-  border-width = 0.1875rem
-  border-style = solid
-  border-color = slate_45
-  cursor = pointer
-  position = relative
-  transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out
-  @before {
-    content = ""
-    position = absolute
-    top = 0
-    left = 0
-    width = 0.875rem
-    height = 0.875rem
-    corner = 50%
-    background-color = white
-    transition = transform 0.1s ease-in-out
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
+    display = flex
+    flex_direction = row
+    align_items = center
+    align_self = flex-start
+    gap = 0.5rem
+    cursor = pointer
   }
-  @checked {
-    background-color = sky_40
-    border-color = sky_40
+  &:where(:not(label)), > :where(.control) {
+    pointer_events = auto
+    appearance = none
+    width = 2.25rem
+    height = 1.25rem
+    corner = 1.25rem
+    background-color = slate_45
+    border-width = 0.1875rem
+    border-style = solid
+    border-color = slate_45
+    cursor = pointer
+    position = relative
+    transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out
     @before {
-      transform = translateX(1rem)
+      content = ""
+      position = absolute
+      top = 0
+      left = 0
+      width = 0.875rem
+      height = 0.875rem
+      corner = 50%
+      background-color = white
+      transition = transform 0.1s ease-in-out
+    }
+    @checked {
+      background-color = sky_40
+      border-color = sky_40
+      @before {
+        transform = translateX(1rem)
+      }
+    }
+    -- Translucent ring, and NO border tint: Pico deliberately exempts a switch
+    -- from the focus border colour that checkbox/radio get.
+    @focused {
+      shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    }
+    @disabled {
+      opacity = 0.5
+      cursor = not-allowed
+      pointer-events = none
     }
   }
-  -- Translucent ring, and NO border tint: Pico deliberately exempts a switch
-  -- from the focus border colour that checkbox/radio get.
-  @focused {
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
-  }
-  @disabled {
-    opacity = 0.5
-    cursor = not-allowed
-    pointer-events = none
+  > :where(#data-widget-control) {
+    pointer_events = inherit
   }
 end
 
@@ -2017,111 +2118,125 @@ style textarea with
 end
 
 style slider with
-  pointer_events = auto
-  -- Fills its field like every other form control; a fixed 200px made it the
-  -- one control that did not line up with the inputs above and below it.
-  width = 100%
-  height = 1.25rem
-  corner = 0.25rem
-  background-color = transparent
-  cursor = pointer
-  appearance = none
-  @track {
+  &:where(label) {
+    pointer_events = auto
+    text-weight = 400
+    margin-bottom = 0.375rem
     width = 100%
-    height = 0.375rem
-    corner = 0.25rem
-    background-color = slate_30
-    -- The track lightens under the press, the same tell as the thumb growing.
-    transition = background-color 0.2s ease-in-out
-    -- The FILLED part of the track, left of the thumb.
-    --
-    -- `--_fill-percentage` is computed by the engine from value/min/max and
-    -- re-applied whenever any of them change, so the fill follows the value
-    -- with no `oninput` handler. It has existed and been kept live since the
-    -- slider was written; nothing consumed it, so the mechanism ran on every
-    -- drag and drew nothing.
-    --
-    -- A hard-stop gradient rather than `accent-color`: the reference tints the
-    -- NATIVE control, but `appearance: none` above opts out of native
-    -- rendering entirely, so `accent-color` has nothing left to colour. Once
-    -- the track is ours to draw, the fill has to be ours too.
-    --
-    -- `sky_40` is the progress bar's fill (`progress @fill`). A slider and a
-    -- progress bar are the same picture -- a filled proportion of a track --
-    -- so they should not be two different blues.
-    background-image = linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))
+    > control {
+      margin-top = 0.25rem
+    }
   }
-  @thumb {
-    appearance = none
-    width = 1.25rem
+  &:where(:not(label)), > :where(.control) {
+    pointer_events = auto
+    -- Fills its field like every other form control; a fixed 200px made it the
+    -- one control that did not line up with the inputs above and below it.
+    width = 100%
     height = 1.25rem
-    corner = 50%
-    background-color = slate_50
-    -- `px`, not `rem`, and deliberately -- the only fixed length on the
-    -- control. Every other size here is typographic and scales with the root
-    -- font size (which the reference steps up per breakpoint), but this ring
-    -- is a separator, not type. In `rem` it would be 2.25px at an 18px root
-    -- and 2.5px at 20px, thickening the ring and eating the thumb's fill as
-    -- the page got bigger. The reference hardcodes 2px for the same reason.
-    border-width = 2px
-    border-style = solid
-    -- The ring that separates the thumb from the track, matching the reference
-    -- (`2px solid var(--pico-background-color)`) -- it is the BACKDROP colour,
-    -- not a border in the usual sense, which is why it reads as a gap rather
-    -- than an outline. `slate_20` is this theme's page background; a project on
-    -- a differently-coloured page has to restate it, exactly as Pico would.
-    border-color = slate_20
+    corner = 0.25rem
+    background-color = transparent
     cursor = pointer
-    -- `appearance: none` collapses the track to its own box, so the thumb has
-    -- to be lifted by half its overhang: -(thumb - track) / 2. At 1.25rem over
-    -- a 0.375rem track that is -0.4375rem, and it MOVES if either size changes
-    -- -- the three are one measurement, not three constants.
-    --
-    -- This value did NOT change when the thumb and track were sized up to the
-    -- reference, and that is the whole reason they were able to sit undersized
-    -- unnoticed. Both were an eighth of a rem short (1.125 over 0.25), which
-    -- leaves the DIFFERENCE at 0.875rem either way, so the derived offset was
-    -- correct for the wrong pair. A centred thumb proves nothing about scale.
-    margin-top = -0.4375rem
-    -- `transform` is in the transition because the PRESS animates it. Without
-    -- it the thumb still scales, it just snaps -- the state would be right and
-    -- the motion missing.
-    transition = background-color 0.2s ease-in-out, transform 0.2s ease-in-out
-  }
-  -- The reference tints the thumb on PRESS AND FOCUS, and has no hover state
-  -- at all. We had one, and it was why the press read wrong: the pointer is
-  -- necessarily on top of the thumb at the moment of a press, so a thumb
-  -- already tinted by hover cannot also change colour on press -- the only
-  -- thing left to see was the scale. Dropping hover gives the colour back to
-  -- the press, which is the state that actually means something.
-  --
-  -- Focus is grouped with press because a keyboard user gets no press: arrow
-  -- keys move the value with the control focused and never active, so without
-  -- this the thumb would sit untinted through the whole interaction.
-  --
-  -- `:active`/`:focus` sit on the INPUT and the thumb is a pseudo-element OF
-  -- it, so `@thumb` nests INSIDE them and not the other way round -- a
-  -- pseudo-element cannot itself be active or focused.
-  @pressed, @focused {
+    appearance = none
     @track {
-      background-color = slate_40
+      width = 100%
+      height = 0.375rem
+      corner = 0.25rem
+      background-color = slate_30
+      -- The track lightens under the press, the same tell as the thumb growing.
+      transition = background-color 0.2s ease-in-out
+      -- The FILLED part of the track, left of the thumb.
+      --
+      -- `--_fill-percentage` is computed by the engine from value/min/max and
+      -- re-applied whenever any of them change, so the fill follows the value
+      -- with no `oninput` handler. It has existed and been kept live since the
+      -- slider was written; nothing consumed it, so the mechanism ran on every
+      -- drag and drew nothing.
+      --
+      -- A hard-stop gradient rather than `accent-color`: the reference tints the
+      -- NATIVE control, but `appearance: none` above opts out of native
+      -- rendering entirely, so `accent-color` has nothing left to colour. Once
+      -- the track is ours to draw, the fill has to be ours too.
+      --
+      -- `sky_40` is the progress bar's fill (`progress @fill`). A slider and a
+      -- progress bar are the same picture -- a filled proportion of a track --
+      -- so they should not be two different blues.
+      background-image = linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))
     }
     @thumb {
-      background-color = sky_40
+      appearance = none
+      width = 1.25rem
+      height = 1.25rem
+      corner = 50%
+      background-color = slate_50
+      -- `px`, not `rem`, and deliberately -- the only fixed length on the
+      -- control. Every other size here is typographic and scales with the root
+      -- font size (which the reference steps up per breakpoint), but this ring
+      -- is a separator, not type. In `rem` it would be 2.25px at an 18px root
+      -- and 2.5px at 20px, thickening the ring and eating the thumb's fill as
+      -- the page got bigger. The reference hardcodes 2px for the same reason.
+      border-width = 2px
+      border-style = solid
+      -- The ring that separates the thumb from the track, matching the reference
+      -- (`2px solid var(--pico-background-color)`) -- it is the BACKDROP colour,
+      -- not a border in the usual sense, which is why it reads as a gap rather
+      -- than an outline. `slate_20` is this theme's page background; a project on
+      -- a differently-coloured page has to restate it, exactly as Pico would.
+      border-color = slate_20
+      cursor = pointer
+      -- `appearance: none` collapses the track to its own box, so the thumb has
+      -- to be lifted by half its overhang: -(thumb - track) / 2. At 1.25rem over
+      -- a 0.375rem track that is -0.4375rem, and it MOVES if either size changes
+      -- -- the three are one measurement, not three constants.
+      --
+      -- This value did NOT change when the thumb and track were sized up to the
+      -- reference, and that is the whole reason they were able to sit undersized
+      -- unnoticed. Both were an eighth of a rem short (1.125 over 0.25), which
+      -- leaves the DIFFERENCE at 0.875rem either way, so the derived offset was
+      -- correct for the wrong pair. A centred thumb proves nothing about scale.
+      margin-top = -0.4375rem
+      -- `transform` is in the transition because the PRESS animates it. Without
+      -- it the thumb still scales, it just snaps -- the state would be right and
+      -- the motion missing.
+      transition = background-color 0.2s ease-in-out, transform 0.2s ease-in-out
+    }
+    -- The reference tints the thumb on PRESS AND FOCUS, and has no hover state
+    -- at all. We had one, and it was why the press read wrong: the pointer is
+    -- necessarily on top of the thumb at the moment of a press, so a thumb
+    -- already tinted by hover cannot also change colour on press -- the only
+    -- thing left to see was the scale. Dropping hover gives the colour back to
+    -- the press, which is the state that actually means something.
+    --
+    -- Focus is grouped with press because a keyboard user gets no press: arrow
+    -- keys move the value with the control focused and never active, so without
+    -- this the thumb would sit untinted through the whole interaction.
+    --
+    -- `:active`/`:focus` sit on the INPUT and the thumb is a pseudo-element OF
+    -- it, so `@thumb` nests INSIDE them and not the other way round -- a
+    -- pseudo-element cannot itself be active or focused.
+    @pressed, @focused {
+      @track {
+        background-color = slate_40
+      }
+      @thumb {
+        background-color = sky_40
+      }
+    }
+    -- The GROWTH is press-only, unlike the tint above -- it is the direct
+    -- feedback of a pointer holding the thumb, and the reference scopes it the
+    -- same way (`[type=range]:active::-webkit-slider-thumb`).
+    @pressed {
+      @thumb {
+        transform = scale(1.25)
+      }
+    }
+    @disabled {
+      opacity = 0.5
+      cursor = not-allowed
+      pointer-events = none
     }
   }
-  -- The GROWTH is press-only, unlike the tint above -- it is the direct
-  -- feedback of a pointer holding the thumb, and the reference scopes it the
-  -- same way (`[type=range]:active::-webkit-slider-thumb`).
-  @pressed {
-    @thumb {
-      transform = scale(1.25)
-    }
-  }
-  @disabled {
-    opacity = 0.5
-    cursor = not-allowed
-    pointer-events = none
+  > :where(#data-widget-control) {
+    pointer_events = inherit
   }
 end
 
@@ -2819,48 +2934,52 @@ end
 // Pico marks a search field with an inline magnifier and indents the text
 // past it, so the field reads as a search box before it is focused.
 style search with
-  corner = 5rem
-  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")
-  background-repeat = no-repeat
-  background-position = left 1.125rem center
-  background-size = 1rem auto
-  padding-left = 2.75rem
+  &:where(:not(label)), > :where(.control) {
+    corner = 5rem
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")
+    background-repeat = no-repeat
+    background-position = left 1.125rem center
+    background-size = 1rem auto
+    padding-left = 2.75rem
+  }
 end
 
 // A file input draws its own button, so the surrounding field chrome the
 // other `input` types get would be a box around a box. Pico leaves it bare.
 style file_input with
-  background-color = transparent
-  border-style = none
-  border-width = 0
-  corner = 0
-  padding = 0.375rem 0 0.375rem 0.125rem
-  text-color = slate_60
-  -- Without this the browser paints its own grey 3D button.
-  @file_button {
-    text-leading = 1.5
-    background-color = slate_50
-    border-width = 0.0625rem
-    border-style = solid
-    border-color = slate_50
-    corner = 0.25rem
-    padding = 0.375rem 1rem
-    margin-right = 0.5rem
-    margin-left = 0
-    text-color = white
-    text-size = 1rem
-    text-weight = 400
-    cursor = pointer
-    transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out
-    @hovered {
-      background-color = slate_60
-      border-color = slate_60
+  &:where(:not(label)), > :where(.control) {
+    background-color = transparent
+    border-style = none
+    border-width = 0
+    corner = 0
+    padding = 0.375rem 0 0.375rem 0.125rem
+    text-color = slate_60
+    -- Without this the browser paints its own grey 3D button.
+    @file_button {
+      text-leading = 1.5
+      background-color = slate_50
+      border-width = 0.0625rem
+      border-style = solid
+      border-color = slate_50
+      corner = 0.25rem
+      padding = 0.375rem 1rem
+      margin-right = 0.5rem
+      margin-left = 0
+      text-color = white
+      text-size = 1rem
+      text-weight = 400
+      cursor = pointer
+      transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out
+      @hovered {
+        background-color = slate_60
+        border-color = slate_60
+      }
     }
-  }
-  @disabled {
-    opacity = 0.5
-    cursor = not-allowed
-    pointer-events = none
+    @disabled {
+      opacity = 0.5
+      cursor = not-allowed
+      pointer-events = none
+    }
   }
 end
 
@@ -3259,57 +3378,38 @@ style label with
   }
 end
 
-// The label a text field or slider gets from its own quoted content
-// (`slider "Master Volume"`): the text above the control. It takes the full
-// width the control would take on its own, since the control's `width = 100%`
-// resolves against this label; in a `row` a label sized to its text would
-// shrink the slider to the width of its wording.
-style field_label with
-  width = 100%
-end
-
-// The label a checkbox, radio or switch gets from its own quoted content
-// (`checkbox "Mute Music"`): the control first and its wording beside it, the
-// same row the showcase builds by hand as `label.row` around the control and a
-// `text`. It shrinks to its content so only the control and its wording are a
-// hit target, not the empty width beside them.
-style toggle_label with
-  display = flex
-  flex_direction = row
-  align_items = center
-  align_self = flex-start
-  gap = 0.5rem
-  cursor = pointer
-end
-
 style hint with
   text-color = slate_60
   text-size = 0.875rem
 end
 
 style invalid with
-  border-color = #964a50
-  padding-right = 2.5rem
-  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")
-  background-position = center right 0.75rem
-  background-size = 1rem auto
-  background-repeat = no-repeat
-  @focused {
+  &:where(:not(label)), > :where(.control) {
     border-color = #964a50
-    shadow = 0 0 0 0.0625rem #ce7e7b
+    padding-right = 2.5rem
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")
+    background-position = center right 0.75rem
+    background-size = 1rem auto
+    background-repeat = no-repeat
+    @focused {
+      border-color = #964a50
+      shadow = 0 0 0 0.0625rem #ce7e7b
+    }
   }
 end
 
 style valid with
-  border-color = #2a7b6f
-  padding-right = 2.5rem
-  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
-  background-position = center right 0.75rem
-  background-size = 1rem auto
-  background-repeat = no-repeat
-  @focused {
+  &:where(:not(label)), > :where(.control) {
     border-color = #2a7b6f
-    shadow = 0 0 0 0.0625rem #62af9a
+    padding-right = 2.5rem
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    background-position = center right 0.75rem
+    background-size = 1rem auto
+    background-repeat = no-repeat
+    @focused {
+      border-color = #2a7b6f
+      shadow = 0 0 0 0.0625rem #62af9a
+    }
   }
 end
 

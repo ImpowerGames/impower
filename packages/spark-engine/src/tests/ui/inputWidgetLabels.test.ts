@@ -1,7 +1,9 @@
 // An input widget's quoted content is its visible label (Widgets.md §5.1):
 // `slider "Master Volume"` labels the slider. The widget renders as a real
 // <label> holding the text and the <input>, so the text names the control and a
-// click on it reaches the control.
+// click on it reaches the control. The label is the widget's element: it
+// carries the widget's name, classes and style props, and the <input> inside
+// it takes the attributes, bindings and events.
 
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
@@ -120,8 +122,10 @@ end
     const input = ui().find(
       (m) => m.method === "ui/create" && m.params.type === "input",
     ).params;
+    // The label holds the control, so hiding the label hides both.
     expect(label.style?.displayed).toBe("true");
-    expect(input.style?.displayed).toBe("true");
+    expect(input.parent).toBe(label.element);
+    expect(input.style?.displayed).toBeUndefined();
 
     // Ids are numbered in first-seen order, so messages sent after a point
     // keep the numbering of the creates above.
@@ -133,9 +137,7 @@ end
       .filter(
         (m) => m.method === "ui/update" && m.params.style?.displayed === "false",
       );
-    expect(hidden.map((m) => m.params.element).sort()).toEqual(
-      [label.element, input.element].sort(),
-    );
+    expect(hidden.map((m) => m.params.element)).toEqual([label.element]);
 
     seen = ui().length;
     (h.game.module.ui as any).hide("slider");
@@ -146,12 +148,10 @@ end
       .filter(
         (m) => m.method === "ui/update" && m.params.style?.display === "none",
       );
-    expect(hiddenByName.map((m) => m.params.element).sort()).toEqual(
-      [label.element, input.element].sort(),
-    );
+    expect(hiddenByName.map((m) => m.params.element)).toEqual([label.element]);
   });
 
-  test("a widget-wide binding is evaluated once for label and control", async () => {
+  test("a widget's style binding is evaluated once", async () => {
     const h = createHarness(
       `store calls = 0
 store flag = true
@@ -177,7 +177,7 @@ end
     ).params;
     expect(vs.$("calls")).toBe(1);
     expect(label.style?.displayed).toBe("true");
-    expect(input.style?.displayed).toBe("true");
+    expect(input.style?.displayed).toBeUndefined();
 
     const seen = ui().length;
     vs.$("flag", false);
@@ -188,12 +188,10 @@ end
       .filter(
         (m) => m.method === "ui/update" && m.params.style?.displayed === "false",
       );
-    expect(hidden.map((m) => m.params.element).sort()).toEqual(
-      [label.element, input.element].sort(),
-    );
+    expect(hidden.map((m) => m.params.element)).toEqual([label.element]);
   });
 
-  test("a widget that is not interactable has a label that is not either", async () => {
+  test("a widget that is not interactable is so as a whole", async () => {
     const h = createHarness(
       `store locked = true
 layout settings with
@@ -211,9 +209,12 @@ end
     const input = ui().find(
       (m) => m.method === "ui/create" && m.params.type === "input",
     ).params;
-    // The label's wording would otherwise activate the control natively.
+    // The label's wording would otherwise activate the control natively. The
+    // control inherits the label's pointer setting through its builtin style
+    // (the `&:where(label)` rule of each control style in builtins.sd).
     expect(label.style?.interactable).toBe("false");
-    expect(input.style?.interactable).toBe("false");
+    expect(input.name).toBe("control");
+    expect(input.style?.interactable).toBeUndefined();
 
     const seen = ui().length;
     (h.game.story as any).variablesState.$("locked", false);
@@ -223,9 +224,106 @@ end
       .filter(
         (m) => m.method === "ui/update" && m.params.style?.interactable === "true",
       );
-    expect(unlocked.map((m) => m.params.element).sort()).toEqual(
-      [label.element, input.element].sort(),
+    expect(unlocked.map((m) => m.params.element)).toEqual([label.element]);
+  });
+
+  test("a labelled control with a handler leaves the pointer to its label", async () => {
+    const h = createHarness(
+      `store locked = false
+store muted = false
+layout settings with
+  checkbox "Mute Music" #interactable={not locked} #checked={muted} @change={ muted = event.checked }
+  checkbox #checked={muted} @change={ muted = event.checked }
+end
+`,
+      0,
+      { reactive: true },
     );
+    await h.ready;
+    const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
+    const pointerStyles = (element: string) =>
+      ui()
+        .filter(
+          (m) =>
+            m.params?.element === element &&
+            (m.method === "ui/create" || m.method === "ui/update"),
+        )
+        .map((m) => m.params.style?.pointer_events)
+        .filter((v) => v !== undefined);
+    const [label] = createdOfType(h, "label");
+    const [control, bare] = createdOfType(h, "input");
+    expect(control.parent).toBe(label.element);
+    // An inline opt-in on the control would outrank the lock it inherits from
+    // the label, so a locked widget's box would still toggle.
+    expect(pointerStyles(control.element)).toEqual([]);
+    // A bare control still opts itself in.
+    expect(pointerStyles(bare.element)).toEqual(["auto"]);
+    // Both controls are still observed for their handlers.
+    expect(h.observedElementIds()).toHaveLength(2);
+
+    (h.game.story as any).variablesState.$("locked", true);
+    (h.game.module.ui as any).refreshLayouts();
+    expect(pointerStyles(control.element)).toEqual([]);
+    const locks = ui().filter(
+      (m) => m.method === "ui/update" && m.params.style?.interactable === "false",
+    );
+    expect(locks.map((m) => m.params.element)).toEqual([label.element]);
+  });
+
+  test("only the ui marks a labelled widget's control", async () => {
+    const h = createHarness(
+      `store flag = "yes"
+layout settings with
+  checkbox "Labelled"
+  checkbox
+  box "Author box" #data-widget-control="yes" #data-other="kept"
+  box "Mixed case" #data-Widget-Control="yes"
+  box "Bound" #data-widget-control={flag}
+  checkbox "Labelled, authored too" #data-widget-control={flag}
+  dropdown {
+    option "Option" #data-widget-control="yes" #DATA-WIDGET-CONTROL="yes"
+  }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const [control, bare] = createdOfType(h, "input");
+    // The builtin styles tell a labelled widget's control from anything an
+    // author builds by this attribute.
+    expect(control.attributes?.["data-widget-control"]).toBe("");
+    expect(bare.attributes?.["data-widget-control"]).toBeUndefined();
+    const box = creates(h).find((p) => p.name === "box");
+    expect(box.attributes?.["data-other"]).toBe("kept");
+
+    /** Elements given the marker in any spelling (HTML attribute names are
+     *  case-insensitive), with the value given, across creates and updates,
+     *  beside the labelled controls, from one query so ids agree. */
+    const markedAndLabelled = () => {
+      const params = h.snapshotFiltered("ui/").map((m: any) => m.params);
+      const marked = params.flatMap((p: any) =>
+        Object.entries(p?.attributes ?? {})
+          .filter(([k]) => k.toLowerCase() === "data-widget-control")
+          .map(([, v]) => [p.element, v]),
+      );
+      const labels = new Set(
+        params.filter((p: any) => p?.type === "label").map((p: any) => p.element),
+      );
+      const labelled = params
+        .filter((p: any) => p?.type === "input" && labels.has(p.parent))
+        .map((p: any) => [p.element, ""]);
+      return { marked, labelled };
+    };
+    // Only the two labelled controls, each with the ui's own empty value: no
+    // authored spelling, bound value or option prop reaches the attribute.
+    const before = markedAndLabelled();
+    expect(before.labelled).toHaveLength(2);
+    expect(before.marked).toEqual(before.labelled);
+    (h.game.story as any).variablesState.$("flag", "changed");
+    (h.game.module.ui as any).refreshLayouts();
+    const after = markedAndLabelled();
+    expect(after.marked).toEqual(after.labelled);
   });
 
   test("removing a labelled widget drops its control's event handler", async () => {
@@ -361,11 +459,117 @@ end
       "transition-duration": "2s",
     });
     expect(input.style?.["margin-left"]).toBeUndefined();
-    // The control keeps its transition for whatever changes on it.
-    expect(input.style?.["transition-duration"]).toBe("2s");
+    expect(input.style?.["transition-duration"]).toBeUndefined();
   });
 
-  test("props, bindings and write-back stay on the control", async () => {
+  // `#translate` is not among them: `translate` is an HTML attribute, so the
+  // prop is one on every element. A style's `translate` reaches the label as a
+  // class does.
+  test("a labelled widget's opacity, transforms, width and animation act on all of it", async () => {
+    const h = createHarness(
+      `store fade = 0.5
+layout settings with
+  slider "Styled" #opacity={fade} #rotate="5deg" #scale=2 #width="40%" #animation="spin 1s" #value=5
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
+    const [label] = createdOfType(h, "label");
+    const [input] = createdOfType(h, "input");
+    const props = {
+      opacity: "0.5",
+      rotate: "5deg",
+      scale: "2",
+      width: "40%",
+      animation: "spin 1s",
+    };
+    expect(label.style).toMatchObject(props);
+    for (const prop of Object.keys(props)) {
+      expect(input.style?.[prop], prop).toBeUndefined();
+    }
+
+    const seen = ui().length;
+    (h.game.story as any).variablesState.$("fade", 1);
+    (h.game.module.ui as any).refreshLayouts();
+    const faded = ui()
+      .slice(seen)
+      .filter((m) => m.method === "ui/update" && m.params.style?.opacity === "1");
+    expect(faded.map((m) => m.params.element)).toEqual([label.element]);
+  });
+
+  test("a class on a labelled widget reaches its label and control", async () => {
+    const h = createHarness(
+      `style concealed with
+  displayed = false
+end
+layout settings with
+  slider.concealed "Secret volume" #value=5
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const all = creates(h);
+    const classed = all.filter((p) => p.name?.split(" ").includes("concealed"));
+    // One element carries the class, and it holds both the wording and the
+    // control, so the style hides them together.
+    expect(classed).toHaveLength(1);
+    const [outer] = classed;
+    expect(textsUnder(h, outer.element)).toEqual(["Secret volume"]);
+    const [input] = createdOfType(h, "input");
+    expect(input.parent).toBe(outer.element);
+  });
+
+  test("a labelled widget is found by its name", async () => {
+    const h = createHarness(
+      `layout settings with
+  checkbox.big "Big box"
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const [label] = createdOfType(h, "label");
+    expect(label.name).toBe("checkbox big");
+    // The control inside it is named `control`, so the widget's name finds the
+    // label alone.
+    const found = (h.game.module.ui as any)
+      .findElements("checkbox big")
+      .map((el: any) => el.type);
+    expect(found).toEqual(["label"]);
+  });
+
+  test("a widget's name finds it labelled or bare alike", async () => {
+    const h = createHarness(
+      `layout settings with
+  column {
+    slider "Named volume" #value=50
+    slider #value=50
+  }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    // A bare slider is named exactly `slider`, so the labelled one must be an
+    // exact match too or `[[hide slider]]` would skip it. The player resolves a
+    // transition's targets by the same rule against the created names.
+    const found = (h.game.module.ui as any)
+      .findElements("slider")
+      .map((el: any) => [el.type, el.name]);
+    expect(found).toEqual([
+      ["label", "slider"],
+      ["input", "slider"],
+    ]);
+  });
+
+  test("style props act on the widget; attributes, bindings and write-back on the control", async () => {
     const h = createHarness(
       `store volume = 80
 layout settings with
@@ -378,10 +582,9 @@ end
     await h.ready;
     const [input] = createdOfType(h, "input");
     expect(input.attributes).toMatchObject({ min: "0", max: "100", value: "80" });
-    expect(input.style?.["background-color"]).toBe("red");
     const [label] = createdOfType(h, "label");
-    expect(label.style?.["background-color"]).toBeUndefined();
-    // Margin places the widget among its siblings, so it is the label's.
+    expect(label.style?.["background-color"]).toBe("red");
+    expect(input.style?.["background-color"]).toBeUndefined();
     expect(label.style?.["margin-bottom"]).toBe("18");
     expect(input.style?.["margin-bottom"]).toBeUndefined();
     // The control is the one element observed for events.
