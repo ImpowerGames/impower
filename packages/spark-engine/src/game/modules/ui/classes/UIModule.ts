@@ -20,6 +20,8 @@ import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
+  DISPLAY_TARGET_ATTRIBUTE,
+  DISPLAY_TARGETS,
   HANDLER_ATTRIBUTE,
   isAttributeProp,
   isReservedAttribute,
@@ -673,6 +675,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  navigated, a loading screen, a binding's update. A display whose beat
    *  leaves it where its restore did changed only content. */
   protected _screenEdits = 0;
+
+  /** Whether an element carrying a display target's class was made or
+   *  destroyed since the display targets were last marked (I-1595). */
+  protected _displayTargetsChanged = false;
+
+  /** The `DISPLAY_TARGET_ATTRIBUTE` value the page was last told each
+   *  element carries, null for none. */
+  protected _displayTargetMarks = new WeakMap<Element, string | null>();
 
   /** Whether `refreshLayouts` is applying the bindings' updates. */
   protected _refreshing = false;
@@ -1384,12 +1394,95 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  targets them) and by the microtask net. No-op when the buffer is empty. */
   protected flushUIBatch(): void {
     this._uiBatchScheduled = false;
+    this.markDisplayTargets();
     if (this._uiBatch.length === 0) {
       return;
     }
     const messages = this._uiBatch;
     this._uiBatch = [];
     this.emit(BatchElementsMessage.type.notification({ messages }));
+  }
+
+  /** The elements a text or image write to a display target reaches. The
+   *  story writes each choice to `choice 0`, `choice 1` and so on, so
+   *  `choice` reaches what each of those reaches, for every index an element
+   *  carrying `choice` names. */
+  protected displayTargetElements(root: Element, target: string): Element[] {
+    if (target !== "choice") {
+      return this.findElements(target, true);
+    }
+    const indexes = new Set<string>();
+    for (const element of this.searchForAll(root, target)) {
+      for (const c of element.name.split(" ")) {
+        if (/^\d+$/.test(c)) {
+          indexes.add(c);
+        }
+      }
+    }
+    return [...indexes].flatMap((i) =>
+      this.findElements(`${target} ${i}`, true),
+    );
+  }
+
+  /** Whether an element's classes name one of the display targets. */
+  protected carriesDisplayTarget(element: Element): boolean {
+    return element.name.split(" ").some((c) => DISPLAY_TARGETS.includes(c));
+  }
+
+  /** Mark each element with the display targets whose writes reach it, as
+   *  the space-separated value of `DISPLAY_TARGET_ATTRIBUTE`, and unmark the
+   *  rest. The builtin style named after a target selects that target's name
+   *  in the value (I-1595), so a `row.dialogue.title` that is only the
+   *  `dialogue` slot takes the dialogue style and not the title style. Which
+   *  elements a target reaches depends on the whole tree: a container
+   *  carrying `title` is the target's slot only while no element is named
+   *  `title`. So the marks are worked out again before a batch goes whenever
+   *  an element carrying a target's class came or went, and go in that
+   *  batch, before the page paints. Each element that carries a target's
+   *  class is told its mark once, even unmarked: a live preview reuses a node
+   *  the last render may have marked. */
+  protected markDisplayTargets(): void {
+    if (!this._displayTargetsChanged || this._game.replaying) {
+      return;
+    }
+    this._displayTargetsChanged = false;
+    const root = this._root;
+    if (!root) {
+      return;
+    }
+    const reached = new Map<Element, string[]>();
+    for (const target of DISPLAY_TARGETS) {
+      for (const element of this.displayTargetElements(root, target)) {
+        const targets = reached.get(element);
+        if (targets) {
+          if (!targets.includes(target)) {
+            targets.push(target);
+          }
+        } else {
+          reached.set(element, [target]);
+        }
+      }
+    }
+    const visit = (element: Element) => {
+      if (this.carriesDisplayTarget(element)) {
+        const mark = reached.get(element)?.join(" ") ?? null;
+        if (this._displayTargetMarks.get(element) !== mark) {
+          this._displayTargetMarks.set(element, mark);
+          // Sent as is rather than through `updateElement`: the mark is not
+          // a change to what the element shows (#657).
+          this._uiBatch.push(
+            UpdateElementMessage.type.request({
+              element: element.id,
+              attributes: { [DISPLAY_TARGET_ATTRIBUTE]: mark },
+            }),
+          );
+        }
+      }
+      for (const child of element.children) {
+        visit(child);
+      }
+    };
+    visit(root);
   }
 
   /**
@@ -1688,6 +1781,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const breakpoints = this.context.config?.ui?.breakpoints;
     const el = new Element(parent, id, type, name, before);
     this._screenEdits += 1;
+    if (this.carriesDisplayTarget(el)) {
+      this._displayTargetsChanged = true;
+    }
     const isRootElement = !parent;
     if (isRootElement) {
       this._root = el;
@@ -1756,6 +1852,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const subtree: string[] = [];
     const collect = (el: Element) => {
       subtree.push(el.id);
+      if (this.carriesDisplayTarget(el)) {
+        this._displayTargetsChanged = true;
+      }
       for (const child of el.children) {
         collect(child);
       }

@@ -1611,25 +1611,40 @@ style stage with
   flex_direction = column
 end
 
+// The style named after each of the story's display targets (`backdrop`,
+// `portrait`, and the textbox's `character_name` through `action` below)
+// applies through `&:where(#data-display-target~=<target>)`. The ui gives
+// `data-display-target` to exactly the elements a write to such a target
+// reaches (the builtin element named after it, or the container that is its
+// slot in a layout that replaces `main`), holding the names of the targets
+// that reach each one. No author can write that attribute, so an author's
+// `text.title` inside a column keeps the column's flow instead of taking the
+// target's absolute, centered box, and a `row.dialogue.title` that is only
+// the dialogue slot takes the dialogue style alone. The `:where` adds no
+// specificity, so each style keeps the specificity of its class.
 style backdrop with
-  position = absolute
-  inset = 0
-  background_position = center
-  background_size = cover
+  &:where(#data-display-target~=backdrop) {
+    position = absolute
+    inset = 0
+    background_position = center
+    background_size = cover
+  }
 end
 
 style portrait with
-  position = absolute
-  top = 10%
-  right = 0
-  bottom = 0
-  left = 0
-  display = flex
-  flex_direction = column
-  background_size = auto 100%
-  background_position = center
-  > image >> * {
-    mix_blend_mode = plus-lighter
+  &:where(#data-display-target~=portrait) {
+    position = absolute
+    top = 10%
+    right = 0
+    bottom = 0
+    left = 0
+    display = flex
+    flex_direction = column
+    background_size = auto 100%
+    background_position = center
+    > image >> * {
+      mix_blend_mode = plus-lighter
+    }
   }
 end
 
@@ -1648,22 +1663,28 @@ style choices with
   }
 end
 
+// The story writes each choice to `choice 0`, `choice 1` and so on, and the
+// ui marks every element those writes reach with `choice`, so this style
+// reaches the story's choices and not an author's `button.choice`, as
+// `style backdrop` describes for the other display targets.
 style choice with
-  display = flex
-  flex_direction = row
-  width = 90%
-  max_width = 800px
-  background_color = rgb(0 0 0 / 65%)
-  padding = 8px
-  border_radius = 8px
-  border = 1px solid
-  text_align = center
-  align_items = center
-  justify_content = center
-  cursor = pointer
-  @hovered {
-    background_color = black
-    transition = all 0.15s linear
+  &:where(#data-display-target~=choice) {
+    display = flex
+    flex_direction = row
+    width = 90%
+    max_width = 800px
+    background_color = rgb(0 0 0 / 65%)
+    padding = 8px
+    border_radius = 8px
+    border = 1px solid
+    text_align = center
+    align_items = center
+    justify_content = center
+    cursor = pointer
+    @hovered {
+      background_color = black
+      transition = all 0.15s linear
+    }
   }
 end
 
@@ -3482,78 +3503,94 @@ style character_info with
   }
 end
 
+// The textbox's display targets, scoped to `data-display-target` as
+// `style backdrop` describes.
 style character_name with
-  padding_bottom = 8px
-  font_weight = 600
+  &:where(#data-display-target~=character_name) {
+    padding_bottom = 8px
+    font_weight = 600
+  }
 end
 
 style character_parenthetical with
-  padding_bottom = 8px
-  font_weight = 400
-  font_size = 1rem
-  @screen_size(sm) {
-    font_size = 0.875rem
+  &:where(#data-display-target~=character_parenthetical) {
+    padding_bottom = 8px
+    font_weight = 400
+    font_size = 1rem
+    @screen_size(sm) {
+      font_size = 0.875rem
+    }
   }
 end
 
 style title with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = center
-  text_align = center
-  font_weight = bold
+  &:where(#data-display-target~=title) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = center
+    text_align = center
+    font_weight = bold
+  }
 end
 
 style heading with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = center
-  text_align = center
-  font_weight = bold
+  &:where(#data-display-target~=heading) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = center
+    text_align = center
+    font_weight = bold
+  }
 end
 
 style transitional with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  padding_bottom = 24px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = flex-end
-  text_align = right
-  width = 100%
+  &:where(#data-display-target~=transitional) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    padding_bottom = 24px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = flex-end
+    text_align = right
+    width = 100%
+  }
 end
 
 style dialogue with
-  margin = 0 auto
-  width = 68%
-  @screen_size(sm) {
-    width = 80%
+  &:where(#data-display-target~=dialogue) {
+    margin = 0 auto
+    width = 68%
+    @screen_size(sm) {
+      width = 80%
+    }
   }
 end
 
 style action with
-  position = absolute
-  inset = 0
-  padding_left = 40px
-  padding_right = 40px
-  display = flex
-  flex_direction = column
-  justify_content = center
-  align_self = center
-  text_align = center
+  &:where(#data-display-target~=action) {
+    position = absolute
+    inset = 0
+    padding_left = 40px
+    padding_right = 40px
+    display = flex
+    flex_direction = column
+    justify_content = center
+    align_self = center
+    text_align = center
+  }
 end
 
 style continue_indicator with

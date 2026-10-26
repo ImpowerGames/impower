@@ -160,9 +160,36 @@ export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
  */
 export const HANDLER_ATTRIBUTE = "data-ui-handler";
 
+/**
+ * The attribute the ui sets on each element a write to one of the
+ * {@link DISPLAY_TARGETS} reaches (the builtin element named after it, or the
+ * container that is its slot in a layout that replaces `main`), holding the
+ * names of the targets that reach it, space-separated. The builtin style
+ * named after each target applies only where its name is in the value, so an
+ * author's `text.title` keeps its own layout. Only the ui writes it.
+ */
+export const DISPLAY_TARGET_ATTRIBUTE = "data-display-target";
+
+/** The story's display targets whose builtin styles the ui scopes to
+ *  {@link DISPLAY_TARGET_ATTRIBUTE}. `choice` stands for the targets the
+ *  story writes each choice to, `choice 0`, `choice 1` and so on. */
+export const DISPLAY_TARGETS: readonly string[] = [
+  "backdrop",
+  "portrait",
+  "character_name",
+  "character_parenthetical",
+  "title",
+  "heading",
+  "transitional",
+  "dialogue",
+  "action",
+  "choice",
+];
+
 const RESERVED_ATTRIBUTES = new Set([
   WIDGET_CONTROL_ATTRIBUTE,
   HANDLER_ATTRIBUTE,
+  DISPLAY_TARGET_ATTRIBUTE,
 ]);
 
 /** Whether an authored prop names one of the ui's reserved markers. HTML
