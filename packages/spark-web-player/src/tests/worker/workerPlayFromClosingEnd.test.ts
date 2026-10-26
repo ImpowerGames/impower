@@ -30,11 +30,30 @@ scene other
 end
 `;
 
+// Entering the scene enters its first branch, which ends on "First."; nothing
+// enters the second.
+const BRANCHES_ONLY = `scene start
+  branch first
+    First.
+    done
+  end
+  branch unused
+    Unused.
+    done
+  end
+end
+scene other
+  Other.
+end
+`;
+
 const CASES = [
   // The flow below shows "Other.".
   ["a scene's end", SCENES, 3, "First.", ["Other."]],
   // The branch inside the scene shows "Unused.".
   ["a scene's end below a branch it holds", SCENE_WITH_BRANCH, 7, "Main.", ["Unused.", "Other."]],
+  // The scene runs nothing of its own before the branch it enters.
+  ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."]],
   // The line above is the divert the branch leaves by, which shows the beat
   // it leads to; the branch below shows "Visit 2 t.".
   ["the end of a branch that diverts out", BRANCHES, 8, "Second 4 b.", ["Visit"]],
@@ -112,12 +131,14 @@ const EMPTY_CASES = [
 ] as const;
 
 describe("PLAY and the preview at an empty scene or branch", () => {
-  // No run displays a beat before these flows, so PLAY shows none, as at a
-  // `done` with nothing above it.
+  // No run displays a beat before these flows, so PLAY starts and ends
+  // without showing one.
   it.each(EMPTY_CASES)(
-    "PLAY from %s shows nothing of the flow below",
+    "PLAY from %s starts and ends without the flow below",
     async (_name, source, line) => {
       const outcome = await playFrom(source, line);
+      expect(outcome.started).toBe(true);
+      expect(outcome.exited).toEqual(["finished"]);
       expect(outcome.text).not.toContain("Other.");
     },
     120_000,

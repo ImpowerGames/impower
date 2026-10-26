@@ -196,6 +196,10 @@ interface WorkerPlay {
   /** `player/startPlay` is sent: the game runs in the worker, whatever the
    *  start still brings it to. */
   startSent?: boolean;
+  /** The story finished, which ends the run as STOP would: a run that
+   *  finishes while it starts (a line no beat was displayed before, such
+   *  as an empty scene's) started and ended. */
+  finished?: boolean;
 }
 
 export interface GamePlayerRefs {
@@ -2161,7 +2165,8 @@ export class GamePlayerController {
       });
       for (;;) {
         if (!current()) {
-          return false;
+          // A story that finished as it started ran: PLAY started and ended.
+          return play.finished === true;
         }
         if (app.paused !== workerPaused) {
           workerPaused = app.paused;
@@ -2326,6 +2331,9 @@ export class GamePlayerController {
   ) {
     this._stops += 1;
     const plays = this._plays;
+    if (reason === "finished" && this._workerPlay) {
+      this._workerPlay.finished = true;
+    }
     // PLAY's game in the worker answers where it last executed as it stops.
     const lastExecutedLocation = await this.endWorkerPlay();
     // The author can press PLAY again at any step of this STOP: the new run
