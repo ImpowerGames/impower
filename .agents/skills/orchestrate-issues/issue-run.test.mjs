@@ -126,6 +126,14 @@ try {
   const stopped = later({ invocation: "Use orchestrate-issues for #109; stop at ready PRs.", merging: "maintainer" }).record;
   assert.deepEqual([run.coordinatorMerges(stopped), stopped.authority, stopped.log.at(-1).replaced], [false, run.AUTHORITY, { text: "Use orchestrate-issues for #109.", merging: "coordinator" }]);
   assert.equal(later().record.invocation.text, "Use orchestrate-issues for #109.");
+  // Git Bash rewrites a leading slash into its install path before node starts,
+  // so a request in that shape is refused rather than recorded or replaced.
+  for (const converted of ["C:/Program Files/Git/orchestrate-issues #I-109", "D:\\Git\\orchestrate-issues I-109"]) {
+    assert.throws(() => later({ invocation: converted }), /rewritten by the shell.*MSYS_NO_PATHCONV=1/);
+    assert.throws(() => run.mergingFor(converted, "coordinator"), /rewritten by the shell/);
+  }
+  assert.equal(later().record.invocation.text, "Use orchestrate-issues for #109.", "a refused request leaves the recorded one");
+  assert.equal(later({ invocation: "/orchestrate-issues #I-109" }).record.invocation.text, "/orchestrate-issues #I-109");
   const second = path.join(artifacts, "second.json");
   assert.throws(() => init({ record: second, coordinator: "local_b" }), /already has coordinator local_a/);
   assert.throws(() => init({ record: second, coordinator: "local_b", takeover: true, observations: { sessions: { local_a: { state: "idle" } } } }), /Takeover refused: .* waiting/);

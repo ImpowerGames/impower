@@ -12,7 +12,7 @@
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
 | Private artifacts       | Exclusive directory per agent/attempt; parent scratchpads may be shared; resolve-issue writers use its [allocator](resolve-issue/SKILL.md#0-preflight) | Same                                                                                |
 | Observe completion      | Await task status or CLI process exit, then read the review thread's paginated comments | Same                                                                                |
-| Shell backslashes       | Bash tool collapses `\\` to `\`; PowerShell tool preserves them        | Not measured                                                                        |
+| Shell rewrites          | Bash collapses `\\`→`\`, rewrites leading `/`; PowerShell preserves both | Not measured                                                                        |
 
 ## Review execution
 

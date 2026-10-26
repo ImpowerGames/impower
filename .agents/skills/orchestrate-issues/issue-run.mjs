@@ -288,7 +288,13 @@ export const MERGING = ["coordinator", "maintainer"];
 // stop-at-ready is the same request.
 export const STOP_AT_READY = /stop(?:s|ping)? at (?:the )?ready|do(?:n't| not) merge|without merging|leave (?:the )?merg|maintainer merges/i;
 export const stopsAtReady = (text) => STOP_AT_READY.test(String(text ?? "").replace(/[-_]+/g, " "));
+// Git Bash rewrites an argument that begins with a slash, such as a slash
+// command, into a path under its install root before the program starts. A
+// request that begins with a drive letter is that rewrite, and the typed text
+// cannot be recovered from it, so it is refused rather than guessed at.
+export const SHELL_REWRITTEN = /^[A-Za-z]:[\\/]/;
 export function mergingFor(invocation, merging = "maintainer") {
+  if (SHELL_REWRITTEN.test(String(invocation ?? ""))) throw new Error(`The request "${invocation}" was rewritten by the shell: Git Bash turns a leading slash into its install path. Pass it intact with MSYS_NO_PATHCONV=1 before the command, or run the command through PowerShell`);
   if (!MERGING.includes(merging)) throw new Error(`--merging must be ${MERGING.join(" or ")}: coordinator when the request explicitly asks to orchestrate the parent issue, maintainer when it stops at ready PRs`);
   if (merging === "coordinator" && stopsAtReady(invocation)) throw new Error(`The request "${invocation}" asks to stop at ready PRs or not to merge; record --merging maintainer`);
   return merging;
