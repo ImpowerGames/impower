@@ -1638,7 +1638,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "pointer_events": "auto",
                     "text-weight": "400",
                   },
-                  "> :where(.control)": {
+                  "> :where(#data-widget-control)": {
                     "pointer_events": "inherit",
                   },
                 },
@@ -2187,7 +2187,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "text-weight": "400",
                     "width": "100%",
                   },
-                  "> :where(.control)": {
+                  "> :where(#data-widget-control)": {
                     "pointer_events": "inherit",
                   },
                 },
@@ -2255,7 +2255,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "layouts",
                   "$type": "style",
                   "& >> #tooltip": {
-                    "&:where(:not(label>.control))": {
+                    "&:where(:not(#data-widget-control))": {
                       "pointer_events": "auto",
                     },
                     "@after": {
@@ -2752,7 +2752,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "pointer_events": "auto",
                     "text-weight": "400",
                   },
-                  "> :where(.control)": {
+                  "> :where(#data-widget-control)": {
                     "pointer_events": "inherit",
                   },
                 },
@@ -2855,7 +2855,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "text-weight": "400",
                     "width": "100%",
                   },
-                  "> :where(.control)": {
+                  "> :where(#data-widget-control)": {
                     "pointer_events": "inherit",
                   },
                 },
@@ -2970,7 +2970,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "pointer_events": "auto",
                     "text-weight": "400",
                   },
-                  "> :where(.control)": {
+                  "> :where(#data-widget-control)": {
                     "pointer_events": "inherit",
                   },
                 },

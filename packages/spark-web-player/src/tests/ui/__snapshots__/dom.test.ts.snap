@@ -491,7 +491,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -906,7 +906,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -988,7 +988,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -1032,7 +1032,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -1089,7 +1089,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -1186,7 +1186,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -2744,7 +2744,7 @@ exports[`dom render > image show renders background span + img 1`] = `
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -3159,7 +3159,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -3241,7 +3241,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -3285,7 +3285,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -3342,7 +3342,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -3439,7 +3439,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -4959,7 +4959,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -5374,7 +5374,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -5456,7 +5456,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -5500,7 +5500,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -5557,7 +5557,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -5654,7 +5654,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -7296,7 +7296,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -7711,7 +7711,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -7793,7 +7793,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -7837,7 +7837,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -7894,7 +7894,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -7991,7 +7991,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -9492,7 +9492,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -9907,7 +9907,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -9989,7 +9989,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -10033,7 +10033,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -10090,7 +10090,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -10187,7 +10187,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -11670,7 +11670,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -12085,7 +12085,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -12167,7 +12167,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -12211,7 +12211,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -12268,7 +12268,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -12365,7 +12365,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -13898,7 +13898,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -14313,7 +14313,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -14395,7 +14395,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -14439,7 +14439,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -14496,7 +14496,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -14593,7 +14593,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -16093,7 +16093,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -16508,7 +16508,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -16590,7 +16590,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -16634,7 +16634,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -16691,7 +16691,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -16788,7 +16788,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -18288,7 +18288,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -18703,7 +18703,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -18785,7 +18785,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -18829,7 +18829,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -18886,7 +18886,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -18983,7 +18983,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -20483,7 +20483,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -20898,7 +20898,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -20980,7 +20980,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -21024,7 +21024,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -21081,7 +21081,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -21178,7 +21178,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -22678,7 +22678,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -23093,7 +23093,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -23175,7 +23175,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -23219,7 +23219,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -23276,7 +23276,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -23373,7 +23373,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }

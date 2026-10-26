@@ -1273,11 +1273,12 @@ style layouts with
     -- has to opt the element IN -- otherwise the bubble is styled perfectly
     -- and simply never appears.
     --
-    -- Except the `control` a labelled widget holds in its `label`: it takes
-    -- the pointer from that label, so a widget locked with
-    -- `interactable = false` stays locked when its control carries a
-    -- tooltip. An author's own element with a `control` class still opts in.
-    &:where(:not(label>.control)) {
+    -- Except the control inside a labelled widget, which the ui marks with
+    -- `data-widget-control`: it takes the pointer from its label, so a widget
+    -- locked with `interactable = false` stays locked when its control
+    -- carries a tooltip. Only the ui writes that marker, so every element an
+    -- author builds still opts in, whatever its classes or parent.
+    &:where(:not(#data-widget-control)) {
       pointer_events = auto
     }
     -- BUBBLE.
@@ -1799,13 +1800,15 @@ end
 //   where an author's later rule for the same name wins over them, and a
 //   state rule (`@checked`, `@focused`, `@disabled`) keeps its extra
 //   pseudo-class, as before.
-// - `> :where(.control)`, last, hands the label's pointer setting to the
-//   control, so `interactable = false` on the widget, as a prop or a class,
-//   reaches it. It follows the control's own `pointer_events = auto` so it
-//   wins over it at the same specificity, while `@disabled` and an author's
-//   own `> control` rule still win over it. The engine and the tooltip rule
-//   in `style layouts` leave such a control's pointer to its label for the
-//   same reason.
+// - `> :where(#data-widget-control)`, last, hands the label's pointer setting
+//   to the control, so `interactable = false` on the widget, as a prop or a
+//   class, reaches it. The ui marks a labelled widget's control with
+//   `data-widget-control` and no author can write that attribute, so the rule
+//   reaches that control and nothing an author builds. It follows the
+//   control's own `pointer_events = auto` so it wins over it at the same
+//   specificity, while `@disabled` and an author's own `> control` rule still
+//   win over it. The engine and the tooltip rule in `style layouts` leave
+//   such a control's pointer to its label for the same reason.
 style checkbox with
   &:where(label) {
     pointer_events = auto
@@ -1853,7 +1856,7 @@ style checkbox with
       pointer-events = none
     }
   }
-  > :where(.control) {
+  > :where(#data-widget-control) {
     pointer_events = inherit
   }
 end
@@ -1962,7 +1965,7 @@ style input with
       shadow = none
     }
   }
-  > :where(.control) {
+  > :where(#data-widget-control) {
     pointer_events = inherit
   }
 end
@@ -2006,7 +2009,7 @@ style radio with
       pointer-events = none
     }
   }
-  > :where(.control) {
+  > :where(#data-widget-control) {
     pointer_events = inherit
   }
 end
@@ -2069,7 +2072,7 @@ style switch with
       pointer-events = none
     }
   }
-  > :where(.control) {
+  > :where(#data-widget-control) {
     pointer_events = inherit
   }
 end
@@ -2232,7 +2235,7 @@ style slider with
       pointer-events = none
     }
   }
-  > :where(.control) {
+  > :where(#data-widget-control) {
     pointer_events = inherit
   }
 end

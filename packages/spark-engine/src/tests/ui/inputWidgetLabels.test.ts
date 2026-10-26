@@ -270,6 +270,28 @@ end
     expect(locks.map((m) => m.params.element)).toEqual([label.element]);
   });
 
+  test("only the ui marks a labelled widget's control", async () => {
+    const h = createHarness(
+      `layout settings with
+  checkbox "Labelled"
+  checkbox
+  box "Author box" #data-widget-control="yes" #data-other="kept"
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const [control, bare] = createdOfType(h, "input");
+    // The builtin styles tell a labelled widget's control from anything an
+    // author builds by this attribute.
+    expect(control.attributes?.["data-widget-control"]).toBe("");
+    expect(bare.attributes?.["data-widget-control"]).toBeUndefined();
+    const box = creates(h).find((p) => p.name === "box");
+    expect(box.attributes?.["data-other"]).toBe("kept");
+    expect(box.attributes?.["data-widget-control"]).toBeUndefined();
+  });
+
   test("removing a labelled widget drops its control's event handler", async () => {
     const h = createHarness(
       `store show = true

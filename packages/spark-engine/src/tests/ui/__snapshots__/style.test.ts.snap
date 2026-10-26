@@ -307,7 +307,7 @@ exports[`style > authored style block content payload 1`] = `
         "pointer_events": "auto",
         "text-weight": "400",
       },
-      "> :where(.control)": {
+      "> :where(#data-widget-control)": {
         "pointer_events": "inherit",
       },
     },
@@ -874,7 +874,7 @@ exports[`style > authored style block content payload 1`] = `
         "text-weight": "400",
         "width": "100%",
       },
-      "> :where(.control)": {
+      "> :where(#data-widget-control)": {
         "pointer_events": "inherit",
       },
     },
@@ -942,7 +942,7 @@ exports[`style > authored style block content payload 1`] = `
       "$name": "layouts",
       "$type": "style",
       "& >> #tooltip": {
-        "&:where(:not(label>.control))": {
+        "&:where(:not(#data-widget-control))": {
           "pointer_events": "auto",
         },
         "@after": {
@@ -1439,7 +1439,7 @@ exports[`style > authored style block content payload 1`] = `
         "pointer_events": "auto",
         "text-weight": "400",
       },
-      "> :where(.control)": {
+      "> :where(#data-widget-control)": {
         "pointer_events": "inherit",
       },
     },
@@ -1542,7 +1542,7 @@ exports[`style > authored style block content payload 1`] = `
         "text-weight": "400",
         "width": "100%",
       },
-      "> :where(.control)": {
+      "> :where(#data-widget-control)": {
         "pointer_events": "inherit",
       },
     },
@@ -1657,7 +1657,7 @@ exports[`style > authored style block content payload 1`] = `
         "pointer_events": "auto",
         "text-weight": "400",
       },
-      "> :where(.control)": {
+      "> :where(#data-widget-control)": {
         "pointer_events": "inherit",
       },
     },
@@ -3388,7 +3388,7 @@ exports[`style > style + variables construction stream 1`] = `
               "pointer_events": "auto",
               "text-weight": "400",
             },
-            "> :where(.control)": {
+            "> :where(#data-widget-control)": {
               "pointer_events": "inherit",
             },
           },
@@ -3955,7 +3955,7 @@ exports[`style > style + variables construction stream 1`] = `
               "text-weight": "400",
               "width": "100%",
             },
-            "> :where(.control)": {
+            "> :where(#data-widget-control)": {
               "pointer_events": "inherit",
             },
           },
@@ -4023,7 +4023,7 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "layouts",
             "$type": "style",
             "& >> #tooltip": {
-              "&:where(:not(label>.control))": {
+              "&:where(:not(#data-widget-control))": {
                 "pointer_events": "auto",
               },
               "@after": {
@@ -4520,7 +4520,7 @@ exports[`style > style + variables construction stream 1`] = `
               "pointer_events": "auto",
               "text-weight": "400",
             },
-            "> :where(.control)": {
+            "> :where(#data-widget-control)": {
               "pointer_events": "inherit",
             },
           },
@@ -4623,7 +4623,7 @@ exports[`style > style + variables construction stream 1`] = `
               "text-weight": "400",
               "width": "100%",
             },
-            "> :where(.control)": {
+            "> :where(#data-widget-control)": {
               "pointer_events": "inherit",
             },
           },
@@ -4738,7 +4738,7 @@ exports[`style > style + variables construction stream 1`] = `
               "pointer_events": "auto",
               "text-weight": "400",
             },
-            "> :where(.control)": {
+            "> :where(#data-widget-control)": {
               "pointer_events": "inherit",
             },
           },

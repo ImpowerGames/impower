@@ -10,6 +10,7 @@ import {
   BOOLEAN_ATTRIBUTES,
   isAttributeProp,
   toDataAttributeName,
+  WIDGET_CONTROL_ATTRIBUTE,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
 import type {
   Binding,
@@ -2732,6 +2733,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {
       type: widget.inputType,
       ...widget.attributes,
+      // The builtin styles find a labelled widget's control by this marker,
+      // which no author can write, so nothing an author builds is taken for
+      // it.
+      ...(labelled ? { [WIDGET_CONTROL_ATTRIBUTE]: "" } : {}),
     };
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     // A control takes STYLE props too, exactly as a container does. Every prop

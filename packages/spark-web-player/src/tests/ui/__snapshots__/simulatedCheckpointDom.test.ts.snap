@@ -491,7 +491,7 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
 spark-web-player #game .layouts {
   & [data-tooltip] {
     position: relative;
-    &:where(:not(label>.control)) {
+    &:where(:not([data-widget-control])) {
       pointer-events: auto;
     }
     &::before {
@@ -906,7 +906,7 @@ spark-web-player #game .checkbox {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -988,7 +988,7 @@ spark-web-player #game .input {
       box-shadow: none;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -1032,7 +1032,7 @@ spark-web-player #game .radio {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -1089,7 +1089,7 @@ spark-web-player #game .switch {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }
@@ -1186,7 +1186,7 @@ spark-web-player #game .slider {
       cursor: default;
     }
   }
-  >:where(.control) {
+  >:where([data-widget-control]) {
     pointer-events: inherit;
   }
 }

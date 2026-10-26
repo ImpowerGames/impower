@@ -140,6 +140,16 @@ describe("Sparkle #prop name validation", () => {
       propWarns(`layout main with\n  row #data-id=5 {\n    text "x"\n  }\nend\n`),
     ).toBe(false);
   });
+
+  // The ui reserves `data-widget-control` for the control inside a labelled
+  // widget and never writes it from an author's prop, so it has no effect.
+  test("the reserved data-widget-control attribute warns", () => {
+    expect(
+      propWarns(
+        `layout main with\n  row #data-widget-control=1 {\n    text "x"\n  }\nend\n`,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("Sparkle @event handler resolution", () => {
