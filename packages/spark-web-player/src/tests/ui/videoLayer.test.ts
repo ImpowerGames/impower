@@ -386,6 +386,53 @@ describe("a movie on a layer, in play", () => {
     },
   );
 
+  // A skip made before the browser knows a movie's duration, which it then
+  // learns (3 s): the browser clamps the element into the movie and fires
+  // `durationchange`, and the movie must stand where the clock has it.
+  // Expected positions are written out by hand: paused at 1 s, a first skip
+  // and then a skip back the other way.
+  test.each([
+    { loop: true, from: NaN, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
+    { loop: true, from: NaN, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
+    { loop: true, from: NaN, landing: "past its end", skips: [4.5, -1], expected: [2.5, 1.5] },
+    { loop: true, from: Infinity, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
+    { loop: true, from: Infinity, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
+    { loop: true, from: Infinity, landing: "past its end", skips: [4.5, -1], expected: [2.5, 1.5] },
+    { loop: false, from: NaN, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
+    { loop: false, from: NaN, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
+    { loop: false, from: NaN, landing: "past its end", skips: [4.5, -1], expected: [3, 2] },
+    { loop: false, from: Infinity, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
+    { loop: false, from: Infinity, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
+    { loop: false, from: Infinity, landing: "past its end", skips: [4.5, -1], expected: [3, 2] },
+  ])(
+    "with the game clock, loop $loop, duration $from then 3 s, skipped $landing: placed where the clock has it once the duration is known",
+    async ({ loop, from, skips, expected }) => {
+      const { h } = await playing();
+      const clock = { elapsedTime: 10 };
+      appOf(h).clock = clock;
+      await playNext(h);
+      const video = movieOn(h.overlay, "portrait")!;
+      video.loop = loop;
+      (video as any).__duration = from;
+      clock.elapsedTime = 11;
+      video.currentTime = 1;
+      h.ui.onPause();
+      h.ui.onSkip(skips[0]!);
+      // The metadata arrives: the browser keeps the element within the
+      // movie and reports its duration.
+      (video as any).__duration = 3;
+      video.currentTime = Math.min(Math.max(0, video.currentTime), 3);
+      video.dispatchEvent(
+        new (h.overlay.ownerDocument.defaultView as any).Event("durationchange"),
+      );
+      expect(video.currentTime).toBeCloseTo(expected[0]!);
+      h.ui.onSkip(0);
+      expect(video.currentTime).toBeCloseTo(expected[0]!);
+      h.ui.onSkip(skips[1]!);
+      expect(video.currentTime).toBeCloseTo(expected[1]!);
+    },
+  );
+
   test("a once movie with no duration that reaches its end is placed no further than where it ended", async () => {
     const { h } = await playing();
     const clock = { elapsedTime: 10 };

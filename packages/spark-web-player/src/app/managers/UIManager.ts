@@ -547,6 +547,7 @@ export default class UIManager extends Manager {
     for (const video of this.movies()) {
       video.pause();
       delete (video as any).__sdMovie;
+      delete (video as any).__sdManager;
     }
     // The morphs on the screen this leaves go on, on their own frames, until
     // the next display replaces them; a pause was this run's.
@@ -2384,7 +2385,16 @@ export default class UIManager extends Manager {
       return;
     }
     (video as any).__sdMovie = true;
+    (video as any).__sdManager = this;
     this.anchorMovie(video, video.currentTime);
+    if (!(video as any).__sdPlacesOnDuration) {
+      (video as any).__sdPlacesOnDuration = true;
+      // A duration the browser learns after a skip changes where the movie
+      // can stand: the page playing it places it again.
+      video.addEventListener("durationchange", () =>
+        (video as any).__sdManager?.placeMovie(video),
+      );
+    }
     if (!video.loop && !(video as any).__sdHoldsEnd) {
       (video as any).__sdHoldsEnd = true;
       // It holds its last frame, and where that is becomes its known end,
@@ -2426,6 +2436,7 @@ export default class UIManager extends Manager {
     ) as HTMLVideoElement[];
     for (const video of videos) {
       delete (video as any).__sdMovie;
+      delete (video as any).__sdManager;
       video.pause();
       video.removeAttribute("src");
       video.load();
@@ -2512,15 +2523,35 @@ export default class UIManager extends Manager {
    *  falls behind the clock on every skip; without a clock it is all
    *  there is. Kept where the movie can stand (`moviePlace`). */
   protected moviePosition(video: HTMLVideoElement): number {
+    return this.moviePlace(video, this.clockTime(video)).anchor;
+  }
+
+  /** The anchor plus the game time since, before `moviePlace` keeps it
+   *  where the movie can stand. */
+  protected clockTime(video: HTMLVideoElement): number {
     const anchor = (video as any).__sdAnchor as
       | { time: number; clock: number }
       | undefined;
     const clock = this.app.clock?.elapsedTime;
-    const position =
-      anchor && clock != null
-        ? anchor.time + (clock - anchor.clock)
-        : video.currentTime;
-    return this.moviePlace(video, position).anchor;
+    return anchor && clock != null
+      ? anchor.time + (clock - anchor.clock)
+      : video.currentTime;
+  }
+
+  /** Where `video` can stand changed (the browser learned its duration,
+   *  which a skip made before its metadata could not know): place its
+   *  anchor and its element again, by the one rule, where the clock has it.
+   *  The element is moved only when it stands elsewhere, so a movie playing
+   *  in step with the clock is not interrupted by a seek. */
+  protected placeMovie(video: HTMLVideoElement) {
+    if (!(video as any).__sdMovie) {
+      return;
+    }
+    const place = this.moviePlace(video, this.clockTime(video));
+    this.anchorMovie(video, place.anchor);
+    if (Math.abs(video.currentTime - place.element) > 0.05) {
+      video.currentTime = place.element;
+    }
   }
 
   /** The game clock moved `seconds` (back, when negative): so does every
