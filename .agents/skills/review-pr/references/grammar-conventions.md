@@ -14,4 +14,4 @@ The lints can require a justification comment; only a reviewer can judge whether
 
 ## What this lens does not do
 
-Run no test suite, CI check or formatter comparison; the undirected reviewer owns the red-on-base run and the reading of the head's workflows. Reading the guide and the diff answers every question above. Repository-rule checks that need no process, such as a generated `language/*.json` edited without its YAML source, still belong to you as to every reviewer.
+Run no test suite, CI check or formatter comparison; the undirected reviewer owns the reading of the writer's red/green evidence and of the head's workflows. Reading the guide and the diff answers every question above. Repository-rule checks that need no process, such as a generated `language/*.json` edited without its YAML source, still belong to you as to every reviewer.
