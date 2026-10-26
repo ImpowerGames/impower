@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { selfIntersects, signedArea } from "../src/geometry/cubic";
-import { canonicalFrame, findTips, selectCandidate, taperDistance } from "../src/methods/bend";
+import { canonicalFrame, findTips, selectCandidate } from "../src/methods/bend";
 import { BEND_DEFAULTS, morphSubpaths, parsePathData, bendTrack } from "../src/index";
 import {
   anchors,
@@ -12,6 +12,9 @@ import {
   maxDistanceToLoop,
   oneCusp,
   oneCuspNarrow,
+  ribbonClosed,
+  ribbonLash,
+  ribbonOpen,
   rotatingClosed,
   rotatingOpen,
   roundedClosed,
@@ -110,25 +113,6 @@ describe("bendTrack", () => {
     // none does the least-pinching one is reported.
     expect(selectCandidate(a, [shifted, real], (b) => (b === real ? 0.9 : 0.3), BEND_DEFAULTS.thicknessRatio).candidate).toBe(real);
     expect(selectCandidate(a, [real, shifted], (b) => (b === real ? 0.3 : 0.5), BEND_DEFAULTS.thicknessRatio).candidate).toBe(shifted);
-  });
-
-  test("the taper distance is capped at 12% of the tip-to-tip span", () => {
-    // A capsule with semicircular ends: its width plateaus about a radius
-    // in from each end, 30% of the span, so the measured distance would
-    // put the flanks far into the body without the cap. The tips are
-    // given directly because a capsule's ends do not fold sharply enough
-    // to be found as taper tips.
-    const capsule = loop("M0,50 C0,10 100,10 100,50 C100,90 0,90 0,50Z");
-    const tips = { f1: 0, f2: 0.5, p1: [0, 50] as [number, number], p2: [100, 50] as [number, number], fold1: Math.PI, fold2: Math.PI };
-    const span = 100;
-    expect(taperDistance(capsule, tips)).toBeCloseTo(0.12 * span, 6);
-    // A real lash's measured distance sits between the 2% floor and the cap.
-    const lash = loop(upperOpen);
-    const lashTips = findTips(lash);
-    const lashSpan = Math.hypot(lashTips.p1[0] - lashTips.p2[0], lashTips.p1[1] - lashTips.p2[1]);
-    const px = taperDistance(lash, lashTips);
-    expect(px).toBeGreaterThanOrEqual(0.02 * lashSpan - 1e-9);
-    expect(px).toBeLessThan(0.12 * lashSpan);
   });
 
   test("the winding-and-tip correspondence search is what keeps the rotating crease from pinching", () => {
@@ -244,6 +228,19 @@ describe("bendTrack", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.track.frame(0.5)).toHaveLength(BEND_DEFAULTS.anchors);
+  });
+
+  test("the default tip distance bends a portrait-shaped ribbon lash into its closed pose", () => {
+    // The portrait lashes taper over a few units of a span over a hundred
+    // and sixty, the shape the prototype bent with flanks sixteen units in.
+    const r = bendTrack(loop(ribbonOpen), loop(ribbonClosed));
+    expect(r.ok ? "ok" : r.failure.message).toBe("ok");
+    for (const thickness of [8, 12, 16, 20]) {
+      for (const bow of [4, 14, 26]) {
+        const rr = bendTrack(loop(ribbonLash(160, bow, thickness)), loop(ribbonClosed));
+        expect(rr.ok ? "ok" : rr.failure.message, `thickness ${thickness}, bow ${bow}`).toBe("ok");
+      }
+    }
   });
 });
 

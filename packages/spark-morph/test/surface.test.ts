@@ -37,7 +37,7 @@ describe("package surface", () => {
   });
 
   test("keeps geometry internals off the root", () => {
-    const internals = ["ArcLoop", "arcToCubics", "findTips", "smoothAnchors", "taperDistance", "signedArea", "lerpLoops", "sameLoop", "snapClosed", "selfIntersects", "splitCubic"];
+    const internals = ["ArcLoop", "arcToCubics", "findTips", "smoothAnchors", "signedArea", "lerpLoops", "sameLoop", "snapClosed", "selfIntersects", "splitCubic"];
     for (const name of internals) expect(name in index, name).toBe(false);
   });
 });

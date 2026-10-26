@@ -23,8 +23,8 @@ import type { Cubic, MorphFailure, Point, SubpathTrack } from "../types";
 /**
  * Options for the bend method. Every default that is a distance is a
  * fraction of the drawing's own size, so art at any scale behaves alike;
- * the prototype's hand-tuned pixel values are reproduced for lash art
- * about a hundred units wide.
+ * the prototype's hand-tuned pixel values are approximated for the portrait
+ * lashes, which span about 160 units.
  */
 export interface BendOptions {
   /**
@@ -34,7 +34,7 @@ export interface BendOptions {
   anchors?: number;
   /**
    * Distance in user units from each tip to its flanking anchors. When
-   * omitted, it is measured from where each loop's taper ends.
+   * omitted, it is 8% of the shorter of the two loops' tip-to-tip spans.
    */
   tipDistance?: number;
   /**
@@ -133,51 +133,13 @@ export function findTips(loop: Cubic[]): TaperTips {
 }
 
 /**
- * Where each tip's taper ends and the straight body begins, in user units,
- * taken as the smaller of a width-plateau criterion and a wedge-depth
- * criterion, floored at 2% and capped at 12% of the tip-to-tip span (the
- * prototype's hand-tuned 16 pixels on a lash about 130 wide).
+ * The default tip distance as a fraction of the shorter tip-to-tip span. On
+ * the portrait lashes, which span about 160 units, it puts the flanks about
+ * 13 units in, near the prototype's fixed 16 pixels; a larger fraction
+ * reaches past a rounded tip's arc and the canonical loop drifts from the
+ * drawn area.
  */
-export function taperDistance(loop: Cubic[], tips: TaperTips): number {
-  const arc = new ArcLoop(loop);
-  const total = arc.total;
-  const STEPS = 60,
-    maxS = total * 0.45,
-    K = 0.9;
-  const tipPx = (fT: number): number => {
-    const w: number[] = [],
-      reachA: number[] = [];
-    const T = arc.pointAt(fT);
-    for (let k = 1; k <= STEPS; k++) {
-      const s = (maxS * k) / STEPS,
-        Pa = arc.pointAt(fT + s / total),
-        Pb = arc.pointAt(fT - s / total);
-      w.push(dist(Pa, Pb));
-      reachA.push(Math.hypot(T[0] - (Pa[0] + Pb[0]) / 2, T[1] - (Pa[1] + Pb[1]) / 2));
-    }
-    const sAt = (k: number) => (maxS * (k + 1)) / STEPS;
-    const maxW = Math.max(...w);
-    let plateauS = maxS;
-    if (maxW < 1e-6 * total) plateauS = maxS * 0.4;
-    else {
-      for (let k = 0; k < w.length; k++) {
-        if (w[k]! >= 0.9 * maxW) {
-          plateauS = sAt(k);
-          break;
-        }
-      }
-    }
-    let wedgeS = sAt(0);
-    for (let k = 0; k < reachA.length; k++) {
-      if (reachA[k]! <= K * w[k]!) wedgeS = sAt(k);
-      else break;
-    }
-    return Math.min(plateauS, wedgeS);
-  };
-  const span = dist(tips.p1, tips.p2);
-  const px = Math.min(tipPx(tips.f1), tipPx(tips.f2));
-  return Math.max(0.02 * span, Math.min(px, span * 0.12));
-}
+const TIP_DISTANCE_SPAN = 0.08;
 
 /**
  * Makes each nearly smooth anchor's two handles exactly collinear (the
@@ -614,7 +576,7 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
   }
   const tipPx = Number.isFinite(o.tipDistance)
     ? o.tipDistance
-    : Math.min(taperDistance(open, tipsOpen), taperDistance(closed, tipsClosed));
+    : TIP_DISTANCE_SPAN * Math.min(dist(tipsOpen.p1, tipsOpen.p2), dist(tipsClosed.p1, tipsClosed.p2));
   const wind = Math.sign(signedArea(open)) || 1;
   const area = (L: Cubic[]) => Math.abs(signedArea(L));
   const faithful = (canon: Cubic[], art: Cubic[]): boolean => {
