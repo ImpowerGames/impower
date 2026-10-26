@@ -2430,12 +2430,14 @@ export default class UIManager extends Manager {
   /** Whether this manager's run is over (`onDispose`). */
   protected _disposed = false;
 
-  /** The game paused: so does every movie it plays. */
+  /** The game paused: so does every movie it plays, each anchored where it
+   *  stands, which a stalled start or decode can leave behind the clock. */
   protected pauseMovies() {
     for (const video of this.movies()) {
       if (!video.paused) {
         video.pause();
       }
+      this.anchorMovie(video, video.currentTime);
     }
   }
 
@@ -2450,8 +2452,9 @@ export default class UIManager extends Manager {
     }
   }
 
-  /** Whether `video` plays once and the game clock has it at its end. The
-   *  element's own `ended` lags a skip's seek, so the clock decides too. */
+  /** Whether `video` plays once and stands at its end: it ended, or a skip
+   *  sent it there, which its `currentTime` reports at once while `ended`
+   *  waits for the seek. */
   protected heldAtEnd(video: HTMLVideoElement): boolean {
     if (video.loop) {
       return false;
@@ -2461,9 +2464,7 @@ export default class UIManager extends Manager {
     }
     const duration = video.duration;
     return (
-      Number.isFinite(duration) &&
-      duration > 0 &&
-      Math.max(this.moviePosition(video), video.currentTime) >= duration
+      Number.isFinite(duration) && duration > 0 && video.currentTime >= duration
     );
   }
 
@@ -2479,15 +2480,28 @@ export default class UIManager extends Manager {
    *  game time since, which stops while the game is paused. A seek holds
    *  the element's own position back while it decodes, so that position
    *  falls behind the clock on every skip; without a clock it is all
-   *  there is. */
+   *  there is. A movie that plays once goes no further than its end. */
   protected moviePosition(video: HTMLVideoElement): number {
     const anchor = (video as any).__sdAnchor as
       | { time: number; clock: number }
       | undefined;
     const clock = this.app.clock?.elapsedTime;
-    return anchor && clock != null
-      ? anchor.time + (clock - anchor.clock)
-      : video.currentTime;
+    const position =
+      anchor && clock != null
+        ? anchor.time + (clock - anchor.clock)
+        : video.currentTime;
+    return this.withinMovie(video, position);
+  }
+
+  /** `time` kept within a movie that plays once: from its start to its end
+   *  when its duration is known. A looping movie's time runs on unwrapped. */
+  protected withinMovie(video: HTMLVideoElement, time: number): number {
+    if (video.loop) {
+      return time;
+    }
+    const duration = video.duration;
+    const end = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
+    return Math.min(Math.max(0, time), end);
   }
 
   /** The game clock moved `seconds` (back, when negative): so does every
@@ -2495,18 +2509,16 @@ export default class UIManager extends Manager {
    *  one that plays once within its start and end. */
   protected skipMovies(seconds: number) {
     for (const video of this.movies()) {
-      const target = video.loop
-        ? this.moviePosition(video) + seconds
-        : Math.max(0, this.moviePosition(video) + seconds);
+      const target = this.withinMovie(
+        video,
+        this.moviePosition(video) + seconds,
+      );
       this.anchorMovie(video, target);
       const duration = video.duration;
-      let time = Math.max(0, target);
-      if (Number.isFinite(duration) && duration > 0) {
-        time = video.loop
+      video.currentTime =
+        video.loop && Number.isFinite(duration) && duration > 0
           ? ((target % duration) + duration) % duration
-          : Math.min(target, duration);
-      }
-      video.currentTime = time;
+          : Math.max(0, target);
     }
   }
 

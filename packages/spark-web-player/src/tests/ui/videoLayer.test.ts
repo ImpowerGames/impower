@@ -256,6 +256,67 @@ describe("a movie on a layer, in play", () => {
     expect(media.of(video, "play")).toBe(plays + 1);
   });
 
+  test("with the game clock, a `once` movie stays within its span: held at its end, and back inside it after a rewind", async () => {
+    const { h, media } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.loop).toBe(false);
+    (video as any).__duration = 3;
+    clock.elapsedTime = 11;
+    video.currentTime = 1;
+    // Pause at 1 s and skip past the end: it holds at 3 s on resume.
+    h.ui.onPause();
+    h.ui.onSkip(5);
+    expect(video.currentTime).toBe(3);
+    const plays = media.of(video, "play");
+    h.ui.onUnpause();
+    expect(media.of(video, "play")).toBe(plays);
+    // Rewind 1.5 s from its end, not from where the skip aimed past it.
+    h.ui.onPause();
+    h.ui.onSkip(-1.5);
+    expect(video.currentTime).toBe(1.5);
+    h.ui.onUnpause();
+    expect(media.of(video, "play")).toBe(plays + 1);
+    // Played through to its end on its own, much later in game time, a
+    // rewind still lands inside it and it plays on.
+    clock.elapsedTime = 40;
+    video.currentTime = 3;
+    (video as any).__ended = true;
+    (video as any).__paused = true;
+    h.ui.onPause();
+    h.ui.onSkip(-1);
+    expect(video.currentTime).toBe(2);
+    // The seek back leaves the end.
+    (video as any).__ended = false;
+    h.ui.onUnpause();
+    expect(media.of(video, "play")).toBe(plays + 2);
+  });
+
+  test("a `once` movie the game clock has run past while it stalled plays on when the game resumes", async () => {
+    const { h, media } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    (video as any).__duration = 3;
+    // 3.2 s of game time later, a slow start left it at 2.2 s.
+    clock.elapsedTime = 13.2;
+    video.currentTime = 2.2;
+    const plays = media.of(video, "play");
+    h.ui.onPause();
+    h.ui.onUnpause();
+    expect(media.of(video, "play")).toBe(plays + 1);
+    expect(video.currentTime).toBe(2.2);
+    // And a skip goes from where it stood when the game paused.
+    h.ui.onPause();
+    h.ui.onSkip(0.5);
+    expect(video.currentTime).toBeCloseTo(2.7);
+  });
+
   test("a movie shown while the game is paused starts when it resumes", async () => {
     const { h, media } = await playing();
     appOf(h).paused = true;
