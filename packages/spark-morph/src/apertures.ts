@@ -160,6 +160,38 @@ export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}
 }
 
 /**
+ * Which side of the polyline `line` the point `q` lies on, as the cross
+ * product of the nearest segment's direction with the offset from that
+ * segment's nearest point: positive to the left of the line's direction,
+ * negative to the right, scaled by the segment's length. A point whose
+ * nearest place on the line is one of its two ends lies beyond the line,
+ * not to either side of it, and has no side: `undefined`.
+ */
+function sideOf(line: Point[], q: Point): number | undefined {
+  let best = Infinity,
+    side: number | undefined;
+  const last = line.length - 2;
+  for (let k = 0; k <= last; k++) {
+    const s = line[k]!,
+      e = line[k + 1]!;
+    const dx = e[0] - s[0],
+      dy = e[1] - s[1],
+      len2 = dx * dx + dy * dy;
+    if (!(len2 > 0)) continue;
+    const raw = ((q[0] - s[0]) * dx + (q[1] - s[1]) * dy) / len2;
+    const u = clamp01(raw);
+    const ox = q[0] - (s[0] + u * dx),
+      oy = q[1] - (s[1] + u * dy),
+      d = ox * ox + oy * oy;
+    if (d < best) {
+      best = d;
+      side = (k === 0 && raw < 0) || (k === last && raw > 1) ? undefined : dx * oy - dy * ox;
+    }
+  }
+  return side;
+}
+
+/**
  * The point closing an aperture's corner where its two boundaries end apart,
  * as open lashes whose tips do not meet do: where the boundaries, continued
  * past their tips, would meet, kept within the gap's own length of the gap's
@@ -239,27 +271,25 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
     const dir: Point = closed ? [0, 0] : [ox / olen, oy / olen];
     // A crossed rib sits on its midline on both runs, so a closed stretch
     // is a zero-width slit the clip can ignore; a fully closed aperture is
-    // two points with no area. Each rib's gap is measured across A's
-    // tip-to-tip chord, along its normal turned toward the opening: the two
-    // boundaries' samples need not sit level along the lash, as when the
-    // open lashes' corner tips do not meet, and measuring along the opening
-    // direction alone would read that offset as an opening.
-    const across = ((): Point => {
-      const cx = a[points - 1]![0] - a[0]![0],
-        cy = a[points - 1]![1] - a[0]![1],
-        clen = Math.hypot(cx, cy);
-      const nx = -cy / (clen || 1),
-        ny = cx / (clen || 1);
-      const s = nx * dir[0] + ny * dir[1];
-      return clen > 0 && s !== 0 ? [Math.sign(s) * nx, Math.sign(s) * ny] : dir;
-    })();
+    // two points with no area. A rib has crossed when either point lies
+    // past the other edge's boundary, judged against the nearest stretch of
+    // that boundary rather than against the point of the same index: the
+    // two boundaries' samples need not sit level along the lash, as when the
+    // open lashes' corner tips do not meet, and comparing the paired points
+    // would read that offset as an opening or a closure. Both boundaries run
+    // the same way, so the opening lies on opposite sides of them.
+    const cx = a[points - 1]![0] - a[0]![0],
+      cy = a[points - 1]![1] - a[0]![1];
+    const facing = Math.sign(cx * dir[1] - cy * dir[0]) || 1;
     const top: Point[] = [],
       bottom: Point[] = [];
     let anyOpen = false;
     for (let i = 0; i < points; i++) {
       const p = a[i]!,
         q = b[i]!;
-      const gap = (q[0] - p[0]) * across[0] + (q[1] - p[1]) * across[1];
+      const qSide = sideOf(a, q),
+        pSide = sideOf(b, p);
+      const gap = closed ? 0 : Math.min(qSide === undefined ? 0 : facing * qSide, pSide === undefined ? 0 : -facing * pSide);
       if (closed || gap < 0) {
         const m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
         top.push(m);

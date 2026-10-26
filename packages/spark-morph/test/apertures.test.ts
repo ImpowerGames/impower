@@ -139,8 +139,19 @@ describe("buildApertures", () => {
     expect(r.apertures.map((a) => a.edgeIds)).toEqual([["upper", "lower"]]);
     const ap = r.apertures[0]!;
     expect(ap.area(0)).toBeGreaterThan(1000);
-    for (const t of runtimeProgress) expect(properlyCrosses(ap.loop(t)), `loop at ${t}`).toBe(false);
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
+    // Boundaries whose samples sit offset along the lash still close
+    // without the loop crossing itself, whichever edge comes first.
+    for (const lower of [lowerShort, "M35,80 C50,92 75,78 100,50 C72,88 50,100 35,80Z"]) {
+      for (const order of ["upper first", "lower first"]) {
+        const pair = [edge("upper", upperOpen, closedLash), edge("lower", lower, closedLash)];
+        const built = buildApertures(order === "upper first" ? pair : pair.reverse());
+        expect(built.diagnostics).toEqual([]);
+        for (let k = 0; k <= 100; k++) {
+          expect(properlyCrosses(built.apertures[0]!.loop(k / 100)), `${lower}, ${order}, loop at ${k / 100}`).toBe(false);
+        }
+      }
+    }
     // Authored closed-to-open, the shared lash is at progress 0 instead.
     const reverse = buildApertures([edge("upper", closedLash, upperOpen), edge("lower", closedLash, lowerShort)]);
     expect(reverse.diagnostics).toEqual([]);

@@ -119,6 +119,10 @@ describe("a live morph's rest render", () => {
   test.each([
     ["lashes that meet at both corners", eye(WHITE, LOWER)],
     ["open lashes whose inner corner tips do not meet", eye(WHITE_SHORT, LOWER_SHORT)],
+    [
+      "a lower lash starting above the upper lash's tip",
+      eye("M20,50 C40,15 95,0 120,45 C92,85 60,88 35,47 L20,50Z", "M35,47 C65,70 95,75 120,45 C92,85 60,88 35,47Z"),
+    ],
   ])("looks the same as the variant's static image away from the drawn outlines: %s", (_name, SVG) => {
     const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
     expect(artifact.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
