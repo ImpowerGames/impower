@@ -23,16 +23,16 @@ const PUPIL = "M62,45 C62,33 82,33 82,45 C82,57 62,57 62,45Z";
 const LOWER_SHORT = "M40,64 C50,64 55,61 65,60 C85,58 100,62 120,45 C100,72 60,78 40,64Z";
 const WHITE_SHORT = "M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,66 18,60 20,50Z";
 
-const eye = (white: string, lower: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+const eye = (white: string, lower: string, upper = UPPER, closed = CLOSED) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#c96"/>
 <g data-name="eyes.open:default">
 <path data-name="eyeball-white-left" d="${white}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
-<path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
+<path data-name="eyelash-left" d="${upper}" fill="#111"/>
 <path data-name="eyelash-left" d="${lower}" fill="#111"/>
 </g>
 <g data-name="eyes.closed">
-<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
+<path data-name="eyelash-left" d="${closed}" fill="#111"/>
 </g>
 </svg>`;
 
@@ -148,5 +148,49 @@ describe("a live morph's rest render", () => {
     }
     expect(compared).toBeGreaterThan(25000);
     expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+  });
+});
+
+/** Whether a closed polyline has a proper crossing; a closed stretch's collinear slit is not one. */
+const properlyCrosses = (pts: Point[]): boolean => {
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const [a, b, c, d] = [pts[i]!, pts[(i + 1) % n]!, pts[j]!, pts[(j + 1) % n]!];
+      const den = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0]);
+      if (den === 0) continue;
+      const t = ((c[0] - a[0]) * (d[1] - c[1]) - (c[1] - a[1]) * (d[0] - c[0])) / den,
+        u = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / den;
+      if (t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6) return true;
+    }
+  }
+  return false;
+};
+
+describe("a live morph's baked apertures", () => {
+  test("never cross themselves where open lashes whose tips do not meet pass each other", () => {
+    // A lower lash starting inside the opening, short of the upper lash's
+    // tip: closing, its inner end passes the upper lash's boundary before the
+    // samples of the two boundaries do.
+    const upper = "M20,50 C50,5 90,5 120,50 C90,25 50,25 20,50Z";
+    const lower = "M45,40 C60,52 95,78 120,50 C92,88 60,60 45,40Z";
+    const closed = "M20,50 C50,44 90,44 120,50 C90,50 50,50 20,50Z";
+    const white = "M20,50 C50,5 90,5 120,50 C92,88 60,60 45,40 L20,50Z";
+    const artifact = bakeMorphArtifact({ source: eye(white, lower, upper, closed), selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(artifact.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.apertures.length).toBeGreaterThan(0);
+    const crossed: string[] = [];
+    artifact.apertures.forEach((samples, a) =>
+      samples.forEach((loops, s) =>
+        loops.forEach((flat, l) => {
+          const pts: Point[] = [];
+          for (let k = 0; k + 1 < flat.length; k += 2) pts.push([flat[k]!, flat[k + 1]!]);
+          if (properlyCrosses(pts)) crossed.push(`aperture ${a} sample ${s} loop ${l}`);
+        }),
+      ),
+    );
+    expect(crossed).toEqual([]);
   });
 });

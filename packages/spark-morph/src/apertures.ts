@@ -159,6 +159,71 @@ export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}
   return { apertures, diagnostics };
 }
 
+/** Twice the signed area of a closed polyline; positive when it winds with its interior on the left. */
+const area2 = (pts: Point[]): number => {
+  let s = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i]!,
+      q = pts[(i + 1) % pts.length]!;
+    s += p[0] * q[1] - q[0] * p[1];
+  }
+  return s;
+};
+
+/**
+ * The first proper crossing between two non-adjacent segments of a closed
+ * polyline: segment `i` runs from point `i` to point `i + 1`, `j > i`, and
+ * `x` is where they cross. Collinear overlaps, such as a closed stretch's
+ * zero-width slit, are not crossings.
+ */
+function firstCrossing(pts: Point[]): { i: number; j: number; x: Point } | undefined {
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!,
+      p2 = pts[(i + 1) % n]!;
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const q = pts[j]!,
+        q2 = pts[(j + 1) % n]!;
+      const rx = p2[0] - p[0],
+        ry = p2[1] - p[1],
+        sx = q2[0] - q[0],
+        sy = q2[1] - q[1],
+        den = rx * sy - ry * sx;
+      if (den === 0) continue;
+      const wx = q[0] - p[0],
+        wy = q[1] - p[1];
+      const t = (wx * sy - wy * sx) / den,
+        u = (wx * ry - wy * rx) / den;
+      if (t > 1e-9 && t < 1 - 1e-9 && u > 1e-9 && u < 1 - 1e-9) return { i, j, x: [p[0] + t * rx, p[1] + t * ry] };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Removes every self-crossing from an aperture loop. Where the two
+ * boundaries have passed each other between samples, the loop winds back on
+ * itself in a lobe of the opposite orientation; at each crossing the loop
+ * splits in two at the crossing point, and the part winding the way the
+ * opening does (`sign` of its area) is kept, or the larger part when both
+ * or neither do. Each split removes at least one point, so this ends.
+ */
+function untangle(loop: Point[], sign: number): Point[] {
+  let pts = loop;
+  for (let hit = firstCrossing(pts); hit && pts.length >= 3; hit = firstCrossing(pts)) {
+    const { i, j, x } = hit;
+    const inner = [x, ...pts.slice(i + 1, j + 1)];
+    const outer = [...pts.slice(0, i + 1), x, ...pts.slice(j + 1)];
+    const ai = area2(inner),
+      ao = area2(outer);
+    const innerRight = Math.sign(ai) === sign,
+      outerRight = Math.sign(ao) === sign;
+    pts = innerRight !== outerRight ? (innerRight ? inner : outer) : Math.abs(ai) >= Math.abs(ao) ? inner : outer;
+  }
+  return pts;
+}
+
 /**
  * Which side of the polyline `line` the point `q` lies on, as the cross
  * product of the nearest segment's direction with the offset from that
@@ -304,7 +369,10 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
     const last = points - 1;
     const end = corner(top[last]!, a[last - 1]!, bottom[last]!, b[last - 1]!, extent);
     const start = corner(bottom[0]!, b[1]!, top[0]!, a[1]!, extent);
-    return [...top, ...end, ...bottom.reverse(), ...start];
+    // The opening lies to the left of A's run exactly when `facing` is
+    // positive, so a correctly oriented loop has that sign of area.
+    const untangled = untangle([...top, ...end, ...bottom.reverse(), ...start], facing);
+    return untangled.length >= 3 ? untangled : [top[0]!, top[last]!];
   };
   return {
     edgeIds: [A.id, B.id],
