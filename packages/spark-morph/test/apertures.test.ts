@@ -251,7 +251,8 @@ describe("buildApertures", () => {
     ]);
     expect(r.diagnostics).toEqual([]);
     expect(r.apertures).toHaveLength(1);
-    // Inner boundaries 2 * 14.0625 apart at 0.25, 100 wide.
+    // Inner boundaries 2 * 14.0625 apart at 0.25, 100 wide; their ends met
+    // at both rest poses, so the corners close straight.
     expect(r.apertures[0]!.area(0.25)).toBeCloseTo(2812.5, 6);
     expect(r.apertures[0]!.area(0.5)).toBeLessThan(AREA_ZERO);
   });

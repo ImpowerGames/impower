@@ -246,35 +246,33 @@ function sideOf(line: Point[], q: Point): number | undefined {
 }
 
 /**
- * The point closing an aperture's corner where its two boundaries end apart,
- * as open lashes whose tips do not meet do: where the boundaries, continued
- * past their tips, would meet, kept within the gap's own length of the gap's
- * midpoint. The drawn eye white bulges past the straight line between the
- * tips there, and the point reaches around it; a clip only hides, so a
- * corner that reaches too far shows nothing the static image does not, and
- * it shrinks with the gap as the tips converge. Empty when the boundaries
- * meet or do not converge past their tips.
+ * The points closing an aperture's corner where its two boundaries end
+ * apart, as open lashes whose tips do not meet do. The loop runs from `p` to
+ * `q` here with the opening on its left when `facing` is positive, and the
+ * corner closes through a rectangle beyond the line between them. At a rest
+ * pose it is a square the gap's own width deep: eye white drawn in the gap
+ * is uncovered by either lash and bulges past that line however the lashes'
+ * tips point, so the opening reaches around it, and a clip only hides, so a
+ * corner reaching past the white shows nothing the static image does not.
+ * Between the poses its depth falls with the square of how far the gap has
+ * closed from `restGap`, the corner's widest gap at a rest pose, so white
+ * the closing lashes leave behind does not show past them. Empty when the
+ * boundaries meet, or met at both rest poses.
  */
-function corner(p: Point, pBefore: Point, q: Point, qBefore: Point, extent: number): Point[] {
-  const g = dist(p, q);
+function corner(p: Point, q: Point, facing: number, extent: number, restGap: number): Point[] {
+  const dx = q[0] - p[0],
+    dy = q[1] - p[1],
+    g = Math.hypot(dx, dy);
   if (!(g > 1e-6 * extent)) return [];
-  const px = p[0] - pBefore[0],
-    py = p[1] - pBefore[1],
-    qx = q[0] - qBefore[0],
-    qy = q[1] - qBefore[1];
-  const den = px * qy - py * qx;
-  if (den === 0) return [];
-  const wx = q[0] - p[0],
-    wy = q[1] - p[1];
-  const s = (wx * qy - wy * qx) / den,
-    u = (wx * py - wy * px) / den;
-  if (!(s > 0 && u > 0)) return [];
-  const m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
-  const x = p[0] + s * px - m[0],
-    y = p[1] + s * py - m[1],
-    reach = Math.hypot(x, y);
-  const k = reach > g ? g / reach : 1;
-  return [[m[0] + k * x, m[1] + k * y]];
+  const depth = restGap > 0 ? Math.min(g, restGap) * Math.min(1, g / restGap) ** 2 : 0;
+  if (!(depth > 0)) return [];
+  const k = depth / g;
+  const ox = facing * dy * k,
+    oy = -facing * dx * k;
+  return [
+    [p[0] + ox, p[1] + oy],
+    [q[0] + ox, q[1] + oy],
+  ];
 }
 
 /**
@@ -304,6 +302,15 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
       facingB = dist(mean(eb[0]), mA) <= dist(mean(eb[1]), mA) ? 0 : 1;
     }
   }
+  // Each corner's widest gap at a rest pose bounds how far its cap reaches.
+  const restGaps = [0, 1].map((t) => {
+    const a = A.track.edges(t, points)[facingA]!;
+    let b = B.track.edges(t, points)[facingB]!;
+    if (flipB) b = b.slice().reverse();
+    return [dist(a[0]!, b[0]!), dist(a[points - 1]!, b[points - 1]!)] as const;
+  });
+  const startGap = Math.max(restGaps[0]![0], restGaps[1]![0]),
+    endGap = Math.max(restGaps[0]![1], restGaps[1]![1]);
   const loop = (tRaw: number): Point[] => {
     const t = clamp01(tRaw);
     const ea = A.track.edges(t, points),
@@ -356,8 +363,8 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
     }
     if (!anyOpen) return [top[0]!, top[top.length - 1]!];
     const last = points - 1;
-    const end = corner(top[last]!, a[last - 1]!, bottom[last]!, b[last - 1]!, extent);
-    const start = corner(bottom[0]!, b[1]!, top[0]!, a[1]!, extent);
+    const end = corner(top[last]!, bottom[last]!, facing, extent, endGap);
+    const start = corner(bottom[0]!, top[0]!, facing, extent, startGap);
     // The opening lies to the left of A's run exactly when `facing` is
     // positive, so a correctly oriented loop has that sign of area.
     const untangled = untangle([...top, ...end, ...bottom.reverse(), ...start], facing);
