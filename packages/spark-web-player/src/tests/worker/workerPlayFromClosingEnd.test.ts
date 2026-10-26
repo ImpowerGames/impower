@@ -1,7 +1,8 @@
 // PLAY and the preview at the `end` that closes a scene or branch with more
 // script below it (I-1618). The `end` belongs to the flow it closes, so the
 // game starts on the beat on screen when that flow finishes, not on the first
-// beat of the flow below it.
+// beat of the flow below it. An empty scene's or branch's header and `end`
+// show the story as it stands when a run enters that flow.
 import { describe, expect, it } from "vitest";
 import { BRANCHES, playFrom, previewAt } from "./playFromLine";
 
@@ -68,6 +69,83 @@ describe("the preview at the end that closes a flow with more script below", () 
       for (const other of notShown) {
         expect(text).not.toContain(other);
       }
+    },
+    120_000,
+  );
+});
+
+const EMPTY_SCENE = `scene start
+end
+scene other
+  Other.
+end
+`;
+
+const EMPTY_BRANCH = `scene start
+  branch empty
+  end
+  branch other
+    Other.
+  end
+end
+`;
+
+// The story's run shows "First." and then enters the empty scene.
+const EMPTY_AFTER_BEAT = `-> start
+scene start
+  First.
+  -> next
+end
+scene next
+end
+scene other
+  Other.
+end
+`;
+
+const EMPTY_CASES = [
+  ["an empty scene's header", EMPTY_SCENE, 0],
+  ["an empty scene's end", EMPTY_SCENE, 1],
+  ["the header of a scene that enters an empty branch", EMPTY_BRANCH, 0],
+  ["an empty branch's header", EMPTY_BRANCH, 1],
+  ["an empty branch's end", EMPTY_BRANCH, 2],
+] as const;
+
+describe("PLAY and the preview at an empty scene or branch", () => {
+  // No run displays a beat before these flows, so PLAY shows none, as at a
+  // `done` with nothing above it.
+  it.each(EMPTY_CASES)(
+    "PLAY from %s shows nothing of the flow below",
+    async (_name, source, line) => {
+      const outcome = await playFrom(source, line);
+      expect(outcome.text).not.toContain("Other.");
+    },
+    120_000,
+  );
+
+  it.each(EMPTY_CASES)(
+    "the preview at %s shows no beat of the flow below",
+    async (_name, source, line) => {
+      expect(await previewAt(source, line)).not.toContain("Other.");
+    },
+    120_000,
+  );
+
+  it.each([
+    ["header", 5],
+    ["end", 6],
+  ] as const)(
+    "PLAY and the preview at the %s of an empty scene a run enters wait on the beat it displayed",
+    async (_name, line) => {
+      const outcome = await playFrom(EMPTY_AFTER_BEAT, line);
+      expect(outcome.started).toBe(true);
+      expect(outcome.exited).toEqual([]);
+      expect(outcome.state).toBe("running");
+      expect(outcome.text).toContain("First.");
+      expect(outcome.text).not.toContain("Other.");
+      const preview = await previewAt(EMPTY_AFTER_BEAT, line);
+      expect(preview).toContain("First.");
+      expect(preview).not.toContain("Other.");
     },
     120_000,
   );

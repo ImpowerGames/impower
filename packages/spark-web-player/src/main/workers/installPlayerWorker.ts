@@ -921,8 +921,9 @@ export function installPlayerWorker(connection: MessageConnection) {
    * that has one has run, so it routes to that line's last beat, whose route
    * puts the beat on screen there in its checkpoint (#1606). For a closing
    * `end`, that line is the flow's own: a scene's `end` passes over the
-   * branches written inside the scene, which the scene does not run through.
-   * A flow with no such line of its own (a scene whose content is all in its
+   * branches written inside the scene, which the scene does not run through,
+   * and an empty scene's or branch's `end` holds the flow's own address. A
+   * flow with no such line of its own (a scene whose content is all in its
    * branches) takes the nearest line above it that has one. With no such
    * line above, the point stands, and a run from it starts from where its
    * address leads, or from the top of the top-level content.
@@ -938,10 +939,14 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (!closed && locator.addressAt(point.file, point.line) != null) {
       return { point, beat };
     }
-    // The nearest line above the point and below `floor` that has an address
-    // of its own, passing over the lines of the flows `skipped` spans.
-    const lineAbove = (floor: number, skipped: [number, number][]) => {
-      for (let line = point.line - 1; line > floor; line -= 1) {
+    // The nearest line from `from` up to the line after `floor` that has an
+    // address of its own, passing over the lines of the flows `skipped` spans.
+    const lineAbove = (
+      from: number,
+      floor: number,
+      skipped: [number, number][],
+    ) => {
+      for (let line = from; line > floor; line -= 1) {
         if (skipped.some(([header, end]) => header <= line && line <= end)) {
           continue;
         }
@@ -956,12 +961,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (closed) {
       const [header] = closed;
       const nested = ends.filter(([h, e]) => h > header && e < point.line);
-      const own = lineAbove(header, nested);
+      // An empty flow's own address stands on its `end` (`emptyFlowEnd`).
+      const own = lineAbove(point.line, header, nested);
       if (own) {
         return own;
       }
     }
-    return lineAbove(-1, []) ?? { point, beat };
+    return lineAbove(point.line - 1, -1, []) ?? { point, beat };
   };
 
   /** End PLAY's game, answering where it last executed: the run the page

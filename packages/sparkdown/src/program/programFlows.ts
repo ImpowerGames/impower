@@ -22,7 +22,7 @@ import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { Text } from "../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import type { DebugMetadata } from "../runtime/DebugMetadata";
+import { DebugMetadata } from "../runtime/DebugMetadata";
 import type {
   BodySource,
   DeclarationSource,
@@ -129,7 +129,8 @@ export interface ProgramFlows {
  * A sequence that runs out ends its flow as those do, so they are left out.
  * Any other placement the build-out has not reached names a construct: an
  * object no statement placed. A scene or a branch that takes parameters
- * starts with the statement that binds them (`flowEntry`).
+ * starts with the statement that binds them (`flowEntry`), and one that
+ * runs nothing of its own holds a statement that ends it (`emptyFlowEnd`).
  *
  * The global declarations become the declaration statements of their
  * scripts, each holding the globals it declares in the order the story's
@@ -343,6 +344,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       record.uri,
       record.line,
     );
+    const empty = statements.length === 0 && start === undefined;
     if (flow.hasParameters) {
       statements.unshift(
         flowEntry(
@@ -355,6 +357,9 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       );
     }
     const startsWith = flow.hasParameters ? undefined : start;
+    if (empty) {
+      statements.push(emptyFlowEnd(name, header!, record));
+    }
     flows.push({
       name,
       kind: flow instanceof Stitch ? SymbolKind.Branch : SymbolKind.Scene,
@@ -593,6 +598,72 @@ const flowEntry = (
     range: null,
     firstLine: record.line,
     source: () => source,
+    syntax: () => syntax,
+    reads: "",
+  };
+};
+
+/**
+ * The code of a scene or a branch that runs nothing of its own (one with no
+ * statements but the entry that binds its parameters, whose content does not
+ * start with a branch): the `Done` that a sequence that runs out ends its
+ * flow as. It gives the flow a position, so that the flow's header and its
+ * `end` have an address in the flow, which a route reaches when a run enters
+ * the flow, rather than the address of the next flow's first line (I-1618).
+ */
+export class EmptyFlowEnd extends ParsedObject {
+  override get typeName(): string {
+    return "EmptyFlowEnd";
+  }
+
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    emitter.emit(Op.Done);
+  }
+}
+
+/** The start of the line `line` (counting from 0) as a statement's range,
+ *  whose line table row puts the statement on that line. */
+const lineRange = (line: number): DebugMetadata => {
+  const range = new DebugMetadata();
+  range.startLineNumber = line + 1;
+  range.endLineNumber = line + 1;
+  range.startCharacterNumber = 1;
+  range.endCharacterNumber = 1;
+  return range;
+};
+
+// The key of the empty flow end each header has had, so a header the compile
+// carried keeps its key while its flow stays empty.
+const emptyEndKeys = new WeakMap<object, object>();
+
+/** The statement of a scene or a branch that runs nothing of its own
+ *  (`EmptyFlowEnd`), standing on the flow's first line, below its header:
+ *  the line of its `end` when nothing stands between them. The header takes
+ *  the address of that line, as a header does of the first line below it
+ *  that has one. Its syntax is the flow's name, which is everything its code
+ *  depends on. */
+const emptyFlowEnd = (
+  name: string,
+  header: object,
+  record: StatementRecord,
+): StatementSource => {
+  const syntax = `EmptyFlowEnd\u0000${name}`;
+  let block = emptyEndKeys.get(header);
+  if (!block) {
+    block = {};
+    emptyEndKeys.set(header, block);
+  }
+  return {
+    block,
+    objects: [new EmptyFlowEnd()],
+    range: lineRange(record.line + 1),
+    firstLine: record.line + 1,
+    source: () => name,
     syntax: () => syntax,
     reads: "",
   };

@@ -1,0 +1,97 @@
+// A scene or a branch with nothing between its header and its `end` has an
+// address of its own, which its header and its `end` resolve to rather than
+// to the first line of the flow below it (I-1618).
+import { describe, expect, it } from "vitest";
+import { programLocator } from "../../compiler/utils/programLocator";
+import { testCompiler } from "../engineUnderTest";
+
+const URI = "inmemory:///main.sd";
+
+const fileOf = (text: string) => ({
+  uri: URI,
+  type: "script",
+  name: "main",
+  ext: "sd",
+  text,
+  version: 1,
+  languageId: "sparkdown",
+});
+
+function compile(text: string) {
+  const c = testCompiler();
+  c.configure({
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: true,
+    files: [fileOf(text)],
+  } as never);
+  return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
+}
+
+/** Where the address of each line stands: its line and its scene. */
+const resolved = (text: string, lines: number[]) => {
+  const program = compile(text);
+  const locator = programLocator(program);
+  return lines.map((line) => {
+    const address = locator.addressAt(URI, line);
+    return [locator.locationOf(address)?.startLine, locator.sceneAt(address)];
+  });
+};
+
+describe("the address of an empty scene or branch", () => {
+  it("is its own for an empty scene's header and end", () => {
+    const text = `scene start
+end
+scene other
+  Other.
+end
+`;
+    expect(resolved(text, [0, 1, 3])).toEqual([
+      [1, "start"],
+      [1, "start"],
+      [3, "other"],
+    ]);
+  });
+
+  it("is its own for an empty branch's header and end", () => {
+    const text = `scene start
+  branch empty
+  end
+  branch other
+    Other.
+  end
+end
+`;
+    expect(resolved(text, [1, 2, 4])).toEqual([
+      [2, "start"],
+      [2, "start"],
+      [4, "start"],
+    ]);
+  });
+
+  it("is its own for a scene that takes parameters and runs nothing", () => {
+    const text = `scene start(a)
+end
+scene other
+  Other.
+end
+`;
+    expect(resolved(text, [0, 1])).toEqual([
+      [1, "start"],
+      [1, "start"],
+    ]);
+  });
+
+  it("stands on the first line below the header when only a comment is there", () => {
+    const text = `scene start
+  // nothing yet
+end
+scene other
+  Other.
+end
+`;
+    expect(resolved(text, [0, 1])).toEqual([
+      [1, "start"],
+      [1, "start"],
+    ]);
+  });
+});
