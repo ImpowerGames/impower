@@ -355,24 +355,27 @@ export function scheduleSpec(record, file, defaults) {
 // A runner may stop protecting a job its process still fires: the runner
 // configuration names the environment variable holding the runner process's
 // id, whose start time identifies the process instance that armed the job.
-// null means the runner offers no way to tell its instances apart.
+// null means the runner offers no way to tell its instances apart; a runner
+// that offers one but cannot be observed now yields { unknown: <why> }.
 export function runnerInstance(capability, { env = process.env, identify = processIdentity } = {}) {
   const name = capability?.instance?.pidEnv;
-  const pid = name ? Number(env[name]) : NaN;
-  if (!Number.isSafeInteger(pid) || pid < 1) return null;
-  try { return identify(pid); } catch { return null; }
+  if (!name) return null;
+  const pid = Number(env[name]);
+  if (!Number.isSafeInteger(pid) || pid < 1) return { unknown: `${name} is ${env[name] === undefined ? "unset" : `${JSON.stringify(env[name])}, not a process id`}` };
+  try { return identify(pid) ?? { unknown: `runner process ${pid} from ${name} is not running` }; } catch (error) { return { unknown: `runner process ${pid} from ${name} could not be probed: ${error.message}` }; }
 }
-const sameInstance = (a, b) => Boolean(a && b && a.pid === b.pid && a.start === b.start);
+const sameInstance = (a, b) => Boolean(a?.start && b?.start && a.pid === b.pid && a.start === b.start);
 // Whether the runner tracks the job: "confirmed" or "unconfirmed" from the
-// runner's own log, or "unavailable" where the runner offers no such signal.
+// runner's own logs (the current one and its rotated predecessors), or
+// "unavailable" where the runner offers no such signal.
 export function trackingOf(capability, { job, session, env = process.env }) {
   const confirm = capability?.confirm;
   if (!confirm || (confirm.where && env[confirm.where.env] !== confirm.where.equals)) return "unavailable";
-  const file = confirm.log.replace(/%(\w+)%/g, (_, name) => env[name] ?? "");
   const line = confirm.line.replace("{session}", session).replace("{job}", job);
-  let text;
-  try { text = fs.readFileSync(file, "utf8"); } catch { return "unconfirmed"; }
-  return text.includes(line) ? "confirmed" : "unconfirmed";
+  const found = confirm.logs.some((log) => {
+    try { return fs.readFileSync(log.replace(/%(\w+)%/g, (_, name) => env[name] ?? ""), "utf8").includes(line); } catch { return false; }
+  });
+  return found ? "confirmed" : "unconfirmed";
 }
 const checkInCapability = (record, defaults) => defaults.orchestrators[record.coordinator.harness]?.checkIn ?? null;
 export function recordCheckIn(record, { job, none, file, defaults, env = process.env, identify = processIdentity }) {
@@ -400,7 +403,8 @@ function checkInStatus(record, now, { defaults, env, identify }) {
   const capability = checkInCapability(record, defaults);
   const rearm = (why, state = "rearm") => ({ state, job: c.job, next: `job ${c.job} ${why}; remove it with ${capability.remove}, create it again with ${c.command}, and record the new job with check-in --job <id>` });
   const current = runnerInstance(capability, { env, identify });
-  if (current && !sameInstance(current, c.instance)) return rearm(`was armed by ${c.instance ? `runner process ${c.instance.pid}` : "an unrecorded runner process"}, not this one (${current.pid}), and the runner stops tracking a job across a restart`);
+  if (current?.unknown) return rearm(`may have outlived its runner process, which cannot be identified now (${current.unknown}), and is re-armed from a shell where ${capability.instance.pidEnv} names the runner process`, "unidentified");
+  if (current && !sameInstance(current, c.instance)) return rearm(`was armed by ${c.instance?.start ? `runner process ${c.instance.pid}` : "an unidentified runner process"}, not this one (${current.pid}), and the runner stops tracking a job across a restart`);
   const days = capability?.trackedForDays;
   if (days && c.since && now > Date.parse(c.since) + days * 86400000) return rearm(`was armed at ${c.since}, more than ${days} days ago, past the runner's tracking window`);
   if (c.tracked === "unconfirmed" && trackingOf(capability, { job: c.job, session: record.coordinator.session, env }) !== "confirmed") return rearm("is not confirmed as tracked by the runner", "unconfirmed");

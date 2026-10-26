@@ -627,12 +627,14 @@ try {
     assert.equal(b - a, 30, "the job fires every 30 minutes");
     assert.ok(spec.prompt.includes(f.file) && spec.prompt.includes("references/writer-reports.md"), "the job's prompt names the record and the wake routine");
     assert.equal(spec.command, `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${f.file}'`);
+    // One identified runner process arms the job and plans against it.
+    const steady = { env: { CLAUDE_PID: "4100" }, identify: (pid) => ({ pid, start: "100" }) };
     assert.ok(spec.capability.includes("CronCreate"), "the capability comes from the runner configuration");
-    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env: {} }));
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, ...steady }));
     const recorded = run.readRecord(f.file).checkIn;
     assert.deepEqual([recorded.job, recorded.command, recorded.interval], ["cron-1", spec.command, 30]);
-    assert.equal(planOf(f, snap).checkIn.state, "scheduled");
-    assert.equal(planOf(f, snap, { now: Date.parse(recorded.since) + 8 * 24 * 60 * MINUTE }).checkIn.state, "expired", "a recurring job expires after seven days and is recreated");
+    assert.equal(planOf(f, snap, steady).checkIn.state, "scheduled");
+    assert.equal(planOf(f, snap, { ...steady, now: Date.parse(recorded.since) + 8 * 24 * 60 * MINUTE }).checkIn.state, "expired", "a recurring job expires after seven days and is recreated");
   });
 
   scenario("a check-in that finds nothing records the outcome no change", () => {
@@ -664,11 +666,15 @@ try {
   // The runner process is named by an environment variable from the runner
   // configuration and identified by its start time; the tracking log lives
   // under an environment-relative path, so a scratch directory stands in.
+  // The fixtures name the Claude desktop runner's facts as literals, so they
+  // still build against a configuration that lacks them; the helper itself
+  // reads them only from the configuration.
   const runner = defaults.orchestrators.claude.checkIn;
-  const instanceEnv = (pid, extra = {}) => ({ [runner.instance.pidEnv]: String(pid), ...extra });
+  const TRACKED_DAYS = 2;
+  const instanceEnv = (pid, extra = {}) => ({ CLAUDE_PID: String(pid), ...extra });
   const identifyAs = (starts) => (pid) => (pid in starts ? { pid, start: starts[pid] } : null);
-  const desktopEnv = (f, pid) => { const logs = path.join(f.artifacts, "app"); fs.mkdirSync(logs, { recursive: true }); return instanceEnv(pid, { [runner.confirm.where.env]: runner.confirm.where.equals, LOCALAPPDATA: logs }); };
-  const trackingLog = (env) => runner.confirm.log.replace(/%(\w+)%/g, (_, name) => env[name]);
+  const desktopEnv = (f, pid) => { const logs = path.join(f.artifacts, "app"); fs.mkdirSync(logs, { recursive: true }); return instanceEnv(pid, { CLAUDE_CODE_ENTRYPOINT: "claude-desktop", LOCALAPPDATA: logs }); };
+  const trackingLog = (env, name = "main.log") => path.join(env.LOCALAPPDATA, "Claude", "Logs", name);
 
   scenario("a check-in armed by an earlier runner process is reported for re-arming, with the commands to run", () => {
     const f = fresh("check-in-restart", { issue: 1775 });
@@ -693,11 +699,11 @@ try {
     const env = instanceEnv(4100), identify = identifyAs({ 4100: "100" });
     f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env, identify }));
     const since = Date.parse(run.readRecord(f.file).checkIn.since);
-    assert.ok(runner.trackedForDays < runner.expiresAfterDays, "the tracking window is shorter than the job's own expiry");
-    assert.equal(planOf(f, snap, { env, identify, now: since + (runner.trackedForDays * 24 * 60 - 1) * MINUTE }).checkIn.state, "scheduled");
-    const aged = planOf(f, snap, { env, identify, now: since + (runner.trackedForDays * 24 * 60 + 1) * MINUTE }).checkIn;
+    assert.equal(planOf(f, snap, { env, identify, now: since + (TRACKED_DAYS * 24 * 60 - 1) * MINUTE }).checkIn.state, "scheduled");
+    const aged = planOf(f, snap, { env, identify, now: since + (TRACKED_DAYS * 24 * 60 + 1) * MINUTE }).checkIn;
     assert.equal(aged.state, "rearm");
-    assert.match(aged.next, new RegExp(`${runner.trackedForDays} days`));
+    assert.match(aged.next, new RegExp(`${TRACKED_DAYS} days`));
+    assert.deepEqual([runner.trackedForDays, runner.trackedForDays < runner.expiresAfterDays], [TRACKED_DAYS, true], "the window comes from the runner configuration and is shorter than the job's own expiry");
   });
 
   scenario("arming on the desktop app confirms the runner's tracking from its log, and an unconfirmed job is re-armed", () => {
@@ -718,6 +724,26 @@ try {
     const confirmed = run.readRecord(f.file).checkIn;
     assert.deepEqual([confirmed.tracked, confirmed.instance], ["confirmed", { pid: 4100, start: "100" }]);
     assert.equal(run.readRecord(f.file).log.at(-1).tracked, "confirmed", "the log keeps the confirmation");
+  });
+
+  scenario("a runner process that cannot be identified, and a confirmation in a rotated log, are not read as a protected job", () => {
+    const f = fresh("check-in-unidentified", { issue: 1775 });
+    const snap = snapshotOf([ticket(366)], 1775);
+    const env = desktopEnv(f, 4100), identify = identifyAs({ 4100: "100" });
+    fs.mkdirSync(path.dirname(trackingLog(env)), { recursive: true });
+    fs.writeFileSync(trackingLog(env, "main1.log"), `[CCD] Session ${COORDINATOR} cron cron-1 confirmed (active: 1)\n`);
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, env, identify }));
+    assert.equal(run.readRecord(f.file).checkIn.tracked, "confirmed", "a confirmation the app has since rotated out of its current log still counts");
+    const { CLAUDE_PID, ...unset } = env;
+    const cases = [["unset", { env: unset }], ["not a process id", { env: { ...env, CLAUDE_PID: "x" } }], ["not running", { env, identify: () => null }], ["could not be probed", { env, identify: () => { throw new Error("probe failed"); } }]];
+    for (const [why, more] of cases) {
+      const status = planOf(f, snap, { identify, ...more }).checkIn;
+      assert.equal(status.state, "unidentified", `a runner process that is ${why} leaves a confirmed job in doubt`);
+      assert.ok(status.next.includes(why) && status.next.includes("CronDelete") && status.next.includes("check-in --job"), `the next step says why (${why}) and names the re-arm commands`);
+    }
+    f.change((r) => run.recordCheckIn(r, { job: "cron-2", file: f.file, defaults, env: unset, identify }));
+    assert.equal(run.readRecord(f.file).checkIn.instance.unknown, "CLAUDE_PID is unset", "arming without an identifiable process records why");
+    assert.equal(planOf(f, snap, { env, identify }).checkIn.state, "rearm", "a job armed by an unidentified process is re-armed once the process is known");
   });
 
   scenario("a runner without a scheduling capability records none and runs the wake routine at every turn", () => {
