@@ -3,7 +3,7 @@ import { bakeMorphArtifact } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
 import { aperturePathData, namespaceMorphMarkup, renderMorphFrame } from "../../morph/render";
 import { parse } from "../../txml/txml";
-import { blink, CLOSED, LOWER_OPEN, portrait, UPPER_OPEN } from "./fixtures";
+import { blink, CLOSED, LOWER_OPEN, portrait, shadowedPortrait, UPPER_OPEN } from "./fixtures";
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
 const elements = (svg: string): Element[] => {
@@ -63,6 +63,26 @@ describe("artifact playback", () => {
     // its own open lash, at the same pose the closing passed through.
     expect(lashes(opening)).toHaveLength(2);
     expect(lashes(opening)).toEqual(lashes(closing));
+  });
+
+  test("a reopening eye paints its moving shadow below the moving lashes", () => {
+    const recipe = blink({
+      clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"] }],
+    });
+    const shadowed = bakeMorphArtifact({ source: shadowedPortrait(), selection: {}, recipe, key: "shadowed" });
+    expect(shadowed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(shadowed.status).toBe("live");
+    for (const pose of [
+      { segment: 0, progress: 0.9 },
+      { segment: 1, progress: 0.1 },
+    ]) {
+      // Paint order is document order: the shadow, clipped to the opening,
+      // stays under both lashes as the closed pose has it, so the lashes
+      // cover whatever of it the opening does not.
+      const order = shown(elements(renderMorphFrame(shadowed, pose))).map((e) => e.attributes["data-name"]);
+      expect(order.filter((name) => name === "eyelash-left")).toHaveLength(2);
+      expect(order.lastIndexOf("eyeball-shadow-left")).toBeLessThan(order.indexOf("eyelash-left"));
+    }
   });
 
   test("each part fills the composed picture's viewport", () => {

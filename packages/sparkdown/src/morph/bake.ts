@@ -629,9 +629,18 @@ export function* bakeSteps(
       }
       for (const u of pairing.unpaired) (u.side === "from" ? unpairedFrom : unpairedTo).push(byNode.get(u.shape.id)!);
       // A drawing several tracks leave cannot carry them all; each draws on
-      // its own destination instead.
+      // its own destination instead. Every other track of the segment then
+      // draws on its destination too, unless several tracks arrive there, so
+      // the moving drawings keep one pose's paint order: a shadow drawn where
+      // its closed copy sits would paint over lashes drawn where the open ones
+      // sit.
       const departures = new Map<string, number>();
-      for (const pair of pairing.pairs) departures.set(pair.from.id, (departures.get(pair.from.id) ?? 0) + 1);
+      const arrivals = new Map<string, number>();
+      for (const pair of pairing.pairs) {
+        departures.set(pair.from.id, (departures.get(pair.from.id) ?? 0) + 1);
+        arrivals.set(pair.to.id, (arrivals.get(pair.to.id) ?? 0) + 1);
+      }
+      const drawOnDestination = [...departures.values()].some((count) => count > 1);
       for (const pair of pairing.pairs) {
         yield;
         const from = byNode.get(pair.from.id)!;
@@ -654,7 +663,8 @@ export function* bakeSteps(
           continue;
         }
         const { morph, cacheKey, reversed } = morphFor(from, to, method);
-        const draw = (departures.get(pair.from.id) ?? 0) > 1 ? to : from;
+        const split = (departures.get(pair.from.id) ?? 0) > 1;
+        const draw = split || (drawOnDestination && arrivals.get(pair.to.id) === 1) ? to : from;
         const space = elementSpace(draw);
         if (!morph || !space) {
           unpairedFrom.push(from);
