@@ -97,6 +97,17 @@ const COMMIT_WAIT_LIMIT_MS = 1_000;
 /** Counts PLAY sessions, each of which starts every portrait morph at rest. */
 let playSessions = 0;
 
+/** How far, in seconds, a playing movie's element may stand from where the
+ *  game clock puts it and still be in step: playback starts a moment after
+ *  it is asked for, and a seek of a movie in step would hold its picture
+ *  while it decodes. */
+const MOVIE_IN_STEP = 0.25;
+
+/** How far, in seconds, an element may stand from a position it was given
+ *  and still be there: a paused movie is placed exactly, and a seek lands
+ *  where it was asked up to rounding. */
+const MOVIE_AT = 0.01;
+
 /** A beat's ops in order, each batch's ops in its place. */
 function beatOps(params: BeatParams): IMessage[] {
   return params.messages.flatMap((message) =>
@@ -548,6 +559,7 @@ export default class UIManager extends Manager {
       video.pause();
       delete (video as any).__sdMovie;
       delete (video as any).__sdManager;
+      delete (video as any).__sdSeek;
     }
     // The morphs on the screen this leaves go on, on their own frames, until
     // the next display replaces them; a pause was this run's.
@@ -2386,23 +2398,23 @@ export default class UIManager extends Manager {
     }
     (video as any).__sdMovie = true;
     (video as any).__sdManager = this;
+    // A seek asked for before (by a run that has ended) is not this page's.
+    delete (video as any).__sdSeek;
     this.anchorMovie(video, video.currentTime);
-    if (!(video as any).__sdPlacesOnDuration) {
-      (video as any).__sdPlacesOnDuration = true;
-      // A duration the browser learns after a skip changes where the movie
-      // can stand: the page playing it places it again.
-      video.addEventListener("durationchange", () =>
-        (video as any).__sdManager?.placeMovie(video),
-      );
-    }
-    if (!video.loop && !(video as any).__sdHoldsEnd) {
-      (video as any).__sdHoldsEnd = true;
-      // It holds its last frame, and where that is becomes its known end,
-      // which a file with no duration tells only by reaching it.
-      video.addEventListener("ended", () => {
-        (video as any).__sdEnd = video.currentTime;
-        video.pause();
-      });
+    if (!(video as any).__sdSettles) {
+      (video as any).__sdSettles = true;
+      // Each report of where the element stands or can stand settles the
+      // movie, by the page playing it.
+      const settle = (e: Event) =>
+        (video as any).__sdManager?.settleMovie(video, e.type);
+      for (const type of [
+        "loadedmetadata",
+        "durationchange",
+        "seeked",
+        "ended",
+      ]) {
+        video.addEventListener(type, settle);
+      }
     }
     // While the game is paused it starts when the game resumes.
     if (!this.app.paused) {
@@ -2437,6 +2449,7 @@ export default class UIManager extends Manager {
     for (const video of videos) {
       delete (video as any).__sdMovie;
       delete (video as any).__sdManager;
+      delete (video as any).__sdSeek;
       video.pause();
       video.removeAttribute("src");
       video.load();
@@ -2480,7 +2493,8 @@ export default class UIManager extends Manager {
   }
 
   /** How long `video` is, when that is known: its duration, or for a file
-   *  that reports none, where it ended. */
+   *  that reports none, where it ended or where the browser stopped a seek
+   *  past its end (`settleMovie`). */
   protected movieSpan(video: HTMLVideoElement): number | undefined {
     const duration = video.duration;
     if (Number.isFinite(duration) && duration > 0) {
@@ -2538,20 +2552,87 @@ export default class UIManager extends Manager {
       : video.currentTime;
   }
 
-  /** Where `video` can stand changed (the browser learned its duration,
-   *  which a skip made before its metadata could not know): place its
-   *  anchor and its element again, by the one rule, where the clock has it.
-   *  The element is moved only when it stands elsewhere, so a movie playing
-   *  in step with the clock is not interrupted by a seek. */
-  protected placeMovie(video: HTMLVideoElement) {
+  /** The browser reported where `video` stands or can stand: it loaded its
+   *  metadata, learned its duration, ended, or settled a seek. The browser
+   *  decides where an element can stand, so the movie is placed again by
+   *  the one rule from where the clock has it, with the span the browser now
+   *  reports (`placeMovie`); one that ended is placed at its end.
+   *
+   *  A seek the page asked for that landed where it asked is that placement
+   *  already, and is left as it is: the clock ran on while the seek decoded,
+   *  and seeking again would only lose that time again. A seek the browser
+   *  stopped short of the request, with no new span to explain it, met the
+   *  browser's bound: with no span known, the landing is where the movie
+   *  ends; otherwise the movie is anchored where the element landed. */
+  protected settleMovie(video: HTMLVideoElement, event: string) {
     if (!(video as any).__sdMovie) {
       return;
     }
+    if (event === "ended") {
+      // It holds its last frame, and where that is becomes its known end,
+      // which a file with no duration tells only by reaching it. Anchored
+      // there: the clock puts a movie that has played through at its end,
+      // and a reading short of it is one the clock has not caught up with
+      // (it moves on animation frames, which a hidden page does not get).
+      (video as any).__sdEnd = video.currentTime;
+      video.pause();
+      this.anchorMovie(video, this.moviePlace(video, video.currentTime).anchor);
+      return;
+    }
+    if (event === "seeked") {
+      if (video.seeking) {
+        // A later seek is on its way; its own `seeked` settles the movie.
+        return;
+      }
+      const asked = (video as any).__sdSeek as
+        { time: number; span: number | undefined } | undefined;
+      delete (video as any).__sdSeek;
+      if (asked) {
+        // A playing movie moves on from where it landed before this runs,
+        // so only a landing short of the request is the browser's refusal.
+        const landed = video.currentTime;
+        if (landed >= asked.time - MOVIE_AT) {
+          return;
+        }
+        if (this.movieSpan(video) === asked.span) {
+          if (asked.span === undefined && landed > 0) {
+            (video as any).__sdEnd = landed;
+          } else {
+            this.anchorMovie(video, this.moviePlace(video, landed).anchor);
+            return;
+          }
+        }
+      }
+    }
+    this.placeMovie(video);
+  }
+
+  /** Place `video`'s anchor and element by the one rule where the clock has
+   *  it now. A paused element is moved to its place; a playing one only
+   *  when it is out of step, so playback with the clock is not interrupted
+   *  by a seek. */
+  protected placeMovie(video: HTMLVideoElement) {
     const place = this.moviePlace(video, this.clockTime(video));
     this.anchorMovie(video, place.anchor);
-    if (Math.abs(video.currentTime - place.element) > 0.05) {
-      video.currentTime = place.element;
+    const tolerance = video.paused ? MOVIE_AT : MOVIE_IN_STEP;
+    if (this.movieGap(video, place.element) > tolerance) {
+      this.seekMovie(video, place.element);
     }
+  }
+
+  /** How far `video`'s element stands from `time`: around the loop for a
+   *  loop of known span, whose end and start are the same frame. */
+  protected movieGap(video: HTMLVideoElement, time: number): number {
+    const gap = Math.abs(video.currentTime - time);
+    const span = this.movieSpan(video);
+    return video.loop && span !== undefined ? Math.min(gap, span - gap) : gap;
+  }
+
+  /** Move `video`'s element to `time`, remembering what was asked and the
+   *  span known when it was, which its `seeked` is settled against. */
+  protected seekMovie(video: HTMLVideoElement, time: number) {
+    (video as any).__sdSeek = { time, span: this.movieSpan(video) };
+    video.currentTime = time;
   }
 
   /** The game clock moved `seconds` (back, when negative): so does every
@@ -2561,7 +2642,7 @@ export default class UIManager extends Manager {
     for (const video of this.movies()) {
       const place = this.moviePlace(video, this.moviePosition(video) + seconds);
       this.anchorMovie(video, place.anchor);
-      video.currentTime = place.element;
+      this.seekMovie(video, place.element);
     }
   }
 

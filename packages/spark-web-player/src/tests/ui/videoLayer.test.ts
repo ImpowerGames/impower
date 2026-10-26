@@ -79,11 +79,15 @@ function stubMedia(overlay: HTMLElement) {
   define("paused", (el) => el.__paused ?? true);
   define("ended", (el) => el.__ended ?? false);
   define("duration", (el) => el.__duration ?? NaN);
+  // A browser keeps a position within the movie it knows: no earlier than
+  // its start, and no later than its duration once it has one.
   define(
     "currentTime",
     (el) => el.__time ?? 0,
     (el, v) => {
-      el.__time = v;
+      const d = el.__duration;
+      const end = Number.isFinite(d) && d > 0 ? d : Infinity;
+      el.__time = Math.min(Math.max(0, v), end);
     },
   );
   proto.play = function (this: any) {
@@ -454,6 +458,90 @@ describe("a movie on a layer, in play", () => {
     (video as any).__ended = false;
     h.ui.onSkip(5);
     expect(video.currentTime).toBeCloseTo(2.9);
+  });
+
+  // A seek past the end of a file the browser still reports no duration
+  // for, which the browser stops at the movie's true end (3 s) and settles
+  // there with no `durationchange`: that landing is where the movie ends.
+  // Paused at 1 s, a skip of 4.5 s and then one back.
+  test.each([
+    { loop: true, expected: [2.5, 1.5] },
+    { loop: false, expected: [3, 2] },
+  ])(
+    "with the game clock, loop $loop, a seek past its end that the browser stops there with no duration: it ends where it landed",
+    async ({ loop, expected }) => {
+      const { h } = await playing();
+      const clock = { elapsedTime: 10 };
+      appOf(h).clock = clock;
+      await playNext(h);
+      const video = movieOn(h.overlay, "portrait")!;
+      video.loop = loop;
+      (video as any).__duration = Infinity;
+      clock.elapsedTime = 11;
+      video.currentTime = 1;
+      h.ui.onPause();
+      h.ui.onSkip(4.5);
+      (video as any).__time = 3;
+      video.dispatchEvent(
+        new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
+      );
+      expect(video.currentTime).toBeCloseTo(expected[0]!);
+      h.ui.onSkip(0);
+      expect(video.currentTime).toBeCloseTo(expected[0]!);
+      h.ui.onSkip(-1);
+      expect(video.currentTime).toBeCloseTo(expected[1]!);
+    },
+  );
+
+  test("a loop the browser's own seek to its start left behind the clock is placed where the clock has it, and one in step is left alone", async () => {
+    const { h } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    // Started at its first frame at game time 10.
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    (video as any).__duration = 3;
+    const seeked = () =>
+      video.dispatchEvent(
+        new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
+      );
+    // At 13.4 the loop has come round, and the browser's seek back to its
+    // start stalled: the element stands at 0.05 where the clock has 0.4.
+    clock.elapsedTime = 13.4;
+    video.currentTime = 0.05;
+    seeked();
+    expect(video.currentTime).toBeCloseTo(0.4);
+    // That seek lands where it was asked.
+    seeked();
+    expect(video.currentTime).toBeCloseTo(0.4);
+    // Round again at 16.43, the element 0.05 short of the clock's 0.43:
+    // in step, so not seeked.
+    clock.elapsedTime = 16.43;
+    video.currentTime = 0.38;
+    seeked();
+    expect(video.currentTime).toBe(0.38);
+  });
+
+  test("a skip's seek that landed where it was asked is not sought again while the clock runs on", async () => {
+    const { h } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    (video as any).__duration = 30;
+    clock.elapsedTime = 11;
+    h.ui.onSkip(2);
+    expect(video.currentTime).toBe(3);
+    // It took 0.3 s of game time to decode, and landed at 3: another seek
+    // would only lose that time again.
+    clock.elapsedTime = 11.3;
+    video.dispatchEvent(
+      new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
+    );
+    expect(video.currentTime).toBe(3);
+    // The clock keeps that time: the next skip goes from 3.3.
+    h.ui.onSkip(0);
+    expect(video.currentTime).toBeCloseTo(3.3);
   });
 
   test("a movie shown while the game is paused starts when it resumes", async () => {
