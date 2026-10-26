@@ -335,6 +335,80 @@ describe("a movie on a layer, in play", () => {
     expect(video.currentTime).toBe(0.5);
   });
 
+  // Where the game clock puts a movie and where its element stands must
+  // agree after every skip, whatever the movie is: looping or not, with a
+  // known duration or none, skipped before its start, inside it or past
+  // its end, and then back the other way. `place` is that rule written out
+  // on its own, as the oracle.
+  const place = (loop: boolean, duration: number, time: number) => {
+    const span = Number.isFinite(duration) && duration > 0 ? duration : undefined;
+    if (loop && span !== undefined) {
+      return { anchor: time, element: ((time % span) + span) % span };
+    }
+    const at = Math.min(Math.max(0, time), !loop && span !== undefined ? span : Infinity);
+    return { anchor: at, element: at };
+  };
+  const landings = [
+    { landing: "before its start", first: -2, then: 0.5 },
+    { landing: "inside it", first: 0.5, then: -0.3 },
+    { landing: "past its end", first: 5, then: -1.5 },
+  ];
+  test.each(
+    [true, false].flatMap((loop) =>
+      [3, NaN, Infinity].flatMap((duration) =>
+        landings.map((l) => ({ loop, duration, ...l })),
+      ),
+    ),
+  )(
+    "with the game clock, loop $loop, duration $duration, skipped $landing and back: the clock and the element agree",
+    async ({ loop, duration, first, then }) => {
+      const { h } = await playing();
+      const clock = { elapsedTime: 10 };
+      appOf(h).clock = clock;
+      await playNext(h);
+      const video = movieOn(h.overlay, "portrait")!;
+      video.loop = loop;
+      (video as any).__duration = duration;
+      clock.elapsedTime = 11;
+      video.currentTime = 1;
+      h.ui.onPause();
+      let time = 1;
+      for (const seconds of [first, then]) {
+        const expected = place(loop, duration, time + seconds);
+        h.ui.onSkip(seconds);
+        expect(video.currentTime).toBeCloseTo(expected.element);
+        // A skip of nothing places the element where the clock has the
+        // movie: unchanged when the two agree.
+        h.ui.onSkip(0);
+        expect(video.currentTime).toBeCloseTo(expected.element);
+        time = expected.anchor;
+      }
+    },
+  );
+
+  test("a once movie with no duration that reaches its end is placed no further than where it ended", async () => {
+    const { h } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.loop).toBe(false);
+    expect(Number.isFinite(video.duration)).toBe(false);
+    // Three seconds of game time later it reaches its end at 2.9 s.
+    clock.elapsedTime = 13;
+    video.currentTime = 2.9;
+    (video as any).__ended = true;
+    video.dispatchEvent(new (h.overlay.ownerDocument.defaultView as any).Event("ended"));
+    // A skip back goes from its end, not from the 3 s the clock projects.
+    h.ui.onSkip(-1);
+    expect(video.currentTime).toBeCloseTo(1.9);
+    // And a skip forward past it stops at its end.
+    (video as any).__ended = false;
+    h.ui.onSkip(5);
+    expect(video.currentTime).toBeCloseTo(2.9);
+  });
+
   test("a movie shown while the game is paused starts when it resumes", async () => {
     const { h, media } = await playing();
     appOf(h).paused = true;

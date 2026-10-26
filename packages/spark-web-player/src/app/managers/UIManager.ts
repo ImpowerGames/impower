@@ -2387,7 +2387,12 @@ export default class UIManager extends Manager {
     this.anchorMovie(video, video.currentTime);
     if (!video.loop && !(video as any).__sdHoldsEnd) {
       (video as any).__sdHoldsEnd = true;
-      video.addEventListener("ended", () => video.pause());
+      // It holds its last frame, and where that is becomes its known end,
+      // which a file with no duration tells only by reaching it.
+      video.addEventListener("ended", () => {
+        (video as any).__sdEnd = video.currentTime;
+        video.pause();
+      });
     }
     // While the game is paused it starts when the game resumes.
     if (!this.app.paused) {
@@ -2459,13 +2464,38 @@ export default class UIManager extends Manager {
     if (video.loop) {
       return false;
     }
-    if (video.ended) {
-      return true;
-    }
+    const span = this.movieSpan(video);
+    return video.ended || (span !== undefined && video.currentTime >= span);
+  }
+
+  /** How long `video` is, when that is known: its duration, or for a file
+   *  that reports none, where it ended. */
+  protected movieSpan(video: HTMLVideoElement): number | undefined {
     const duration = video.duration;
-    return (
-      Number.isFinite(duration) && duration > 0 && video.currentTime >= duration
-    );
+    if (Number.isFinite(duration) && duration > 0) {
+      return duration;
+    }
+    const end = (video as any).__sdEnd;
+    return typeof end === "number" && end > 0 ? end : undefined;
+  }
+
+  /** Where a movie at `time` (seconds, counted without wrapping a loop)
+   *  stands: the time its anchor keeps and the `currentTime` its element is
+   *  given, decided together so the two cannot disagree. A loop of known
+   *  span keeps its time unwrapped and wraps it into the element; any other
+   *  movie goes no earlier than its start, and one that plays once no later
+   *  than its known end. */
+  protected moviePlace(
+    video: HTMLVideoElement,
+    time: number,
+  ): { anchor: number; element: number } {
+    const span = this.movieSpan(video);
+    if (video.loop && span !== undefined) {
+      return { anchor: time, element: ((time % span) + span) % span };
+    }
+    const end = !video.loop && span !== undefined ? span : Infinity;
+    const at = Math.min(Math.max(0, time), end);
+    return { anchor: at, element: at };
   }
 
   /** Record that `video` stands at `time` (seconds into the movie, counted
@@ -2480,7 +2510,7 @@ export default class UIManager extends Manager {
    *  game time since, which stops while the game is paused. A seek holds
    *  the element's own position back while it decodes, so that position
    *  falls behind the clock on every skip; without a clock it is all
-   *  there is. A movie that plays once goes no further than its end. */
+   *  there is. Kept where the movie can stand (`moviePlace`). */
   protected moviePosition(video: HTMLVideoElement): number {
     const anchor = (video as any).__sdAnchor as
       | { time: number; clock: number }
@@ -2490,37 +2520,17 @@ export default class UIManager extends Manager {
       anchor && clock != null
         ? anchor.time + (clock - anchor.clock)
         : video.currentTime;
-    return this.withinMovie(video, position);
-  }
-
-  /** `time` kept where the element can stand: a looping movie of known
-   *  duration runs on unwrapped, since its time wraps into `currentTime`;
-   *  any other movie goes no earlier than its start, and one that plays once
-   *  no later than its end when that is known. */
-  protected withinMovie(video: HTMLVideoElement, time: number): number {
-    const duration = video.duration;
-    const known = Number.isFinite(duration) && duration > 0;
-    if (video.loop && known) {
-      return time;
-    }
-    return Math.min(Math.max(0, time), !video.loop && known ? duration : Infinity);
+    return this.moviePlace(video, position).anchor;
   }
 
   /** The game clock moved `seconds` (back, when negative): so does every
-   *  movie, from where the clock puts it, a looping one around its loop and
-   *  one that plays once within its start and end. */
+   *  movie, from where the clock puts it, its anchor and its element placed
+   *  by the one rule (`moviePlace`). */
   protected skipMovies(seconds: number) {
     for (const video of this.movies()) {
-      const target = this.withinMovie(
-        video,
-        this.moviePosition(video) + seconds,
-      );
-      this.anchorMovie(video, target);
-      const duration = video.duration;
-      video.currentTime =
-        video.loop && Number.isFinite(duration) && duration > 0
-          ? ((target % duration) + duration) % duration
-          : Math.max(0, target);
+      const place = this.moviePlace(video, this.moviePosition(video) + seconds);
+      this.anchorMovie(video, place.anchor);
+      video.currentTime = place.element;
     }
   }
 
