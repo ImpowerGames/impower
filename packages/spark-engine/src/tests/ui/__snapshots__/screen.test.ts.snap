@@ -2315,6 +2315,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     },
                     "position": "relative",
                   },
+                  "& >> :where(#data-ui-handler)": {
+                    "&:where(:not(#data-widget-control))": {
+                      "pointer_events": "auto",
+                    },
+                  },
                   "& >> @busy": {
                     "@before": {
                       "animation-duration": "0.75s",

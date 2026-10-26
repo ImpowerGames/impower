@@ -256,8 +256,9 @@ end
     // An inline opt-in on the control would outrank the lock it inherits from
     // the label, so a locked widget's box would still toggle.
     expect(pointerStyles(control.element)).toEqual([]);
-    // A bare control still opts itself in.
-    expect(pointerStyles(bare.element)).toEqual(["auto"]);
+    // Neither does a bare control: it opts in through the handler marker,
+    // which the builtin rule leaves out for a labelled widget's control.
+    expect(pointerStyles(bare.element)).toEqual([]);
     // Both controls are still observed for their handlers.
     expect(h.observedElementIds()).toHaveLength(2);
 

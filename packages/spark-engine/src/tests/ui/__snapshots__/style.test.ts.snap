@@ -1002,6 +1002,11 @@ exports[`style > authored style block content payload 1`] = `
         },
         "position": "relative",
       },
+      "& >> :where(#data-ui-handler)": {
+        "&:where(:not(#data-widget-control))": {
+          "pointer_events": "auto",
+        },
+      },
       "& >> @busy": {
         "@before": {
           "animation-duration": "0.75s",
@@ -4082,6 +4087,11 @@ exports[`style > style + variables construction stream 1`] = `
                 "opacity": "1",
               },
               "position": "relative",
+            },
+            "& >> :where(#data-ui-handler)": {
+              "&:where(:not(#data-widget-control))": {
+                "pointer_events": "auto",
+              },
             },
             "& >> @busy": {
               "@before": {

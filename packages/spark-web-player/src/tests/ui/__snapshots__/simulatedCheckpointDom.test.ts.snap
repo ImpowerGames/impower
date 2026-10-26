@@ -489,6 +489,11 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  & :where([data-ui-handler]) {
+    &:where(:not([data-widget-control])) {
+      pointer-events: auto;
+    }
+  }
   & [data-tooltip] {
     position: relative;
     &:where(:not([data-widget-control])) {

@@ -20,6 +20,7 @@ import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
+  HANDLER_ATTRIBUTE,
   isAttributeProp,
   isWidgetControlAttribute,
   toDataAttributeName,
@@ -2798,7 +2799,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.mountTextContent(el, node.content, scope);
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
+      this.mountEvent(el, ev, scope);
     }
     // Children mount INTO this fresh element (always append — before=null).
     this.mountChildren(el, node.children, scope, null);
@@ -2963,12 +2964,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.mountSliderFill(el, node, scope);
     }
     for (const ev of node.events) {
-      this.mountEvent(
-        el,
-        ev,
-        scope,
-        !labelled && !this.declaresPointer(node),
-      );
+      this.mountEvent(el, ev, scope);
     }
     return el;
   }
@@ -3089,7 +3085,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scope.styles.push({ element: el, ...r });
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
+      this.mountEvent(el, ev, scope);
     }
     return el;
   }
@@ -3179,7 +3175,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scope.attrs.push({ element: el, ...r });
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
+      this.mountEvent(el, ev, scope);
     }
     return el;
   }
@@ -3238,7 +3234,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scope.attrs.push({ element: el, ...r });
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
+      this.mountEvent(el, ev, scope);
     }
     return el;
   }
@@ -3280,33 +3276,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return resolved == null ? null : String(resolved);
   }
 
-  /** Whether an element decides its own pointer, so a handler must not force
-   *  `pointer-events: auto` over it: one of its props sets `interactable` (or
-   *  `pointer-events`), whatever the value or binding, or one of its classes
-   *  locks it with `interactable = false`. */
-  protected declaresPointer(node: {
-    classes?: string[];
-    props?: Record<string, unknown>;
-  }): boolean {
-    const isPointerProp = (prop: string) => {
-      const name = prop.replace(/-/g, "_");
-      return name === "interactable" || name === "pointer_events";
-    };
-    if (Object.keys(node.props ?? {}).some(isPointerProp)) {
-      return true;
-    }
-    const styles = (this.context?.style ?? {}) as Record<string, unknown>;
-    return (node.classes ?? []).some((cls) => {
-      const style = styles[cls];
-      if (!style || typeof style !== "object") {
-        return false;
-      }
-      return Object.entries(style).some(
-        ([prop, value]) =>
-          isPointerProp(prop) &&
-          (value === false || value === "false" || value === "none"),
-      );
-    });
+  /** Opt an element with a handler into the pointer. The marker is matched by
+   *  a builtin `layouts` rule at the lowest specificity an element rule has,
+   *  never an inline style, so `interactable = false` on the element, as a
+   *  prop or from any class rule, outranks it, and a labelled widget's control
+   *  keeps taking its pointer from its label. */
+  protected markHandler(el: Element): void {
+    this.updateElement(el, { attributes: { [HANDLER_ATTRIBUTE]: "" } });
   }
 
   /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
@@ -3321,7 +3297,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     el: Element,
     ev: EventBinding,
     scope: ReactiveScope,
-    takesPointer = true,
   ): void {
     const handler = ev.handler;
     const callback = (event: Event): void => {
@@ -3342,13 +3317,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._events[ev.event] ??= {};
     this._events[ev.event]![el.id] = callback;
     // Make the element clickable + ask the renderer to forward the DOM event
-    // (mirrors setEventListener's observe). A labelled widget's control does
-    // not take the pointer itself: it inherits its label's, so a lock on the
-    // widget reaches it, and an inline style here would outrank that lock. An
-    // element that declares its own pointer keeps it for the same reason.
-    if (takesPointer) {
-      this.updateElement(el, { style: { pointer_events: "auto" } });
-    }
+    // (mirrors setEventListener's observe).
+    this.markHandler(el);
     this.enqueueUI(
       ObserveElementMessage.type.notification({
         element: el.id,
@@ -5293,9 +5263,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): boolean {
     const targetEls = this.findElements(target);
     for (const targetEl of targetEls) {
-      if (!this.declaresPointer({ classes: targetEl.name.split(" ") })) {
-        this.updateElement(targetEl, { style: { pointer_events: "auto" } });
-      }
+      this.markHandler(targetEl);
       if (callback) {
         this.enqueueUI(
           ObserveElementMessage.type.notification({

@@ -1,22 +1,28 @@
-// An element with an event handler takes the pointer, unless it decides its own
-// pointer: an `interactable` prop or a class that locks it with
-// `interactable = false`. The handler's opt-in is an inline style, which would
-// outrank either lock.
+// An element with an event handler takes the pointer through the
+// `data-ui-handler` marker, which a builtin rule opts in at the lowest
+// specificity, never through an inline style: an inline `pointer-events: auto`
+// would outrank the element's own `interactable = false`, whether a prop or a
+// class (at any breakpoint or state) sets it.
 
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
-const updates = (h: UIHarness): any[] =>
+const writes = (h: UIHarness): any[] =>
   h
     .snapshotFiltered("ui/")
     .filter((m: any) => m.method === "ui/create" || m.method === "ui/update")
     .map((m: any) => m.params);
 
 const pointerStyles = (h: UIHarness, element: string) =>
-  updates(h)
+  writes(h)
     .filter((p) => p.element === element)
     .map((p) => p.style?.pointer_events)
     .filter((v) => v !== undefined);
+
+const marked = (h: UIHarness, element: string) =>
+  writes(h).some(
+    (p) => p.element === element && p.attributes?.["data-ui-handler"] === "",
+  );
 
 const created = (h: UIHarness, type: string): any[] =>
   h
@@ -25,9 +31,10 @@ const created = (h: UIHarness, type: string): any[] =>
     .filter((p: any) => p.type === type);
 
 describe("handler pointer lock", () => {
-  test("a bare widget locked by a prop or a class keeps its lock", async () => {
+  test("a handler marks its element and never writes an inline pointer", async () => {
     const h = createHarness(
       `store x = false
+store n = 0
 style locked with
   interactable = false
 end
@@ -35,29 +42,6 @@ layout main with
   checkbox #interactable=false @change={ x = event.checked }
   checkbox.locked @change={ x = event.checked }
   checkbox @change={ x = event.checked }
-end
-`,
-      0,
-      { reactive: true },
-    );
-    await h.ready;
-    const [byProp, byClass, open] = created(h, "input");
-    expect(byProp.style?.interactable).toBe("false");
-    expect(pointerStyles(h, byProp.element)).toEqual([]);
-    expect(byClass.name).toContain("locked");
-    expect(pointerStyles(h, byClass.element)).toEqual([]);
-    // A handler-only widget still opts itself in.
-    expect(pointerStyles(h, open.element)).toEqual(["auto"]);
-    expect(h.observedElementIds()).toHaveLength(3);
-  });
-
-  test("a bare element locked by a prop or a class keeps its lock", async () => {
-    const h = createHarness(
-      `store n = 0
-style locked with
-  interactable = false
-end
-layout main with
   button #interactable=false @click={ n = n + 1 }
   button.locked @click={ n = n + 1 }
   button @click={ n = n + 1 }
@@ -67,10 +51,16 @@ end
       { reactive: true },
     );
     await h.ready;
-    const [byProp, byClass, open] = created(h, "button");
-    expect(pointerStyles(h, byProp.element)).toEqual([]);
-    expect(pointerStyles(h, byClass.element)).toEqual([]);
-    expect(pointerStyles(h, open.element)).toEqual(["auto"]);
+    const elements = [...created(h, "input"), ...created(h, "button")];
+    expect(elements).toHaveLength(6);
+    for (const el of elements) {
+      expect(pointerStyles(h, el.element)).toEqual([]);
+      expect(marked(h, el.element)).toBe(true);
+    }
+    // The prop lock reaches the page as the element's own inline style.
+    expect(elements[0].style?.interactable).toBe("false");
+    expect(elements[3].style?.interactable).toBe("false");
+    expect(h.observedElementIds()).toHaveLength(6);
   });
 
   test("a bound lock follows its binding from mount", async () => {
@@ -90,9 +80,31 @@ end
     expect(pointerStyles(h, button.element)).toEqual([]);
     (h.game.story as any).variablesState.$("locked", false);
     (h.game.module.ui as any).refreshLayouts();
-    const last = updates(h)
+    const last = writes(h)
       .filter((p) => p.element === button.element && p.style?.interactable)
       .at(-1);
     expect(last.style.interactable).toBe("true");
+  });
+
+  test("an observed element keeps its prop lock", async () => {
+    const h = createHarness(
+      `layout main with
+  box.target #interactable=false
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const [target] = created(h, "div").filter((p) =>
+      String(p.name).includes("target"),
+    );
+    expect(target.style?.interactable).toBe("false");
+    // The path a story's choices take (`Coordinator` observes `choice N`).
+    const found = (h.game.module.ui as any).observe("click", "target", () => {});
+    expect(found).toBe(true);
+    (h.game.module.ui as any).flushUIBatch();
+    expect(pointerStyles(h, target.element)).toEqual([]);
+    expect(marked(h, target.element)).toBe(true);
   });
 });

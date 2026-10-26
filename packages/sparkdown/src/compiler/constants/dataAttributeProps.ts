@@ -150,6 +150,14 @@ export const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
  */
 export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
 
+/**
+ * The attribute the ui sets on an element it attaches an event handler to.
+ * The builtin `layouts` style opts it into the pointer with a rule that any
+ * author lock outranks, so `interactable = false` on the element, as a prop or
+ * from a class, still holds.
+ */
+export const HANDLER_ATTRIBUTE = "data-ui-handler";
+
 /** Whether an authored prop names the ui's reserved widget-control marker.
  *  HTML attribute names are case-insensitive, so `#Data-Widget-Control`
  *  would write the same attribute and is reserved too. */
