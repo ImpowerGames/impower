@@ -152,10 +152,11 @@ export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
 
 /**
  * The attribute the ui sets on each element a write to one of the
- * {@link DISPLAY_TARGETS} reaches: the builtin element named after it, or the
- * container that is its slot in a layout that replaces `main`. The builtin
- * style named after each target applies only through it, so an author's
- * `text.title` keeps its own layout. Only the ui writes it.
+ * {@link DISPLAY_TARGETS} reaches (the builtin element named after it, or the
+ * container that is its slot in a layout that replaces `main`), holding the
+ * names of the targets that reach it, space-separated. The builtin style
+ * named after each target applies only where its name is in the value, so an
+ * author's `text.title` keeps its own layout. Only the ui writes it.
  */
 export const DISPLAY_TARGET_ATTRIBUTE = "data-display-target";
 

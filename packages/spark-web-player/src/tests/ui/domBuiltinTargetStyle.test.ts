@@ -135,6 +135,47 @@ end
     expect(authored!.matches(styleSelector(css, "heading"))).toBe(false);
   });
 
+  test("reaches a slot through the target it is the slot of, not another class it carries", async () => {
+    const { h, css } = await play(`define HERO as character with
+  name = "HERO"
+end
+
+layout main with
+  column.panel {
+    title { text }
+    row.dialogue.title { text }
+    row.dialogue.control { text }
+    text "Rope"
+  }
+end
+
+-> start
+
+scene start
+  HERO: Hello from the dialogue slot.
+end
+`);
+    const title = styleSelector(css, "title");
+    const dialogue = styleSelector(css, "dialogue");
+    const named = [
+      ...h.overlay.querySelectorAll<HTMLElement>(".panel > .title"),
+    ].filter((el) => el.className === "title");
+    expect(named, h.overlay.innerHTML).toHaveLength(1);
+    expect(named[0]!.matches(title), named[0]!.outerHTML).toBe(true);
+    const both = h.overlay.querySelector<HTMLElement>(
+      ".panel > .row.dialogue.title",
+    );
+    const control = h.overlay.querySelector<HTMLElement>(
+      ".panel > .row.dialogue.control",
+    );
+    expect(both, h.overlay.innerHTML).not.toBeNull();
+    expect(control, h.overlay.innerHTML).not.toBeNull();
+    expect(both!.textContent).toContain("Hello from the dialogue slot.");
+    expect(both!.matches(dialogue), both!.outerHTML).toBe(true);
+    expect(both!.matches(title), both!.outerHTML).toBe(false);
+    expect(control!.matches(dialogue), control!.outerHTML).toBe(true);
+  });
+
   test("leaves a slot while an element is named after the target, and returns to it after", async () => {
     const h = createDOMHarness(
       `store named = false

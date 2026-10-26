@@ -721,7 +721,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -729,7 +729,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -2015,13 +2015,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -2031,7 +2031,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -2045,7 +2045,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -2059,7 +2059,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -2074,7 +2074,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -2083,7 +2083,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -2149,7 +2149,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -2171,7 +2171,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "attrs": {
-                            "data-display-target": "",
+                            "data-display-target": "character_name",
                             "text": "HERO",
                           },
                           "children": [
@@ -2209,7 +2209,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "dialogue",
                         "text": "Hi.",
                       },
                       "children": [
@@ -2997,7 +2997,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -3005,7 +3005,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -4291,13 +4291,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -4307,7 +4307,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -4321,7 +4321,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -4335,7 +4335,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -4350,7 +4350,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -4359,7 +4359,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -4425,7 +4425,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -4465,7 +4465,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "attrs": {
-                            "data-display-target": "",
+                            "data-display-target": "character_name",
                           },
                           "children": [
                             {
@@ -4483,7 +4483,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "dialogue",
                       },
                       "children": [
                         {
@@ -5239,7 +5239,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -5247,7 +5247,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -6533,13 +6533,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -6549,7 +6549,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -6563,7 +6563,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -6577,7 +6577,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -6592,7 +6592,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -6601,7 +6601,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -6667,7 +6667,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -6689,7 +6689,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "attrs": {
-                            "data-display-target": "",
+                            "data-display-target": "character_name",
                             "text": "HERO",
                           },
                           "children": [
@@ -6727,7 +6727,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "dialogue",
                         "text": "This is bold.",
                       },
                       "children": [
@@ -7599,7 +7599,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -7607,7 +7607,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -8893,13 +8893,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -8909,7 +8909,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -8923,7 +8923,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -8937,7 +8937,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -8952,7 +8952,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -8961,7 +8961,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -9027,7 +9027,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -9049,7 +9049,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "attrs": {
-                            "data-display-target": "",
+                            "data-display-target": "character_name",
                           },
                           "children": [
                             {
@@ -9067,7 +9067,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "dialogue",
                       },
                       "children": [
                         {
@@ -9822,7 +9822,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -9830,7 +9830,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -11116,13 +11116,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -11132,7 +11132,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -11146,7 +11146,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -11160,7 +11160,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -11175,7 +11175,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -11184,7 +11184,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -11248,7 +11248,7 @@ spark-web-player #game .continue_indicator {
               "children": [
                 {
                   "attrs": {
-                    "data-display-target": "",
+                    "data-display-target": "dialogue",
                   },
                   "children": [
                     {
@@ -12021,7 +12021,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -12029,7 +12029,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -13315,13 +13315,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -13331,7 +13331,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -13345,7 +13345,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -13359,7 +13359,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -13374,7 +13374,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -13383,7 +13383,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -13447,7 +13447,7 @@ spark-web-player #game .continue_indicator {
               "children": [
                 {
                   "attrs": {
-                    "data-display-target": "",
+                    "data-display-target": "dialogue",
                   },
                   "children": [
                     {
@@ -14270,7 +14270,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -14278,7 +14278,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -15564,13 +15564,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -15580,7 +15580,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -15594,7 +15594,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -15608,7 +15608,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -15623,7 +15623,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -15632,7 +15632,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -15698,7 +15698,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -15730,7 +15730,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "portrait",
                       },
                       "children": [
                         {
@@ -16489,7 +16489,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -16497,7 +16497,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -17783,13 +17783,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -17799,7 +17799,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -17813,7 +17813,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -17827,7 +17827,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -17842,7 +17842,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -17851,7 +17851,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -17917,7 +17917,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -17949,7 +17949,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "portrait",
                       },
                       "children": [
                         {
@@ -18708,7 +18708,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -18716,7 +18716,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -20002,13 +20002,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -20018,7 +20018,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -20032,7 +20032,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -20046,7 +20046,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -20061,7 +20061,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -20070,7 +20070,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -20136,7 +20136,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -20150,7 +20150,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "portrait",
                       },
                       "children": [
                         {
@@ -20927,7 +20927,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -20935,7 +20935,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -22221,13 +22221,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -22237,7 +22237,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -22251,7 +22251,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -22265,7 +22265,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -22280,7 +22280,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -22289,7 +22289,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -22355,7 +22355,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -22387,7 +22387,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "portrait",
                       },
                       "children": [
                         {
@@ -23146,7 +23146,7 @@ spark-web-player #game .stage {
   flex-direction: column;
 }
 spark-web-player #game .backdrop {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=backdrop]) {
     position: absolute;
     inset: 0px;
     background-position: center;
@@ -23154,7 +23154,7 @@ spark-web-player #game .backdrop {
   }
 }
 spark-web-player #game .portrait {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=portrait]) {
     position: absolute;
     top: 10%;
     right: 0px;
@@ -24440,13 +24440,13 @@ spark-web-player #game .character_info {
   }
 }
 spark-web-player #game .character_name {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_name]) {
     padding-bottom: 8px;
     font-weight: 600;
   }
 }
 spark-web-player #game .character_parenthetical {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=character_parenthetical]) {
     padding-bottom: 8px;
     font-weight: 400;
     font-size: 1rem;
@@ -24456,7 +24456,7 @@ spark-web-player #game .character_parenthetical {
   }
 }
 spark-web-player #game .title {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=title]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -24470,7 +24470,7 @@ spark-web-player #game .title {
   }
 }
 spark-web-player #game .heading {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=heading]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -24484,7 +24484,7 @@ spark-web-player #game .heading {
   }
 }
 spark-web-player #game .transitional {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=transitional]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -24499,7 +24499,7 @@ spark-web-player #game .transitional {
   }
 }
 spark-web-player #game .dialogue {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=dialogue]) {
     margin: 0px auto;
     width: 68%;
     @container screen (max-width:640px) {
@@ -24508,7 +24508,7 @@ spark-web-player #game .dialogue {
   }
 }
 spark-web-player #game .action {
-  &:where([data-display-target]) {
+  &:where([data-display-target~=action]) {
     position: absolute;
     inset: 0px;
     padding-left: 40px;
@@ -24574,7 +24574,7 @@ spark-web-player #game .continue_indicator {
                   "children": [
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "backdrop",
                       },
                       "children": [
                         {
@@ -24588,7 +24588,7 @@ spark-web-player #game .continue_indicator {
                     },
                     {
                       "attrs": {
-                        "data-display-target": "",
+                        "data-display-target": "portrait",
                       },
                       "children": [
                         {

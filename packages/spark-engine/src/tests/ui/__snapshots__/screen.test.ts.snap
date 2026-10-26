@@ -1353,7 +1353,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "action": {
                   "$name": "action",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=action)": {
                     "align_self": "center",
                     "display": "flex",
                     "flex_direction": "column",
@@ -1406,7 +1406,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "backdrop": {
                   "$name": "backdrop",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=backdrop)": {
                     "background_position": "center",
                     "background_size": "cover",
                     "inset": "0",
@@ -1585,7 +1585,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "character_name": {
                   "$name": "character_name",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=character_name)": {
                     "font_weight": "600",
                     "padding_bottom": "8px",
                   },
@@ -1593,7 +1593,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "character_parenthetical": {
                   "$name": "character_parenthetical",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=character_parenthetical)": {
                     "@screen_size(sm)": {
                       "font_size": "0.875rem",
                     },
@@ -1740,7 +1740,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "dialogue": {
                   "$name": "dialogue",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=dialogue)": {
                     "@screen_size(sm)": {
                       "width": "80%",
                     },
@@ -2069,7 +2069,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "heading": {
                   "$name": "heading",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=heading)": {
                     "align_self": "center",
                     "display": "flex",
                     "flex_direction": "column",
@@ -2650,7 +2650,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "portrait": {
                   "$name": "portrait",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=portrait)": {
                     "> image >> *": {
                       "mix_blend_mode": "plus-lighter",
                     },
@@ -3132,7 +3132,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "title": {
                   "$name": "title",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=title)": {
                     "align_self": "center",
                     "display": "flex",
                     "flex_direction": "column",
@@ -3148,7 +3148,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "transitional": {
                   "$name": "transitional",
                   "$type": "style",
-                  "&:where(#data-display-target)": {
+                  "&:where(#data-display-target~=transitional)": {
                     "align_self": "flex-end",
                     "display": "flex",
                     "flex_direction": "column",
@@ -3806,7 +3806,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "method": "ui/update",
           "params": {
             "attributes": {
-              "data-display-target": "",
+              "data-display-target": "backdrop",
             },
             "element": "e-14",
           },
@@ -3817,7 +3817,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "method": "ui/update",
           "params": {
             "attributes": {
-              "data-display-target": "",
+              "data-display-target": "portrait",
             },
             "element": "e-17",
           },
@@ -3828,7 +3828,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "method": "ui/update",
           "params": {
             "attributes": {
-              "data-display-target": "",
+              "data-display-target": "character_name",
             },
             "element": "e-24",
           },
@@ -3839,7 +3839,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "method": "ui/update",
           "params": {
             "attributes": {
-              "data-display-target": "",
+              "data-display-target": "character_parenthetical",
             },
             "element": "e-26",
           },
@@ -3850,7 +3850,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "method": "ui/update",
           "params": {
             "attributes": {
-              "data-display-target": "",
+              "data-display-target": "dialogue",
             },
             "element": "e-28",
           },

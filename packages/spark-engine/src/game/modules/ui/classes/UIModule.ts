@@ -679,9 +679,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  destroyed since the display targets were last marked (I-1595). */
   protected _displayTargetsChanged = false;
 
-  /** Whether the page was last told each element carries
-   *  `DISPLAY_TARGET_ATTRIBUTE`. */
-  protected _displayTargetMarks = new WeakMap<Element, boolean>();
+  /** The `DISPLAY_TARGET_ATTRIBUTE` value the page was last told each
+   *  element carries, null for none. */
+  protected _displayTargetMarks = new WeakMap<Element, string | null>();
 
   /** Whether `refreshLayouts` is applying the bindings' updates. */
   protected _refreshing = false;
@@ -1407,15 +1407,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return element.name.split(" ").some((c) => DISPLAY_TARGETS.includes(c));
   }
 
-  /** Mark the elements a write to each display target reaches with
-   *  `DISPLAY_TARGET_ATTRIBUTE`, which the builtin style named after the
-   *  target selects (I-1595), and unmark the rest. Which elements those are
-   *  depends on the whole tree: a container carrying `title` is the target's
-   *  slot only while no element is named `title`. So the marks are worked out
-   *  again before a batch goes whenever an element carrying a target's class
-   *  came or went, and go in that batch, before the page paints. Each element
-   *  that carries a target's class is told its mark once, even unmarked: a
-   *  live preview reuses a node the last render may have marked. */
+  /** Mark each element with the display targets whose writes reach it, as
+   *  the space-separated value of `DISPLAY_TARGET_ATTRIBUTE`, and unmark the
+   *  rest. The builtin style named after a target selects that target's name
+   *  in the value (I-1595), so a `row.dialogue.title` that is only the
+   *  `dialogue` slot takes the dialogue style and not the title style. Which
+   *  elements a target reaches depends on the whole tree: a container
+   *  carrying `title` is the target's slot only while no element is named
+   *  `title`. So the marks are worked out again before a batch goes whenever
+   *  an element carrying a target's class came or went, and go in that
+   *  batch, before the page paints. Each element that carries a target's
+   *  class is told its mark once, even unmarked: a live preview reuses a node
+   *  the last render may have marked. */
   protected markDisplayTargets(): void {
     if (!this._displayTargetsChanged || this._game.replaying) {
       return;
@@ -1425,20 +1428,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!root) {
       return;
     }
-    const reached = new Set(
-      DISPLAY_TARGETS.flatMap((target) => this.findElements(target, true)),
-    );
+    const reached = new Map<Element, string[]>();
+    for (const target of DISPLAY_TARGETS) {
+      for (const element of this.findElements(target, true)) {
+        const targets = reached.get(element);
+        if (targets) {
+          targets.push(target);
+        } else {
+          reached.set(element, [target]);
+        }
+      }
+    }
     const visit = (element: Element) => {
       if (this.carriesDisplayTarget(element)) {
-        const marked = reached.has(element);
-        if (this._displayTargetMarks.get(element) !== marked) {
-          this._displayTargetMarks.set(element, marked);
+        const mark = reached.get(element)?.join(" ") ?? null;
+        if (this._displayTargetMarks.get(element) !== mark) {
+          this._displayTargetMarks.set(element, mark);
           // Sent as is rather than through `updateElement`: the mark is not
           // a change to what the element shows (#657).
           this._uiBatch.push(
             UpdateElementMessage.type.request({
               element: element.id,
-              attributes: { [DISPLAY_TARGET_ATTRIBUTE]: marked ? "" : null },
+              attributes: { [DISPLAY_TARGET_ATTRIBUTE]: mark },
             }),
           );
         }

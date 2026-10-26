@@ -22,7 +22,7 @@ exports[`style > authored style block content payload 1`] = `
     "action": {
       "$name": "action",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=action)": {
         "align_self": "center",
         "display": "flex",
         "flex_direction": "column",
@@ -75,7 +75,7 @@ exports[`style > authored style block content payload 1`] = `
     "backdrop": {
       "$name": "backdrop",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=backdrop)": {
         "background_position": "center",
         "background_size": "cover",
         "inset": "0",
@@ -254,7 +254,7 @@ exports[`style > authored style block content payload 1`] = `
     "character_name": {
       "$name": "character_name",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=character_name)": {
         "font_weight": "600",
         "padding_bottom": "8px",
       },
@@ -262,7 +262,7 @@ exports[`style > authored style block content payload 1`] = `
     "character_parenthetical": {
       "$name": "character_parenthetical",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=character_parenthetical)": {
         "@screen_size(sm)": {
           "font_size": "0.875rem",
         },
@@ -409,7 +409,7 @@ exports[`style > authored style block content payload 1`] = `
     "dialogue": {
       "$name": "dialogue",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=dialogue)": {
         "@screen_size(sm)": {
           "width": "80%",
         },
@@ -756,7 +756,7 @@ exports[`style > authored style block content payload 1`] = `
     "heading": {
       "$name": "heading",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=heading)": {
         "align_self": "center",
         "display": "flex",
         "flex_direction": "column",
@@ -1337,7 +1337,7 @@ exports[`style > authored style block content payload 1`] = `
     "portrait": {
       "$name": "portrait",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=portrait)": {
         "> image >> *": {
           "mix_blend_mode": "plus-lighter",
         },
@@ -1819,7 +1819,7 @@ exports[`style > authored style block content payload 1`] = `
     "title": {
       "$name": "title",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=title)": {
         "align_self": "center",
         "display": "flex",
         "flex_direction": "column",
@@ -1835,7 +1835,7 @@ exports[`style > authored style block content payload 1`] = `
     "transitional": {
       "$name": "transitional",
       "$type": "style",
-      "&:where(#data-display-target)": {
+      "&:where(#data-display-target~=transitional)": {
         "align_self": "flex-end",
         "display": "flex",
         "flex_direction": "column",
@@ -3121,7 +3121,7 @@ exports[`style > style + variables construction stream 1`] = `
           "action": {
             "$name": "action",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=action)": {
               "align_self": "center",
               "display": "flex",
               "flex_direction": "column",
@@ -3174,7 +3174,7 @@ exports[`style > style + variables construction stream 1`] = `
           "backdrop": {
             "$name": "backdrop",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=backdrop)": {
               "background_position": "center",
               "background_size": "cover",
               "inset": "0",
@@ -3353,7 +3353,7 @@ exports[`style > style + variables construction stream 1`] = `
           "character_name": {
             "$name": "character_name",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=character_name)": {
               "font_weight": "600",
               "padding_bottom": "8px",
             },
@@ -3361,7 +3361,7 @@ exports[`style > style + variables construction stream 1`] = `
           "character_parenthetical": {
             "$name": "character_parenthetical",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=character_parenthetical)": {
               "@screen_size(sm)": {
                 "font_size": "0.875rem",
               },
@@ -3508,7 +3508,7 @@ exports[`style > style + variables construction stream 1`] = `
           "dialogue": {
             "$name": "dialogue",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=dialogue)": {
               "@screen_size(sm)": {
                 "width": "80%",
               },
@@ -3855,7 +3855,7 @@ exports[`style > style + variables construction stream 1`] = `
           "heading": {
             "$name": "heading",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=heading)": {
               "align_self": "center",
               "display": "flex",
               "flex_direction": "column",
@@ -4436,7 +4436,7 @@ exports[`style > style + variables construction stream 1`] = `
           "portrait": {
             "$name": "portrait",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=portrait)": {
               "> image >> *": {
                 "mix_blend_mode": "plus-lighter",
               },
@@ -4918,7 +4918,7 @@ exports[`style > style + variables construction stream 1`] = `
           "title": {
             "$name": "title",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=title)": {
               "align_self": "center",
               "display": "flex",
               "flex_direction": "column",
@@ -4934,7 +4934,7 @@ exports[`style > style + variables construction stream 1`] = `
           "transitional": {
             "$name": "transitional",
             "$type": "style",
-            "&:where(#data-display-target)": {
+            "&:where(#data-display-target~=transitional)": {
               "align_self": "flex-end",
               "display": "flex",
               "flex_direction": "column",
