@@ -685,6 +685,10 @@ const spentSteps = (budget: SearchBudget): number =>
 const spentNodes = (budget: SearchBudget): number =>
   budget.maxNodes - budget.nodesRemaining;
 
+/** A node waiting in a level's queue, or a child built when the level takes
+ *  it up, which is nothing when a later visit to its site replaced it. */
+type QueueEntry = SearchNode | (() => SearchNode | null);
+
 /** A child forked at a condition to force the verdict the program does not
  *  reach there, built when its level takes it up. */
 interface NotTaken {
@@ -701,9 +705,12 @@ interface Level {
    *  the bound began; null until it binds (level zero, before its first
    *  condition). */
   bound: { startSteps: number; steps: number; nodes: number } | null;
-  /** The verdict the program does not reach at each condition its runs
-   *  took, in the order they took them, for the next level. */
-  notTaken: NotTaken[];
+  /** The verdict the program does not reach at the latest visit its runs
+   *  made to each condition site, for the next level, in the order of those
+   *  visits. One per site: forcing a site's verdict on a later visit reaches
+   *  what forcing it on an earlier one would, and holding one per visit
+   *  would hold a state image per pass of every loop. */
+  notTaken: Map<ProgramAddress, NotTaken>;
   /** Where the run its bound ran out in stood, as a node the next level
    *  takes up. */
   cutAt: SearchNode | null;
@@ -714,7 +721,7 @@ interface Level {
 const newLevel = (index: number): Level => ({
   index,
   bound: null,
-  notTaken: [],
+  notTaken: new Map(),
   cutAt: null,
   spent: false,
 });
@@ -734,30 +741,18 @@ const bindLevel = (level: Level, budget: SearchBudget): void => {
 };
 
 /** The next level's queue, taking up where `level` stopped (see
- *  {@link planRoute}): the latest verdict it did not take at each site,
- *  latest first, then the nodes it did not expand, then the run its bound
- *  cut, then its other verdicts not taken, latest first. The run the bound
- *  cut has had its level's work already, so a loop the program never leaves
- *  is not run first at every level. */
+ *  {@link planRoute}): the verdicts it did not take, the latest visit
+ *  first, then the nodes it did not expand, then the run its bound cut. The
+ *  run the bound cut has had its level's work already, so a loop the
+ *  program never leaves is not run first at every level. */
 const nextLevelQueue = (
   level: Level,
-  unexpanded: SearchNode[],
-): (SearchNode | (() => SearchNode))[] => {
-  const latest: (() => SearchNode)[] = [];
-  const earlier: (() => SearchNode)[] = [];
-  const sites = new Set<ProgramAddress>();
-  for (let i = level.notTaken.length - 1; i >= 0; i -= 1) {
-    const { site, node } = level.notTaken[i]!;
-    (sites.has(site) ? earlier : latest).push(node);
-    sites.add(site);
-  }
-  return [
-    ...latest,
-    ...unexpanded,
-    ...(level.cutAt ? [level.cutAt] : []),
-    ...earlier,
-  ];
-};
+  unexpanded: QueueEntry[],
+): QueueEntry[] => [
+  ...[...level.notTaken.values()].reverse().map((notTaken) => notTaken.node),
+  ...unexpanded,
+  ...(level.cutAt ? [level.cutAt] : []),
+];
 
 /** Whether `level` has spent its bound, which it records. */
 const levelSpent = (level: Level, budget: SearchBudget): boolean => {
@@ -1012,29 +1007,38 @@ export const planRoute = (
       level.bound = { ...charge.levelZero };
     }
     const levelZero = level;
-    let queue: (SearchNode | (() => SearchNode) | undefined)[] = [start];
+    let queue: (QueueEntry | undefined)[] = [start];
     let head = 0;
     // A child forcing one more verdict than the level running waits for the
-    // next; one handed on from an earlier level that forces no more than the
-    // level running joins its queue.
+    // next; one from a node handed on from an earlier level, forcing no more
+    // than the level running, joins its queue. Either way only the latest
+    // visit to a site is kept (`Level.notTaken`): the queue holds the site,
+    // and an entry a later visit replaced is passed over.
+    const joining = new Map<ProgramAddress, { visit: number; notTaken: NotTaken }>();
+    let visits = 0;
     const defer = (forced: number, notTaken: NotTaken) => {
+      const site = notTaken.site;
       if (forced > level.index) {
-        level.notTaken.push(notTaken);
-      } else {
-        queue.push(notTaken.node);
+        level.notTaken.delete(site);
+        level.notTaken.set(site, notTaken);
+        return;
       }
+      const visit = ++visits;
+      joining.set(site, { visit, notTaken });
+      queue.push(() => {
+        const latest = joining.get(site);
+        return latest?.visit === visit ? latest.notTaken.node() : null;
+      });
     };
     while (true) {
       while (head < queue.length) {
         if (searchBudgetExhausted(budget) || levelSpent(level, budget)) {
           break;
         }
-        budget.nodesRemaining -= 1;
-        lastSearchStats.nodesExpanded += 1;
 
         // Taken by index, and its slot cleared so a long queue does not
         // keep every node it has run.
-        let entry: SearchNode | (() => SearchNode) | undefined;
+        let entry: QueueEntry | undefined;
         if (isBfs) {
           entry = queue[head];
           queue[head] = undefined;
@@ -1042,7 +1046,13 @@ export const planRoute = (
         } else {
           entry = queue.pop();
         }
-        const node = typeof entry === "function" ? entry() : entry!;
+        const node = typeof entry === "function" ? entry() : entry;
+        if (!node) {
+          // A verdict a later visit to its site replaced.
+          continue;
+        }
+        budget.nodesRemaining -= 1;
+        lastSearchStats.nodesExpanded += 1;
         try {
           const result = runUntilDecisionOrBranch(
             story,
@@ -1097,7 +1107,7 @@ export const planRoute = (
       // next takes up where it stopped.
       const next = nextLevelQueue(
         level,
-        queue.slice(head).filter((n): n is SearchNode => !!n),
+        queue.slice(head).filter((n): n is QueueEntry => !!n),
       );
       if (!next.length) {
         break;
