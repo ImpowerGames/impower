@@ -545,15 +545,48 @@ describe("live drawing presentation", () => {
     playback.mount(span, content, 'url("bunny.svg")', "background", "portrait:0");
     await until(() => playback.stats.live === 1, "the artifact");
     const box = () => {
-      const b = span.querySelector(":scope > span.morph")!.shadowRoot!.querySelector("div") as HTMLElement;
-      return [b.style.left, b.style.top];
+      const part = span.querySelector(":scope > span.morph")!.shadowRoot!.querySelector("div > svg > svg")!;
+      return [part.getAttribute("x"), part.getAttribute("y")];
     };
-    expect(box()).toEqual(["0px", "0px"]);
+    expect(box()).toEqual(["0", "0"]);
     // Any screen op may restyle the span; the span keeps its size.
     span.style.backgroundPosition = "100% 100%";
     await ui.onReceiveRequest(UpdateElementMessage.type.request({ element: "other", style: { opacity: "1" } } as any));
     await flushMicrotasks(5);
-    expect(box()).toEqual(["140px", "160px"]);
+    expect(box()).toEqual(["140", "160"]);
+  });
+
+  test("the live drawing at rest fills the static image's exact fractional rectangle", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const host = createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { blink: recipeText }, variants: {} }),
+      readSource: async () => ({ text: ART }),
+    });
+    const playback = new MorphPlayback(env.overlay, { host, requestFrame: () => 0, cancelFrame: () => {} });
+    const doc = env.overlay.ownerDocument;
+    const span = doc.createElement("span");
+    span.setAttribute(
+      "style",
+      "width:401px;height:100.5px;background-repeat:no-repeat;background-size:auto 100%;background-position:50% 50%",
+    );
+    env.overlay.appendChild(span);
+    playback.mount(span, content, 'url("bunny.svg")', "background", "portrait:0");
+    await until(() => playback.stats.live === 1, "the artifact");
+    const b = span.querySelector(":scope > span.morph")!.shadowRoot!.querySelector("div") as HTMLElement;
+    // The root covers the span as the static layer does; every part takes the
+    // exact rectangle, unrounded, so none moves, scales or letterboxes.
+    expect(b.getAttribute("style")).toBe("position:absolute;left:0;top:0;width:100%;height:100%");
+    const width = (100.5 * 260) / 140;
+    const parts = Array.from(b.querySelectorAll(":scope > svg > svg"));
+    expect(parts.length).toBeGreaterThan(0);
+    for (const part of parts) {
+      expect(Number(part.getAttribute("x"))).toBeCloseTo((401 - width) / 2, 6);
+      expect(part.getAttribute("y")).toBe("0");
+      expect(Number(part.getAttribute("width"))).toBeCloseTo(width, 6);
+      expect(part.getAttribute("height")).toBe("100.5");
+    }
   });
 
   test("a style change that makes the image repeat hands it back to CSS, and back again", async () => {
