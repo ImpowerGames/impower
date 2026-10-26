@@ -2798,7 +2798,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.mountTextContent(el, node.content, scope);
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope);
+      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
     }
     // Children mount INTO this fresh element (always append — before=null).
     this.mountChildren(el, node.children, scope, null);
@@ -2963,7 +2963,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.mountSliderFill(el, node, scope);
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope, !labelled);
+      this.mountEvent(
+        el,
+        ev,
+        scope,
+        !labelled && !this.declaresPointer(node),
+      );
     }
     return el;
   }
@@ -3084,7 +3089,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scope.styles.push({ element: el, ...r });
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope);
+      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
     }
     return el;
   }
@@ -3174,7 +3179,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scope.attrs.push({ element: el, ...r });
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope);
+      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
     }
     return el;
   }
@@ -3233,7 +3238,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       scope.attrs.push({ element: el, ...r });
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev, scope);
+      this.mountEvent(el, ev, scope, !this.declaresPointer(node));
     }
     return el;
   }
@@ -3275,6 +3280,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return resolved == null ? null : String(resolved);
   }
 
+  /** Whether an element decides its own pointer, so a handler must not force
+   *  `pointer-events: auto` over it: one of its props sets `interactable` (or
+   *  `pointer-events`), whatever the value or binding, or one of its classes
+   *  locks it with `interactable = false`. */
+  protected declaresPointer(node: {
+    classes?: string[];
+    props?: Record<string, unknown>;
+  }): boolean {
+    const isPointerProp = (prop: string) => {
+      const name = prop.replace(/-/g, "_");
+      return name === "interactable" || name === "pointer_events";
+    };
+    if (Object.keys(node.props ?? {}).some(isPointerProp)) {
+      return true;
+    }
+    const styles = (this.context?.style ?? {}) as Record<string, unknown>;
+    return (node.classes ?? []).some((cls) => {
+      const style = styles[cls];
+      if (!style || typeof style !== "object") {
+        return false;
+      }
+      return Object.entries(style).some(
+        ([prop, value]) =>
+          isPointerProp(prop) &&
+          (value === false || value === "false" || value === "none"),
+      );
+    });
+  }
+
   /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
    *  the handler when it fires, then flush reactive layouts. `@e=name` calls the
    *  named Luau function; `@e=expr(args)` evaluates the call expression (its
@@ -3310,7 +3344,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Make the element clickable + ask the renderer to forward the DOM event
     // (mirrors setEventListener's observe). A labelled widget's control does
     // not take the pointer itself: it inherits its label's, so a lock on the
-    // widget reaches it, and an inline style here would outrank that lock.
+    // widget reaches it, and an inline style here would outrank that lock. An
+    // element that declares its own pointer keeps it for the same reason.
     if (takesPointer) {
       this.updateElement(el, { style: { pointer_events: "auto" } });
     }
@@ -5258,8 +5293,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): boolean {
     const targetEls = this.findElements(target);
     for (const targetEl of targetEls) {
-      const style = { pointer_events: "auto" };
-      this.updateElement(targetEl, { style });
+      if (!this.declaresPointer({ classes: targetEl.name.split(" ") })) {
+        this.updateElement(targetEl, { style: { pointer_events: "auto" } });
+      }
       if (callback) {
         this.enqueueUI(
           ObserveElementMessage.type.notification({
