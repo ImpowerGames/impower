@@ -13,6 +13,7 @@ import {
   ATTRIBUTE_PROPS,
   BOOLEAN_ATTRIBUTES,
   DATA_ATTRIBUTE_PROPS,
+  isAttributeProp,
 } from "../../compiler/constants/dataAttributeProps";
 import VALID_STYLE_PROPS_DATA from "../../compiler/constants/validStyleProps.json";
 
@@ -51,9 +52,14 @@ describe("the two lists agree", () => {
   // Enumerated attributes take a meaningful `="false"`, so treating them as
   // presence-only would silently drop the author's explicit "no".
   test("enumerated attributes are not treated as booleans", () => {
-    for (const prop of ["draggable", "spellcheck", "translate", "crossorigin"]) {
+    for (const prop of ["draggable", "spellcheck", "crossorigin"]) {
       expect(BOOLEAN_ATTRIBUTES.has(prop)).toBe(false);
       expect(ATTRIBUTE_PROPS.has(prop)).toBe(true);
     }
+  });
+
+  // `translate` is the CSS property inline, as it is in a `style` block (I-1619).
+  test("translate is a style prop, not an attribute prop", () => {
+    expect(isAttributeProp("translate")).toBe(false);
   });
 });
