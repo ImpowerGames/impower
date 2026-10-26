@@ -2,7 +2,11 @@
   "orchestrators": {
     "claude": {
       "model": "claude-opus-5-5",
-      "checkIn": { "capability": "CronCreate with recurring true, the cron expression and the prompt that the schedule command prints; the job is session-scoped, so it ends with the coordinator's session", "expiresAfterDays": 7 }
+      "checkIn": { "capability": "CronCreate with recurring true, the cron expression and the prompt that the schedule command prints; the job is session-scoped, so it ends with the coordinator's session", "remove": "CronDelete with the recorded job id", "expiresAfterDays": 7,
+        "trackedForDays": 2,
+        "tracking": "The desktop app pauses an idle session when free memory runs low, unless it tracks a live recurring job of that session; it tracks a job only when it saw the creation in the session's live stream, so a restart or resume of the session's process loses the tracking while the job keeps firing. A tracked job may also be dropped after about 3 days (unconfirmed), so the job is re-armed every 2.",
+        "instance": { "pidEnv": "CLAUDE_PID" },
+        "confirm": { "where": { "env": "CLAUDE_CODE_ENTRYPOINT", "equals": "claude-desktop" }, "logs": ["%LOCALAPPDATA%/Claude/Logs/main.log", "%LOCALAPPDATA%/Claude/Logs/main1.log", "%LOCALAPPDATA%/Claude/Logs/main2.log", "%LOCALAPPDATA%/Claude/Logs/main3.log", "%LOCALAPPDATA%/Claude/Logs/main4.log"], "line": "Session {session} cron {job} confirmed" } }
     },
     "codex": {
       "model": "gpt-6.1-sol",
