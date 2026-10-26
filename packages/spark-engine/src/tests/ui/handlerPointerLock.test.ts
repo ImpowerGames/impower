@@ -86,6 +86,32 @@ end
     expect(last.style.interactable).toBe("true");
   });
 
+  test("only the ui writes the handler marker", async () => {
+    const h = createHarness(
+      `store x = ""
+layout main with
+  box.forged #data-ui-handler="x"
+  box.upper #DATA-UI-HANDLER="x"
+  button.forged_button "B" #data-ui-handler="x"
+  checkbox #data-ui-handler="x"
+  textarea #data-ui-handler="x"
+  dropdown #data-ui-handler="x" {
+    option "A" #data-ui-handler="x"
+  }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const written = writes(h).filter((p) =>
+      Object.keys(p.attributes ?? {}).some(
+        (k) => k.toLowerCase() === "data-ui-handler",
+      ),
+    );
+    expect(written).toEqual([]);
+  });
+
   test("an observed element keeps its prop lock", async () => {
     const h = createHarness(
       `layout main with

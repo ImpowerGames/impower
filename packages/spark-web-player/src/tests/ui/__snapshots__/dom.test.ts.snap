@@ -611,8 +611,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -712,9 +714,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -2869,8 +2873,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -2970,9 +2976,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -5089,8 +5097,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -5190,9 +5200,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -7431,8 +7443,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -7532,9 +7546,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -9632,8 +9648,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -9733,9 +9751,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -11821,8 +11841,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -11922,9 +11944,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -14054,8 +14078,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -14155,9 +14181,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -16254,8 +16282,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -16355,9 +16385,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -18454,8 +18486,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -18555,9 +18589,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -20654,8 +20690,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -20755,9 +20793,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }
@@ -22854,8 +22894,10 @@ spark-web-player #game .text {
 }
 spark-web-player #game .stroke {
   display: block;
-  pointer-events: none;
-  cursor: default;
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
   user-select: none;
   text-wrap: wrap;
   position: absolute;
@@ -22955,9 +22997,11 @@ spark-web-player #game .loading_fill {
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
-  pointer-events: none;
-  cursor: default;
-  & * {
+  &:where(:not([data-ui-handler])) {
+    pointer-events: none;
+    cursor: default;
+  }
+  & :where(:not([data-ui-handler])) {
     pointer-events: none;
     cursor: default;
   }

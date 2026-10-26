@@ -1457,11 +1457,13 @@ exports[`style > authored style block content payload 1`] = `
     "screen": {
       "$name": "screen",
       "$type": "style",
-      ">> *": {
+      "&:where(:not(#data-ui-handler))": {
+        "pointer_events": "none",
+      },
+      ">> :where(:not(#data-ui-handler))": {
         "pointer_events": "none",
       },
       "inset": "0",
-      "pointer_events": "none",
       "position": "absolute",
     },
     "scroller": {
@@ -1589,13 +1591,15 @@ exports[`style > authored style block content payload 1`] = `
     "stroke": {
       "$name": "stroke",
       "$type": "style",
+      "&:where(:not(#data-ui-handler))": {
+        "pointer_events": "none",
+      },
       ">> *": {
         "display": "inline",
       },
       "color": "black",
       "display": "block",
       "inset": "0",
-      "pointer_events": "none",
       "position": "absolute",
       "text_stroke": "1",
       "text_wrap": "wrap",
@@ -4543,11 +4547,13 @@ exports[`style > style + variables construction stream 1`] = `
           "screen": {
             "$name": "screen",
             "$type": "style",
-            ">> *": {
+            "&:where(:not(#data-ui-handler))": {
+              "pointer_events": "none",
+            },
+            ">> :where(:not(#data-ui-handler))": {
               "pointer_events": "none",
             },
             "inset": "0",
-            "pointer_events": "none",
             "position": "absolute",
           },
           "scroller": {
@@ -4675,13 +4681,15 @@ exports[`style > style + variables construction stream 1`] = `
           "stroke": {
             "$name": "stroke",
             "$type": "style",
+            "&:where(:not(#data-ui-handler))": {
+              "pointer_events": "none",
+            },
             ">> *": {
               "display": "inline",
             },
             "color": "black",
             "display": "block",
             "inset": "0",
-            "pointer_events": "none",
             "position": "absolute",
             "text_stroke": "1",
             "text_wrap": "wrap",

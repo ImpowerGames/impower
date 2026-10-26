@@ -22,7 +22,7 @@ import {
   BOOLEAN_ATTRIBUTES,
   HANDLER_ATTRIBUTE,
   isAttributeProp,
-  isWidgetControlAttribute,
+  isReservedAttribute,
   toDataAttributeName,
   WIDGET_CONTROL_ATTRIBUTE,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
@@ -3196,8 +3196,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     let hasValue = false;
     for (const [prop, propValue] of Object.entries(node.props)) {
       // Every other prop becomes an attribute here, but not the ui's own
-      // widget-control marker, which no author may write.
-      if (isWidgetControlAttribute(prop)) {
+      // reserved markers, which no author may write.
+      if (isReservedAttribute(prop)) {
         continue;
       }
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);

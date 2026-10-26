@@ -87,4 +87,35 @@ describe("handler pointer opt-in in the page", () => {
     expect(locked.at).toBeGreaterThan(layouts.at);
     expect(locked.body).toMatch(/pointer-events: none;/);
   });
+
+  test("the builtin styles that turn the pointer off leave handler elements out", async () => {
+    const { h, css } = await render(`store n = 0
+layout main with
+  stroke "Outline" @click={ n = n + 1 }
+  box #data-ui-handler="forged"
+end
+`);
+    const stroke = h.overlay.querySelector<HTMLElement>(".stroke");
+    expect(stroke?.hasAttribute("data-ui-handler"), h.overlay.innerHTML).toBe(true);
+    // An authored marker is reserved and never written.
+    expect(h.overlay.querySelectorAll("[data-ui-handler]")).toHaveLength(1);
+
+    for (const name of [".stroke", ".screen"]) {
+      const rule = ruleAt(css, name);
+      expect(rule.at, name).toBeGreaterThan(ruleAt(css, ".layouts").at);
+      // Every `pointer-events: none` in the rule sits under an exception
+      // that the marked element does not pass.
+      const nones = rule.body.split("pointer-events: none;").length - 1;
+      const guarded = [
+        ...rule.body.matchAll(
+          /:where\(:not\(([^()]+)\)\) \{\s*pointer-events: none;/g,
+        ),
+      ];
+      expect(nones, rule.body).toBeGreaterThan(0);
+      expect(guarded, rule.body).toHaveLength(nones);
+      for (const g of guarded) {
+        expect(stroke!.matches(g[1]!), `${name}: ${g[1]}`).toBe(true);
+      }
+    }
+  });
 });
