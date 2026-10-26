@@ -684,10 +684,10 @@ export const planRoute = (
   const positions = storyPositions(story);
 
   let routePlan: RoutePlan | null = null;
-  /** Set when a node run threw (see the catch in the search loop). */
+  /** Set when a node run of the full search threw (see the catch in
+   *  {@link search}). */
   let nodeErrored = false;
   const startingSteps = budget.stepsRemaining;
-  const queue: SearchNode[] = [];
 
   const port = statePort(story, options?.stateImages !== false);
   const prevOnError = story.onError;
@@ -704,15 +704,73 @@ export const planRoute = (
     beatImages.keepBeatImages = false;
   }
 
+  /** Expand nodes from `start` until one reaches the target or `searchBudget`
+   *  runs out. `unforced` follows the story's own run alone; otherwise every
+   *  verdict and choice is searched, in the order `searchStrategy` gives. A
+   *  node run that throws is swallowed so one bad node cannot abort a search
+   *  that other branches might still complete; the full search remembers it,
+   *  because it means that search no longer covers the whole story and must
+   *  not claim that it does. */
+  const search = (
+    start: SearchNode,
+    searchBudget: SearchBudget,
+    unforced: boolean,
+  ): RoutePlan | null => {
+    const queue: SearchNode[] = [start];
+    while (queue.length) {
+      if (searchBudgetExhausted(searchBudget)) {
+        break;
+      }
+      searchBudget.nodesRemaining -= 1;
+      lastSearchStats.nodesExpanded += 1;
+
+      const node = isBfs ? queue.shift()! : queue.pop()!;
+      try {
+        const result = runUntilDecisionOrBranch(
+          story,
+          port,
+          node,
+          positions,
+          fromKnotName,
+          to,
+          favoredChoiceIndices,
+          favoredConditionalValues,
+          options?.stayWithinKnot !== false,
+          options?.functions || [],
+          searchBudget,
+          unforced,
+        );
+
+        if (result.hitTarget) {
+          return {
+            from,
+            to,
+            steps: result.steps,
+            decisions: result.decisions,
+            conditions: result.conditions,
+            choices: result.choices,
+          };
+        }
+
+        for (const b of result.branches) {
+          queue.push(b);
+        }
+      } catch {
+        if (!unforced) {
+          nodeErrored = true;
+        }
+      }
+    }
+    return null;
+  };
+
   try {
     // Inside the guarded region, and before the hooks are replaced: the start
     // node is built under the story owner's own hooks, as the rest of the
     // search is not.
-    queue.push(
-      options?.resumeFrom
-        ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, from, port),
-    );
+    const start = options?.resumeFrom
+      ? makeResumeNode(options.resumeFrom)
+      : makeStartNode(story, from, port);
 
     const raisedErrors = new Set<string>();
     story.onError = (message, type, _source, raised) => {
@@ -737,51 +795,34 @@ export const planRoute = (
     story.onMakeChoice = NOOP;
     story.onEvaluateCondition = NOOP;
 
-    while (queue.length) {
-      if (searchBudgetExhausted(budget)) {
-        break;
-      }
-      budget.nodesRemaining -= 1;
-      lastSearchStats.nodesExpanded += 1;
-
-      const node = isBfs ? queue.shift()! : queue.pop()!;
-      try {
-        const result = runUntilDecisionOrBranch(
-          story,
-          port,
-          node,
-          positions,
-          fromKnotName,
-          to,
-          favoredChoiceIndices,
-          favoredConditionalValues,
-          options?.stayWithinKnot !== false,
-          options?.functions || [],
-          budget,
-        );
-
-        if (result.hitTarget) {
-          routePlan = {
-            from,
-            to,
-            steps: result.steps,
-            decisions: result.decisions,
-            conditions: result.conditions,
-            choices: result.choices,
-          };
-          break;
-        }
-
-        for (const b of result.branches) {
-          queue.push(b);
-        }
-      } catch {
-        // Swallowed so one bad node cannot abort a search that other branches
-        // might still complete — but remembered, because it means this search no
-        // longer covers the whole story and must not claim that it does.
-        nodeErrored = true;
-      }
-    }
+    // The story's own run comes first: where it reaches the target, that is
+    // the route, however deep, because PLAY and the preview at a line show
+    // the story as it stands when its run reaches the line (#1620). A
+    // shallower route the full search would find first forces a condition
+    // the story does not take, and shows a beat the run never leaves on
+    // screen there.
+    //
+    // The run gets at most half of each ceiling, and the full search keeps
+    // what it leaves: a story whose own run never ends (a loop that never
+    // reaches a choice) would otherwise spend the whole budget before the
+    // full search could find a route by forcing a way out. It keeps fork
+    // sites of its own, since it claims sites whose other branches the full
+    // search has to expand.
+    const unforcedBudget: SearchBudget = {
+      stepsRemaining: Math.floor(budget.stepsRemaining / 2),
+      nodesRemaining: Math.floor(budget.nodesRemaining / 2),
+      deadlineTime: startTime + searchTimeout / 2,
+      cut: null,
+      visited: new Set(),
+    };
+    const unforcedSteps = unforcedBudget.stepsRemaining;
+    const unforcedNodes = unforcedBudget.nodesRemaining;
+    routePlan = search(start, unforcedBudget, true);
+    budget.stepsRemaining -= unforcedSteps - unforcedBudget.stepsRemaining;
+    budget.nodesRemaining -= unforcedNodes - unforcedBudget.nodesRemaining;
+    // A line the story's own run does not reach is searched in full, from the
+    // same start.
+    routePlan ??= search(start, budget, false);
 
     lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
     // Read from the budget itself, not from where the loop happened to exit: the
@@ -849,6 +890,9 @@ const runUntilDecisionOrBranch = (
   stayWithinKnot: boolean,
   functions: string[],
   budget: SearchBudget,
+  /** Follow the story's own run alone: the verdict each condition reaches
+   *  unforced, and a choice only where the caller favors one. */
+  unforced: boolean,
 ): RunResult => {
   // 1) Restore snapshot
   port.restore(node.state);
@@ -943,6 +987,12 @@ const runUntilDecisionOrBranch = (
           }
           const options = story.currentChoices.map((c) => c.text);
           const favoredChoiceIndex = favoredChoiceIndices[node.choices.length];
+          if (unforced && favoredChoiceIndex == null) {
+            // The story cannot choose for itself, and nothing favors a choice,
+            // so the story's own run ends here.
+            terminal = true;
+            break;
+          }
           if (favoredChoiceIndex != null) {
             const choice = story.currentChoices[favoredChoiceIndex]!;
             if (choice) {
@@ -965,7 +1015,11 @@ const runUntilDecisionOrBranch = (
               );
             }
           }
-          for (let i = 0; i < story.currentChoices.length; i++) {
+          for (
+            let i = 0;
+            !unforced && i < story.currentChoices.length;
+            i++
+          ) {
             if (i === favoredChoiceIndex) {
               // Skip forking favored choice since we already forked it earlier
               terminal = true;
@@ -1061,7 +1115,21 @@ const runUntilDecisionOrBranch = (
 
         const favoredConditionalValue =
           favoredConditionalValues[node.conditions.length];
-        if (favoredConditionalValue != null) {
+        if (unforced) {
+          // Only the verdict the story reaches unforced. A decision whose
+          // verdict cannot be read before it runs ends the story's own run
+          // here, and the full search decides.
+          const natural = story.pausedConditionValue;
+          if (natural !== null) {
+            branches.push(
+              forkCondition(forkState, node, stepsEncountered, {
+                kind: "condition",
+                site: story.pausedBeforeCondition,
+                value: natural,
+              }),
+            );
+          }
+        } else if (favoredConditionalValue != null) {
           // Fork favored branch
           branches.push(
             forkCondition(forkState, node, stepsEncountered, {
