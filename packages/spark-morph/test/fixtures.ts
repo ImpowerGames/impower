@@ -30,6 +30,24 @@ export const rotatingClosed = "M54,90 C50,60 50,40 50,10 C56,40 57,60 54,90Z";
  */
 export const roundedOpen = "M4,52 C2,48 4,44 8,42 C35,15 65,15 92,42 C96,44 98,48 96,52 C70,32 30,32 4,52Z";
 export const roundedClosed = "M4,52 C2,50 4,47 8,46 C35,40 65,40 92,46 C96,47 98,50 96,52 C70,50 30,50 4,52Z";
+/**
+ * A lash shaped like the portrait art: a thin bowed ribbon `length` long with
+ * a sharp tip at (0, 0) and a rounded far end, `thickness` across, its far
+ * end lifted by `bow`. Its taper is only a few units long beside its span.
+ */
+export const ribbonLash = (length: number, bow: number, thickness: number): string => {
+  const r = thickness / 2,
+    e = length - r;
+  const p = (x: number, y: number) => `${+x.toFixed(4)},${+y.toFixed(4)}`;
+  return (
+    `M0,0 C${p(e * 0.3, -bow * 0.8)} ${p(e * 0.7, -bow)} ${p(e, -bow - r)}` +
+    ` C${p(e + r * 1.2, -bow - r)} ${p(e + r * 1.2, -bow + r)} ${p(e, -bow + r)}` +
+    ` C${p(e * 0.7, -bow + r)} ${p(e * 0.3, -bow * 0.4)} 0,0Z`
+  );
+};
+/** An open and a closed ribbon lash of the same side, as a blink pairs them. */
+export const ribbonOpen = ribbonLash(160, 14, 14);
+export const ribbonClosed = ribbonLash(168, 1, 6.3);
 /** A loop with only one cusp: not a taper. */
 export const oneCusp = "M0,0 C100,0 100,100 0,0Z";
 export const oneCuspNarrow = "M0,0 C60,0 60,100 0,0Z";

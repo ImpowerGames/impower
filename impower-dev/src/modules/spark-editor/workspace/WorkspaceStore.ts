@@ -95,6 +95,12 @@ class WorkspaceStore {
   // toolbar and the TrashPanel's own close/restore.
   readonly trashOpen = signal<boolean>(false);
 
+  // The preview's `Animate portraits` preference. A browser-wide user
+  // setting, so it lives outside the per-project `state` and the game
+  // preview state that every load resets. Written via
+  // `Workspace.window.setAnimatePortraits()`, which also persists it.
+  readonly animatePortraits = signal<boolean>(true);
+
   // Pre-built derived signals for the shell's most common slices. Each is a
   // ReadonlySignal so consumers can't mutate them directly — write the whole
   // cache via `current =`, or go through the message-protocol handlers.

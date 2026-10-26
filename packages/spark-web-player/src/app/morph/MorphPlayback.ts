@@ -51,6 +51,8 @@ interface LiveView {
   box: HTMLElement;
   artifact: MorphArtifact;
   prefix: string;
+  /** Each part's own svg, nested in the box's svg root. */
+  parts: Element[];
   leaves: { element: Element; node: string; style: string | null; d: string | null; opacity: string | null }[];
   clips: { path: Element; id: string; d: string | null }[];
   /** The pose last written, so an unchanged frame writes nothing. */
@@ -698,6 +700,7 @@ export class MorphLayer {
     outer.setAttribute("height", "100%");
     outer.setAttribute("style", "position:absolute;inset:0;overflow:visible");
     const parser = new (doc.defaultView?.DOMParser ?? DOMParser)();
+    const parts: Element[] = [];
     for (const part of artifact.parts) {
       const parsed = parser.parseFromString(namespaceMorphMarkup(part.svg, artifact.idPrefix, prefix), "image/svg+xml");
       const svg = parsed.documentElement;
@@ -709,6 +712,7 @@ export class MorphLayer {
       node.setAttribute("width", "100%");
       node.setAttribute("height", "100%");
       outer.appendChild(node);
+      parts.push(node);
     }
     box.appendChild(outer);
     const leaves: LiveView["leaves"] = [];
@@ -728,7 +732,7 @@ export class MorphLayer {
       if (!path || !id) continue;
       clips.push({ path, id: id.split(prefix).join(artifact.idPrefix), d: path.getAttribute("d") });
     }
-    return { box, artifact, prefix, leaves, clips };
+    return { box, artifact, prefix, parts, leaves, clips };
   }
 
   /**
@@ -777,14 +781,15 @@ export class MorphLayer {
       if (!view) continue;
       const rect = this.placement(view.artifact, computed, count - 1 - state.play.layer, area);
       if (!rect) continue;
-      // The browser paints a background image on whole device pixels; a
-      // drawing placed on the same snapped rectangle lands on its pixels.
-      const dpr = this.span.ownerDocument.defaultView?.devicePixelRatio || 1;
-      const snap = (v: number) => `${Math.round(v * dpr) / dpr}px`;
-      view.box.style.left = snap(rect.x);
-      view.box.style.top = snap(rect.y);
-      view.box.style.width = snap(rect.width);
-      view.box.style.height = snap(rect.height);
+      // The svg root covers the span's box, as the static layer does, so the
+      // browser snaps both to the same device pixels; each part then takes
+      // the static image's exact fractional rectangle inside it.
+      for (const part of view.parts) {
+        part.setAttribute("x", String(rect.x));
+        part.setAttribute("y", String(rect.y));
+        part.setAttribute("width", String(rect.width));
+        part.setAttribute("height", String(rect.height));
+      }
     }
   }
 

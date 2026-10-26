@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { showSnackbar } from "../../utils/snackbar";
+import { createPlayerPreferenceSync } from "./playerPreferences";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
 
@@ -175,8 +176,13 @@ export default function PreviewGame(_props: PreviewGameProps) {
           };
         };
 
+        const preferences = createPlayerPreferenceSync((message) =>
+          iframeChannelRef.current?.postMessage(message),
+        );
+
         const onChannelMessage = async (e: MessageEvent) => {
           const message = e.data;
+          preferences.received(message);
           if (ExecuteCommandMessage.type.is(message)) {
             const result = await Workspace.fs.executeCommand(message.params);
             iframeChannelRef.current?.sendResponse(message, result);
@@ -268,6 +274,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
             capabilities: {},
             workspaceFolders: [{ uri: projectPath, name: "Project" }],
           });
+          preferences.initialized();
           initializedRef.current = true;
           initializingResolveRef.current?.();
           setupInFlight = false;

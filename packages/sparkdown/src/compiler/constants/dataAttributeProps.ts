@@ -122,16 +122,17 @@ export const ATTRIBUTE_PROPS: ReadonlySet<string> = new Set([
   "autofocus", "controls", "autoplay", "loop", "muted", "inert", "popover",
   // tables
   "colspan", "rowspan", "scope", "headers", "span",
-  // universal / misc
+  // universal / misc (`translate` is absent: it names the CSS property, as it
+  // does in a `style` block, not the HTML translation hint)
   "id", "role", "title", "lang", "dir", "tabindex", "datetime", "draggable",
-  "translate", "part", "slot",
+  "part", "slot",
 ]);
 
 /**
  * Attributes whose PRESENCE is the signal, so a false value must remove them.
  *
  * Deliberately excludes the enumerated ones — `draggable`, `spellcheck`,
- * `translate`, `crossorigin`, `contenteditable` — where `="false"` is a real,
+ * `crossorigin`, `contenteditable` — where `="false"` is a real,
  * different value from absence. Treating those as boolean would silently drop
  * the author's explicit "no".
  */
@@ -141,12 +142,69 @@ export const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
   "inert", "popover",
 ]);
 
+/**
+ * The attribute the ui sets on the `<input>` inside a labelled input widget
+ * (`slider "Master Volume"`), whose pointer setting comes from its label.
+ * Builtin styles select it to tell that control from anything an author
+ * writes, so only the ui writes it: an authored `#data-widget-control` is not
+ * an attribute prop, and the validator reports it ({@link isReservedAttribute}).
+ */
+export const WIDGET_CONTROL_ATTRIBUTE = "data-widget-control";
+
+/**
+ * The attribute the ui sets on an element it attaches an event handler to.
+ * Builtin styles opt it into the pointer with rules that any author lock
+ * outranks, so `interactable = false` on the element, as a prop or from a
+ * class, still holds. Only the ui writes it, so an element without a handler
+ * never takes the pointer through it.
+ */
+export const HANDLER_ATTRIBUTE = "data-ui-handler";
+
+/**
+ * The attribute the ui sets on each element a write to one of the
+ * {@link DISPLAY_TARGETS} reaches (the builtin element named after it, or the
+ * container that is its slot in a layout that replaces `main`), holding the
+ * names of the targets that reach it, space-separated. The builtin style
+ * named after each target applies only where its name is in the value, so an
+ * author's `text.title` keeps its own layout. Only the ui writes it.
+ */
+export const DISPLAY_TARGET_ATTRIBUTE = "data-display-target";
+
+/** The story's display targets whose builtin styles the ui scopes to
+ *  {@link DISPLAY_TARGET_ATTRIBUTE}. `choice` stands for the targets the
+ *  story writes each choice to, `choice 0`, `choice 1` and so on. */
+export const DISPLAY_TARGETS: readonly string[] = [
+  "backdrop",
+  "portrait",
+  "character_name",
+  "character_parenthetical",
+  "title",
+  "heading",
+  "transitional",
+  "dialogue",
+  "action",
+  "choice",
+];
+
+const RESERVED_ATTRIBUTES = new Set([
+  WIDGET_CONTROL_ATTRIBUTE,
+  HANDLER_ATTRIBUTE,
+  DISPLAY_TARGET_ATTRIBUTE,
+]);
+
+/** Whether an authored prop names one of the ui's reserved markers. HTML
+ *  attribute names are case-insensitive, so `#Data-Widget-Control` would
+ *  write the same attribute and is reserved too. */
+export const isReservedAttribute = (prop: string): boolean =>
+  RESERVED_ATTRIBUTES.has(prop.toLowerCase());
+
 /** Whether a prop is written to the DOM as an attribute (in any spelling). */
 export const isAttributeProp = (prop: string): boolean =>
-  ATTRIBUTE_PROPS.has(prop) ||
-  isAliasedAttributeProp(prop) ||
-  prop.startsWith("aria-") ||
-  prop.startsWith("data-");
+  !isReservedAttribute(prop) &&
+  (ATTRIBUTE_PROPS.has(prop) ||
+    isAliasedAttributeProp(prop) ||
+    prop.startsWith("aria-") ||
+    prop.startsWith("data-"));
 
 // NOTE: there is deliberately no `toCustomPropertyName` helper. One existed and
 // was used to rename the prop in the renderer, which is the wrong layer — the
