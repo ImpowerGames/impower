@@ -133,17 +133,28 @@ end
     expect(input.getAttribute("style") ?? "").toBe("");
   });
 
-  // `spellcheck`/`draggable`/`translate` are ENUMERATED, not boolean: `="false"`
-  // is a real value that must survive rather than being removed as "absent".
+  // `spellcheck`/`draggable` are ENUMERATED, not boolean: `="false"` is a real
+  // value that must survive rather than being removed as "absent".
   test("an enumerated attribute keeps its explicit false", async () => {
     const h = await render(`store off = false
 layout main with
-  box #draggable={off} #translate={off}
+  box #draggable={off} #spellcheck={off}
 end
 `);
     const box = h.overlay.querySelector(".box") as HTMLElement;
     expect(box.getAttribute("draggable")).toBe("false");
-    expect(box.getAttribute("translate")).toBe("false");
+    expect(box.getAttribute("spellcheck")).toBe("false");
+  });
+
+  // `translate` is the CSS property, as it is in a `style` block (I-1619).
+  test("`#translate` moves the element instead of writing an attribute", async () => {
+    const h = await render(`layout main with
+  box "x" #translate="40px 0"
+end
+`);
+    const box = h.overlay.querySelector(".box") as HTMLElement;
+    expect(box.hasAttribute("translate")).toBe(false);
+    expect(box.style.translate).toBe("40px 0px");
   });
 });
 

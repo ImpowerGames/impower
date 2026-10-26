@@ -157,6 +157,15 @@ describe("Sparkle #prop name validation", () => {
     ).toBe(true);
   });
 
+  test("the reserved data-ui-handler attribute warns", () => {
+    expect(
+      propWarns(`layout main with\n  box #data-ui-handler=1\nend\n`),
+    ).toBe(true);
+    expect(
+      propWarns(`layout main with\n  box #Data-UI-Handler=1\nend\n`),
+    ).toBe(true);
+  });
+
   // The ui reserves `data-display-target` for the elements the story's
   // display targets reach (I-1595), so an author's prop never writes it.
   test("the reserved data-display-target attribute warns", () => {
