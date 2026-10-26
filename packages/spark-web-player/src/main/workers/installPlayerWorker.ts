@@ -919,7 +919,11 @@ export function installPlayerWorker(connection: MessageConnection) {
    * script (the blank lines after the script's last `end`) has no flow below
    * it to belong to. Either is where the story stands once the line above it
    * that has one has run, so it routes to that line's last beat, whose route
-   * puts the beat on screen there in its checkpoint (#1606). With no such
+   * puts the beat on screen there in its checkpoint (#1606). For a closing
+   * `end`, that line is the flow's own: a scene's `end` passes over the
+   * branches written inside the scene, which the scene does not run through.
+   * A flow with no such line of its own (a scene whose content is all in its
+   * branches) takes the nearest line above it that has one. With no such
    * line above, the point stands, and a run from it starts from where its
    * address leads, or from the top of the top-level content.
    */
@@ -929,20 +933,35 @@ export function installPlayerWorker(connection: MessageConnection) {
     beat: "first" | "last",
   ): { point: { file: string; line: number }; beat: "first" | "last" } => {
     const locator = programLocator(program);
-    if (
-      !program.flowEndLines?.[point.file]?.includes(point.line) &&
-      locator.addressAt(point.file, point.line) != null
-    ) {
+    const ends = program.flowEnds?.[point.file] ?? [];
+    const closed = ends.find(([, end]) => end === point.line);
+    if (!closed && locator.addressAt(point.file, point.line) != null) {
       return { point, beat };
     }
-    for (let line = point.line - 1; line >= 0; line -= 1) {
-      const address = locator.addressAt(point.file, line, { beat: "last" });
-      const location = locator.locationOf(address);
-      if (location && location.startLine <= line) {
-        return { point: { file: point.file, line }, beat: "last" };
+    // The nearest line above the point and below `floor` that has an address
+    // of its own, passing over the lines of the flows `skipped` spans.
+    const lineAbove = (floor: number, skipped: [number, number][]) => {
+      for (let line = point.line - 1; line > floor; line -= 1) {
+        if (skipped.some(([header, end]) => header <= line && line <= end)) {
+          continue;
+        }
+        const address = locator.addressAt(point.file, line, { beat: "last" });
+        const location = locator.locationOf(address);
+        if (location && location.startLine <= line) {
+          return { point: { file: point.file, line }, beat: "last" as const };
+        }
+      }
+      return undefined;
+    };
+    if (closed) {
+      const [header] = closed;
+      const nested = ends.filter(([h, e]) => h > header && e < point.line);
+      const own = lineAbove(header, nested);
+      if (own) {
+        return own;
       }
     }
-    return { point, beat };
+    return lineAbove(-1, []) ?? { point, beat };
   };
 
   /** End PLAY's game, answering where it last executed: the run the page

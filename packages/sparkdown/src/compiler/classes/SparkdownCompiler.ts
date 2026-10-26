@@ -4717,6 +4717,8 @@ export class SparkdownCompiler {
         let scopePathParts: {
           kind: "scene" | "branch" | "label";
           name: string;
+          /** A scene's or branch's header line. */
+          line?: number;
         }[] = [];
         if (cur) {
           while (cur.value) {
@@ -4739,9 +4741,10 @@ export class SparkdownCompiler {
                 (p) => p.kind === "scene" || p.kind === "branch",
               );
               if (closed >= 0) {
+                const header = scopePathParts[closed]!.line!;
                 scopePathParts.length = closed;
-                program.flowEndLines ??= {};
-                (program.flowEndLines[uri] ??= []).push(range.start.line);
+                program.flowEnds ??= {};
+                (program.flowEnds[uri] ??= []).push([header, range.start.line]);
               }
             }
             if (cur.value.type === "scene") {
@@ -4749,6 +4752,7 @@ export class SparkdownCompiler {
               scopePathParts.push({
                 kind: "scene",
                 name: doc.read(cur.from, cur.to),
+                line: range.start.line,
               });
               program.sceneLocations ??= {};
               program.sceneLocations[name] = [
@@ -4767,6 +4771,7 @@ export class SparkdownCompiler {
               scopePathParts.push({
                 kind: "branch",
                 name: doc.read(cur.from, cur.to),
+                line: range.start.line,
               });
               const name = scopePathParts.map((p) => p.name).join(".");
               program.branchLocations ??= {};

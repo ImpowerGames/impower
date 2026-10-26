@@ -13,7 +13,7 @@ export const PROGRAM_FIELDS = [
   "knotLocations",
   "branchLocations",
   "labelLocations",
-  "flowEndLines",
+  "flowEnds",
   "context",
   "diagnostics",
   "ui",
