@@ -317,6 +317,24 @@ describe("a movie on a layer, in play", () => {
     expect(video.currentTime).toBeCloseTo(2.7);
   });
 
+  test("with the game clock, a looping movie of unknown duration rewound past its start steps forward from its start", async () => {
+    const { h } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.loop).toBe(true);
+    // The stub reports no duration, as a file without one does.
+    expect(Number.isFinite(video.duration)).toBe(false);
+    clock.elapsedTime = 11;
+    video.currentTime = 1;
+    h.ui.onPause();
+    h.ui.onSkip(-2);
+    expect(video.currentTime).toBe(0);
+    h.ui.onSkip(0.5);
+    expect(video.currentTime).toBe(0.5);
+  });
+
   test("a movie shown while the game is paused starts when it resumes", async () => {
     const { h, media } = await playing();
     appOf(h).paused = true;

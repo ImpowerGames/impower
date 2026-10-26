@@ -2493,15 +2493,17 @@ export default class UIManager extends Manager {
     return this.withinMovie(video, position);
   }
 
-  /** `time` kept within a movie that plays once: from its start to its end
-   *  when its duration is known. A looping movie's time runs on unwrapped. */
+  /** `time` kept where the element can stand: a looping movie of known
+   *  duration runs on unwrapped, since its time wraps into `currentTime`;
+   *  any other movie goes no earlier than its start, and one that plays once
+   *  no later than its end when that is known. */
   protected withinMovie(video: HTMLVideoElement, time: number): number {
-    if (video.loop) {
+    const duration = video.duration;
+    const known = Number.isFinite(duration) && duration > 0;
+    if (video.loop && known) {
       return time;
     }
-    const duration = video.duration;
-    const end = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
-    return Math.min(Math.max(0, time), end);
+    return Math.min(Math.max(0, time), !video.loop && known ? duration : Infinity);
   }
 
   /** The game clock moved `seconds` (back, when negative): so does every
