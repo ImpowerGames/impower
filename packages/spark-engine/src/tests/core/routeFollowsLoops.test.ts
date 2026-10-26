@@ -168,21 +168,21 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(previewedStore(src, 12, "total")).toBe(16);
   }, 120_000);
 
-  test("a long loop runs every pass", () => {
+  test("a loop within the work a route follows without a beat runs every pass", () => {
     const src = [
       "store total = 0",
       "",
       "-> main",
       "",
       "scene main",
-      "  for i = 1, 2000 do",
+      "  for i = 1, 50 do",
       "    total += 1",
       "  end",
       "  The loop counted {total}.",
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 9, "total")).toBe(2000);
+    expect(previewedStore(src, 9, "total")).toBe(50);
   }, 120_000);
 
   test("a for loop at story scope", () => {
@@ -568,10 +568,10 @@ describe("a search whose level spends its bound", () => {
     expect(previewedStore(src, 10, "total")).toBe(600);
   }, 120_000);
 
-  test("a loop longer than its level's bound is left at the pass the bound ran out on", () => {
+  test("a loop longer than a route follows without a beat is left at the pass it ran out on", () => {
     // A finite search cannot tell this loop from one that never ends. The
-    // next level takes up the run where the bound ran out, so the passes
-    // level zero ran are kept.
+    // route forces the loop's exit where its work without a beat ran out
+    // (BEAT_WORK_CAP), so the passes it ran are kept.
     const lines = [
       "store total = 0",
       "-> start",

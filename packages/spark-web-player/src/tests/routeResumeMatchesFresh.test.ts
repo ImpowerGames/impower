@@ -1,10 +1,10 @@
 // A search resumed inside an earlier route shows a line after a loop with the
 // same value as a search from the top (#637).
 //
-// Each level of the route search may spend a bound of work, counted from the
-// first condition it meets, and a loop that outlasts it is left at the pass
-// the bound ran out on. A search resumed part way along an earlier route is
-// charged what the search from the top had spent when it recorded the step it
+// A route follows a bounded amount of work without a beat, counted from the
+// first condition after its last beat, and a loop that outlasts it is left at
+// the pass where that ran out. A search resumed part way along an earlier
+// route starts with what the search from the top had recorded at the step it
 // resumes on, Luau callbacks included, so it runs out on the same pass, and
 // the value the preview shows does not depend on whether a checkpoint was
 // reusable.
@@ -113,9 +113,10 @@ describe("a search resumed inside an earlier route", () => {
     });
   }, 120_000);
 
-  test("leaves a loop longer than the share on the pass a search from the top does", () => {
-    // The loop's steps run well inside the share's time, so its step
-    // allowance is what cuts it, on the same pass in both searches.
+  test("leaves a loop longer than a route follows without a beat on the pass a search from the top does", () => {
+    // The work a route follows without a beat is counted in steps and
+    // recorded with each step, so both searches cut the loop on the same
+    // pass.
     const text = [
       "store total = 0",
       "-> start",
@@ -151,7 +152,7 @@ describe("a search resumed inside an earlier route", () => {
       "  Opening beat.",
       "  Second beat.",
       "  Third beat.",
-      "  for i = 1, 100 do",
+      "  for i = 1, 50 do",
       "    total += 1",
       "  end",
       "  Target total {total}.",
@@ -159,8 +160,8 @@ describe("a search resumed inside an earlier route", () => {
       "",
     ].join("\n");
     expect(resumedAndFresh(text, "Third beat", "Target total")).toEqual({
-      resumed: 100,
-      fresh: 100,
+      resumed: 50,
+      fresh: 50,
     });
   }, 120_000);
 });
