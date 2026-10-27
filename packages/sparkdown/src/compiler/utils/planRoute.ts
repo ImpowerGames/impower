@@ -6,6 +6,7 @@ import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { chunkOfAddress } from "../../program/ProgramChunk";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
+import { planRouteFallback } from "./planRouteFallback";
 
 export interface RoutePlan {
   /** The flow the route starts at the top of: a scene's name, or `"0"` for
@@ -26,6 +27,11 @@ export interface RoutePlan {
    *  (see {@link planRoute}); absent when it met none. A search resumed past
    *  that condition is charged the same bound ({@link RouteCharge}). */
   levelZero?: LevelZeroBound;
+  /** Set on a route origin/main's search found, because the search that
+   *  follows the program found none within its budget (see
+   *  {@link planRoute}). Its values are the ones origin/main's preview shows,
+   *  and no search resumes from it. */
+  fallback?: true;
 }
 
 /** Where level zero's work bound began and where it runs out, as work the
@@ -143,6 +149,24 @@ const newRoute = (): number => (lastRoute += 1);
  * would too.
  */
 export const BEAT_WORK_CAP = 2_048;
+
+/**
+ * The budget of the search that follows the program (see {@link planRoute}):
+ * the nodes it may expand, the steps it may spend from the first condition it
+ * meets (work before it, a long Luau call included, is the same work
+ * origin/main's search does), and a wall-clock backstop. Past it, the route
+ * is origin/main's search's.
+ *
+ * Steps and nodes are work, not time, and a resumed search is charged what
+ * the search from the top recorded, so a resumed and a fresh search run out
+ * of them at the same point. Sized by preview-bench: menu loops, where the
+ * player's choices double the routes at every pass, and long loops with a
+ * branch in them, before a line in a skipped branch, fall back within about
+ * twice origin/main's preview time.
+ */
+export const FAITHFUL_NODES = 4_096;
+export const FAITHFUL_STEPS = 100_000;
+export const FAITHFUL_TIMEOUT = 5_000;
 
 /**
  * The share of the step and node work remaining that each level of a search
@@ -696,6 +720,10 @@ interface SearchBudget {
   cut: SearchCutReason | null;
   /** Fork sites already expanded (see {@link claimForkSite}) */
   visited: Set<string>;
+  /** The steps spent at which the search stops following the program
+   *  ({@link FAITHFUL_STEPS}), set at level zero's first condition; null
+   *  before it. */
+  faithfulEnd: number | null;
 }
 
 /** Whether the story may be advanced again. The node budget is deliberately not
@@ -707,7 +735,10 @@ const stepBudgetExhausted = (budget: SearchBudget): boolean => {
   // Recorded here rather than derived after the loop: a search that SUCCEEDS
   // using exactly its allowance leaves the counters at zero too, so counting
   // what is left cannot tell a search that was cut off from one that fit.
-  if (budget.stepsRemaining <= 0) {
+  if (
+    budget.stepsRemaining <= 0 ||
+    (budget.faithfulEnd !== null && spentSteps(budget) >= budget.faithfulEnd)
+  ) {
     budget.cut ??= "max-steps";
     return true;
   }
@@ -959,7 +990,7 @@ export interface SearchError {
  * leaves no state to take up, and the next level runs that run again from the
  * last condition it took.
  */
-export const planRoute = (
+const planRouteFaithful = (
   story: Story,
   from: string,
   to: ProgramAddress,
@@ -974,9 +1005,17 @@ export const planRoute = (
 
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
-  const searchTimeout = options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT;
+  // The search that follows the program runs within its own budget, inside
+  // the caller's ceilings (FAITHFUL_NODES, FAITHFUL_STEPS, FAITHFUL_TIMEOUT).
+  const searchTimeout = Math.min(
+    options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT,
+    FAITHFUL_TIMEOUT,
+  );
   const maxSteps = options?.maxSteps ?? DEFAULT_MAX_STEPS;
-  const maxNodes = options?.maxNodes ?? DEFAULT_MAX_NODES;
+  const maxNodes = Math.min(
+    options?.maxNodes ?? DEFAULT_MAX_NODES,
+    FAITHFUL_NODES,
+  );
   // A resumed search starts charged with what the search from the top had
   // spent when it stood where this one starts, one step and one node short:
   // its first run charges them again as it records that step.
@@ -991,6 +1030,9 @@ export const planRoute = (
     deadlineTime: startTime + searchTimeout,
     cut: null,
     visited: new Set(),
+    faithfulEnd: charge?.levelZero
+      ? charge.levelZero.startSteps + FAITHFUL_STEPS
+      : null,
   };
   const favoredConditionalValues = options?.favoredConditions ?? [];
   const favoredChoiceIndices = options?.favoredChoices ?? [];
@@ -1220,6 +1262,36 @@ export const planRoute = (
   }
 
   return routePlan;
+};
+
+/**
+ * Search for a route from the top of the flow `from` to the address `to`.
+ *
+ * The search that follows the program runs first, within its own budget
+ * ({@link FAITHFUL_NODES}, {@link FAITHFUL_STEPS}, {@link FAITHFUL_TIMEOUT};
+ * see the search's own description above `planRouteFaithful`). When it finds
+ * no route there, the route is origin/main's search's (`planRouteFallback`),
+ * run with the caller's ceilings and charged nothing for what the first
+ * spent, and is marked {@link RoutePlan.fallback}: a line origin/main's
+ * preview reaches is always reached, with the values origin/main's route
+ * gives where the program's own way was not found in time.
+ *
+ * A resumed search ({@link SearchOptions.resumeFrom}) never falls back: it
+ * comes back empty, and the caller searches from the top, which falls back
+ * if it must, so a resumed and a fresh preview take the same kind of route.
+ */
+export const planRoute = (
+  story: Story,
+  from: string,
+  to: ProgramAddress,
+  options?: SearchOptions,
+): RoutePlan | null => {
+  const faithful = planRouteFaithful(story, from, to, options);
+  if (faithful || options?.resumeFrom) {
+    return faithful;
+  }
+  const route = planRouteFallback(story, from, to, options);
+  return route ? { ...route, fallback: true } : null;
 };
 
 const runUntilDecisionOrBranch = (
@@ -1487,6 +1559,12 @@ const runUntilDecisionOrBranch = (
       let allowed = level.bound
         ? Math.max(0, level.bound.steps - spentSteps(budget))
         : budget.stepsRemaining;
+      if (budget.faithfulEnd !== null) {
+        allowed = Math.min(
+          allowed,
+          Math.max(0, budget.faithfulEnd - spentSteps(budget)),
+        );
+      }
       if (beatWork >= 0) {
         allowed = Math.min(allowed, BEAT_WORK_CAP - beatWork);
       }
@@ -1510,8 +1588,9 @@ const runUntilDecisionOrBranch = (
         // from the last fork, since a step stopped part way leaves no state
         // to take up; a route past its work since its last beat goes no
         // further.
-        if (budget.stepsRemaining <= 0) {
-          budget.cut ??= "max-steps";
+        if (stepBudgetExhausted(budget)) {
+          // The budget, or the search's own end (FAITHFUL_STEPS): its cut
+          // is recorded there.
         } else if (levelSpent(level, budget)) {
           level.cutAt = nodeAt(lastFork.state, lastFork.at, lastFork.overrides);
         }
@@ -1554,6 +1633,7 @@ const runUntilDecisionOrBranch = (
           // the first condition it meets.
           if (level.index === 0) {
             bindLevel(level, budget);
+            budget.faithfulEnd ??= level.bound!.startSteps + FAITHFUL_STEPS;
           }
           const at = mark();
           const other: ConditionOverride = {

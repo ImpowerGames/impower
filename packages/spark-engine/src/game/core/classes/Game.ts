@@ -2430,6 +2430,19 @@ export class Game<T extends M = {}> {
     // holds: a step past the valid prefix names a statement the compile
     // emitted again, whose decisions the route's forced ones no longer
     // name, so the rest is searched for.
+    if (route.fallback) {
+      // A route origin/main's search found (`planRoute`) is not resumed from,
+      // nor replayed in place of a search: the search runs from the top
+      // again, so a resumed and a fresh preview take the same kind of route.
+      // Its replay may still start from a checkpoint the new program agrees
+      // with.
+      const replayCheckpointIndex = this.findReplayCheckpoint(validSteps);
+      return {
+        validSteps,
+        ...(replayCheckpointIndex != null ? { replayCheckpointIndex } : {}),
+        replayOnly: false,
+      };
+    }
     const replayOnly = route.to === to && validSteps === route.steps.length;
     // A search resumed inside the route keeps every decision before the
     // point it resumes from, and a search from the top forces a verdict
