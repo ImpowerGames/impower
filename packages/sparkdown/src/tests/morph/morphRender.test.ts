@@ -79,9 +79,14 @@ describe("artifact playback", () => {
       // Paint order is document order: the shadow, clipped to the opening,
       // stays under both lashes as the closed pose has it, so the lashes
       // cover whatever of it the opening does not.
-      const order = shown(elements(renderMorphFrame(shadowed, pose))).map((e) => e.attributes["data-name"]);
+      const drawn = shown(elements(renderMorphFrame(shadowed, pose)));
+      const order = drawn.map((e) => e.attributes["data-name"]);
       expect(order.filter((name) => name === "eyelash-left")).toHaveLength(2);
-      expect(order.lastIndexOf("eyeball-shadow-left")).toBeLessThan(order.indexOf("eyelash-left"));
+      const shadows = drawn.filter((e) => e.attributes["data-name"] === "eyeball-shadow-left");
+      expect(shadows).toHaveLength(1);
+      // It is the moving shadow, on its way between the open and closed ones.
+      expect([UPPER_OPEN, CLOSED]).not.toContain(shadows[0]!.attributes["d"]);
+      expect(order.indexOf("eyeball-shadow-left")).toBeLessThan(order.indexOf("eyelash-left"));
     }
   });
 
