@@ -771,9 +771,10 @@ export function* bakeSteps(
           for (let s = 0; s < MORPH_BAKE_SAMPLES; s++) {
             raw.push(built.apertures.map((ap) => ap.loop(s / (MORPH_BAKE_SAMPLES - 1))));
           }
-          // A closed aperture comes back as its two tips; a player blends
-          // neighbouring samples point by point, so every sample of one
-          // aperture is given the same number of points.
+          // Corner caps and untangled crossings vary an aperture's point
+          // count from sample to sample; a player blends neighbouring samples
+          // point by point, so every sample of one aperture is given the same
+          // number of points.
           const samples: number[][][] = raw.map((loops) =>
             loops.map((loop, j) => {
               const points = Math.max(...raw.map((other) => other[j]!.length));

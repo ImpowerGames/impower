@@ -194,6 +194,16 @@ describe("artifact playback", () => {
     expect(Math.abs(sum) / 2).toBeLessThan(20);
   });
 
+  test("a nearly closed aperture stays on the bowed closed lash, not below it", () => {
+    const clip = artifact.segments[0]!.clips[0]!;
+    const nearly = aperturePathData(artifact.apertures[clip.loops.index]!, clip.loops, 0.99);
+    const ys = [...nearly.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[2]));
+    // The closed lash bows up from the line through its tips at y = 50; an
+    // opening closing onto that chord would leave the lash's underside
+    // uncovered and show what it clips there.
+    expect(Math.min(...ys)).toBeLessThan(49);
+  });
+
   test("a static artifact plays as its rest render", () => {
     const disabled = bakeMorphArtifact({ source: portrait(), selection: { eyes: "closed" }, recipe: blink(), key: "k2" });
     expect(disabled.status).toBe("static");
