@@ -62,6 +62,16 @@ const recipe = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
+/**
+ * What an aperture's masked wrapper draws: its child, or, under a wrapper
+ * that undoes the transforms around the target, the child of the group
+ * inside it that redoes them.
+ */
+const maskedDrawing = (wrapper: Element): Element | undefined => {
+  const child = wrapper.children[0] as Element | undefined;
+  return wrapper.attributes["transform"] && child?.tagName === "g" && !child.attributes["data-name"] ? (child.children[0] as Element | undefined) : child;
+};
+
 describe("morph bake: layered art", () => {
   const layeredRecipe = blink({
     clips: [{ between: ["eyelash-left"], targets: ["eyeball-left", "eyeball-shadow-left"] }],
@@ -107,7 +117,7 @@ describe("morph bake: layered art", () => {
     const live = elements(artifact.parts[1]!.svg);
     const iris = live.find((e) => e.attributes["data-name"] === "iris")!;
     expect(iris.attributes["clip-path"]).toBe(`url(#${artifact.idPrefix}iris-cut)`);
-    const wrapper = live.find((e) => e.tagName === "g" && e.attributes["clip-path"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-left");
+    const wrapper = live.find((e) => e.tagName === "g" && e.attributes["mask"] && maskedDrawing(e)?.attributes["data-name"] === "eyeball-left");
     expect(wrapper).toBeDefined();
   });
 
@@ -116,7 +126,7 @@ describe("morph bake: layered art", () => {
     const byNode = new Map(elements(artifact.parts[1]!.svg).filter((e) => e.attributes["data-morph"]).map((e) => [e.attributes["data-morph"], e.attributes["data-name"]]));
     const shadow = closing.transitions.filter((t) => t.kind === "morph" && byNode.get(t.from) === "eyeball-shadow-left");
     expect(shadow).toHaveLength(1);
-    const wrapped = elements(artifact.parts[1]!.svg).filter((e) => e.tagName === "g" && e.attributes["clip-path"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-shadow-left");
+    const wrapped = elements(artifact.parts[1]!.svg).filter((e) => e.tagName === "g" && e.attributes["mask"] && maskedDrawing(e)?.attributes["data-name"] === "eyeball-shadow-left");
     expect(wrapped).toHaveLength(2);
   });
 
@@ -129,15 +139,20 @@ describe("morph bake: layered art", () => {
     expect(area(loops[MORPH_BAKE_SAMPLES - 1]![0]!)).toBeLessThan(1e-3);
   });
 
-  test("the rest render keeps every drawing's paint and adds only the aperture wrappers, mapped into the wrapper's space", () => {
+  test("the rest render keeps every drawing's paint and adds only the aperture wrappers, in root space", () => {
     const rest = elements(artifact.rest);
     const plain = elements(filterSVGAttributes(layeredPortrait(), {}));
     const drawn = (list: Element[]) => list.filter((e) => e.tagName === "path" && e.attributes["data-name"]).map((e) => JSON.stringify(e.attributes));
     expect(drawn(rest)).toEqual(drawn(plain));
-    const clip = rest.find((e) => e.tagName === "clipPath" && e.attributes["id"]?.startsWith("morph-clip"))!;
+    const mask = rest.find((e) => e.tagName === "mask" && e.attributes["id"]?.startsWith("morph-clip"))!;
     // The eyeballs sit under translate(30 10) and scale(1); the aperture is
-    // computed in root space and mapped back.
-    expect((clip.children[0] as Element).attributes["transform"]).toBe("matrix(1 0 0 1 -30 -10)");
+    // in root space, and the masked wrapper undoes that transform while a
+    // group inside it redoes it.
+    const aperture = mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
+    expect(aperture.attributes["transform"]).toBeUndefined();
+    const wrapper = rest.find((e) => e.tagName === "g" && e.attributes["mask"] === `url(#${mask.attributes["id"]})`)!;
+    expect(wrapper.attributes["transform"]).toBe("matrix(1 0 0 1 -30 -10)");
+    expect((wrapper.children[0] as Element).attributes["transform"]).toBe("matrix(1 0 0 1 30 10)");
   });
 });
 

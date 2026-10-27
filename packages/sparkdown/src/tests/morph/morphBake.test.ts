@@ -117,13 +117,13 @@ describe("morph bake", () => {
     expect(elements(artifact.parts[2]!.svg).some((e) => e.tagName === "linearGradient")).toBe(false);
   });
 
-  test("the rest render clips the targets to the open aperture and leaves the art untouched", () => {
+  test("the rest render masks the targets to the open aperture and leaves the art untouched", () => {
     const svg = portrait();
     const artifact = bake(svg);
     const rest = elements(artifact.rest);
-    const clipPaths = rest.filter((e) => e.tagName === "clipPath");
-    expect(clipPaths).toHaveLength(2);
-    const wrapped = rest.filter((e) => e.tagName === "g" && e.attributes["clip-path"]);
+    const masks = rest.filter((e) => e.tagName === "mask");
+    expect(masks).toHaveLength(2);
+    const wrapped = rest.filter((e) => e.tagName === "g" && e.attributes["mask"]);
     expect(wrapped.map((g) => (g.children[0] as Element).attributes["data-name"])).toEqual([
       "eyeball-white-left",
       "pupil-left",
