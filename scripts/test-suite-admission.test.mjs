@@ -60,25 +60,31 @@ assert.equal(poolSlotLimit, 2);
 // processes is accounted for; any other Vitest process is foreign.
 {
   const rows = [
-    { pid: 40, parent: 1, command: "node scripts/test-suite.mjs run pkg a.test.ts" },
-    { pid: 9, parent: 40, command: "powershell test-suite-child-windows.ps1 launches vitest", node: false },
-    { pid: 10, parent: 9, command: "node suite-engine.mjs run-direct pkg vitest.json a.test.ts" },
-    { pid: 11, parent: 10, command: "node tinypool worker" },
-    { pid: 12, parent: 11, command: "node tinypool worker" },
-    { pid: 20, parent: 2, command: "node node_modules/vitest/vitest.mjs run" },
-    { pid: 30, parent: 31, command: "node tinypool orphan" }, { pid: 31, parent: 30, command: "node tinypool orphan" },
+    { pid: 40, parent: 1, created: 100, command: "node scripts/test-suite.mjs run pkg a.test.ts" },
+    { pid: 9, parent: 40, created: 110, command: "powershell test-suite-child-windows.ps1 launches vitest", node: false },
+    { pid: 10, parent: 9, created: 120, command: "node suite-engine.mjs run-direct pkg vitest.json a.test.ts" },
+    { pid: 11, parent: 10, created: 130, command: "node tinypool worker" },
+    { pid: 12, parent: 11, created: 140, command: "node tinypool worker" },
+    { pid: 20, parent: 2, created: 50, command: "node node_modules/vitest/vitest.mjs run" },
+    { pid: 30, parent: 31, created: 60, command: "node tinypool orphan" }, { pid: 31, parent: 30, created: 61, command: "node tinypool orphan" },
+    // Started under a parent that exited; its pid now belongs to the holder's helper, which is younger.
+    { pid: 50, parent: 9, created: 105, command: "node node_modules/vitest/vitest.mjs run --stale-parent" },
+    // The same shape with the creation times unknown on one side.
+    { pid: 51, parent: 9, created: NaN, command: "node node_modules/vitest/vitest.mjs run --unknown-age" },
   ];
-  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([40]) }), [20, 30, 31], "the engine and its forks reach their coordinator through a supervisor that is not Node; a direct Vitest call and a cyclic orphan pair are foreign");
-  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([10]) }), [20, 30, 31], "a holder's engine pid also accounts for its forks, though admission never trusts one");
-  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set() }), [10, 11, 12, 20, 30, 31], "with no holder every Vitest process is foreign, and the supervisor is never a candidate");
-  assert.deepEqual(foreignVitestProcesses(rows, 20, { accounted: new Set([40]) }), [30, 31], "the census never counts the asking process");
+  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([40]) }), [20, 30, 31, 50, 51], "the engine and its forks reach their coordinator through a supervisor that is not Node; a direct Vitest call, a cyclic orphan pair, a process older than its recorded parent and one of unknown age are foreign");
+  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([10]) }), [20, 30, 31, 50, 51], "a holder's engine pid also accounts for its forks, though admission never trusts one");
+  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set() }), [10, 11, 12, 20, 30, 31, 50, 51], "with no holder every Vitest process is foreign, and the supervisor is never a candidate");
+  assert.deepEqual(foreignVitestProcesses(rows, 20, { accounted: new Set([40]) }), [30, 31, 50, 51], "the census never counts the asking process");
   assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([40]), within: "orphan" }), [30, 31], "within narrows to command lines naming the path");
-  const raw = JSON.stringify([{ ProcessId: 0, ParentProcessId: 0, Name: "System Idle Process", CommandLine: null }, { ProcessId: 40, ParentProcessId: 1, Name: "node.exe", CommandLine: "node scripts/test-suite.mjs" },
-    { ProcessId: 9, ParentProcessId: 40, Name: "powershell.exe", CommandLine: "powershell helper vitest" }, { ProcessId: 10, ParentProcessId: 9, Name: "node.exe", CommandLine: "node vitest" },
-    { ProcessId: 11, ParentProcessId: 10, Name: "node.exe", CommandLine: "node tinypool" }, { ProcessId: 12, ParentProcessId: null, Name: "node.exe", CommandLine: null }]);
-  assert.deepEqual(windowsVitestProcesses(raw, 99, { accounted: new Set([40]) }), [12], "the Windows census carries every process's parent through; a Node process whose command line cannot be read stays foreign");
-  assert.deepEqual(windowsVitestProcesses(raw, 99, { accounted: new Set() }), [10, 11, 12]);
+  const raw = JSON.stringify([{ ProcessId: 0, ParentProcessId: 0, Name: "System Idle Process", CommandLine: null, Created: null }, { ProcessId: 40, ParentProcessId: 1, Name: "node.exe", CommandLine: "node scripts/test-suite.mjs", Created: 1000 },
+    { ProcessId: 9, ParentProcessId: 40, Name: "powershell.exe", CommandLine: "powershell helper vitest", Created: 1100 }, { ProcessId: 10, ParentProcessId: 9, Name: "node.exe", CommandLine: "node vitest", Created: 1200 },
+    { ProcessId: 11, ParentProcessId: 10, Name: "node.exe", CommandLine: "node tinypool", Created: 1300 }, { ProcessId: 12, ParentProcessId: null, Name: "node.exe", CommandLine: null, Created: 1400 },
+    { ProcessId: 50, ParentProcessId: 9, Name: "node.exe", CommandLine: "node vitest run", Created: 1050 }]);
+  assert.deepEqual(windowsVitestProcesses(raw, 99, { accounted: new Set([40]) }), [12, 50], "the Windows census carries every process's parent and creation time through; a Node process whose command line cannot be read, and one older than its recorded parent, stay foreign");
+  assert.deepEqual(windowsVitestProcesses(raw, 99, { accounted: new Set() }), [10, 11, 12, 50]);
   assert.throws(() => windowsVitestProcesses(JSON.stringify([{ ProcessId: 10, ParentProcessId: "x", CommandLine: "node vitest" }]), 99), /Malformed/);
+  assert.throws(() => windowsVitestProcesses(JSON.stringify([{ ProcessId: 10, ParentProcessId: 1, CommandLine: "node vitest", Created: "yesterday" }]), 99), /Malformed/);
   const real = vitestProcesses({ accounted: new Set() });
   assert.ok(Array.isArray(real), "the real census answers");
   const reading = freeMemoryMb();
@@ -221,9 +227,10 @@ assert.equal(poolSlotLimit, 2);
   await until(() => order.length === 3, "the third admission");
   assert.deepEqual(order, ["R1", "W1", "R2"], "then the remaining reviewer, as the last admitted run was a writer");
   // Whether W2 polls between a release and the next admission depends on
-  // timing; when it does, the row names whose turn it is.
+  // timing; when it does, the row names whose turn it is: the older writer
+  // W1, or a reviewer when the last admitted run was a writer.
   const turns = waits.W2.filter(row => row.waiting === "queue");
-  assert.ok(turns.every(row => /Queued behind the reviewer run R[12]/.test(row.detail)), `a waiter told to wait its turn reports whose turn it is: ${JSON.stringify(turns.map(row => row.detail))}`);
+  assert.ok(turns.every(row => /Queued behind the (?:writer run W1|reviewer run R[12])$/.test(row.detail)), `a waiter told to wait its turn reports whose turn it is: ${JSON.stringify(turns.map(row => row.detail))}`);
   assert.ok(waits.W2.every(row => ["reservation", "queue"].includes(row.waiting)), "a writer behind a full store waits on the store or on its turn");
   const [R1, W1, R2] = await Promise.all([r1, w1, r2]);
   assert.throws(() => acquire("no wait", { ...live, pool: "writer" }), error => error.waitable === "reservation");

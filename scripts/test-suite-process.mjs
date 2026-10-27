@@ -145,23 +145,32 @@ function admissionFailure(root, error) {
 // can watch its own children without reading other sessions' processes.
 const names = (command, within) => !within || command.toLowerCase().includes(within.toLowerCase());
 
-// The foreign Vitest processes among `rows`, one `{ pid, parent, command,
-// node }` per process on the machine: the Node processes whose command line
-// names Vitest or tinypool (or cannot be read) and whose ancestor chain,
-// followed through every process, reaches none of the `accounted` pids, the
-// live holders' coordinators. A holder's engine and its forks reach their
-// coordinator through the supervisor that launched them, so they are accounted
-// for; a direct `npx vitest` call, or an orphan of a dead holder, is foreign
-// and blocks admission as every Vitest process did before. A recorded engine
-// or supervisor pid is never trusted by number: a pid outlives its process,
-// and a direct Vitest call can inherit it. A row without `node` is a Node row.
+// The foreign Vitest processes among `rows`, one `{ pid, parent, created,
+// command, node }` per process on the machine: the Node processes whose
+// command line names Vitest or tinypool (or cannot be read) and whose ancestor
+// chain, followed through every process, reaches none of the `accounted` pids,
+// the live holders' verified processes. A holder's engine and its forks reach
+// their coordinator through the supervisor that launched them, so they are
+// accounted for; a direct `npx vitest` call, or an orphan of a dead holder, is
+// foreign and blocks admission as every Vitest process did before. A pid is
+// never trusted by number: a pid outlives its process, and a direct Vitest
+// call can inherit it. A parent edge holds only when the parent was created no
+// later than the child: Windows keeps a dead parent's pid on its children,
+// and that pid can belong to a holder's newer process by now; an edge whose
+// creation times are unknown is never trusted. A row without `node` is a Node
+// row.
 export function foreignVitestProcesses(rows, ownPid = process.pid, { within, accounted = new Set() } = {}) {
-  const parentOf = new Map(rows.map(row => [row.pid, row.parent]));
+  const byPid = new Map(rows.map(row => [row.pid, row]));
+  const parentOf = row => {
+    const parent = byPid.get(row.parent);
+    if (!parent || parent.pid === row.pid || !Number.isFinite(row.created) || !Number.isFinite(parent.created) || parent.created > row.created) return undefined;
+    return parent;
+  };
   const reaches = pid => {
     const seen = new Set();
-    for (let current = pid; Number.isSafeInteger(current) && current > 0 && !seen.has(current); current = parentOf.get(current)) {
-      if (accounted.has(current)) return true;
-      seen.add(current);
+    for (let current = byPid.get(pid); current && !seen.has(current.pid); current = parentOf(current)) {
+      if (accounted.has(current.pid)) return true;
+      seen.add(current.pid);
     }
     return false;
   };
@@ -177,17 +186,20 @@ export function windowsVitestProcesses(raw, ownPid = process.pid, options = {}) 
   // The idle process is pid 0; it heads every parent chain and is never a candidate.
   if (rows.some(p => !p || !Number.isSafeInteger(p.ProcessId) || p.ProcessId < 0 || (p.CommandLine !== null && typeof p.CommandLine !== "string")
     || (p.ParentProcessId !== undefined && p.ParentProcessId !== null && !Number.isSafeInteger(p.ParentProcessId))
+    || (p.Created !== undefined && p.Created !== null && typeof p.Created !== "number")
     || (p.Name !== undefined && p.Name !== null && typeof p.Name !== "string"))) throw new Error("Malformed Windows process census");
-  return foreignVitestProcesses(rows.map(p => ({ pid: p.ProcessId, parent: p.ParentProcessId ?? null, command: p.CommandLine,
+  return foreignVitestProcesses(rows.map(p => ({ pid: p.ProcessId, parent: p.ParentProcessId ?? null, created: typeof p.Created === "number" ? p.Created : NaN, command: p.CommandLine,
     node: p.Name === undefined || p.Name === null || /^node(?:\.exe)?$/i.test(p.Name) })), ownPid, options);
 }
 
 // An unreadable process table is a refusal, never an empty inventory. Every
 // process is read, not only Node, because a holder's engine reaches its
-// coordinator through a supervisor that is not one.
+// coordinator through a supervisor that is not one; each row carries its
+// creation time (Windows file time in milliseconds, Linux start ticks since
+// boot) so a parent edge can be checked against pid reuse.
 export function vitestProcesses({ within, accounted } = {}) {
   if (process.platform === "win32") {
-    const script = "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine) | ConvertTo-Json -Compress";
+    const script = "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,@{n='Created';e={if($_.CreationDate){[math]::Floor($_.CreationDate.ToFileTimeUtc()/10000)}else{$null}}}) | ConvertTo-Json -Compress";
     const raw = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
     return windowsVitestProcesses(raw, process.pid, { within, accounted });
   }
@@ -197,11 +209,12 @@ export function vitestProcesses({ within, accounted } = {}) {
     if (!/^\d+$/.test(name)) continue;
     try {
       const stat = fs.readFileSync(`/proc/${name}/stat`, "utf8");
-      const parent = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
+      const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+      const parent = Number(fields[1]), created = Number(fields[19]);
       const argv = fs.readFileSync(`/proc/${name}/cmdline`, "utf8").split("\0");
       const executable = path.basename(argv[0] || "");
       const node = /^(?:node(?:js)?(?:\s|$)|vitest)/i.test(executable) && !!processIdentity(Number(name));
-      rows.push({ pid: Number(name), parent: Number.isSafeInteger(parent) ? parent : null, command: argv.join(" "), node });
+      rows.push({ pid: Number(name), parent: Number.isSafeInteger(parent) ? parent : null, created: Number.isFinite(created) ? created : NaN, command: argv.join(" "), node });
     } catch (error) { if (!["ENOENT", "ESRCH"].includes(error.code)) throw error; }
   }
   return foreignVitestProcesses(rows, process.pid, { within, accounted });
@@ -745,9 +758,10 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, onWait = 
 
 // The gate before each execution unit of an admitted run: the free-memory
 // reading at or above the floor and no foreign Vitest process, where the other
-// live holders' coordinators are accounted for (a slot whose coordinator is
-// gone, or whose state is unknown, accounts for nothing, so a dead holder's
-// orphan stays foreign). The slot snapshot and the census run under the
+// running slots' verified processes are accounted for as `accountedPids`
+// describes (a slot that is interrupted or unknown accounts for nothing, so an
+// orphan of a holder whose record no longer counts as running stays foreign).
+// The slot snapshot and the census run under the
 // store's guard, so no admission lands between them: a holder admitted before
 // the snapshot is in it, and one admitted after cannot have launched an engine
 // yet. A reading below the floor delays the unit until the deadline; the
