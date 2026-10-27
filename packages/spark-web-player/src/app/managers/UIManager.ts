@@ -3,7 +3,10 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
-import { createVideoElement } from "../../../../spark-dom/src/utils/createVideoElement";
+import {
+  createCutsceneElement,
+  createVideoElement,
+} from "../../../../spark-dom/src/utils/createVideoElement";
 import { resolveAnimationTargets } from "../../../../spark-dom/src/utils/resolveAnimationTargets";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
@@ -18,7 +21,12 @@ import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
+import {
+  type PlayCutsceneParams,
+  PlayCutsceneMessage,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
+import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
@@ -32,6 +40,8 @@ import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/c
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
+import type { StreamMessage } from "../../../../spark-engine/src/game/core/classes/Connection";
+import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
 import { MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
@@ -86,6 +96,19 @@ interface PendingBeat {
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
+
+/** The cutscene on the page (`UIManager.playCutscene`), kept on the overlay
+ *  so that whichever manager shows the page next can end it. `end` takes it
+ *  down after its exit transition, or at once with `immediate`, and the
+ *  request that showed it is answered once it has gone. */
+interface Cutscene {
+  element: HTMLElement;
+  end: (immediate?: boolean) => void;
+  /** A preview's: the stream that showed it, which it stays up for. */
+  previewEpoch?: number;
+}
+
+type OverlayWithCutscene = HTMLElement & { __sdCutscene?: Cutscene };
 
 /** The furthest ahead of the page's clock a played beat's display time may
  *  be for the page to wait for it. A beat is stamped a little ahead of its
@@ -337,6 +360,8 @@ export default class UIManager extends Manager {
     // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
     // the incoming create stream reuses them instead of duplicating.
     this.beginReconcilePass();
+    // A cutscene the last render left is not this one's.
+    this.endCutscene(true);
   }
 
   /** Start a reconcile pass: adopt every currently-rendered element as a
@@ -557,6 +582,8 @@ export default class UIManager extends Manager {
     // where they are. The next display replaces or sweeps their layers.
     this._disposed = true;
     this._unsettledMovies.clear();
+    // A cutscene is the run's own, and goes with it.
+    this.endCutscene(true);
     for (const video of this.movies()) {
       video.pause();
       delete (video as any).__sdMovie;
@@ -1255,6 +1282,7 @@ export default class UIManager extends Manager {
     // What a composed beat decided for this write, read before the first
     // wait.
     const decision = this._decision;
+    this.endPreviewCutscene(msg);
     // A screen op that arrives after a beat waiting for its commit goes up
     // after it. Messages for the page's other managers (assets, audio, the
     // game's reports) reach this one too, and leave the beat waiting, as
@@ -1570,6 +1598,10 @@ export default class UIManager extends Manager {
       await player.play();
       return AnimateElementsMessage.type.result(validEffects);
     }
+    if (PlayCutsceneMessage.type.isRequest(msg)) {
+      await this.playCutscene(msg.params, (msg as StreamMessage).epoch);
+      return PlayCutsceneMessage.type.result(null);
+    }
     return undefined;
   }
 
@@ -1579,6 +1611,7 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    this.endPreviewCutscene(msg);
     if (MorphArtifactMessage.type.isNotification(msg)) {
       this.morphs?.deliver(msg.params);
       return;
@@ -1586,6 +1619,12 @@ export default class UIManager extends Manager {
     if (BeatMessage.type.isNotification(msg)) {
       this.receiveBeat(msg.params);
       this.morphs?.requestRelayout();
+      return;
+    }
+    // Ahead of the screen ops below: it changes nothing a beat or a layout
+    // shows.
+    if (SkipCutsceneMessage.type.isNotification(msg)) {
+      this.endCutscene();
       return;
     }
     if (msg.method.startsWith("ui/")) {
@@ -2258,6 +2297,13 @@ export default class UIManager extends Manager {
                   applyStyle,
                 );
             const videoEl = newSpanEl.querySelector("video");
+            if (videoEl && video) {
+              // The mixer its sound plays through once it plays.
+              (videoEl as any).__sdMixer = {
+                mixer: video.mixer,
+                mixerGain: video.mixerGain,
+              };
+            }
             if (videoEl && !video?.preview && instruction.control !== "hide") {
               newMovies.push(videoEl);
             }
@@ -2371,6 +2417,188 @@ export default class UIManager extends Manager {
     }
   }
 
+  /**
+   * Play a `[[play NAME]]` cutscene full screen, above every layout, and
+   * settle once it has gone: after its enter transition it plays, and it
+   * ends when the video ends (never on its own when it loops), on the
+   * player's first click or advance key, or on `ui/skip-cutscene`; then its
+   * exit transition plays and it is removed. The click or key that ends it
+   * goes no further, so the game does not take it for an advance as well.
+   * It pauses, resumes and skips with the game clock, and its sound plays
+   * through its mixer, as a layer's movie does.
+   *
+   * A preview's shows the first frame, never plays, and settles at once; it
+   * stays until a newer stream (`epoch`, the next display's) reaches the page
+   * (`endPreviewCutscene`). Its own display's beat follows the request in
+   * the same stream.
+   */
+  protected async playCutscene(
+    params: PlayCutsceneParams,
+    epoch?: number,
+  ): Promise<void> {
+    const overlay = this.app.overlay as OverlayWithCutscene | undefined;
+    if (!overlay || this._disposed) {
+      return;
+    }
+    // One cutscene at a time.
+    this.endCutscene(true);
+    const element = createCutsceneElement(overlay, {
+      src: this.getVideoSrc(params.src),
+      fileSrc: params.src,
+      loop: params.loop,
+      muted: params.muted,
+      preview: params.preview,
+    });
+    const video = element.querySelector("video") as HTMLVideoElement;
+    if (params.preview) {
+      overlay.__sdCutscene = {
+        element,
+        previewEpoch: epoch ?? 0,
+        end: () => {
+          if (overlay.__sdCutscene?.element === element) {
+            delete overlay.__sdCutscene;
+          }
+          this.releaseMovies(element);
+          element.remove();
+        },
+      };
+      return;
+    }
+    (video as any).__sdMixer = {
+      mixer: params.mixer,
+      mixerGain: params.mixerGain,
+    };
+    // The transition playing now, which an end cuts short.
+    let transition: ReturnType<AnimationPlayer["add"]> = [];
+    const playTransition = (animation: Animation) => {
+      const player = new AnimationPlayer();
+      transition = player.add({ element, animations: [animation] });
+      return player.play().finally(() => {
+        transition = [];
+      });
+    };
+    // A transition stopped part way leaves the frame it reached.
+    const stopTransition = () => {
+      for (const animation of transition) {
+        try {
+          animation.commitStyles();
+        } catch {
+          // An element that is not rendered has no styles to keep.
+        }
+        animation.cancel();
+      }
+      transition = [];
+    };
+    // Settled once it ends, which happens once.
+    let ending: (() => void) | undefined;
+    const ended = new Promise<void>((resolve) => {
+      ending = resolve;
+    });
+    // An end cuts short whatever transition is playing, so a transition that
+    // never ends cannot hold it: one during the enter transition goes on to
+    // the exit from the frame reached, and one during the exit, or an
+    // immediate one, takes it down now.
+    const end = (immediate = false) => {
+      stopTransition();
+      if (immediate) {
+        remove();
+      }
+      ending?.();
+      ending = undefined;
+    };
+    // The event that ends it does nothing else: the game does not hear it,
+    // and a key does not also press the control that has focus.
+    const skip = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      end();
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button === 0) {
+        skip(e);
+      }
+    };
+    // Keys reach the game at the window (`Application.bind`), so they are
+    // taken there first, in the capture phase.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isAdvanceKey(e)) {
+        skip(e);
+      }
+    };
+    const onEnded = () => {
+      if (!video.loop) {
+        end();
+      }
+    };
+    const win = overlay.ownerDocument.defaultView;
+    const cutscene: Cutscene = { element, end };
+    const remove = () => {
+      element.removeEventListener("pointerdown", onPointerDown);
+      win?.removeEventListener("keydown", onKeyDown, true);
+      video.removeEventListener("ended", onEnded);
+      if (overlay.__sdCutscene === cutscene) {
+        delete overlay.__sdCutscene;
+      }
+      if (element.isConnected) {
+        this.releaseMovies(element);
+        element.remove();
+      }
+    };
+    overlay.__sdCutscene = cutscene;
+    element.addEventListener("pointerdown", onPointerDown);
+    win?.addEventListener("keydown", onKeyDown, true);
+    video.addEventListener("ended", onEnded);
+    if (params.enter) {
+      // An enter transition that fades it (the builtin `fadein`, a single
+      // `opacity: 1` keyframe) fades it in from hidden; any other plays on
+      // it as it stands.
+      const keyframes = params.enter.keyframes;
+      const fades = (Array.isArray(keyframes) ? keyframes : [keyframes]).some(
+        (keyframe) => keyframe != null && "opacity" in keyframe,
+      );
+      if (fades) {
+        element.style.opacity = "0";
+      }
+      await playTransition(params.enter);
+      if (fades && ending) {
+        element.style.removeProperty("opacity");
+      }
+    }
+    if (ending) {
+      this.startMovie(video);
+    }
+    await ended;
+    if (element.isConnected && params.exit) {
+      // It stops on the frame it shows, which the exit transition takes
+      // away, and leaves the game clock's movies.
+      delete (video as any).__sdMovie;
+      video.pause();
+      await playTransition(params.exit);
+    }
+    remove();
+  }
+
+  /** End the cutscene on the page, if there is one: after its exit
+   *  transition, or at once with `immediate`. */
+  protected endCutscene(immediate = false) {
+    const overlay = this.app.overlay as OverlayWithCutscene | undefined;
+    overlay?.__sdCutscene?.end(immediate);
+  }
+
+  /** Take down a preview's cutscene once `msg` comes from a newer stream
+   *  than the one that showed it: the next display has begun. */
+  protected endPreviewCutscene(msg: StreamMessage) {
+    const overlay = this.app.overlay as OverlayWithCutscene | undefined;
+    const shown = overlay?.__sdCutscene?.previewEpoch;
+    if (
+      shown !== undefined &&
+      typeof msg.epoch === "number" &&
+      msg.epoch > shown
+    ) {
+      this.endCutscene(true);
+    }
+  }
+
   /** What a movie loads: the asset cache's object URL for its file when the
    *  file is resident, the file itself otherwise. */
   protected getVideoSrc(fileSrc: string): string {
@@ -2425,6 +2653,15 @@ export default class UIManager extends Manager {
   }
 
   protected playMovie(video: HTMLVideoElement) {
+    // Its sound plays through its mixer, connected when it first plays and
+    // again by each later play, so a context that starts running later
+    // still gets it.
+    const route = (video as any).__sdMixer as
+      | { mixer: string; mixerGain: number }
+      | undefined;
+    if (route) {
+      this.app.audio?.connectMovie?.(video, route.mixer, route.mixerGain);
+    }
     const played = video.play();
     // Play mode starts on a gesture, so sound is allowed; a browser that
     // refuses it anyway still shows the movie, without its sound.
@@ -2455,6 +2692,7 @@ export default class UIManager extends Manager {
       video.pause();
       video.removeAttribute("src");
       video.load();
+      this.app.audio?.disconnectMovie?.(video);
     }
   }
 

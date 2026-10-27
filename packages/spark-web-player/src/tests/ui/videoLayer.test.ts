@@ -13,7 +13,10 @@ import { createMorphHost, inlineMorphSource } from "@impower/sparkdown/src/morph
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { blinkScript, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
 import { describe, expect, test, vi } from "vitest";
+import { ConfigureAudioMixerMessage } from "@impower/spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
+import { Application } from "../../app/Application";
 import AssetManager from "../../app/managers/AssetManager";
+import AudioManager from "../../app/managers/AudioManager";
 import { MorphPlayback } from "../../app/morph/MorphPlayback";
 import UIManager from "../../app/managers/UIManager";
 import {
@@ -23,6 +26,7 @@ import {
   installJSDOM,
   untilShown,
 } from "./domTestHarness";
+import { fakeAudioContext, stubMedia } from "./mediaStubs";
 
 // A real game compiles, replays its route and, beside a morph, bakes for
 // each test here; on a busy machine that can outlast the default timeout.
@@ -58,64 +62,13 @@ end
 const lineOf = (text: string) =>
   SOURCE.split("\n").findIndex((l) => l.includes(text));
 
-/** jsdom loads and plays no media: a stand-in that records what the page
- *  asked of each element, and keeps the state a browser would report. */
-function stubMedia(overlay: HTMLElement) {
-  const win = overlay.ownerDocument.defaultView as any;
-  const proto = win.HTMLMediaElement.prototype;
-  const calls: { method: string; el: HTMLVideoElement }[] = [];
-  const define = (name: string, get: (el: any) => unknown, set?: (el: any, v: any) => void) =>
-    Object.defineProperty(proto, name, {
-      configurable: true,
-      get() {
-        return get(this);
-      },
-      set: set
-        ? function (this: any, v: any) {
-            set(this, v);
-          }
-        : undefined,
-    });
-  define("paused", (el) => el.__paused ?? true);
-  define("ended", (el) => el.__ended ?? false);
-  define("duration", (el) => el.__duration ?? NaN);
-  // A browser keeps a position within the movie it knows: no earlier than
-  // its start, and no later than its duration once it has one.
-  define(
-    "currentTime",
-    (el) => el.__time ?? 0,
-    (el, v) => {
-      const d = el.__duration;
-      const end = Number.isFinite(d) && d > 0 ? d : Infinity;
-      el.__time = Math.min(Math.max(0, v), end);
-    },
-  );
-  proto.play = function (this: any) {
-    calls.push({ method: "play", el: this });
-    this.__paused = false;
-    return Promise.resolve();
-  };
-  proto.pause = function (this: any) {
-    calls.push({ method: "pause", el: this });
-    this.__paused = true;
-  };
-  proto.load = function (this: any) {
-    calls.push({ method: "load", el: this });
-  };
-  return {
-    calls,
-    of: (el: Element | null | undefined, method: string) =>
-      calls.filter((c) => c.el === el && c.method === method).length,
-  };
-}
-
 /** The page's application: the stub the harness built. */
 const appOf = (h: { ui: any }) => h.ui.app as any;
 
 /** A page whose game plays on, with the asset cache able to fetch a video
  *  into an object URL when `resident` holds. */
-async function playing(opts: { resident?: boolean } = {}) {
-  const h = createDOMHarness(SOURCE, 0, { compose: true });
+async function playing(opts: { resident?: boolean; source?: string } = {}) {
+  const h = createDOMHarness(opts.source ?? SOURCE, 0, { compose: true });
   const media = stubMedia(h.overlay);
   await h.ready;
   h.game.module.ui.sweepReconcile();
@@ -688,7 +641,7 @@ function pageWithLayer() {
             background: "none",
             imageNames: "rain",
             srcs: [src],
-            video: { src, loop: true, muted: false },
+            video: { src, loop: true, muted: false, mixer: "movie", mixerGain: 1 },
           },
         },
       ],
@@ -855,6 +808,200 @@ end
     expect(content.video?.src).toBe(RAIN);
     expect(cssList(content.background)).toHaveLength(1);
     expect(content.morph.plays.map((p: any) => p.layer)).toEqual([0]);
+  });
+});
+
+/** The page's audio graph, over a fake context, for `h`'s page. */
+function soundOf(h: { ui: any }) {
+  const { context, sources } = fakeAudioContext();
+  const app = appOf(h);
+  app.audioContext = context;
+  const audio = new AudioManager(app);
+  app.audio = audio;
+  return { audio, sources };
+}
+
+/** A page whose audio graph is the real `AudioManager` over a fake context. */
+async function playingWithSound(source: string) {
+  const { h, media, cache } = await playing({ source });
+  return { h, media, cache, ...soundOf(h) };
+}
+
+const SOUND_SOURCE = `define bunny_wave as video with
+  src = "${WAVE}"
+end
+
+define movie as mixer with
+  gain = 0.25
+end
+
+-> start
+
+scene start
+  [[show portrait bunny_wave]]
+  Waving.
+  [[show portrait bunny_wave mute]]
+  Waving, silent.
+end
+`;
+
+describe("a movie's sound", () => {
+  test("plays through a media element source into the `movie` mixer, at its gain", async () => {
+    const { h, audio, sources } = await playingWithSound(SOUND_SOURCE);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.muted).toBe(false);
+    const routed = sources.filter((s) => s.mediaElement === video);
+    expect(routed).toHaveLength(1);
+    const mixerNode = (audio as any)._audioMixers.get("movie")?.volumeNode;
+    expect(mixerNode).toBeTruthy();
+    expect(routed[0].outputs).toEqual([mixerNode]);
+    expect(mixerNode.gain.value).toBe(0.25);
+    // The mixer's volume, set later, is the movie's.
+    await audio.onReceiveRequest(
+      ConfigureAudioMixerMessage.type.request({ mixer: "movie", gain: 0.5 }),
+    );
+    expect(mixerNode.gain.value).toBe(0.5);
+    // Paused and resumed with the game, it is routed once.
+    h.ui.onPause();
+    h.ui.onUnpause();
+    expect(sources.filter((s) => s.mediaElement === video)).toHaveLength(1);
+  });
+
+  test("`mute` silences the element, which still plays through the mixer", async () => {
+    const { h, audio, sources } = await playingWithSound(SOUND_SOURCE);
+    await playNext(h);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.muted).toBe(true);
+    const mixerNode = (audio as any)._audioMixers.get("movie")?.volumeNode;
+    const routed = sources.filter((s) => s.mediaElement === video);
+    expect(routed).toHaveLength(1);
+    expect(routed[0].outputs).toEqual([mixerNode]);
+  });
+
+  test("plays through the builtin `movie` mixer when the script defines none", async () => {
+    const { h, audio, sources } = await playingWithSound(SOURCE);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    const mixerNode = (audio as any)._audioMixers.get("movie")?.volumeNode;
+    expect(mixerNode?.gain.value).toBe(1);
+    expect(sources.find((s) => s.mediaElement === video)?.outputs).toEqual([
+      mixerNode,
+    ]);
+  });
+
+  test("a movie a later page plays again keeps its one source, in that page's mixer", async () => {
+    const { h, audio, sources } = await playingWithSound(SOUND_SOURCE);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    const [source] = sources.filter((s) => s.mediaElement === video);
+    // The next application's audio graph, over the same shared context.
+    const app = appOf(h);
+    const next = new AudioManager(app);
+    app.audio = next;
+    next.connectMovie(video, "movie", 0.25);
+    expect(sources.filter((s) => s.mediaElement === video)).toHaveLength(1);
+    const nextNode = (next as any)._audioMixers.get("movie").volumeNode;
+    expect(nextNode).not.toBe((audio as any)._audioMixers.get("movie").volumeNode);
+    expect(source.outputs).toEqual([nextNode]);
+  });
+
+  test("a movie playing before the audio context runs goes through its mixer once it does", async () => {
+    const { h } = await playing({ source: SOUND_SOURCE });
+    const app = appOf(h);
+    // The page's application before its audio context runs.
+    const { context, sources } = fakeAudioContext();
+    const audio = new AudioManager(app);
+    Object.assign(app, {
+      audio,
+      _manager: { audio },
+      _clock: { syncToClock() {} },
+      watchAudioContext() {},
+    });
+    Object.defineProperty(app, "audioContext", {
+      configurable: true,
+      get() {
+        return app._audioContext;
+      },
+    });
+    // The game configures its mixers on restore, before there is a graph.
+    for (const [mixer, gain] of [
+      ["main", 0.8],
+      ["movie", 0.25],
+    ] as const) {
+      await audio.onReceiveRequest(
+        ConfigureAudioMixerMessage.type.request({ mixer, gain }),
+      );
+    }
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.paused).toBe(false);
+    expect(sources).toHaveLength(0);
+    // The context starts running while the movie plays on.
+    Application.prototype.setAudioContext.call(app, context);
+    const routed = sources.filter((s) => s.mediaElement === video);
+    expect(routed).toHaveLength(1);
+    const movie = (audio as any)._audioMixers.get("movie");
+    const main = (audio as any)._audioMixers.get("main");
+    expect(routed[0].outputs).toEqual([movie.volumeNode]);
+    // The movie's mixer and `main` each start at their own configured gain:
+    // 0.25 into 0.8, not the movie's gain applied twice.
+    expect(movie.volumeNode.gain.value).toBe(0.25);
+    expect(main.volumeNode.gain.value).toBe(0.8);
+    expect(movie.analyser.outputs).toEqual([main.volumeNode]);
+    expect(main.analyser.outputs).toEqual([context.destination]);
+  });
+
+  test("a mixer a movie creates plays into a `main` at main's own gain", async () => {
+    const { h, audio } = await playingWithSound(SOUND_SOURCE);
+    await playNext(h);
+    const movie = (audio as any)._audioMixers.get("movie");
+    const main = (audio as any)._audioMixers.get("main");
+    expect(movie.volumeNode.gain.value).toBe(0.25);
+    expect(main.volumeNode.gain.value).toBe(1);
+  });
+
+  test("a movie released before the audio context runs is not routed when it does", async () => {
+    const { h } = await playing();
+    const app = appOf(h);
+    const { context, sources } = fakeAudioContext();
+    const audio = new AudioManager(app);
+    app.audio = audio;
+    await playNext(h);
+    await playNext(h);
+    await playNext(h);
+    const rain = movieOn(h.overlay, "backdrop")!;
+    await playNext(h);
+    expect(rain.isConnected).toBe(false);
+    app.audioContext = context;
+    audio.onAudioContextRunning();
+    expect(sources.filter((s) => s.mediaElement === rain)).toHaveLength(0);
+  });
+
+  test("asks for CORS before it loads, so a movie from another origin keeps its sound through the mixer", async () => {
+    const { h } = await playingWithSound(SOUND_SOURCE);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.crossOrigin).toBe("anonymous");
+    const attributes = video.getAttributeNames();
+    expect(attributes.indexOf("crossorigin")).toBeGreaterThanOrEqual(0);
+    expect(attributes.indexOf("crossorigin")).toBeLessThan(
+      attributes.indexOf("src"),
+    );
+  });
+
+  test("a hidden movie leaves the mixer", async () => {
+    const { h, sources } = await playingWithSound(SOURCE);
+    await playNext(h);
+    await playNext(h);
+    await playNext(h);
+    const rain = movieOn(h.overlay, "backdrop")!;
+    const routed = sources.find((s) => s.mediaElement === rain);
+    expect(routed?.outputs).toHaveLength(1);
+    await playNext(h);
+    expect(movieOn(h.overlay, "backdrop")).toBeNull();
+    expect(routed.outputs).toHaveLength(0);
   });
 });
 

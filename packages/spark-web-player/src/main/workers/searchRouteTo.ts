@@ -203,8 +203,9 @@ export const searchRouteFor = (
   if (!route) {
     // Either there was nothing to resume from, or resuming found no way to the
     // target — which it cannot rule out, having only ever looked at the branches
-    // reachable from one position. The scene as a whole still has to be searched
-    // before anything is reported about it.
+    // reachable from one position, or its level zero's bound ran out there
+    // (`SearchOptions.resumeFrom`). The scene as a whole still has to be
+    // searched before anything is reported about it.
     route = planRouteTo();
   }
   if (!route) {
@@ -227,16 +228,21 @@ export const searchRouteFor = (
     return undefined;
   }
 
-  // What the resumption established is a bound on the replay too: the same
-  // checkpoint that was too deep for a search to resume from is too deep for a
-  // replay to start from. A program that says nothing about what it changed
-  // supplies no bound, and the replay decides as it always has.
+  // What the resumption established is a bound on the replay too: a
+  // checkpoint whose story stands past what the new program agrees with is
+  // too deep for a replay to start from (`replayCheckpointIndex`, which can
+  // lie past where the search resumed). A program that says nothing about
+  // what it changed supplies no bound, and the replay decides as it always
+  // has.
   const limits =
     resumption.validSteps == null
       ? undefined
       : {
           steps: resumption.validSteps,
-          checkpoint: resumption.checkpointIndex ?? -1,
+          checkpoint:
+            resumption.replayCheckpointIndex ??
+            resumption.checkpointIndex ??
+            -1,
         };
   const found = route;
   let checkpoint = simulate(() => game.replayPatchedRoute(found, limits));

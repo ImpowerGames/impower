@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 3;
+export const MORPH_BAKE_FORMAT = 7;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -231,12 +231,16 @@ export interface MorphSegment {
   clips: MorphClipFrames[];
 }
 
-/** A clip target's wrapper in a live part, and the matrix from root space into it. */
+/** A clip target's wrapper in a live part, and the matrix from root space into the space the target is drawn in. */
 export interface MorphClipTarget {
   clip: number;
-  /** The id (before occurrence namespacing) of the wrapper's `clipPath`. */
-  clipPath: string;
-  /** Root user space to the wrapper's user space, `[a, b, c, d, e, f]`. */
+  /**
+   * The id (before occurrence namespacing) of the wrapper's aperture: a
+   * `mask`, or a `clipPath` where the bake keeps it in the target's parent
+   * space.
+   */
+  aperture: string;
+  /** Root user space to the target's parent's user space, `[a, b, c, d, e, f]`. */
   matrix: number[];
 }
 

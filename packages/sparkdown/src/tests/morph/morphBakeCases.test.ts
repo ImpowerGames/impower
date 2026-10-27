@@ -6,6 +6,7 @@ import { renderMorphFrame } from "../../morph/render";
 import { styleDeclarations } from "../../morph/svgDocument";
 import type { MorphArtifact, MorphRecipe } from "../../morph/types";
 import { parse } from "../../txml/txml";
+import { parsePathData, shapePosition } from "@impower/spark-morph/src/index";
 import { blink, CLOSED, EYEBALL, layeredPortrait, LOWER_OPEN, PUPIL, UPPER_OPEN } from "./fixtures";
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
@@ -61,6 +62,16 @@ const recipe = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
+/**
+ * What an aperture's masked wrapper draws: its child, or, under a wrapper
+ * that undoes the transforms around the target, the child of the group
+ * inside it that redoes them.
+ */
+const maskedDrawing = (wrapper: Element): Element | undefined => {
+  const child = wrapper.children[0] as Element | undefined;
+  return wrapper.attributes["transform"] && child?.tagName === "g" && !child.attributes["data-name"] ? (child.children[0] as Element | undefined) : child;
+};
+
 describe("morph bake: layered art", () => {
   const layeredRecipe = blink({
     clips: [{ between: ["eyelash-left"], targets: ["eyeball-left", "eyeball-shadow-left"] }],
@@ -106,7 +117,7 @@ describe("morph bake: layered art", () => {
     const live = elements(artifact.parts[1]!.svg);
     const iris = live.find((e) => e.attributes["data-name"] === "iris")!;
     expect(iris.attributes["clip-path"]).toBe(`url(#${artifact.idPrefix}iris-cut)`);
-    const wrapper = live.find((e) => e.tagName === "g" && e.attributes["clip-path"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-left");
+    const wrapper = live.find((e) => e.tagName === "g" && e.attributes["mask"] && maskedDrawing(e)?.attributes["data-name"] === "eyeball-left");
     expect(wrapper).toBeDefined();
   });
 
@@ -115,7 +126,7 @@ describe("morph bake: layered art", () => {
     const byNode = new Map(elements(artifact.parts[1]!.svg).filter((e) => e.attributes["data-morph"]).map((e) => [e.attributes["data-morph"], e.attributes["data-name"]]));
     const shadow = closing.transitions.filter((t) => t.kind === "morph" && byNode.get(t.from) === "eyeball-shadow-left");
     expect(shadow).toHaveLength(1);
-    const wrapped = elements(artifact.parts[1]!.svg).filter((e) => e.tagName === "g" && e.attributes["clip-path"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-shadow-left");
+    const wrapped = elements(artifact.parts[1]!.svg).filter((e) => e.tagName === "g" && e.attributes["mask"] && maskedDrawing(e)?.attributes["data-name"] === "eyeball-shadow-left");
     expect(wrapped).toHaveLength(2);
   });
 
@@ -128,15 +139,20 @@ describe("morph bake: layered art", () => {
     expect(area(loops[MORPH_BAKE_SAMPLES - 1]![0]!)).toBeLessThan(1e-3);
   });
 
-  test("the rest render keeps every drawing's paint and adds only the aperture wrappers, mapped into the wrapper's space", () => {
+  test("the rest render keeps every drawing's paint and adds only the aperture wrappers, in root space", () => {
     const rest = elements(artifact.rest);
     const plain = elements(filterSVGAttributes(layeredPortrait(), {}));
     const drawn = (list: Element[]) => list.filter((e) => e.tagName === "path" && e.attributes["data-name"]).map((e) => JSON.stringify(e.attributes));
     expect(drawn(rest)).toEqual(drawn(plain));
-    const clip = rest.find((e) => e.tagName === "clipPath" && e.attributes["id"]?.startsWith("morph-clip"))!;
+    const mask = rest.find((e) => e.tagName === "mask" && e.attributes["id"]?.startsWith("morph-clip"))!;
     // The eyeballs sit under translate(30 10) and scale(1); the aperture is
-    // computed in root space and mapped back.
-    expect((clip.children[0] as Element).attributes["transform"]).toBe("matrix(1 0 0 1 -30 -10)");
+    // in root space, and the masked wrapper undoes that transform while a
+    // group inside it redoes it.
+    const aperture = mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
+    expect(aperture.attributes["transform"]).toBeUndefined();
+    const wrapper = rest.find((e) => e.tagName === "g" && e.attributes["mask"] === `url(#${mask.attributes["id"]})`)!;
+    expect(wrapper.attributes["transform"]).toBe("matrix(1 0 0 1 -30 -10)");
+    expect((wrapper.children[0] as Element).attributes["transform"]).toBe("matrix(1 0 0 1 30 10)");
   });
 });
 
@@ -441,10 +457,16 @@ describe("morph bake: apertures that cannot be built", () => {
     expect(codes(artifact)).toContain("edge-missing");
   });
 
-  test("a clip missing one of its edges is refused even when the others make an aperture", () => {
-    const artifact = bake(art(ball + LASHES_OPEN, LASH_CLOSED), clip(["eyelash-left", "missing-edge"], ["eyeball"]));
+  test("a clip none of whose accepted edges the artwork draws is reported on its first edge", () => {
+    const artifact = bake(art(ball + LASHES_OPEN, LASH_CLOSED), clip(["missing-edge", "eyelash-right"], ["eyeball"]));
     expect(artifact.status).toBe("static");
     expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "edge-missing", layer: "missing-edge", uri: URI })]);
+  });
+
+  test("an accepted edge the artwork does not draw is no obstacle when the drawn ones form the aperture", () => {
+    const artifact = bake(art(ball + LASHES_OPEN, LASH_CLOSED), clip(["eyelash-left", "missing-edge"], ["eyeball"]));
+    expect(artifact.diagnostics).toEqual([]);
+    expect(artifact.status).toBe("live");
   });
 
   test("every sample of an aperture has the same points, the closed one included", () => {
@@ -574,5 +596,62 @@ describe("morph bake: apertures that cannot be built", () => {
   test("a missing referenced resource is reported on the artwork", () => {
     const artifact = bake(art(lash(UPPER_OPEN, "eyelash-left", ` stroke="url(#gone)"`) + lash(LOWER_OPEN), LASH_CLOSED), recipe());
     expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "resource-missing", uri: URI })]);
+  });
+});
+
+describe("morph bake: the edge names a clip accepts", () => {
+  // An eye drawn the way a real portrait's is: it closes onto the lower lid,
+  // so the closed upper lash sits just above the open lower lash and the
+  // closed lower lash further down. Every lash meets the others at its tips.
+  const OPEN_TOP = "M0,50 C20,25 35,12 50,12 C65,12 80,25 100,50 C80,35 65,27 50,27 C35,27 20,35 0,50Z";
+  const OPEN_BOTTOM = "M0,50 C20,62 35,68 50,68 C65,68 80,62 100,50 C80,75 65,82 50,82 C35,82 20,75 0,50Z";
+  const CLOSED_TOP = "M0,62 C20,58 35,56 50,56 C65,56 80,58 100,62 C80,61 65,60 50,60 C35,60 20,61 0,62Z";
+  const CLOSED_BOTTOM = "M0,62 C15,66 25,68 35,69 C45,70 55,70 65,69 C75,68 85,66 100,62 C80,72 65,78 50,78 C35,78 20,72 0,62Z";
+  const ball = `<path data-name="eyeball" d="${EYEBALL}" fill="#fff"/>`;
+  const named = (d: string, label: string, id: string) => lash(d, label, ` id="${id}"`);
+  // One morph for every portrait: some name both lashes `eyelash-right`,
+  // others name them top and bottom.
+  const shared = recipe({ clips: [{ between: ["eyelash-right", "eyelash-top-right", "eyelash-bottom-right"], targets: ["eyeball"] }] });
+  const pairsOf = (artifact: MorphArtifact) => {
+    const live = artifact.parts.find((p) => p.kind === "live")!;
+    const idOf = new Map(elements(live.svg).filter((e) => e.attributes["data-morph"]).map((e) => [e.attributes["data-morph"], e.attributes["id"]?.slice(artifact.idPrefix.length)]));
+    return artifact.segments[0]!.transitions.flatMap((t) => (t.kind === "morph" ? [`${idOf.get(t.from)} -> ${idOf.get(t.to)}`] : [])).sort();
+  };
+
+  test("the fixture closes the upper lash nearer the open lower lash than the open upper one", () => {
+    const at = (d: string) => shapePosition({ id: "", label: "x", subpaths: parsePathData(d) });
+    const dist = (a: number[], b: number[]) => Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!);
+    expect(dist(at(CLOSED_TOP), at(OPEN_BOTTOM))).toBeLessThan(dist(at(CLOSED_TOP), at(OPEN_TOP)));
+    expect(dist(at(CLOSED_TOP), at(OPEN_BOTTOM))).toBeLessThan(dist(at(CLOSED_BOTTOM), at(OPEN_BOTTOM)));
+  });
+
+  test("lashes named top and bottom pair by name under a clip that also accepts one shared name", () => {
+    const artifact = bake(
+      art(
+        ball + named(OPEN_TOP, "eyelash-top-right", "open-top") + named(OPEN_BOTTOM, "eyelash-bottom-right", "open-bottom"),
+        named(CLOSED_TOP, "eyelash-top-right", "closed-top") + named(CLOSED_BOTTOM, "eyelash-bottom-right", "closed-bottom"),
+      ),
+      shared,
+    );
+    expect(artifact.diagnostics).toEqual([]);
+    expect(artifact.status).toBe("live");
+    expect(pairsOf(artifact)).toEqual(["open-bottom -> closed-bottom", "open-top -> closed-top"]);
+    expect(artifact.segments[0]!.clips).toHaveLength(1);
+  });
+
+  test("the same clip cuts the aperture of a portrait that names both lashes alike", () => {
+    const artifact = bake(art(ball + LASHES_OPEN.replaceAll("eyelash-left", "eyelash-right"), LASH_CLOSED.replace("eyelash-left", "eyelash-right")), shared);
+    expect(artifact.diagnostics).toEqual([]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.segments[0]!.clips).toHaveLength(1);
+  });
+
+  test("an accepted name drawn without a facing edge cannot form the aperture", () => {
+    const artifact = bake(
+      art(ball + named(OPEN_TOP, "eyelash-top-right", "open-top"), named(CLOSED_TOP, "eyelash-top-right", "closed-top")),
+      shared,
+    );
+    expect(artifact.status).toBe("static");
+    expect(codes(artifact)).toContain("aperture-unpaired");
   });
 });

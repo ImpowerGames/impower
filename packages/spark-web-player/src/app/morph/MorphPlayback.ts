@@ -17,6 +17,7 @@ import {
   morphFrameState,
   morphPosesAt,
   namespaceMorphMarkup,
+  poseAperture,
   poseLeaf,
   type MorphFrameState,
 } from "../../../../sparkdown/src/morph/render";
@@ -54,7 +55,7 @@ interface LiveView {
   /** Each part's own svg, nested in the box's svg root. */
   parts: Element[];
   leaves: { element: Element; node: string; style: string | null; d: string | null; opacity: string | null }[];
-  clips: { path: Element; id: string; d: string | null }[];
+  clips: { id: string; paths: { element: Element; d: string | null; style: string | null }[] }[];
   /** The pose last written, so an unchanged frame writes nothing. */
   last?: string;
 }
@@ -726,11 +727,14 @@ export class MorphLayer {
       });
     }
     const clips: LiveView["clips"] = [];
-    for (const clipPath of Array.from(outer.getElementsByTagNameNS(NS, "clipPath"))) {
-      const path = clipPath.firstElementChild;
-      const id = clipPath.getAttribute("id");
-      if (!path || !id) continue;
-      clips.push({ path, id: id.split(prefix).join(artifact.idPrefix), d: path.getAttribute("d") });
+    const apertures = [...Array.from(outer.getElementsByTagNameNS(NS, "mask")), ...Array.from(outer.getElementsByTagNameNS(NS, "clipPath"))];
+    for (const aperture of apertures) {
+      const id = aperture.getAttribute("id");
+      if (!id) continue;
+      const paths = Array.from(aperture.children)
+        .filter((child) => child.localName === "path")
+        .map((element) => ({ element, d: element.getAttribute("d"), style: element.getAttribute("style") }));
+      clips.push({ id: id.split(prefix).join(artifact.idPrefix), paths });
     }
     return { box, artifact, prefix, parts, leaves, clips };
   }
@@ -906,7 +910,23 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
     write(leaf.element, "style", element.attributes["style"] ?? null);
     write(leaf.element, "d", element.attributes["d"] ?? null);
   }
-  for (const clip of view.clips) write(clip.path, "d", frame.clips.get(clip.id) ?? clip.d);
+  for (const clip of view.clips) {
+    // Each aperture's paths start from their markup every frame.
+    const paths = clip.paths.map((path) => ({
+      tagName: "path",
+      attributes: {
+        ...(path.style === null ? {} : { style: path.style }),
+        ...(path.d === null ? {} : { d: path.d }),
+      } as Record<string, string>,
+      children: [],
+    }));
+    const d = frame.clips.get(clip.id);
+    if (d !== undefined) poseAperture({ tagName: "mask", attributes: {}, children: paths }, d);
+    clip.paths.forEach((path, index) => {
+      write(path.element, "style", paths[index]!.attributes["style"] ?? null);
+      write(path.element, "d", paths[index]!.attributes["d"] ?? null);
+    });
+  }
 }
 
 function write(element: Element, name: string, value: string | null) {

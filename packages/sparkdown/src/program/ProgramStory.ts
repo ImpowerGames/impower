@@ -495,12 +495,16 @@ export class ProgramStory implements StoryEngine {
    *  `pausedBeforeCondition` names the decision's address. */
   pauseBeforeEvaluatingConditions = false;
   pausedBeforeCondition: ProgramAddress | null = null;
-
-  /** The verdict the decision the story paused before would reach unforced:
-   *  the truth of the value its `JumpIfFalse` pops. Null when the story is
-   *  not paused before one, and for a decision whose value is not on the
-   *  evaluation stack (a Luau condition, a choice's). */
-  get pausedConditionValue(): boolean | null {
+  /** The verdict the decision `pausedBeforeCondition` names reaches unless a
+   *  simulator forces one: its condition is already on the evaluation stack.
+   *  Null when the story is not paused before one, and when that condition
+   *  is no value a decision can test. */
+  pausedConditionValue: boolean | null = null;
+  /** The verdict origin/main's route search reads at the decision
+   *  `pausedBeforeCondition` names, which it orders its verdicts by
+   *  (`planRouteFallback`): the truth of the value a `JumpIfFalse` pops, and
+   *  null for any other decision (a Luau condition, a choice's). */
+  get pausedJumpValue(): boolean | null {
     const position = this._state.position;
     if (this.pausedBeforeCondition === null || !position) {
       return null;
@@ -2566,10 +2570,23 @@ export class ProgramStory implements StoryEngine {
       const address = ProgramStory.addressOf(chunk, position.offset);
       if (!this.simulator?.willForceCondition(address)) {
         this.pausedBeforeCondition = address;
+        // Both decisions pop their condition first, a choice only when it
+        // has one. A divert target is refused when the decision runs, so it
+        // has no verdict here.
+        const w0 = chunk[HEADER_WORDS + position.offset]!;
+        const condition =
+          opOf(w0) === Op.Choice && !(flagsOf(w0) & CHOICE_CONDITION)
+            ? null
+            : state.PeekEvaluationStack();
+        this.pausedConditionValue =
+          condition instanceof Value && !(condition instanceof SymbolValue)
+            ? condition.isTruthy
+            : null;
         return;
       }
     }
     this.pausedBeforeCondition = null;
+    this.pausedConditionValue = null;
     this.stepCount++;
     if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
       throw new StepLimitExceeded();
