@@ -2430,20 +2430,24 @@ export class Game<T extends M = {}> {
     // holds: a step past the valid prefix names a statement the compile
     // emitted again, whose decisions the route's forced ones no longer
     // name, so the rest is searched for.
+    const replayOnly = route.to === to && validSteps === route.steps.length;
     if (route.fallback) {
-      // A route origin/main's search found (`planRoute`) is not resumed from,
-      // nor replayed in place of a search: the search runs from the top
-      // again, so a resumed and a fresh preview take the same kind of route.
-      // Its replay may still start from a checkpoint the new program agrees
-      // with.
-      const replayCheckpointIndex = this.findReplayCheckpoint(validSteps);
+      // A route origin/main's search found (`planRoute`) is resumed and
+      // replayed as origin/main's preview resumes its own routes: from the
+      // deepest checkpoint the new program agrees with, by origin/main's
+      // search alone (a resume point without a charge).
+      const resume = this.findResumePoint(validSteps);
+      if (!resume) {
+        return { validSteps, replayOnly: false };
+      }
       return {
         validSteps,
-        ...(replayCheckpointIndex != null ? { replayCheckpointIndex } : {}),
-        replayOnly: false,
+        stepIndex: resume.stepIndex,
+        resumeFrom: resume.point,
+        checkpointIndex: resume.checkpointIndex,
+        replayOnly,
       };
     }
-    const replayOnly = route.to === to && validSteps === route.steps.length;
     // A search resumed inside the route keeps every decision before the
     // point it resumes from, and a search from the top forces a verdict
     // against the program only where the target needs it (`planRoute`).
@@ -2591,9 +2595,10 @@ export class Game<T extends M = {}> {
     // had spent when it recorded this step, so that every bound runs out
     // where it ran out there; a step recorded without it, or past level zero,
     // where no resumed search can stand as that search stood, is not resumed
-    // from (`routeChargeAt`).
-    const charge = routeChargeAt(route, at);
-    if (!charge) {
+    // from (`routeChargeAt`). A fallback route is resumed by origin/main's
+    // search, which is charged nothing (`planRoute`).
+    const charge = route.fallback ? undefined : routeChargeAt(route, at);
+    if (!route.fallback && !charge) {
       return null;
     }
     // A step records the decisions made BEFORE it, so the step the story is
@@ -2621,7 +2626,7 @@ export class Game<T extends M = {}> {
       decisions,
       conditions: route.conditions.slice(0, conditions),
       choices: route.choices.slice(0, choices),
-      charge,
+      ...(charge ? { charge } : {}),
     };
   }
 
@@ -2818,6 +2823,7 @@ export class Game<T extends M = {}> {
       // A later search resumed on this route is charged level zero's bound
       // as the search that planned it had it (`routeChargeAt`).
       ...(newRoute.levelZero ? { levelZero: newRoute.levelZero } : {}),
+      ...(newRoute.fallback ? { fallback: true as const } : {}),
     };
 
     // Add new checkpoints onto the previous simulation

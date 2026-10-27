@@ -30,7 +30,7 @@ export interface RoutePlan {
   /** Set on a route origin/main's search found, because the search that
    *  follows the program found none within its budget (see
    *  {@link planRoute}). Its values are the ones origin/main's preview shows,
-   *  and no search resumes from it. */
+   *  and only origin/main's search resumes from it. */
   fallback?: true;
 }
 
@@ -162,11 +162,14 @@ export const BEAT_WORK_CAP = 2_048;
  * of them at the same point. Sized by preview-bench: menu loops, where the
  * player's choices double the routes at every pass, and long loops with a
  * branch in them, before a line in a skipped branch, fall back within about
- * twice origin/main's preview time.
+ * twice origin/main's preview time. Tests lower it to pin what a fallback
+ * route does on scripts small enough to run.
  */
-export const FAITHFUL_NODES = 4_096;
-export const FAITHFUL_STEPS = 100_000;
-export const FAITHFUL_TIMEOUT = 5_000;
+export const faithfulBudget = {
+  nodes: 4_096,
+  steps: 100_000,
+  timeoutMs: 5_000,
+};
 
 /**
  * The share of the step and node work remaining that each level of a search
@@ -331,8 +334,10 @@ export interface RouteResumePoint {
   conditions: { selected: boolean }[];
   choices: { options: string[]; selected: number }[];
   /** What the search from the top had spent when it recorded that step, in
-   *  level zero: a resumed search is charged it. */
-  charge: RouteCharge;
+   *  level zero: a resumed search is charged it. Absent on a point inside a
+   *  {@link RoutePlan.fallback} route, which origin/main's search resumes
+   *  from as it resumes its own routes, charged nothing. */
+  charge?: RouteCharge;
 }
 
 /** What a search resumed on `route`'s step `at` (whose story stands on that
@@ -711,7 +716,9 @@ interface SearchBudget {
   /** The ceilings those count down from. */
   maxSteps: number;
   maxNodes: number;
-  /** Wall-clock backstop */
+  /** Wall-clock backstop: the caller's, and from level zero's first
+   *  condition the search's own ({@link faithfulBudget}), so that work before
+   *  it, a long Luau call included, does not decide whether it falls back. */
   deadlineTime: number;
   /** Which ceiling actually stopped something, recorded at the point it did;
    *  null while none has. The first one to fire is kept, because that is the
@@ -721,7 +728,7 @@ interface SearchBudget {
   /** Fork sites already expanded (see {@link claimForkSite}) */
   visited: Set<string>;
   /** The steps spent at which the search stops following the program
-   *  ({@link FAITHFUL_STEPS}), set at level zero's first condition; null
+   *  ({@link faithfulBudget}), set at level zero's first condition; null
    *  before it. */
   faithfulEnd: number | null;
 }
@@ -955,6 +962,17 @@ export interface SearchError {
   address: ProgramAddress | null;
 }
 
+/** Start the search's own budget ({@link faithfulBudget}) at level zero's
+ *  first condition, which the search from the top met with `startSteps`
+ *  spent. */
+const startFaithfulBudget = (budget: SearchBudget, startSteps: number) => {
+  budget.faithfulEnd = startSteps + faithfulBudget.steps;
+  budget.deadlineTime = Math.min(
+    budget.deadlineTime,
+    now() + faithfulBudget.timeoutMs,
+  );
+};
+
 /**
  * Search for a way from the top of the flow `from` to the address `to`, by
  * stepping the story and forking it at its decisions. A step is known by the
@@ -1006,15 +1024,12 @@ const planRouteFaithful = (
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
   // The search that follows the program runs within its own budget, inside
-  // the caller's ceilings (FAITHFUL_NODES, FAITHFUL_STEPS, FAITHFUL_TIMEOUT).
-  const searchTimeout = Math.min(
-    options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT,
-    FAITHFUL_TIMEOUT,
-  );
+  // the caller's ceilings (`faithfulBudget`).
+  const searchTimeout = options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT;
   const maxSteps = options?.maxSteps ?? DEFAULT_MAX_STEPS;
   const maxNodes = Math.min(
     options?.maxNodes ?? DEFAULT_MAX_NODES,
-    FAITHFUL_NODES,
+    faithfulBudget.nodes,
   );
   // A resumed search starts charged with what the search from the top had
   // spent when it stood where this one starts, one step and one node short:
@@ -1030,10 +1045,11 @@ const planRouteFaithful = (
     deadlineTime: startTime + searchTimeout,
     cut: null,
     visited: new Set(),
-    faithfulEnd: charge?.levelZero
-      ? charge.levelZero.startSteps + FAITHFUL_STEPS
-      : null,
+    faithfulEnd: null,
   };
+  if (charge?.levelZero) {
+    startFaithfulBudget(budget, charge.levelZero.startSteps);
+  }
   const favoredConditionalValues = options?.favoredConditions ?? [];
   const favoredChoiceIndices = options?.favoredChoices ?? [];
   const fromKnotName = from.split(".")[0] || "0";
@@ -1268,17 +1284,21 @@ const planRouteFaithful = (
  * Search for a route from the top of the flow `from` to the address `to`.
  *
  * The search that follows the program runs first, within its own budget
- * ({@link FAITHFUL_NODES}, {@link FAITHFUL_STEPS}, {@link FAITHFUL_TIMEOUT};
- * see the search's own description above `planRouteFaithful`). When it finds
+ * ({@link faithfulBudget}; see the search's own description above
+ * `planRouteFaithful`). When it finds
  * no route there, the route is origin/main's search's (`planRouteFallback`),
  * run with the caller's ceilings and charged nothing for what the first
  * spent, and is marked {@link RoutePlan.fallback}: a line origin/main's
  * preview reaches is always reached, with the values origin/main's route
  * gives where the program's own way was not found in time.
  *
- * A resumed search ({@link SearchOptions.resumeFrom}) never falls back: it
- * comes back empty, and the caller searches from the top, which falls back
- * if it must, so a resumed and a fresh preview take the same kind of route.
+ * A resumed search ({@link SearchOptions.resumeFrom}) keeps the mode of the
+ * route it resumes on. On a faithful route it never falls back: it comes back
+ * empty, and the caller searches from the top, which falls back if it must.
+ * On a fallback route (a resume point without a charge) only origin/main's
+ * search runs, resuming as origin/main's preview resumes it, so the scrubs
+ * that follow a fallback show what origin/main's preview shows for them until
+ * a search from the top decides the mode again.
  */
 export const planRoute = (
   story: Story,
@@ -1286,6 +1306,10 @@ export const planRoute = (
   to: ProgramAddress,
   options?: SearchOptions,
 ): RoutePlan | null => {
+  if (options?.resumeFrom && !options.resumeFrom.charge) {
+    const route = planRouteFallback(story, from, to, options);
+    return route ? { ...route, fallback: true } : null;
+  }
   const faithful = planRouteFaithful(story, from, to, options);
   if (faithful || options?.resumeFrom) {
     return faithful;
@@ -1394,8 +1418,7 @@ const runUntilDecisionOrBranch = (
       conditions,
       choices,
       overrides,
-      forced:
-        node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
+      forced: node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
       // A forced verdict starts the count of work without a beat again.
       beatWork: add?.kind === "condition" && add.departs ? 0 : at.beatWork,
       // A node forked to make a choice or a verdict starts a route of its
@@ -1589,7 +1612,7 @@ const runUntilDecisionOrBranch = (
         // to take up; a route past its work since its last beat goes no
         // further.
         if (stepBudgetExhausted(budget)) {
-          // The budget, or the search's own end (FAITHFUL_STEPS): its cut
+          // The budget, or the search's own end (`faithfulBudget`): its cut
           // is recorded there.
         } else if (levelSpent(level, budget)) {
           level.cutAt = nodeAt(lastFork.state, lastFork.at, lastFork.overrides);
@@ -1633,7 +1656,9 @@ const runUntilDecisionOrBranch = (
           // the first condition it meets.
           if (level.index === 0) {
             bindLevel(level, budget);
-            budget.faithfulEnd ??= level.bound!.startSteps + FAITHFUL_STEPS;
+            if (budget.faithfulEnd == null) {
+              startFaithfulBudget(budget, level.bound!.startSteps);
+            }
           }
           const at = mark();
           const other: ConditionOverride = {
@@ -1647,7 +1672,11 @@ const runUntilDecisionOrBranch = (
             route: node.route,
             node: () => nodeAt(fork.state, at, [other], other),
           });
-          const ov: ConditionOverride = { kind: "condition", site, value: natural };
+          const ov: ConditionOverride = {
+            kind: "condition",
+            site,
+            value: natural,
+          };
           runDecisions.push(ov);
           runConditions.push({ selected: natural });
           simulator.add(ov);
@@ -1758,21 +1787,21 @@ const makeStartNode = (
  * search from the top recorded at that step, one step short, as the budget
  * is: its first step charges it again.
  */
-const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
-  state: resumeFrom.state,
-  seq: resumeFrom.steps.at(-1)?.seq ?? "",
-  steps: extendTrail(null, resumeFrom.steps),
-  decisions: extendTrail(null, resumeFrom.decisions),
-  conditions: extendTrail(null, resumeFrom.conditions),
-  choices: extendTrail(null, resumeFrom.choices),
-  overrides: [],
-  forced: 0,
-  beatWork:
-    resumeFrom.charge.beatWork < 0
-      ? -1
-      : Math.max(0, resumeFrom.charge.beatWork - 1),
-  route: newRoute(),
-});
+const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
+  const beatWork = resumeFrom.charge?.beatWork ?? -1;
+  return {
+    state: resumeFrom.state,
+    seq: resumeFrom.steps.at(-1)?.seq ?? "",
+    steps: extendTrail(null, resumeFrom.steps),
+    decisions: extendTrail(null, resumeFrom.decisions),
+    conditions: extendTrail(null, resumeFrom.conditions),
+    choices: extendTrail(null, resumeFrom.choices),
+    overrides: [],
+    forced: 0,
+    beatWork: beatWork < 0 ? -1 : Math.max(0, beatWork - 1),
+    route: newRoute(),
+  };
+};
 
 const isRootLevel = (knot: string): boolean =>
   knot === "0" || /^\d+$/.test(knot);
