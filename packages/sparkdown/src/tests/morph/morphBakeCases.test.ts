@@ -518,6 +518,25 @@ describe("morph bake: apertures that cannot be built", () => {
     expect(artifact.diagnostics[0]!.message).toContain("standing still");
   });
 
+  test("a reference to a drawing that moves on a carrier keeps the variant static", () => {
+    // One live part (the compositing group keeps the reference with the
+    // drawing); the ellipse scales on a path carrier while it is hidden.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80">
+<g opacity=".9">
+<g data-name="eyes.open:default">${LASHES_OPEN}<ellipse id="dot" data-name="dot" cx="30" cy="40" rx="20" ry="20" fill="#f00"/><use data-name="copy" href="#dot" x="100"/></g>
+<g data-name="eyes.closed">${LASH_CLOSED}</g>
+</g>
+</svg>`;
+    const artifact = bake(svg, recipe({ fallback: "scale", layers: { copy: { blend: "cut" } } }));
+    expect(artifact.status).toBe("static");
+    expect(codes(artifact)).toEqual(["unsupported-element"]);
+    expect(artifact.diagnostics[0]!.message).toContain("cannot follow");
+    // The same drawing unreferenced plays.
+    const plain = bake(svg.replace(`<use data-name="copy" href="#dot" x="100"/>`, ""), recipe({ fallback: "scale" }));
+    expect(codes(plain)).toEqual([]);
+    expect(plain.status).toBe("live");
+  });
+
   test("unchanging art a compositing group keeps in a live part can still be referenced", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g opacity=".5">

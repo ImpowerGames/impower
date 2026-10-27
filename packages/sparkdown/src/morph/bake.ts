@@ -910,7 +910,24 @@ export function* bakeSteps(
   // only in part (no part can carry it whole without repeating ids it already
   // holds), and a copy of a changing drawing in another part would stand
   // still while the original moves; either way the variant keeps its static
-  // render.
+  // render. So does a reference to a drawing that moves on a carrier: the
+  // drawing itself is hidden while its frames draw on the copy, and the
+  // reference names the drawing.
+  for (const id of carriers.size ? partClosure(doc, leaves.map((leaf) => leaf.element)) : []) {
+    const target = doc.byId.get(id)!;
+    const carried = drawnLeaves(doc, target).some((element) => {
+      const leaf = leafOf.get(element);
+      return !!leaf && carriers.has(leaf);
+    });
+    if (!carried) continue;
+    report(
+      "unsupported-element",
+      "error",
+      `"${id}" is drawn again by reference, but the morph moves it on a copy the reference cannot follow, so this variant shows without the morph.`,
+      { ...(keyOf(target) === undefined ? {} : { path: keyOf(target)! }) },
+    );
+    return disable();
+  }
   if (runs.length > 1) {
     const runOf = new Map<Element, number>();
     runs.forEach((run, index) => run.leaves.forEach((leaf) => runOf.set(leaf.element, index)));
