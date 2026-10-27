@@ -1067,6 +1067,18 @@ describe("a movie's sound", () => {
     expect(sources.filter((s) => s.mediaElement === rain)).toHaveLength(0);
   });
 
+  test("asks for CORS before it loads, so a movie from another origin keeps its sound through the mixer", async () => {
+    const { h } = await playingWithSound(SOUND_SOURCE);
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.crossOrigin).toBe("anonymous");
+    const attributes = video.getAttributeNames();
+    expect(attributes.indexOf("crossorigin")).toBeGreaterThanOrEqual(0);
+    expect(attributes.indexOf("crossorigin")).toBeLessThan(
+      attributes.indexOf("src"),
+    );
+  });
+
   test("a hidden movie leaves the mixer", async () => {
     const { h, sources } = await playingWithSound(SOURCE);
     await playNext(h);
