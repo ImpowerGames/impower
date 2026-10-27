@@ -729,18 +729,49 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
   };
 }
 
-/** Loop fraction of the point nearest `target`: a shared phase for handoff blends. */
-function nearestFraction(loop: Cubic[], target: Point): number {
+/**
+ * Loop fraction of the point nearest `target`: a shared phase for handoff
+ * blends. A coarse scan finds the nearest of 480 samples and a golden-section
+ * search refines it within a sample either side, so the phase follows a
+ * moving target continuously rather than stepping from one sample to the
+ * next, which would shift every handoff pairing by a sample at once.
+ */
+export function nearestFraction(loop: Cubic[], target: Point): number {
   const arc = new ArcLoop(loop);
+  const samples = 480;
+  const at = (f: number) => dist(arc.pointAt(f), target);
   let lf = 0,
     best = Infinity;
-  for (let k = 0; k < 480; k++) {
-    const f = k / 480,
-      d = dist(arc.pointAt(f), target);
+  for (let k = 0; k < samples; k++) {
+    const f = k / samples,
+      d = at(f);
     if (d < best) {
       best = d;
       lf = f;
     }
   }
-  return lf;
+  const g = (Math.sqrt(5) - 1) / 2;
+  let lo = lf - 1 / samples,
+    hi = lf + 1 / samples;
+  let x1 = hi - g * (hi - lo),
+    x2 = lo + g * (hi - lo);
+  let d1 = at(x1),
+    d2 = at(x2);
+  while (hi - lo > 1e-13) {
+    if (d1 <= d2) {
+      hi = x2;
+      x2 = x1;
+      d2 = d1;
+      x1 = hi - g * (hi - lo);
+      d1 = at(x1);
+    } else {
+      lo = x1;
+      x1 = x2;
+      d1 = d2;
+      x2 = lo + g * (hi - lo);
+      d2 = at(x2);
+    }
+  }
+  const f = (lo + hi) / 2;
+  return ((f % 1) + 1) % 1;
 }
