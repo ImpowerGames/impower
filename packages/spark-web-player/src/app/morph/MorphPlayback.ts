@@ -55,7 +55,7 @@ interface LiveView {
   /** Each part's own svg, nested in the box's svg root. */
   parts: Element[];
   leaves: { element: Element; node: string; style: string | null; d: string | null; opacity: string | null }[];
-  clips: { path: Element; id: string; d: string | null; style: string | null }[];
+  clips: { id: string; paths: { element: Element; d: string | null; style: string | null }[] }[];
   /** The pose last written, so an unchanged frame writes nothing. */
   last?: string;
 }
@@ -729,10 +729,12 @@ export class MorphLayer {
     const clips: LiveView["clips"] = [];
     const apertures = [...Array.from(outer.getElementsByTagNameNS(NS, "mask")), ...Array.from(outer.getElementsByTagNameNS(NS, "clipPath"))];
     for (const aperture of apertures) {
-      const path = aperture.firstElementChild;
       const id = aperture.getAttribute("id");
-      if (!path || !id) continue;
-      clips.push({ path, id: id.split(prefix).join(artifact.idPrefix), d: path.getAttribute("d"), style: path.getAttribute("style") });
+      if (!id) continue;
+      const paths = Array.from(aperture.children)
+        .filter((child) => child.localName === "path")
+        .map((element) => ({ element, d: element.getAttribute("d"), style: element.getAttribute("style") }));
+      clips.push({ id: id.split(prefix).join(artifact.idPrefix), paths });
     }
     return { box, artifact, prefix, parts, leaves, clips };
   }
@@ -909,18 +911,21 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
     write(leaf.element, "d", element.attributes["d"] ?? null);
   }
   for (const clip of view.clips) {
-    const element = {
-      tagName: clip.path.localName,
+    // Each aperture's paths start from their markup every frame.
+    const paths = clip.paths.map((path) => ({
+      tagName: "path",
       attributes: {
-        ...(clip.style === null ? {} : { style: clip.style }),
-        ...(clip.d === null ? {} : { d: clip.d }),
+        ...(path.style === null ? {} : { style: path.style }),
+        ...(path.d === null ? {} : { d: path.d }),
       } as Record<string, string>,
       children: [],
-    };
+    }));
     const d = frame.clips.get(clip.id);
-    if (d !== undefined) poseAperture(element, d);
-    write(clip.path, "style", element.attributes["style"] ?? null);
-    write(clip.path, "d", element.attributes["d"] ?? null);
+    if (d !== undefined) poseAperture({ tagName: "mask", attributes: {}, children: paths }, d);
+    clip.paths.forEach((path, index) => {
+      write(path.element, "style", paths[index]!.attributes["style"] ?? null);
+      write(path.element, "d", paths[index]!.attributes["d"] ?? null);
+    });
   }
 }
 

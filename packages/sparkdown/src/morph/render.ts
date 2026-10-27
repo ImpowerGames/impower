@@ -321,15 +321,19 @@ export function poseLeaf(element: Element, node: string, state: MorphFrameState)
 }
 
 /**
- * Poses an aperture's path, given as it is written in its part (the rest
- * outline, a mask's stroked to reach past it), with the path data a frame
- * gives it. Away from the rest outline the aperture has no reach, so the stroke
- * goes (see the bake's aperture masks).
+ * Poses an aperture (a mask or clip path, given as it is written in its
+ * part: its first path the rest outline, a mask's open loops stroked to
+ * reach past it) with the path data a frame gives it. At the rest outline
+ * it keeps its markup. Away from it every path draws the frame's aperture
+ * without reach (see the bake's aperture masks).
  */
-export function poseAperture(element: Element, d: string) {
-  if (element.attributes["d"] === d) return;
-  element.attributes["d"] = d;
-  setStyleProperty(element, "stroke", "none");
+export function poseAperture(aperture: Element, d: string) {
+  const paths = elementsOf(aperture.children).filter((child) => child.tagName === "path");
+  if (!paths.length || paths[0]!.attributes["d"] === d) return;
+  for (const path of paths) {
+    path.attributes["d"] = d;
+    setStyleProperty(path, "stroke", "none");
+  }
 }
 
 function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): string {
@@ -354,8 +358,7 @@ function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): stri
         if (node !== undefined) poseLeaf(element, node, state);
         if (element.tagName === "mask" || element.tagName === "clipPath") {
           const d = clipData.get(element.attributes["id"] ?? "");
-          const path = elementsOf(element.children)[0];
-          if (d !== undefined && path) poseAperture(path, d);
+          if (d !== undefined) poseAperture(element, d);
         }
       }
     }

@@ -129,19 +129,24 @@ const paintList = (svg: string, scale = 1): Painted[] => {
       const shapes = elementChildren(resource).map((child) => mapRings(transformOf(child), rings(child.attributes["d"] ?? "")));
       return (p) => (shapes.some((shape) => inside(shape, applyPoint(local, p))) ? 1 : 0);
     }
-    const path = elementChildren(resource).find((c) => c.tagName === "path")!;
-    const fill = path.attributes["d"] ? mapRings(transformOf(path), rings(path.attributes["d"])) : [];
-    const paint = (name: string) => {
-      const colour = property(path, name);
-      return colour === undefined || colour === "none" ? 0 : Number(property(path, `${name}-opacity`) ?? 1);
-    };
-    const fillAlpha = paint("fill"),
-      strokeAlpha = paint("stroke");
-    const width = Number(/^([\d.]+)/.exec(property(path, "stroke-width") ?? "1")?.[1]);
-    const reach = (property(path, "vector-effect") === "non-scaling-stroke" ? width / scale : width) / 2;
+    // A mask's paths cover the union of what each lets through.
+    const covers = elementChildren(resource)
+      .filter((c) => c.tagName === "path")
+      .map((path) => {
+        const fill = path.attributes["d"] ? mapRings(transformOf(path), rings(path.attributes["d"])) : [];
+        const paint = (name: string) => {
+          const colour = property(path, name);
+          return colour === undefined || colour === "none" ? 0 : Number(property(path, `${name}-opacity`) ?? 1);
+        };
+        const fillAlpha = paint("fill"),
+          strokeAlpha = paint("stroke");
+        const width = Number(/^([\d.]+)/.exec(property(path, "stroke-width") ?? "1")?.[1]);
+        const reach = (property(path, "vector-effect") === "non-scaling-stroke" ? width / scale : width) / 2;
+        return (q: Point) => (inside(fill, q) ? fillAlpha : strokeAlpha > 0 && distance(fill, q) <= reach ? strokeAlpha : 0);
+      });
     return (p) => {
       const q = applyPoint(local, p);
-      return inside(fill, q) ? fillAlpha : strokeAlpha > 0 && distance(fill, q) <= reach ? strokeAlpha : 0;
+      return Math.max(0, ...covers.map((cover) => cover(q)));
     };
   };
   const out: Painted[] = [];
@@ -391,13 +396,16 @@ describe("a live morph's aperture masks", () => {
       }));
   };
 
-  test("clip a target under a nearly singular parent in its own space, with no reach", () => {
+  test.each([
+    ["a nearly singular parent", [1, 1, 1, 1.000001, 0, 0]],
+    ["a parent translated a hundred million units", [1, 1, 0, 1, 100000003, 100000004]],
+    ["a parent translated ten million units", [1, 0.1, 0.2, 1, 10000000.3, 10000000.4]],
+  ] as [string, Affine][])("clip a target under %s in its own space, with no reach", (_name, parent) => {
     // A browser composes matrices in single precision, so undoing and
-    // redoing a parent that stretches one way millions of times more than
-    // another would move the target. Its aperture is a clip path in the
+    // redoing a parent that stretches one way far more than another, or
+    // moves far, would move the target. Its aperture is a clip path in the
     // parent's space, as before there were aperture masks, and the target's
     // own transforms are untouched.
-    const parent: Affine = [1, 1, 1, 1.000001, 0, 0];
     const source = underParent(`matrix(${parent.join(" ")})`, `matrix(${invert(parent)!.join(" ")})`);
     const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
@@ -411,6 +419,59 @@ describe("a live morph's aperture masks", () => {
       expect(white[0]!.path["transform"]).toBeDefined();
       // The pupil, whose parent is root space, keeps its reach.
       expect(masks.filter((m) => m !== white[0]).every(({ kind, path }) => kind === "mask" && /stroke-width:2px/.test(path["style"] ?? ""))).toBe(true);
+    }
+  });
+
+  test("mask a target under a parent translated ten thousand units in root space, with its reach", () => {
+    const parent: Affine = [1, 0.1, 0.2, 1, 10000, 10000];
+    const source = underParent(`matrix(${parent.join(" ")})`, `matrix(${invert(parent)!.join(" ")})`);
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.status).toBe("live");
+    const white = masksOf(baked.rest).find(({ wrapper }) => ((wrapper?.children[0] as Element)?.children[0] as Element | undefined)?.attributes["data-name"] === "eyeball-white-left")!;
+    expect(white.kind).toBe("mask");
+    expect(white.wrapper!.attributes["transform"]).toBeDefined();
+    expect(white.path["style"]).toMatch(/stroke-width:2px/);
+  });
+
+  test("reach past an open eye's outline and not a closed one's in the same clip entry", () => {
+    // One clip entry holds both eyes; at rest the left is open and the right
+    // closed, with the right white drawn outside the eye states and above the
+    // closed lash.
+    const right = (d: string) => d.replace(/(-?[\d.]+),(-?[\d.]+)/g, (_m, x: string, y: string) => `${Number(x) + 140},${y}`);
+    const wink = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
+<path data-name="face" d="M0,0H280V100H0Z" fill="#c96"/>
+<g data-name="eyes.open:default">
+<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
+<path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
+<path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
+<path data-name="eyelash-right" d="${right(CLOSED)}" fill="#111"/>
+</g>
+<g data-name="eyes.closed">
+<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
+<path data-name="eyelash-right" d="${right(UPPER)}" fill="#111"/>
+<path data-name="eyelash-right" d="${right(LOWER)}" fill="#111"/>
+</g>
+<path data-name="eyeball-white-right" d="${right(WHITE)}" fill="#fff"/>
+</svg>`;
+    const recipe = blink({ clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "eyeball-white-right"] }] });
+    const baked = bakeMorphArtifact({ source: wink, selection: {}, recipe, key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
+      const outline = apertureOutline(svg);
+      expect(outline.length).toBe(2);
+      for (const scale of [1, 4, 20]) {
+        const reaching = paintList(svg, scale),
+          exact = paintList(svg, Infinity);
+        const points = nearOutline(outline, scale, [0.25, 0.5, 0.75, 1, 1.5]);
+        // Nothing shows past the closed right eye's slit.
+        const closed = points
+          .filter(({ p }) => p[0] > 140 && colourAt(reaching, p) !== colourAt(exact, p))
+          .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(exact, p)}`);
+        expect(closed.slice(0, 5), `${closed.length} points differ`).toEqual([]);
+        // The open left eye still reaches under its lashes.
+        if (scale > 1) expect(points.some(({ p }) => p[0] < 140 && colourAt(reaching, p) !== colourAt(exact, p))).toBe(true);
+      }
     }
   });
 

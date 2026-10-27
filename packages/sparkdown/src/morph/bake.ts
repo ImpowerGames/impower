@@ -117,16 +117,14 @@ type Rest = typeof REST;
 const REST = Symbol("rest");
 
 /**
- * A clip target's aperture: its clip entry and id, the matrices from root
- * space into the target's parent space and back, and whether the aperture
- * is a mask on a wrapper in root space (else a clip path in the parent's).
+ * A clip target's aperture: its clip entry and id, and the matrices from
+ * root space into the target's parent space and back.
  */
 interface Wrapper {
   clip: number;
   id: string;
   matrix: Affine;
   space: Affine;
-  rooted: boolean;
 }
 
 /** An affine matrix written with every digit, so a pair that should cancel does. */
@@ -210,18 +208,14 @@ const pathData = (subpaths: Subpath[]): string =>
     })
     .join("");
 
-/** The area an aperture's loops enclose. */
-function loopsArea(loops: number[][]): number {
-  let area = 0;
-  for (const flat of loops) {
-    let twice = 0;
-    for (let i = 0; i + 1 < flat.length; i += 2) {
-      const j = (i + 2) % flat.length;
-      twice += flat[i]! * flat[j + 1]! - flat[j]! * flat[i + 1]!;
-    }
-    area += Math.abs(twice) / 2;
+/** The area one aperture loop encloses. */
+function loopArea(flat: number[]): number {
+  let twice = 0;
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const j = (i + 2) % flat.length;
+    twice += flat[i]! * flat[j + 1]! - flat[j]! * flat[i + 1]!;
   }
-  return area;
+  return Math.abs(twice) / 2;
 }
 
 /**
@@ -238,19 +232,17 @@ function conditionOf(m: Affine): number {
 }
 
 /**
- * A rest aperture at most this fraction of its entry's widest is closed: it
- * gets no reach.
+ * A rest aperture loop at most this fraction of the widest loop its entry
+ * opens to is closed: it gets no reach.
  */
 const CLOSED_FRACTION = 0.01;
 
 /**
- * The most a target's parent space may stretch one way against another for
- * its aperture's mask to sit in root space. A browser composes the wrapper's
- * matrix and the inner group's in single precision, which leaves an error of
- * about this ratio times 2^-24 of the target's coordinates: under eight
- * millionths at 128.
+ * The most a target may move, as a fraction of its entry's apertures'
+ * extent, when a browser composes the masked wrapper's matrix and the inner
+ * group's in single precision, for the mask to sit in root space.
  */
-const ROOTED_CONDITION_LIMIT = 128;
+const ROOTED_ERROR_FRACTION = 1e-4;
 
 const loopsPathData = (loops: number[][]): string =>
   loops
@@ -910,7 +902,7 @@ export function* bakeSteps(
       }
       const id = freshId(`morph-clip-${clipIndex}-${clipSerial++}`);
       const list = wrappers.get(target) ?? [];
-      list.push({ clip: clipIndex, id, matrix, space: parentSpace!, rooted: isIdentity(matrix) || conditionOf(matrix) <= ROOTED_CONDITION_LIMIT });
+      list.push({ clip: clipIndex, id, matrix, space: parentSpace! });
       wrappers.set(target, list);
       clipTargets.push({ clip: clipIndex, aperture: `${prefix}${id}`, matrix: [...matrix] });
     }
@@ -922,8 +914,8 @@ export function* bakeSteps(
     for (const { clip, loops } of segment.clips) {
       const box = apertureBounds[clip]!;
       for (const sample of apertures[loops.index]!) {
-        box.widest = Math.max(box.widest, loopsArea(sample));
         for (const flat of sample) {
+          box.widest = Math.max(box.widest, loopArea(flat));
           for (let i = 0; i + 1 < flat.length; i += 2) {
             box.minX = Math.min(box.minX, flat[i]!);
             box.maxX = Math.max(box.maxX, flat[i]!);
@@ -959,13 +951,26 @@ export function* bakeSteps(
   // grown by their own size, so it holds the stroke at any size the opening
   // is drawn large enough to see.
   //
-  // Where the target's parent space stretches one way far more than another
-  // (`ROOTED_CONDITION_LIMIT`), a browser's composition of the undoing and
-  // redoing matrices would move the target. Its aperture is then a clip path
-  // in the parent's space, the aperture mapped into it, with no reach.
-  const apertureElement = ({ id, clip, matrix, rooted }: Wrapper): Element => {
+  // A browser composes the undoing and redoing matrices in single precision,
+  // which moves the target by about 2^-24 times the parent space's
+  // stretch one way against another (its condition number) times the size
+  // of the coordinates involved, translations included. Where that could
+  // exceed `ROOTED_ERROR_FRACTION` of the apertures' extent, the aperture is
+  // a clip path in the parent's space, the aperture mapped into it, with no
+  // reach.
+  //
+  // Closure is judged loop by loop (one clip entry may hold several eyes):
+  // the open loops are stroked by a second path when some loops are closed.
+  const rooted = ({ clip, matrix, space }: Wrapper): boolean => {
+    if (isIdentity(matrix)) return true;
+    const { minX, minY, maxX, maxY } = apertureBounds[clip]!;
+    const size = Math.max(Math.abs(minX), Math.abs(minY), Math.abs(maxX), Math.abs(maxY), ...[matrix, space].flatMap((m) => [Math.abs(m[4]), Math.abs(m[5])]));
+    return 2 ** -24 * conditionOf(space) * size <= ROOTED_ERROR_FRACTION * Math.max(maxX - minX, maxY - minY);
+  };
+  const apertureElement = (wrapper: Wrapper): Element => {
+    const { id, clip, matrix } = wrapper;
     const loops = restLoops[clip] ?? [];
-    if (!rooted) {
+    if (!rooted(wrapper)) {
       return {
         tagName: "clipPath",
         attributes: { id, clipPathUnits: "userSpaceOnUse" },
@@ -974,8 +979,17 @@ export function* bakeSteps(
     }
     const { minX, minY, maxX, maxY, widest } = apertureBounds[clip]!;
     const pad = Math.max(maxX - minX, maxY - minY);
-    const open = loopsArea(loops) > CLOSED_FRACTION * widest;
-    const stroke = open ? `stroke:#fff;stroke-opacity:1;stroke-width:${APERTURE_REACH * 2}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none";
+    const open = loops.filter((flat) => loopArea(flat) > CLOSED_FRACTION * widest);
+    // Inline, so no style sheet the artwork carries outranks it.
+    const path = (d: string, reach: boolean): Element => ({
+      tagName: "path",
+      attributes: {
+        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach ? `stroke:#fff;stroke-opacity:1;stroke-width:${APERTURE_REACH * 2}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
+        d,
+      },
+      children: [],
+    });
+    const all = open.length === loops.length;
     return {
       tagName: "mask",
       attributes: {
@@ -986,23 +1000,14 @@ export function* bakeSteps(
         width: `${maxX - minX + 2 * pad}`,
         height: `${maxY - minY + 2 * pad}`,
       },
-      children: [
-        {
-          tagName: "path",
-          attributes: {
-            // Inline, so no style sheet the artwork carries outranks it.
-            style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${stroke};visibility:visible;vector-effect:non-scaling-stroke`,
-            d: loopsPathData(loops),
-          },
-          children: [],
-        },
-      ],
+      children: [path(loopsPathData(loops), all && open.length > 0), ...(all || !open.length ? [] : [path(loopsPathData(open), true)])],
     };
   };
   const wrap = (element: Element) => (clone: Element): Element => {
     let out = clone;
-    for (const { id, matrix, space, rooted } of wrappers.get(element) ?? []) {
-      out = !rooted
+    for (const wrapper of wrappers.get(element) ?? []) {
+      const { id, matrix, space } = wrapper;
+      out = !rooted(wrapper)
         ? { tagName: "g", attributes: { "clip-path": `url(#${id})` }, children: [out] }
         : isIdentity(matrix)
           ? { tagName: "g", attributes: { mask: `url(#${id})` }, children: [out] }
