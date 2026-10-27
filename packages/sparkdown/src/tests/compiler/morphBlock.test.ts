@@ -1224,4 +1224,32 @@ end
     expect(found[0]).toMatchObject({ text: "m", severity: 1 });
     expect(found[0]!.message).toContain("inherited");
   });
+
+  test("a `depth` a `define` parent supplies with its keyframes is checked against them on the child's `as`", () => {
+    const text = `define base as morph with
+  method = "bend"
+  depth = "eyes.missing"
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+end
+
+morph child as base with
+  fallback = fade
+end
+`;
+    const found = depthErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ line: 6, text: "base", severity: 1 });
+    expect(found[0]!.message).toContain("never shows `eyes.missing`");
+  });
+
+  test("a parent block's own `depth` problem is reported there, not again on a child that keeps it", () => {
+    const text = `${RAISE("  depth = eyes.squint\n")}
+morph child as m with
+  fallback = cut
+end
+`;
+    const found = depthErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "eyes.squint" });
+  });
 });

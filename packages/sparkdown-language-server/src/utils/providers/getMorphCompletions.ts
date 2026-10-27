@@ -106,6 +106,7 @@ export function getMorphCompletions(
     driven.add(container);
     addNamed(container, state);
   }
+  let posesFound = named.size > 0;
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
   const container = inKeyframe ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
@@ -122,9 +123,16 @@ export function getMorphCompletions(
     for (const group of morphRequirements(struct).groups.keys()) {
       driven.add(group);
     }
-    for (const keyframe of Array.isArray(struct.keyframes) ? struct.keyframes : []) {
-      for (const [group, pose] of Object.entries(keyframe ?? {})) {
-        addNamed(group, (pose as Record<string, unknown> | null)?.["state"]);
+    // Keyframes replace rather than add to an ancestor's, so the poses are
+    // the block's own when it names states, and otherwise the nearest
+    // ancestor's that has keyframes.
+    const keyframes = Array.isArray(struct.keyframes) ? struct.keyframes : [];
+    if (!posesFound && keyframes.length > 0) {
+      posesFound = true;
+      for (const keyframe of keyframes) {
+        for (const [group, pose] of Object.entries(keyframe ?? {})) {
+          addNamed(group, (pose as Record<string, unknown> | null)?.["state"]);
+        }
       }
     }
     ancestor = struct.$extends;

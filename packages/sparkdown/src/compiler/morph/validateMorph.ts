@@ -191,6 +191,11 @@ export interface MorphDeclaration {
   own: MorphBody;
   /** The declaration after `$default` and every `as PARENT` are merged in. */
   effective: Record<string, unknown>;
+  /**
+   * The parent's own effective morph when the parent is a morph block, which
+   * reports the problems of its own values; null when it is not.
+   */
+  parentEffective: Record<string, unknown> | null;
 }
 
 /**
@@ -482,26 +487,33 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
   }
-  // An inherited `depth` names a pose of the parent's keyframes; a child that
-  // writes its own keyframes may no longer show it. A parent's form errors are
-  // reported where the parent is written.
-  if (own["keyframes"] !== undefined) {
-    const ownLayers = isRecord(own["layers"]) ? own["layers"] : {};
-    const inherited: [string, unknown][] = [];
-    if (!("depth" in own)) inherited.push(["depth", effective["depth"]]);
-    if (isRecord(effectiveLayers)) {
-      for (const [label, policy] of Object.entries(effectiveLayers)) {
-        const written = ownLayers[label];
-        if (isRecord(policy) && "depth" in policy && !(isRecord(written) && "depth" in written)) {
-          inherited.push([`layers.${label}.depth`, policy["depth"]]);
-        }
+  // An inherited `depth` has to name a pose this morph shows, which its own
+  // keyframes or a `define` ancestor's can change. A problem the parent
+  // block has too is reported there, and a value's form where it is written.
+  const parentDriven = decl.parentEffective && keyframeStates(decl.parentEffective["keyframes"]);
+  const valueAt = (morph: Record<string, unknown> | null, field: string): unknown => {
+    let current: unknown = morph;
+    for (const key of field.split(".")) current = isRecord(current) ? current[key] : undefined;
+    return current;
+  };
+  const ownLayers = isRecord(own["layers"]) ? own["layers"] : {};
+  const inherited: string[] = [];
+  if (!("depth" in own)) inherited.push("depth");
+  if (isRecord(effectiveLayers)) {
+    for (const [label, policy] of Object.entries(effectiveLayers)) {
+      const written = ownLayers[label];
+      if (isRecord(policy) && "depth" in policy && !(isRecord(written) && "depth" in written)) {
+        inherited.push(`layers.${label}.depth`);
       }
     }
-    for (const [field, value] of inherited) {
-      if (value === undefined || depthFormProblem(value)) continue;
-      const problem = depthProblem(value, driven);
-      if (problem) push(decl.parent, `\`${field}\`, inherited: ${problem}`);
-    }
+  }
+  for (const field of inherited) {
+    const value = valueAt(effective, field);
+    if (value === undefined || depthFormProblem(value)) continue;
+    const problem = depthProblem(value, driven);
+    if (!problem) continue;
+    if (parentDriven && valueAt(decl.parentEffective, field) === value && depthProblem(value, parentDriven)) continue;
+    push(decl.parent, `\`${field}\`, inherited: ${problem}`);
   }
   const effectiveTiming = effective["timing"];
   if (isRecord(effectiveTiming)) {

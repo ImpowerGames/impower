@@ -378,4 +378,43 @@ end
     const item = itemAt(raise("depth = |"), "eyes.closed");
     expect(item.documentation).toMatchObject({ value: expect.stringContaining("stacking") });
   });
+
+  test("`depth` values come from the keyframes that apply: the block's own, else the nearest ancestor's", () => {
+    const morph = (name: string, states: string[] | null, parent?: string) => ({
+      $type: "morph",
+      $name: name,
+      ...(parent ? { $extends: parent } : {}),
+      ...(states ? { keyframes: states.map((state) => ({ eyes: { state } })) } : {}),
+    });
+    const chain = {
+      context: {
+        ...program.context,
+        morph: {
+          $default: {},
+          base: morph("base", ["open", "closed"]),
+          middle: morph("middle", ["open", "squint"], "base"),
+          child: morph("child", null, "middle"),
+        },
+      },
+    };
+    const depthAt = (source: string) => completeAt(source, chain).map((item) => String(item.label));
+    // A child's own keyframes replace its ancestors'.
+    expect(
+      depthAt(`morph child as middle with
+  depth = |
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = half } }
+  }
+end
+`),
+    ).toEqual(["rest", "eyes.open", "eyes.half"]);
+    // Without its own, the nearest ancestor's, which replaced the base's.
+    expect(
+      depthAt(`morph child as middle with
+  layers { eyelash-left { depth = | } }
+end
+`),
+    ).toEqual(["rest", "eyes.open", "eyes.squint"]);
+  });
 });

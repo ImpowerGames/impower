@@ -249,6 +249,9 @@ export function collectMorphIssues(
         withKeyword: getDescendent("LuauWithKeyword", morph.node) ?? null,
         own: morph.own,
         effective,
+        parentEffective: ancestors[0]?.written
+          ? effectiveMorph(base, ancestors.slice(1), ancestors[0].struct, inherit)
+          : null,
       }),
       ...coverageIssues(morph.name, nameSpan, morph.own, effective, context, images),
       ...inheritedValueIssues(morph.own.struct, ancestors, parentSpan ?? nameSpan),
