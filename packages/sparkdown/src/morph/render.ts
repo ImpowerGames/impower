@@ -238,11 +238,15 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
         case "scale": {
           const zero = t.direction === "shrink" ? p >= 1 : p <= 0;
           if (zero) break;
-          show(t.node);
+          // The full endpoint is the authored drawing itself.
           const full = t.direction === "shrink" ? p <= 0 : p >= 1;
-          if (full) break;
+          if (full) {
+            show(t.node);
+            break;
+          }
+          show(t.draw);
           const frames = artifact.frames[t.frames.index]!;
-          geometry.set(t.node, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
+          geometry.set(t.draw, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
           break;
         }
         case "hold":

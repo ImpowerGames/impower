@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
-import { aperturePathData, namespaceMorphMarkup, renderMorphFrame } from "../../morph/render";
+import { aperturePathData, namespaceMorphMarkup, renderMorphAt, renderMorphFrame } from "../../morph/render";
 import { parse } from "../../txml/txml";
 import { blink, CLOSED, LOWER_OPEN, portrait, shadowedPortrait, UPPER_OPEN } from "./fixtures";
 
@@ -112,6 +112,27 @@ describe("artifact playback", () => {
     // At rest the copies stay hidden, so the parts compose to the still.
     const rest = shown(elements(renderMorphFrame(resting, { segment: 0, progress: 0 })));
     expect(rest.map((e) => e.attributes["d"])).toEqual([UPPER_OPEN]);
+  });
+
+  test("a basic shape the variant rests on keeps its own markup at rest and moves on paths", () => {
+    const ellipses = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+<g data-name="eyes.open:default"><ellipse data-name="lash" cx="80" cy="60" rx="65" ry="45" fill="#111"/></g>
+<g data-name="eyes.closed"><ellipse data-name="lash" cx="45" cy="60" rx="30" ry="20" fill="#111"/><ellipse data-name="lash" cx="115" cy="60" rx="30" ry="20" fill="#111"/></g>
+</svg>`;
+    const resting = bakeMorphArtifact({ source: ellipses, selection: {}, recipe: blink({ method: "match", clips: [] }), key: "ellipses" });
+    expect(resting.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(resting.status).toBe("live");
+    // The parts composed at rest draw the authored ellipse, as the still does.
+    for (const offset of [0, 1]) {
+      const rest = shown(elements(renderMorphAt(resting, offset)));
+      expect(rest.map((e) => [e.tagName, e.attributes["cx"], e.attributes["rx"]])).toEqual([["ellipse", "80", "65"]]);
+    }
+    // In motion two paths carry the tracks where the ellipse sits, and the
+    // ellipse itself is hidden.
+    for (const segment of [0, 1]) {
+      const moving = shown(elements(renderMorphFrame(resting, { segment, progress: 0.5 })));
+      expect(moving.map((e) => e.tagName)).toEqual(["path", "path"]);
+    }
   });
 
   test("each part fills the composed picture's viewport", () => {

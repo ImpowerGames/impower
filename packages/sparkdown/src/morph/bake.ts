@@ -472,9 +472,13 @@ export function* bakeSteps(
     leafOf.set(element, leaf);
   }
   const nodeOf = (leaf: Leaf) => leaf.node;
+  const isPath = (leaf: Leaf) => leaf.element.tagName.toLowerCase() === "path";
   /**
    * Nodes of hidden copies of a live drawing, written beside it in its part,
-   * each carrying one more moving shape at that drawing's depth.
+   * each carrying one more moving shape at that drawing's depth. A copy of a
+   * basic shape is written as the equivalent `<path>`, so a player can set
+   * its `d`; the drawing itself keeps its authored markup, so the parts
+   * draw exactly what the rest render does.
    */
   const carriers = new Map<Leaf, string[]>();
   const carrierOf = (leaf: Leaf, index: number): string => {
@@ -677,10 +681,11 @@ export function* bakeSteps(
         }
         // One element carries one shape, so a second track drawing on the
         // same home (two open lashes converging on the closed lash a variant
-        // rests on) draws on a carrier copied beside it, at the same depth.
+        // rests on) draws on a carrier copied beside it, at the same depth,
+        // and so does every track of a basic shape, whose own markup stays.
         const count = homed.get(home) ?? 0;
         homed.set(home, count + 1);
-        const draw = count === 0 ? nodeOf(home) : carrierOf(home, count - 1);
+        const draw = isPath(home) ? (count === 0 ? nodeOf(home) : carrierOf(home, count - 1)) : carrierOf(home, count);
         const ref = addFrames(cacheKey, morph, space, reversed);
         transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
@@ -726,7 +731,7 @@ export function* bakeSteps(
             const direction = side === "from" ? "shrink" : "grow";
             const morph = morphScale(geometry, direction);
             const ref = addFrames(`${leaf.key}:${direction}`, morph, space, false);
-            transitions.push({ kind: "scale", node: nodeOf(leaf), direction, frames: ref });
+            transitions.push({ kind: "scale", node: nodeOf(leaf), draw: isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, 0), direction, frames: ref });
             return;
           }
           // Geometry the bake could not read was reported where it was read.
@@ -928,13 +933,6 @@ export function* bakeSteps(
       }
     }
   }
-  const morphing = new Set<string>();
-  for (const segment of segments) {
-    for (const t of segment.transitions) {
-      if (t.kind === "morph") morphing.add(t.draw);
-      if (t.kind === "scale") morphing.add(t.node);
-    }
-  }
   const missing = new Set<string>();
   const parts: MorphPart[] = runs.map((run) => {
     const keep = new Set(run.leaves.map((l) => l.element));
@@ -952,13 +950,6 @@ export function* bakeSteps(
           // it goes.
           delete clone.attributes["display"];
           setStyleProperty(clone, "display", visibleAt(leaf.element, restVisible) ? undefined : "none");
-          // A basic shape that moves becomes a `<path>`, so a player can set
-          // its `d`. An authored path keeps its own data, so the part draws
-          // exactly what the rest render does.
-          if (morphing.has(leaf.node) && leaf.element.tagName.toLowerCase() !== "path") {
-            const local = localGeometry(leaf.element);
-            if (local) convertToPath(clone, pathData(local));
-          }
           const place = (element: Element) => (wrappers.has(leaf.element) ? wrap(leaf.element)(element) : element);
           const copies = carriers.get(leaf) ?? [];
           if (!copies.length) return place(clone);
@@ -976,6 +967,7 @@ export function* bakeSteps(
                   for (const child of element.children) if (child && typeof child === "object") unnamed(child);
                 };
                 unnamed(copy);
+                if (!isPath(leaf)) convertToPath(copy, pathData(localGeometry(leaf.element) ?? []));
                 copy.attributes["data-morph"] = node;
                 setStyleProperty(copy, "display", "none");
                 return place(copy);

@@ -248,7 +248,7 @@ describe("morph bake: compositing and authored style", () => {
     expect(bake(art(LASHES_OPEN, LASH_CLOSED), recipe()).status).toBe("live");
   });
 
-  test("a moving path keeps its authored data in the live part; a moving shape becomes a path", () => {
+  test("a moving path keeps its authored data in the live part; a moving shape keeps its markup and moves on a path", () => {
     // The upper open lash, written with relative commands and implicit repeats.
     const authored = "m0 50c30-45 70-45 100 0-30-25-70-25-100 0z";
     const svg = art(lash(authored) + lash(LOWER_OPEN), LASH_CLOSED);
@@ -258,13 +258,18 @@ describe("morph bake: compositing and authored style", () => {
     expect(artifact.segments[0]!.transitions.filter((t) => t.kind === "morph")).toHaveLength(2);
     const live = elements(artifact.parts.find((p) => p.kind === "live")!.svg);
     expect(live.some((e) => e.attributes["d"] === authored)).toBe(true);
-    const moving = new Set(artifact.segments.flatMap((s) => s.transitions.flatMap((t) => (t.kind === "morph" ? [t.from, t.to] : []))));
+    const moving = new Set(artifact.segments.flatMap((s) => s.transitions.flatMap((t) => (t.kind === "morph" ? [t.draw] : []))));
     expect(live.filter((e) => moving.has(e.attributes["data-morph"] ?? "")).every((e) => e.tagName === "path")).toBe(true);
-    // An unpaired ellipse that scales is written as a path.
+    // An unpaired ellipse that scales stays an ellipse, and its frames
+    // draw on a path written right after it.
     const scaled = bake(art(LASHES_OPEN + `<ellipse data-name="glint" cx="50" cy="40" rx="4" ry="3" fill="#fff"/>`, LASH_CLOSED), recipe({ fallback: "scale" }));
-    expect(scaled.segments[0]!.transitions.some((t) => t.kind === "scale")).toBe(true);
-    const glint = elements(scaled.parts.find((p) => p.kind === "live")!.svg).find((e) => e.attributes["data-name"] === "glint")!;
-    expect(glint.tagName).toBe("path");
+    const scale = scaled.segments[0]!.transitions.find((t) => t.kind === "scale")!;
+    const scaledLive = elements(scaled.parts.find((p) => p.kind === "live")!.svg);
+    const glint = scaledLive.find((e) => e.attributes["data-name"] === "glint" && e.attributes["data-morph"] === (scale.kind === "scale" ? scale.node : ""))!;
+    expect(glint.tagName).toBe("ellipse");
+    const carrier = scaledLive.find((e) => e.attributes["data-morph"] === (scale.kind === "scale" ? scale.draw : ""))!;
+    expect(carrier.tagName).toBe("path");
+    expect(scaledLive.indexOf(carrier)).toBe(scaledLive.indexOf(glint) + 1);
   });
 
   test("a shape whose geometry the bake cannot read exactly fades and keeps its authored markup", () => {
