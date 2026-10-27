@@ -623,7 +623,9 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     if (poolHolders(pool) >= poolSlotLimit) throw blocked("pool slots", `The ${pool} pool holds its ${poolSlotLimit} slots`);
     if (freeMb < floorMb) throw blocked("memory", `Free memory ${freeMb} MB is below the ${floorMb} MB floor`);
     if (foreign.length) throw blocked("vitest processes", `Vitest processes already running: ${foreign.join(", ")}`);
-    const admissible = candidates.filter(row => poolHolders(row.pool) < poolSlotLimit);
+    // A waiter nothing could admit now, its pool full or its run directory
+    // held by a live coordinator, keeps its place but never the turn.
+    const admissible = candidates.filter(row => poolHolders(row.pool) < poolSlotLimit && !holders.some(holder => holder.record.run === row.run));
     let last = null;
     try { last = read(lastAdmittedFile(root)).pool ?? null; } catch {}
     const preferred = admissible.filter(row => row.pool !== last);
@@ -744,7 +746,9 @@ export async function waitForUnit(reservation, { deadline = Date.now(), pollMs =
           try { const record = read(file); if (reservationState(record, identify, { uptime }) === "running") records.push(record); } catch {}
         }
         return census({ accounted: accountedPids(records) });
-      }, guardWaitMs, identify, false, true);
+      // The guard wait stays inside the unit's remaining deadline, as the
+      // admission's does inside its wait.
+      }, Math.min(guardWaitMs, Math.max(0, deadline - Date.now())), identify, false, true);
     } catch (error) {
       if (!error.guardHeld || Date.now() >= deadline) throw error;
       onWait({ waiting: "guard", detail: error.message });

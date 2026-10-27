@@ -145,6 +145,24 @@ assert.equal(poolSlotLimit, 2);
   assert.equal(unqueued.slot, 2, "a holder's leftover row holds no place in the queue");
   assert.equal(fs.existsSync(path.join(store, "waiting-left-behind.json")), false, "and is removed");
   unqueued.release();
+  // Another coordinator waiting to resume a run a live holder has keeps its
+  // place but never the turn: it cannot be admitted, so it must not keep a
+  // run that can be admitted out.
+  const resumer = { pid: 4000010, start: "resume" };
+  const withResumer = { ...live, identify: pid => pid === owner.pid ? owner : pid === resumer.pid ? resumer : null };
+  fs.writeFileSync(path.join(store, "waiting-resume-of-first.json"), JSON.stringify({ token: "resume-of-first", owner: resumer, pool: "reviewer", run: "first", arrivedAt: "2020-01-01T00:00:00.000Z" }));
+  const beside = acquire("admitted beside an ineligible resume waiter", { ...withResumer, pool: "reviewer" });
+  assert.equal(beside.record.run, "admitted beside an ineligible resume waiter", "the resume waiter does not hold the queue");
+  assert.ok(fs.existsSync(path.join(store, "waiting-resume-of-first.json")), "and keeps its row");
+  beside.release();
+  fs.unlinkSync(path.join(store, "waiting-resume-of-first.json"));
+  // The unit gate's guard wait stays inside the unit's deadline.
+  fs.writeFileSync(path.join(store, "guard.json"), JSON.stringify({ owner }));
+  const gated = Date.now();
+  await assert.rejects(waitForUnit(first, { ...live, deadline: Date.now() + 100, pollMs: 20 }), /Reservation transaction unavailable/, "a held guard past the unit's deadline refuses");
+  const gateElapsed = Date.now() - gated;
+  fs.unlinkSync(path.join(store, "guard.json"));
+  assert.ok(gateElapsed < 2500, `the unit gate gives up at its deadline, not after a whole guard wait (${gateElapsed} ms)`);
   first.release(); third.release();
   assert.deepEqual(slotFiles(store).filter(file => fs.existsSync(file)), [], "every slot is released");
   console.log("PASS: a second and third run are admitted above the floor, a fourth waits on the cap, one pool keeps one slot free, the floor refuses admission and only delays a holder's next unit");
