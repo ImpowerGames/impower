@@ -101,6 +101,29 @@ export function layeredPortrait(): string {
 </svg>`;
 }
 
+/**
+ * The prepared portrait's eye: the open state holds the white, an eyeball
+ * shadow along the upper lid, the pupil and two lashes; the closed state
+ * holds the shadow's copy of the closed lash, drawn behind that lash. Both
+ * shadows are clip targets, so the shadow morphs while clipped.
+ */
+export function shadowedPortrait(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+<path data-name="face" d="M0,0H140V100H0Z" fill="#b76"/>
+<g data-name="eyes.open:default">
+<path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
+<path data-name="eyeball-shadow-left" d="${UPPER_OPEN}" fill="#ccc"/>
+<path data-name="pupil-left" d="${PUPIL}" fill="#000"/>
+<path data-name="eyelash-left" d="${UPPER_OPEN}" fill="#111"/>
+<path data-name="eyelash-left" d="${LOWER_OPEN}" fill="#111"/>
+</g>
+<g data-name="eyes.closed">
+<path data-name="eyeball-shadow-left" d="${CLOSED}" fill="#ccc"/>
+<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
+</g>
+</svg>`;
+}
+
 /** The blink as a script declares it; `extra` lines go in the morph's root. */
 export const blinkScript = (extra = "") => `morph blink with
   method = bend
