@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { ArcLoop, dist, evalCubic } from "../src/geometry/cubic";
+import { ArcLoop, cubicKnots, dist, evalCubic } from "../src/geometry/cubic";
+import { unknot } from "../src/methods/bend";
 import { bendTrack } from "../src/index";
 import type { Point } from "../src/index";
 import {
@@ -72,11 +73,31 @@ describe("ArcLoop.fractionAt", () => {
   });
 });
 
+describe("unknot", () => {
+  test("shortens a knotted curve's handles continuously as the knot forms and deepens", () => {
+    // Handles that reach past each other more as k grows: no knot at first,
+    // then a loop that deepens.
+    const curve = (k: number) => ({ p0: [0, 0] as Point, c1: [20 * k, 6] as Point, c2: [10 - 20 * k, 6] as Point, p1: [10, 0] as Point });
+    const at = (u: number): Point[] => {
+      const c = unknot(curve(0.25 + u));
+      return [c.c1, c.c2];
+    };
+    expect(cubicKnots(curve(0.25)), "the sweep starts unknotted").toBe(false);
+    expect(cubicKnots(curve(1.25)), "the sweep ends knotted").toBe(true);
+    for (let k = 0; k <= 100; k++) expect(cubicKnots(unknot(curve(0.25 + k / 100))), `k ${k}`).toBe(false);
+    const { jump, at: where } = worstJump(at);
+    expect(jump, `jump of ${jump} near ${where}`).toBeLessThan(1e-4);
+  });
+});
+
 describe("bend handoff continuity", () => {
   for (const [name, from, to, tipDistance] of [
     ["upper lash to closed, default tip distance", upperOpen, closedLash, undefined],
     ["upper lash to closed, tip distance 4", upperOpen, closedLash, 4],
     ["upper lash to a reversed, re-phased closed lash", upperOpen, closedLashReversed, undefined],
+    ["upper lash to a reversed closed lash, tip distance 1", upperOpen, closedLashReversed, 1],
+    ["upper lash to a reversed closed lash, tip distance 2", upperOpen, closedLashReversed, 2],
+    ["upper lash to a reversed closed lash, tip distance 4", upperOpen, closedLashReversed, 4],
     ["tilted lash to its closed pose", tiltedOpen, tiltedClosed, undefined],
     ["rounded-tip lash to its rounded closed pose", roundedOpen, roundedClosed, undefined],
   ] as const) {
@@ -87,15 +108,17 @@ describe("bend handoff continuity", () => {
       expect(jump, `jump of ${jump} near progress ${at}`).toBeLessThan(JUMP_TOLERANCE);
     }, 60_000);
   }
-  // Brackets where a nearest-point search over the canonical frame switched
-  // between the two arms of a folded tip: the canonical frame moves by about
-  // 1e-13 across each, and the drawn frame jumped by up to 0.0075.
+  // Brackets where the drawn frame jumped: a nearest-point search over the
+  // canonical frame switched between the two arms of a folded tip (up to
+  // 0.0075), or the tip curve's knot removal changed its number of handle
+  // shortenings (0.67). The curves before either choice move by about 1e-14.
   for (const [name, to, tipDistance, lo, hi] of [
     ["reversed closed lash", closedLashReversed, undefined, 0.4681871348474821, 0.468187134847484],
     ["tip distance 1", closedLash, 1, 0.4557886117414852, 0.4557886117414871],
     ["tip distance 2", closedLash, 2, 0.4414178075254574, 0.44141780752545934],
+    ["reversed closed lash, tip distance 4", closedLashReversed, 4, 0.5803616930251898, 0.5803616930251899],
   ] as const) {
-    test(`upper lash, ${name}: the drawn frame follows the canonical frame across a folded tip`, () => {
+    test(`upper lash, ${name}: the drawn frame has no jump across an instant where it jumped`, () => {
       const r = bendTrack(loop(upperOpen), loop(to), tipDistance === undefined ? {} : { tipDistance });
       if (!r.ok) throw new Error(r.failure.message);
       const jump = apart(points(r.track.frame(lo)), points(r.track.frame(hi)));

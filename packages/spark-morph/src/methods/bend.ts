@@ -452,19 +452,28 @@ export const handoffWeight = (t: number): number => Math.cos(Math.PI * t) ** 2;
  * Shortens a curve's handles, both together, until the curve no longer
  * loops through itself. A tip curve whose handles reach past each other
  * ties a hairline knot; the rib and flank moves can create one mid-morph
- * even when both rest poses are simple.
+ * even when both rest poses are simple. The shortening is continuous in the
+ * curve: bisection finds the handle scale `s` at which the knot begins, and
+ * the handles are scaled by `s` squared, which equals the curve itself when
+ * the knot is just forming and leaves more clearance the deeper it was, so a
+ * frame never jumps where the knot appears or deepens.
  */
 export function unknot(c: Cubic): Cubic {
-  let cur = c;
-  for (let guard = 0; guard < 12 && cubicKnots(cur); guard++) {
-    cur = {
-      p0: cur.p0,
-      c1: [cur.p0[0] + (cur.c1[0] - cur.p0[0]) * 0.8, cur.p0[1] + (cur.c1[1] - cur.p0[1]) * 0.8],
-      c2: [cur.p1[0] + (cur.c2[0] - cur.p1[0]) * 0.8, cur.p1[1] + (cur.c2[1] - cur.p1[1]) * 0.8],
-      p1: cur.p1,
-    };
+  if (!cubicKnots(c)) return c;
+  const scaled = (s: number): Cubic => ({
+    p0: c.p0,
+    c1: [c.p0[0] + (c.c1[0] - c.p0[0]) * s, c.p0[1] + (c.c1[1] - c.p0[1]) * s],
+    c2: [c.p1[0] + (c.c2[0] - c.p1[0]) * s, c.p1[1] + (c.c2[1] - c.p1[1]) * s],
+    p1: c.p1,
+  });
+  let lo = 0,
+    hi = 1;
+  for (let i = 0; i < 48; i++) {
+    const m = (lo + hi) / 2;
+    if (cubicKnots(scaled(m))) hi = m;
+    else lo = m;
   }
-  return cur;
+  return scaled(lo * lo);
 }
 
 /** A canonical frame before any handoff blend. */
