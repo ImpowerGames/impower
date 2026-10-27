@@ -83,7 +83,7 @@ describe("asset service morph endpoint", () => {
     expect(response.headers.get("Content-Type")).toBe("image/svg+xml");
     const text = await response.text();
     expect(text.startsWith("<svg")).toBe(true);
-    expect(text).toContain("<clipPath");
+    expect(text).toContain("<mask");
   });
 
   test("an edited file bakes again and prunes the superseded entry", async () => {
@@ -139,7 +139,7 @@ describe("asset service morph endpoint", () => {
     const response = await serveMorphAsset({ service, path: "local/bunny.svg", file: file(portrait()), request });
     expect(response.status).toBe(200);
     const text = await response.text();
-    expect(text).not.toContain("<clipPath");
+    expect(text).not.toContain("<mask");
     expect(text).toContain("eyeball-white-left");
   });
 });

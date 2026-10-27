@@ -107,7 +107,7 @@ describe("morph bake: layered art", () => {
     const live = elements(artifact.parts[1]!.svg);
     const iris = live.find((e) => e.attributes["data-name"] === "iris")!;
     expect(iris.attributes["clip-path"]).toBe(`url(#${artifact.idPrefix}iris-cut)`);
-    const wrapper = live.find((e) => e.tagName === "g" && e.attributes["clip-path"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-left");
+    const wrapper = live.find((e) => e.tagName === "g" && e.attributes["mask"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-left");
     expect(wrapper).toBeDefined();
   });
 
@@ -116,7 +116,7 @@ describe("morph bake: layered art", () => {
     const byNode = new Map(elements(artifact.parts[1]!.svg).filter((e) => e.attributes["data-morph"]).map((e) => [e.attributes["data-morph"], e.attributes["data-name"]]));
     const shadow = closing.transitions.filter((t) => t.kind === "morph" && byNode.get(t.from) === "eyeball-shadow-left");
     expect(shadow).toHaveLength(1);
-    const wrapped = elements(artifact.parts[1]!.svg).filter((e) => e.tagName === "g" && e.attributes["clip-path"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-shadow-left");
+    const wrapped = elements(artifact.parts[1]!.svg).filter((e) => e.tagName === "g" && e.attributes["mask"] && (e.children[0] as Element)?.attributes["data-name"] === "eyeball-shadow-left");
     expect(wrapped).toHaveLength(2);
   });
 
@@ -134,10 +134,11 @@ describe("morph bake: layered art", () => {
     const plain = elements(filterSVGAttributes(layeredPortrait(), {}));
     const drawn = (list: Element[]) => list.filter((e) => e.tagName === "path" && e.attributes["data-name"]).map((e) => JSON.stringify(e.attributes));
     expect(drawn(rest)).toEqual(drawn(plain));
-    const clip = rest.find((e) => e.tagName === "clipPath" && e.attributes["id"]?.startsWith("morph-clip"))!;
+    const mask = rest.find((e) => e.tagName === "mask" && e.attributes["id"]?.startsWith("morph-clip"))!;
     // The eyeballs sit under translate(30 10) and scale(1); the aperture is
     // computed in root space and mapped back.
-    expect((clip.children[0] as Element).attributes["transform"]).toBe("matrix(1 0 0 1 -30 -10)");
+    const aperture = mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
+    expect(aperture.attributes["transform"]).toBe("matrix(1 0 0 1 -30 -10)");
   });
 });
 

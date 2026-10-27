@@ -90,6 +90,18 @@ function referenceStates(artifact: MorphArtifact, offset: number) {
   return leafStates(doc);
 }
 
+/** The path data and style each aperture mask draws its aperture with. */
+function apertureStates(root: ParentNode): { d: string | null; style: string | null }[] {
+  return Array.from(root.querySelectorAll("mask")).map((mask) => {
+    const path = mask.querySelector("path")!;
+    return { d: path.getAttribute("d"), style: path.getAttribute("style") };
+  });
+}
+
+function referenceApertures(artifact: MorphArtifact, offset: number) {
+  return apertureStates(new DOMParser().parseFromString(renderMorphAt(artifact, offset), "image/svg+xml"));
+}
+
 function portraitSpan(overlay: HTMLElement): HTMLElement | null {
   return overlay.querySelector(".portrait .image > .instance");
 }
@@ -233,11 +245,20 @@ end
     // No game clock is attached: the playback asks for frames of its own.
     expect(frames.pending).toBeGreaterThan(0);
     frames.run(1000);
+    // At rest each aperture keeps the reach past its outline it is written
+    // with; away from its rest outline it has none.
+    const reaches = () => apertureStates(shadow).map(({ style }) => !/stroke:\s*none/.test(style ?? ""));
+    expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0));
+    expect(reaches().length).toBeGreaterThan(0);
+    expect(reaches().every(Boolean)).toBe(true);
     frames.run(1000 + 0.4 * 250);
     expect(playback.now).toBeCloseTo(0.1, 6);
     expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.4));
+    expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0.4));
+    expect(reaches().some(Boolean)).toBe(false);
     frames.run(1000 + 0.9 * 250);
     expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.9));
+    expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0.9));
     // Ids are the occurrence's own, never the artifact's.
     const ids = Array.from(shadow.querySelectorAll("[id]")).map((e) => e.id);
     expect(ids.length).toBeGreaterThan(0);

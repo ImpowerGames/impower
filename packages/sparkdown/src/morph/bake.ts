@@ -25,6 +25,7 @@ import {
 } from "../attributes";
 import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
 import {
+  applyPoint,
   applySubpaths,
   formatAffine,
   invert,
@@ -73,6 +74,12 @@ import {
 
 /** Frames per segment: the tuning point the geometry package was tested at. */
 export const MORPH_BAKE_SAMPLES = 8;
+/**
+ * How far, in screen pixels, an aperture at rest reaches past its outline:
+ * far enough that the outline's antialiased edge lies under the drawings
+ * around the opening.
+ */
+export const APERTURE_REACH = 1;
 const PRECISION = 1000;
 const round = (n: number) => Math.round(n * PRECISION) / PRECISION || 0;
 
@@ -823,7 +830,7 @@ export function* bakeSteps(
     }
   }
 
-  // Clip wrappers: each target is wrapped in a group clipped by its entry's
+  // Clip wrappers: each target is wrapped in a group masked by its entry's
   // aperture, mapped from root space into the wrapper's space. The target's
   // own clips and masks stay on it, so the two intersect.
   const prefix = idPrefixFor(input.key);
@@ -848,27 +855,73 @@ export function* bakeSteps(
       const list = wrappers.get(target) ?? [];
       list.push({ clip: clipIndex, id, matrix });
       wrappers.set(target, list);
-      clipTargets.push({ clip: clipIndex, clipPath: `${prefix}${id}`, matrix: [...matrix] });
+      clipTargets.push({ clip: clipIndex, mask: `${prefix}${id}`, matrix: [...matrix] });
     }
   }
-  const clipPathElement = (id: string, clip: number, matrix: Affine): Element => ({
-    tagName: "clipPath",
-    attributes: { id, clipPathUnits: "userSpaceOnUse" },
-    children: [
-      {
-        tagName: "path",
-        attributes: {
-          ...(isIdentity(matrix) ? {} : { transform: formatAffine(matrix) }),
-          d: loopsPathData(restLoops[clip] ?? []),
-        },
-        children: [],
+  // Every point a clip entry's apertures reach, in root space.
+  const apertureBounds = recipe.clips.map(() => ({ minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }));
+  for (const segment of segments) {
+    for (const { clip, loops } of segment.clips) {
+      const box = apertureBounds[clip]!;
+      for (const sample of apertures[loops.index]!) {
+        for (const flat of sample) {
+          for (let i = 0; i + 1 < flat.length; i += 2) {
+            box.minX = Math.min(box.minX, flat[i]!);
+            box.maxX = Math.max(box.maxX, flat[i]!);
+            box.minY = Math.min(box.minY, flat[i + 1]!);
+            box.maxY = Math.max(box.maxY, flat[i + 1]!);
+          }
+        }
+      }
+    }
+  }
+  // An aperture is a mask rather than a clip path so that at rest it can
+  // reach past its outline. The outline lies on the edges drawn around the
+  // opening, and a clip edge and a drawn edge that coincide are each
+  // antialiased against what lies beneath them, which leaves a seam of the
+  // layer under the clip targets. A stroke `APERTURE_REACH` screen pixels
+  // wide on each side, whatever size the picture is drawn at, moves the
+  // mask's edge under the drawn edges, which paint over the targets at rest
+  // as the still image draws them. A player drops the stroke whenever the
+  // aperture leaves its rest outline: moving edges taper past the opening's
+  // corners, and a closed state's drawings may paint beneath the targets, so
+  // a reach there would show. The mask's region is the apertures' bounds
+  // grown by their own size, so it holds the stroke at any size the opening
+  // is drawn large enough to see.
+  const maskElement = (id: string, clip: number, matrix: Affine): Element => {
+    const { minX, minY, maxX, maxY } = apertureBounds[clip]!;
+    const corners = [applyPoint(matrix, [minX, minY]), applyPoint(matrix, [maxX, minY]), applyPoint(matrix, [minX, maxY]), applyPoint(matrix, [maxX, maxY])];
+    const xs = corners.map((p) => p[0]),
+      ys = corners.map((p) => p[1]);
+    const pad = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    return {
+      tagName: "mask",
+      attributes: {
+        id,
+        maskUnits: "userSpaceOnUse",
+        x: `${round(Math.min(...xs) - pad)}`,
+        y: `${round(Math.min(...ys) - pad)}`,
+        width: `${round(Math.max(...xs) - Math.min(...xs) + 2 * pad)}`,
+        height: `${round(Math.max(...ys) - Math.min(...ys) + 2 * pad)}`,
       },
-    ],
-  });
+      children: [
+        {
+          tagName: "path",
+          attributes: {
+            ...(isIdentity(matrix) ? {} : { transform: formatAffine(matrix) }),
+            // Inline, so no style sheet the artwork carries outranks it.
+            style: `fill:#fff;stroke:#fff;stroke-width:${APERTURE_REACH * 2}px;stroke-linejoin:round;vector-effect:non-scaling-stroke`,
+            d: loopsPathData(restLoops[clip] ?? []),
+          },
+          children: [],
+        },
+      ],
+    };
+  };
   const wrap = (element: Element) => (clone: Element): Element => {
     let out = clone;
     for (const { id } of wrappers.get(element) ?? []) {
-      out = { tagName: "g", attributes: { "clip-path": `url(#${id})` }, children: [out] };
+      out = { tagName: "g", attributes: { mask: `url(#${id})` }, children: [out] };
     }
     return out;
   };
@@ -891,7 +944,7 @@ export function* bakeSteps(
     };
     copy(doc.root, root);
     const defs: Element = { tagName: "defs", attributes: {}, children: [] };
-    for (const [, list] of wrappers) for (const w of list) defs.children.push(clipPathElement(w.id, w.clip, w.matrix));
+    for (const [, list] of wrappers) for (const w of list) defs.children.push(maskElement(w.id, w.clip, w.matrix));
     if (defs.children.length) root.children.unshift(defs);
     return serialize(root);
   })();
@@ -1004,7 +1057,7 @@ export function* bakeSteps(
     }
     const { root, ids } = extractTree(doc!, keep, { extra, missing });
     if (used.length) {
-      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => clipPathElement(w.id, w.clip, w.matrix)) };
+      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => maskElement(w.id, w.clip, w.matrix)) };
       root.children.unshift(defs);
       for (const w of used) ids.add(w.id);
     }

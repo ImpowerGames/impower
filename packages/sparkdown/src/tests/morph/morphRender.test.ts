@@ -45,7 +45,7 @@ describe("artifact playback", () => {
     const d = (list: Element[]) => shown(list).filter((e) => e.attributes["data-name"] === "eyelash-left").map((e) => e.attributes["d"]);
     expect(d(mid)).toHaveLength(2);
     expect(d(mid)).not.toEqual(d(start));
-    const aperture = (list: Element[]) => list.find((e) => e.tagName === "clipPath")!.children[0] as Element;
+    const aperture = (list: Element[]) => list.find((e) => e.tagName === "mask")!.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
     expect(aperture(mid).attributes["d"]).not.toBe(aperture(start).attributes["d"]);
     // The clipped backing holds through the segment.
     expect(shown(mid).map((e) => e.attributes["data-name"])).toContain("eyeball-white-left");
