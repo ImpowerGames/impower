@@ -511,10 +511,29 @@ const holderSummary = (record, slot, observedAt) => ({ run: record.run, pool: re
   unitElapsedMs: elapsedSince(record.unitStartedAt, observedAt),
   lastProgressAgeMs: elapsedSince(record.progress?.at, observedAt) });
 
-// The pids the live holders' Vitest processes descend from: their coordinators,
-// whose identities the slot records' `running` state has just verified. The
-// census follows every process's parent chain to them.
-const accountedPids = records => new Set(records.map(record => record.owner?.pid).filter(pid => Number.isSafeInteger(pid) && pid > 0));
+// One identity lookup per pid within a transaction; each is a PowerShell call
+// on Windows, and a record's state and its accounted pids read the same ones.
+const memoized = identify => {
+  const seen = new Map();
+  return pid => { if (!seen.has(pid)) seen.set(pid, identify(pid)); return seen.get(pid); };
+};
+
+// The pids the live holders' Vitest processes descend from, each verified
+// against its recorded start identity: the coordinator while it lives, and,
+// when it is gone yet the record still counts as running because its
+// supervisor or engine lives on, the recorded launcher, helper and engine that
+// do. A pid alone is never trusted: a dead coordinator's pid can belong to a
+// direct Vitest call by now. The census follows every process's parent chain
+// to these pids.
+const accountedPids = (records, lookup) => {
+  const pids = new Set();
+  const live = value => Number.isSafeInteger(value?.pid) && value.pid > 0 && !!value.start && same(value, lookup(value.pid));
+  for (const record of records) {
+    if (live(record.owner)) { pids.add(record.owner.pid); continue; }
+    for (const value of [record.supervision?.launcher, record.supervision?.helper, record.child]) if (live(value)) pids.add(value.pid);
+  }
+  return pids;
+};
 
 const byArrival = (a, b) => Date.parse(a.arrivedAt) - Date.parse(b.arrivedAt) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0);
 
@@ -567,17 +586,18 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
   if (!Number.isFinite(freeMb)) throw new Error(`Free memory reading unavailable: ${String(freeMb)}`);
   return guarded(root, () => {
     const observedAt = Date.now();
+    const lookup = memoized(identify);
     const holders = [], interrupted = [];
     for (let index = 1; index <= slots; index++) {
       const file = slotFile(root, index);
       if (!fs.existsSync(file)) continue;
       const previous = read(file);
-      const state = reservationState(previous, identify, { uptime });
+      const state = reservationState(previous, lookup, { uptime });
       if (state === "running") { holders.push({ index, file, record: previous }); continue; }
       if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`), { holder: holderSummary(previous, index, observedAt) });
       interrupted.push({ index, file, record: previous });
     }
-    const foreign = census({ accounted: accountedPids(holders.map(holder => holder.record)) });
+    const foreign = census({ accounted: accountedPids(holders.map(holder => holder.record), lookup) });
     if (interrupted.length) {
       if (foreign.length) throw new Error(`Vitest processes still present: ${foreign.join(", ")}`);
       // Preserve process identity and the recovery decision before replacing
@@ -588,10 +608,10 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
       for (const { record: previous } of interrupted) atomic(path.join(root, `recovered-${previous.token}.json`), { ...previous, recoveredAt: new Date().toISOString() }, { admissionRoot: root });
     }
     const summaries = holders.map(holder => holderSummary(holder.record, holder.index, observedAt));
-    const owner = identify(process.pid);
+    const owner = lookup(process.pid);
     if (!owner) throw new Error("Coordinator identity unavailable");
     const mine = waiting ? { token: waiting.token, owner, pool, run, arrivedAt: waiting.arrivedAt } : null;
-    const candidates = [...waitingQueue(root, identify, holders.map(holder => holder.record)).filter(row => !mine || row.token !== mine.token), ...(mine ? [mine] : [])].sort(byArrival);
+    const candidates = [...waitingQueue(root, lookup, holders.map(holder => holder.record)).filter(row => !mine || row.token !== mine.token), ...(mine ? [mine] : [])].sort(byArrival);
     const position = mine ? candidates.findIndex(row => row.token === mine.token) + 1 : candidates.length + 1;
     const poolHolders = name => summaries.filter(holder => holder.pool === name).length;
     // A refused run with a wait holds its place with a row, written on its
@@ -740,12 +760,13 @@ export async function waitForUnit(reservation, { deadline = Date.now(), pollMs =
     let foreign;
     try {
       foreign = guarded(root, () => {
+        const lookup = memoized(identify);
         const records = [reservation.record];
         for (const file of slotFiles(root, slots)) {
           if (file === reservation.file) continue;
-          try { const record = read(file); if (reservationState(record, identify, { uptime }) === "running") records.push(record); } catch {}
+          try { const record = read(file); if (reservationState(record, lookup, { uptime }) === "running") records.push(record); } catch {}
         }
-        return census({ accounted: accountedPids(records) });
+        return census({ accounted: accountedPids(records, lookup) });
       // The guard wait stays inside the unit's remaining deadline, as the
       // admission's does inside its wait.
       }, Math.min(guardWaitMs, Math.max(0, deadline - Date.now())), identify, false, true);

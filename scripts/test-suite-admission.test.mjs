@@ -163,7 +163,26 @@ assert.equal(poolSlotLimit, 2);
   const gateElapsed = Date.now() - gated;
   fs.unlinkSync(path.join(store, "guard.json"));
   assert.ok(gateElapsed < 2500, `the unit gate gives up at its deadline, not after a whole guard wait (${gateElapsed} ms)`);
-  first.release(); third.release();
+  third.release();
+  // A record still running through its supervisor and engine after its
+  // coordinator died: the dead coordinator's pid, recycled by a direct Vitest
+  // call, is never exempt; the live supervisor and engine are. With a slot
+  // free, both the admission and the unit gate refuse the recycled pid as
+  // foreign.
+  const orphanToken = "orphaned-supervised", orphanAttempt = "0f6b1a2c-3d4e-4f50-8a9b-c0d1e2f3a4b5", orphanRun = path.join(scratch, "orphaned-run");
+  const supervisorIdentity = { launcher: { pid: 4000020, start: "supervisor" }, helper: { pid: 4000021, start: "supervisor" } };
+  fs.writeFileSync(slotFile(store, 2), JSON.stringify({ version: 2, token: orphanToken, owner: { pid: 4000011, start: "dead-coordinator" }, run: orphanRun, pool: "reviewer", slot: 2,
+    heldSince: new Date().toISOString(), heldUptime: os.uptime(), phase: "running", attempt: orphanAttempt, child: { pid: 4000012, start: "engine" },
+    supervision: { reservationToken: orphanToken, attemptId: orphanAttempt, directory: path.join(orphanRun, orphanAttempt), ...supervisorIdentity } }));
+  const recycled = { pid: 4000011, start: "direct-vitest" };
+  const orphanLive = { ...live, identify: pid => pid === owner.pid ? owner : pid === 4000011 ? recycled : pid === 4000020 || pid === 4000021 ? { pid, start: "supervisor" } : pid === 4000012 ? { pid: 4000012, start: "engine" } : null };
+  const exempt = [];
+  const recycledCensus = ({ accounted }) => { exempt.push([...accounted].sort()); return accounted.has(4000011) ? [] : [4000011]; };
+  assert.throws(() => acquire("beside a recycled coordinator pid", { ...orphanLive, pool: "writer", census: recycledCensus }), error => error.waitable === "vitest processes" && /already running: 4000011/.test(error.message), "admission refuses the recycled pid as foreign");
+  await assert.rejects(waitForUnit(first, { ...orphanLive, deadline: Date.now() + 1500, pollMs: 20, census: recycledCensus }), /still present: 4000011/, "the unit gate refuses the recycled pid as foreign");
+  assert.ok(exempt.length >= 2 && exempt.every(pids => !pids.includes(4000011) && pids.includes(4000020) && pids.includes(4000021) && pids.includes(4000012) && pids.includes(owner.pid)), `the live supervisor and engine are accounted for, the dead coordinator's pid is not: ${JSON.stringify(exempt)}`);
+  fs.unlinkSync(slotFile(store, 2));
+  first.release();
   assert.deepEqual(slotFiles(store).filter(file => fs.existsSync(file)), [], "every slot is released");
   console.log("PASS: a second and third run are admitted above the floor, a fourth waits on the cap, one pool keeps one slot free, the floor refuses admission and only delays a holder's next unit");
 }
@@ -201,7 +220,11 @@ assert.equal(poolSlotLimit, 2);
   a.release();
   await until(() => order.length === 3, "the third admission");
   assert.deepEqual(order, ["R1", "W1", "R2"], "then the remaining reviewer, as the last admitted run was a writer");
-  assert.ok(waits.W2.some(row => row.waiting === "queue" && /Queued behind the reviewer run R2/.test(row.detail)), "a waiter told to wait its turn reports whose turn it is");
+  // Whether W2 polls between a release and the next admission depends on
+  // timing; when it does, the row names whose turn it is.
+  const turns = waits.W2.filter(row => row.waiting === "queue");
+  assert.ok(turns.every(row => /Queued behind the reviewer run R[12]/.test(row.detail)), `a waiter told to wait its turn reports whose turn it is: ${JSON.stringify(turns.map(row => row.detail))}`);
+  assert.ok(waits.W2.every(row => ["reservation", "queue"].includes(row.waiting)), "a writer behind a full store waits on the store or on its turn");
   const [R1, W1, R2] = await Promise.all([r1, w1, r2]);
   assert.throws(() => acquire("no wait", { ...live, pool: "writer" }), error => error.waitable === "reservation");
   R1.release();
