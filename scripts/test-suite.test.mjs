@@ -10,6 +10,16 @@ import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { processIdentity } from "./test-suite-process.mjs";
 
+// The fixture runs below are writer-pool runs whoever runs this check, so a
+// reviewer's environment does not move their reservations to the reviewer pool.
+process.env.IMPOWER_TEST_POOL = "writer";
+// Admission reads the machine's free memory; these fixtures run on a machine
+// with plenty, and the single-slot store of the older design where a case
+// relies on the second run queueing behind the first.
+const plenty = () => 65536;
+// Admission leaves last-admitted.json, the hand-over note that steers the
+// queue, so the listings below look past it.
+
 if (process.argv.includes("--progress-boundaries") || process.argv.includes("--progress-first")) {
   await ownedProgressBoundaries();
 } else if (process.argv.includes("--owned-boundaries") || process.argv.includes("--waiting-holder") || process.argv.includes("--discovery-status")) {
@@ -42,7 +52,7 @@ for (const target of [path.join(packageScratch, "missing"), plainFile, noManifes
     await assert.rejects(packageMain([command, target, ...(command === "run" ? ["fixture.test.ts"] : [])], {
       vitestPath: plainFile,
       root: path.join(packageScratch, "reservation"),
-      census: () => { censusCalls++; throw new Error("must not queue"); },
+      memory: plenty, census: () => { censusCalls++; throw new Error("must not queue"); },
     }), error => error.message.includes(path.resolve(target)) && error.message.includes("package directory")
       && error.message.includes("packages/sparkdown"), `${command} explains invalid package path ${target}`);
     assert.equal(censusCalls, 0, "invalid package paths are refused before queue admission");
@@ -69,14 +79,14 @@ for (const requested of namespaceInputs) {
   assert.equal(fs.statSync(requested).isFile(), true, "namespace refusal covers an existing regular file");
   assert.equal(fs.realpathSync.native(requested), fs.realpathSync.native(path.join(literalPackage, "valid.test.ts")));
   await assert.rejects(packageMain(["run", literalPackage, requested], { vitestPath: literalChild, root: literalStore,
-    census: () => { throw new Error("unsupported namespace reached admission"); } }), /unsupported Windows namespace syntax.*ordinary relative or absolute path/);
+    memory: plenty, census: () => { throw new Error("unsupported namespace reached admission"); } }), /unsupported Windows namespace syntax.*ordinary relative or absolute path/);
 }
 for (const invalid of ["missing.test.ts", "valid.test.ts\r", "valid.test.ts\n", "valid.test.ts ", "*.test.ts", "valid?.test.ts", ...namespaceInputs,
   "--passWithNoTests", "directory.test.ts", "../outside.test.ts", "escape/outside.test.ts", "valid.ts", "valid.test.js"]) {
   let literalCensusCalls = 0;
   await assert.rejects(packageMain(["run", literalPackage, "valid.test.ts", invalid], {
     vitestPath: literalChild, root: literalStore,
-    census: () => { literalCensusCalls++; return []; },
+    memory: plenty, census: () => { literalCensusCalls++; return []; },
   }), error => error.message.includes(JSON.stringify(invalid)) && error.message.includes("test file")
     && !/[\r\n]/.test(error.message), "a mixed request refuses its escaped invalid input before queue admission");
   assert.equal(literalCensusCalls, 0);
@@ -110,7 +120,7 @@ if (process.platform === "win32") {
 for (const requested of validSpellings) {
   await assert.rejects(packageMain(["run", literalAlias, requested], {
     ...coordinatorDependencies, enginePath: literalChild, root: literalStore,
-    census: () => { throw new Error("valid alias reached queue admission"); },
+    memory: plenty, census: () => { throw new Error("valid alias reached queue admission"); },
   }), /valid alias reached queue admission/, "valid relative, physical and additional OS aliases reach admission");
 }
 const file = path.resolve("fixture.test.ts");
@@ -210,13 +220,13 @@ assert.throws(() => reservationState({ owner, phase: "running", child }, () => {
   const store = fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-boot-"));
   const self = pid => pid === process.pid ? { pid, start: "self" } : null;
   try {
-    const first = acquire("before restart", { root: store, census: () => [], identify: self, uptime: () => 3600, supervised: true, guardWaitMs: 0 });
+    const first = acquire("before restart", { root: store, memory: plenty, census: () => [], identify: self, uptime: () => 3600, supervised: true, guardWaitMs: 0 });
     assert.equal(first.record.heldUptime, 3600);
     first.update({ phase: "launching" });
-    assert.throws(() => acquire("same boot", { root: store, census: () => [], identify: () => null, uptime: sameBoot, guardWaitMs: 0 }), /Existing suite unknown/);
+    assert.throws(() => acquire("same boot", { root: store, memory: plenty, census: () => [], identify: () => null, uptime: sameBoot, guardWaitMs: 0 }), /Existing suite unknown/);
     fs.writeFileSync(path.join(store, "reservation.json"), JSON.stringify(supervised));
-    assert.throws(() => acquire("same boot", { root: store, census: () => [], identify: () => null, uptime: sameBoot, guardWaitMs: 0 }), /Existing suite unknown/);
-    const taken = acquire("after restart", { root: store, census: () => [], identify: self, uptime: afterRestart, guardWaitMs: 0 });
+    assert.throws(() => acquire("same boot", { root: store, memory: plenty, census: () => [], identify: () => null, uptime: sameBoot, guardWaitMs: 0 }), /Existing suite unknown/);
+    const taken = acquire("after restart", { root: store, memory: plenty, census: () => [], identify: self, uptime: afterRestart, guardWaitMs: 0 });
     assert.equal(read(path.join(store, `recovered-${supervised.token}.json`)).heldSince, heldSince);
     assert.notEqual(read(path.join(store, "reservation.json")).token, supervised.token);
     taken.release();
@@ -284,7 +294,7 @@ else {
   process.exitCode=failed?1:0;
 }`);
 const lockRoot = path.join(scratch, ".git", "machine");
-const options = { packageRoot: scratch, enginePath, root: lockRoot, census: () => [], fingerprint: () => "unchanged" };
+const options = { packageRoot: scratch, enginePath, root: lockRoot, slots: 1, memory: plenty, census: () => [], fingerprint: () => "unchanged" };
 Object.assign(options, coordinatorDependencies);
 fs.mkdirSync(path.join(scratch, "node_modules", "vitest"), { recursive: true });
 fs.writeFileSync(path.join(scratch, "node_modules", "vitest", "package.json"), '{"version":"2.1.9"}');
@@ -311,7 +321,7 @@ await assert.rejects(execute({ ...options, directory, fingerprint: () => "change
 const raceDirectory=path.join(scratch,".git","release-run");
 const raceHelper=path.join(scratch,".git","retry.mjs");
 fs.writeFileSync(raceHelper, `import {execute} from ${JSON.stringify(new URL("./test-suite.mjs",import.meta.url).href)};
-const result=await execute({...${JSON.stringify({...options,directory:raceDirectory,retry:[path.join(scratch,"b.spec.tsx")]})},census:()=>[],fingerprint:()=>"unchanged"});
+const result=await execute({...${JSON.stringify({...options,directory:raceDirectory,retry:[path.join(scratch,"b.spec.tsx")]})},memory:()=>65536,census:()=>[],fingerprint:()=>"unchanged"});
 if(result.status!=="passed")throw Error(JSON.stringify(result));`);
 fs.writeFileSync(path.join(scratch,".git","fail"),"");
 const originalUnlink=fs.unlinkSync;
@@ -360,16 +370,16 @@ assert.equal(status(nestedDirectory,{identify:coordinatorDependencies.identify})
 await assert.rejects(execute({...options,directory:nestedDirectory,fingerprint:fingerprinter()}),/identity changed/);
 console.log("PASS: release-boundary retries retain evidence and ignored configuration invalidates reuse");
 
-const reservation = acquire("first", { root: lockRoot, census: () => [] });
-assert.throws(() => acquire("second", { root: lockRoot, census: () => [] }), /running/);
+const reservation = acquire("first", { root: lockRoot, slots: 1, memory: plenty, census: () => [] });
+assert.throws(() => acquire("second", { root: lockRoot, slots: 1, memory: plenty, census: () => [] }), /running/);
 reservation.release();
-assert.throws(() => acquire("third", { root: lockRoot, census: () => [999] }), /already running/);
+assert.throws(() => acquire("third", { root: lockRoot, slots: 1, memory: plenty, census: () => [999] }), /already running/);
 fs.writeFileSync(path.join(lockRoot,"reservation.json"),"broken");
-assert.throws(() => acquire("fourth", {root:lockRoot,census:()=>[]}), /JSON|Unexpected/);
+assert.throws(() => acquire("fourth", {root:lockRoot,slots:1,memory:plenty,census:()=>[]}), /JSON|Unexpected/);
 fs.unlinkSync(path.join(lockRoot,"reservation.json"));
-const uncertain=acquire("uncertain", {root:lockRoot,census:()=>[],identify:()=>owner});
+const uncertain=acquire("uncertain", {root:lockRoot,slots:1,memory:plenty,census:()=>[],identify:()=>owner});
 uncertain.update({phase:"launching"});
-assert.throws(() => acquire("fifth",{root:lockRoot,census:()=>[],identify:()=>null}),/unknown/);
+assert.throws(() => acquire("fifth",{root:lockRoot,slots:1,memory:plenty,census:()=>[],identify:()=>null}),/unknown/);
 uncertain.update({phase:"exited"}); uncertain.release();
 
 // A waiting run queues on a live reservation, then holds it while other
@@ -378,31 +388,31 @@ const { acquireWaiting } = await import("./test-suite-process.mjs");
 const { runVitest } = await import("./test-suite.mjs");
 // Each wait signal advances the scenario one step, and a constant identity
 // keeps every attempt cheap, so no step depends on timers or machine load.
-const live = { root: lockRoot, identify: () => owner };
-const holder = acquire("holder", { ...live, census: () => [] });
+const live = { root: lockRoot, slots: 1, identify: () => owner };
+const holder = acquire("holder", { ...live, memory: plenty, census: () => [] });
 let present = [777];
 const waits = [];
-const waited = await acquireWaiting("queued", { ...live, waitMs: 60000, pollMs: 20, census: () => present,
+const waited = await acquireWaiting("queued", { ...live, waitMs: 60000, pollMs: 20, memory: plenty, census: () => present,
   onWait: ({ waiting }) => {
     waits.push(waiting);
     if (waiting === "reservation") holder.release();
     if (waiting === "vitest processes") {
-      assert.throws(() => acquire("racer", { ...live, census: () => [] }), /running/, "the reservation is held while waiting for other processes");
+      assert.throws(() => acquire("racer", { ...live, memory: plenty, census: () => [] }), /Queued behind/, "a run without a wait never passes a waiting run");
       present = [];
     }
   } });
 assert.deepEqual(waits, ["reservation", "vitest processes"], "the run queued on the reservation, then on the census");
-assert.throws(() => acquire("racer", { ...live, census: () => [] }), /running/, "the reservation stays held until released");
+assert.throws(() => acquire("racer", { ...live, memory: plenty, census: () => [] }), /running/, "the reservation stays held until released");
 waited.release();
-const blocker = acquire("blocker", { root: lockRoot, census: () => [] });
-await assert.rejects(acquireWaiting("impatient", { root: lockRoot, waitMs: 60, pollMs: 20, census: () => [] }), /Existing suite running/);
+const blocker = acquire("blocker", { root: lockRoot, slots: 1, memory: plenty, census: () => [] });
+await assert.rejects(acquireWaiting("impatient", { root: lockRoot, slots: 1, waitMs: 60, pollMs: 20, memory: plenty, census: () => [] }), /Existing suite running/);
 blocker.release();
-await assert.rejects(acquireWaiting("timeout", { root: lockRoot, waitMs: 60, pollMs: 20, census: () => [5] }), /still present: 5/);
-acquire("released after timeout", { root: lockRoot, census: () => [] }).release();
-const ambiguous = acquire("ambiguous", { root: lockRoot, census: () => [], identify: () => owner });
+await assert.rejects(acquireWaiting("timeout", { root: lockRoot, slots: 1, waitMs: 60, pollMs: 20, memory: plenty, census: () => [5] }), /already running: 5/);
+acquire("released after timeout", { root: lockRoot, slots: 1, memory: plenty, census: () => [] }).release();
+const ambiguous = acquire("ambiguous", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: () => owner });
 ambiguous.update({ phase: "launching" });
 let ambiguousWaits = 0;
-await assert.rejects(acquireWaiting("unknown", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => [], identify: () => null,
+await assert.rejects(acquireWaiting("unknown", { root: lockRoot, slots: 1, waitMs: 5000, pollMs: 20, memory: plenty, census: () => [], identify: () => null,
   onWait: () => { ambiguousWaits++; } }), /unknown/);
 assert.equal(ambiguousWaits, 0, "an ambiguous reservation refuses without queue polling, independent of process-lookup latency");
 ambiguous.update({ phase: "exited" }); ambiguous.release();
@@ -516,7 +526,7 @@ assert.throws(() => { releaseKeeping(unreleasable, cause); throw cause; }, /stil
 const deny = (name, code) => {
   const original = fs[name];
   fs[name] = () => { const error = new Error(`${code}: operation not permitted`); error.code = code; throw error; };
-  try { assert.throws(() => acquire("sandboxed", { root: path.join(lockRoot, "denied"), census: () => [] }),
+  try { assert.throws(() => acquire("sandboxed", { root: path.join(lockRoot, "denied"), memory: plenty, census: () => [] }),
     /Reservation store not writable at .*denied \((EPERM|EACCES)\).*cannot run Vitest here/, `${name} ${code}`); }
   finally { fs[name] = original; }
 };
@@ -544,11 +554,11 @@ if (process.platform === "win32") {
       const waits = [];
       let acquired;
       try { acquired = await acquireWaiting("transient file denial", { root: store, waitMs: 30000, pollMs: 5,
-        census: () => [], onWait: value => waits.push(value.waiting) }); }
+        memory: plenty, census: () => [], onWait: value => waits.push(value.waiting) }); }
       finally { fs[method] = original; }
       assert.ok(waits.includes("reservation files"), `${operation} ${code} reports contention`);
       acquired.release();
-      assert.deepEqual(fs.readdirSync(store), [], "successful retries leave no probe or abandoned temporary file");
+      assert.deepEqual(fs.readdirSync(store).filter(name => name !== "last-admitted.json"), [], "successful retries leave no probe or abandoned temporary file");
     }
   }
   const original = fs.renameSync;
@@ -560,11 +570,11 @@ if (process.platform === "win32") {
     }
     return original(source, target);
   };
-  try { await assert.rejects(acquireWaiting("bounded file denial", { root: store, waitMs: 100, pollMs: 5, census: () => [] }),
+  try { await assert.rejects(acquireWaiting("bounded file denial", { root: store, waitMs: 100, pollMs: 5, memory: plenty, census: () => [] }),
     /Reservation files busy.*EPERM/); }
   finally { fs.renameSync = original; }
   assert.ok(Date.now() - renameBegan < 500, "atomic rename does not add its independent one-second retry after admission expires");
-  assert.deepEqual(fs.readdirSync(store), [], "expired admission leaves no ownership or ambiguous temp evidence");
+  assert.deepEqual(fs.readdirSync(store).filter(name => name !== "last-admitted.json"), [], "expired admission leaves no ownership or ambiguous temp evidence");
   for (const code of ["EPERM", "EACCES", "EBUSY"]) {
     fs.writeFileSync(path.join(store, "guard.json"), JSON.stringify({ owner: { pid: 42, start: "dead" } }));
     const open = fs.openSync, link = fs.linkSync;
@@ -579,13 +589,13 @@ if (process.platform === "win32") {
       return link(source, target);
     };
     try { await assert.rejects(acquireWaiting("existing guard denied store", { root: store, waitMs: 5000,
-      guardWaitMs: 100, census: () => [], onWait: () => waits++ }),
+      guardWaitMs: 100, memory: plenty, census: () => [], onWait: () => waits++ }),
       error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
     finally { fs.openSync = open; fs.linkSync = link; }
     assert.equal(probes, 1);
     assert.equal(claims, 1, "existing guard store denial refuses on its first recovery claim");
     assert.equal(waits, 0);
-    assert.deepEqual(fs.readdirSync(store), ["guard.json"]);
+    assert.deepEqual(fs.readdirSync(store).filter(name => name !== "last-admitted.json"), ["guard.json"]);
     fs.unlinkSync(path.join(store, "guard.json"));
   }
   for (const code of ["EPERM", "EACCES", "EBUSY"]) {
@@ -598,12 +608,12 @@ if (process.platform === "win32") {
       }
       return open(target, ...args);
     };
-    try { await assert.rejects(acquireWaiting("denied store", { root: store, waitMs: 5000, census: () => [],
+    try { await assert.rejects(acquireWaiting("denied store", { root: store, waitMs: 5000, memory: plenty, census: () => [],
       onWait: () => waits++ }), error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
     finally { fs.openSync = open; }
     assert.equal(probes, 1, "genuine denial probes once and refuses before retrying");
     assert.equal(waits, 0);
-    assert.deepEqual(fs.readdirSync(store), []);
+    assert.deepEqual(fs.readdirSync(store).filter(name => name !== "last-admitted.json"), []);
   }
   for (const operation of ["open", "write", "read", "rename"]) {
     const guard = path.join(store, "guard.json");
@@ -634,11 +644,11 @@ if (process.platform === "win32") {
     const waits = [];
     let reservation;
     try { reservation = await acquireWaiting(`recovery ${operation}`, { root: store, waitMs: 30000, pollMs: 5,
-      census: () => [], identify: pid => pid === 42 ? null : processIdentity(pid), onWait: value => waits.push(value.waiting) }); }
+      memory: plenty, census: () => [], identify: pid => pid === 42 ? null : processIdentity(pid), onWait: value => waits.push(value.waiting) }); }
     finally { fs[method] = originalMethod; fs.openSync = open; fs.linkSync = link; }
     assert.ok(waits.includes("reservation files"), `recovery ${operation} waits using writable proof`);
     reservation.release();
-    const archive = fs.readdirSync(store);
+    const archive = fs.readdirSync(store).filter(name => name !== "last-admitted.json");
     assert.equal(archive.length, 1);
     assert.ok(archive[0].startsWith("recovered-guard-"));
     assert.equal(read(path.join(store, archive[0])).owner.start, "dead");
@@ -652,9 +662,9 @@ if (process.platform === "win32") {
     if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EBUSY" });
     return link(source, target);
   };
-  try { await assert.rejects(acquireWaiting("peer preserved", { root: store, waitMs: 50, pollMs: 5, census: () => [] }), /Reservation files busy/); }
+  try { await assert.rejects(acquireWaiting("peer preserved", { root: store, waitMs: 50, pollMs: 5, memory: plenty, census: () => [] }), /Reservation files busy/); }
   finally { fs.linkSync = link; }
-  assert.deepEqual(fs.readdirSync(store).filter(name => name.startsWith("creating-")), [], "a refused publication removes its private file");
+  assert.deepEqual(fs.readdirSync(store).filter(name => name !== "last-admitted.json").filter(name => name.startsWith("creating-")), [], "a refused publication removes its private file");
   assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
   fs.unlinkSync(path.join(store, "reservation.json"));
   // Failure cleaning the private probe cannot claim writable proof or retry.
@@ -671,7 +681,7 @@ if (process.platform === "win32") {
     }
     return unlink(target);
   };
-  try { await assert.rejects(acquireWaiting("uncertain cleanup", { root: store, waitMs: 5000, census: () => [],
+  try { await assert.rejects(acquireWaiting("uncertain cleanup", { root: store, waitMs: 5000, memory: plenty, census: () => [],
     onWait: () => assert.fail("uncertain probe cleanup retried") }), /private probe cleanup denied/); }
   finally { fs.linkSync = link; fs.unlinkSync = unlink; }
   assert.equal(fs.existsSync(path.join(store, "reservation.json")), false);
@@ -691,7 +701,7 @@ if (process.platform === "win32") {
     if (fd === probeFd) throw new Error("probe identity unavailable");
     return fstat(fd, ...args);
   };
-  try { await assert.rejects(acquireWaiting("unknown probe identity", { root: store, waitMs: 5000, census: () => [],
+  try { await assert.rejects(acquireWaiting("unknown probe identity", { root: store, waitMs: 5000, memory: plenty, census: () => [],
     onWait: () => assert.fail("unknown probe identity retried") }), /Private reservation probe identity unavailable/); }
   finally { fs.openSync = open; fs.linkSync = link; fs.fstatSync = fstat; }
   assert.equal(fs.existsSync(unknownProbe), true, "a probe with uncertain identity remains for inspection");
@@ -702,11 +712,11 @@ if (process.platform === "win32") {
     if (target === path.join(store, "reservation.json")) throw Object.assign(new Error("replacement denied"), { code: "EACCES" });
     return original(source, target);
   };
-  try { await assert.rejects(acquireWaiting("preserve old record", { root: store, waitMs: 1, census: () => [],
+  try { await assert.rejects(acquireWaiting("preserve old record", { root: store, waitMs: 1, memory: plenty, census: () => [],
     identify: pid => pid === 42 ? null : processIdentity(pid) }), /Reservation files busy/); }
   finally { fs.renameSync = original; }
   assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
-  assert.equal(fs.readdirSync(store).some(name => name.endsWith(".tmp")), false);
+  assert.equal(fs.readdirSync(store).filter(name => name !== "last-admitted.json").some(name => name.endsWith(".tmp")), false);
   fs.unlinkSync(path.join(store, "reservation.json"));
   fs.unlinkSync(path.join(store, "recovered-peer.json"));
   // Once atomic publication succeeded, a guard cleanup failure must not replay
@@ -720,7 +730,7 @@ if (process.platform === "win32") {
     if (target === path.join(store, "guard.json")) throw Object.assign(new Error("published guard cleanup denied"), { code: "EPERM" });
     return unlink(target);
   };
-  try { await assert.rejects(acquireWaiting("already published", { root: store, waitMs: 5000, census: () => [],
+  try { await assert.rejects(acquireWaiting("already published", { root: store, waitMs: 5000, memory: plenty, census: () => [],
     onWait: () => assert.fail("published acquisition replayed") }), /published guard cleanup denied/); }
   finally { fs.renameSync = original; fs.unlinkSync = unlink; }
   assert.equal(publications, 1);
@@ -730,7 +740,7 @@ if (process.platform === "win32") {
   console.log("PASS: Windows reservation file contention retries within its deadline using clean private probes");
 } else console.log("SKIP: Windows reservation file contention controls require Windows");
 console.log("PASS: a held reservation guard delays release and never replaces the Vitest result");
-const busy = acquire("busy", { root: lockRoot, census: () => [] });
+const busy = acquire("busy", { root: lockRoot, slots: 1, memory: plenty, census: () => [] });
 await assert.rejects(runVitest({ ...options,files:["a.test.ts"],enginePath:fakeVitest,stdio:"ignore" }), /Existing suite running/);
 busy.release();
 {
@@ -754,7 +764,7 @@ assert.equal(await main(["run", path.relative(process.cwd(), scratch), "a.test.t
   "valid relative package directories still launch Vitest");
 assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 1, "run reports aggregate failure while retaining raw unit exit");
 assert.ok(!read(fakeRecord).argv.includes("--wait"),"--wait and its value are not passed to the engine");
-const cliHolder = acquire("cli holder", { root: lockRoot, census: () => [] });
+const cliHolder = acquire("cli holder", { root: lockRoot, slots: 1, memory: plenty, census: () => [] });
 for (const argv of [["run", scratch, "a.test.ts", "--wait", "3"], ["start", scratch, "--wait", "3"], ["resume", directory, "--wait", "3"]]) {
   const began = Date.now();
   await assert.rejects(main(argv, { ...seam, pollMs: 10000, enginePath, fingerprint: () => "unchanged" }), /Existing suite running/, argv[0]);
@@ -762,7 +772,7 @@ for (const argv of [["run", scratch, "a.test.ts", "--wait", "3"], ["start", scra
 }
 cliHolder.release();
 const cliCensusStart = Date.now();
-await assert.rejects(main(["start", scratch, "--wait", "3"], { ...seam, census: () => [5], pollMs: 10000 }), /still present: 5/);
+await assert.rejects(main(["start", scratch, "--wait", "3"], { ...seam, memory: plenty, census: () => [5], pollMs: 10000 }), /still present: 5/);
 assert.ok(Date.now() - cliCensusStart < 8000, "the census wait also stops at its bound");
 assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "a timed-out start releases the reservation");
 await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait takes a number of seconds/);
@@ -802,7 +812,7 @@ const { notRunExit } = await import("./test-suite.mjs");
 fs.writeFileSync(guardFile, "{}");
 const guardWaits = [];
 setTimeout(() => fs.unlinkSync(guardFile), 600);
-const queued = await acquireWaiting("guard contention", { root: lockRoot, waitMs: 5000, pollMs: 50, guardWaitMs: 100, census: () => [], onWait: w => guardWaits.push(w.waiting) });
+const queued = await acquireWaiting("guard contention", { root: lockRoot, slots: 1, waitMs: 5000, pollMs: 50, guardWaitMs: 100, memory: plenty, census: () => [], onWait: w => guardWaits.push(w.waiting) });
 assert.ok(guardWaits.includes("guard"), "a held guard is reported as a wait");
 queued.release();
 fs.writeFileSync(guardFile, "{}");
@@ -813,7 +823,7 @@ await assert.rejects(main(["run", scratch, "a.test.ts", "--wait", "1"], { ...sea
 assert.ok(Date.now() - guardBegan >= 1000, "the guard is retried until --wait expires");
 // The default five-second transaction bound never carries the wait past --wait.
 const boundBegan = Date.now();
-await assert.rejects(acquireWaiting("bounded", { root: lockRoot, waitMs: 1000, pollMs: 50, census: () => [] }), error => error.guardHeld === true);
+await assert.rejects(acquireWaiting("bounded", { root: lockRoot, slots: 1, waitMs: 1000, pollMs: 50, memory: plenty, census: () => [] }), error => error.guardHeld === true);
 const boundElapsed = Date.now() - boundBegan;
 assert.ok(boundElapsed >= 1000 && boundElapsed < 2500, `a held guard refuses at --wait 1, not after the transaction bound (${boundElapsed} ms)`);
 fs.unlinkSync(guardFile);
@@ -831,7 +841,7 @@ const abandoned = JSON.stringify({ owner: deadOwner });
 fs.writeFileSync(guardFile, abandoned);
 const recoveredGuards = () => fs.readdirSync(lockRoot).filter(name => /^recovered-guard-.*\.json$/.test(name));
 const recoveredBefore = recoveredGuards().length;
-const afterAbandoned = acquire("abandoned guard", { root: lockRoot, census: () => [], identify: pid => pid === deadOwner.pid ? null : processIdentity(pid), guardWaitMs: 100 });
+const afterAbandoned = acquire("abandoned guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: pid => pid === deadOwner.pid ? null : processIdentity(pid), guardWaitMs: 100 });
 assert.equal(fs.existsSync(guardFile), false, "the abandoned guard is not left in place");
 assert.equal(recoveredGuards().length, recoveredBefore + 1, "the abandoned guard is renamed to recovered-guard-<time>.json");
 assert.equal(fs.readFileSync(path.join(lockRoot, recoveredGuards().at(-1)), "utf8"), abandoned, "the recovered guard keeps the recorded owner");
@@ -844,7 +854,7 @@ for (const [label, identify, record] of [
   ["malformed JSON", () => null, "{"],
 ]) {
   fs.writeFileSync(guardFile, record);
-  assert.throws(() => acquire(label, { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }), error => error.guardHeld === true && /Reservation transaction unavailable/.test(error.message), `${label} keeps the guard held`);
+  assert.throws(() => acquire(label, { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }), error => error.guardHeld === true && /Reservation transaction unavailable/.test(error.message), `${label} keeps the guard held`);
   assert.equal(fs.readFileSync(guardFile, "utf8"), record, `${label}: the guard is untouched`);
   fs.unlinkSync(guardFile);
 }
@@ -854,12 +864,12 @@ assert.equal(recoveredGuards().length, recoveredBefore + 1, "no held guard was r
 // instead of recovering it, so the first's rename can only move the guard it read.
 fs.writeFileSync(guardFile, abandoned);
 let nestedFailure = null, nestedBegan = false, guardDuringNested = null, claimDuringRecovery = null;
-const outer = acquire("first recoverer", { root: lockRoot, census: () => [], guardWaitMs: 2000, identify: pid => {
+const outer = acquire("first recoverer", { root: lockRoot, slots: 1, memory: plenty, census: () => [], guardWaitMs: 2000, identify: pid => {
   if (pid !== deadOwner.pid) return processIdentity(pid);
   if (!nestedBegan) {
     nestedBegan = true;
     claimDuringRecovery = JSON.parse(fs.readFileSync(path.join(lockRoot, "guard-recovery.json"), "utf8"));
-    try { acquire("second recoverer", { root: lockRoot, census: () => [], guardWaitMs: 100, identify: owner => owner === deadOwner.pid ? null : processIdentity(owner) }); }
+    try { acquire("second recoverer", { root: lockRoot, slots: 1, memory: plenty, census: () => [], guardWaitMs: 100, identify: owner => owner === deadOwner.pid ? null : processIdentity(owner) }); }
     catch (error) { nestedFailure = error; }
     guardDuringNested = fs.readFileSync(guardFile, "utf8");
   }
@@ -875,13 +885,13 @@ outer.release();
 const claimFile = path.join(lockRoot, "guard-recovery.json");
 fs.writeFileSync(guardFile, abandoned);
 fs.writeFileSync(claimFile, "{}");
-assert.throws(() => acquire("claimed", { root: lockRoot, census: () => [], guardWaitMs: 100, identify: () => null }), error => error.guardHeld === true);
+assert.throws(() => acquire("claimed", { root: lockRoot, slots: 1, memory: plenty, census: () => [], guardWaitMs: 100, identify: () => null }), error => error.guardHeld === true);
 assert.equal(fs.readFileSync(guardFile, "utf8"), abandoned, "an unrecovered claim leaves the guard in place");
 assert.equal(fs.existsSync(claimFile), true, "the claim is never removed on another process's behalf");
 fs.unlinkSync(claimFile);
 fs.unlinkSync(guardFile);
 fs.writeFileSync(claimFile, "{}");
-const normalWithClaim = acquire("normal transaction with abandoned recovery claim", { root: lockRoot, census: () => [] });
+const normalWithClaim = acquire("normal transaction with abandoned recovery claim", { root: lockRoot, slots: 1, memory: plenty, census: () => [] });
 normalWithClaim.release();
 assert.equal(fs.readFileSync(claimFile, "utf8"), "{}", "an abandoned recovery claim does not block or change normal transactions");
 fs.unlinkSync(claimFile);
@@ -894,12 +904,12 @@ fs.unlinkSync(claimFile);
   const strays = () => fs.readdirSync(lockRoot).filter(name => /^guard-recovery/.test(name));
   const live = processIdentity(process.pid);
   const identify = pid => pid === deadOwner.pid ? null : processIdentity(pid);
-  const held = (label) => assert.throws(() => acquire(label, { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }), error => error.guardHeld === true, `${label} keeps the guard held`);
+  const held = (label) => assert.throws(() => acquire(label, { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }), error => error.guardHeld === true, `${label} keeps the guard held`);
 
   let count = recoveredGuards().length;
   fs.writeFileSync(guardFile, "");
   age(guardFile);
-  acquire("old empty guard", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+  acquire("old empty guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
   assert.equal(recoveredGuards().length, ++count, "an old empty guard is renamed aside");
 
   for (const [label, claim] of [["an old empty claim", ""], ["a dead recoverer's claim", abandoned]]) {
@@ -907,7 +917,7 @@ fs.unlinkSync(claimFile);
     fs.writeFileSync(guardFile, abandoned);
     fs.writeFileSync(claimFile, claim);
     if (claim === "") age(claimFile);
-    acquire(label, { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+    acquire(label, { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
     assert.equal(recoveredClaims().length, claims + 1, `${label} is renamed aside`);
     assert.equal(recoveredGuards().length, ++count, `${label} no longer blocks guard recovery`);
     assert.deepEqual(strays(), [], `${label}: no claim or takeover is left behind`);
@@ -933,7 +943,7 @@ fs.unlinkSync(claimFile);
   assert.equal(fs.readFileSync(claimFile, "utf8"), abandoned, "the claim under another's takeover is untouched");
   // The takeover's own holder dying is recovered the same way, one level down.
   fs.writeFileSync(takeover, abandoned);
-  acquire("dead takeover holder", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+  acquire("dead takeover holder", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
   assert.equal(recoveredGuards().length, ++count, "a dead takeover holder no longer blocks recovery");
   assert.deepEqual(strays(), [], "no claim or takeover is left behind after nested recovery");
 
@@ -951,7 +961,7 @@ fs.unlinkSync(claimFile);
     if (to === guardFile) published ??= fs.readFileSync(from, "utf8");
     return link(from, to);
   };
-  try { acquire("published guard", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release(); }
+  try { acquire("published guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release(); }
   finally { fs.linkSync = link; }
   assert.deepEqual(JSON.parse(published), { owner: live }, "the guard carries its owner when it appears");
   assert.deepEqual(creating(), [], "the private file is removed after publishing");
@@ -976,7 +986,7 @@ fs.unlinkSync(claimFile);
   const liveTemp = path.join(lockRoot, `creating-${live.pid}-${live.start}-0000beef.tmp`);
   const unrelated = path.join(lockRoot, "creating-notes.txt");
   for (const file of [deadTemp, liveTemp, unrelated]) { fs.writeFileSync(file, abandoned); age(file); }
-  acquire("after a killed creator", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+  acquire("after a killed creator", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
   assert.equal(fs.existsSync(guardFile), false, "a killed creator's private file never became a guard");
   assert.equal(fs.existsSync(deadTemp), false, "a dead creator's private file is swept");
   assert.equal(fs.existsSync(liveTemp), true, "a live creator's private file is kept however old");
@@ -993,10 +1003,10 @@ fs.unlinkSync(claimFile);
     return unlink(file);
   };
   try {
-    acquire("private file removal refused", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+    acquire("private file removal refused", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
     assert.ok(creating().length > 0, "a refused removal leaves the private file for now");
     refusing = false;
-    acquire("after a refused removal", { root: lockRoot, census: () => [], identify, guardWaitMs: 100 }).release();
+    acquire("after a refused removal", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
   } finally { fs.unlinkSync = unlink; }
   assert.deepEqual(creating(), [], "the creator's next transaction removes the private files it left");
 }
@@ -1011,7 +1021,7 @@ console.log("PASS: a guard whose owner is gone is recovered and a live or unread
   fs.writeFileSync(guardFile, abandoned);
   let crossed = false;
   const count = recoveredGuards().length;
-  assert.throws(() => acquire("generation race", { root: lockRoot, census: () => [], guardWaitMs: 50,
+  assert.throws(() => acquire("generation race", { root: lockRoot, slots: 1, memory: plenty, census: () => [], guardWaitMs: 50,
     identify: pid => {
       if (pid !== deadOwner.pid) return processIdentity(pid);
       if (!crossed) {
@@ -1028,8 +1038,8 @@ console.log("PASS: a guard whose owner is gone is recovered and a live or unread
   fs.unlinkSync(guardFile);
   fs.unlinkSync(oldGeneration);
   for (const failAction of [false, true]) {
-    assert.throws(() => acquire("cleanup replacement", { root: lockRoot, guardWaitMs: 50,
-      census: () => {
+    assert.throws(() => acquire("cleanup replacement", { root: lockRoot, slots: 1, guardWaitMs: 50,
+      memory: plenty, census: () => {
         fs.renameSync(guardFile, oldGeneration);
         fs.writeFileSync(guardFile, peerGuard);
         if (failAction) throw new Error("original admission refusal");
@@ -1040,7 +1050,7 @@ console.log("PASS: a guard whose owner is gone is recovered and a live or unread
     fs.unlinkSync(oldGeneration);
     if (fs.existsSync(path.join(lockRoot, "reservation.json"))) fs.unlinkSync(path.join(lockRoot, "reservation.json"));
   }
-  const missing = acquire("already removed guard", { root: lockRoot, census: () => {
+  const missing = acquire("already removed guard", { root: lockRoot, slots: 1, memory: plenty, census: () => {
     fs.unlinkSync(guardFile);
     return [];
   } });
@@ -1055,7 +1065,7 @@ console.log("PASS: recovery and cleanup preserve the observed guard generation, 
   const reservationFile = path.join(lockRoot, "reservation.json");
   fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=Number(process.argv[2]);`);
   const refusal = await runVitest({ ...options,files:["a.test.ts"],enginePath:childFile,stdio:"ignore",
-    census: () => { atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
+    memory: plenty, census: () => { atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
   });
   assert.equal(refusal.exit,75);
   assert.match(refusal.reservationError,/ownership changed/);
@@ -1128,7 +1138,7 @@ for(const boundary of ["refused","positive","abandoned"]) {
     assert.equal(result.observedAttempts[0].status,"unknown");
     const bytes=fs.readFileSync(reservationFile,"utf8");
     assert.equal(reservationState(read(reservationFile),()=>null),"unknown","Abandoned possible launch without identities/proof cannot reclaim");
-    assert.throws(()=>acquire("after abandoned entry",{root:lockRoot,census:()=>[],identify:()=>null}),/unknown/);
+    assert.throws(()=>acquire("after abandoned entry",{root:lockRoot,slots:1,memory:plenty,census:()=>[],identify:()=>null}),/unknown/);
     assert.equal(fs.readFileSync(reservationFile,"utf8"),bytes);
     // This unit callback never launches anything. Its own synthetic reservation
     // is removed only after asserting the production recovery refusal.
@@ -1163,7 +1173,7 @@ for (const mode of ["mkdir", "save", "open", "environment", "spawn", "launch-upd
   assert.equal(notRunExit(failure, () => {}), 75);
   assert.equal(launched, mode === "spawn" ? 1 : 0, "no engine launches during preparation failure");
   assert.equal(fs.existsSync(reservationFile), false, "no-child setup failure releases its own reservation");
-  const next = acquire("after setup failure", { root: lockRoot, census: () => [], identify: setupIdentify });
+  const next = acquire("after setup failure", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: setupIdentify });
   next.release();
 }
 
@@ -1236,7 +1246,7 @@ for (const afterDiscovery of [false, true]) for (const peer of [false, true]) {
     assert.equal(read(reservationFile).token, "launch-peer");
     assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
     fs.unlinkSync(reservationFile);
-  } else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next launch", { root: lockRoot, census: () => [], identify: setupIdentify }); next.release(); }
+  } else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next launch", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: setupIdentify }); next.release(); }
 }
 
 // Parent log-close ownership moved into the native helper. Its reached real
@@ -1329,7 +1339,7 @@ await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/"
     fs.unlinkSync(reservationFile);
   } else {
     assert.equal(fs.existsSync(reservationFile), false);
-    const next = acquire("after coordinator publication", { root: lockRoot, census: () => [], identify: setupIdentify });
+    const next = acquire("after coordinator publication", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: setupIdentify });
     next.release();
   }
 }
@@ -1391,7 +1401,7 @@ await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/"
     fs.unlinkSync(reservationFile);
   } else {
     assert.equal(fs.existsSync(reservationFile), false);
-    const next = acquire("after stale publication failure", { root: lockRoot, census: () => [], identify: setupIdentify });
+    const next = acquire("after stale publication failure", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: setupIdentify });
     next.release();
   }
 }
@@ -1440,7 +1450,7 @@ for (const peer of [false, true]) {
     fs.unlinkSync(reservationFile);
   } else {
     assert.equal(fs.existsSync(reservationFile), false);
-    const next = acquire("after saved stale refusal", { root: lockRoot, census: () => [], identify: setupIdentify });
+    const next = acquire("after saved stale refusal", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: setupIdentify });
     next.release();
   }
   await assert.rejects(execute({ ...options, identify: setupIdentify, prepareChild: refuseLaunch,
@@ -1471,7 +1481,7 @@ for (const peer of [false, true]) {
   assert.equal(injected, true); assert.equal(result.exit,75); assert.equal(fs.existsSync(marker), false);
   assert.match(result.reservationError, /controlled direct/);
   if (peer) { assert.match(result.releaseError, /ownership changed/); assert.equal(read(reservationFile).token, "direct-launch-peer"); fs.unlinkSync(reservationFile); }
-  else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next direct", { root: lockRoot, census: () => [], identify: setupIdentify }); next.release(); }
+  else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next direct", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: setupIdentify }); next.release(); }
 }
 
 for (const afterDiscovery of [false, true]) {
@@ -1485,7 +1495,7 @@ await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/"
   let censusCalls = 0, failure, result, priorJournal;
   try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
     identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" },
-    census: () => {
+    memory: plenty, census: () => {
       if (++censusCalls === (afterDiscovery ? 2 : 1)) {
         atomic(reservationFile, { ...read(reservationFile), token: "peer-before-durable-child" });
         if (afterDiscovery) priorJournal = fs.readFileSync(path.join(resultDirectory, "run.json"), "utf8");
@@ -1618,7 +1628,7 @@ console.log("PASS: malformed reports and denied/missing output retain observed e
 
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
-await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, census:()=>[], fingerprint:()=>"unchanged"});`);
+await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, memory:()=>65536,census:()=>[], fingerprint:()=>"unchanged"});`);
 fs.writeFileSync(path.join(scratch, ".git", "slow"), "");
 const coordinatorLog=path.join(scratch,".git","coordinator.log");
 const coordinatorOutput=fs.openSync(coordinatorLog,"wx");
@@ -1646,7 +1656,7 @@ await until(() => {
 }, "second file running");
 assert.equal(status(interrupted, { fingerprint: () => "unchanged" }).unfinished[0].status, "running", "yield remains observable");
 assert.equal(status(interrupted, { fingerprint: () => { throw Error("live status must not scan inputs"); } }).status, "running");
-await assert.rejects(execute({packageRoot:scratch,enginePath,root:lockRoot,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted}), /running/);
+await assert.rejects(execute({packageRoot:scratch,enginePath,root:lockRoot,slots:1,memory:plenty,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted}), /running/);
 launched.kill();
 await exited;
 assert.notDeepEqual(processIdentity(coordinatorIdentity.pid),coordinatorIdentity);
@@ -1679,7 +1689,7 @@ assert.notDeepEqual(processIdentity(active.child.pid),active.child,"Original roo
   if(!interruptionFailure)assert.equal(cleanupError,null,"Failed fixture must retain unknown rather than advance without owned disposition");
 }
 assert.equal(status(interrupted, { fingerprint: () => "unchanged" }).unfinished[0].status, "interrupted");
-assert.equal((await execute({packageRoot:scratch,enginePath,root:lockRoot,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted})).status,"passed");
+assert.equal((await execute({packageRoot:scratch,enginePath,root:lockRoot,slots:1,memory:plenty,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted})).status,"passed");
 const resumed = read(path.join(interrupted, "run.json"));
 assert.equal(resumed.attempts.filter(a => a.file?.endsWith("a.test.ts")).length, 1, "completed file retained");
 assert.equal(resumed.attempts.filter(a => a.file?.endsWith("b.spec.tsx")).length, 2, "incomplete file retried once");
@@ -1779,7 +1789,7 @@ Module._resolveFilename=function(request,parent,...rest) {
   return resolve.call(this,request,parent,...rest);
 };
 await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href)});`);
-  const realOptions={directory:realDirectory,packageRoot:real,enginePath:isolatedEngine,root:path.join(real,".git","reservation"),census:()=>vitestProcesses({within:real}),fingerprint:()=>"fixed fixture inputs"};
+  const realOptions={directory:realDirectory,packageRoot:real,enginePath:isolatedEngine,root:path.join(real,".git","reservation"),memory:plenty,census:()=>vitestProcesses({within:real}),fingerprint:()=>"fixed fixture inputs"};
   const result=await execute(realOptions);
   assert.equal(result.status,"passed",JSON.stringify(result));
   assert.equal(result.expected,3);
@@ -1803,7 +1813,7 @@ await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href
   fs.mkdirSync(path.join(real,"shared"));
   const leak=`import {it,expect} from "vitest"; it("fresh document",()=>{expect(document.body.dataset.seen).toBeUndefined();document.body.dataset.seen="1";expect(globalThis.leaked).toBeUndefined();globalThis.leaked=true;});`;
   for(const name of ["first.test.ts","second.test.ts"]) fs.writeFileSync(path.join(real,"shared",name),leak);
-  const shared=await runVitest({packageRoot:real,files:["shared/first.test.ts","shared/second.test.ts"],root:path.join(real,".git","reservation"),census:()=>vitestProcesses({within:real}),stdio:"ignore"});
+  const shared=await runVitest({packageRoot:real,files:["shared/first.test.ts","shared/second.test.ts"],root:path.join(real,".git","reservation"),memory:plenty,census:()=>vitestProcesses({within:real}),stdio:"ignore"});
   assert.equal(shared.exit,0,"each file gets a fresh environment in the one worker");
   console.log("PASS: run gives each file a fresh jsdom environment in one worker");
   // The owned full-install CI must exercise repository callers too, rather
@@ -1834,11 +1844,11 @@ async function ownedBoundaries() {
   const discoveryOnly = process.argv.includes("--discovery-status");
   if (!discoveryOnly) {
   const holderRoot = path.join(base, "waiting-reservation"), rows = [];
-  const holder = acquire("real waiting holder", { root: holderRoot, census: () => [] });
+  const holder = acquire("real waiting holder", { root: holderRoot, slots: 1, memory: plenty, census: () => [] });
   const progressAt = new Date().toISOString();
   holder.update({ unitStartedAt: progressAt, progress: { at: progressAt, event: "collected" } });
   try {
-    await assert.rejects(acquireWaiting("queued observer", { root: holderRoot, census: () => [],
+    await assert.rejects(acquireWaiting("queued observer", { root: holderRoot, slots: 1, memory: plenty, census: () => [],
       // Guard creation itself records a fresh OS identity. Five seconds allows
       // repeated real Windows CIM transactions without replacing that boundary.
       waitMs: 5000, pollMs: 100, onWait: value => rows.push(value) }), /Existing suite running/);
@@ -1864,7 +1874,7 @@ async function ownedBoundaries() {
     fs.writeFileSync(path.join(packageRoot, ".gitignore"), 'node_modules/');
     execFileSync("git", ["-C", packageRoot, "add", "package.json", "a.test.ts", ".gitignore"], { windowsHide: true });
     return { packageRoot, root: path.join(packageRoot, ".git", "reservation"), files: ["a.test.ts"],
-      enginePath, stdio: "ignore", census: () => [], fingerprint: () => "unchanged" };
+      enginePath, stdio: "ignore", memory: plenty, census: () => [], fingerprint: () => "unchanged" };
   };
   const events = options => {
     try { return fs.readFileSync(path.join(options.packageRoot, ".git", "engine-control-events.jsonl"), "utf8").trim().split("\n").map(JSON.parse); }
@@ -2027,7 +2037,7 @@ async function ownedProgressBoundaries() {
       return rename(from,to);
     };
     let result;
-    try {result=await runVitest({packageRoot,files:["a.test.ts"],root,census:()=>[],stdio:"ignore",
+    try {result=await runVitest({packageRoot,files:["a.test.ts"],root,memory:plenty,census:()=>[],stdio:"ignore",
       enginePath:fileURLToPath(new URL("./fixtures/test-suite-engine-control.mjs",import.meta.url)),
       fileTimeoutMs:outcome===124?2500:1800000});}
     finally {fs.renameSync=rename;}
