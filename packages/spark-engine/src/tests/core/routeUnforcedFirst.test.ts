@@ -222,4 +222,14 @@ end
     expect(route?.conditions.at(-1)).toEqual({ selected: false });
     expect(lastSearchStats.endReason).toBe("found");
   });
+
+  test("is routed past a run of the story's own that never ends, under the default ceilings", () => {
+    // The run goes on until a ceiling (here the time backstop) ends it, and
+    // the forced exit the full search found is then the route, not a search
+    // that gave up.
+    const program = compileSrc(ENDLESS);
+    const route = planRoute(newGame(program).story, "start", addressOf(program, 8));
+    expect(route?.conditions.at(-1)).toEqual({ selected: false });
+    expect(lastSearchStats.endReason).toBe("found");
+  }, 180_000);
 });
