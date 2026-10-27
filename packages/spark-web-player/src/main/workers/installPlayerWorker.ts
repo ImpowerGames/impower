@@ -2,7 +2,6 @@ import type { MessageConnection } from "@impower/jsonrpc/src/browser/classes/Mes
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
-import { SymbolKind } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -924,12 +923,12 @@ export function installPlayerWorker(connection: MessageConnection) {
    * `end`, that line is the flow's own: a scene's `end` passes over the
    * branches written inside the scene, which the scene does not run through,
    * and an empty scene's or branch's `end` holds the flow's own address. A
-   * scene with no such line of its own whose content starts with a branch it
-   * enters takes that branch's, and any other flow with none (a scene whose
-   * first branch takes parameters) takes the nearest line above it that has
-   * one. With no such
-   * line above, the point stands, and a run from it starts from where its
-   * address leads, or from the top of the top-level content.
+   * scene with no such line of its own enters its first branch when that
+   * branch takes no parameters, so it takes that branch's, and any other flow
+   * with none (a scene whose first branch takes parameters) takes the
+   * nearest line above it that has one. With no such line above, the point
+   * stands, and a run from it starts from where its address leads, or from
+   * the top of the top-level content.
    */
   const startPoint = (
     program: SparkProgram,
@@ -947,7 +946,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const lineAbove = (
       from: number,
       floor: number,
-      skipped: [number, number][],
+      skipped: readonly (readonly [number, number, boolean])[],
     ) => {
       for (let line = from; line > floor; line -= 1) {
         if (skipped.some(([header, end]) => header <= line && line <= end)) {
@@ -969,38 +968,19 @@ export function installPlayerWorker(connection: MessageConnection) {
       if (own) {
         return own;
       }
-      // A scene whose content starts with a branch it enters ends as that
-      // branch does.
-      const entered = enteredBranchHeader(program, point.file, header);
-      const branch = ends.find(([h]) => h === entered);
-      const branchOwn = branch && lineAbove(branch[1], branch[0], []);
-      if (branchOwn) {
-        return branchOwn;
+      // A scene that runs nothing of its own before its first branch enters
+      // that branch when it takes no parameters (`programFlows`), and ends as
+      // that branch does.
+      const first = nested.reduce<(typeof nested)[number] | undefined>(
+        (earliest, flow) => (!earliest || flow[0] < earliest[0] ? flow : earliest),
+        undefined,
+      );
+      const entered = first && !first[2] && lineAbove(first[1], first[0], []);
+      if (entered) {
+        return entered;
       }
     }
     return lineAbove(point.line - 1, -1, []) ?? { point, beat };
-  };
-
-  /** The header line of the branch the scene whose header stands on
-   *  `header` enters, when the scene's content starts with a branch that
-   *  takes no parameters (`ProgramRoot.startOf`). */
-  const enteredBranchHeader = (
-    program: SparkProgram,
-    uri: string,
-    header: number,
-  ): number | undefined => {
-    const root = program.chunks;
-    if (!root) {
-      return undefined;
-    }
-    const flows = root.flows(uri);
-    const scene = flows.find(
-      (flow) =>
-        flow.kind === SymbolKind.Scene && root.firstLineOf(flow) === header + 1,
-    );
-    const start = scene ? root.startOf(scene.flow) : -1;
-    const branch = start < 0 ? undefined : flows.find((flow) => flow.flow === start);
-    return branch ? root.firstLineOf(branch) - 1 : undefined;
   };
 
   /** End PLAY's game, answering where it last executed: the run the page

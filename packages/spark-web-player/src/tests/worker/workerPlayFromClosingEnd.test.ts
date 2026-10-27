@@ -47,6 +47,24 @@ scene other
 end
 `;
 
+// The scene binds its parameter and enters its first branch, which ends on
+// "First."; nothing enters the second.
+const PARAMETER_SCENE_BRANCHES = `-> start(7)
+scene start(a)
+  branch first
+    First.
+    done
+  end
+  branch unused
+    Unused.
+    done
+  end
+end
+scene other
+  Other.
+end
+`;
+
 const CASES = [
   // The flow below shows "Other.".
   ["a scene's end", SCENES, 3, "First.", ["Other."]],
@@ -54,6 +72,7 @@ const CASES = [
   ["a scene's end below a branch it holds", SCENE_WITH_BRANCH, 7, "Main.", ["Unused.", "Other."]],
   // The scene runs nothing of its own before the branch it enters.
   ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."]],
+  ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 10, "First.", ["Unused.", "Other."]],
   // The line above is the divert the branch leaves by, which shows the beat
   // it leads to; the branch below shows "Visit 2 t.".
   ["the end of a branch that diverts out", BRANCHES, 8, "Second 4 b.", ["Visit"]],

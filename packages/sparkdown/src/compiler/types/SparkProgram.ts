@@ -110,9 +110,13 @@ export interface SparkProgram {
   };
   /** Per script, for the `end` that closes each scene and branch, in the
    *  order of those ends: the line of the flow's header and the line of its
-   *  `end`, counting from 0. */
+   *  `end`, counting from 0, and whether the flow takes parameters. */
   flowEnds?: {
-    [uri: string]: [headerLine: number, endLine: number][];
+    [uri: string]: [
+      headerLine: number,
+      endLine: number,
+      takesParameters: boolean,
+    ][];
   };
   labelLocations?: {
     [name: string]: ScriptLocation;
