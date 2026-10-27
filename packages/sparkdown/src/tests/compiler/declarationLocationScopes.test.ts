@@ -158,6 +158,21 @@ end
       ],
     });
   });
+
+  it("does not mark an empty parameter list", () => {
+    const program = compile(`scene start()
+  branch first( )
+    First.
+  end
+end
+`);
+    expect(program.flowEnds).toEqual({
+      [URI]: [
+        [1, 3, false],
+        [0, 4, false],
+      ],
+    });
+  });
 });
 
 describe("declaration locations after a branch left without its end", () => {

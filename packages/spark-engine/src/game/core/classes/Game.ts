@@ -400,9 +400,12 @@ export class Game<T extends M = {}> {
    *  for the other engine can resolve the same start point. */
   protected _startBeat: "first" | "last" = "first";
 
+  /** The point `preview()` last previewed: its line, and the address it
+   *  named when that is not the one the line resolves to. */
   protected _previewFrom?: {
     file: string;
     line: number;
+    address?: ProgramAddress;
   };
   get previewFrom() {
     return this._previewFrom;
@@ -4623,7 +4626,7 @@ export class Game<T extends M = {}> {
       return this._pendingPreview?.promise ?? previewAddress;
     }
     this.cancelPreview();
-    this._previewFrom = { file, line };
+    this._previewFrom = address === undefined ? { file, line } : { file, line, address };
     this._previewAddress = previewAddress;
     this._executingAddress = null;
     this._executingLocation = [-1, -1, -1, -1, -1];

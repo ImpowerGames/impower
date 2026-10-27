@@ -744,6 +744,9 @@ export function installPlayerWorker(connection: MessageConnection) {
         file: shown.point.file,
         line: shown.point.line,
         address: shown.point.address,
+        relocate: (from) =>
+          startPoint(entry.program, { file: from.file, line: from.line }, "last")
+            .point,
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,

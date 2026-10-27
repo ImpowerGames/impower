@@ -4720,11 +4720,12 @@ export class SparkdownCompiler {
           /** A scene's or branch's header line. */
           line?: number;
           /** Whether a scene or branch takes parameters: its name is
-           *  followed by a parameter list. */
+           *  followed by a parameter list that is not empty, as
+           *  `FlowBase.hasParameters` counts them. */
           params?: boolean;
         }[] = [];
         const takesParameters = (to: number) =>
-          /^[ \t]*\(/.test(doc.read(to, to + 80));
+          /^[ \t]*\((?![ \t]*\))/.test(doc.read(to, to + 80));
         if (cur) {
           while (cur.value) {
             const name = doc.read(cur.from, cur.to);

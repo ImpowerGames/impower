@@ -3,13 +3,13 @@ import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { resolvePreviewPoint } from "./resolvePreviewPoint";
+import { resolvePreviewPoint, type PreviewFrom } from "./resolvePreviewPoint";
 
 /** The game, as far as a display needs it. Structural so the order of the
  *  steps can be checked against a recording stand-in. */
 export interface DisplayingGame {
   readonly state: string;
-  readonly previewFrom: { file: string; line: number } | undefined;
+  readonly previewFrom: PreviewFrom | undefined;
   readonly previewAddress: ProgramAddress | undefined;
   readonly previewedAddress: ProgramAddress | undefined;
   reportsExecutedLines: boolean;
@@ -57,6 +57,9 @@ export interface DisplayRequest {
   /** The point's address, when it is not the one its line resolves to
    *  (`Game.setStartFrom`). */
   address?: ProgramAddress;
+  /** The point a remembered point's line stands for in a changed program,
+   *  when the remembered point named its address (`resolvePreviewPoint`). */
+  relocate?: (from: PreviewFrom) => PreviewFrom;
   speculative: boolean;
   /** The route to the point: its checkpoint when it was replayed, and why
    *  not when it was not. The worker's route hands the checkpoint over as
@@ -98,6 +101,7 @@ export async function displayPreviewFrom(
     { file: request.file, line: request.line, address: request.address },
     programChanged,
     game,
+    request.relocate,
   );
   const validPreviewFrom = point.from;
   const resolvedPreviewAddress = point.address;

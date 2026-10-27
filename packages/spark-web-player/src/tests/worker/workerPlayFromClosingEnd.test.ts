@@ -4,6 +4,7 @@
 // beat of the flow below it. An empty scene's or branch's header and `end`
 // show the story as it stands when a run enters that flow.
 import { describe, expect, it } from "vitest";
+import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 import { BRANCHES, playFrom, previewAt } from "./playFromLine";
 
 const SCENES = `scene start
@@ -65,6 +66,24 @@ scene other
 end
 `;
 
+// An empty parameter list takes no parameters, so the scene enters its first
+// branch.
+const EMPTY_PARAMETER_LIST = `-> start
+scene start
+  branch first()
+    First.
+    done
+  end
+  branch unused
+    Unused.
+    done
+  end
+end
+scene other
+  Other.
+end
+`;
+
 const CASES = [
   // The flow below shows "Other.".
   ["a scene's end", SCENES, 3, "First.", ["Other."]],
@@ -73,6 +92,7 @@ const CASES = [
   // The scene runs nothing of its own before the branch it enters.
   ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."]],
   ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 10, "First.", ["Unused.", "Other."]],
+  ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 10, "First.", ["Unused.", "Other."]],
   // The line above is the divert the branch leaves by, which shows the beat
   // it leads to; the branch below shows "Visit 2 t.".
   ["the end of a branch that diverts out", BRANCHES, 8, "Second 4 b.", ["Visit"]],
@@ -249,5 +269,36 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
     expect(preview).toContain("Before.");
     expect(preview).not.toContain("Unused");
     expect(preview).not.toContain("Other.");
+  }, 120_000);
+});
+
+describe("the preview after the end of a scene whose branches it does not enter", () => {
+  it("keeps that point while the cursor is on a line with no address, and shows the next beat selected", async () => {
+    const empty = "file:///local/empty.sd";
+    const h = await createPlayerHarness({
+      files: [
+        { uri: MAIN_URI, text: UNENTERED_AFTER_BEAT },
+        { uri: empty, text: "// no narrative\n" },
+      ],
+      startFrom: { file: MAIN_URI, line: 10 },
+    });
+    try {
+      await h.compile();
+      await h.select(10);
+      await settle(40);
+      expect(writtenText(h.toRouter)).toContain("Before.");
+      // A line no address stands for keeps the point previewed.
+      const before = h.toRouter.length;
+      await h.select(0, empty);
+      await settle(40);
+      expect(writtenText(h.toRouter.slice(before))).not.toContain("Other.");
+      // The next beat selected is previewed, not taken for the point kept.
+      const kept = h.toRouter.length;
+      await h.select(12);
+      await settle(40);
+      expect(writtenText(h.toRouter.slice(kept))).toContain("Other.");
+    } finally {
+      h.dispose();
+    }
   }, 120_000);
 });
