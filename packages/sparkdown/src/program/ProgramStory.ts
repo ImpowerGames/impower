@@ -500,6 +500,25 @@ export class ProgramStory implements StoryEngine {
    *  Null when the story is not paused before one, and when that condition
    *  is no value a decision can test. */
   pausedConditionValue: boolean | null = null;
+  /** The verdict origin/main's route search reads at the decision
+   *  `pausedBeforeCondition` names, which it orders its verdicts by
+   *  (`planRouteFallback`): the truth of the value a `JumpIfFalse` pops, and
+   *  null for any other decision (a Luau condition, a choice's). */
+  get pausedJumpValue(): boolean | null {
+    const position = this._state.position;
+    if (this.pausedBeforeCondition === null || !position) {
+      return null;
+    }
+    const chunk = this.fetch(position);
+    const w0 = chunk?.[HEADER_WORDS + position.offset];
+    if (w0 === undefined || opOf(w0) !== Op.JumpIfFalse || flagsOf(w0) & JUMP_LUAU) {
+      return null;
+    }
+    const value = this._state.evaluationStack.at(-1);
+    return value instanceof Value && !(value instanceof SymbolValue)
+      ? value.isTruthy
+      : null;
+  }
 
   /** Every instruction this story has run. */
   stepCount = 0;

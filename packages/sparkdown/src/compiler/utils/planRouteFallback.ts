@@ -3,7 +3,10 @@
 // verdict or else the one the program reaches tried first. planRoute.ts runs it
 // when the search that follows the program finds no route within its budget
 // (see `planRoute` there), so a preview reaches every line origin/main's
-// preview reaches, showing the values origin/main's route gives.
+// preview reaches, showing the values origin/main's route gives. Only names
+// differ, the story's reading of a paused condition among them: origin/main's
+// reading is `pausedJumpValue` here, since this branch's
+// `pausedConditionValue` also reads a choice's condition.
 import type { SimulatorSnapshot } from "../../runtime/Simulator";
 import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
@@ -748,7 +751,7 @@ const runUntilDecisionOrBranch = (
           // two routes the search can find at the same depth it finds the one
           // the story runs, and a beat a false condition skips is not shown
           // on the way (#1606).
-          const natural = story.pausedConditionValue;
+          const natural = story.pausedJumpValue;
           for (const value of natural === false ? [false, true] : [true, false]) {
             branches.push(
               forkCondition(forkState, node, stepsEncountered, {

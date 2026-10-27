@@ -563,4 +563,48 @@ describe("a preview reaches every line origin/main's preview reaches", () => {
     },
     300_000,
   );
+
+  test("a route that falls back orders a choice's condition as origin/main's search does", () => {
+    // Twelve menus spend the search that follows the program, so the line is
+    // reached by origin/main's search, which tries a choice's condition true
+    // first and skips the loop: origin/main's preview shows 1, where the
+    // program, which can only take Available, shows 62.
+    const menus: string[] = [];
+    for (let m = 0; m < 12; m += 1) {
+      menus.push(
+        "  choose",
+        `  + [Left ${m}]`,
+        "    & path = path * 2 + 1",
+        `  + [Right ${m}]`,
+        "    & path = path * 2 + 2",
+        "  end",
+      );
+    }
+    const lines = [
+      "store total = 0",
+      "store pick = 0",
+      "store path = 0",
+      ...scene(
+        "  for i = 1, 3 do",
+        "    total += i",
+        "  end",
+        "  choose",
+        "  + if false [Unavailable]",
+        "    & pick = 1",
+        "  + [Available]",
+        "    & pick = 2",
+        "  end",
+        ...menus,
+        "  total = total * 10 + pick",
+        "  Target {total}.",
+      ),
+    ];
+    const head = preview(
+      compileSrc(lines.join("\n")),
+      lines,
+      "Target",
+      "total",
+    );
+    expect(head).toEqual({ reached: true, value: 1, fellBack: true });
+  }, 300_000);
 });
