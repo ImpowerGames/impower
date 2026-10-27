@@ -30,6 +30,7 @@ const ASSETS: File[] = [
   asset("image", "hat", "png"),
   asset("audio", "theme", "mp3"),
   asset("font", "Fancy", "ttf"),
+  asset("video", "intro", "webm"),
 ];
 
 const STORY = `scene A
@@ -191,6 +192,46 @@ describe("AssetModule", () => {
       pins: [load[0].params.pin],
       drop: false,
     });
+  });
+
+  it("makes a cutscene wait for its video in play, and starts it once resident", async () => {
+    const h = createHarness(STORY, 0, {
+      assets: ASSETS,
+      beforeConnect: playing,
+      holdAssets: true,
+    });
+    await h.ready;
+    h.reset();
+    const coordinator = new Coordinator(h.game, {
+      cutscene: [{ name: "intro" }],
+      end: 0,
+    });
+    await flushMicrotasks();
+    const load = byMethod(h.messages, "assets/load");
+    expect(load).toHaveLength(1);
+    expect(load[0].params.priority).toBe(0);
+    expect(load[0].params.pin).toMatch(/^beat:\d+$/);
+    expect(load[0].params.items).toEqual([
+      { kind: "video", src: "/file:/proj/intro.webm?v=1" },
+    ]);
+    // The page does not open the overlay while the file is still loading.
+    coordinator.onUpdate(tick());
+    expect(byMethod(h.messages, "ui/play-cutscene")).toHaveLength(0);
+    h.releaseAssets();
+    await flushMicrotasks();
+    coordinator.onUpdate(tick());
+    expect(byMethod(h.messages, "ui/play-cutscene")).toHaveLength(1);
+  });
+
+  it("leaves a cutscene's video out of a preview's beat gate", async () => {
+    const h = createHarness(STORY, 0, { assets: ASSETS });
+    await h.ready;
+    h.reset();
+    const beat: Instructions = { cutscene: [{ name: "intro" }], end: 0 };
+    expect(h.game.context.system.previewing).toBeTruthy();
+    expect(h.game.module.assets.prepareBeat(beat)).toBeNull();
+    expect(h.game.module.assets.gatePreviewBeat(beat)).toBeNull();
+    expect(byMethod(h.messages, "assets/load")).toHaveLength(0);
   });
 
   it("displays anyway, with a warning, when the page never answers", async () => {

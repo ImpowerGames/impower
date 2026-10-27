@@ -72,6 +72,12 @@ define typecheck as config with
   mode = "nonstrict"
 end
 
+define movie as config with
+  -- Whether a `[[play NAME]]` cutscene stops the `music` channel as it starts.
+  -- The music stays stopped after the cutscene ends.
+  stop_music = true
+end
+
 define assets as config with
   -- Beats ahead of the current one whose assets keep loading in the
   -- background, through every branch. 0 means the rest of the current scene.
@@ -1589,6 +1595,26 @@ style loading_fill with
   transform = scaleX(0)
   transform_origin = left
   transition = transform 0.15s linear
+end
+
+style cutscene with
+  -- The full-screen backdrop a `[[play NAME]]` cutscene plays on, above every
+  -- layout and the loading screen. An author may restyle it (`style cutscene
+  -- with … end`).
+  position = absolute
+  inset = 0
+  z_index = 2000
+  background_color = black
+  pointer_events = auto
+end
+
+style cutscene_video with
+  position = absolute
+  inset = 0
+  width = 100%
+  height = 100%
+  object_fit = contain
+  pointer_events = auto
 end
 
 style screen with

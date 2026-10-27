@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 2;
+export const MORPH_BAKE_FORMAT = 3;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -194,14 +194,18 @@ export interface MorphGeometryRef {
  * of the artifact's `frames` table, in the node's own user space.
  *
  * - `morph`: between the ends the `draw` node's geometry follows the frames,
- *   then the `to` node takes over. `draw` is `from`, unless several tracks
- *   leave one drawing (a closed lash opening into two): then each track
- *   draws on its own `to`. `shared` marks a drawing several tracks share; it
- *   is drawn once at its end.
+ *   then the `to` node takes over. `draw` is whichever of `from` and `to`
+ *   the variant's rest pose shows (`from` when it shows neither), so the
+ *   moving drawing paints at its rest-pose depth; a second track drawing on
+ *   the same node, and every track of a basic shape, draws on a hidden
+ *   carrier copied right after it. `shared` marks a drawing several tracks
+ *   share; it is drawn once at its end.
  * - `fade`: `from` fades out while `to` fades in; either may be absent.
  * - `cut`: `from` holds until the segment ends, then `to` shows.
  * - `scale`: `node` shrinks to (or grows from) its own fixed centre; the zero
- *   endpoint is invisible.
+ *   endpoint is invisible, the full one is `node` itself, and between them
+ *   the `draw` node follows the frames: `node` for a path, a hidden carrier
+ *   copied right after it for a basic shape.
  * - `hold`: a clip-controlled backing node stays drawn through the whole
  *   segment, so the moving aperture alone decides what shows.
  */
@@ -209,7 +213,7 @@ export type MorphTransition =
   | { kind: "morph"; from: string; to: string; draw: string; shared: boolean; frames: MorphGeometryRef }
   | { kind: "fade"; from?: string; to?: string }
   | { kind: "cut"; from?: string; to?: string }
-  | { kind: "scale"; node: string; direction: "shrink" | "grow"; frames: MorphGeometryRef }
+  | { kind: "scale"; node: string; draw: string; direction: "shrink" | "grow"; frames: MorphGeometryRef }
   | { kind: "hold"; node: string };
 
 /** One clip entry's aperture through a segment: an `apertures` table entry. */

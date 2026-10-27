@@ -152,23 +152,14 @@ export class AudioModule extends Module<
 
   protected async restoreChannel(channel: string) {
     const epoch = this._game.connection.epoch;
-    const updates: AudioPlayerUpdate[] = [];
+    const restored: {
+      update: AudioPlayerUpdate;
+      data: LoadAudioPlayerParams[];
+    }[] = [];
     const audioToLoad: LoadAudioPlayerParams[] = [];
     const channelState = this._state.channels?.[channel];
     if (channelState?.looping) {
       for (const state of channelState.looping) {
-        if (state.key) {
-          const dataArray = this.getAudioData(channel, state.key);
-          for (const d of dataArray) {
-            if (state.syncedTo) {
-              const cues = this.getCues(state.syncedTo);
-              if (cues) {
-                d.cues = cues;
-              }
-            }
-            audioToLoad.push(d);
-          }
-        }
         const update: AudioPlayerUpdate = {
           control: "start",
           key: state.key,
@@ -176,7 +167,21 @@ export class AudioModule extends Module<
           loop: true,
           now: true,
         };
-        updates.push(update);
+        const dataArray = state.key ? this.getAudioData(channel, state.key) : [];
+        for (const d of dataArray) {
+          if (state.syncedTo) {
+            const cues = this.getCues(state.syncedTo);
+            if (cues) {
+              d.cues = cues;
+            }
+          }
+          audioToLoad.push(d);
+          // The sound is playing again from here on, so a channel-wide event
+          // (a `stop`, a cutscene's music stop) reaches it, even one that
+          // comes while it loads.
+          this.setCurrentlyPlaying(channel, update, d);
+        }
+        restored.push({ update, data: dataArray });
       }
     }
     await this.loadAllAudio(audioToLoad);
@@ -184,7 +189,18 @@ export class AudioModule extends Module<
     if (this.superseded(epoch)) {
       return;
     }
-    this.update(channel, updates);
+    // A sound stopped while it loaded stays stopped: its start would reach
+    // the page after the stop did.
+    const playing = this._channelsCurrentlyPlaying.get(channel);
+    this.update(
+      channel,
+      restored
+        .filter(
+          ({ data }) =>
+            data.length === 0 || data.some((d) => d.key && playing?.has(d.key)),
+        )
+        .map(({ update }) => update),
+    );
   }
 
   protected update(
