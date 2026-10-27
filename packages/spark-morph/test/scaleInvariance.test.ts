@@ -159,8 +159,9 @@ describe("scale invariance", () => {
       ]);
       expect(r.diagnostics).toEqual([]);
       expect(r.apertures).toHaveLength(1);
-      // Facing lines at 34 and 70 units (scaled), 100 wide: area 3600.
-      expect(r.apertures[0]!.area(0.5) / (k * k)).toBeCloseTo(3600, 3);
+      // Facing lines at 34 and 70 units (scaled), 100 wide: area 3600, and
+      // their ends 36 apart close through a 36-unit square at each end.
+      expect(r.apertures[0]!.area(0.5) / (k * k)).toBeCloseTo(3600 + 2 * 36 * 36, 3);
     }
   });
 

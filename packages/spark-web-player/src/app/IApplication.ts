@@ -44,6 +44,10 @@ export interface IApplication {
    */
   overlay: HTMLElement | null;
   /**
+   * Whether the game is paused (`pause` until `unpause`).
+   */
+  paused?: boolean;
+  /**
    * The audio context.
    */
   audioContext?: AudioContext;

@@ -2319,6 +2319,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return undefined;
   }
 
+  /** The src of the video `name` names, when it names no image: a name that
+   *  is both is an image. */
+  getVideoSrcByName(name: string): string | undefined {
+    if (this.getImageSrcsByName(name)) {
+      return undefined;
+    }
+    const src = (this.context as Record<string, any>)?.["video"]?.[name]?.src;
+    return typeof src === "string" && src ? src : undefined;
+  }
+
   getBackgroundImageFromLiteral(value: string) {
     if (value === "none" || value.includes("(")) {
       return value;
@@ -5564,6 +5574,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 with: event.with,
                 assets: event.assets,
                 over: 0,
+                // A restored movie plays as it was written.
+                ...(event.loop ? { loop: true } : {}),
+                ...(event.once ? { once: true } : {}),
+                ...(event.mute ? { mute: true } : {}),
               });
             } else {
               // TODO: If animate with none, clear all previous animation events
@@ -5721,21 +5735,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             // content elements; only the CSS property differs, picked
             // consumer-side). The consumer creates the `instance` span(s).
             const imageNames = e.assets.join(" ");
-            const background = e.assets
-              .map((a) => $.getBackgroundImageFromString(a))
-              .reverse()
-              .join(", ");
-            const src = e.assets.flatMap((a) =>
+            // A name that is not an image but is a video is a movie the
+            // layer plays, as the asset module resolves it
+            // (`resolveImageItems`); the first one plays.
+            const videoSrcs = e.assets
+              .map((a) => $.getVideoSrcByName(a))
+              .filter((s): s is string => Boolean(s));
+            const imageAssets = e.assets.filter(
+              (a) => !$.getVideoSrcByName(a),
+            );
+            const background =
+              imageAssets.length > 0
+                ? imageAssets
+                    .map((a) => $.getBackgroundImageFromString(a))
+                    .reverse()
+                    .join(", ")
+                : "none";
+            const src = imageAssets.flatMap((a) =>
               $.getImageSrcsFromValue(a),
             )[0];
             // A `data:` src is inline and never fetched, so there is nothing
             // to keep resident for it.
             const srcs = [
-              ...new Set(
-                e.assets
+              ...new Set([
+                ...imageAssets
                   .flatMap((a) => $.getImageSrcsFromValue(a) ?? [])
                   .filter((s) => !s.startsWith("data:")),
-              ),
+                ...videoSrcs.slice(0, 1),
+              ]),
             ];
             const content: WriteImageInstruction["content"] = {
               background,
@@ -5745,7 +5772,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (src != null) {
               content.src = src;
             }
-            const morph = $.getMorphContent(e.assets);
+            const videoSrc = videoSrcs[0];
+            if (videoSrc) {
+              const previewing = $.context?.system?.previewing;
+              content.video = {
+                src: videoSrc,
+                loop: !e.once,
+                muted: Boolean(e.mute),
+                ...(previewing != null && previewing !== false
+                  ? { preview: true }
+                  : {}),
+              };
+            }
+            // Counted in the images the background paints, which a movie is
+            // not among.
+            const morph = $.getMorphContent(imageAssets);
             if (morph) {
               content.morph = morph;
             }

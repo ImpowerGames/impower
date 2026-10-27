@@ -308,7 +308,7 @@ assert.throws(() => executionCommands([{ ...operations[1], samples: 101 }], root
 assert.throws(() => executionCommands([{ ...operations[1], mode: "unknown" }], root), /benchmark/);
 assert.throws(() => executionCommands([{ ...operations[1], timeoutSeconds: 0 }], root), /timeoutSeconds/);
 const env = executionEnvironment({ Path: "bin", TEMP: "temp", GH_TOKEN: "secret", OPENAI_API_KEY: "secret", NODE_OPTIONS: "--import bad", IMPOWER_REVIEW_EXECUTION_TOKEN: "secret", GIT_CONFIG_COUNT: "2" });
-assert.deepEqual(env, { Path: "bin", TEMP: "temp", NODE_OPTIONS: "--max-old-space-size=1024" });
+assert.deepEqual(env, { Path: "bin", TEMP: "temp", NODE_OPTIONS: "--max-old-space-size=1024", IMPOWER_TEST_POOL: "reviewer" }, "a delegated run queues in the reviewer pool");
 
 const service = await startExecutionService({ operations, root, directory: evidence, head });
 const options = { env: service.environment, pollMs: 10 };
