@@ -95,3 +95,30 @@ end
     ]);
   });
 });
+
+describe("the last statement of a scene whose content is branches it does not enter", () => {
+  const text = `-> start
+scene start
+  branch needs(a)
+    Unused {a}.
+    done
+  end
+end
+scene other
+  Other.
+end
+`;
+
+  it("stands on the scene's header, in the scene", () => {
+    const program = compile(text);
+    const locator = programLocator(program);
+    const address = program.chunks.lastStatementAddress(URI, 1);
+    expect(address).toBeTypeOf("number");
+    expect(locator.locationOf(address)?.startLine).toBe(1);
+    expect(locator.sceneAt(address)).toBe("start");
+  });
+
+  it("leaves the header falling through to the line below it that has an address", () => {
+    expect(resolved(text, [1])).toEqual([[3, "start"]]);
+  });
+});

@@ -82,6 +82,10 @@ interface DisplayableProgram {
  * PLAY's game, which runs beside it (`player/play`). The page holds only each
  * program's summary and no game.
  */
+/** A point a display or PLAY routes to: a line, and the address it stands
+ *  for when that is not the one the line resolves to (`Game.setStartFrom`). */
+type StartPoint = { file: string; line: number; address?: ProgramAddress };
+
 export function installPlayerWorker(connection: MessageConnection) {
   const player = {
     /** How PLAY's game is put at its start point. */
@@ -544,7 +548,7 @@ export function installPlayerWorker(connection: MessageConnection) {
   const routeTo = (
     game: Game,
     entry: DisplayableProgram,
-    point: { file: string; line: number },
+    point: StartPoint,
     beat: "first" | "last",
   ): RouteReport => {
     const to = routeGameTo(
@@ -739,6 +743,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         programChanged,
         file: shown.point.file,
         line: shown.point.line,
+        address: shown.point.address,
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
@@ -924,17 +929,20 @@ export function installPlayerWorker(connection: MessageConnection) {
    * branches written inside the scene, which the scene does not run through,
    * and an empty scene's or branch's `end` holds the flow's own address. A
    * scene with no such line of its own enters its first branch when that
-   * branch takes no parameters, so it takes that branch's, and any other flow
-   * with none (a scene whose first branch takes parameters) takes the
-   * nearest line above it that has one. With no such line above, the point
+   * branch takes no parameters, so it takes that branch's. One whose first
+   * branch takes parameters enters no branch, and with more script below it
+   * takes the address of its own last statement, which no line resolves to
+   * (`ProgramRoot.lastStatementAddress`). Any other flow with no line of its
+   * own, and such a scene at the end of the script, takes the nearest line
+   * above it that has one. With no such line above, the point
    * stands, and a run from it starts from where its address leads, or from
    * the top of the top-level content.
    */
   const startPoint = (
     program: SparkProgram,
-    point: { file: string; line: number },
+    point: StartPoint,
     beat: "first" | "last",
-  ): { point: { file: string; line: number }; beat: "first" | "last" } => {
+  ): { point: StartPoint; beat: "first" | "last" } => {
     const locator = programLocator(program);
     const ends = program.flowEnds?.[point.file] ?? [];
     const closed = ends.find(([, end]) => end === point.line);
@@ -978,6 +986,17 @@ export function installPlayerWorker(connection: MessageConnection) {
       const entered = first && !first[2] && lineAbove(first[1], first[0], []);
       if (entered) {
         return entered;
+      }
+      // A scene whose content is branches it does not enter ends at its own
+      // last statement, the `Done` it runs on its header's line
+      // (`emptyFlowEnd`). At the end of the script, the line above it stands
+      // (#1606).
+      const address =
+        first && locator.addressAt(point.file, point.line) != null
+          ? program.chunks?.lastStatementAddress(point.file, header)
+          : undefined;
+      if (address !== undefined) {
+        return { point: { ...point, address }, beat: "last" };
       }
     }
     return lineAbove(point.line - 1, -1, []) ?? { point, beat };

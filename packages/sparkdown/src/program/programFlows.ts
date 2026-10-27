@@ -358,7 +358,12 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
     const startsWith = flow.hasParameters ? undefined : start;
     if (empty) {
-      statements.push(emptyFlowEnd(name, header!, record));
+      // A scene whose content is branches it does not enter (the first takes
+      // parameters) has no line of its own below its header.
+      const opensBranch = first instanceof FlowBase && !first.isFunction;
+      statements.push(
+        emptyFlowEnd(name, header!, opensBranch ? record.line : record.line + 1),
+      );
     }
     flows.push({
       name,
@@ -642,15 +647,18 @@ const lineRange = (line: number): DebugMetadata => {
 const emptyEndKeys = new WeakMap<object, object>();
 
 /** The statement of a scene or a branch that runs nothing of its own
- *  (`EmptyFlowEnd`), standing on the flow's first line, below its header:
- *  the line of its `end` when nothing stands between them. The header takes
- *  the address of that line, as a header does of the first line below it
- *  that has one. Its syntax is the flow's name, which is everything its code
- *  depends on. */
+ *  (`EmptyFlowEnd`), standing on `line`. For a flow that holds no branches
+ *  that is its first line, below its header: the line of its `end` when
+ *  nothing stands between them, whose address the header takes, as a header
+ *  does of the first line below it that has one. For a scene whose content
+ *  is branches it does not enter it is the header's own line, which no line
+ *  resolves to; the player reaches it by its address
+ *  (`ProgramRoot.lastStatementAddress`). Its syntax is the flow's name,
+ *  which is everything its code depends on. */
 const emptyFlowEnd = (
   name: string,
   header: object,
-  record: StatementRecord,
+  line: number,
 ): StatementSource => {
   const syntax = `EmptyFlowEnd\u0000${name}`;
   let block = emptyEndKeys.get(header);
@@ -661,8 +669,8 @@ const emptyFlowEnd = (
   return {
     block,
     objects: [new EmptyFlowEnd()],
-    range: lineRange(record.line + 1),
-    firstLine: record.line + 1,
+    range: lineRange(line),
+    firstLine: line,
     source: () => name,
     syntax: () => syntax,
     reads: "",

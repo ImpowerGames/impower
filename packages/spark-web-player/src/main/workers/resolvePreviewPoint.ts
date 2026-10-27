@@ -10,9 +10,17 @@ export interface PreviewingGame {
   previewedAddress: ProgramAddress | undefined;
 }
 
+/** A point to preview: a line, and the address it stands for when that is
+ *  not the one the line resolves to (`Game.setStartFrom`). */
+export interface PreviewFrom {
+  file: string;
+  line: number;
+  address?: ProgramAddress;
+}
+
 export interface PreviewPoint {
   /** The point to preview: the cursor, or the remembered one. */
-  from: { file: string; line: number };
+  from: PreviewFrom;
   /** The address that point resolves to against this program, which the
    *  mark names; nothing when it resolves to none. */
   address: ProgramAddress | null | undefined;
@@ -26,17 +34,19 @@ export interface PreviewPoint {
 }
 
 /** Where a preview at `from` lands, for a game holding `program`. The point
- *  resolves through the program's accessor (`ProgramLocator.addressAt`). */
+ *  resolves through the program's accessor (`ProgramLocator.addressAt`),
+ *  unless it names its address. */
 export function resolvePreviewPoint(
   program: SparkProgram,
-  from: { file: string; line: number },
+  from: PreviewFrom,
   programChanged: boolean,
   game: PreviewingGame | undefined,
 ): PreviewPoint {
   const locator = programLocator(program);
   // A line that `>` breaks holds several beats, and a preview shows its last;
   // PLAY from the line starts at its first (#721).
-  const address = locator.addressAt(from.file, from.line, { beat: "last" });
+  const address =
+    from.address ?? locator.addressAt(from.file, from.line, { beat: "last" });
 
   // When the cursor sits on a line that resolves to no address we keep the
   // game's LAST valid preview point rather than resetting (sticky preview).

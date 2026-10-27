@@ -190,3 +190,64 @@ describe("PLAY and the preview at an empty scene or branch", () => {
     120_000,
   );
 });
+
+// The scene's only branch takes a parameter, so entering the scene enters no
+// branch: the scene ends at once.
+const UNENTERED_BRANCH = `-> start
+scene start
+  branch needs(a)
+    Unused {a}.
+    done
+  end
+end
+scene other
+  Other.
+end
+`;
+
+// The same scene, entered after the story displayed "Before.".
+const UNENTERED_AFTER_BEAT = `-> pre
+scene pre
+  Before.
+  -> start
+end
+scene start
+  branch needs(a)
+    Unused {a}.
+    done
+  end
+end
+scene other
+  Other.
+end
+`;
+
+describe("PLAY and the preview at the end of a scene whose branches it does not enter", () => {
+  it("PLAY starts and ends without a branch's beat or the flow below", async () => {
+    const outcome = await playFrom(UNENTERED_BRANCH, 6);
+    expect(outcome.started).toBe(true);
+    expect(outcome.exited).toEqual(["finished"]);
+    expect(outcome.text).not.toContain("Unused");
+    expect(outcome.text).not.toContain("Other.");
+  }, 120_000);
+
+  it("the preview shows no branch's beat and nothing of the flow below", async () => {
+    const text = await previewAt(UNENTERED_BRANCH, 6);
+    expect(text).not.toContain("Unused");
+    expect(text).not.toContain("Other.");
+  }, 120_000);
+
+  it("PLAY and the preview wait on the beat the run displayed before the scene", async () => {
+    const outcome = await playFrom(UNENTERED_AFTER_BEAT, 10);
+    expect(outcome.started).toBe(true);
+    expect(outcome.exited).toEqual([]);
+    expect(outcome.state).toBe("running");
+    expect(outcome.text).toContain("Before.");
+    expect(outcome.text).not.toContain("Unused");
+    expect(outcome.text).not.toContain("Other.");
+    const preview = await previewAt(UNENTERED_AFTER_BEAT, 10);
+    expect(preview).toContain("Before.");
+    expect(preview).not.toContain("Unused");
+    expect(preview).not.toContain("Other.");
+  }, 120_000);
+});

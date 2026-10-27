@@ -1021,6 +1021,24 @@ export class ProgramRoot {
     return row;
   }
 
+  /** The address of the last statement of the scene or branch of a script
+   *  whose header stands on `header` (counting from 0), which a run that
+   *  enters the flow and runs to its end runs last; nothing for a flow with
+   *  no statements of its own, such as a scene that enters its first
+   *  branch, or no such flow. */
+  lastStatementAddress(uri: string, header: number): number | undefined {
+    for (const flow of this.flows(uri)) {
+      if (
+        (flow.kind === SymbolKind.Scene || flow.kind === SymbolKind.Branch) &&
+        this.firstLineOf(flow) === header + 1
+      ) {
+        const chunk = flow.arrays.chunks.at(-1);
+        return chunk ? addressOf(chunkId(chunk), 0) : undefined;
+      }
+    }
+    return undefined;
+  }
+
   /** The name of the top-level flow an address stands in, as a scene is
    *  entered and a route starts: a scene's name, a branch's scene's, a
    *  function's, or `"0"` for the top-level content; nothing for a
