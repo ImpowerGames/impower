@@ -502,9 +502,11 @@ describe("a cutscene on the page, in play", () => {
           await tick();
         }
         const transition = held.animations[held.animations.length - 1]!;
-        expect(transition.keyframes).toEqual([
-          { opacity: exiting ? "0" : "1" },
-        ]);
+        expect(transition.keyframes).toEqual(
+          exiting
+            ? [{ opacity: "0" }]
+            : [{ opacity: "0" }, { opacity: "1" }],
+        );
         h.ui.onDispose();
         expect(cutsceneOf(h.overlay)).toBeNull();
         await flushMicrotasks(50);
