@@ -47,6 +47,34 @@ const FILES = [
   { uri: "inmemory:///cat.svg", type: "image", name: "cat", ext: "svg", data: PLAIN },
 ];
 
+// Both eyes in one clip entry, the left open and the right closed at rest,
+// so the entry's aperture mask strokes its open loop with a second path.
+const shiftRight = (d: string) => d.replace(/(-?[0-9.]+),(-?[0-9.]+)/g, (_m, x: string, y: string) => `${Number(x) + 120},${y}`);
+const WINK_UPPER = "M20,50 C40,15 95,0 120,45 C110,40 100,24 85,26 C70,28 60,36 45,34 C35,33 28,44 20,50Z";
+const WINK_LOWER = "M20,50 C30,52 45,60 60,58 C80,56 100,62 120,45 C95,72 50,75 20,50Z";
+const WINK_CLOSED = "M20,50 C50,46 90,42 120,45 C90,48 50,52 20,50Z";
+const WINK_WHITE = "M20,50 C40,15 95,0 120,45 C95,72 50,75 20,50Z";
+const WINK_ART = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 100" width="260" height="100">
+<path data-name="face" d="M0,0H260V100H0Z" fill="#c96"/>
+<g data-name="eyes.open:default">
+<path data-name="eyeball-white-left" d="${WINK_WHITE}" fill="#fff"/>
+<path data-name="eyelash-left" d="${WINK_UPPER}" fill="#111"/>
+<path data-name="eyelash-left" d="${WINK_LOWER}" fill="#111"/>
+<path data-name="eyelash-right" d="${shiftRight(WINK_CLOSED)}" fill="#111"/>
+</g>
+<g data-name="eyes.closed">
+<path data-name="eyelash-left" d="${WINK_CLOSED}" fill="#111"/>
+<path data-name="eyelash-right" d="${shiftRight(WINK_UPPER)}" fill="#111"/>
+<path data-name="eyelash-right" d="${shiftRight(WINK_LOWER)}" fill="#111"/>
+</g>
+<path data-name="eyeball-white-right" d="${shiftRight(WINK_WHITE)}" fill="#fff"/>
+</svg>`;
+const WINK_SOURCE = SOURCE.replace(
+  "      between {\n        eyelash-left\n      }",
+  "      between {\n        eyelash-left\n        eyelash-right\n      }",
+).replace("        pupil-left\n", "        eyeball-white-right\n");
+const WINK_FILES = [{ uri: "inmemory:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: WINK_ART }];
+
 const lineOf = (source: string, text: string) => source.split("\n").findIndex((l) => l.includes(text));
 
 /** Frames the playback requests, run by the test. */
@@ -90,12 +118,11 @@ function referenceStates(artifact: MorphArtifact, offset: number) {
   return leafStates(doc);
 }
 
-/** The path data and style each aperture mask draws its aperture with. */
-function apertureStates(root: ParentNode): { d: string | null; style: string | null }[] {
-  return Array.from(root.querySelectorAll("mask")).map((mask) => {
-    const path = mask.querySelector("path")!;
-    return { d: path.getAttribute("d"), style: path.getAttribute("style") };
-  });
+/** The path data and style of every path each aperture mask draws its aperture with. */
+function apertureStates(root: ParentNode): { d: string | null; style: string | null }[][] {
+  return Array.from(root.querySelectorAll("mask")).map((mask) =>
+    Array.from(mask.querySelectorAll(":scope > path")).map((path) => ({ d: path.getAttribute("d"), style: path.getAttribute("style") })),
+  );
 }
 
 function referenceApertures(artifact: MorphArtifact, offset: number) {
@@ -123,10 +150,10 @@ afterEach(() => {
 });
 
 describe("morph playback in the page", () => {
-  async function previewed() {
+  async function previewed(source = SOURCE, files = FILES) {
     const writes: any[] = [];
-    const h = createDOMHarness(SOURCE, 0, {
-      files: FILES,
+    const h = createDOMHarness(source, 0, {
+      files,
       afterEachMessage: (message) => {
         const ops = message?.method === "ui/batch" ? message.params.messages : [message];
         for (const op of ops) if (op?.method === "ui/write-image") writes.push(op);
@@ -136,7 +163,7 @@ describe("morph playback in the page", () => {
     const playback = MorphPlayback.for(h.overlay);
     playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...frames });
     await h.ready;
-    await h.preview(lineOf(SOURCE, "First line."));
+    await h.preview(lineOf(source, "First line."));
     await flushMicrotasks(10);
     return { h, frames, playback, writes };
   }
@@ -247,7 +274,7 @@ end
     frames.run(1000);
     // At rest each aperture keeps the reach past its outline it is written
     // with; away from its rest outline it has none.
-    const reaches = () => apertureStates(shadow).map(({ style }) => !/stroke:\s*none/.test(style ?? ""));
+    const reaches = () => apertureStates(shadow).flatMap((paths) => paths.map(({ style }) => !/stroke:\s*none/.test(style ?? "")));
     expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0));
     expect(reaches().length).toBeGreaterThan(0);
     expect(reaches().every(Boolean)).toBe(true);
@@ -263,6 +290,37 @@ end
     const ids = Array.from(shadow.querySelectorAll("[id]")).map((e) => e.id);
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.every((id) => !id.startsWith(artifact.idPrefix))).toBe(true);
+  });
+
+  test("an aperture with a closed loop strokes its open loops only at rest, and every path follows the frames away from it", async () => {
+    expect(WINK_SOURCE).toContain("eyelash-right");
+    expect(WINK_SOURCE).toContain("eyeball-white-right");
+    const { h, frames, playback } = await previewed(WINK_SOURCE, WINK_FILES);
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
+    frames.run(1000);
+    const rest = apertureStates(shadow);
+    expect(rest).toEqual(referenceApertures(artifact, 0));
+    // Each mask fills both eyes unstroked and strokes the open eye alone.
+    expect(rest.length).toBeGreaterThan(0);
+    for (const [all, open] of rest) {
+      expect(all!.style).toMatch(/stroke:none/);
+      expect(open!.style).toMatch(/stroke-width:2px/);
+      expect(open!.d).not.toBe(all!.d);
+    }
+    // Mid-blink every path draws the frame's whole aperture, unstroked.
+    frames.run(1000 + 0.4 * 250);
+    const moving = apertureStates(shadow);
+    expect(moving).toEqual(referenceApertures(artifact, 0.4));
+    for (const paths of moving) {
+      expect(paths).toHaveLength(2);
+      expect(paths[1]!.d).toBe(paths[0]!.d);
+      expect(paths.every(({ style }) => /stroke:\s*none/.test(style ?? ""))).toBe(true);
+    }
+    // Back at the rest outline, the open loops' path gets its reach back.
+    frames.run(1000 + 250);
+    expect(apertureStates(shadow)).toEqual(rest);
   });
 
   test("pause freezes the exact frame; the preference returns to rest and starts a fresh cycle", async () => {
