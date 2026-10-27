@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 4;
+export const MORPH_BAKE_FORMAT = 6;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";

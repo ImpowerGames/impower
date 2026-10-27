@@ -1,5 +1,6 @@
 import type {
 AudioInstruction,
+CutsceneInstruction,
 ImageInstruction,
 LoadInstruction,
 LayoutInstruction,
@@ -8,6 +9,9 @@ TextInstruction,
 
 export interface Instructions {
   load?: LoadInstruction[];
+  /** `[[play NAME]]` cutscenes. The interpreter queues each one as a beat of
+   *  its own, so a beat the Coordinator runs holds at most one. */
+  cutscene?: CutsceneInstruction[];
   text?: Record<string, TextInstruction[]>;
   image?: Record<string, ImageInstruction[]>;
   audio?: Record<string, AudioInstruction[]>;

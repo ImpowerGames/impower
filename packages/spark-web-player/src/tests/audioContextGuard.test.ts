@@ -11,10 +11,12 @@ const setAudioContext = Application.prototype.setAudioContext;
 
 function fakeApp(clock: Clock) {
   // Watching the context's state is the audio clock's concern, not the
-  // guard's; the game is not connected, so no clock reading is sent.
+  // guard's; the game is not connected, so no clock reading is sent. The
+  // audio manager has no movies to route.
   return {
     _audioContext: undefined as any,
     _clock: clock,
+    _manager: { audio: { onAudioContextRunning: () => {} } },
     watchAudioContext: () => {},
   };
 }
