@@ -3,7 +3,11 @@
 // keyframe, only the keyed state the write barrier marked since the capture
 // before it, and a restore puts an earlier image back in place.
 import { describe, expect, it } from "vitest";
-import { lastSearchStats, planRoute } from "../../compiler/utils/planRoute";
+import {
+  faithfulBudget,
+  lastSearchStats,
+  planRoute,
+} from "../../compiler/utils/planRoute";
 import { MultiValue, ObjectValue, StringValue } from "../../runtime/Value";
 import {
   MAX_DELTA_DEPTH,
@@ -463,11 +467,17 @@ describe("a route search on the program engine", () => {
     const search = (stateImages: boolean) => {
       const story = new ProgramStory(root);
       const before = { ...story.images.stats };
-      // A target no chunk holds, so the search runs until it is stopped.
+      // A target no chunk holds, so the search runs until it is stopped. A
+      // search that finds no route ends in origin/main's search
+      // (`planRoute`); the one that follows the program first is given no
+      // nodes, so it takes its start's image and expands nothing.
+      const nodes = faithfulBudget.nodes;
+      faithfulBudget.nodes = 0;
       const plan = planRoute(story, "start", 2 ** 40, {
         stateImages,
         maxNodes: 2000,
       });
+      faithfulBudget.nodes = nodes;
       const stats = story.images.stats;
       return {
         plan,
@@ -489,8 +499,8 @@ describe("a route search on the program engine", () => {
     expect(json.search.nodesExpanded).toBeGreaterThan(5);
     expect(json.search.forkSitesSkipped).toBeGreaterThan(0);
     expect(json.keyframes + json.deltas).toBe(0);
-    // One keyframe where the search starts, and every fork a delta.
-    expect(images.keyframes).toBe(1);
+    // One keyframe where each search starts, and every fork a delta.
+    expect(images.keyframes).toBe(2);
     expect(images.deltas).toBeGreaterThan(5);
     // A delta copies the globals its run assigned, never all of them.
     expect(images.globals - images.globalsInProgram).toBeLessThan(images.deltas);
