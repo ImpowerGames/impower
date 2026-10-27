@@ -51,8 +51,16 @@ describe("the define context over the program engine", () => {
     }).toEqual({
       transition: ["$default", "fade", "screenfade", "screenflash"],
       shadow: ["$default", "xs", "sm", "md", "lg", "xl"],
-      mixer: ["$default", "main", "music", "sound", "voice", "typewriter"],
-      channel: ["$default", "music", "ambient", "sound", "voice", "typewriter"],
+      mixer: ["$default", "main", "music", "sound", "voice", "typewriter", "movie"],
+      channel: [
+        "$default",
+        "music",
+        "ambient",
+        "sound",
+        "voice",
+        "typewriter",
+        "movie",
+      ],
     });
   });
 });

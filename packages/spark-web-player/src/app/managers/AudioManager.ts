@@ -325,6 +325,53 @@ export default class AudioManager extends Manager {
     }
   }
 
+  /**
+   * Sends a movie element's sound through `mixer`, creating the mixer at
+   * `mixerGain` when it is the first to need it, so the mixer's volume is the
+   * movie's. `muted` on the element still silences it. Without a running
+   * audio context the element plays its sound directly; a later call, once
+   * the context runs, routes it.
+   *
+   * An element can have one media source for its whole life, and it can
+   * outlive this manager (a new run adopts the overlay it was on), so the
+   * source is kept on the element and the next manager reconnects it to its
+   * own mixer.
+   */
+  connectMovie(video: HTMLMediaElement, mixer: string, mixerGain: number) {
+    const audioContext = this.app.audioContext;
+    if (!audioContext) {
+      return;
+    }
+    const audioMixer = this.getAudioMixer(mixer, mixerGain);
+    if (!audioMixer) {
+      return;
+    }
+    let source = (video as any).__sdAudioSource as
+      | MediaElementAudioSourceNode
+      | undefined;
+    if (source && source.context !== audioContext) {
+      // Bound to a context this page no longer plays through; the element
+      // cannot get another source, so it keeps the one it has.
+      return;
+    }
+    if (!source) {
+      source = audioContext.createMediaElementSource(video);
+      (video as any).__sdAudioSource = source;
+    }
+    if ((video as any).__sdAudioTarget === audioMixer.volumeNode) {
+      return;
+    }
+    source.disconnect();
+    source.connect(audioMixer.volumeNode);
+    (video as any).__sdAudioTarget = audioMixer.volumeNode;
+  }
+
+  /** Takes a movie element's sound out of its mixer, as its layer leaves. */
+  disconnectMovie(video: HTMLMediaElement) {
+    ((video as any).__sdAudioSource as AudioNode | undefined)?.disconnect();
+    delete (video as any).__sdAudioTarget;
+  }
+
   protected async onConfigureAudioMixer(params: ConfigureAudioMixerParams) {
     const mixer = this.getAudioMixer(params.mixer, params.gain);
     if (mixer) {

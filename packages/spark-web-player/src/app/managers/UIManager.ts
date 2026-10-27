@@ -2258,6 +2258,13 @@ export default class UIManager extends Manager {
                   applyStyle,
                 );
             const videoEl = newSpanEl.querySelector("video");
+            if (videoEl && video) {
+              // The mixer its sound plays through once it plays.
+              (videoEl as any).__sdMixer = {
+                mixer: video.mixer,
+                mixerGain: video.mixerGain,
+              };
+            }
             if (videoEl && !video?.preview && instruction.control !== "hide") {
               newMovies.push(videoEl);
             }
@@ -2425,6 +2432,15 @@ export default class UIManager extends Manager {
   }
 
   protected playMovie(video: HTMLVideoElement) {
+    // Its sound plays through its mixer, connected when it first plays and
+    // again by each later play, so a context that starts running later
+    // still gets it.
+    const route = (video as any).__sdMixer as
+      | { mixer: string; mixerGain: number }
+      | undefined;
+    if (route) {
+      this.app.audio?.connectMovie?.(video, route.mixer, route.mixerGain);
+    }
     const played = video.play();
     // Play mode starts on a gesture, so sound is allowed; a browser that
     // refuses it anyway still shows the movie, without its sound.
@@ -2455,6 +2471,7 @@ export default class UIManager extends Manager {
       video.pause();
       video.removeAttribute("src");
       video.load();
+      this.app.audio?.disconnectMovie?.(video);
     }
   }
 

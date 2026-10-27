@@ -49,8 +49,12 @@ const lastContent = (messages: any[], target: string) =>
     .filter((i: any) => i.content)
     .at(-1)?.content;
 
-async function shown(body: string, opts: { playing?: boolean } = {}) {
-  const h = createHarness(story(body), 0, {
+async function shown(
+  body: string,
+  opts: { playing?: boolean } = {},
+  defines = "",
+) {
+  const h = createHarness(`${defines}${story(body)}`, 0, {
     assets: ASSETS,
     beforeConnect: opts.playing
       ? (game) => {
@@ -100,6 +104,8 @@ describe("a video on a layer: Image.write", () => {
       src: "/file:/proj/bunny_wave.webm?v=1",
       loop: true,
       muted: false,
+      mixer: "movie",
+      mixerGain: 1,
     });
     // No background image stands in for the movie, and its file is what the
     // page keeps resident while the layer shows it.
@@ -117,6 +123,29 @@ describe("a video on a layer: Image.write", () => {
       src: "/file:/proj/bunny_wave.webm?v=1",
       loop: false,
       muted: true,
+      mixer: "movie",
+      mixerGain: 1,
+    });
+  });
+
+  test("the movie's sound goes to the mixer its `movie` channel names, at that mixer's gain", async () => {
+    const { h } = await shown(
+      `  [[show portrait bunny_wave]]\n  A line.`,
+      { playing: true },
+      `define movie as mixer with\n  gain = 0.25\nend\n\ndefine cinema as mixer with\n  gain = 0.5\nend\n`,
+    );
+    expect(lastContent(h.messages, "portrait")?.video).toMatchObject({
+      mixer: "movie",
+      mixerGain: 0.25,
+    });
+    const { h: routed } = await shown(
+      `  [[show portrait bunny_wave]]\n  A line.`,
+      { playing: true },
+      `define cinema as mixer with\n  gain = 0.5\nend\n\ndefine movie as channel with\n  mixer = "cinema"\nend\n`,
+    );
+    expect(lastContent(routed.messages, "portrait")?.video).toMatchObject({
+      mixer: "cinema",
+      mixerGain: 0.5,
     });
   });
 
@@ -134,6 +163,8 @@ describe("a video on a layer: Image.write", () => {
       src: "/file:/proj/bunny_wave.webm?v=1",
       loop: true,
       muted: false,
+      mixer: "movie",
+      mixerGain: 1,
       preview: true,
     });
   });
@@ -178,6 +209,8 @@ describe("a video on a layer: Image.write", () => {
       src: "/file:/proj/rain.webm?v=1",
       loop: false,
       muted: true,
+      mixer: "movie",
+      mixerGain: 1,
     });
   });
 });

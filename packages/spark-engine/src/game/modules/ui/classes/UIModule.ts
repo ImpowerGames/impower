@@ -2329,6 +2329,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return typeof src === "string" && src ? src : undefined;
   }
 
+  /** The mixer a movie's sound plays through, the one the `movie` channel
+   *  names, and that mixer's gain, as the audio module resolves a channel's
+   *  mixer for a sound. */
+  getMovieMixer(): { mixer: string; mixerGain: number } {
+    const context = this.context as Record<string, any> | undefined;
+    const named = context?.["channel"]?.["movie"]?.mixer;
+    const mixer =
+      (typeof named === "string" ? named : named?.$name) || "movie";
+    const gain = context?.["mixer"]?.[mixer]?.gain;
+    return { mixer, mixerGain: typeof gain === "number" ? gain : 1 };
+  }
+
   getBackgroundImageFromLiteral(value: string) {
     if (value === "none" || value.includes("(")) {
       return value;
@@ -5779,6 +5791,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 src: videoSrc,
                 loop: !e.once,
                 muted: Boolean(e.mute),
+                ...$.getMovieMixer(),
                 ...(previewing != null && previewing !== false
                   ? { preview: true }
                   : {}),
