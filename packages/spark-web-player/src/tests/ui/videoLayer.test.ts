@@ -420,6 +420,7 @@ describe("a movie on a layer, in play", () => {
       (video as any).__duration = from;
       clock.elapsedTime = 11;
       video.currentTime = 1;
+      appOf(h).paused = true;
       h.ui.onPause();
       h.ui.onSkip(skips[0]!);
       // The metadata arrives: the browser keeps the element within the
@@ -479,6 +480,7 @@ describe("a movie on a layer, in play", () => {
       (video as any).__duration = Infinity;
       clock.elapsedTime = 11;
       video.currentTime = 1;
+      appOf(h).paused = true;
       h.ui.onPause();
       h.ui.onSkip(4.5);
       (video as any).__time = 3;
@@ -493,7 +495,7 @@ describe("a movie on a layer, in play", () => {
     },
   );
 
-  test("a loop the browser's own seek to its start left behind the clock is placed where the clock has it, and one in step is left alone", async () => {
+  test("a playing loop the browser's own seek to its start left behind the clock is placed where the clock has it on the clock's next frame, and one in step is left alone", async () => {
     const { h } = await playing();
     const clock = { elapsedTime: 10 };
     appOf(h).clock = clock;
@@ -505,21 +507,60 @@ describe("a movie on a layer, in play", () => {
       video.dispatchEvent(
         new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
       );
+    // The clock's frames, which update the page with a current reading.
+    const frame = () => h.ui.onUpdate(clock as any);
     // At 13.4 the loop has come round, and the browser's seek back to its
-    // start stalled: the element stands at 0.05 where the clock has 0.4.
+    // start stalled: the element stands at 0.05 where the clock has 0.4. It
+    // is placed on the clock's next frame.
     clock.elapsedTime = 13.4;
     video.currentTime = 0.05;
     seeked();
+    expect(video.currentTime).toBe(0.05);
+    frame();
     expect(video.currentTime).toBeCloseTo(0.4);
     // That seek lands where it was asked.
     seeked();
+    frame();
     expect(video.currentTime).toBeCloseTo(0.4);
-    // Round again at 16.43, the element 0.05 short of the clock's 0.43:
-    // in step, so not seeked.
-    clock.elapsedTime = 16.43;
-    video.currentTime = 0.38;
+    // With no frames (a hidden page) the clock's reading stays at 13.5 while
+    // the movie plays on and comes round again: nothing is placed by it.
+    clock.elapsedTime = 13.5;
+    video.currentTime = 0.001;
     seeked();
-    expect(video.currentTime).toBe(0.38);
+    expect(video.currentTime).toBe(0.001);
+    // Frames come back at 19.48, the element at 0.45 and the clock at 0.48:
+    // in step, so not seeked.
+    clock.elapsedTime = 19.48;
+    video.currentTime = 0.45;
+    frame();
+    expect(video.currentTime).toBe(0.45);
+  });
+
+  test("a paused loop the clock puts at its start stands on its first frame, not on its last", async () => {
+    const { h } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.loop).toBe(true);
+    // Paused at 1 s before its duration is known, and skipped 5 s: the
+    // clock has it at 6 s, exactly twice round a 3 s movie.
+    clock.elapsedTime = 11;
+    video.currentTime = 1;
+    appOf(h).paused = true;
+    h.ui.onPause();
+    h.ui.onSkip(5);
+    // The metadata arrives: the browser holds the element at the movie's end
+    // (its last frame) and reports its duration.
+    (video as any).__duration = 3;
+    video.currentTime = 6;
+    expect(video.currentTime).toBe(3);
+    video.dispatchEvent(
+      new (h.overlay.ownerDocument.defaultView as any).Event("durationchange"),
+    );
+    expect(video.currentTime).toBe(0);
+    h.ui.onSkip(0);
+    expect(video.currentTime).toBe(0);
   });
 
   test("a skip's seek that landed where it was asked is not sought again while the clock runs on", async () => {

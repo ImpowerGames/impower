@@ -1,9 +1,11 @@
 // Where a layer's movie stands in Chromium's own media element, with the
 // production UIManager, Application and Clock: after each settle of a skip,
 // a rewind, playback and a Fast Forward hold, the element must stand where
-// the game clock puts the movie (within 0.02 s while paused, and within the
-// quarter second UIManager counts as in step while playing), and a movie in
-// step with the clock must not be seeked by the page.
+// the game clock puts the movie (within 0.02 s while paused, where a loop's
+// last frame is not its first, and within the quarter second UIManager
+// counts as in step while playing), and a movie in step with the clock must
+// not be seeked by the page, including while the clock gets no animation
+// frames, as in a hidden page.
 //
 // Run from the repository root (needs Playwright's Chromium):
 //
@@ -26,7 +28,7 @@ import { build } from "esbuild";
 import { chromium } from "playwright";
 
 type Fixture = "known" | "learned" | "infinite";
-type First = "before" | "inside" | "past" | "none";
+type First = "before" | "inside" | "past" | "twice" | "none" | "unframed";
 interface Case {
   fixture: Fixture;
   loop: boolean;
@@ -58,6 +60,14 @@ for (const fixture of ["known", "learned", "infinite"] as const) {
 // infinite file arrives while the movie plays.
 cases.push({ fixture: "infinite", loop: true, first: "none" });
 cases.push({ fixture: "infinite", loop: false, first: "none" });
+// Skipped exactly two lengths before its metadata loads: a paused loop stands
+// on its first frame, not on its last.
+cases.push({ fixture: "learned", loop: true, first: "twice" });
+cases.push({ fixture: "learned", loop: false, first: "twice" });
+// Playing while the clock gets no animation frames (a hidden page) for two
+// wraps of the loop, then gets them again.
+cases.push({ fixture: "known", loop: true, first: "unframed" });
+cases.push({ fixture: "infinite", loop: true, first: "unframed" });
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const bundle = await build({
@@ -140,6 +150,13 @@ try {
       return URL.createObjectURL(new Blob(chunks, { type: "video/webm" }));
     };
     const urls = { known: await record(0), infinite: await record(100) };
+    // The whole recording's duration, read from an element of its own.
+    const knownSpan = await new Promise<number>((resolve) => {
+      const sizer = document.createElement("video");
+      sizer.muted = true;
+      sizer.onloadedmetadata = () => resolve(sizer.duration);
+      sizer.src = urls.known;
+    });
 
     const native = Object.getOwnPropertyDescriptor(
       HTMLMediaElement.prototype,
@@ -152,14 +169,32 @@ try {
       const rows: Record<string, unknown>[] = [];
       const overlay = document.createElement("div");
       document.body.appendChild(overlay);
+      // Application's clock, whose frames can be held back as a hidden page's
+      // are.
+      let unframed = false;
+      let heldFrame: (() => void) | undefined;
       const clock = new Clock(
         {
           get currentTime() {
             return performance.now() / 1000;
           },
         },
-        (callback: () => void) => requestAnimationFrame(callback),
+        (callback: () => void) => {
+          if (unframed) {
+            heldFrame = callback;
+            return 0;
+          }
+          return requestAnimationFrame(callback);
+        },
       );
+      const reframe = () => {
+        unframed = false;
+        const frame = heldFrame;
+        heldFrame = undefined;
+        if (frame) {
+          requestAnimationFrame(frame);
+        }
+      };
       const app = Object.create(Application.prototype);
       Object.assign(app, {
         _overlay: overlay,
@@ -171,6 +206,8 @@ try {
       });
       const ui = new UIManager(app);
       app._managers.push(ui);
+      // Each frame updates the managers, as `Application.start` arranges.
+      clock.add((time: unknown) => app.update(time));
       clock.start();
 
       const video = document.createElement("video");
@@ -178,19 +215,38 @@ try {
       video.muted = true;
       video.loop = c.loop;
       video.style.cssText = "width:96px;height:54px";
-      // Every position the page gives the element, so a seek of a movie
-      // already in step with the clock shows up.
-      const writes: number[] = [];
+      // While the movie plays, the probe's tally of the clock from when it
+      // started to: how far the element stands from the clock's place.
+      let playing: { tally: number; game: number } | undefined;
+      const gapToClock = (): number | undefined => {
+        if (!playing) {
+          return undefined;
+        }
+        const t = playing.tally + clock.elapsedTime - playing.game;
+        const at: number = native.get!.call(video);
+        const d = span();
+        if (d === undefined) {
+          return Math.abs(at - t);
+        }
+        const gap = Math.abs(at - (c.loop ? mod(t, d) : Math.min(t, d)));
+        return c.loop ? Math.min(gap, d - gap) : gap;
+      };
+      // Every position the page gives the element, with how far from the
+      // clock's place the element stood then, so a seek of a movie already in
+      // step with the clock shows up.
+      const writes: { value: number; gap?: number }[] = [];
       Object.defineProperty(video, "currentTime", {
         configurable: true,
         get() {
           return native.get!.call(this);
         },
         set(value: number) {
-          writes.push(value);
+          writes.push({ value, gap: gapToClock() });
           native.set!.call(this, value);
         },
       });
+      const inStepSeeks = (from: number) =>
+        writes.slice(from).filter((w) => w.gap !== undefined && w.gap <= 0.25);
       let lastEvent = performance.now();
       for (const type of [
         "seeking",
@@ -249,9 +305,11 @@ try {
           : undefined;
       const expected = (d: number) =>
         c.loop ? mod(tally, d) : Math.min(tally, d);
+      // A playing loop is in step anywhere around its end; a paused one shows
+      // its last frame at its end and its first at its start.
       const distance = (a: number, b: number, d: number) => {
         const gap = Math.abs(a - b);
-        return c.loop ? Math.min(gap, d - gap) : gap;
+        return c.loop && !video.paused ? Math.min(gap, d - gap) : gap;
       };
       const check = (step: string, tolerance: number) => {
         const row = snap(step);
@@ -286,6 +344,37 @@ try {
         }
       };
 
+      if (c.first === "unframed") {
+        await loaded;
+        ui.startMovie(video);
+        const game = clock.elapsedTime;
+        playing = { tally: 0, game };
+        await delay(300);
+        const held = writes.length;
+        unframed = true;
+        await delay(knownSpan * 2200);
+        const resumed = writes.length;
+        reframe();
+        await delay(600);
+        tally = clock.elapsedTime - game;
+        check("playing after frames held back for two wraps", 0.25);
+        checks.push({
+          case: name,
+          step: "no seek by the page while frames were held back",
+          ok: resumed === held,
+          detail: `page seeks: ${JSON.stringify(writes.slice(held, resumed))}`,
+        });
+        checks.push({
+          case: name,
+          step: "playing in step is not seeked",
+          ok: inStepSeeks(0).length === 0,
+          detail: `page seeks (value, gap to the clock): ${JSON.stringify(writes)}`,
+        });
+        playing = undefined;
+        snap("done");
+        clock.stop();
+        return { checks, rows };
+      }
       if (c.fixture === "learned") {
         // Shown and paused before its metadata loads.
         ui.startMovie(video);
@@ -299,9 +388,14 @@ try {
         // The pause anchors the movie where its element stands.
         tally = video.currentTime;
       }
-      const first = { before: -(tally + 1), inside: 1, past: 5, none: 0 }[
-        c.first
-      ];
+      const first = {
+        before: -(tally + 1),
+        inside: 1,
+        past: 5,
+        twice: 2 * knownSpan,
+        none: 0,
+        unframed: 0,
+      }[c.first];
       if (c.first !== "none") {
         await skip(first);
         await settle();
@@ -321,18 +415,20 @@ try {
         check("rewind -0.5", 0.02);
       }
 
-      // Playing with the clock: the page seeks nothing.
+      // Playing with the clock: the page seeks no movie in step with it.
       const writesBefore = writes.length;
       let game = clock.elapsedTime;
+      playing = { tally, game };
       app.unpause();
       await delay(c.first === "none" ? 3800 : 1600);
       tally += clock.elapsedTime - game;
+      playing = undefined;
       check("playing", 0.25);
       checks.push({
         case: name,
         step: "playing in step is not seeked",
-        ok: writes.length === writesBefore,
-        detail: `page seeks while playing: ${JSON.stringify(writes.slice(writesBefore))}`,
+        ok: inStepSeeks(writesBefore).length === 0,
+        detail: `page seeks while playing (value, gap to the clock): ${JSON.stringify(writes.slice(writesBefore))}`,
       });
 
       // Fast Forward held while playing: ten steps of 0.1 s.

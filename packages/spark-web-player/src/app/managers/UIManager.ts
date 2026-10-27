@@ -526,6 +526,7 @@ export default class UIManager extends Manager {
     if (seen !== undefined && elapsed > seen) {
       this.morphs?.advance(elapsed - seen);
     }
+    this.settleMovies();
   }
 
   override onSkip(seconds: number) {
@@ -555,6 +556,7 @@ export default class UIManager extends Manager {
     // The run is over (STOP, or the rebuild a new run makes): its movies stop
     // where they are. The next display replaces or sweeps their layers.
     this._disposed = true;
+    this._unsettledMovies.clear();
     for (const video of this.movies()) {
       video.pause();
       delete (video as any).__sdMovie;
@@ -2604,24 +2606,55 @@ export default class UIManager extends Manager {
         }
       }
     }
-    this.placeMovie(video);
+    // The clock's reading is current while the game is paused, when it does
+    // not move. While the game plays it moves on animation frames, which a
+    // hidden page does not get, so the movie is placed on the clock's next
+    // frame (`onUpdate`).
+    if (this.app.paused) {
+      this.placeMovie(video);
+    } else {
+      this._unsettledMovies.add(video);
+    }
+  }
+
+  /** Movies the browser reported on while the game played, to be placed on
+   *  the clock's next frame. */
+  protected _unsettledMovies = new Set<HTMLVideoElement>();
+
+  /** Place the movies the browser reported on since the clock's last frame,
+   *  now that its reading is current. */
+  protected settleMovies() {
+    if (!this._unsettledMovies.size) {
+      return;
+    }
+    const videos = Array.from(this._unsettledMovies);
+    this._unsettledMovies.clear();
+    for (const video of videos) {
+      if ((video as any).__sdMovie && (video as any).__sdManager === this) {
+        this.placeMovie(video);
+      }
+    }
   }
 
   /** Place `video`'s anchor and element by the one rule where the clock has
-   *  it now. A paused element is moved to its place; a playing one only
-   *  when it is out of step, so playback with the clock is not interrupted
-   *  by a seek. */
+   *  it now. A paused element is moved to its place exactly: at a loop's end
+   *  it shows the last frame, and at its start the first. A playing one is
+   *  moved only when it is out of step, so playback with the clock is not
+   *  interrupted by a seek. */
   protected placeMovie(video: HTMLVideoElement) {
     const place = this.moviePlace(video, this.clockTime(video));
     this.anchorMovie(video, place.anchor);
-    const tolerance = video.paused ? MOVIE_AT : MOVIE_IN_STEP;
-    if (this.movieGap(video, place.element) > tolerance) {
+    const outOfPlace = video.paused
+      ? Math.abs(video.currentTime - place.element) > MOVIE_AT
+      : this.movieGap(video, place.element) > MOVIE_IN_STEP;
+    if (outOfPlace) {
       this.seekMovie(video, place.element);
     }
   }
 
-  /** How far `video`'s element stands from `time`: around the loop for a
-   *  loop of known span, whose end and start are the same frame. */
+  /** How far a playing `video`'s element stands from `time`: around the
+   *  loop for a loop of known span, which plays on from its end into its
+   *  start. */
   protected movieGap(video: HTMLVideoElement, time: number): number {
     const gap = Math.abs(video.currentTime - time);
     const span = this.movieSpan(video);
