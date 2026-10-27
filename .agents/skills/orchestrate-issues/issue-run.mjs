@@ -288,7 +288,13 @@ export const MERGING = ["coordinator", "maintainer"];
 // stop-at-ready is the same request.
 export const STOP_AT_READY = /stop(?:s|ping)? at (?:the )?ready|do(?:n't| not) merge|without merging|leave (?:the )?merg|maintainer merges/i;
 export const stopsAtReady = (text) => STOP_AT_READY.test(String(text ?? "").replace(/[-_]+/g, " "));
+// Git Bash rewrites an argument that begins with a slash, such as a slash
+// command, into a path under its install root before the program starts. A
+// request that begins with a drive letter is that rewrite, and the typed text
+// cannot be recovered from it, so it is refused rather than guessed at.
+export const SHELL_REWRITTEN = /^[A-Za-z]:[\\/]/;
 export function mergingFor(invocation, merging = "maintainer") {
+  if (SHELL_REWRITTEN.test(String(invocation ?? ""))) throw new Error(`The request "${invocation}" was rewritten by the shell: Git Bash turns a leading slash into its install path. Pass it intact with MSYS_NO_PATHCONV=1 before the command, or run the command through PowerShell`);
   if (!MERGING.includes(merging)) throw new Error(`--merging must be ${MERGING.join(" or ")}: coordinator when the request explicitly asks to orchestrate the parent issue, maintainer when it stops at ready PRs`);
   if (merging === "coordinator" && stopsAtReady(invocation)) throw new Error(`The request "${invocation}" asks to stop at ready PRs or not to merge; record --merging maintainer`);
   return merging;
@@ -352,12 +358,41 @@ export function scheduleSpec(record, file, defaults) {
     command: scheduleCommand(file), capability: capability?.capability ?? null, expiresAfterDays: capability?.expiresAfterDays ?? null,
   };
 }
-export function recordCheckIn(record, { job, none, file, defaults }) {
+// A runner may stop protecting a job its process still fires: the runner
+// configuration names the environment variable holding the runner process's
+// id, whose start time identifies the process instance that armed the job.
+// null means the runner offers no way to tell its instances apart; a runner
+// that offers one but cannot be observed now yields { unknown: <why> }.
+export function runnerInstance(capability, { env = process.env, identify = processIdentity } = {}) {
+  const name = capability?.instance?.pidEnv;
+  if (!name) return null;
+  const pid = Number(env[name]);
+  if (!Number.isSafeInteger(pid) || pid < 1) return { unknown: `${name} is ${env[name] === undefined ? "unset" : `${JSON.stringify(env[name])}, not a process id`}` };
+  try { return identify(pid) ?? { unknown: `runner process ${pid} from ${name} is not running` }; } catch (error) { return { unknown: `runner process ${pid} from ${name} could not be probed: ${error.message}` }; }
+}
+const sameInstance = (a, b) => Boolean(a?.start && b?.start && a.pid === b.pid && a.start === b.start);
+// Whether the runner tracks the job: "confirmed" or "unconfirmed" from the
+// runner's own logs (the current one and its rotated predecessors), or
+// "unavailable" where the runner offers no such signal.
+export function trackingOf(capability, { job, session, env = process.env }) {
+  const confirm = capability?.confirm;
+  if (!confirm || (confirm.where && env[confirm.where.env] !== confirm.where.equals)) return "unavailable";
+  const line = confirm.line.replace("{session}", session).replace("{job}", job);
+  const found = confirm.logs.some((log) => {
+    try { return fs.readFileSync(log.replace(/%(\w+)%/g, (_, name) => env[name] ?? ""), "utf8").includes(line); } catch { return false; }
+  });
+  return found ? "confirmed" : "unconfirmed";
+}
+const checkInCapability = (record, defaults) => defaults.orchestrators[record.coordinator.harness]?.checkIn ?? null;
+export function recordCheckIn(record, { job, none, file, defaults, env = process.env, identify = processIdentity }) {
   if (Boolean(job) === Boolean(none)) throw new Error("Record the check-in with --job <the job id the runner returned>, or with --none <why the runner cannot schedule one>");
   const spec = scheduleSpec(record, file, defaults), since = new Date();
   const days = job ? spec.expiresAfterDays : null;
-  record.checkIn = { interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: job ?? null, none: none ?? null, state: job ? "scheduled" : "none", since: since.toISOString(), expires: days ? new Date(since.getTime() + days * 86400000).toISOString() : null };
-  log(record, "check-in-scheduled", { job: job ?? null, none: none ?? null });
+  const capability = checkInCapability(record, defaults);
+  const instance = job ? runnerInstance(capability, { env, identify }) : null;
+  const tracked = job ? trackingOf(capability, { job, session: record.coordinator.session, env }) : null;
+  record.checkIn = { interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: job ?? null, none: none ?? null, state: job ? "scheduled" : "none", since: since.toISOString(), expires: days ? new Date(since.getTime() + days * 86400000).toISOString() : null, instance, tracked };
+  log(record, "check-in-scheduled", { job: job ?? null, none: none ?? null, instance, tracked });
 }
 // A check-in whose sweep found nothing to act on records that too.
 export function checkedIn(record, { outcome }) {
@@ -365,8 +400,23 @@ export function checkedIn(record, { outcome }) {
   log(record, "check-in", { outcome });
 }
 // What the next plan says about the check-in job.
-function checkInStatus(record, now) {
+function checkInStatus(record, now, { defaults, env, identify }) {
   const c = record.checkIn;
+  const status = baseCheckInStatus(c, now);
+  if (status.state !== "scheduled") return status;
+  // A scheduled job the runner may no longer protect is removed and created
+  // again from the current process, which the runner then tracks.
+  const capability = checkInCapability(record, defaults);
+  const rearm = (why, state = "rearm") => ({ state, job: c.job, next: `job ${c.job} ${why}; remove it with ${capability.remove}, create it again with ${c.command}, and record the new job with check-in --job <id>` });
+  const current = runnerInstance(capability, { env, identify });
+  if (current?.unknown) return rearm(`may have outlived its runner process, which cannot be identified now (${current.unknown}), and is re-armed from a shell where ${capability.instance.pidEnv} names the runner process`, "unidentified");
+  if (current && !sameInstance(current, c.instance)) return rearm(`was armed by ${c.instance?.start ? `runner process ${c.instance.pid}` : "an unidentified runner process"}, not this one (${current.pid}), and the runner stops tracking a job across a restart`);
+  const days = capability?.trackedForDays;
+  if (days && c.since && now > Date.parse(c.since) + days * 86400000) return rearm(`was armed at ${c.since}, more than ${days} days ago, past the runner's tracking window`);
+  if (c.tracked === "unconfirmed" && trackingOf(capability, { job: c.job, session: record.coordinator.session, env }) !== "confirmed") return rearm("is not confirmed as tracked by the runner", "unconfirmed");
+  return status;
+}
+function baseCheckInStatus(c, now) {
   if (!c) return { state: "missing", next: `schedule the periodic check-in now: run issue-run.mjs schedule --record <this run record>, create the job it prints with your runner's scheduling capability, and record it with check-in --job <id>, or --none <reason> when the runner has none` };
   if (c.state === "none") return { state: "none", next: `the runner schedules no check-in (${c.none}); run the wake routine at the start of every turn` };
   if (!c.job) return { state: "recreate", next: `the check-in ended with the previous coordinator; recreate it with ${c.command} and record it with check-in --job <id>` };
@@ -380,7 +430,7 @@ function checkInStatus(record, now) {
 export function carriedRun(prev, { file, record, defaults }) {
   const spec = scheduleSpec(record, file, defaults);
   return {
-    ...(prev.checkIn && { checkIn: { ...prev.checkIn, interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: null, state: "recreate on this coordinator's runner", since: null, expires: null } }),
+    ...(prev.checkIn && { checkIn: { ...prev.checkIn, interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: null, state: "recreate on this coordinator's runner", since: null, expires: null, instance: null, tracked: null } }),
     ...(prev.title && { title: prev.title }),
   };
 }
@@ -958,7 +1008,7 @@ const reportedSince = (own) => { const started = Date.parse(own.owner.resumes?.a
 // continuation whose claim recorded the previous writer's end and never ran.
 const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
 
-export function planDispatch({ record, snapshot, observations = {}, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity, now = Date.now(), reviewJobs = `${record.checkout}.review-jobs`, census = processCensus }) {
+export function planDispatch({ record, snapshot, observations = {}, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity, now = Date.now(), reviewJobs = `${record.checkout}.review-jobs`, census = processCensus, env = process.env }) {
   if (snapshot.repository !== record.repository || snapshot.issue.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");
   const model = record.writer.model;
   const routes = routeOptions(model, defaults);
@@ -1294,7 +1344,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   return {
     repository: record.repository, issue: record.issue, parent: { type: snapshot.issue.type ?? null, title: snapshot.issue.title ?? null }, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow },
-    routes, tickets, filed: filedActions(record), sweep, checkIn: checkInStatus(record, now), remaining: remainingFor(record, complete), complete,
+    routes, tickets, filed: filedActions(record), sweep, checkIn: checkInStatus(record, now, { defaults, env, identify }), remaining: remainingFor(record, complete), complete,
   };
 }
 

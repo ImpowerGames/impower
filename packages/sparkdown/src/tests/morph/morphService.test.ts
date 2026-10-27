@@ -2,11 +2,11 @@ import { describe, expect, test } from "vitest";
 import { bakeMorphArtifactAsync, type MorphBakeInput, type MorphGeometryCache } from "../../morph/bake";
 import { MorphArtifactSlot, type MorphHost } from "../../morph/hosts";
 import { MorphBakeService, type MorphCacheEvent, type MorphLoad } from "../../morph/service";
-import type { MorphArtifact, MorphRef } from "../../morph/types";
+import { MORPH_BAKE_FORMAT, type MorphArtifact, type MorphRef } from "../../morph/types";
 import { blink, portrait } from "./fixtures";
 
 const artifactFor = (key: string): MorphArtifact => ({
-  format: 1,
+  format: MORPH_BAKE_FORMAT,
   key,
   morph: "blink",
   status: "static",

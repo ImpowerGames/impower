@@ -110,16 +110,16 @@ function reservationNaming(file,directory,root) {
 // whole cleanup before anything is removed. A kept file elsewhere needs no
 // protection here.
 //
-// The machine test reservation is read under its guard. An entry that names
-// this directory, holds it, or lies inside it (a run testing a probe clone, or
-// a run journal kept there), as named or through any junction or link,
-// preserves the whole directory, since deleting it would remove that run's
-// ownership evidence; so does an entry or run journal that cannot be read or a
-// named path that cannot be resolved. An entry naming anything else does not
-// delay the cleanup. Still under the guard, every entry to remove is renamed
-// into one `.probe-cleanup-<id>` directory, so no run can start in a probe
-// clone after the check; the guard is then released and that directory is
-// deleted, so test admission never waits on the deletion.
+// The machine test reservation's slots and waiting rows are read under its
+// guard. An entry that names this directory, holds it, or lies inside it (a
+// run testing a probe clone, or a run journal kept there), as named or through
+// any junction or link, preserves the whole directory, since deleting it would
+// remove that run's ownership evidence; so does an entry or run journal that
+// cannot be read or a named path that cannot be resolved. An entry naming
+// anything else does not delay the cleanup. Still under the guard, every entry
+// to remove is renamed into one `.probe-cleanup-<id>` directory, so no run can
+// start in a probe clone after the check; the guard is then released and that
+// directory is deleted, so test admission never waits on the deletion.
 //
 // Returns the removed file and link counts and the elapsed time, plus
 // `skipped` and `reason` when a reservation preserved the directory. Throws
@@ -180,11 +180,13 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     return {...counts,elapsedMs:Date.now()-began};
   }
   const trash=path.join(root,`.probe-cleanup-${randomUUID()}`);
-  const moved=withProbeCleanupGuard((file)=>{
-    let named;
-    try{named=reservationNaming(file,directory,root);}
-    catch(error){return {skipped:true,reason:error.message};}
-    if(named)return {skipped:true,reason:`Reservation entry at ${file} names ${named}, which overlaps this reviewer directory; preserve reviewer scratch`};
+  const moved=withProbeCleanupGuard((files)=>{
+    for(const file of files){
+      let named;
+      try{named=reservationNaming(file,directory,root);}
+      catch(error){return {skipped:true,reason:error.message};}
+      if(named)return {skipped:true,reason:`Reservation entry at ${file} names ${named}, which overlaps this reviewer directory; preserve reviewer scratch`};
+    }
     fs.mkdirSync(trash);
     targets.forEach((target,index)=>{
       try{fs.renameSync(target,path.join(trash,String(index)));}

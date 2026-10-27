@@ -4,7 +4,7 @@ import os from "node:os";
 import { randomUUID, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { acquireWaiting, releaseKeeping, waitForCensus, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
+import { acquireWaiting, waitForUnit, runPool, releaseKeeping, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
 import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 import { prepareOwnedRuntime, prepareOwnedChild, runOwnedChild, readTreeProof, assertAttemptBinding } from "./test-suite-child.mjs";
 import { openReceipt } from "./test-suite-receipt.mjs";
@@ -316,16 +316,27 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
 
 const reportWait = value => console.log(JSON.stringify({ status: "waiting", ...value }));
 
-// Nothing has run when the reservation cannot be taken; the error says so, so
-// callers never read a refusal as a test result.
-// Once taken, the run says so on its own line: the reviewer execution service
-// starts a delegated run's timeout from it, not from the launch.
+// Nothing has run when the run is not admitted within its wait; the error
+// says so, so callers never read a refusal as a test result. Once admitted,
+// the run says so on its own line: the reviewer execution service starts a
+// delegated run's timeout from it, not from the launch.
 export const reservationAcquiredLine = JSON.stringify({ status: "acquired" });
-const queue = async (run, options) => {
-  const reservation = await acquireWaiting(run, { ...options, onWait: reportWait })
+const queue = async (run, { pool = "writer", ...options }) => {
+  const reservation = await acquireWaiting(run, { ...options, pool, onWait: reportWait })
     .catch(error => { throw Object.assign(error, { notRun: true }); });
+  console.log(JSON.stringify({ status: "admitted", pool, slot: reservation.slot, freeMb: reservation.freeMb }));
   console.log(reservationAcquiredLine);
   return reservation;
+};
+
+// Every execution unit waits for the unit gate first: the free-memory reading
+// at or above the floor and no foreign Vitest process, for up to `--wait`,
+// as the census wait before each file did. The holder keeps its slot while it
+// waits; a gate that stays shut past the bound ends the run as any other
+// refusal between units does.
+const underUnit = async (reservation, { waitMs = 0, ...dependencies }, unit) => {
+  await waitForUnit(reservation, { ...dependencies, deadline: Date.now() + waitMs, onWait: reportWait });
+  return unit();
 };
 
 // The exit status and marker line for a failed command. 75 (EX_TEMPFAIL) and
@@ -444,7 +455,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       run = { version: 2, directory, root, packageRoot, owner: reservation.record.owner, token: reservation.record.token, active: true, createdAt: now(), files: [], attempts: [] };
       save();
       const beforeDiscovery = fingerprint(root, []);
-      const { attempt, report } = await childRun(run, "discover", null, reservation, save, childDependencies);
+      const { attempt, report } = await underUnit(reservation, { ...dependencies, census, waitMs }, () => childRun(run, "discover", null, reservation, save, childDependencies));
       if (retain(attempt)) return finish();
       if (attempt.status !== "passed") throw Object.assign(new Error(`Discovery ${attempt.status}; start a new run and inspect ${attempt.directory}`),
         { exitCode: attempt.status === "timed-out" ? 124 : 1, attempt });
@@ -465,8 +476,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       const previous = run.attempts.filter(a => a.file === file).at(-1);
       if (previous && (previous.status === "passed" || ["failed", "timed-out"].includes(previous.status) && !retry.includes(file))) continue;
       if (fingerprint(run.root, []) !== run.identity) refuseStale("Inputs changed during suite; start a new run");
-      await waitForCensus({ deadline: Date.now() + waitMs, pollMs: dependencies.pollMs, census, onWait: reportWait });
-      const { attempt } = await childRun(run, "run", file, reservation, save, childDependencies);
+      const { attempt } = await underUnit(reservation, { ...dependencies, census, waitMs }, () => childRun(run, "run", file, reservation, save, childDependencies));
       if (retain(attempt)) return finish();
       if (["unknown", "timed-out", "interrupted"].includes(attempt.status)) return finish();
     }
@@ -551,7 +561,7 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "
   const stopped = attempt => !!(reservationError || journalError || attempt.setupError
     || ["unknown", "timed-out", "interrupted"].includes(attempt.status));
   const attempt = async (mode, file, extra = {}) => {
-    const value = await childRun(run, mode, file, reservation, save, { ...childDependencies, ...extra });
+    const value = await underUnit(reservation, { ...dependencies, census, waitMs }, () => childRun(run, mode, file, reservation, save, { ...childDependencies, ...extra }));
     if (stdio === "inherit") {
       try { process.stdout.write(fs.readFileSync(path.join(value.attempt.directory, "output.log"), "utf8")); }
       catch (error) { value.attempt.outputError = error.message; }
@@ -593,7 +603,6 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "
         save();
         continue;
       }
-      await waitForCensus({ deadline: Date.now() + waitMs, pollMs: dependencies.pollMs, census, onWait: reportWait });
       const value = await attempt("run-direct", file, { expectedFiles: specifications.length });
       if (stopped(value.attempt)) return finish();
       const actualSelection = read(path.join(value.attempt.directory, "selection.json"));
@@ -758,7 +767,7 @@ export async function main(argv, dependencies = {}) {
     if (args.length > MAX_RUN_FILES) throw new Error(`run takes at most ${MAX_RUN_FILES} test files (${args.length} named): a longer list is a package run, which the Test Suite workflow runs for the pushed head; run only the test files under work locally`);
     const packageRoot = packageDirectory(target);
     validateTestFiles(packageRoot, args);
-    const direct = await runVitest({ ...dependencies, packageRoot, files: args, waitMs, fileTimeoutMs, receiptPath });
+    const direct = await runVitest({ ...dependencies, pool: runPool({ directory: packageRoot }), packageRoot, files: args, waitMs, fileTimeoutMs, receiptPath });
     const { exit, signal, launchError } = direct;
     console.log(JSON.stringify(directTerminalSummary(direct, fileTimeoutMs)));
     if (launchError) throw new Error(launchError);
@@ -769,11 +778,11 @@ export async function main(argv, dependencies = {}) {
     const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
     const directory = path.join(gitDir, "test-suites", randomUUID());
     console.log(JSON.stringify({ run: directory, status: "starting", coordinator: processIdentity(process.pid) }));
-    result = await execute({ ...dependencies, directory, packageRoot, waitMs, fileTimeoutMs });
+    result = await execute({ ...dependencies, pool: runPool({ directory: packageRoot }), directory, packageRoot, waitMs, fileTimeoutMs });
   } else if (command === "resume" && target) {
     if (args.length && args[0] !== "--retry") throw new Error("Use --retry followed by explicit failed paths");
     const run = read(path.join(target, "run.json"));
-    result = await execute({ ...dependencies, directory: target, waitMs, fileTimeoutMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
+    result = await execute({ ...dependencies, pool: runPool({ directory: run.packageRoot }), directory: target, waitMs, fileTimeoutMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
   } else if (command === "status" && target && !args.length) result = status(target);
   else throw new Error("Usage: node scripts/test-suite.mjs run <package-dir> <test-file> [<test-file> ...] [--wait <seconds>] [--file-timeout <seconds>] | start <package-dir> [--wait <seconds>] [--file-timeout <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>] [--file-timeout <seconds>]; <package-dir> is a directory such as packages/sparkdown");
   console.log(JSON.stringify(result, null, 2));
