@@ -30,7 +30,7 @@ Fonts load per layout. A font is needed by a layout when a style that applies to
 
 Synth audio (character voices, the typewriter) is generated per line with a tone suffix in its key and is never cached. A synth buffer lives on its player and is dropped when the player stops.
 
-Video is a cache kind so the loader is ready when playback lands. Playback is a separate effort; its contract is at the end of this document.
+Video is a cache kind, loaded in play only. Playback builds on it as the video contract at the end of this document describes.
 
 Worlds (authored JavaScript modules) load only in play, through `load`.
 
@@ -187,7 +187,16 @@ The browser does the heavy work on its own threads; the page's main thread only 
 
 ## Video playback contract
 
-Video playback is a separate effort. This system guarantees it: a `video` asset type in `program.assets` and `context.video`; `sceneAssets` image names that resolve to videos; a resident object URL from the cache for any predicted or explicitly loaded video; the same per-line gate, so a beat that starts a video waits for it the way a beat waits for its audio; and eviction through the same pins. The surface follows Ren'Py's two movie forms: a video name in `[[show LAYER NAME]]` plays on that layer like an animated image (looping by default, `once` plays through and holds the last frame, `mute` silences it, `[[hide LAYER]]` stops it), and `[[play NAME]]` is the full-screen cutscene that ends when the video ends or the player clicks and then continues the story (`loop` until a click; `movie.stop_music` stops the music channel for its duration). The work, including the validator, reference, completion, scene-asset, interpreter, coordinator, and page plumbing, is issue #398. The playback design: a `<video>` element created for names that resolve to `context.video`, playback tied to the game clock, audio routed through the mixer, and preview showing the first frame only.
+Video playback follows Ren'Py's two movie forms: a video name in `[[show LAYER NAME]]` plays on that layer like an animated image (looping by default, `once` plays through and holds the last frame, `mute` silences it, `[[hide LAYER]]` pauses it, drops its source and clears the layer), and `[[play NAME]]` is the full-screen cutscene that ends when the video ends or on the player's first click, tap or advance key and then continues the story (`loop` until a click; `movie.stop_music`, on by default, stops the `music` channel as it starts, and the music stays stopped). The author-facing description is the guide's [Video](../../packages/sparkdown/docs/guide/Video.md) chapter.
+
+This system gives playback the following contract:
+
+- A video file is a `video` asset in `program.assets` and `context.video`, named after its file. `sceneAssets` carries the names of layer movies and cutscenes in its `image` lists, and `AssetModule.resolveImageItems` turns a name that is not an image but is in `context.video` into a `{ kind: "video", src }` item. The scene asset scanner reads the name after `play` inside `[[ ]]` the way it reads the name after `load`, in parity with the interpreter's `createAssetChunk`.
+- Video is timed, so only play predicts and loads it. A predicted or loaded video is resident once its bytes are held in a blob with an object URL, and a beat that shows a movie or starts a cutscene waits for it through the same per-line gate as its audio; past `beat_timeout` the page streams the file URL instead.
+- The page builds a `<video class="object" playsinline>` for a movie, with the cache's object URL as its `src` when the file is resident and the file URL otherwise, and the file URL as its `data-src`. `derivedPins` collects `video.object` elements by `data-src`, so a displayed movie's entry is never evicted and its object URL never revoked under it.
+- The element loads in CORS mode (`crossOrigin = "anonymous"`) so that its sound can go through a `MediaElementAudioSourceNode` into the `movie` mixer; a video served from another origin needs CORS headers, or it fails to load.
+- In preview no video enters the cache. The movie element has `preload="metadata"` and never plays, so it shows the first frame and reads only the ranges it needs from the file URL. The editor's service worker answers a `Range` request for a project file with 206 and the requested bytes (416 for a range past the end); with a 60 s, 13.6 MB WebM backdrop the preview buffered its first 2.6 s.
+- Movies follow the game clock: pause and unpause pause and resume them, and a skip moves each one by the skipped time. Between skips a movie plays on the media element's own clock and can drift from the game's (about 0.06 to 0.17 s after 12 s of play) until the next skip, pause or span change places it again.
 
 ## Phases
 
