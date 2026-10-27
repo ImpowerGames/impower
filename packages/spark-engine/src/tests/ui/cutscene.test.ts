@@ -137,8 +137,35 @@ describe("a cutscene: the UI module", () => {
       with: "fade",
     });
     expect(ui.isReady(id)).toBe(false);
-    await flushMicrotasks();
+    await flushMicrotasks(10);
     expect(ui.isReady(id)).toBe(true);
+  });
+
+  test("a page that cannot play the video is reported, and the trigger still fires", async () => {
+    const h = await harness({ playing: true });
+    const connection = h.game.connection as any;
+    const emit = connection.emit;
+    connection.emit = (msg: any, ...rest: any[]) =>
+      msg?.method === "ui/play-cutscene"
+        ? Promise.reject({ code: -32603, message: "decoder unavailable" })
+        : emit.call(connection, msg, ...rest);
+    const warnings: string[] = [];
+    const warn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+    try {
+      const ui = h.game.module.ui;
+      const id = ui.runCutscene({ name: "intro" });
+      await flushMicrotasks();
+      expect(ui.isReady(id)).toBe(true);
+      expect(
+        warnings.some((w) =>
+          w.includes("ui/play-cutscene failed: decoder unavailable"),
+        ),
+      ).toBe(true);
+    } finally {
+      console.warn = warn;
+      connection.emit = emit;
+    }
   });
 
   test("a bare cutscene plays once, with its sound", async () => {

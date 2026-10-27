@@ -5038,8 +5038,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (previewing) {
       params.preview = true;
     }
-    const ended = () => this.enableTrigger(id);
-    this.emit(PlayCutsceneMessage.type.request(params)).then(ended, ended);
+    // The page answers once the video has ended or been skipped. A page that
+    // could not play it answers with an error, which is reported, and the
+    // story goes on all the same.
+    void this.emitSettled(PlayCutsceneMessage.type.request(params)).then(() =>
+      this.enableTrigger(id),
+    );
     return id;
   }
 

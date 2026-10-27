@@ -92,14 +92,31 @@ export class Coordinator<G extends Game> {
       const params = msg.params;
       if (params.type === "pointerdown") {
         if (params.button === 0) {
-          this._interacted = true;
+          this.interact();
         }
       } else if (params.type === "keydown") {
         if (this.isAdvanceKey(params)) {
-          this._interacted = true;
+          this.interact();
         }
       }
     }
+  }
+
+  /**
+   * A click or advance key. Until a cutscene beat's cutscene has ended, it
+   * ends the cutscene and not the beat: the page plays its exit and answers,
+   * and the beat goes on from there. One that lands before the cutscene
+   * starts was meant for the line before and is dropped. It is settled as it
+   * arrives, so the tick that starts the cutscene cannot take it for a skip.
+   */
+  protected interact(): void {
+    if (this._instructions.cutscene && !this._finishedExecution) {
+      if (this._cutscenePlaying) {
+        this._game.module.ui.skipCutscene();
+      }
+      return;
+    }
+    this._interacted = true;
   }
 
   /**
@@ -127,16 +144,6 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
-    if (instructions.cutscene && this._interacted && !this._finishedExecution) {
-      // Until the cutscene has ended, a click or key ends the cutscene and not
-      // the beat: the page plays its exit and answers, and the beat goes on
-      // from there. One that lands before the cutscene starts is dropped.
-      this._interacted = false;
-      if (this._cutscenePlaying) {
-        game.module.ui.skipCutscene();
-      }
-      return 0;
-    }
     if (instructions.hold) {
       // A held beat advances only when the player asks.
       return this.continueOnInteraction(waitingForChoice);

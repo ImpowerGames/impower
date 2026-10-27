@@ -545,6 +545,25 @@ describe("Coordinator", () => {
       expect(coordinator.shouldContinue()).toBe(STAY);
     });
 
+    it("does not take a click from before the start for a skip when the gate opens on the next tick", () => {
+      const { game, calls } = createGame();
+      const assets = (game.module as any).assets;
+      assets.prepareBeat = () => 1;
+      assets.isReady = () => false;
+      const coordinator = new Coordinator(game, cutsceneBeat());
+      coordinator.onMessage(pointerdown());
+      // The video arrives before the next frame: that one tick starts the
+      // cutscene and asks whether to go on.
+      assets.isReady = () => true;
+      coordinator.onUpdate(tick(16));
+      expect(calls.cutscenes).toEqual(["intro"]);
+      expect(calls.skippedCutscenes).toBe(0);
+      // A click now is meant for the cutscene.
+      coordinator.onMessage(pointerdown());
+      coordinator.onUpdate(tick(16));
+      expect(calls.skippedCutscenes).toBe(1);
+    });
+
     it("does not wait for a cutscene while a route is simulated", () => {
       const { game, calls } = createGame();
       (game.context.system as any).simulating = true;
