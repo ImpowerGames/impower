@@ -3,6 +3,7 @@ import {
   chainToPolyline,
   clamp01,
   copyLoop,
+  cubicDoublePoint,
   cubicKnots,
   dist,
   dropZeroSegments,
@@ -453,19 +454,43 @@ export const handoffWeight = (t: number): number => Math.cos(Math.PI * t) ** 2;
  * loops through itself. A tip curve whose handles reach past each other
  * ties a hairline knot; the rib and flank moves can create one mid-morph
  * even when both rest poses are simple.
+ *
+ * The shortening is continuous in the curve, so a frame never jumps where a
+ * knot appears, deepens or leaves. The knot is judged exactly, on the
+ * crossing `cubicDoublePoint` finds, by its margin: how far inside [0, 1]
+ * both crossing parameters lie, negative once the crossing has left through
+ * an end. Curves within `KNOT_MARGIN` of a knot count: bisection finds the
+ * handle scale `s` at which the margin reaches `-KNOT_MARGIN`, and the
+ * handles are scaled by `s` squared, which is the curve itself when the
+ * crossing is just forming. As a crossing leaves through an end, the scale
+ * eases back to 1 over the margin band instead of snapping there.
  */
 export function unknot(c: Cubic): Cubic {
-  let cur = c;
-  for (let guard = 0; guard < 12 && cubicKnots(cur); guard++) {
-    cur = {
-      p0: cur.p0,
-      c1: [cur.p0[0] + (cur.c1[0] - cur.p0[0]) * 0.8, cur.p0[1] + (cur.c1[1] - cur.p0[1]) * 0.8],
-      c2: [cur.p1[0] + (cur.c2[0] - cur.p1[0]) * 0.8, cur.p1[1] + (cur.c2[1] - cur.p1[1]) * 0.8],
-      p1: cur.p1,
-    };
+  const margin = (k: Cubic): number => {
+    const d = cubicDoublePoint(k);
+    return d ? Math.min(d[0], 1 - d[1]) : -Infinity;
+  };
+  const m0 = margin(c);
+  if (m0 < -KNOT_MARGIN) return c;
+  const scaled = (s: number): Cubic => ({
+    p0: c.p0,
+    c1: [c.p0[0] + (c.c1[0] - c.p0[0]) * s, c.p0[1] + (c.c1[1] - c.p0[1]) * s],
+    c2: [c.p1[0] + (c.c2[0] - c.p1[0]) * s, c.p1[1] + (c.c2[1] - c.p1[1]) * s],
+    p1: c.p1,
+  });
+  let lo = 0,
+    hi = 1;
+  for (let i = 0; i < 48; i++) {
+    const m = (lo + hi) / 2;
+    if (margin(scaled(m)) >= -KNOT_MARGIN) hi = m;
+    else lo = m;
   }
-  return cur;
+  const leaving = Math.min(1, Math.max(0, -m0 / KNOT_MARGIN));
+  return scaled(lo * lo + (1 - lo * lo) * leaving);
 }
+
+/** How far, in curve parameter, a crossing past an end still counts toward a knot. */
+const KNOT_MARGIN = 0.05;
 
 /** A canonical frame before any handoff blend. */
 export function canonicalFrame(a: Cubic[], b: Cubic[], t: number): Cubic[] {
@@ -651,12 +676,21 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
   };
   const O = o.handoff ? poly(fromArt, tips(0)[0]) : null;
   const C = o.handoff ? poly(toArt, tips(1)[0]) : null;
+  // The canonical frame's tip one is the middle of its segment 0, which is
+  // its last segment once reversed, so its phase is exact. A nearest-point
+  // search would pick between neighbouring samples or between the two arms
+  // of a folded tip, and the frame would jump wherever the pick changes.
+  const canonicalPoly = (fr: Cubic[]): Point[] => {
+    const L = withWinding(fr, 1);
+    const f = new ArcLoop(L).fractionAt(L === fr ? 0 : L.length - 1, 0.5);
+    return loopToPolyline(L, handoffPoints, f);
+  };
   const frame = (tRaw: number): Cubic[] => {
     const t = clamp01(tRaw);
     const fr = canonical(t);
     if (!O || !C) return fr;
     const w = handoffWeight(t);
-    const TP = poly(fr, tips(t)[0]);
+    const TP = canonicalPoly(fr);
     const pts: Point[] = TP.map((p, i) => {
       const ox = O[i]![0] + (C[i]![0] - O[i]![0]) * t,
         oy = O[i]![1] + (C[i]![1] - O[i]![1]) * t;
