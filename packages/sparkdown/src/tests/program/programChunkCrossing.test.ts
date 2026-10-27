@@ -564,7 +564,9 @@ describe("statements whose recorded values an edit changes", () => {
     });
     const after = c.compile().program;
     expect(after.chunks).toBeDefined();
-    expect(c.compiler.chunkStore!.emittedLastBuild).toBe(n + 1);
+    // The `n` lines that read `extra`, and the added scene's line and its
+    // end (`flowEnd`).
+    expect(c.compiler.chunkStore!.emittedLastBuild).toBe(n + 2);
     expect(count.lookups).toBeLessThan(20 * n);
     const cold = programCompiler({ [MAIN_URI]: text + added });
     expect(describeRoot(after.chunks!)).toEqual(describeRoot(cold.compile().program.chunks!));

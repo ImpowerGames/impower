@@ -1029,12 +1029,14 @@ export class ProgramRoot {
    *  divert or a tunnel's return), so that no run reaches it, for a flow
    *  that enters a branch, and for no such flow. */
   flowEndAddress(uri: string, header: number): number | undefined {
-    const chunks = this.flowHeadedAt(uri, header)?.arrays.chunks ?? [];
-    const end = chunks.at(-1);
-    if (!end || codeWords(end) !== 2 || opOf(end[HEADER_WORDS]!) !== Op.Done) {
+    const flow = this.flowHeadedAt(uri, header);
+    const entry = flow ? this.flowEndEntry(flow) : -1;
+    if (entry < 0) {
       return undefined;
     }
-    const before = chunks.at(-2);
+    const chunks = flow!.arrays.chunks;
+    const end = chunks[entry]!;
+    const before = chunks[entry - 1];
     if (before && codeWords(before) >= 2) {
       const last = before[HEADER_WORDS + codeWords(before) - 2]!;
       const op = opOf(last);
@@ -1049,6 +1051,27 @@ export class ProgramRoot {
       }
     }
     return addressOf(chunkId(end), 0);
+  }
+
+  /** The entry of a sequence that is its flow's end (`programFlows`'
+   *  `flowEnd`): the last entry of a scene's or a branch's own sequence when
+   *  it is a lone `Done`, which only the compile writes there, since an
+   *  author's last statement comes before it; -1 for any other sequence. */
+  flowEndEntry(sequence: SequenceRow): number {
+    if (
+      sequence.owner >= 0 ||
+      (sequence.kind !== SymbolKind.Scene && sequence.kind !== SymbolKind.Branch)
+    ) {
+      return -1;
+    }
+    const chunks = sequence.arrays.chunks;
+    const end = chunks.at(-1);
+    return end &&
+      codeWords(end) === 2 &&
+      opOf(end[HEADER_WORDS]!) === Op.Done &&
+      (flagsOf(end[HEADER_WORDS]!) & DONE_HOLD) === 0
+      ? chunks.length - 1
+      : -1;
   }
 
   /** Whether the scene or branch of a script whose header stands on

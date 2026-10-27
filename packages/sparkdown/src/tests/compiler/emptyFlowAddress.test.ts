@@ -162,13 +162,13 @@ scene other
 end
 `;
 
-  it("stands on the flow's closing end, which resolves to it", () => {
+  it("stands on the flow's closing end, which keeps the address below it", () => {
     const program = compile(text);
     const locator = programLocator(program);
     const address = program.chunks.flowEndAddress(URI, 0);
     expect(locator.locationOf(address)?.startLine).toBe(5);
     expect(locator.sceneAt(address)).toBe("start");
-    expect(locator.addressAt(URI, 5)).toBe(address);
+    expect(locator.locationOf(locator.addressAt(URI, 5))?.startLine).toBe(7);
   });
 
   it("is none for a flow that ends itself", () => {

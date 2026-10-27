@@ -362,18 +362,21 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     const startsWith = flow.hasParameters ? undefined : start;
     if (start === undefined) {
       // A flow that enters no branch ends where its sequence runs out, on the
-      // line of its closing `end`. A scene whose content is branches it does
-      // not enter (the first takes parameters) has no line of its own
-      // there: that line is in its last branch's lines, so it stands on its
-      // header.
+      // line of its closing `end`. Only an empty flow has a row there, which
+      // its header falls through to: every other flow's `end` keeps the
+      // address of the line below it, and the player reaches the flow's end
+      // by its address (`ProgramRoot.flowEndAddress`). A scene whose content
+      // is branches it does not enter (the first takes parameters) has no
+      // line of its own there, since that line is in its last branch's
+      // lines, so its end stands on its header.
       const opensBranch = first instanceof FlowBase && !first.isFunction;
       const end = input.flowEndLine?.(record.uri, record.line);
       statements.push(
-        !runsOwn && opensBranch
-          ? flowEnd(name, header!, record.line, true)
-          : end !== undefined
-            ? flowEnd(name, header!, end, true)
-            : flowEnd(name, header!, lineAfter(statements, record.line), false),
+        runsOwn
+          ? flowEnd(header!, end ?? lineAfter(statements, record.line), false)
+          : opensBranch
+            ? flowEnd(header!, record.line, false)
+            : flowEnd(header!, end ?? record.line + 1, true),
       );
     }
     flows.push({
@@ -674,23 +677,20 @@ const lineAfter = (
 // reads the same.
 const flowEndKeys = new WeakMap<object, Map<string, object>>();
 
-/** The `FlowEnd` of a scene or a branch, standing on `line`, with a line
- *  table row there when `row` is set. That is the line of the flow's closing
- *  `end`, which resolves to it, and for an empty flow the line its header
- *  falls through to. For a scene whose content is branches it does not
- *  enter it is the header's own line, which no line resolves to, and the
- *  player reaches it by its address (`ProgramRoot.flowEndAddress`). For a
- *  flow whose `end` the compile did not find, it stands after the flow's
- *  last statement with no row. Its syntax is the flow's name and whether it
- *  has a row, which are everything its chunk depends on: the row counts
- *  from the statement's own line, so a move of that line changes nothing. */
+/** The `FlowEnd` of the scene or branch whose header is `header`, standing
+ *  on `line`, with a line table row there when `row` is set: an empty
+ *  flow's, whose header and `end` resolve to it. Without a row no line
+ *  resolves to it, and it stands where its location reads. Its source is
+ *  the same for every flow and its syntax says only whether it has a row,
+ *  which is everything its chunk depends on: the row counts from the
+ *  statement's own line, so a move of that line or a rename of its flow
+ *  changes nothing. */
 const flowEnd = (
-  name: string,
   header: object,
   line: number,
   row: boolean,
 ): StatementSource => {
-  const syntax = `FlowEnd\u0000${name}\u0000${row ? "row" : ""}`;
+  const syntax = `FlowEnd\u0000${row ? "row" : ""}`;
   let keys = flowEndKeys.get(header);
   if (!keys) {
     keys = new Map();
@@ -706,7 +706,7 @@ const flowEnd = (
     objects: [new FlowEnd()],
     range: row ? lineRange(line) : null,
     firstLine: line,
-    source: () => name,
+    source: () => "end",
     syntax: () => syntax,
     reads: "",
   };
