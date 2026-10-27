@@ -57,6 +57,7 @@ import { Module } from "../../../core/classes/Module";
 import type { Event } from "../../../core/types/Event";
 import type { EventMap } from "../../../core/types/EventMap";
 import type {
+CutsceneInstruction,
 ImageInstruction,
 LayoutInstruction,
 TextInstruction,
@@ -111,9 +112,18 @@ import {
   type ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
 import {
+  PlayCutsceneMessage,
+  type PlayCutsceneMessageMap,
+  type PlayCutsceneParams,
+} from "./messages/PlayCutsceneMessage";
+import {
   SetThemeMessage,
   type SetThemeMessageMap,
 } from "./messages/SetThemeMessage";
+import {
+  SkipCutsceneMessage,
+  type SkipCutsceneMessageMap,
+} from "./messages/SkipCutsceneMessage";
 import {
   SweepReconcileMessage,
   type SweepReconcileMessageMap,
@@ -607,6 +617,9 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 };
 
 
+/** Seconds the music fades out over when a cutscene stops it. */
+const CUTSCENE_MUSIC_FADE = 0.5;
+
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &
   BeatMessageMap &
@@ -615,7 +628,9 @@ export type UIMessageMap = AnimateElementsMessageMap &
   DestroyElementMessageMap &
   MoveElementMessageMap &
   ObserveElementMessageMap &
+  PlayCutsceneMessageMap &
   SetThemeMessageMap &
+  SkipCutsceneMessageMap &
   SweepReconcileMessageMap &
   UnobserveElementMessageMap &
   UpdateElementMessageMap &
@@ -4981,6 +4996,59 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       loading.transition ? { with: loading.transition } : undefined,
       !this.context.system.transitions,
     );
+  }
+
+  /**
+   * Play a `[[play NAME]]` cutscene and return a trigger that is ready once
+   * the page answers that its video ended or was skipped. When
+   * `movie.stop_music` is on, the `music` channel fades out as it starts and
+   * stays stopped after it ends, as Ren'Py's `stop_music` leaves it. A route
+   * replay records that stop and sends nothing; a preview, which plays no
+   * music, asks the page for the first frame. A name that is no video plays
+   * nothing.
+   */
+  runCutscene(cutscene: CutsceneInstruction): number {
+    const id = this.nextTriggerId();
+    const src = this.getVideoSrcByName(cutscene.name);
+    if (!src) {
+      this.enableTrigger(id);
+      return id;
+    }
+    const system = this.context.system;
+    const previewing = system.previewing != null && system.previewing !== false;
+    if (!previewing && this.context.config?.movie?.stop_music !== false) {
+      this._game.module.audio.stopChannel(
+        "music",
+        undefined,
+        CUTSCENE_MUSIC_FADE,
+      );
+    }
+    if (system.simulating) {
+      this.enableTrigger(id);
+      return id;
+    }
+    const params: PlayCutsceneParams = {
+      src,
+      loop: Boolean(cutscene.loop),
+      muted: Boolean(cutscene.mute),
+    };
+    if (cutscene.with) {
+      params.with = cutscene.with;
+    }
+    if (previewing) {
+      params.preview = true;
+    }
+    const ended = () => this.enableTrigger(id);
+    this.emit(PlayCutsceneMessage.type.request(params)).then(ended, ended);
+    return id;
+  }
+
+  /** End the cutscene the page is playing, as a click on it would. */
+  skipCutscene(): void {
+    if (this.context.system.simulating) {
+      return;
+    }
+    this.emit(SkipCutsceneMessage.type.notification({}));
   }
 
   /** Navigate within a screen (`[[navigate <screen> to <layout>]]`): play

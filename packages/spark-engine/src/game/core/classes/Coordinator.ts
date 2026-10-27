@@ -46,6 +46,9 @@ export class Coordinator<G extends Game> {
 
   protected _interacted = false;
 
+  /** Whether the beat's cutscene is on the page and has not ended yet. */
+  protected _cutscenePlaying = false;
+
   protected _timeTypedMS = -1;
 
   protected _elapsedMS = 0;
@@ -124,14 +127,25 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (instructions.cutscene && this._interacted && !this._finishedExecution) {
+      // Until the cutscene has ended, a click or key ends the cutscene and not
+      // the beat: the page plays its exit and answers, and the beat goes on
+      // from there. One that lands before the cutscene starts is dropped.
+      this._interacted = false;
+      if (this._cutscenePlaying) {
+        game.module.ui.skipCutscene();
+      }
+      return 0;
+    }
     if (instructions.hold) {
       // A held beat advances only when the player asks.
       return this.continueOnInteraction(waitingForChoice);
     }
-    if (instructions.load && !waitingForChoice) {
-      // A `load` beat has nothing to read; it advances on its own once its
-      // loading (and the loading layout's minimum display) has finished. One
-      // that also presents choices waits for the choice like any other.
+    if ((instructions.load || instructions.cutscene) && !waitingForChoice) {
+      // A `load` or cutscene beat has nothing to read; it advances on its own
+      // once its loading (and the loading layout's minimum display) has
+      // finished, or its cutscene has ended. One that also presents choices
+      // waits for the choice like any other.
       return this._finishedExecution ? 1 : 0;
     }
     if (this._finishedExecution && this._timeTypedMS < 0) {
@@ -321,6 +335,12 @@ export class Coordinator<G extends Game> {
         assets.runLoad(instructions.load);
       }
     }
+    // A cutscene beat plays its video once the beat's gate has opened, so the
+    // file is resident before the page shows it, and finishes when the page
+    // answers that the video ended or was skipped. A preview asks for its
+    // first frame and a route replay for its music stop; neither waits.
+    const cutscene = instructions.cutscene?.[0];
+    let cutsceneTriggerId: number | null = null;
 
     const handleFinished = (): void => {
       const indicatorStyle: Record<string, string | null> = {};
@@ -334,6 +354,9 @@ export class Coordinator<G extends Game> {
     };
 
     if (instant || game.context.system.simulating) {
+      if (cutscene && (previewing || simulating)) {
+        game.module.ui.runCutscene(cutscene);
+      }
       updateUI();
       handleFinished();
       if (previewing && !simulating) {
@@ -374,6 +397,10 @@ export class Coordinator<G extends Game> {
           if (loadTriggerId != null) {
             assets.trigger(loadTriggerId);
           }
+          if (cutscene) {
+            cutsceneTriggerId = game.module.ui.runCutscene(cutscene);
+            this._cutscenePlaying = true;
+          }
           updateUI(time);
           // The beat's duration counts from when the page shows it. This
           // tick's time passed before the stamp was taken, so it does not
@@ -388,7 +415,15 @@ export class Coordinator<G extends Game> {
         elapsedMS += deltaMS;
       }
       if (ready && !finished) {
-        if (elapsedMS >= totalDurationMS) {
+        if (
+          cutsceneTriggerId != null &&
+          game.module.ui.isReady(cutsceneTriggerId)
+        ) {
+          game.module.ui.trigger(cutsceneTriggerId);
+          cutsceneTriggerId = null;
+          this._cutscenePlaying = false;
+        }
+        if (elapsedMS >= totalDurationMS && cutsceneTriggerId == null) {
           finished = true;
           handleFinished();
         }

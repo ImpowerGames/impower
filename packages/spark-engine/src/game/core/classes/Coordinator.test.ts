@@ -25,6 +25,10 @@ interface Calls {
   /** The start time each `audio.triggerAll` was given. */
   audioTriggerTimes: (number | undefined)[];
   loadedWorlds: string[];
+  /** The cutscenes `ui.runCutscene` was asked to play, by name. */
+  cutscenes: string[];
+  /** How many times `ui.skipCutscene` was called. */
+  skippedCutscenes: number;
 }
 
 /**
@@ -46,6 +50,8 @@ const createGame = (
     textWrites: [],
     audioTriggerTimes: [],
     loadedWorlds: [],
+    cutscenes: [],
+    skippedCutscenes: 0,
   };
   const game = {
     context: {
@@ -95,6 +101,20 @@ const createGame = (
         },
         image: { clearAll: () => {}, write: () => {} },
         style: { update: () => {} },
+        // A cutscene's trigger fires once the page answers; tests flip
+        // `cutsceneEnded` to stand in for that answer.
+        cutsceneEnded: false,
+        runCutscene(cutscene: { name: string }) {
+          calls.cutscenes.push(cutscene.name);
+          return 7;
+        },
+        skipCutscene: () => {
+          calls.skippedCutscenes += 1;
+        },
+        isReady(id: number) {
+          return id !== 7 || this.cutsceneEnded;
+        },
+        trigger: () => {},
       },
       audio: {
         stopChannel: () => {},
@@ -444,6 +464,122 @@ describe("Coordinator", () => {
       expect(coordinator.shouldContinue()).toBe(STAY);
       coordinator.onUpdate(tick(1));
       expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
+    });
+  });
+
+  describe("cutscenes", () => {
+    const cutsceneBeat = (extra: Partial<Instructions> = {}): Instructions => ({
+      cutscene: [{ name: "intro" }],
+      end: 0,
+      ...extra,
+    });
+
+    it("starts the cutscene once the beat's assets are resident", () => {
+      const { game, calls } = createGame();
+      const assets = (game.module as any).assets;
+      // The beat waits on its gate for the video.
+      assets.prepareBeat = () => 1;
+      assets.isReady = () => false;
+      const coordinator = new Coordinator(game, cutsceneBeat());
+      coordinator.onUpdate(tick(0));
+      expect(calls.cutscenes).toEqual([]);
+      assets.isReady = () => true;
+      coordinator.onUpdate(tick(0));
+      expect(calls.cutscenes).toEqual(["intro"]);
+      // Once only, however many ticks it plays for.
+      coordinator.onUpdate(tick(BEAT_LEAD_MS));
+      coordinator.onUpdate(tick(1000));
+      expect(calls.cutscenes).toEqual(["intro"]);
+    });
+
+    it("advances on its own once the cutscene has ended, and not before", () => {
+      const { game, calls } = createGame();
+      const ui = (game.module as any).ui;
+      const coordinator = new Coordinator(game, cutsceneBeat());
+      expect(calls.cutscenes).toEqual(["intro"]);
+      coordinator.onUpdate(tick(BEAT_LEAD_MS));
+      coordinator.onUpdate(tick(60_000));
+      expect(coordinator.shouldContinue()).toBe(STAY);
+      expect(calls.autoAdvancedToContinue).toBe(0);
+      ui.cutsceneEnded = true;
+      coordinator.onUpdate(tick(0));
+      expect(calls.autoAdvancedToContinue).toBe(1);
+      expect(calls.clickedToContinue).toBe(0);
+    });
+
+    for (const [name, input] of ADVANCE_INPUTS) {
+      it(`skips the cutscene on ${name} instead of advancing`, () => {
+        const { game, calls } = createGame();
+        const ui = (game.module as any).ui;
+        const coordinator = new Coordinator(game, cutsceneBeat());
+        coordinator.onUpdate(tick(BEAT_LEAD_MS));
+        coordinator.onMessage(input());
+        coordinator.onUpdate(tick(16));
+        expect(calls.skippedCutscenes).toBe(1);
+        expect(calls.clickedToContinue).toBe(0);
+        expect(calls.autoAdvancedToContinue).toBe(0);
+        // The page plays the exit and answers; the beat then advances once,
+        // by the normal path.
+        ui.cutsceneEnded = true;
+        coordinator.onUpdate(tick(16));
+        expect(calls.autoAdvancedToContinue).toBe(1);
+        expect(calls.clickedToContinue).toBe(0);
+        expect(calls.skippedCutscenes).toBe(1);
+      });
+    }
+
+    it("drops a click that lands before the cutscene starts", () => {
+      const { game, calls } = createGame();
+      const assets = (game.module as any).assets;
+      assets.prepareBeat = () => 1;
+      assets.isReady = () => false;
+      const coordinator = new Coordinator(game, cutsceneBeat());
+      coordinator.onMessage(pointerdown());
+      coordinator.onUpdate(tick(0));
+      expect(calls.skippedCutscenes).toBe(0);
+      assets.isReady = () => true;
+      coordinator.onUpdate(tick(0));
+      coordinator.onUpdate(tick(BEAT_LEAD_MS));
+      expect(calls.cutscenes).toEqual(["intro"]);
+      expect(calls.skippedCutscenes).toBe(0);
+      expect(coordinator.shouldContinue()).toBe(STAY);
+    });
+
+    it("does not wait for a cutscene while a route is simulated", () => {
+      const { game, calls } = createGame();
+      (game.context.system as any).simulating = true;
+      const coordinator = new Coordinator(game, cutsceneBeat());
+      // The UI module records the music stop and sends nothing; the beat
+      // goes on at once.
+      expect(calls.cutscenes).toEqual(["intro"]);
+      expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
+    });
+
+    it("asks a preview for the first frame without waiting for it", () => {
+      const { game, calls } = createGame({ previewing: true });
+      const coordinator = new Coordinator(game, cutsceneBeat());
+      expect(calls.cutscenes).toEqual(["intro"]);
+      expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
+    });
+
+    it("waits for a choice after the cutscene, as a load beat does", () => {
+      const { game, calls } = createGame();
+      const ui = (game.module as any).ui;
+      const coordinator = new Coordinator(
+        game,
+        cutsceneBeat({ choices: ["choice 0"] }),
+      );
+      coordinator.onUpdate(tick(BEAT_LEAD_MS));
+      coordinator.onMessage(pointerdown());
+      coordinator.onUpdate(tick(0));
+      expect(calls.skippedCutscenes).toBe(1);
+      ui.cutsceneEnded = true;
+      coordinator.onUpdate(tick(0));
+      coordinator.onMessage(pointerdown());
+      coordinator.onUpdate(tick(0));
+      expect(calls.skippedCutscenes).toBe(1);
+      expect(calls.autoAdvancedToContinue).toBe(0);
+      expect(calls.clickedToContinue).toBe(0);
     });
   });
 });

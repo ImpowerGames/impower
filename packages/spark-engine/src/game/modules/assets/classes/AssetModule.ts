@@ -478,7 +478,9 @@ export class AssetModule extends Module<
   // ---------------------------------------------------------------------------
 
   /**
-   * The names of every image a beat's instructions show.
+   * The names of every image a beat's instructions show, and in play the
+   * video its cutscene plays, so the file is resident before the page shows
+   * it. A preview shows a cutscene's first frame from the file itself.
    */
   protected imageNamesOf(instructions: Instructions): string[] {
     const names: string[] = [];
@@ -487,6 +489,11 @@ export class AssetModule extends Module<
         if (event.control !== "hide" && event.assets?.length) {
           names.push(...event.assets);
         }
+      }
+    }
+    if (this.timed) {
+      for (const cutscene of instructions.cutscene ?? []) {
+        names.push(cutscene.name);
       }
     }
     return names;
