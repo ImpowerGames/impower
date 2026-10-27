@@ -851,7 +851,10 @@ describe("a continue that returns between two lines", () => {
     expect(target).toBeDefined();
 
     const plan = planRoute(new ProgramStory(root), "", target!);
-    expect(plan?.decisions).toEqual([{ kind: "condition", site, value: false }]);
+    // The story reaches the decision true, so the plan's false is forced.
+    expect(plan?.decisions).toEqual([
+      { kind: "condition", site, value: false, unforced: false },
+    ]);
     // The plan replays through the simulator the engine asks by the same number.
     expect(run(buildRouteSimulator(plan!.decisions)).lines).toEqual(forced.lines);
   });
