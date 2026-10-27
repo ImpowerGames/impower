@@ -1,16 +1,11 @@
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import type { IKeyboardEvent } from "../types/IKeyboardEvent";
 import type { Instructions } from "../types/Instructions";
+import { isAdvanceKey } from "../utils/isAdvanceKey";
 import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
-
-/**
- * Keys that advance the game the same way a tap does.
- */
-const ADVANCE_KEYS = ["Enter", " "];
 
 /**
  * Write a beat's text to its targets. On a beat that carries on in the box
@@ -95,7 +90,7 @@ export class Coordinator<G extends Game> {
           this.interact();
         }
       } else if (params.type === "keydown") {
-        if (this.isAdvanceKey(params)) {
+        if (isAdvanceKey(params)) {
           this.interact();
         }
       }
@@ -117,22 +112,6 @@ export class Coordinator<G extends Game> {
       return;
     }
     this._interacted = true;
-  }
-
-  /**
-   * Whether a keypress should advance the game the same way a tap does.
-   * Auto-repeat is ignored so that holding the key down doesn't blast through
-   * several beats at once, and modified presses are left alone so they stay
-   * available as shortcuts.
-   */
-  protected isAdvanceKey(event: IKeyboardEvent<"keydown">): boolean {
-    if (event.repeat) {
-      return false;
-    }
-    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
-      return false;
-    }
-    return ADVANCE_KEYS.includes(event.key);
   }
 
   /**
