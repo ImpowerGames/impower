@@ -325,10 +325,16 @@ const result=await execute({...${JSON.stringify({...options,directory:raceDirect
 if(result.status!=="passed")throw Error(JSON.stringify(result));`);
 fs.writeFileSync(path.join(scratch,".git","fail"),"");
 const originalUnlink=fs.unlinkSync;
-let releasedGuards=0;
+// The release transaction unlinks the reservation and then its guard; the
+// successor starts at that guard's removal, the precise ownership handoff.
+// Every unit gate also takes and releases the guard, so counting guards would
+// start the successor while the predecessor still holds its slot.
+let reservationReleased=false;
 fs.unlinkSync=function(target,...args) {
   const result=originalUnlink.call(this,target,...args);
-  if(path.resolve(target)===path.join(lockRoot,"guard.json") && ++releasedGuards===2) {
+  if(path.resolve(target)===path.join(lockRoot,"reservation.json"))reservationReleased=true;
+  else if(reservationReleased && path.resolve(target)===path.join(lockRoot,"guard.json")) {
+    reservationReleased=false;
     originalUnlink(path.join(scratch,".git","fail"));
     const helper=spawnSync(process.execPath,[raceHelper],{encoding:"utf8",windowsHide:true,timeout:30000});
     assert.equal(helper.status,0,helper.stdout+helper.stderr);
@@ -772,7 +778,7 @@ for (const argv of [["run", scratch, "a.test.ts", "--wait", "3"], ["start", scra
 }
 cliHolder.release();
 const cliCensusStart = Date.now();
-await assert.rejects(main(["start", scratch, "--wait", "3"], { ...seam, memory: plenty, census: () => [5], pollMs: 10000 }), /still present: 5/);
+await assert.rejects(main(["start", scratch, "--wait", "3"], { ...seam, memory: plenty, census: () => [5], pollMs: 10000 }), /already running: 5/);
 assert.ok(Date.now() - cliCensusStart < 8000, "the census wait also stops at its bound");
 assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "a timed-out start releases the reservation");
 await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait takes a number of seconds/);
@@ -1065,7 +1071,9 @@ console.log("PASS: recovery and cleanup preserve the observed guard generation, 
   const reservationFile = path.join(lockRoot, "reservation.json");
   fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=Number(process.argv[2]);`);
   const refusal = await runVitest({ ...options,files:["a.test.ts"],enginePath:childFile,stdio:"ignore",
-    memory: plenty, census: () => { atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
+    // The census runs at admission, before the record exists, and again at
+    // the first unit's gate, where the replacement lands before any child.
+    memory: plenty, census: () => { if (fs.existsSync(reservationFile)) atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
   });
   assert.equal(refusal.exit,75);
   assert.match(refusal.reservationError,/ownership changed/);
@@ -1656,7 +1664,9 @@ await until(() => {
 }, "second file running");
 assert.equal(status(interrupted, { fingerprint: () => "unchanged" }).unfinished[0].status, "running", "yield remains observable");
 assert.equal(status(interrupted, { fingerprint: () => { throw Error("live status must not scan inputs"); } }).status, "running");
-await assert.rejects(execute({packageRoot:scratch,enginePath,root:lockRoot,slots:1,memory:plenty,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted}), /running/);
+// With every slot free but one, the live coordinator's own run directory is
+// what keeps a second coordinator out.
+await assert.rejects(execute({packageRoot:scratch,enginePath,root:lockRoot,memory:plenty,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted}), /Existing suite running for/);
 launched.kill();
 await exited;
 assert.notDeepEqual(processIdentity(coordinatorIdentity.pid),coordinatorIdentity);

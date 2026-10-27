@@ -60,19 +60,23 @@ assert.equal(poolSlotLimit, 2);
 // processes is accounted for; any other Vitest process is foreign.
 {
   const rows = [
-    { pid: 10, parent: 1, command: "node suite-engine.mjs run-direct pkg vitest.json a.test.ts" },
+    { pid: 40, parent: 1, command: "node scripts/test-suite.mjs run pkg a.test.ts" },
+    { pid: 9, parent: 40, command: "powershell test-suite-child-windows.ps1 launches vitest", node: false },
+    { pid: 10, parent: 9, command: "node suite-engine.mjs run-direct pkg vitest.json a.test.ts" },
     { pid: 11, parent: 10, command: "node tinypool worker" },
     { pid: 12, parent: 11, command: "node tinypool worker" },
     { pid: 20, parent: 2, command: "node node_modules/vitest/vitest.mjs run" },
     { pid: 30, parent: 31, command: "node tinypool orphan" }, { pid: 31, parent: 30, command: "node tinypool orphan" },
-    { pid: 40, parent: 1, command: "node scripts/test-suite.mjs run pkg a.test.ts" },
   ];
-  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([10]) }), [20, 30, 31], "the engine and its forks are accounted for through their ancestry; a direct Vitest call and a cyclic orphan pair are foreign");
-  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set() }), [10, 11, 12, 20, 30, 31], "with no holder every Vitest process is foreign");
-  assert.deepEqual(foreignVitestProcesses(rows, 20, { accounted: new Set([10]) }), [30, 31], "the census never counts the asking process");
-  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([10]), within: "orphan" }), [30, 31], "within narrows to command lines naming the path");
-  const raw = JSON.stringify([{ ProcessId: 10, ParentProcessId: 1, CommandLine: "node vitest" }, { ProcessId: 11, ParentProcessId: 10, CommandLine: "node tinypool" }, { ProcessId: 12, ParentProcessId: null, CommandLine: null }]);
-  assert.deepEqual(windowsVitestProcesses(raw, 99, { accounted: new Set([10]) }), [12], "the Windows census carries the parent through; a process whose command line cannot be read stays foreign");
+  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([40]) }), [20, 30, 31], "the engine and its forks reach their coordinator through a supervisor that is not Node; a direct Vitest call and a cyclic orphan pair are foreign");
+  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([10]) }), [20, 30, 31], "a holder's engine pid also accounts for its forks, though admission never trusts one");
+  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set() }), [10, 11, 12, 20, 30, 31], "with no holder every Vitest process is foreign, and the supervisor is never a candidate");
+  assert.deepEqual(foreignVitestProcesses(rows, 20, { accounted: new Set([40]) }), [30, 31], "the census never counts the asking process");
+  assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([40]), within: "orphan" }), [30, 31], "within narrows to command lines naming the path");
+  const raw = JSON.stringify([{ ProcessId: 0, ParentProcessId: 0, Name: "System Idle Process", CommandLine: null }, { ProcessId: 40, ParentProcessId: 1, Name: "node.exe", CommandLine: "node scripts/test-suite.mjs" },
+    { ProcessId: 9, ParentProcessId: 40, Name: "powershell.exe", CommandLine: "powershell helper vitest" }, { ProcessId: 10, ParentProcessId: 9, Name: "node.exe", CommandLine: "node vitest" },
+    { ProcessId: 11, ParentProcessId: 10, Name: "node.exe", CommandLine: "node tinypool" }, { ProcessId: 12, ParentProcessId: null, Name: "node.exe", CommandLine: null }]);
+  assert.deepEqual(windowsVitestProcesses(raw, 99, { accounted: new Set([40]) }), [12], "the Windows census carries every process's parent through; a Node process whose command line cannot be read stays foreign");
   assert.deepEqual(windowsVitestProcesses(raw, 99, { accounted: new Set() }), [10, 11, 12]);
   assert.throws(() => windowsVitestProcesses(JSON.stringify([{ ProcessId: 10, ParentProcessId: "x", CommandLine: "node vitest" }]), 99), /Malformed/);
   const real = vitestProcesses({ accounted: new Set() });
@@ -109,20 +113,38 @@ assert.equal(poolSlotLimit, 2);
   // The floor gates the next unit only: the holder keeps its slot and goes on
   // once memory returns.
   const rows = [];
-  await assert.rejects(waitForUnit(first, { ...live, memory: () => 1000, deadline: Date.now() + 300, pollMs: 20, onWait: row => rows.push(row) }), /1000 MB is below the 4096 MB floor/, "a unit waits while the reading is below the floor and ends at the deadline");
+  // The gate's guard costs a process-identity lookup, so a deadline meant to
+  // show waiting rows lasts seconds.
+  await assert.rejects(waitForUnit(first, { ...live, memory: () => 1000, deadline: Date.now() + 3000, pollMs: 20, onWait: row => rows.push(row) }), /1000 MB is below the 4096 MB floor/, "a unit waits while the reading is below the floor and ends at the deadline");
   assert.ok(rows.length > 0 && rows.every(row => row.waiting === "memory" && row.freeMb === 1000 && row.floorMb === 4096), "unit waits report the reading");
   assert.equal(read(first.file).token, first.record.token, "the holder was not evicted");
   assert.deepEqual(await waitForUnit(first, { ...live, deadline: Date.now() + 300 }), { freeMb: 8192 }, "the unit proceeds once memory returns");
-  // The unit gate's census accounts for every slot's recorded processes.
+  // The unit gate accounts for the live holders' coordinators, never a
+  // recorded engine pid, which a direct Vitest call could have inherited.
   first.update({ phase: "running", child: { pid: 777, start: "engine" } });
   const seen = [];
-  await assert.rejects(waitForUnit(third, { ...live, deadline: Date.now() + 100, pollMs: 20, census: ({ accounted }) => { seen.push([...accounted].sort()); return accounted.has(777) ? [999] : [777]; } }), /still present: 999/);
-  assert.ok(seen.every(pids => pids.includes(owner.pid) && pids.includes(777)), `the first holder's engine is accounted for at the third's unit: ${JSON.stringify(seen)}`);
+  assert.deepEqual(await waitForUnit(third, { ...live, deadline: Date.now() + 100, pollMs: 20, census: ({ accounted }) => { seen.push([...accounted].sort()); return accounted.has(777) ? [777] : []; } }), { freeMb: 8192 });
+  assert.ok(seen.length > 0 && seen.every(pids => pids.includes(owner.pid) && !pids.includes(777)), `the holders' coordinators are accounted for and the recorded engine pid is not: ${JSON.stringify(seen)}`);
+  // A peer whose coordinator is gone accounts for nothing: its orphan is foreign.
+  fs.writeFileSync(slotFile(store, 2), JSON.stringify({ version: 2, token: "dead-peer", owner: { pid: 4000003, start: "gone" }, run: "dead peer", pool: "reviewer", slot: 2, heldSince: new Date().toISOString(), heldUptime: 1, phase: "running", child: { pid: 4000004, start: "orphan" } }));
+  const peers = [];
+  await assert.rejects(waitForUnit(third, { ...live, deadline: Date.now() + 1500, pollMs: 20, census: ({ accounted }) => { peers.push([...accounted]); return accounted.has(4000003) ? [] : [4000004]; } }), /still present: 4000004/, "a dead peer's orphan is foreign at the unit gate");
+  assert.ok(peers.every(pids => !pids.includes(4000003)));
+  fs.unlinkSync(slotFile(store, 2));
   first.update({ phase: "exited", child: null });
   assert.throws(() => acquire("beside a foreign process", { ...live, pool: "reviewer", census: () => [4242] }), error => error.waitable === "vitest processes" && /already running: 4242/.test(error.message), "a Vitest process outside every holder's ancestry blocks admission");
   const accountedCensus = acquire("beside the holders' own processes", { ...live, pool: "reviewer", census: ({ accounted }) => accounted.has(owner.pid) ? [] : [owner.pid] });
   assert.equal(accountedCensus.slot, 2, "a holder's own child does not block admission");
   accountedCensus.release();
+  // A live coordinator owns its run directory: a second admission for the
+  // same run waits for it, whatever the pool and however many slots are free.
+  assert.throws(() => acquire("first", { ...live, pool: "reviewer" }), error => error.waitable === "reservation" && /Existing suite running for first; inspect/.test(error.message), "the same run directory is refused while its coordinator holds a slot");
+  // A row left by an admission whose unlink failed is swept, not counted.
+  fs.writeFileSync(path.join(store, "waiting-left-behind.json"), JSON.stringify({ token: "left-behind", owner, pool: "writer", run: "first", arrivedAt: "2020-01-01T00:00:00.000Z" }));
+  const unqueued = acquire("not queued behind a holder's stale row", { ...live, pool: "reviewer" });
+  assert.equal(unqueued.slot, 2, "a holder's leftover row holds no place in the queue");
+  assert.equal(fs.existsSync(path.join(store, "waiting-left-behind.json")), false, "and is removed");
+  unqueued.release();
   first.release(); third.release();
   assert.deepEqual(slotFiles(store).filter(file => fs.existsSync(file)), [], "every slot is released");
   console.log("PASS: a second and third run are admitted above the floor, a fourth waits on the cap, one pool keeps one slot free, the floor refuses admission and only delays a holder's next unit");

@@ -145,12 +145,16 @@ function admissionFailure(root, error) {
 // can watch its own children without reading other sessions' processes.
 const names = (command, within) => !within || command.toLowerCase().includes(within.toLowerCase());
 
-// The foreign Vitest processes among `rows` (`{ pid, parent, command }` for
-// every Node process): those whose ancestor chain, followed through the Node
-// rows, reaches none of the `accounted` pids, which are the live holders'
-// recorded owners and children. A holder's own engine and its forks are
-// accounted for; a direct `npx vitest` call or an orphan of a dead holder is
-// foreign and blocks admission as every Vitest process did before.
+// The foreign Vitest processes among `rows`, one `{ pid, parent, command,
+// node }` per process on the machine: the Node processes whose command line
+// names Vitest or tinypool (or cannot be read) and whose ancestor chain,
+// followed through every process, reaches none of the `accounted` pids, the
+// live holders' coordinators. A holder's engine and its forks reach their
+// coordinator through the supervisor that launched them, so they are accounted
+// for; a direct `npx vitest` call, or an orphan of a dead holder, is foreign
+// and blocks admission as every Vitest process did before. A recorded engine
+// or supervisor pid is never trusted by number: a pid outlives its process,
+// and a direct Vitest call can inherit it. A row without `node` is a Node row.
 export function foreignVitestProcesses(rows, ownPid = process.pid, { within, accounted = new Set() } = {}) {
   const parentOf = new Map(rows.map(row => [row.pid, row.parent]));
   const reaches = pid => {
@@ -161,23 +165,30 @@ export function foreignVitestProcesses(rows, ownPid = process.pid, { within, acc
     }
     return false;
   };
-  return rows.filter(row => row.pid !== ownPid && (!row.command ? !within : /vitest|tinypool/i.test(row.command) && names(row.command, within)))
+  return rows.filter(row => row.pid !== ownPid && row.node !== false && (!row.command ? !within : /vitest|tinypool/i.test(row.command) && names(row.command, within)))
     .filter(row => !reaches(row.pid)).map(row => row.pid);
 }
 
 export function windowsVitestProcesses(raw, ownPid = process.pid, options = {}) {
-  const parsed = JSON.parse(raw.trim() || "[]");
+  // A command line can hold a raw control character that the compressed JSON
+  // carries unescaped; the JSON itself has none, so each is blanked.
+  const parsed = JSON.parse(raw.replace(/[\u0000-\u001f]/g, " ").trim() || "[]");
   const rows = Array.isArray(parsed) ? parsed : parsed === null ? [] : [parsed];
-  if (rows.some(p => !p || !Number.isSafeInteger(p.ProcessId) || p.ProcessId < 1 || (p.CommandLine !== null && typeof p.CommandLine !== "string")
-    || (p.ParentProcessId !== undefined && p.ParentProcessId !== null && !Number.isSafeInteger(p.ParentProcessId)))) throw new Error("Malformed Windows process census");
-  return foreignVitestProcesses(rows.map(p => ({ pid: p.ProcessId, parent: p.ParentProcessId ?? null, command: p.CommandLine })), ownPid, options);
+  // The idle process is pid 0; it heads every parent chain and is never a candidate.
+  if (rows.some(p => !p || !Number.isSafeInteger(p.ProcessId) || p.ProcessId < 0 || (p.CommandLine !== null && typeof p.CommandLine !== "string")
+    || (p.ParentProcessId !== undefined && p.ParentProcessId !== null && !Number.isSafeInteger(p.ParentProcessId))
+    || (p.Name !== undefined && p.Name !== null && typeof p.Name !== "string"))) throw new Error("Malformed Windows process census");
+  return foreignVitestProcesses(rows.map(p => ({ pid: p.ProcessId, parent: p.ParentProcessId ?? null, command: p.CommandLine,
+    node: p.Name === undefined || p.Name === null || /^node(?:\.exe)?$/i.test(p.Name) })), ownPid, options);
 }
 
-// An unreadable process table is a refusal, never an empty inventory.
+// An unreadable process table is a refusal, never an empty inventory. Every
+// process is read, not only Node, because a holder's engine reaches its
+// coordinator through a supervisor that is not one.
 export function vitestProcesses({ within, accounted } = {}) {
   if (process.platform === "win32") {
-    const script = "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId,ParentProcessId,CommandLine) | ConvertTo-Json -Compress";
-    const raw = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true });
+    const script = "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine) | ConvertTo-Json -Compress";
+    const raw = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
     return windowsVitestProcesses(raw, process.pid, { within, accounted });
   }
   if (process.platform !== "linux") throw new Error("Test suites require Windows or Linux");
@@ -185,13 +196,12 @@ export function vitestProcesses({ within, accounted } = {}) {
   for (const name of fs.readdirSync("/proc")) {
     if (!/^\d+$/.test(name)) continue;
     try {
-      const argv = fs.readFileSync(`/proc/${name}/cmdline`, "utf8").split("\0");
-      const command = argv.join(" ");
-      const executable = path.basename(argv[0] || "");
-      if (!/^(?:node(?:js)?(?:\s|$)|vitest)/i.test(executable) || !processIdentity(Number(name))) continue;
       const stat = fs.readFileSync(`/proc/${name}/stat`, "utf8");
       const parent = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
-      rows.push({ pid: Number(name), parent: Number.isSafeInteger(parent) ? parent : null, command });
+      const argv = fs.readFileSync(`/proc/${name}/cmdline`, "utf8").split("\0");
+      const executable = path.basename(argv[0] || "");
+      const node = /^(?:node(?:js)?(?:\s|$)|vitest)/i.test(executable) && !!processIdentity(Number(name));
+      rows.push({ pid: Number(name), parent: Number.isSafeInteger(parent) ? parent : null, command: argv.join(" "), node });
     } catch (error) { if (!["ENOENT", "ESRCH"].includes(error.code)) throw error; }
   }
   return foreignVitestProcesses(rows, process.pid, { within, accounted });
@@ -497,19 +507,21 @@ const holderSummary = (record, slot, observedAt) => ({ run: record.run, pool: re
   unitElapsedMs: elapsedSince(record.unitStartedAt, observedAt),
   lastProgressAgeMs: elapsedSince(record.progress?.at, observedAt) });
 
-// The pids a holder's Vitest processes descend from: its coordinator, its
-// current engine and the supervisor pair that launched the engine.
-const accountedPids = records => new Set(records.flatMap(record => [record.owner?.pid, record.child?.pid, record.supervision?.launcher?.pid, record.supervision?.helper?.pid])
-  .filter(pid => Number.isSafeInteger(pid) && pid > 0));
+// The pids the live holders' Vitest processes descend from: their coordinators,
+// whose identities the slot records' `running` state has just verified. The
+// census follows every process's parent chain to them.
+const accountedPids = records => new Set(records.map(record => record.owner?.pid).filter(pid => Number.isSafeInteger(pid) && pid > 0));
 
 const byArrival = (a, b) => Date.parse(a.arrivedAt) - Date.parse(b.arrivedAt) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0);
 
 // The waiting rows in the store, oldest first: the queue is every parsed row
-// whose owner is alive. A row whose owner is gone is set aside as
-// `recovered-waiting-<token>.json`, like an interrupted reservation; a row that
-// cannot be parsed or whose owner cannot be identified is neither counted nor
-// touched.
-function waitingQueue(root, identify) {
+// whose owner is alive and holds no slot. A row whose owner is gone is set
+// aside as `recovered-waiting-<token>.json`, like an interrupted reservation;
+// a row naming a live holder's own run and owner was left by that admission's
+// failed unlink, and is removed now rather than counted against later runs; a
+// row that cannot be parsed or whose owner cannot be identified is neither
+// counted nor touched.
+function waitingQueue(root, identify, holders = []) {
   const rows = [];
   for (const name of fs.readdirSync(root)) {
     if (!waitingName.test(name)) continue;
@@ -517,6 +529,7 @@ function waitingQueue(root, identify) {
     let row;
     try { row = read(file); } catch { continue; }
     if (!row?.token || !row.owner?.pid || !row.owner.start || !pools.includes(row.pool) || !Number.isFinite(Date.parse(row.arrivedAt))) continue;
+    if (holders.some(holder => same(holder.owner, row.owner) && holder.run === row.run)) { try { fs.unlinkSync(file); } catch {} continue; }
     let alive;
     try { alive = same(row.owner, identify(row.owner.pid)); } catch { continue; }
     if (alive) { rows.push(row); continue; }
@@ -527,17 +540,20 @@ function waitingQueue(root, identify) {
 
 // One admission transaction. Under the guard it reads every slot, recovers
 // the interrupted ones once no foreign Vitest process remains, keeps its own
-// waiting row current, and admits the run into the first free slot when a
-// slot is free, the run's pool holds fewer than its limit, the free-memory
-// reading is at or above the floor, no foreign Vitest process is running and
-// the queue says it is this run's turn: among the waiters whose pool can still
-// take a slot, the oldest of the pool not admitted last, else the oldest
-// overall. Each other outcome is a waitable refusal carrying the holders, the
-// reading and the queue position, so the caller can wait and report. An
-// ambiguous slot record, an unreadable memory reading or process table and a
-// dead holder's lingering Vitest processes refuse outright, as before.
-// `admitWaitMs` bounds only this transaction's guard wait, so a caller with a
-// deadline can keep it inside that deadline; release keeps the full bound.
+// waiting row current, and admits the run into the first free slot when no
+// live holder has the same run directory, a slot is free, the run's pool holds
+// fewer than its limit, the free-memory reading is at or above the floor, no
+// foreign Vitest process is running and the queue says it is this run's turn:
+// among the waiters whose pool can still take a slot, the oldest of the pool
+// not admitted last, else the oldest overall. Each other outcome is a waitable
+// refusal carrying the holders, the reading and the queue position, so the
+// caller can wait and report. An ambiguous slot record, an unreadable memory
+// reading or process table and a dead holder's lingering Vitest processes
+// refuse outright, as before. The hand-over note that records the admitted
+// pool is written before the slot record, under the same admission failure
+// rules, so a published admission is never missing from it. `admitWaitMs`
+// bounds only this transaction's guard wait, so a caller with a deadline can
+// keep it inside that deadline; release keeps the full bound.
 export function acquire(run, { root = machineRoot, pool = "writer", identify = processIdentity, uptime = os.uptime, census = vitestProcesses, memory = freeMemoryMb,
   floorMb = admissionFloorMb, slots = admissionSlots, waiting = null, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, supervised = false } = {}) {
   if (!pools.includes(pool)) throw new Error(`Unknown test pool ${JSON.stringify(pool)}; the pools are writer and reviewer`);
@@ -560,17 +576,18 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     const foreign = census({ accounted: accountedPids(holders.map(holder => holder.record)) });
     if (interrupted.length) {
       if (foreign.length) throw new Error(`Vitest processes still present: ${foreign.join(", ")}`);
-      for (const { file, record: previous } of interrupted) {
-        // Preserve process identity and the recovery decision before freeing the slot.
-        atomic(path.join(root, `recovered-${previous.token}.json`), { ...previous, recoveredAt: new Date().toISOString() }, { admissionRoot: root });
-        fs.unlinkSync(file);
-      }
+      // Preserve process identity and the recovery decision before replacing
+      // ownership. The interrupted record stays in its file until an
+      // admission's atomic rename replaces it: the lowest free slot is taken
+      // first, so it is replaced before an empty higher slot is used, and a
+      // failed replacement leaves its published bytes for inspection.
+      for (const { record: previous } of interrupted) atomic(path.join(root, `recovered-${previous.token}.json`), { ...previous, recoveredAt: new Date().toISOString() }, { admissionRoot: root });
     }
     const summaries = holders.map(holder => holderSummary(holder.record, holder.index, observedAt));
     const owner = identify(process.pid);
     if (!owner) throw new Error("Coordinator identity unavailable");
     const mine = waiting ? { token: waiting.token, owner, pool, run, arrivedAt: waiting.arrivedAt } : null;
-    const candidates = [...waitingQueue(root, identify).filter(row => !mine || row.token !== mine.token), ...(mine ? [mine] : [])].sort(byArrival);
+    const candidates = [...waitingQueue(root, identify, holders.map(holder => holder.record)).filter(row => !mine || row.token !== mine.token), ...(mine ? [mine] : [])].sort(byArrival);
     const position = mine ? candidates.findIndex(row => row.token === mine.token) + 1 : candidates.length + 1;
     const poolHolders = name => summaries.filter(holder => holder.pool === name).length;
     // A refused run with a wait holds its place with a row, written on its
@@ -585,6 +602,10 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
       }
       return Object.assign(new Error(message), { waitable, holders: summaries, holder: summaries[0], freeMb, floorMb, position, queued: candidates.length });
     };
+    // A live coordinator owns its run directory: a resume of the same run
+    // waits for it, as it did when one slot excluded every other run.
+    const sameRun = holders.find(holder => holder.record.run === run);
+    if (sameRun) throw blocked("reservation", `Existing suite running for ${run}; inspect ${sameRun.file}`);
     if (holders.length >= slots) throw blocked("reservation", `Existing suite running in every slot (${holders.length} of ${slots}); inspect ${holders.map(holder => holder.file).join(", ")}`);
     if (poolHolders(pool) >= poolSlotLimit) throw blocked("pool slots", `The ${pool} pool holds its ${poolSlotLimit} slots`);
     if (freeMb < floorMb) throw blocked("memory", `Free memory ${freeMb} MB is below the ${floorMb} MB floor`);
@@ -599,11 +620,12 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     const file = slotFile(root, index);
     const record = { ...(supervised ? { version: 2 } : {}), token: randomUUID(), owner, run, pool, slot: index,
       heldSince: new Date().toISOString(), heldUptime: uptime(), phase: "reserved" };
+    // The note first: a note that cannot be written refuses the admission
+    // like any other admission write, so the queue never reads a note that
+    // names an older admission than the slots hold. A note written for a
+    // record that then fails to publish only skews the next preference once.
+    atomic(lastAdmittedFile(root), { pool, token: record.token, at: record.heldSince }, { admissionRoot: root });
     atomic(file, record, { admissionRoot: root });
-    // The hand-over note and the row steer later admissions only; a failure
-    // to write them never undoes the admission just published.
-    try { atomic(lastAdmittedFile(root), { pool, token: record.token, at: record.heldSince }); }
-    catch (error) { console.error(`Admission order not recorded: ${error.message}`); }
     if (waiting?.published) {
       try { fs.unlinkSync(waitingFile(root, mine.token)); }
       catch (error) { if (error.code !== "ENOENT") console.error(`Waiting row not removed after admission: ${error.message}`); }
@@ -688,19 +710,34 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, onWait = 
 
 // The gate before each execution unit of an admitted run: the free-memory
 // reading at or above the floor and no foreign Vitest process, where the other
-// slots' recorded processes count as accounted for. A reading below the floor
-// delays the unit until the deadline; the holder keeps its slot throughout.
+// live holders' coordinators are accounted for (a slot whose coordinator is
+// gone, or whose state is unknown, accounts for nothing, so a dead holder's
+// orphan stays foreign). The slot snapshot and the census run under the
+// store's guard, so no admission lands between them: a holder admitted before
+// the snapshot is in it, and one admitted after cannot have launched an engine
+// yet. A reading below the floor delays the unit until the deadline; the
+// holder keeps its slot throughout.
 export async function waitForUnit(reservation, { deadline = Date.now(), pollMs = 2000, census = vitestProcesses, memory = freeMemoryMb,
-  floorMb = admissionFloorMb, root = machineRoot, slots = admissionSlots, onWait = () => {} } = {}) {
+  floorMb = admissionFloorMb, root = machineRoot, slots = admissionSlots, identify = processIdentity, uptime = os.uptime, onWait = () => {} } = {}) {
   for (;;) {
     const freeMb = memory();
     if (!Number.isFinite(freeMb)) throw new Error(`Free memory reading unavailable: ${String(freeMb)}`);
-    const records = [reservation.record];
-    for (const file of slotFiles(root, slots)) {
-      if (file === reservation.file) continue;
-      try { records.push(read(file)); } catch {}
+    let foreign;
+    try {
+      foreign = guarded(root, () => {
+        const records = [reservation.record];
+        for (const file of slotFiles(root, slots)) {
+          if (file === reservation.file) continue;
+          try { const record = read(file); if (reservationState(record, identify, { uptime }) === "running") records.push(record); } catch {}
+        }
+        return census({ accounted: accountedPids(records) });
+      }, guardWaitMs, identify, false, true);
+    } catch (error) {
+      if (!error.guardHeld || Date.now() >= deadline) throw error;
+      onWait({ waiting: "guard", detail: error.message });
+      await pause(pollMs, deadline);
+      continue;
     }
-    const foreign = census({ accounted: accountedPids(records) });
     if (freeMb >= floorMb && !foreign.length) return { freeMb };
     const message = freeMb < floorMb ? `Free memory ${freeMb} MB is below the ${floorMb} MB floor` : `Vitest processes still present: ${foreign.join(", ")}`;
     if (Date.now() >= deadline) throw new Error(message);
