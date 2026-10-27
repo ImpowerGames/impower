@@ -25,9 +25,7 @@ import {
 } from "../attributes";
 import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
 import {
-  applyPoint,
   applySubpaths,
-  formatAffine,
   invert,
   isIdentity,
   type Affine,
@@ -851,11 +849,11 @@ export function* bakeSteps(
   }
 
   // Clip wrappers: each target is wrapped in a group masked by its entry's
-  // aperture, mapped from root space into the wrapper's space. The target's
-  // own clips and masks stay on it, so the two intersect.
+  // aperture, in root space. The target's own clips and masks stay on it, so
+  // the two intersect.
   const prefix = idPrefixFor(input.key);
   const clipTargets: MorphClipTarget[] = [];
-  const wrappers = new Map<Element, { clip: number; id: string; matrix: Affine }[]>();
+  const wrappers = new Map<Element, { clip: number; id: string; matrix: Affine; space: Affine }[]>();
   let clipSerial = 0;
   const freshId = (base: string) => {
     let id = base;
@@ -873,7 +871,7 @@ export function* bakeSteps(
       }
       const id = freshId(`morph-clip-${clipIndex}-${clipSerial++}`);
       const list = wrappers.get(target) ?? [];
-      list.push({ clip: clipIndex, id, matrix });
+      list.push({ clip: clipIndex, id, matrix, space: parentSpace! });
       wrappers.set(target, list);
       clipTargets.push({ clip: clipIndex, mask: `${prefix}${id}`, matrix: [...matrix] });
     }
@@ -908,39 +906,35 @@ export function* bakeSteps(
   // a reach there would show. A rest outline that encloses no area (a morph
   // that rests closed) has no stroke at all, for the same reason.
   //
-  // A non-scaling stroke in a mask cancels the transforms up to the root but
-  // is drawn through the referencing wrapper's own space, so its width is
-  // divided by the scale of that space relative to root space (the geometric
-  // mean of its axes, which is exact for a uniform scale). The path's paint
-  // is spelled out, since a mask's content inherits from the mask's
-  // ancestors (the artwork root), not from the masked drawing: an inherited
-  // `fill-opacity` would make the whole aperture translucent. The mask's
-  // region is the apertures' bounds grown by their own size, so it holds the
-  // stroke at any size the opening is drawn large enough to see.
-  const maskElement = (id: string, clip: number, matrix: Affine): Element => {
+  // A non-scaling stroke in a mask is drawn through the space of the element
+  // the mask is on, so that element's space is root space: the masked group
+  // undoes the transforms around the target and a group inside it redoes
+  // them, both written at full precision, and the mask's path is in root
+  // space as the apertures are. The path's paint is spelled out, since a
+  // mask's content inherits from the mask's ancestors (the artwork root),
+  // not from the masked drawing: an inherited `fill-opacity` would make the
+  // whole aperture translucent. The mask's region is the apertures' bounds
+  // grown by their own size, so it holds the stroke at any size the opening
+  // is drawn large enough to see.
+  const maskElement = (id: string, clip: number): Element => {
     const { minX, minY, maxX, maxY } = apertureBounds[clip]!;
-    const corners = [applyPoint(matrix, [minX, minY]), applyPoint(matrix, [maxX, minY]), applyPoint(matrix, [minX, maxY]), applyPoint(matrix, [maxX, maxY])];
-    const xs = corners.map((p) => p[0]),
-      ys = corners.map((p) => p[1]);
-    const pad = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    const pad = Math.max(maxX - minX, maxY - minY);
     const loops = restLoops[clip] ?? [];
-    const width = round(APERTURE_REACH * 2 * Math.sqrt(Math.abs(matrix[0] * matrix[3] - matrix[1] * matrix[2])));
-    const stroke = enclosesArea(loops) ? `stroke:#fff;stroke-opacity:1;stroke-width:${width}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none";
+    const stroke = enclosesArea(loops) ? `stroke:#fff;stroke-opacity:1;stroke-width:${APERTURE_REACH * 2}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none";
     return {
       tagName: "mask",
       attributes: {
         id,
         maskUnits: "userSpaceOnUse",
-        x: `${round(Math.min(...xs) - pad)}`,
-        y: `${round(Math.min(...ys) - pad)}`,
-        width: `${round(Math.max(...xs) - Math.min(...xs) + 2 * pad)}`,
-        height: `${round(Math.max(...ys) - Math.min(...ys) + 2 * pad)}`,
+        x: `${round(minX - pad)}`,
+        y: `${round(minY - pad)}`,
+        width: `${round(maxX - minX + 2 * pad)}`,
+        height: `${round(maxY - minY + 2 * pad)}`,
       },
       children: [
         {
           tagName: "path",
           attributes: {
-            ...(isIdentity(matrix) ? {} : { transform: formatAffine(matrix) }),
             // Inline, so no style sheet the artwork carries outranks it.
             style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${stroke};visibility:visible;vector-effect:non-scaling-stroke`,
             d: loopsPathData(loops),
@@ -950,10 +944,17 @@ export function* bakeSteps(
       ],
     };
   };
+  const exactAffine = (m: Affine) => `matrix(${m.join(" ")})`;
   const wrap = (element: Element) => (clone: Element): Element => {
     let out = clone;
-    for (const { id } of wrappers.get(element) ?? []) {
-      out = { tagName: "g", attributes: { mask: `url(#${id})` }, children: [out] };
+    for (const { id, matrix, space } of wrappers.get(element) ?? []) {
+      out = isIdentity(matrix)
+        ? { tagName: "g", attributes: { mask: `url(#${id})` }, children: [out] }
+        : {
+            tagName: "g",
+            attributes: { transform: exactAffine(matrix), mask: `url(#${id})` },
+            children: [{ tagName: "g", attributes: { transform: exactAffine(space) }, children: [out] }],
+          };
     }
     return out;
   };
@@ -976,7 +977,7 @@ export function* bakeSteps(
     };
     copy(doc.root, root);
     const defs: Element = { tagName: "defs", attributes: {}, children: [] };
-    for (const [, list] of wrappers) for (const w of list) defs.children.push(maskElement(w.id, w.clip, w.matrix));
+    for (const [, list] of wrappers) for (const w of list) defs.children.push(maskElement(w.id, w.clip));
     if (defs.children.length) root.children.unshift(defs);
     return serialize(root);
   })();
@@ -1041,7 +1042,7 @@ export function* bakeSteps(
   const parts: MorphPart[] = runs.map((run) => {
     const keep = new Set(run.leaves.map((l) => l.element));
     const extra = new Map<Element, (clone: Element) => Element>();
-    const used: { id: string; clip: number; matrix: Affine }[] = [];
+    const used: { id: string; clip: number }[] = [];
     if (run.live) {
       for (const leaf of run.leaves) {
         extra.set(leaf.element, (clone) => {
@@ -1089,7 +1090,7 @@ export function* bakeSteps(
     }
     const { root, ids } = extractTree(doc!, keep, { extra, missing });
     if (used.length) {
-      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => maskElement(w.id, w.clip, w.matrix)) };
+      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => maskElement(w.id, w.clip)) };
       root.children.unshift(defs);
       for (const w of used) ids.add(w.id);
     }

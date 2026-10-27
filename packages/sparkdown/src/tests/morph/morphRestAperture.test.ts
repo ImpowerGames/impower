@@ -2,7 +2,8 @@ import { flattenCubic } from "@impower/spark-morph/src/geometry/cubic";
 import { parsePathData } from "@impower/spark-morph/src/index";
 import { describe, expect, test } from "vitest";
 import { filterSVGAttributes } from "../../attributes";
-import { APERTURE_REACH, bakeMorphArtifact } from "../../morph/bake";
+import { applyPoint, invert, multiply, parseTransform, IDENTITY, type Affine } from "../../morph/affine";
+import { bakeMorphArtifact } from "../../morph/bake";
 import { renderMorphAt } from "../../morph/render";
 import { parse } from "../../txml/txml";
 import { blink } from "./fixtures";
@@ -70,7 +71,7 @@ const distance = (shape: Point[][], p: Point): number => {
   return best;
 };
 
-/** A filled path in paint order, with how much of it the clips and masks that wrap it let through. */
+/** A filled path in paint order, in root space, with how much of it the clips and masks that wrap it let through. */
 interface Painted {
   fill: string;
   shape: Point[][];
@@ -81,14 +82,22 @@ const elementChildren = (node: Element) => node.children.filter((c): c is Elemen
 
 const hidden = (node: Element) => node.attributes["display"] === "none" || /display:\s*none/.test(node.attributes["style"] ?? "");
 
+const transformOf = (node: Element): Affine => parseTransform(node.attributes["transform"])!;
+
+const mapRings = (m: Affine, shape: Point[][]): Point[][] => shape.map((ring) => ring.map((point) => applyPoint(m, point)));
+
 /**
- * The SVG's filled, shown paths in paint order, each with how much its
- * ancestors' clip paths and masks let through, drawn `scale` screen pixels
- * to the drawing unit. A mask is modelled as its path's fill and stroke, each
- * as opaque as its paint: the path's own `fill-opacity` and `stroke-opacity`,
- * else the value it inherits from the mask's ancestors, as a mask's content
- * does. A `non-scaling-stroke` is as wide in screen pixels at any scale. The
- * sampler has no transforms, so it refuses any.
+ * The SVG's filled, shown paths in paint order, in root space, each with how
+ * much its ancestors' clip paths and masks let through, drawn `scale` screen
+ * pixels to the root unit. A clip path or mask is evaluated in the space of
+ * the element that refers to it, its own transform included. A mask is
+ * modelled as its path's fill and stroke, each as opaque as its paint: the
+ * path's own `fill-opacity` and `stroke-opacity`, else the value it inherits
+ * from the mask's ancestors, as a mask's content does. A `non-scaling-stroke`
+ * reaches half its width in screen pixels measured in that referring
+ * element's space, which is how Chromium draws one in a mask: under a
+ * referring element scaled 2 against the root, it reaches twice as far on
+ * screen.
  */
 const paintList = (svg: string, scale = 1): Painted[] => {
   const doc = parse(svg);
@@ -113,14 +122,15 @@ const paintList = (svg: string, scale = 1): Painted[] => {
     }
     return undefined;
   };
-  const reveals = (resource: Element): ((p: Point) => number) => {
+  // `space` maps the referring element's space to root space.
+  const reveals = (resource: Element, space: Affine): ((p: Point) => number) => {
+    const local = invert(space)!;
     if (resource.tagName === "clipPath") {
-      const shapes = elementChildren(resource).map((child) => rings(child.attributes["d"] ?? ""));
-      return (p) => (shapes.some((shape) => inside(shape, p)) ? 1 : 0);
+      const shapes = elementChildren(resource).map((child) => mapRings(transformOf(child), rings(child.attributes["d"] ?? "")));
+      return (p) => (shapes.some((shape) => inside(shape, applyPoint(local, p))) ? 1 : 0);
     }
     const path = elementChildren(resource).find((c) => c.tagName === "path")!;
-    expect(path.attributes["transform"], "the sampler draws untransformed art").toBeUndefined();
-    const fill = path.attributes["d"] ? rings(path.attributes["d"]) : [];
+    const fill = path.attributes["d"] ? mapRings(transformOf(path), rings(path.attributes["d"])) : [];
     const paint = (name: string) => {
       const colour = property(path, name);
       return colour === undefined || colour === "none" ? 0 : Number(property(path, `${name}-opacity`) ?? 1);
@@ -129,23 +139,26 @@ const paintList = (svg: string, scale = 1): Painted[] => {
       strokeAlpha = paint("stroke");
     const width = Number(/^([\d.]+)/.exec(property(path, "stroke-width") ?? "1")?.[1]);
     const reach = (property(path, "vector-effect") === "non-scaling-stroke" ? width / scale : width) / 2;
-    return (p) => (inside(fill, p) ? fillAlpha : strokeAlpha > 0 && distance(fill, p) <= reach ? strokeAlpha : 0);
+    return (p) => {
+      const q = applyPoint(local, p);
+      return inside(fill, q) ? fillAlpha : strokeAlpha > 0 && distance(fill, q) <= reach ? strokeAlpha : 0;
+    };
   };
   const out: Painted[] = [];
-  const walk = (node: Element, clips: ((p: Point) => number)[]) => {
+  const walk = (node: Element, clips: ((p: Point) => number)[], parentSpace: Affine) => {
     if (node.tagName === "defs" || node.tagName === "clipPath" || node.tagName === "mask" || hidden(node)) return;
-    expect(node.attributes["transform"], "the sampler draws untransformed art").toBeUndefined();
+    const space = node.tagName === "svg" ? parentSpace : multiply(parentSpace, transformOf(node));
     const own = [...clips];
     for (const attribute of ["clip-path", "mask"]) {
       const ref = /url\(#([^)]+)\)/.exec(node.attributes[attribute] ?? "")?.[1];
-      if (ref) own.push(reveals(byId.get(ref)!));
+      if (ref) own.push(reveals(byId.get(ref)!, space));
     }
     if (node.tagName === "path" && node.attributes["fill"]) {
-      out.push({ fill: node.attributes["fill"], shape: rings(node.attributes["d"]!), clips: own });
+      out.push({ fill: node.attributes["fill"], shape: mapRings(space, rings(node.attributes["d"]!)), clips: own });
     }
-    for (const c of elementChildren(node)) walk(c, own);
+    for (const c of elementChildren(node)) walk(c, own, space);
   };
-  roots.forEach((r) => walk(r, []));
+  roots.forEach((r) => walk(r, [], IDENTITY));
   return out;
 };
 
@@ -230,6 +243,25 @@ describe("a live morph's aperture masks", () => {
   const SVG = eye(WHITE, LOWER);
   const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
 
+  // The same picture with the white drawn under transforms that leave the
+  // still image as it was: a scaled parent the white's own transform undoes.
+  const underParent = (parent: string, undo: string) =>
+    SVG.replace(
+      `<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>`,
+      `<g transform="${parent}"><path data-name="eyeball-white-left" transform="${undo}" d="${WHITE}" fill="#fff"/></g>`,
+    );
+  const FIXTURES: [string, string, number][] = [
+    ["plain art", SVG, 1],
+    [
+      "art drawn whole under scale(2)",
+      SVG.replace('viewBox="0 0 140 100" width="140" height="100">', 'viewBox="0 0 280 200" width="140" height="100"><g transform="scale(2)">').replace("</svg>", "</g></svg>"),
+      0.5,
+    ],
+    ["a white under scale(100 1), undone on the white", underParent("scale(100 1)", "scale(0.01 1)"), 1],
+    ["a white under scale(10000), undone on the white", underParent("scale(10000)", "scale(0.0001)"), 1],
+    ["a white under a rotation and a stretch, undone on the white", underParent("rotate(30 70 50) scale(2 0.5)", "scale(0.5 2) rotate(-30 70 50)"), 1],
+  ];
+
   /** The outline of the aperture an SVG cuts its targets with. */
   const apertureOutline = (svg: string): Point[][] => {
     const doc = parse(svg);
@@ -271,46 +303,53 @@ describe("a live morph's aperture masks", () => {
     return points;
   };
 
-  test.each([4, 20])("reach half a screen pixel past the aperture's outline under the edges, at %i screen pixels to the unit", (scale) => {
+  test.each(FIXTURES)("reach half a screen pixel past the aperture's outline under the edges: %s", (_name, source, unit) => {
     // The outline lies on the lashes' inner edges, and a clip edge on a drawn
     // edge leaves an antialiased seam of the face under the white. Under the
     // lashes, half a pixel past the outline, the white must still be drawn,
-    // so the edge a rasterizer blends is the lash's alone.
-    const rest = paintList(artifact.rest, scale);
-    const lashes = rest.filter((item) => item.fill === "#111");
-    const white = rest.find((item) => item.fill === "#fff")!;
-    const outline = apertureOutline(artifact.rest);
-    expect(outline.length).toBeGreaterThan(0);
-    const underLash = nearOutline(outline, scale, [0.5]).filter(({ p, outside }) => outside && lashes.some((lash) => inside(lash.shape, p)));
-    expect(underLash.length).toBeGreaterThan(200);
-    const cut = underLash.filter(({ p }) => !white.clips.every((clip) => clip(p)));
-    expect(cut.slice(0, 5).map(({ p }) => p), `${cut.length} of ${underLash.length} points under the lashes cut`).toEqual([]);
+    // so the edge a rasterizer blends is the lash's alone. `unit` is the
+    // picture's root units to the plain art's.
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
+      for (const scale of [4 * unit, 20 * unit]) {
+        const rest = paintList(svg, scale);
+        const lashes = rest.filter((item) => item.fill === "#111");
+        const white = rest.find((item) => item.fill === "#fff")!;
+        const outline = apertureOutline(svg);
+        expect(outline.length).toBeGreaterThan(0);
+        const underLash = nearOutline(outline, scale, [0.5]).filter(({ p, outside }) => outside && lashes.some((lash) => inside(lash.shape, p)));
+        expect(underLash.length).toBeGreaterThan(200);
+        const cut = underLash.filter(({ p }) => white.clips.some((clip) => clip(p) < 1));
+        expect(cut.slice(0, 5).map(({ p }) => p), `${cut.length} of ${underLash.length} points under the lashes cut at ${scale}px`).toEqual([]);
+      }
+    }
   });
 
-  test.each([
-    ["the baked rest render", () => artifact.rest],
-    ["a live drawing at rest", () => renderMorphAt(artifact, 0)],
-  ])("at rest, change nothing but toward the static image: %s", (_name, render) => {
+  test.each(FIXTURES)("at rest, change nothing but toward the static image: %s", (_name, source, unit) => {
     // Where the reach changes what shows, it shows what the static image
     // does: the white running under the lashes.
-    const svg = render();
-    const outline = apertureOutline(svg);
-    expect(outline.length).toBeGreaterThan(0);
-    let changes = 0;
-    for (const scale of [1, 4, 20]) {
-      const reaching = paintList(svg, scale),
-        exact = paintList(svg, Infinity),
-        still = paintList(filterSVGAttributes(SVG, {}), scale);
-      const points = nearOutline(outline, scale, [0.25, 0.5, 0.75, 1, 1.5]);
-      const changed = points.filter(({ p }) => colourAt(reaching, p) !== colourAt(exact, p));
-      changes += changed.length;
-      const differing = changed
-        .filter(({ p }) => colourAt(reaching, p) !== colourAt(still, p))
-        .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(still, p)}`);
-      expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
+      const outline = apertureOutline(svg);
+      expect(outline.length).toBeGreaterThan(0);
+      let changes = 0;
+      for (const scale of [1 * unit, 4 * unit, 20 * unit]) {
+        const reaching = paintList(svg, scale),
+          exact = paintList(svg, Infinity),
+          still = paintList(filterSVGAttributes(source, {}), scale);
+        const points = nearOutline(outline, scale, [0.25, 0.5, 0.75, 1, 1.5]);
+        const changed = points.filter(({ p }) => colourAt(reaching, p) !== colourAt(exact, p));
+        changes += changed.length;
+        const differing = changed
+          .filter(({ p }) => colourAt(reaching, p) !== colourAt(still, p))
+          .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(still, p)}`);
+        expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+      }
+      // The reach does reach somewhere it shows, so the check is not vacuous.
+      expect(changes).toBeGreaterThan(0);
     }
-    // The reach does reach somewhere it shows, so the check is not vacuous.
-    expect(changes).toBeGreaterThan(0);
   });
 
   test.each([
@@ -331,29 +370,6 @@ describe("a live morph's aperture masks", () => {
         .filter(({ p }) => colourAt(reaching, p) !== colourAt(exact, p))
         .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(exact, p)}`);
       expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
-    }
-  });
-
-  test("reach as many screen pixels past the outline under a scaled drawing", () => {
-    // Measured in Chromium: a non-scaling stroke in a mask cancels the
-    // transforms up to the root, but it is drawn through the masked wrapper's
-    // own space, so its reach on screen is half its width times that space's
-    // scale against root space.
-    const scaled = SVG.replace('viewBox="0 0 140 100" width="140" height="100">', 'viewBox="0 0 280 200" width="140" height="100"><g transform="scale(2)">').replace(
-      "</svg>",
-      "</g></svg>",
-    );
-    const baked = bakeMorphArtifact({ source: scaled, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
-    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-    expect(baked.status).toBe("live");
-    const masks = [...baked.rest.matchAll(/<mask\b[^>]*>\s*<path([^>]*)>/g)].map((m) => m[1]!);
-    expect(masks.length).toBeGreaterThan(0);
-    for (const attributes of masks) {
-      const [a, b, c, d] = /transform='matrix\(([^)]*)\)'/.exec(attributes)![1]!.split(/[\s,]+/).map(Number) as [number, number, number, number];
-      const width = Number(/stroke-width:([\d.]+)px/.exec(attributes)![1]);
-      const spaceScale = 1 / Math.sqrt(Math.abs(a * d - b * c));
-      expect(spaceScale).toBeCloseTo(2, 6);
-      expect((width / 2) * spaceScale).toBeCloseTo(APERTURE_REACH, 3);
     }
   });
 
