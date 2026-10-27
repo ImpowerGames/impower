@@ -196,7 +196,7 @@ This system gives playback the following contract:
 - The page builds a `<video class="object" playsinline>` for a movie, with the cache's object URL as its `src` when the file is resident and the file URL otherwise, and the file URL as its `data-src`. `derivedPins` collects `video.object` elements by `data-src`, so a displayed movie's entry is never evicted and its object URL never revoked under it.
 - The element loads in CORS mode (`crossOrigin = "anonymous"`) so that its sound can go through a `MediaElementAudioSourceNode` into the `movie` mixer; a video served from another origin needs CORS headers, or it fails to load.
 - In preview no video enters the cache. The movie element has `preload="metadata"` and never plays, so it shows the first frame and reads only the ranges it needs from the file URL. The editor's service worker answers a `Range` request for a project file with 206 and the requested bytes (416 for a range past the end); with a 60 s, 13.6 MB WebM backdrop the preview buffered its first 2.6 s.
-- Movies follow the game clock: pause and unpause pause and resume them, and a skip moves each one by the skipped time. Between skips a movie plays on the media element's own clock and can drift from the game's (about 0.06 to 0.17 s after 12 s of play) until the next skip, pause or span change places it again.
+- Movies follow the game clock: pause and unpause pause and resume them, and a skip moves each one by the skipped time. Between skips a movie plays on the media element's own clock and can drift from the game's (about 0.06 to 0.17 s after 12 s of play) until the next skip or pause, or a change in the duration the element reports, places it again; a new line leaves a playing movie where it is.
 
 ## Phases
 

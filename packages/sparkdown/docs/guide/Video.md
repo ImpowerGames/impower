@@ -96,7 +96,7 @@ end
 
 `mute` silences one movie and leaves the others alone.
 
-Movies follow the game clock. Pausing the game pauses every movie on screen, and resuming plays them on from where they stopped. Skipping ahead moves each movie forward by the time skipped. Between skips a movie plays on the browser's own clock, which can drift from the game's by a fraction of a second over a long stretch (around a tenth of a second after twelve seconds), and the next skip, pause or change of line puts it back in step.
+Movies follow the game clock. Pausing the game pauses every movie on screen, and resuming plays them on from where they stopped. Skipping ahead moves each movie forward by the time skipped. Between skips a movie plays on the browser's own clock, which can drift from the game's by a fraction of a second over a long stretch (around a tenth of a second after twelve seconds). The next skip or pause puts it back in step; moving on to the next line does not.
 
 The engine loads a video before the line that shows or plays it, the way it loads images and sounds ([Loading & Preloading](./Loading.md)), and keeps the file while the movie is on screen.
 
