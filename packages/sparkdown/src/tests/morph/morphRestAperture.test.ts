@@ -16,16 +16,23 @@ const CLOSED = "M20,50 C50,46 90,42 120,45 C90,48 50,52 20,50Z";
 const WHITE = "M20,50 C40,15 95,0 120,45 C95,72 50,75 20,50Z";
 const PUPIL = "M62,45 C62,33 82,33 82,45 C82,57 62,57 62,45Z";
 
-const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+// A lower lash whose inner tip stops 24 units short of the upper lash's, so
+// the open lashes' corner tips do not meet, as drawn on some portraits. The
+// white runs under it to its outer edge and bulges past the straight line
+// between the two tips, where no lash covers it.
+const LOWER_SHORT = "M40,64 C50,64 55,61 65,60 C85,58 100,62 120,45 C100,72 60,78 40,64Z";
+const WHITE_SHORT = "M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,66 18,60 20,50Z";
+
+const eye = (white: string, lower: string, upper = UPPER, closed = CLOSED) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#c96"/>
 <g data-name="eyes.open:default">
-<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
+<path data-name="eyeball-white-left" d="${white}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
-<path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
-<path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
+<path data-name="eyelash-left" d="${upper}" fill="#111"/>
+<path data-name="eyelash-left" d="${lower}" fill="#111"/>
 </g>
 <g data-name="eyes.closed">
-<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
+<path data-name="eyelash-left" d="${closed}" fill="#111"/>
 </g>
 </svg>`;
 
@@ -109,7 +116,20 @@ const colourAt = (list: Painted[], p: Point): string => {
 };
 
 describe("a live morph's rest render", () => {
-  test("looks the same as the variant's static image away from the drawn outlines", () => {
+  test.each([
+    ["lashes that meet at both corners", eye(WHITE, LOWER)],
+    ["open lashes whose inner corner tips do not meet", eye(WHITE_SHORT, LOWER_SHORT)],
+    [
+      "a lower lash whose inner tip points away from the upper lash's",
+      eye(WHITE_SHORT, "M40,64 C50,44 55,61 65,60 C85,58 100,62 120,45 C100,72 60,78 40,64Z"),
+    ],
+    ["white bulging further past the uncovered corner", eye("M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,70 16,62 20,50Z", LOWER_SHORT)],
+    ["white bulging well past the uncovered corner", eye("M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,76 10,64 20,50Z", LOWER_SHORT)],
+    [
+      "a lower lash starting above the upper lash's tip",
+      eye("M20,50 C40,15 95,0 120,45 C92,85 60,88 35,47 L20,50Z", "M35,47 C65,70 95,75 120,45 C92,85 60,88 35,47Z"),
+    ],
+  ])("looks the same as the variant's static image away from the drawn outlines: %s", (_name, SVG) => {
     const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
     expect(artifact.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(artifact.status).toBe("live");
@@ -134,5 +154,66 @@ describe("a live morph's rest render", () => {
     }
     expect(compared).toBeGreaterThan(25000);
     expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+  });
+});
+
+/** Whether a closed polyline has a proper crossing; a closed stretch's collinear slit is not one. */
+const properlyCrosses = (pts: Point[]): boolean => {
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const [a, b, c, d] = [pts[i]!, pts[(i + 1) % n]!, pts[j]!, pts[(j + 1) % n]!];
+      const den = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0]);
+      if (den === 0) continue;
+      const t = ((c[0] - a[0]) * (d[1] - c[1]) - (c[1] - a[1]) * (d[0] - c[0])) / den,
+        u = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / den;
+      if (t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6) return true;
+    }
+  }
+  return false;
+};
+
+describe("a live morph's baked apertures", () => {
+  test("never cross themselves where open lashes whose tips do not meet pass each other", () => {
+    // A lower lash starting inside the opening, short of the upper lash's
+    // tip: closing, its inner end passes the upper lash's boundary before the
+    // samples of the two boundaries do.
+    const upper = "M20,50 C50,5 90,5 120,50 C90,25 50,25 20,50Z";
+    const lower = "M45,40 C60,52 95,78 120,50 C92,88 60,60 45,40Z";
+    const closed = "M20,50 C50,44 90,44 120,50 C90,50 50,50 20,50Z";
+    const white = "M20,50 C50,5 90,5 120,50 C92,88 60,60 45,40 L20,50Z";
+    const artifact = bakeMorphArtifact({ source: eye(white, lower, upper, closed), selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(artifact.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.apertures.length).toBeGreaterThan(0);
+    const crossed: string[] = [];
+    const areas: number[][] = [];
+    artifact.apertures.forEach((samples, a) => {
+      areas.push([]);
+      samples.forEach((loops, s) => {
+        let area = 0;
+        loops.forEach((flat, l) => {
+          const pts: Point[] = [];
+          for (let k = 0; k + 1 < flat.length; k += 2) pts.push([flat[k]!, flat[k + 1]!]);
+          if (properlyCrosses(pts)) crossed.push(`aperture ${a} sample ${s} loop ${l}`);
+          for (let k = 0; k < pts.length; k++) {
+            const [x1, y1] = pts[k]!,
+              [x2, y2] = pts[(k + 1) % pts.length]!;
+            area += (x1 * y2 - x2 * y1) / 2;
+          }
+        });
+        areas[a]!.push(Math.abs(area));
+      });
+    });
+    expect(crossed).toEqual([]);
+    // The opening is really there between the poses, not collapsed to a
+    // simple but empty loop: every sample but the closed end has area.
+    for (const table of areas) {
+      const [open, shut] = table[0]! > table[table.length - 1]! ? [table[0]!, table[table.length - 1]!] : [table[table.length - 1]!, table[0]!];
+      expect(open).toBeGreaterThan(500);
+      expect(shut).toBeLessThan(1);
+      expect(table.filter((a) => a > 1).length, JSON.stringify(table)).toBe(table.length - 1);
+    }
   });
 });
