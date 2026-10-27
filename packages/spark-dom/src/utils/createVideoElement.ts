@@ -52,6 +52,12 @@ export const createVideoElement = (
   videoEl.style.setProperty("left", "50%");
   videoEl.style.setProperty("height", "100%");
   videoEl.style.setProperty("transform", "translateX(-50%)");
+  // The page sends a playing movie's sound through its mixers, and a media
+  // element source outputs silence for media fetched from another origin
+  // without CORS. So the element asks for CORS before it loads anything, as
+  // the asset cache's own fetch of the file does; a same-origin file or a
+  // `blob:` URL loads as before.
+  videoEl.crossOrigin = "anonymous";
   videoEl.setAttribute("src", video.src);
   el.appendChild(videoEl);
   parent.appendChild(el);
