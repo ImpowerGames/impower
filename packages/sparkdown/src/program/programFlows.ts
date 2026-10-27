@@ -367,15 +367,14 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       // address of the line below it, and the player reaches the flow's end
       // by its address (`ProgramRoot.flowEndAddress`). A scene whose content
       // is branches it does not enter (the first takes parameters) has no
-      // line of its own there, since that line is in its last branch's
-      // lines, so its end stands on its header.
+      // row there either, since that line is in its last branch's lines.
       const opensBranch = first instanceof FlowBase && !first.isFunction;
       const end = input.flowEndLine?.(record.uri, record.line);
       statements.push(
         runsOwn
           ? flowEnd(header!, end ?? lineAfter(statements, record.line), false)
           : opensBranch
-            ? flowEnd(header!, record.line, false)
+            ? flowEnd(header!, end ?? record.line, false)
             : flowEnd(header!, end ?? record.line + 1, true),
       );
     }

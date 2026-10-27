@@ -110,12 +110,12 @@ scene other
 end
 `;
 
-  it("stands on the scene's header, in the scene", () => {
+  it("stands on the scene's end, in the scene", () => {
     const program = compile(text);
     const locator = programLocator(program);
     const address = program.chunks.flowEndAddress(URI, 1);
     expect(address).toBeTypeOf("number");
-    expect(locator.locationOf(address)?.startLine).toBe(1);
+    expect(locator.locationOf(address)?.startLine).toBe(6);
     expect(locator.sceneAt(address)).toBe("start");
   });
 
