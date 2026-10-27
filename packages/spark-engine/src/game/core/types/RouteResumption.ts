@@ -27,6 +27,13 @@ export interface RouteResumption {
   stepIndex?: number;
   /** The checkpoint that step's story comes from. */
   checkpointIndex?: number;
+  /**
+   * The deepest checkpoint a replay may resume from, which can lie past
+   * `checkpointIndex`: a search resumes no later than the route's first
+   * forced verdict, while a replay forces the new route's own decisions and
+   * is held only by what the new program still agrees with.
+   */
+  replayCheckpointIndex?: number;
   /** That position, as a search reads it. Built here rather than on request,
    *  because establishing where the story stands is what produced it. */
   resumeFrom?: RouteResumePoint;
