@@ -576,6 +576,39 @@ export function* bakeSteps(
     if (pose.state === requirements.rest.get(group)) return restVisible;
     return visibleIn.get(group)?.get(pose.state);
   };
+  /**
+   * The drawing of `leaf`'s label that `pose` shows among the drawings of
+   * `group`: where it has several, the one whose box centre is nearest
+   * `leaf`'s, the first in paint order on a tie.
+   */
+  const centre = (leaf: Leaf): Point | undefined => {
+    const geometry = rootGeometry(leaf);
+    if (!geometry) return undefined;
+    let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const subpath of geometry) {
+      for (const { p0, p1 } of subpath.segments) {
+        for (const [x, y] of [p0, p1]) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    return minX <= maxX ? [(minX + maxX) / 2, (minY + maxY) / 2] : undefined;
+  };
+  const drawingIn = (pose: Record<string, boolean>, leaf: Leaf, group: string): Leaf | undefined => {
+    const origin = centre(leaf);
+    let best: { leaf: Leaf; distance: number } | undefined;
+    for (const candidate of leaves) {
+      if (!candidate.live || candidate.group !== group || candidate.label !== leaf.label) continue;
+      if (!visibleAt(candidate.element, pose)) continue;
+      const at = centre(candidate);
+      const distance = origin && at ? Math.hypot(at[0] - origin[0], at[1] - origin[1]) : Infinity;
+      if (!best || distance < best.distance) best = { leaf: candidate, distance };
+    }
+    return best?.leaf;
+  };
   /** Per label and named pose, whether any moving shape drew at that pose's place. */
   const depthUse = new Map<string, { label: string; depth: string; groups: Set<string>; used: boolean }>();
 
@@ -754,14 +787,20 @@ export function* bakeSteps(
         // `depth` names, in both directions, so the stacking holds for the
         // whole morph: it draws on whichever of its two drawings that pose
         // shows. By default that pose is the variant's rest pose, the pose
-        // the static image shows, so the live layer order matches the still.
-        // Where a named pose shows neither drawing the rest pose decides, and
-        // where the rest pose shows neither it draws on the one it leaves.
+        // the static image shows, so the live layer order matches the still;
+        // where the rest pose shows neither, it draws on the one it leaves.
+        // A named pose that shows neither still holds its stacking through a
+        // segment that does not reach it, on that pose's drawing of the same
+        // label; one that draws no such shape leaves the rest pose to decide.
         const { depth, label: depthLabel } = depthOf(from);
         const named = depthPose(depth, group);
-        const placed = !!named && (visibleAt(from.element, named) || visibleAt(to.element, named));
-        const pose = placed ? named! : restVisible;
-        const home = visibleAt(to.element, pose) && !visibleAt(from.element, pose) ? to : from;
+        const shows = (pose: Record<string, boolean>) => visibleAt(from.element, pose) || visibleAt(to.element, pose);
+        const endIn = (pose: Record<string, boolean>) =>
+          visibleAt(to.element, pose) && !visibleAt(from.element, pose) ? to : from;
+        const posed =
+          named && depth !== MORPH_DEPTH_REST && !shows(named) ? drawingIn(named, from, group) : undefined;
+        const placed = !!named && (shows(named) || !!posed);
+        const home = posed ?? endIn(named && shows(named) ? named : restVisible);
         const space = elementSpace(home);
         if (!morph || !space) {
           unpairedFrom.push(from);

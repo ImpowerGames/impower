@@ -189,6 +189,29 @@ ${TORSO}
       expect(raised.rest).toBe(rest.rest);
     });
 
+    test("segments that do not reach the named pose keep its stacking on its drawing of the label", () => {
+      // The half-raised arm is drawn behind the torso, like the lowered one.
+      const staged = arm.replace(
+        `${TORSO}`,
+        `<g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>\n${TORSO}`,
+      );
+      const states = ["down", "half", "raised", "half", "down"];
+      const plain = bake(raise({}, states), staged);
+      const named = bake(raise({ layers: { "arm-left": { depth: "arm.raised" } } }, states), staged);
+      expect(named.status).toBe("live");
+      expect(named.diagnostics).toEqual([]);
+      for (const segment of [0, 1, 2, 3]) {
+        const frame = midway(named, segment);
+        expect(above(frame, "arm-left", "torso"), `segment ${segment}`).toEqual([true]);
+        // The moving arm is not the raised drawing's own outline.
+        expect(shown(frame).find((e) => e.attributes["data-name"] === "arm-left")!.attributes["d"]).not.toBe(RAISED);
+      }
+      expect(above(midway(plain, 0), "arm-left", "torso")).toEqual([false]);
+      for (const offset of [0, 0.25, 0.5, 0.75, 1]) {
+        expect(renderMorphAt(named, offset)).toBe(renderMorphAt(plain, offset));
+      }
+    });
+
     test("the root's `depth` applies to every label, and a label's `depth = rest` undoes it", () => {
       expect(above(midway(bake(raise({ depth: "arm.raised" }))), "arm-left", "torso")).toEqual([true]);
       const undone = bake(raise({ depth: "arm.raised", layers: { "arm-left": { depth: "rest" } } }));
