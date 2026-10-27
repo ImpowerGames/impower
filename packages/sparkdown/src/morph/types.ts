@@ -19,6 +19,11 @@ export interface MorphPolicy {
   blend?: MorphBlend;
   method?: MorphMethodName;
   fallback?: MorphFallback;
+  /**
+   * The pose whose stacking a moving shape keeps between keyframes: `rest`,
+   * or a group-qualified state such as `eyes.closed`.
+   */
+  depth?: string;
 }
 
 /**
@@ -33,6 +38,8 @@ export interface MorphRecipe {
   blend: MorphBlend;
   method?: MorphMethodName;
   fallback: MorphFallback;
+  /** The root's `depth` (`MorphPolicy.depth`); absent when it is `rest`. */
+  depth?: string;
   /** Per-label overrides, keys sorted. */
   layers: Record<string, MorphPolicy>;
   /**
@@ -119,7 +126,8 @@ export type MorphDiagnosticCode =
   | "unsupported-element"
   | "resource-missing"
   | "source-unreadable"
-  | "inactive-variant";
+  | "inactive-variant"
+  | "depth-ignored";
 
 export interface MorphBakeDiagnostic {
   code: MorphDiagnosticCode;

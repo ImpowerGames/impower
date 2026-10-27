@@ -83,7 +83,7 @@ end
 `;
     const labels = labelsAt(source);
     expect(labels).toEqual(
-      expect.arrayContaining(["blend", "method", "fallback", "layers", "keyframes", "timing", "clips"]),
+      expect.arrayContaining(["blend", "method", "fallback", "depth", "layers", "keyframes", "timing", "clips"]),
     );
     expect(labels).not.toContain("duration");
     for (const container of ["layers", "keyframes", "timing", "clips"]) {
@@ -164,7 +164,7 @@ end
   }
 end
 `),
-    ).toEqual(["blend", "method", "fallback"]);
+    ).toEqual(["blend", "method", "fallback", "depth"]);
   });
 
   test("a `=` typed without a space gets one before the value", () => {
@@ -356,5 +356,26 @@ end
 `);
     expect(labels).toEqual(expect.arrayContaining(["lids", "lips"]));
     expect(labels).not.toContain("creases");
+  });
+
+  test("`depth` after `=` offers `rest` and each `group.state` the keyframes name", () => {
+    const raise = (layer: string, root = "") => `morph blink with
+  method = bend
+${root}  layers { eyelash-left { ${layer} } }
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = eyes.closed } }
+    to { eyes { state = open } }
+  }
+end
+`;
+    expect(labelsAt(raise("depth = |"))).toEqual(["rest", "eyes.open", "eyes.closed"]);
+    expect(labelsAt(raise("", "  depth = |\n"))).toEqual(["rest", "eyes.open", "eyes.closed"]);
+    // After the group, only its states, replacing the text after the dot.
+    const items = completeAt(raise("depth = eyes.cl|"), program);
+    expect(items.map((i) => i.label)).toEqual(["open", "closed"]);
+    expect(insertedText(items[1]!)).toBe("closed");
+    const item = itemAt(raise("depth = |"), "eyes.closed");
+    expect(item.documentation).toMatchObject({ value: expect.stringContaining("stacking") });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
+import type { MorphArtifact, MorphRecipe } from "../../morph/types";
 import { aperturePathData, namespaceMorphMarkup, renderMorphAt, renderMorphFrame } from "../../morph/render";
 import { parse } from "../../txml/txml";
 import { blink, CLOSED, LOWER_OPEN, portrait, shadowedPortrait, UPPER_OPEN } from "./fixtures";
@@ -138,6 +139,133 @@ describe("artifact playback", () => {
       const moving = shown(elements(renderMorphFrame(resting, { segment, progress: 0.5 })));
       expect(moving.map((e) => e.tagName)).toEqual(["path", "path"]);
     }
+  });
+
+  describe("`depth` names the pose whose stacking a moving shape keeps", () => {
+    // The lowered arm is drawn behind the torso, the raised arm in front.
+    const DOWN = "M10,60H30V90H10Z";
+    const HALF = "M10,40H30V70H10Z";
+    const RAISED = "M10,10H30V40H10Z";
+    const TORSO = `<path data-name="torso" d="M0,30H60V100H0Z"/>`;
+    const arm = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
+${TORSO}
+<g data-name="arm.raised"><path data-name="arm-left" d="${RAISED}"/></g>
+</svg>`;
+    const raise = (root: Record<string, unknown> = {}, states = ["down", "raised", "down"]) =>
+      buildMorphRecipe("raise", {
+        method: "match",
+        keyframes: states.map((state, i) => ({ offset: i / (states.length - 1), arm: { state } })),
+        ...root,
+      });
+    // One key for every bake, so artifacts that draw the same compare equal.
+    const bake = (recipe: MorphRecipe, source = arm) =>
+      bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "pose" });
+    /** For each drawn shape named `name`, whether it paints above `other`. */
+    const above = (frame: Element[], name: string, other: string) => {
+      const at = frame.findIndex((e) => e.attributes["data-name"] === other);
+      return shown(frame)
+        .filter((e) => e.attributes["data-name"] === name)
+        .map((e) => frame.indexOf(e) > at);
+    };
+    const midway = (artifact: MorphArtifact, segment = 0) => elements(renderMorphFrame(artifact, { segment, progress: 0.5 }));
+    const ignored = (artifact: MorphArtifact) => artifact.diagnostics.filter((d) => d.code === "depth-ignored");
+
+    test("a moving shape is drawn at the named pose's place between keyframes, in both directions", () => {
+      const rest = bake(raise());
+      const raised = bake(raise({ layers: { "arm-left": { depth: "arm.raised" } } }));
+      expect(raised.status).toBe("live");
+      expect(raised.diagnostics).toEqual([]);
+      for (const segment of [0, 1]) {
+        for (const progress of [0.1, 0.5, 0.9]) {
+          expect(above(elements(renderMorphFrame(rest, { segment, progress })), "arm-left", "torso")).toEqual([false]);
+          expect(above(elements(renderMorphFrame(raised, { segment, progress })), "arm-left", "torso")).toEqual([true]);
+        }
+      }
+      // The poses themselves and the still are what the art draws.
+      for (const offset of [0, 0.5, 1]) {
+        expect(renderMorphAt(raised, offset)).toBe(renderMorphAt(rest, offset));
+      }
+      expect(raised.rest).toBe(rest.rest);
+    });
+
+    test("the root's `depth` applies to every label, and a label's `depth = rest` undoes it", () => {
+      expect(above(midway(bake(raise({ depth: "arm.raised" }))), "arm-left", "torso")).toEqual([true]);
+      const undone = bake(raise({ depth: "arm.raised", layers: { "arm-left": { depth: "rest" } } }));
+      expect(above(midway(undone), "arm-left", "torso")).toEqual([false]);
+      // The state the morph starts from is the variant's own rest.
+      expect(midway(bake(raise({ depth: "arm.down" })))).toEqual(midway(bake(raise())));
+    });
+
+    test("a label's `depth` reaches the moving shapes inside it", () => {
+      const nested = arm.replace(/<path data-name="arm-left" d="([^"]+)"\/>/g, `<g data-name="limb"><path data-name="arm-left" d="$1"/></g>`);
+      expect(above(midway(bake(raise({ layers: { limb: { depth: "arm.raised" } } }), nested)), "arm-left", "torso")).toEqual([true]);
+    });
+
+    test("tracks sharing one drawing in the named pose are each drawn at its place", () => {
+      // Two open lashes below the brow, one closed lash above it.
+      const lashes = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
+<path data-name="brow" d="M0,5H100V10H0Z" fill="#432"/>
+<g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}" fill="#111"/></g>
+</svg>`;
+      const plain = bake(blink({ clips: [] }), lashes);
+      const closed = bake(blink({ clips: [], layers: { lash: { depth: "eyes.closed" } } }), lashes);
+      expect(closed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+      expect(closed.status).toBe("live");
+      for (const segment of [0, 1]) {
+        expect(above(midway(plain, segment), "lash", "brow")).toEqual([false, false]);
+        const frame = midway(closed, segment);
+        expect(above(frame, "lash", "brow")).toEqual([true, true]);
+        const drawn = shown(frame).filter((e) => e.attributes["data-name"] === "lash");
+        expect(drawn[0]!.attributes["d"]).not.toBe(drawn[1]!.attributes["d"]);
+      }
+      // At rest the copies stay hidden, so the parts compose to the still.
+      const rest = shown(elements(renderMorphFrame(closed, { segment: 0, progress: 0 })));
+      expect(rest.map((e) => e.attributes["d"])).toEqual([UPPER_OPEN, LOWER_OPEN]);
+    });
+
+    test("a named pose that does not draw the label keeps the rest pose's place and warns once", () => {
+      // The arm has no raised drawing: it moves from down to half and fades
+      // out of the half pose's segment.
+      const staged = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
+${TORSO}
+<g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>
+<g data-name="arm.raised"><path data-name="hand" d="M40,10H50V20H40Z"/></g>
+</svg>`;
+      const states = ["down", "half", "raised"];
+      const plain = bake(raise({}, states), staged);
+      const named = bake(raise({ layers: { "arm-left": { depth: "arm.raised" } } }, states), staged);
+      expect(named.status).toBe("live");
+      for (const progress of [0.25, 0.5, 0.75]) {
+        expect(renderMorphFrame(named, { segment: 0, progress })).toBe(renderMorphFrame(plain, { segment: 0, progress }));
+      }
+      expect(ignored(named)).toHaveLength(1);
+      expect(ignored(named)[0]).toMatchObject({ severity: "warning", layer: "arm-left", variant: "pose" });
+      expect(ignored(named)[0]!.message).toContain("`depth = arm.raised`");
+    });
+
+    test("a one-sided shape under a label whose moving shapes the named pose draws reports nothing", () => {
+      // The cuff exists only while the arm is down, so it fades; the arm
+      // under the same label moves and is drawn in the raised pose.
+      const cuffed = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="arm.down:default"><g data-name="limb"><path data-name="arm-left" d="${DOWN}"/><path data-name="cuff" d="M10,88H30V92H10Z"/></g></g>
+${TORSO}
+<g data-name="arm.raised"><g data-name="limb"><path data-name="arm-left" d="${RAISED}"/></g></g>
+</svg>`;
+      const named = bake(raise({ layers: { limb: { depth: "arm.raised" } } }), cuffed);
+      expect(named.status).toBe("live");
+      expect(ignored(named)).toEqual([]);
+      expect(above(midway(named), "arm-left", "torso")).toEqual([true]);
+    });
+
+    test("a label that changes with another group than the one `depth` names keeps its place and warns", () => {
+      const other = bake(raise({ layers: { "arm-left": { depth: "eyes.closed" } } }));
+      expect(midway(other)).toEqual(midway(bake(raise())));
+      expect(ignored(other)).toHaveLength(1);
+      expect(ignored(other)[0]!.message).toContain("`arm`");
+    });
   });
 
   test("each part fills the composed picture's viewport", () => {

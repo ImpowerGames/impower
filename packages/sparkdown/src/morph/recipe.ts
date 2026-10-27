@@ -3,7 +3,9 @@ import { normalizeMorphKeyframes } from "../compiler/morph/normalizeMorphKeyfram
 import {
   MORPH_BLENDS,
   MORPH_FALLBACKS,
+  MORPH_DEPTH_REST,
   MORPH_METHODS,
+  parseMorphDepth,
 } from "../compiler/morph/morphSchema";
 import type {
   MorphBlend,
@@ -27,6 +29,7 @@ const policyOf = (struct: Record<string, unknown>): MorphPolicy => {
   if (blend) policy.blend = blend;
   if (method) policy.method = method;
   if (fallback) policy.fallback = fallback;
+  if (parseMorphDepth(struct["depth"])) policy.depth = struct["depth"] as string;
   return policy;
 };
 
@@ -83,6 +86,9 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
     blend: root.blend ?? "morph",
     ...(root.method ? { method: root.method } : {}),
     fallback: root.fallback ?? "fade",
+    // The default is left out, so a morph that keeps it bakes under the
+    // recipe text it had before `depth` existed.
+    ...(root.depth && root.depth !== MORPH_DEPTH_REST ? { depth: root.depth } : {}),
     layers,
     keyframes,
     clips,

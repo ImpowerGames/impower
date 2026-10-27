@@ -24,6 +24,7 @@ import {
   type AttributeSelection,
 } from "../attributes";
 import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
+import { MORPH_DEPTH_REST, parseMorphDepth } from "../compiler/morph/morphSchema";
 import {
   applySubpaths,
   invert,
@@ -552,6 +553,31 @@ export function* bakeSteps(
     }
     return recipe[field];
   };
+  // `depth` by the nearest label that sets it, and the label it came from:
+  // the place a pose that draws none of the label's moving shapes is reported.
+  const depthOf = (leaf: Leaf): { depth: string; label?: string } => {
+    for (const entry of ancestry(doc!, leaf.element)) {
+      const label = entry.layer?.parsed.label;
+      const depth = label ? own(recipe.layers, label)?.depth : undefined;
+      if (depth) return { depth, label };
+    }
+    return { depth: recipe.depth ?? MORPH_DEPTH_REST };
+  };
+  /**
+   * What the pose a `depth` names shows, for a drawing that changes with
+   * `group`: the rest pose for `rest` and for the state the morph starts
+   * from, which stands for the variant's own resting choice. Undefined when
+   * the pose is not one of `group`'s, so it says nothing about the drawing.
+   */
+  const depthPose = (depth: string, group: string): Record<string, boolean> | undefined => {
+    const pose = parseMorphDepth(depth);
+    if (!pose || pose === MORPH_DEPTH_REST) return restVisible;
+    if (pose.group !== group) return undefined;
+    if (pose.state === requirements.rest.get(group)) return restVisible;
+    return visibleIn.get(group)?.get(pose.state);
+  };
+  /** Per label and named pose, whether any moving shape drew at that pose's place. */
+  const depthUse = new Map<string, { label: string; depth: string; groups: Set<string>; used: boolean }>();
 
   // Geometry in root user space.
   const geometryOf = new Map<Leaf, Subpath[] | null>();
@@ -724,17 +750,30 @@ export function* bakeSteps(
           continue;
         }
         const { morph, cacheKey, reversed } = morphFor(from, to, method);
-        // A moving drawing paints at the depth its layer has in the
-        // variant's rest pose, the pose the static image shows, in both
-        // directions, so the live layer order always matches the still: it
-        // draws on whichever of its two drawings the rest pose shows, and on
-        // the one it leaves when the rest pose shows neither.
-        const home = visibleAt(to.element, restVisible) && !visibleAt(from.element, restVisible) ? to : from;
+        // A moving drawing paints at the depth its layer has in the pose its
+        // `depth` names, in both directions, so the stacking holds for the
+        // whole morph: it draws on whichever of its two drawings that pose
+        // shows. By default that pose is the variant's rest pose, the pose
+        // the static image shows, so the live layer order matches the still.
+        // Where a named pose shows neither drawing the rest pose decides, and
+        // where the rest pose shows neither it draws on the one it leaves.
+        const { depth, label: depthLabel } = depthOf(from);
+        const named = depthPose(depth, group);
+        const placed = !!named && (visibleAt(from.element, named) || visibleAt(to.element, named));
+        const pose = placed ? named! : restVisible;
+        const home = visibleAt(to.element, pose) && !visibleAt(from.element, pose) ? to : from;
         const space = elementSpace(home);
         if (!morph || !space) {
           unpairedFrom.push(from);
           unpairedTo.push(to);
           continue;
+        }
+        if (depth !== MORPH_DEPTH_REST) {
+          const where = depthLabel ?? from.label;
+          const use = depthUse.get(`${where}\n${depth}`) ?? { label: where, depth, groups: new Set<string>(), used: false };
+          use.groups.add(group);
+          use.used ||= placed;
+          depthUse.set(`${where}\n${depth}`, use);
         }
         // One element carries one shape, so a second track drawing on the
         // same home (two open lashes converging on the closed lash a variant
@@ -870,6 +909,23 @@ export function* bakeSteps(
         clips,
       });
     }
+  }
+  // A label none of whose moving shapes the named pose draws keeps its
+  // rest-pose stacking. A one-sided shape under it moves on no track, so
+  // art that draws a shape in one pose only is not reported.
+  for (const { label, depth, groups, used } of depthUse.values()) {
+    if (used) continue;
+    const pose = parseMorphDepth(depth);
+    const group = pose && pose !== MORPH_DEPTH_REST ? pose.group : "";
+    const others = [...groups].filter((g) => g !== group);
+    report(
+      "depth-ignored",
+      "warning",
+      others.length === groups.size
+        ? `"${label}" changes with ${others.map((g) => `\`${g}\``).join(" and ")}, not \`${group}\`, so \`depth = ${depth}\` does not apply and it keeps its place in the rest pose.`
+        : `\`depth = ${depth}\` draws none of the moving shapes of "${label}", so they keep their place in the rest pose.`,
+      { layer: label },
+    );
   }
   for (const [index, clip] of recipe.clips.entries()) {
     if (!clipHasFrames[index]) {

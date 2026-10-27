@@ -14,6 +14,7 @@ import {
   MORPH_ROOT_FIELDS,
   MORPH_TIMING_FIELDS,
   easingProblem,
+  parseMorphDepth,
 } from "./morphSchema";
 import type { MorphBody, MorphIssue } from "./readMorphBody";
 
@@ -75,6 +76,69 @@ function components(value: unknown): string[] {
   }
   if (current) parts.push(current);
   return parts;
+}
+
+// The enumerated policy fields and the values each accepts. `depth` names a
+// pose and is checked against the keyframes instead.
+const POLICY_VOCABULARY: Record<string, readonly string[]> = {
+  blend: MORPH_BLENDS,
+  method: MORPH_METHODS,
+  fallback: MORPH_FALLBACKS,
+};
+
+const DEPTH_FORMS =
+  "Use `rest` or a state the keyframes name, written with its group, such as `eyes.closed`.";
+
+/** Why a `depth` value has the wrong form, or null when it is `rest` or `group.state`. */
+function depthFormProblem(value: unknown): string | null {
+  return parseMorphDepth(value)
+    ? null
+    : `${describeValue(value)} is not a \`depth\`. ${DEPTH_FORMS}`;
+}
+
+/** Each group the keyframes drive, with the states they name for it. */
+function keyframeStates(keyframes: unknown): Map<string, string[]> {
+  const states = new Map<string, string[]>();
+  if (!Array.isArray(keyframes)) return states;
+  for (const keyframe of keyframes) {
+    if (!isRecord(keyframe)) continue;
+    for (const [group, container] of Object.entries(keyframe)) {
+      if (!isRecord(container) || typeof container["state"] !== "string") continue;
+      const written = container["state"];
+      const state = written.startsWith(`${group}.`) ? written.slice(group.length + 1) : written;
+      const list = states.get(group) ?? [];
+      if (!list.includes(state)) list.push(state);
+      states.set(group, list);
+    }
+  }
+  return states;
+}
+
+/**
+ * Why a `depth` value names no pose the morph shows, or null when it is
+ * `rest` or a state its keyframes name. A bare state is pointed at the
+ * qualified forms of the driven groups that name it.
+ */
+function depthProblem(value: unknown, driven: Map<string, string[]>): string | null {
+  const parsed = parseMorphDepth(value);
+  const qualified = [...driven].flatMap(([group, states]) => states.map((s) => `${group}.${s}`));
+  if (!parsed) {
+    const having = typeof value === "string" ? qualified.filter((q) => q.endsWith(`.${value}`)) : [];
+    if (having.length > 0) {
+      return `\`depth\` names a state with its group. Write ${having.map((q) => `\`depth = ${q}\``).join(" or ")}.`;
+    }
+    return depthFormProblem(value);
+  }
+  if (parsed === "rest") return null;
+  const states = driven.get(parsed.group);
+  const choices = qualified.length ? ` Use \`rest\` or ${quoteList(qualified)}.` : "";
+  if (!states) {
+    return `\`depth = ${value}\` names the \`${parsed.group}\` group, but this morph does not drive \`${parsed.group}\`.${choices}`;
+  }
+  if (!states.includes(parsed.state)) {
+    return `This morph never shows \`${value}\`, so \`depth\` cannot name it: no keyframe sets \`${parsed.group}\` to \`${parsed.state}\`.${choices}`;
+  }
+  return null;
 }
 
 const THREE_D_FUNCTION_RE =
@@ -180,21 +244,20 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   };
 
+  // A `depth` names a pose of the morph after inheritance, so a child that
+  // writes its own keyframes is checked against them.
+  const driven = keyframeStates(decl.effective["keyframes"]);
   const checkPolicy = (obj: Record<string, unknown>) => {
-    const vocab: Record<string, readonly string[]> = {
-      blend: MORPH_BLENDS,
-      method: MORPH_METHODS,
-      fallback: MORPH_FALLBACKS,
-    };
     for (const field of MORPH_POLICY_FIELDS) {
       if (!(field in obj)) continue;
       const value = obj[field];
-      if (!has(vocab[field]!, value)) {
-        push(
-          valueSpan(obj, field),
-          `${describeValue(value)} is not a \`${field}\`. Use ${quoteList(vocab[field]!)}.`,
-        );
-      }
+      const vocab = POLICY_VOCABULARY[field];
+      const problem = vocab
+        ? has(vocab, value)
+          ? null
+          : `${describeValue(value)} is not a \`${field}\`. Use ${quoteList(vocab)}.`
+        : depthProblem(value, driven);
+      if (problem) push(valueSpan(obj, field), problem);
     }
   };
 
@@ -208,14 +271,14 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (!isRecord(layers)) {
       push(
         valueSpan(own, "layers"),
-        "`layers` holds labels, each with its own `blend`, `method` or `fallback`: `layers { creases { fallback = scale } }`.",
+        "`layers` holds labels, each with its own `blend`, `method`, `fallback` or `depth`: `layers { creases { fallback = scale } }`.",
       );
     } else {
       for (const [label, policy] of Object.entries(layers)) {
         if (!isRecord(policy)) {
           push(
             src(layers)?.lines.get(label),
-            `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\` or \`fallback\` inside.`,
+            `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\`, \`fallback\` or \`depth\` inside.`,
           );
           continue;
         }
@@ -419,6 +482,27 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
   }
+  // An inherited `depth` names a pose of the parent's keyframes; a child that
+  // writes its own keyframes may no longer show it. A parent's form errors are
+  // reported where the parent is written.
+  if (own["keyframes"] !== undefined) {
+    const ownLayers = isRecord(own["layers"]) ? own["layers"] : {};
+    const inherited: [string, unknown][] = [];
+    if (!("depth" in own)) inherited.push(["depth", effective["depth"]]);
+    if (isRecord(effectiveLayers)) {
+      for (const [label, policy] of Object.entries(effectiveLayers)) {
+        const written = ownLayers[label];
+        if (isRecord(policy) && "depth" in policy && !(isRecord(written) && "depth" in written)) {
+          inherited.push([`layers.${label}.depth`, policy["depth"]]);
+        }
+      }
+    }
+    for (const [field, value] of inherited) {
+      if (value === undefined || depthFormProblem(value)) continue;
+      const problem = depthProblem(value, driven);
+      if (problem) push(decl.parent, `\`${field}\`, inherited: ${problem}`);
+    }
+  }
   const effectiveTiming = effective["timing"];
   if (isRecord(effectiveTiming)) {
     const min = effectiveTiming["iteration_delay_min"];
@@ -460,18 +544,16 @@ export function morphValueProblems(
   struct: Record<string, unknown>,
 ): { field: string; message: string }[] {
   const problems: { field: string; message: string }[] = [];
-  const vocab: Record<string, readonly string[]> = {
-    blend: MORPH_BLENDS,
-    method: MORPH_METHODS,
-    fallback: MORPH_FALLBACKS,
-  };
   const policy = (obj: Record<string, unknown>, prefix: string) => {
     for (const field of MORPH_POLICY_FIELDS) {
-      if (!(field in obj) || has(vocab[field]!, obj[field])) continue;
-      problems.push({
-        field: `${prefix}${field}`,
-        message: `${describeValue(obj[field])} is not a \`${field}\`. Use ${quoteList(vocab[field]!)}.`,
-      });
+      if (!(field in obj)) continue;
+      const vocab = POLICY_VOCABULARY[field];
+      const message = vocab
+        ? has(vocab, obj[field])
+          ? null
+          : `${describeValue(obj[field])} is not a \`${field}\`. Use ${quoteList(vocab)}.`
+        : depthFormProblem(obj[field]);
+      if (message) problems.push({ field: `${prefix}${field}`, message });
     }
   };
   policy(struct, "");

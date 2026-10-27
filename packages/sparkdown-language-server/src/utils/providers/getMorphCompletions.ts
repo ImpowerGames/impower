@@ -8,6 +8,7 @@ import {
   MORPH_BLENDS,
   MORPH_CLIP_FIELDS,
   MORPH_CONTAINER_FIELDS,
+  MORPH_DEPTH_REST,
   MORPH_DIRECTIONS,
   MORPH_EASING_KEYWORDS,
   MORPH_FALLBACKS,
@@ -54,8 +55,9 @@ export interface MorphBraceContext {
   /** The brace entry being written up to the cursor (`braceEntryAt`), or
    *  null when the cursor is inside a quoted string. */
   entry: string | null;
-  /** The innermost key around each `state` property written in a block. */
-  stateContainers: string[];
+  /** Each `state` property written in a block: the innermost key around it
+   *  and its value as written. */
+  states: { container: string; state: string }[];
 }
 
 /**
@@ -87,9 +89,22 @@ export function getMorphCompletions(
   const images = morphImages(context);
   // Groups this morph drives: every container with a `state` line, plus the
   // container the cursor is in. Candidates are images with any of them.
+  // `named` holds the states the keyframes name for each group, which are the
+  // poses a `depth` can name.
   const driven = new Set<string>();
-  for (const container of braces?.stateContainers ?? []) {
-    if (container !== "-") driven.add(container);
+  const named = new Map<string, string[]>();
+  const addNamed = (group: string, written: unknown) => {
+    if (typeof written !== "string" || !written) return;
+    const state = written.startsWith(`${group}.`) ? written.slice(group.length + 1) : written;
+    if (state.includes(".")) return;
+    const list = named.get(group) ?? [];
+    if (!list.includes(state)) list.push(state);
+    named.set(group, list);
+  };
+  for (const { container, state } of braces?.states ?? []) {
+    if (container === "-") continue;
+    driven.add(container);
+    addNamed(container, state);
   }
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
   const container = inKeyframe ? path[path.length - 1]! : undefined;
@@ -106,6 +121,11 @@ export function getMorphCompletions(
     if (!struct || typeof struct !== "object") break;
     for (const group of morphRequirements(struct).groups.keys()) {
       driven.add(group);
+    }
+    for (const keyframe of Array.isArray(struct.keyframes) ? struct.keyframes : []) {
+      for (const [group, pose] of Object.entries(keyframe ?? {})) {
+        addNamed(group, (pose as Record<string, unknown> | null)?.["state"]);
+      }
     }
     ancestor = struct.$extends;
   }
@@ -183,6 +203,28 @@ export function getMorphCompletions(
               : `${covering.length} of ${candidates.length} images`,
           },
           textEdit: { range: replaceRange(partial.length), newText: state },
+        });
+      }
+      return items;
+    }
+    const policyPlace = path.length === 0 || (path[0] === "layers" && path.length === 2);
+    if (key === "depth" && policyPlace) {
+      // A pose the keyframes name, with its group. After `group.` only that
+      // group's states, replacing the text after the dot, as for `state`.
+      const dot = typed.indexOf(".");
+      const choices =
+        dot >= 0
+          ? (named.get(typed.slice(0, dot)) ?? []).map((state) => ({ label: state, length: typed.length - dot - 1 }))
+          : [MORPH_DEPTH_REST, ...[...named].flatMap(([group, states]) => states.map((s) => `${group}.${s}`))].map(
+              (label) => ({ label, length: typed.length }),
+            );
+      for (const { label, length } of choices) {
+        add({
+          label,
+          kind: CompletionItemKind.EnumMember,
+          detail: "depth",
+          documentation: docs("depth"),
+          textEdit: { range: replaceRange(length), newText: label },
         });
       }
       return items;
