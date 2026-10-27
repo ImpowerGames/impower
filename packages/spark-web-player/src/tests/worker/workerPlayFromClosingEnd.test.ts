@@ -243,6 +243,21 @@ scene other
 end
 `;
 
+// A scene at the end of the script whose branches a divert runs; no run
+// reaches the scene's own end.
+const BRANCHES_DIVERTED_AT_END = `-> outer.inner(1)
+scene outer
+  branch inner(a)
+    Inner {a}.
+    -> outer.last(a)
+  end
+  branch last(z)
+    Last {z}.
+    done
+  end
+end
+`;
+
 describe("PLAY and the preview at the end of a scene whose branches it does not enter", () => {
   it("PLAY starts and ends without a branch's beat or the flow below", async () => {
     const outcome = await playFrom(UNENTERED_BRANCH, 6);
@@ -270,6 +285,17 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
     expect(preview).toContain("Before.");
     expect(preview).not.toContain("Unused");
     expect(preview).not.toContain("Other.");
+  }, 120_000);
+
+  it("PLAY starts and ends at the end of the script, though a divert ran the scene's branches", async () => {
+    const outcome = await playFrom(BRANCHES_DIVERTED_AT_END, 10);
+    expect(outcome.started).toBe(true);
+    expect(outcome.exited).toEqual(["finished"]);
+    expect(outcome.text).not.toContain("Inner");
+    expect(outcome.text).not.toContain("Last");
+    const preview = await previewAt(BRANCHES_DIVERTED_AT_END, 10);
+    expect(preview).not.toContain("Inner");
+    expect(preview).not.toContain("Last");
   }, 120_000);
 });
 
