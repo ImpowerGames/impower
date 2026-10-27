@@ -925,6 +925,9 @@ exports[`image > show with fade transition 1`] = `
               "$type": "animation",
               "keyframes": [
                 {
+                  "opacity": "0",
+                },
+                {
                   "opacity": "1",
                 },
               ],

@@ -47,16 +47,24 @@ describe("structural blocks inherit from their `as` parent at runtime", () => {
   }
 end
 `);
-    expect(ctx.animation?.fadein?.keyframes).toEqual([{ opacity: "1" }]);
+    expect(ctx.animation?.fadein?.keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
     expect(ctx.animation?.slow_fade).toMatchObject({
       $type: "animation",
       $name: "slow_fade",
       target: ctx.animation?.fadein?.target,
-      keyframes: [{ opacity: "1" }],
+      keyframes: [{ opacity: "0" }, { opacity: "1" }],
       // Its own duration; every other timing field from `fadein`.
       timing: { ...ctx.animation?.fadein?.timing, duration: 3 },
     });
     expect(ctx.fadein).toBeUndefined();
+  });
+
+  test("the builtin entering animations start from transparent", async () => {
+    // A lone `opacity = "1"` keyframe would animate from the entering
+    // instance's own opacity, which is already 1.
+    const ctx = await contextOf("");
+    expect(ctx.animation?.fadein?.keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
+    expect(ctx.animation?.waitin?.keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
   });
 
   test("an authored parent animation is inherited, nested fields included", async () => {
