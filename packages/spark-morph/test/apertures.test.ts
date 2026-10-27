@@ -59,6 +59,17 @@ describe("buildApertures", () => {
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
   });
 
+  test("a closed aperture lies along the closed lash, not on the chord between its tips", () => {
+    const ap = buildApertures([edge("upper", upperOpen, closedLash), edge("lower", lowerOpen, closedLash)]).apertures[0]!;
+    const closed = ap.loop(1);
+    expect(ap.area(1)).toBeLessThan(AREA_ZERO);
+    // The closed lash bows up from the line through its tips at y = 50, so
+    // its midline does too; a loop on the chord would sit flat on it.
+    expect(Math.min(...closed.map(([, y]) => y))).toBeLessThan(49);
+    // It keeps the open loop's run of points, so a player can blend into it.
+    expect(closed.length).toBeGreaterThanOrEqual(ap.loop(0.5).length - 4);
+  });
+
   test("a blink authored closed-to-open gives the same open aperture as open-to-closed", () => {
     const forward = buildApertures([edge("upper", upperOpen, closedLash), edge("lower", lowerOpen, closedLash)]).apertures[0]!;
     const reverse = buildApertures([edge("upper", closedLash, upperOpen), edge("lower", closedLash, lowerOpen)]).apertures[0]!;

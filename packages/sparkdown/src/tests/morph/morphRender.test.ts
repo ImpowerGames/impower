@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
-import { aperturePathData, namespaceMorphMarkup, renderMorphFrame } from "../../morph/render";
+import { aperturePathData, namespaceMorphMarkup, renderMorphAt, renderMorphFrame } from "../../morph/render";
 import { parse } from "../../txml/txml";
-import { blink, CLOSED, LOWER_OPEN, portrait, UPPER_OPEN } from "./fixtures";
+import { blink, CLOSED, LOWER_OPEN, portrait, shadowedPortrait, UPPER_OPEN } from "./fixtures";
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
 const elements = (svg: string): Element[] => {
@@ -63,6 +63,81 @@ describe("artifact playback", () => {
     // its own open lash, at the same pose the closing passed through.
     expect(lashes(opening)).toHaveLength(2);
     expect(lashes(opening)).toEqual(lashes(closing));
+  });
+
+  test("a reopening eye paints its moving shadow below the moving lashes", () => {
+    const recipe = blink({
+      clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"] }],
+    });
+    const shadowed = bakeMorphArtifact({ source: shadowedPortrait(), selection: {}, recipe, key: "shadowed" });
+    expect(shadowed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(shadowed.status).toBe("live");
+    for (const pose of [
+      { segment: 0, progress: 0.9 },
+      { segment: 1, progress: 0.1 },
+    ]) {
+      // Paint order is document order: the shadow, clipped to the opening,
+      // stays under both lashes as the closed pose has it, so the lashes
+      // cover whatever of it the opening does not.
+      const drawn = shown(elements(renderMorphFrame(shadowed, pose)));
+      const order = drawn.map((e) => e.attributes["data-name"]);
+      expect(order.filter((name) => name === "eyelash-left")).toHaveLength(2);
+      const shadows = drawn.filter((e) => e.attributes["data-name"] === "eyeball-shadow-left");
+      expect(shadows).toHaveLength(1);
+      // It is the moving shadow, on its way between the open and closed ones.
+      expect([UPPER_OPEN, CLOSED]).not.toContain(shadows[0]!.attributes["d"]);
+      expect(order.indexOf("eyeball-shadow-left")).toBeLessThan(order.indexOf("eyelash-left"));
+    }
+  });
+
+  test("tracks sharing the drawing the variant rests on all paint at its depth", () => {
+    // At rest one lash is drawn below the brow; the other state draws two
+    // lashes above it.
+    const merged = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/></g>
+<path data-name="brow" d="M0,5H100V10H0Z" fill="#432"/>
+<g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
+</svg>`;
+    const recipe = blink({ clips: [] });
+    const resting = bakeMorphArtifact({ source: merged, selection: {}, recipe, key: "merged" });
+    expect(resting.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(resting.status).toBe("live");
+    for (const pose of [
+      { segment: 0, progress: 0.5 },
+      { segment: 1, progress: 0.5 },
+    ]) {
+      const frame = elements(renderMorphFrame(resting, pose));
+      const drawn = shown(frame).filter((e) => e.attributes["data-name"] === "lash");
+      // Two shapes, each its own track, both below the brow.
+      expect(drawn).toHaveLength(2);
+      expect(drawn[0]!.attributes["d"]).not.toBe(drawn[1]!.attributes["d"]);
+      const brow = frame.findIndex((e) => e.attributes["data-name"] === "brow");
+      expect(Math.max(...drawn.map((e) => frame.indexOf(e)))).toBeLessThan(brow);
+    }
+    // At rest the copies stay hidden, so the parts compose to the still.
+    const rest = shown(elements(renderMorphFrame(resting, { segment: 0, progress: 0 })));
+    expect(rest.map((e) => e.attributes["d"])).toEqual([UPPER_OPEN]);
+  });
+
+  test("a basic shape the variant rests on keeps its own markup at rest and moves on paths", () => {
+    const ellipses = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+<g data-name="eyes.open:default"><ellipse data-name="lash" cx="80" cy="60" rx="65" ry="45" fill="#111"/></g>
+<g data-name="eyes.closed"><ellipse data-name="lash" cx="45" cy="60" rx="30" ry="20" fill="#111"/><ellipse data-name="lash" cx="115" cy="60" rx="30" ry="20" fill="#111"/></g>
+</svg>`;
+    const resting = bakeMorphArtifact({ source: ellipses, selection: {}, recipe: blink({ method: "match", clips: [] }), key: "ellipses" });
+    expect(resting.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(resting.status).toBe("live");
+    // The parts composed at rest draw the authored ellipse, as the still does.
+    for (const offset of [0, 1]) {
+      const rest = shown(elements(renderMorphAt(resting, offset)));
+      expect(rest.map((e) => [e.tagName, e.attributes["cx"], e.attributes["rx"]])).toEqual([["ellipse", "80", "65"]]);
+    }
+    // In motion two paths carry the tracks where the ellipse sits, and the
+    // ellipse itself is hidden.
+    for (const segment of [0, 1]) {
+      const moving = shown(elements(renderMorphFrame(resting, { segment, progress: 0.5 })));
+      expect(moving.map((e) => e.tagName)).toEqual(["path", "path"]);
+    }
   });
 
   test("each part fills the composed picture's viewport", () => {
@@ -143,6 +218,16 @@ describe("artifact playback", () => {
     // A hundredth of the way from the last open sample, the opening is a
     // sliver, not the half-open loop the previous sample held.
     expect(Math.abs(sum) / 2).toBeLessThan(20);
+  });
+
+  test("a nearly closed aperture stays on the bowed closed lash, not below it", () => {
+    const clip = artifact.segments[0]!.clips[0]!;
+    const nearly = aperturePathData(artifact.apertures[clip.loops.index]!, clip.loops, 0.99);
+    const ys = [...nearly.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[2]));
+    // The closed lash bows up from the line through its tips at y = 50; an
+    // opening closing onto that chord would leave the lash's underside
+    // uncovered and show what it clips there.
+    expect(Math.min(...ys)).toBeLessThan(49);
   });
 
   test("a static artifact plays as its rest render", () => {
