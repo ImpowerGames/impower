@@ -196,6 +196,26 @@ const pathData = (subpaths: Subpath[]): string =>
     })
     .join("");
 
+/**
+ * Whether an aperture's loops enclose any area: a closed aperture is its
+ * midline traced out and back, which encloses none beyond the samples'
+ * rounding, a mean width under one rounding step.
+ */
+function enclosesArea(loops: number[][]): boolean {
+  let area = 0,
+    length = 0;
+  for (const flat of loops) {
+    let twice = 0;
+    for (let i = 0; i + 1 < flat.length; i += 2) {
+      const j = (i + 2) % flat.length;
+      twice += flat[i]! * flat[j + 1]! - flat[j]! * flat[i + 1]!;
+      length += Math.hypot(flat[j]! - flat[i]!, flat[j + 1]! - flat[i + 1]!);
+    }
+    area += Math.abs(twice) / 2;
+  }
+  return length > 0 && (2 * area) / length >= 1 / PRECISION;
+}
+
 const loopsPathData = (loops: number[][]): string =>
   loops
     .map((flat) => {
@@ -885,15 +905,27 @@ export function* bakeSteps(
   // as the still image draws them. A player drops the stroke whenever the
   // aperture leaves its rest outline: moving edges taper past the opening's
   // corners, and a closed state's drawings may paint beneath the targets, so
-  // a reach there would show. The mask's region is the apertures' bounds
-  // grown by their own size, so it holds the stroke at any size the opening
-  // is drawn large enough to see.
+  // a reach there would show. A rest outline that encloses no area (a morph
+  // that rests closed) has no stroke at all, for the same reason.
+  //
+  // A non-scaling stroke in a mask cancels the transforms up to the root but
+  // is drawn through the referencing wrapper's own space, so its width is
+  // divided by the scale of that space relative to root space (the geometric
+  // mean of its axes, which is exact for a uniform scale). The path's paint
+  // is spelled out, since a mask's content inherits from the mask's
+  // ancestors (the artwork root), not from the masked drawing: an inherited
+  // `fill-opacity` would make the whole aperture translucent. The mask's
+  // region is the apertures' bounds grown by their own size, so it holds the
+  // stroke at any size the opening is drawn large enough to see.
   const maskElement = (id: string, clip: number, matrix: Affine): Element => {
     const { minX, minY, maxX, maxY } = apertureBounds[clip]!;
     const corners = [applyPoint(matrix, [minX, minY]), applyPoint(matrix, [maxX, minY]), applyPoint(matrix, [minX, maxY]), applyPoint(matrix, [maxX, maxY])];
     const xs = corners.map((p) => p[0]),
       ys = corners.map((p) => p[1]);
     const pad = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    const loops = restLoops[clip] ?? [];
+    const width = round(APERTURE_REACH * 2 * Math.sqrt(Math.abs(matrix[0] * matrix[3] - matrix[1] * matrix[2])));
+    const stroke = enclosesArea(loops) ? `stroke:#fff;stroke-opacity:1;stroke-width:${width}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none";
     return {
       tagName: "mask",
       attributes: {
@@ -910,8 +942,8 @@ export function* bakeSteps(
           attributes: {
             ...(isIdentity(matrix) ? {} : { transform: formatAffine(matrix) }),
             // Inline, so no style sheet the artwork carries outranks it.
-            style: `fill:#fff;stroke:#fff;stroke-width:${APERTURE_REACH * 2}px;stroke-linejoin:round;vector-effect:non-scaling-stroke`,
-            d: loopsPathData(restLoops[clip] ?? []),
+            style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${stroke};visibility:visible;vector-effect:non-scaling-stroke`,
+            d: loopsPathData(loops),
           },
           children: [],
         },

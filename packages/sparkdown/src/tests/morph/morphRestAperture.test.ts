@@ -2,7 +2,7 @@ import { flattenCubic } from "@impower/spark-morph/src/geometry/cubic";
 import { parsePathData } from "@impower/spark-morph/src/index";
 import { describe, expect, test } from "vitest";
 import { filterSVGAttributes } from "../../attributes";
-import { bakeMorphArtifact } from "../../morph/bake";
+import { APERTURE_REACH, bakeMorphArtifact } from "../../morph/bake";
 import { renderMorphAt } from "../../morph/render";
 import { parse } from "../../txml/txml";
 import { blink } from "./fixtures";
@@ -70,11 +70,11 @@ const distance = (shape: Point[][], p: Point): number => {
   return best;
 };
 
-/** A filled path in paint order, with the clips and masks that wrap it. */
+/** A filled path in paint order, with how much of it the clips and masks that wrap it let through. */
 interface Painted {
   fill: string;
   shape: Point[][];
-  clips: ((p: Point) => boolean)[];
+  clips: ((p: Point) => number)[];
 }
 
 const elementChildren = (node: Element) => node.children.filter((c): c is Element => !!c && typeof c === "object");
@@ -82,45 +82,57 @@ const elementChildren = (node: Element) => node.children.filter((c): c is Elemen
 const hidden = (node: Element) => node.attributes["display"] === "none" || /display:\s*none/.test(node.attributes["style"] ?? "");
 
 /**
- * The SVG's filled, shown paths in paint order, each with what its
+ * The SVG's filled, shown paths in paint order, each with how much its
  * ancestors' clip paths and masks let through, drawn `scale` screen pixels
- * to the drawing unit. A mask is modelled as its path's fill and stroke: a
- * `non-scaling-stroke` is as wide in screen pixels at any scale. The sampler
- * has no transforms, so it refuses any.
+ * to the drawing unit. A mask is modelled as its path's fill and stroke, each
+ * as opaque as its paint: the path's own `fill-opacity` and `stroke-opacity`,
+ * else the value it inherits from the mask's ancestors, as a mask's content
+ * does. A `non-scaling-stroke` is as wide in screen pixels at any scale. The
+ * sampler has no transforms, so it refuses any.
  */
 const paintList = (svg: string, scale = 1): Painted[] => {
   const doc = parse(svg);
   const roots = (Array.isArray(doc) ? doc : [doc]) as Element[];
   const byId = new Map<string, Element>();
+  const parentOf = new Map<Element, Element>();
   const index = (node: Element) => {
     if (node.attributes["id"]) byId.set(node.attributes["id"], node);
-    elementChildren(node).forEach(index);
+    for (const child of elementChildren(node)) {
+      parentOf.set(child, node);
+      index(child);
+    }
   };
   roots.forEach(index);
-  // A clip path's region: its paths, and the shown drawings it references.
-  const region = (clip: Element): Point[][][] =>
-    elementChildren(clip).flatMap((child) => {
-      expect(child.attributes["transform"], "the sampler draws untransformed art").toBeUndefined();
-      const target = child.tagName === "use" ? byId.get(child.attributes["href"]!.slice(1)) : child;
-      return target && !hidden(target) && target.attributes["d"] ? [rings(target.attributes["d"])] : [];
-    });
-  const reveals = (resource: Element): ((p: Point) => boolean) => {
+  // A presentation property as it takes effect on `node`: its inline style,
+  // its attribute, else its ancestors'.
+  const property = (node: Element | undefined, name: string): string | undefined => {
+    for (let at = node; at; at = parentOf.get(at)) {
+      const inline = new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;]+)`).exec(at.attributes["style"] ?? "")?.[1];
+      const value = inline ?? at.attributes[name];
+      if (value !== undefined) return value.trim();
+    }
+    return undefined;
+  };
+  const reveals = (resource: Element): ((p: Point) => number) => {
     if (resource.tagName === "clipPath") {
-      const shapes = region(resource);
-      return (p) => shapes.some((shape) => inside(shape, p));
+      const shapes = elementChildren(resource).map((child) => rings(child.attributes["d"] ?? ""));
+      return (p) => (shapes.some((shape) => inside(shape, p)) ? 1 : 0);
     }
     const path = elementChildren(resource).find((c) => c.tagName === "path")!;
     expect(path.attributes["transform"], "the sampler draws untransformed art").toBeUndefined();
     const fill = path.attributes["d"] ? rings(path.attributes["d"]) : [];
-    const style = path.attributes["style"] ?? "";
-    const width = Number(/stroke-width:\s*([\d.]+)/.exec(style)?.[1] ?? 0);
-    const reach = /stroke:\s*none/.test(style) ? 0 : (/non-scaling-stroke/.test(style) ? width / scale : width) / 2;
-    const clipRef = /url\(#([^)]+)\)/.exec(path.attributes["clip-path"] ?? "")?.[1];
-    const clip = clipRef ? reveals(byId.get(clipRef)!) : () => true;
-    return (p) => inside(fill, p) || (reach > 0 && distance(fill, p) <= reach && clip(p));
+    const paint = (name: string) => {
+      const colour = property(path, name);
+      return colour === undefined || colour === "none" ? 0 : Number(property(path, `${name}-opacity`) ?? 1);
+    };
+    const fillAlpha = paint("fill"),
+      strokeAlpha = paint("stroke");
+    const width = Number(/^([\d.]+)/.exec(property(path, "stroke-width") ?? "1")?.[1]);
+    const reach = (property(path, "vector-effect") === "non-scaling-stroke" ? width / scale : width) / 2;
+    return (p) => (inside(fill, p) ? fillAlpha : strokeAlpha > 0 && distance(fill, p) <= reach ? strokeAlpha : 0);
   };
   const out: Painted[] = [];
-  const walk = (node: Element, clips: ((p: Point) => boolean)[]) => {
+  const walk = (node: Element, clips: ((p: Point) => number)[]) => {
     if (node.tagName === "defs" || node.tagName === "clipPath" || node.tagName === "mask" || hidden(node)) return;
     expect(node.attributes["transform"], "the sampler draws untransformed art").toBeUndefined();
     const own = [...clips];
@@ -137,10 +149,14 @@ const paintList = (svg: string, scale = 1): Painted[] => {
   return out;
 };
 
+/** The colour on top at `p`, with how much of it shows when a mask lets only part of it through. */
 const colourAt = (list: Painted[], p: Point): string => {
   let colour = "none";
   for (const item of list) {
-    if (inside(item.shape, p) && item.clips.every((clip) => clip(p))) colour = item.fill;
+    if (!inside(item.shape, p)) continue;
+    const through = item.clips.reduce((product, clip) => product * clip(p), 1);
+    if (through === 1) colour = item.fill;
+    else if (through > 0) colour = `${through} of ${item.fill} over ${colour}`;
   }
   return colour;
 };
@@ -155,6 +171,12 @@ describe("a live morph's rest render", () => {
     ],
     ["white bulging further past the uncovered corner", eye("M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,70 16,62 20,50Z", LOWER_SHORT)],
     ["white bulging well past the uncovered corner", eye("M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,76 10,64 20,50Z", LOWER_SHORT)],
+    [
+      "art whose root sets a fill opacity every drawing overrides",
+      eye(WHITE, LOWER)
+        .replace('height="100">', 'height="100" fill-opacity="0.5">')
+        .replaceAll(' fill="#', ' fill-opacity="1" fill="#'),
+    ],
     [
       "a lower lash starting above the upper lash's tip",
       eye("M20,50 C40,15 95,0 120,45 C92,85 60,88 35,47 L20,50Z", "M35,47 C65,70 95,75 120,45 C92,85 60,88 35,47Z"),
@@ -309,6 +331,68 @@ describe("a live morph's aperture masks", () => {
         .filter(({ p }) => colourAt(reaching, p) !== colourAt(exact, p))
         .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(exact, p)}`);
       expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+    }
+  });
+
+  test("reach as many screen pixels past the outline under a scaled drawing", () => {
+    // Measured in Chromium: a non-scaling stroke in a mask cancels the
+    // transforms up to the root, but it is drawn through the masked wrapper's
+    // own space, so its reach on screen is half its width times that space's
+    // scale against root space.
+    const scaled = SVG.replace('viewBox="0 0 140 100" width="140" height="100">', 'viewBox="0 0 280 200" width="140" height="100"><g transform="scale(2)">').replace(
+      "</svg>",
+      "</g></svg>",
+    );
+    const baked = bakeMorphArtifact({ source: scaled, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    const masks = [...baked.rest.matchAll(/<mask\b[^>]*>\s*<path([^>]*)>/g)].map((m) => m[1]!);
+    expect(masks.length).toBeGreaterThan(0);
+    for (const attributes of masks) {
+      const [a, b, c, d] = /transform='matrix\(([^)]*)\)'/.exec(attributes)![1]!.split(/[\s,]+/).map(Number) as [number, number, number, number];
+      const width = Number(/stroke-width:([\d.]+)px/.exec(attributes)![1]);
+      const spaceScale = 1 / Math.sqrt(Math.abs(a * d - b * c));
+      expect(spaceScale).toBeCloseTo(2, 6);
+      expect((width / 2) * spaceScale).toBeCloseTo(APERTURE_REACH, 3);
+    }
+  });
+
+  test("reach nowhere past a rest outline that encloses no area", () => {
+    // A morph that rests closed, on art whose white is drawn outside the eye
+    // states and above the closed lash: the closed aperture has no area, so
+    // at rest it shows none of the white, reach or not.
+    const closedFirst = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+<path data-name="face" d="M0,0H140V100H0Z" fill="#c96"/>
+<g data-name="eyes.open">
+<path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
+<path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
+</g>
+<g data-name="eyes.closed:default">
+<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
+</g>
+<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
+</svg>`;
+    const recipe = blink({
+      keyframes: [
+        { offset: 0, eyes: { state: "closed" } },
+        { offset: 0.5, eyes: { state: "open" } },
+        { offset: 1, eyes: { state: "closed" } },
+      ],
+    });
+    const baked = bakeMorphArtifact({ source: closedFirst, selection: {}, recipe, key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    for (const svg of [baked.rest, renderMorphAt(baked, 0), renderMorphAt(baked, 1)]) {
+      const outline = apertureOutline(svg);
+      expect(outline.length).toBeGreaterThan(0);
+      for (const scale of [1, 4, 20]) {
+        const reaching = paintList(svg, scale),
+          exact = paintList(svg, Infinity);
+        const differing = nearOutline(outline, scale, [0.25, 0.5, 0.75, 1, 1.5])
+          .filter(({ p }) => colourAt(reaching, p) !== colourAt(exact, p))
+          .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(exact, p)}`);
+        expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+      }
     }
   });
 

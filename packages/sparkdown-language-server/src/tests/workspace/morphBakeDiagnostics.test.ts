@@ -190,10 +190,10 @@ describe("morph previews through the providers", () => {
     const position = { line: lineOf(SCRIPT, "[[bunny]]"), character: 4 };
     const hover = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, createImageCompositeOptions(workspace));
     const shown = previewImage((hover?.contents as any)?.value);
-    expect(shown).toContain("<clipPath");
+    expect(shown).toContain("<mask");
     // Without the morph hook the same hover shows the plain static image.
     const plain = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, {});
-    expect(previewImage((plain?.contents as any)?.value)).not.toContain("<clipPath");
+    expect(previewImage((plain?.contents as any)?.value)).not.toContain("<mask");
   });
 
   it("a + composition previews its blinking layer as that layer's rest render", async () => {
@@ -205,7 +205,7 @@ describe("morph previews through the providers", () => {
     program.context.filtered_image["bunny~eyes.closed"] ??= { $type: "filtered_image", $name: "bunny~eyes.closed", image: { $name: "bunny" }, attributes: ["eyes.closed"] };
     const layers = await resolvePreviewLayers(program.context, composed, createImageCompositeOptions(workspace));
     expect(layers).toHaveLength(2);
-    expect(decodeURIComponent(layers[0]!.src)).toContain("<clipPath");
+    expect(decodeURIComponent(layers[0]!.src)).toContain("<mask");
     // The closed-eyes layer is dormant for the blink, so it stays as filtered.
     expect(layers[1]!.src).toContain("attributes=");
   });
@@ -217,10 +217,10 @@ describe("morph previews through the providers", () => {
     expect(program.morphs.variants["bunny~eyes.open"]).toBeUndefined();
     const item = { label: "open", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.open"] } } };
     const resolved = await resolveCompletion({ ...item }, program, createImageCompositeOptions(workspace));
-    expect(previewImage((resolved.documentation as any)?.value)).toContain("<clipPath");
+    expect(previewImage((resolved.documentation as any)?.value)).toContain("<mask");
     // A candidate the morph does not play on keeps its static preview.
     const closed = { label: "closed", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.closed"] } } };
     const still = await resolveCompletion(closed, program, createImageCompositeOptions(workspace));
-    expect(previewImage((still.documentation as any)?.value)).not.toContain("<clipPath");
+    expect(previewImage((still.documentation as any)?.value)).not.toContain("<mask");
   });
 });
