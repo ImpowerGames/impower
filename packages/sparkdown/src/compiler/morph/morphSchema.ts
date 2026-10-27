@@ -125,7 +125,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   transform: "A 2D CSS transform list, such as `skewX(4deg)`.",
   transform_origin: "The point the layer transforms around. Default `center`.",
   opacity: "The layer's opacity, from 0 to 1.",
-  between: "The layers whose facing edges form the aperture.",
+  between: "The layer labels this aperture accepts as edges, such as `eyelash-right`, `eyelash-top-right` and `eyelash-bottom-right`. An image may draw any of them; the ones it draws must form the aperture.",
   targets: "The layers the aperture clips.",
 };
 

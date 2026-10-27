@@ -578,16 +578,18 @@ export function* bakeSteps(
   const restLoops: (number[][] | undefined)[] = recipe.clips.map(() => undefined);
   const clipHasFrames = recipe.clips.map(() => false);
 
-  // Every edge a clip names has to be drawn here: an aperture missing one of
-  // its edges is not the opening the author asked for.
+  // A clip's `between` lists the edge names it accepts, so one morph serves
+  // portraits that name their edges differently (both lashes `eyelash-right`
+  // in one, `eyelash-top-right` and `eyelash-bottom-right` in another). The
+  // names this artwork draws have to form the aperture; drawing none of them
+  // leaves nothing to cut.
   for (const [index, clip] of recipe.clips.entries()) {
-    const absent = clip.between.filter((label) => !leaves.some((leaf) => leaf.label === label));
-    if (absent.length) {
+    if (!clip.between.some((label) => leaves.some((leaf) => leaf.label === label))) {
       report(
         "edge-missing",
         "error",
-        `Clip ${index + 1} is bounded by ${absent.map((l) => `"${l}"`).join(", ")}, which this artwork does not draw, so there is no aperture to cut.`,
-        { layer: absent[0] },
+        `Clip ${index + 1} accepts ${clip.between.map((l) => `"${l}"`).join(", ")} as edges, and this artwork draws none of them, so there is no aperture to cut.`,
+        { layer: clip.between[0] },
       );
       return disable();
     }
