@@ -5043,9 +5043,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       src,
       loop: Boolean(cutscene.loop),
       muted: Boolean(cutscene.mute),
+      ...this.getMovieMixer(),
     };
     if (cutscene.with) {
       params.with = cutscene.with;
+      // A preview shows the first frame at once, with no transition.
+      if (!previewing) {
+        const clauses = { with: cutscene.with };
+        const enter = this.resolveLayoutAnimation("enter", clauses, false);
+        const exit = this.resolveLayoutAnimation("exit", clauses, false);
+        if (enter) {
+          params.enter = enter;
+        }
+        if (exit) {
+          params.exit = exit;
+        }
+      }
     }
     if (previewing) {
       params.preview = true;

@@ -130,11 +130,16 @@ describe("a cutscene: the UI module", () => {
     });
     const requests = byMethod(h.messages, "ui/play-cutscene");
     expect(requests).toHaveLength(1);
+    // The `with` transition goes resolved, as the page plays it.
     expect(requests[0].params).toEqual({
       src: "/file:/proj/intro.webm?v=1",
       loop: true,
       muted: true,
+      mixer: "movie",
+      mixerGain: 1,
       with: "fade",
+      enter: expect.objectContaining({ $name: "fadein" }),
+      exit: expect.objectContaining({ $name: "fadeout" }),
     });
     expect(ui.isReady(id)).toBe(false);
     await flushMicrotasks(10);
@@ -175,6 +180,20 @@ describe("a cutscene: the UI module", () => {
       src: "/file:/proj/intro.webm?v=1",
       loop: false,
       muted: false,
+      mixer: "movie",
+      mixerGain: 1,
+    });
+  });
+
+  test("its sound goes through the mixer the `movie` channel names, at that mixer's gain", async () => {
+    const h = await harness({
+      playing: true,
+      defines: `define film as mixer with\n  gain = 0.25\nend\n\ndefine movie as channel with\n  mixer = "film"\nend\n`,
+    });
+    h.game.module.ui.runCutscene({ name: "intro" });
+    expect(byMethod(h.messages, "ui/play-cutscene")[0]?.params).toMatchObject({
+      mixer: "film",
+      mixerGain: 0.25,
     });
   });
 
@@ -186,6 +205,8 @@ describe("a cutscene: the UI module", () => {
       src: "/file:/proj/intro.webm?v=1",
       loop: false,
       muted: false,
+      mixer: "movie",
+      mixerGain: 1,
       preview: true,
     });
   });
