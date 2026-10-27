@@ -32,6 +32,11 @@ export const uiBuiltinDefinitions = () => ({
       // touch the host document's root font size.
       root_text_size: "",
     },
+    // Kept in sync with `define movie as config` in the builtins prelude.
+    movie: {
+      /** Whether a cutscene stops the `music` channel as it starts. */
+      stop_music: true,
+    },
   },
   image: {
     $default: default_image(),
@@ -502,6 +507,23 @@ export const uiBuiltinDefinitions = () => ({
       transform: "scaleX(0)",
       transform_origin: "left",
       transition: "transform 0.15s linear",
+    }),
+    cutscene: default_style({
+      $name: "cutscene",
+      position: "absolute",
+      inset: "0",
+      z_index: "2000",
+      background_color: "black",
+      pointer_events: "auto",
+    }),
+    cutscene_video: default_style({
+      $name: "cutscene_video",
+      position: "absolute",
+      inset: "0",
+      width: "100%",
+      height: "100%",
+      object_fit: "contain",
+      pointer_events: "auto",
     }),
     screen: default_style({
       $name: "screen",

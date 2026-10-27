@@ -14,6 +14,18 @@ export interface LoadInstruction extends IInstruction {
   with?: string;
 }
 
+/** `[[play NAME]]`: play the video NAME full screen, above every layout, until
+ *  it ends or the player skips it. */
+export interface CutsceneInstruction extends IInstruction {
+  name: string;
+  /** Plays until the player skips it (`loop` clause). */
+  loop?: boolean;
+  /** Silences the video's sound (`mute` clause). */
+  mute?: boolean;
+  /** Transition for showing and hiding the cutscene (`with` clause). */
+  with?: string;
+}
+
 export interface TextInstruction extends IInstruction {
   text: string;
   style?: {
