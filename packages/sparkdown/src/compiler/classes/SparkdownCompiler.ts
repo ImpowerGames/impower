@@ -176,6 +176,10 @@ import {
   topLevelStatements,
 } from "../utils/declarationOnly";
 import {
+  misplacedDeclarations,
+  type AssignmentFixData,
+} from "../utils/declarationPlacement";
+import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
   hasLuauExtension,
   isInProject,
@@ -2922,6 +2926,42 @@ export class SparkdownCompiler {
             document.read(from, to),
           )
         : undefined;
+    // A `local` outside a flow and a hoisted declaration inside one are
+    // reported where they are written (`misplacedDeclarations`). A top-level
+    // `local` of a script other than main reports that alone, and is left
+    // out as the other lines only main runs are.
+    const misplacedLocals = new Set<number>();
+    const placementTree = this._injectingPrelude
+      ? undefined
+      : this.documents.tree(uri);
+    if (placementTree && document) {
+      for (const misplaced of misplacedDeclarations(
+        placementTree.topNode,
+        (from, to) => document.read(from, to),
+      )) {
+        if (misplaced.statement !== undefined) {
+          misplacedLocals.add(misplaced.statement);
+        }
+        const start = document.positionAt(misplaced.from);
+        const end = document.positionAt(misplaced.to);
+        onDiagnostic(
+          misplaced.message,
+          ErrorType.Error,
+          {
+            fileName,
+            filePath: uri,
+            startLineNumber: start.line + 1,
+            endLineNumber: end.line + 1,
+            startCharacterNumber: start.character + 1,
+            endCharacterNumber: end.character + 1,
+          },
+          undefined,
+          misplaced.assignment !== undefined
+            ? ({ assignment: misplaced.assignment } satisfies AssignmentFixData)
+            : undefined,
+        );
+      }
+    }
     // The first line of the statement that starts at `from`, from its first
     // character after its indentation to its last, as 1-based source
     // metadata.
@@ -2987,11 +3027,13 @@ export class SparkdownCompiler {
         // Only main runs a line outside a scene. The statement is reported
         // and left out of the program, as if it were not written; what its
         // lowering itself reported still stands.
-        onDiagnostic(
-          CONTENT_OUTSIDE_SCENE_MESSAGE,
-          ErrorType.Error,
-          firstLineSource(rec.from),
-        );
+        if (!misplacedLocals.has(rec.from)) {
+          onDiagnostic(
+            CONTENT_OUTSIDE_SCENE_MESSAGE,
+            ErrorType.Error,
+            firstLineSource(rec.from),
+          );
+        }
         forwardDiagnostics(diagnostics, lineNumberOffset);
         continue;
       }

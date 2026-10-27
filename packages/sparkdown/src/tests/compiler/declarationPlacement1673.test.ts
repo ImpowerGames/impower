@@ -1,0 +1,233 @@
+// Where a declaration can be written (I-1673): a `local` binding belongs to a
+// scene, a branch, a choice's body or a function, and a hoisted declaration
+// (`store`, `const`, `define` and the definitions written like one,
+// `function`, `type`, `external`) to a script's top level. Each misplaced
+// one is an error on the line it starts.
+
+import { describe, expect, it } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import type { File } from "../../compiler/types/File";
+
+const MAIN = "file://proj/main.sd";
+const OTHER = "file://proj/scripts/other.sd";
+const NEWLINE = String.fromCharCode(10);
+const lines = (...text: string[]) => text.join(NEWLINE) + NEWLINE;
+
+const LOCAL =
+  "local declaration must be inside a scene, branch or function; use store or const at the top level";
+const STORE =
+  "store declaration must be at the top level; assign it here with & name = value instead";
+const OUTSIDE_SCENE =
+  "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
+
+const file = (uri: string, text: string): File => ({
+  uri,
+  type: "script",
+  name: uri.split("/").at(-1)!.split(".")[0]!,
+  ext: "sd",
+  text,
+  version: 1,
+  languageId: "sparkdown",
+});
+
+/** The diagnostics of `uri` once main and the other script compile, each as
+ *  its message and the text of its range. */
+const diagnose = (
+  main: string,
+  other = "",
+  uri = MAIN,
+): { message: string; text: string }[] => {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [file(MAIN, main), ...(other ? [file(OTHER, other)] : [])],
+  });
+  const { warn, error, log } = console;
+  console.warn = console.error = console.log = () => {};
+  let program;
+  try {
+    program = compiler.compile({ textDocument: { uri: MAIN } }).program;
+  } finally {
+    console.warn = warn;
+    console.error = error;
+    console.log = log;
+  }
+  const text = (uri === MAIN ? main : other).split(NEWLINE);
+  return (program.diagnostics?.[uri] ?? []).map((d) => {
+    const message = typeof d.message === "string" ? d.message : d.message.value;
+    const { start, end } = d.range;
+    return {
+      message,
+      text:
+        start.line === end.line
+          ? text[start.line]!.slice(start.character, end.character)
+          : "",
+    };
+  });
+};
+
+const placementErrors = (
+  main: string,
+  other = "",
+  uri = MAIN,
+): { message: string; text: string }[] =>
+  diagnose(main, other, uri).filter(
+    (d) => d.message.includes("must be at the top level") || d.message === LOCAL,
+  );
+
+describe("a local outside a flow", () => {
+  it.each([
+    ["a local statement", "local x = 1"],
+    ["a local function", "local function f() end"],
+    ["a marked local", "& local x = 1"],
+  ])("refuses %s at main's top level", (_, line) => {
+    expect(placementErrors(lines(line, "Hello."))).toEqual([
+      { message: LOCAL, text: line },
+    ]);
+  });
+
+  it.each([
+    ["a local statement", "local x = 1"],
+    ["a local function", "local function f() end"],
+    ["a marked local", "& local x = 1"],
+  ])("refuses %s at another script's top level, in place of the outside-scene message", (_, line) => {
+    const found = diagnose(lines("Hello."), lines(line), OTHER);
+    expect(found).toEqual([{ message: LOCAL, text: line }]);
+    expect(found.map((d) => d.message)).not.toContain(OUTSIDE_SCENE);
+  });
+
+  it("refuses a local inside a top-level if of main", () => {
+    expect(
+      placementErrors(lines("if true then", "  local x = 1", "end", "Hello.")),
+    ).toEqual([{ message: LOCAL, text: "local x = 1" }]);
+  });
+
+  it("refuses a local in a choose block's then clause at the top level", () => {
+    expect(
+      placementErrors(
+        lines("choose", "  * Go", "    Went.", "then", "  local x = 1", "end"),
+      ),
+    ).toEqual([{ message: LOCAL, text: "local x = 1" }]);
+  });
+
+  it("keeps the outside-scene message for another script's other top-level lines", () => {
+    expect(
+      diagnose(lines("Hello."), lines("Hello there."), OTHER).map((d) => d.message),
+    ).toEqual([OUTSIDE_SCENE]);
+  });
+});
+
+describe("a hoisted declaration inside a flow", () => {
+  const cases: [string, string[], string, string][] = [
+    ["store", ["store x = 1"], STORE, "store x = 1"],
+    ["const", ["const x = 1"], "const declaration must be at the top level", "const x = 1"],
+    ["define", ["define D with", "  k = 1", "end"], "define must be at the top level", "define D with"],
+    ["style", ["style S with", "  color = 1", "end"], "style must be at the top level", "style S with"],
+    ["layout", ["layout L with", "end"], "layout must be at the top level", "layout L with"],
+    ["screen", ["screen Sc with", "end"], "screen must be at the top level", "screen Sc with"],
+    ["component", ["component C() with", "end"], "component must be at the top level", "component C() with"],
+    ["animation", ["animation A with", "end"], "animation must be at the top level", "animation A with"],
+    ["theme", ["theme T with", "end"], "theme must be at the top level", "theme T with"],
+    ["morph", ["morph M with", "end"], "morph must be at the top level", "morph M with"],
+    ["function", ["function f()", "  return 1", "end"], "function declaration must be at the top level", "function f()"],
+    ["type", ["type T = number"], "type declaration must be at the top level", "type T = number"],
+    ["external", ["external f(x)"], "external declaration must be at the top level", "external f(x)"],
+  ];
+  const indent = (body: string[], by: string) => body.map((l) => by + l);
+
+  it.each(cases)("refuses a %s inside a scene", (_, body, message, text) => {
+    expect(
+      placementErrors(lines("-> s", "scene s", ...indent(body, "  "), "  Hi.", "end")),
+    ).toEqual([{ message, text }]);
+  });
+
+  it.each(cases)("refuses a %s inside a branch", (_, body, message, text) => {
+    expect(
+      placementErrors(
+        lines("-> s", "scene s", "  -> b", "  branch b", ...indent(body, "    "), "    Hi.", "  end", "end"),
+      ),
+    ).toEqual([{ message, text }]);
+  });
+
+  it("refuses a store at any depth of a scene's body", () => {
+    expect(
+      placementErrors(
+        lines(
+          "-> s",
+          "scene s",
+          "  if true then",
+          "    store a = 1",
+          "  end",
+          "  & if true then store b = 1 end",
+          "  choose",
+          "    * Go",
+          "      store c = 1",
+          "  end",
+          "end",
+        ),
+      ),
+    ).toEqual([
+      { message: STORE, text: "store a = 1" },
+      { message: STORE, text: "store b = 1" },
+      { message: STORE, text: "store c = 1" },
+    ]);
+  });
+
+  it("refuses a function written with a scope inside a scene, and a marked store", () => {
+    expect(
+      placementErrors(
+        lines("-> s", "scene s", "  store function g() end", "  & store x = 1", "end"),
+      ),
+    ).toEqual([
+      { message: "function declaration must be at the top level", text: "store function g() end" },
+      { message: STORE, text: "store x = 1" },
+    ]);
+  });
+});
+
+describe("the placements that stay allowed", () => {
+  it("compiles an assignment to a store, a local in a scene and in a choice's body, and a const or define in a function", () => {
+    expect(
+      placementErrors(
+        lines(
+          "store hp = 10",
+          "function heal()",
+          "  const MAX = 10",
+          "  define Potion with",
+          "    heal = 3",
+          "  end",
+          "  local n = 1",
+          "  hp = math.min(hp + n, MAX)",
+          "end",
+          "-> s",
+          "scene s",
+          "  local greeting = \"Hello\"",
+          "  & hp = hp - 1",
+          "  local function twice(x) return x * 2 end",
+          "  choose",
+          "    * Go",
+          "      local picked = 1",
+          "      {greeting} {picked}",
+          "  end",
+          "  branch b",
+          "    local inner = 1",
+          "    & hp = inner",
+          "  end",
+          "end",
+          "choose",
+          "  * Top",
+          "    local chosen = 1",
+          "    {chosen}",
+          "end",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("compiles an anonymous function written inside a scene", () => {
+    expect(
+      placementErrors(
+        lines("-> s", "scene s", "  local f = function() return 1 end", "  {f()}", "end"),
+      ),
+    ).toEqual([]);
+  });
+});
