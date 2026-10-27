@@ -3,8 +3,8 @@ import {
   chainToPolyline,
   clamp01,
   copyLoop,
+  cubicDoublePoint,
   cubicKnots,
-  cubicLoop,
   dist,
   dropZeroSegments,
   evalCubic,
@@ -453,16 +453,25 @@ export const handoffWeight = (t: number): number => Math.cos(Math.PI * t) ** 2;
  * Shortens a curve's handles, both together, until the curve no longer
  * loops through itself. A tip curve whose handles reach past each other
  * ties a hairline knot; the rib and flank moves can create one mid-morph
- * even when both rest poses are simple. The shortening is continuous in the
- * curve: bisection finds the handle scale `s` at which the knot begins, and
- * the handles are scaled by `s` squared, which equals the curve itself when
- * the knot is just forming and leaves more clearance the deeper it was, so a
- * frame never jumps where the knot appears or deepens. The knot is judged
- * exactly by `cubicLoop`, since a chord test misses a crossing that sits on
- * a sample and would leave the curve unshortened for that instant.
+ * even when both rest poses are simple.
+ *
+ * The shortening is continuous in the curve, so a frame never jumps where a
+ * knot appears, deepens or leaves. The knot is judged exactly, on the
+ * crossing `cubicDoublePoint` finds, by its margin: how far inside [0, 1]
+ * both crossing parameters lie, negative once the crossing has left through
+ * an end. Curves within `KNOT_MARGIN` of a knot count: bisection finds the
+ * handle scale `s` at which the margin reaches `-KNOT_MARGIN`, and the
+ * handles are scaled by `s` squared, which is the curve itself when the
+ * crossing is just forming. As a crossing leaves through an end, the scale
+ * eases back to 1 over the margin band instead of snapping there.
  */
 export function unknot(c: Cubic): Cubic {
-  if (!cubicLoop(c)) return c;
+  const margin = (k: Cubic): number => {
+    const d = cubicDoublePoint(k);
+    return d ? Math.min(d[0], 1 - d[1]) : -Infinity;
+  };
+  const m0 = margin(c);
+  if (m0 < -KNOT_MARGIN) return c;
   const scaled = (s: number): Cubic => ({
     p0: c.p0,
     c1: [c.p0[0] + (c.c1[0] - c.p0[0]) * s, c.p0[1] + (c.c1[1] - c.p0[1]) * s],
@@ -473,11 +482,15 @@ export function unknot(c: Cubic): Cubic {
     hi = 1;
   for (let i = 0; i < 48; i++) {
     const m = (lo + hi) / 2;
-    if (cubicLoop(scaled(m))) hi = m;
+    if (margin(scaled(m)) >= -KNOT_MARGIN) hi = m;
     else lo = m;
   }
-  return scaled(lo * lo);
+  const leaving = Math.min(1, Math.max(0, -m0 / KNOT_MARGIN));
+  return scaled(lo * lo + (1 - lo * lo) * leaving);
 }
+
+/** How far, in curve parameter, a crossing past an end still counts toward a knot. */
+const KNOT_MARGIN = 0.05;
 
 /** A canonical frame before any handoff blend. */
 export function canonicalFrame(a: Cubic[], b: Cubic[], t: number): Cubic[] {
