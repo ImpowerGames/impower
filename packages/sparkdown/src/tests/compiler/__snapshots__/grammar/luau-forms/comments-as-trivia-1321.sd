@@ -1,4 +1,4 @@
-local --[[c]] function k(x: number)
+store --[[c]] function k(x: number)
   return x
 end
 function m() return 1 end --[[ c ]]
@@ -8,5 +8,5 @@ function f(c)
   type G = --[[c]] <T>(T) -> T
   return w
 end -- trailing
-local done = true
+store done = true
 Values {m()} {k(1)}.

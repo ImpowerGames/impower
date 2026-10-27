@@ -10,5 +10,7 @@ function f(x: number
   local s: string
   return x
 end
-local w: number
-Hello.
+scene main
+  local w: number
+  Hello.
+end

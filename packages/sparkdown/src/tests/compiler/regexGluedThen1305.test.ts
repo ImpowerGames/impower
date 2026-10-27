@@ -44,7 +44,10 @@ describe("regex flags glued to an if expression's then (#1305)", () => {
   test.each(["if @/x/githen 1 else 2", "if if c then false else @/x/githen 1 else 2"])(
     "accepts %s in a bounded `&` statement",
     (expression) => {
-      const result = readings(expression, `& local c = true\n& local s = ${expression}\n`);
+      const result = readings(
+        expression,
+        `-> start\nscene start\n  & local c = true\n  & local s = ${expression}\nend\n`,
+      );
       expect(result.official, "official Luau parser of projected checker text").toEqual([]);
       expect(result.errors).toEqual([]);
     },

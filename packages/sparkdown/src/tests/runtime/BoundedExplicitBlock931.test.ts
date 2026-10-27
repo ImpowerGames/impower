@@ -15,7 +15,7 @@ const missing = (label: string, closer = "end") => `This ${label} is missing its
 
 describe("bounded explicit blocks report missing closers without taking later story lines", () => {
   test.each([
-    ["do local n = 1", ["`do` block"]],
+    ["do n = 1", ["`do` block"]],
     ["do if true then", ["`do` block", "`if` block"]],
     ["do if false then else", ["`do` block", "`if` block"]],
     ["do while false do", ["`do` block", "`while` loop"]],

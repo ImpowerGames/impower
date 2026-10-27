@@ -304,9 +304,9 @@ end
 -- Usage
 -- =========================
 
-local bird=new Bird()
+store bird=new Bird()
 & bird:fly()
-local penguin=new Penguin()
+store penguin=new Penguin()
 & penguin:fly()
 & penguin:swim()
 

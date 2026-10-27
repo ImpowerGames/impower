@@ -30,7 +30,9 @@ function sparkdownErrors(text: string): string[] {
 
 const SUFFIXES = ["break x", "break x y", "break x y z", "break 1 x", "continue x", "continue x y", "continue x y z"];
 
-// Each script's Luau is all of its lines but the story line after it.
+// Each script's Luau is all of its lines but the story line after it. A form
+// that declares a local sits in a function `o`, where a `local` may be
+// written.
 const FORMS: [string, (line: string) => string][] = [
   ["a while loop", (line) => `function f()\nwhile true do\n${line}\nend\nend\n`],
   ["a repeat loop", (line) => `function f()\nrepeat\n${line}\nuntil true\nend\n`],
@@ -42,9 +44,9 @@ const FORMS: [string, (line: string) => string][] = [
   ["an if in a repeat", (line) => `function f()\nrepeat\nif true then\n${line}\nend\nuntil true\nend\n`],
   ["a loop before a later statement", (line) => `function f()\nwhile true do\n${line}\nend\nprint(1)\nend\n`],
   ["a loop before a later return", (line) => `function f()\nwhile true do\n${line}\nend\nreturn 2 a b\nend\n`],
-  ["a local function", (line) => `local function f()\nwhile true do\n${line}\nend\nend\n`],
-  ["a method", (line) => `local t = {}\nfunction t:m()\nwhile true do\n${line}\nend\nend\n`],
-  ["a function value", (line) => `local g = function()\nwhile true do\n${line}\nend\nend\n`],
+  ["a local function", (line) => `function o()\nlocal function f()\nwhile true do\n${line}\nend\nend\nend\n`],
+  ["a method", (line) => `function o()\nlocal t = {}\nfunction t:m()\nwhile true do\n${line}\nend\nend\nend\n`],
+  ["a function value", (line) => `g = function()\nwhile true do\n${line}\nend\nend\n`],
 ];
 
 describe("a loop's break or continue followed by tokens reports Luau's errors (I-1508)", () => {

@@ -40,105 +40,120 @@ const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-describe("a top-level local of a stdlib name", () => {
+// The lines as the body of a scene the story diverts to, where a local
+// belongs.
+const inScene = (...body: string[]) => ["-> start", "scene start", ...body.map((line) => `  ${line}`), "end"];
+
+describe("a scene's local of a stdlib name", () => {
   test.each([
     [
       "a function name",
-      [
+      inScene(
         "local type = function(v) return 'custom' end",
         "local f = type",
         "Got {f(7)} {type(7)}.",
-      ],
+      ),
       "Got custom custom.",
     ],
     [
       "a namespace",
-      ["local math = { abs = function(v) return 77 end }", "Got {math.abs(-3)}."],
+      inScene("local math = { abs = function(v) return 77 end }", "Got {math.abs(-3)}."),
       "Got 77.",
     ],
     [
       "tostring",
-      ["local tostring = function(v) return 'custom' end", "Got {tostring(7)}."],
+      inScene("local tostring = function(v) return 'custom' end", "Got {tostring(7)}."),
       "Got custom.",
     ],
   ])("hides the library from a direct call written after it (%s)", (_, lines, expected) => {
     expect(run(lines)).toEqual(got(expected));
   });
 
-  test("hides the library from a direct call in a function written after it", () => {
+  test("hides the library from a direct call in a local function written after it", () => {
     expect(
-      run([
-        "local type = function(v) return 'custom' end",
-        "local math = { abs = function(v) return 77 end }",
-        "function g()",
-        "  return type(7) .. ' ' .. math.abs(-3)",
-        "end",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene(
+          "local type = function(v) return 'custom' end",
+          "local math = { abs = function(v) return 77 end }",
+          "local function g()",
+          "  return type(7) .. ' ' .. math.abs(-3)",
+          "end",
+          "Got {g()}.",
+        ),
+      ),
     ).toEqual(got("Got custom 77."));
   });
 
   test("leaves the builtin to a call written before it", () => {
     expect(
-      run([
-        "Before {type(7)} {math.abs(-3)}.",
-        "local type = function(v) return 'custom' end",
-        "local math = { abs = function(v) return 77 end }",
-        "After {type(7)} {math.abs(-3)}.",
-      ]),
+      run(
+        inScene(
+          "Before {type(7)} {math.abs(-3)}.",
+          "local type = function(v) return 'custom' end",
+          "local math = { abs = function(v) return 77 end }",
+          "After {type(7)} {math.abs(-3)}.",
+        ),
+      ),
     ).toEqual(got("Before number 3.", "After custom 77."));
   });
 
   test("hides the library from a direct call in a closure written after it", () => {
     expect(
-      run([
-        "local type = function(v) return 'custom' end",
-        "local math = { abs = function(v) return 77 end }",
-        "local c = function() return type(7) .. ' ' .. math.abs(-3) end",
-        "Got {c()}.",
-      ]),
+      run(
+        inScene(
+          "local type = function(v) return 'custom' end",
+          "local math = { abs = function(v) return 77 end }",
+          "local c = function() return type(7) .. ' ' .. math.abs(-3) end",
+          "Got {c()}.",
+        ),
+      ),
     ).toEqual(got("Got custom 77."));
   });
 
   test("hides the library from the call shorthand written after it", () => {
     expect(
-      run(["local type = function() return 'custom' end", "Got {{type}}."]),
+      run(inScene("local type = function() return 'custom' end", "Got {{type}}.")),
     ).toEqual(got("Got custom."));
   });
 
   test("hides a library member named like a builtin method from a dot call", () => {
     expect(
-      run([
-        "local string = { upper = function(s) return 'mine' end }",
-        "Got {string.upper('a')}.",
-      ]),
+      run(
+        inScene(
+          "local string = { upper = function(s) return 'mine' end }",
+          "Got {string.upper('a')}.",
+        ),
+      ),
     ).toEqual(got("Got mine."));
   });
 
-  // A top-level block's later statements read its locals by name, as before
-  // the root-local index (I-1468): a direct call there still reaches the
-  // library.
-  test("leaves the builtin to a direct call inside a top-level block", () => {
+  // A block's later statements read its locals by name (I-1468): a direct
+  // call there still reaches the library.
+  test("leaves the builtin to a direct call inside a block of the scene", () => {
     expect(
-      run([
-        "if true then",
-        "  local type = function(v) return 'custom' end",
-        "  local f = type",
-        "  Got {f(7)} {type(7)}.",
-        "end",
-      ]),
+      run(
+        inScene(
+          "if true then",
+          "  local type = function(v) return 'custom' end",
+          "  local f = type",
+          "  Got {f(7)} {type(7)}.",
+          "end",
+        ),
+      ),
     ).toEqual(got("Got custom number."));
   });
 
-  test("leaves the builtin to a function written before it", () => {
+  test("leaves the builtin to a top-level function", () => {
     expect(
       run([
         "function g()",
         "  return type(7) .. ' ' .. math.abs(-3)",
         "end",
-        "local type = function(v) return 'custom' end",
-        "local math = { abs = function(v) return 77 end }",
-        "Got {g()}.",
+        ...inScene(
+          "local type = function(v) return 'custom' end",
+          "local math = { abs = function(v) return 77 end }",
+          "Got {g()}.",
+        ),
       ]),
     ).toEqual(got("Got number 3."));
   });
@@ -161,61 +176,66 @@ describe("a function's local of a stdlib name", () => {
 });
 
 describe("a function's local of a stdlib name out of scope at the call", () => {
-  // The top-level locals the calls read when nothing in the function hides
-  // them.
-  const locals = [
-    "local math = { abs = function(v) return 77 end }",
-    "local type = function(v) return 'custom' end",
+  // `outer` holds the locals the calls in its local function `g` read when
+  // nothing in `g` hides them, and returns what `g` gives.
+  const outer = (...g: string[]) => [
+    "function outer()",
+    "  local math = { abs = function(v) return 77 end }",
+    "  local type = function(v) return 'custom' end",
+    ...g.map((line) => `  ${line}`),
+    "  return g()",
+    "end",
+    "Got {outer()}.",
   ];
 
-  test("leaves the top-level local to a call written before it", () => {
+  test("leaves the outer local to a call written before it", () => {
     expect(
-      run([
-        ...locals,
-        "function g()",
-        "  local f = math.abs",
-        "  local result = tostring(f(-3)) .. ' ' .. tostring(math.abs(-3)) .. ' ' .. type(7)",
-        "  local math = {}",
-        "  local type = 1",
-        "  return result",
-        "end",
-        "Got {g()}.",
-      ]),
+      run(
+        outer(
+          "local function g()",
+          "  local f = math.abs",
+          "  local result = tostring(f(-3)) .. ' ' .. tostring(math.abs(-3)) .. ' ' .. type(7)",
+          "  local math = {}",
+          "  local type = 1",
+          "  return result",
+          "end",
+        ),
+      ),
     ).toEqual(got("Got 77 77 custom."));
   });
 
-  test("leaves the top-level local to a call after the block that declared it", () => {
+  test("leaves the outer local to a call after the block that declared it", () => {
     expect(
-      run([
-        ...locals,
-        "function g()",
-        "  do",
-        "    local math = {}",
-        "    local type = 1",
-        "  end",
-        "  return tostring(math.abs(-3)) .. ' ' .. type(7)",
-        "end",
-        "Got {g()}.",
-      ]),
+      run(
+        outer(
+          "local function g()",
+          "  do",
+          "    local math = {}",
+          "    local type = 1",
+          "  end",
+          "  return tostring(math.abs(-3)) .. ' ' .. type(7)",
+          "end",
+        ),
+      ),
     ).toEqual(got("Got 77 custom."));
   });
 
-  test("leaves the top-level local to a closure written before it", () => {
+  test("leaves the outer local to a closure written before it", () => {
     expect(
-      run([
-        ...locals,
-        "function g()",
-        "  local c = function() return tostring(math.abs(-3)) .. ' ' .. type(7) end",
-        "  local math = {}",
-        "  local type = 1",
-        "  return c()",
-        "end",
-        "Got {g()}.",
-      ]),
+      run(
+        outer(
+          "local function g()",
+          "  local c = function() return tostring(math.abs(-3)) .. ' ' .. type(7) end",
+          "  local math = {}",
+          "  local type = 1",
+          "  return c()",
+          "end",
+        ),
+      ),
     ).toEqual(got("Got 77 custom."));
   });
 
-  test("leaves the builtin to a call written before it with no top-level local", () => {
+  test("leaves the builtin to a call written before it with no outer local", () => {
     expect(
       run([
         "function g()",
@@ -235,12 +255,12 @@ describe("an incremental compile", () => {
   // hold them are carried unless the `local` above them is asked again.
   const base = [
     "store n = 0",
-    "Got {type(7)} {math.abs(-3)}.",
+    ...inScene("Got {type(7)} {math.abs(-3)}."),
     "",
   ].join("\n");
   const locals = [
-    "local type = function(v) return 'custom' end",
-    "local math = { abs = function(v) return 77 end }",
+    "  local type = function(v) return 'custom' end",
+    "  local math = { abs = function(v) return 77 end }",
   ].join("\n");
 
   const expectCold = (edits: [string, string][], expected: string[]) => {
@@ -256,13 +276,13 @@ describe("an incremental compile", () => {
   };
 
   test("shows what a cold compile shows with locals of the names inserted above the calls", () => {
-    expectCold([["store n = 0", `store n = 0\n${locals}`]], ["Got custom 77."]);
+    expectCold([["scene start", `scene start\n${locals}`]], ["Got custom 77."]);
   });
 
   test("shows what a cold compile shows with the locals the calls read removed", () => {
     expectCold(
       [
-        ["store n = 0", `store n = 0\n${locals}`],
+        ["scene start", `scene start\n${locals}`],
         [`\n${locals}`, ""],
       ],
       ["Got number 3."],
@@ -346,10 +366,9 @@ describe("the arity of a stdlib namespace member's call", () => {
 
   test("is not the builtin's when a local hides the namespace", () => {
     expect(
-      arityWarnings([
-        "local math = { abs = function(a, b) return a end }",
-        "Got {math.abs(1, 2)}.",
-      ]),
+      arityWarnings(
+        inScene("local math = { abs = function(a, b) return a end }", "Got {math.abs(1, 2)}."),
+      ),
     ).toEqual([]);
   });
 
@@ -372,10 +391,9 @@ describe("the arity of a stdlib namespace member's call", () => {
 
   test("is the builtin's when a call is written before a local of the namespace", () => {
     expect(
-      arityWarnings([
-        "Got {math.abs(1, 2)}.",
-        "local math = { abs = function(a, b) return a end }",
-      ]),
+      arityWarnings(
+        inScene("Got {math.abs(1, 2)}.", "local math = { abs = function(a, b) return a end }"),
+      ),
     ).toEqual(["math.abs should take 1 parameter, got 2"]);
   });
 });
@@ -392,19 +410,17 @@ describe("a deprecated stdlib call", () => {
 
   test("keeps its hint when written before a local of the namespace", () => {
     expect(
-      deprecations([
-        "Got {math.pow(2, 3)}.",
-        "local math = { pow = function(a, b) return 1 end }",
-      ]),
+      deprecations(
+        inScene("Got {math.pow(2, 3)}.", "local math = { pow = function(a, b) return 1 end }"),
+      ),
     ).toHaveLength(1);
   });
 
   test("has none when a local hides the namespace", () => {
     expect(
-      deprecations([
-        "local math = { pow = function(a, b) return 1 end }",
-        "Got {math.pow(2, 3)}.",
-      ]),
+      deprecations(
+        inScene("local math = { pow = function(a, b) return 1 end }", "Got {math.pow(2, 3)}."),
+      ),
     ).toEqual([]);
   });
 });

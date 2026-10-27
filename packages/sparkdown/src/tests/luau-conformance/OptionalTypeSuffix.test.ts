@@ -204,8 +204,10 @@ describe("a space before the `?` suffix still reads as Luau", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
 
-  test("the text after a spaced top-level optional type stays prose", () => {
-    const ctx = makeRuntimeStoryFromSource(`Before.\nlocal w: number ?\nAfter.\n`);
+  test("the text after a spaced optional type in a scene stays prose", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `-> s\nscene s\n  Before.\n  local w: number ?\n  After.\nend\n`,
+    );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Before.\nAfter.\n");
   });

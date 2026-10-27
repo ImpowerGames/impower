@@ -1,4 +1,4 @@
-sparkdown [0..195]
+sparkdown [0..214]
  ├─ LuauFunctionDefinition [0..171]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
@@ -442,69 +442,86 @@ sparkdown [0..195]
  │       ├─ LuauFunctionDefinition_end_c3 171
  │       └─ LuauFunctionDefinition_end_c5 171
  ├─ Newline [171..172]: "\n"
- ├─ LuauSparkdownVariableDefinition [172..187]
- │   ├─ LuauSparkdownVariableDefinition_begin [172..178]
- │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 172
+ ├─ Scene [172..182]
+ │   ├─ Scene_begin [172..178]
+ │   │   ├─ Scene_begin_c1 172
  │   │   │   └─ OptionalWhitespace 172
- │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [172..177]
- │   │   │   └─ LuauScopeModifier [172..177]: "local"
- │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [177..178]
- │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [177..178]
- │   │           └─ OptionalWhitespace [177..178]: " "
- │   ├─ LuauSparkdownVariableDefinition_content [178..187]
- │   │   └─ LuauSparkdownVariableAssignment [178..187]
- │   │       ├─ LuauSparkdownVariableAssignment_begin [178..179]
- │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [178..179]
- │   │       │   │   └─ LuauVariableName [178..179]: "w"
- │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 179
- │   │       │       └─ OptionalWhitespace 179
- │   │       ├─ LuauSparkdownVariableAssignment_content [179..187]
- │   │       │   └─ LuauSparkdownExplicitTypeAnnotationOperation [179..187]
- │   │       │       ├─ LuauSparkdownExplicitTypeAnnotationOperation_begin 179
- │   │       │       │   └─ LuauSparkdownExplicitTypeAnnotationOperation_begin_c1 179
- │   │       │       ├─ LuauSparkdownExplicitTypeAnnotationOperation_content [179..187]
- │   │       │       │   ├─ LuauSparkdownExplicitTypeAnnotationOperator [179..181]
- │   │       │       │   │   ├─ LuauSparkdownExplicitTypeAnnotationOperator_begin [179..181]
- │   │       │       │   │   │   ├─ LuauSparkdownExplicitTypeAnnotationOperator_begin_c1 179
- │   │       │       │   │   │   │   └─ OptionalWhitespace 179
- │   │       │       │   │   │   ├─ LuauSparkdownExplicitTypeAnnotationOperator_begin_c2 [179..180]: ":"
- │   │       │       │   │   │   └─ LuauSparkdownExplicitTypeAnnotationOperator_begin_c3 [180..181]
- │   │       │       │   │   │       └─ OptionalWhitespace [180..181]: " "
- │   │       │       │   │   └─ LuauSparkdownExplicitTypeAnnotationOperator_end 181
- │   │       │       │   └─ LuauSparkdownExplicitTypeLiteral [181..187]
- │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_begin 181
- │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_content [181..187]
- │   │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference [181..187]
- │   │       │       │       │       ├─ LuauSparkdownExplicitNamedTypeReference_begin [181..187]
- │   │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c1 [181..187]
- │   │       │       │       │       │   │   └─ LuauPrimitiveType [181..187]
- │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [181..187]: "number"
- │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 187
- │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 187
- │   │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c2 187
- │   │       │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c3 187
- │   │       │       │       │       └─ LuauSparkdownExplicitNamedTypeReference_end 187
- │   │       │       │       └─ LuauSparkdownExplicitTypeLiteral_end 187
- │   │       │       └─ LuauSparkdownExplicitTypeAnnotationOperation_end 187
- │   │       └─ LuauSparkdownVariableAssignment_end 187
- │   └─ LuauSparkdownVariableDefinition_end 187
- ├─ Newline [187..188]: "\n"
- ├─ ImplicitAction [188..194]
- │   ├─ ImplicitAction_begin 188
- │   │   └─ ImplicitAction_begin_c1 188
- │   │       └─ OptionalWhitespace 188
- │   ├─ ImplicitAction_content [188..194]
- │   │   └─ ActionLineEnd [188..194]
- │   │       ├─ ActionLineEnd_begin 188
- │   │       │   └─ ActionLineEnd_begin_c1 188
- │   │       │       └─ OptionalWhitespace 188
- │   │       ├─ ActionLineEnd_content [188..194]
- │   │       │   └─ TextChunk [188..194]
- │   │       │       ├─ TextChunk_begin 188
- │   │       │       ├─ TextChunk_content [188..194]
- │   │       │       │   ├─ Word [188..193]: "Hello"
- │   │       │       │   └─ Punctuation [193..194]: "."
- │   │       │       └─ TextChunk_end 194
- │   │       └─ ActionLineEnd_end 194
- │   └─ ImplicitAction_end 194
- └─ Newline [194..195]: "\n"
+ │   │   ├─ Scene_begin_c2 [172..177]
+ │   │   │   └─ SceneKeyword [172..177]: "scene"
+ │   │   └─ Scene_begin_c3 [177..178]
+ │   │       └─ RequiredWhitespace [177..178]: " "
+ │   ├─ Scene_content [178..182]
+ │   │   └─ SceneWithoutParametersDeclaration [178..182]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [178..182]
+ │   │       │   └─ SceneDeclarationName [178..182]: "main"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 182
+ │   └─ Scene_end 182
+ ├─ Newline [182..183]: "\n"
+ ├─ LuauSparkdownVariableDefinition [183..200]
+ │   ├─ LuauSparkdownVariableDefinition_begin [183..191]
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 [183..185]
+ │   │   │   └─ OptionalWhitespace [183..185]: "  "
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [185..190]
+ │   │   │   └─ LuauScopeModifier [185..190]: "local"
+ │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [190..191]
+ │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [190..191]
+ │   │           └─ OptionalWhitespace [190..191]: " "
+ │   ├─ LuauSparkdownVariableDefinition_content [191..200]
+ │   │   └─ LuauSparkdownVariableAssignment [191..200]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [191..192]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [191..192]
+ │   │       │   │   └─ LuauVariableName [191..192]: "w"
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 192
+ │   │       │       └─ OptionalWhitespace 192
+ │   │       ├─ LuauSparkdownVariableAssignment_content [192..200]
+ │   │       │   └─ LuauSparkdownExplicitTypeAnnotationOperation [192..200]
+ │   │       │       ├─ LuauSparkdownExplicitTypeAnnotationOperation_begin 192
+ │   │       │       │   └─ LuauSparkdownExplicitTypeAnnotationOperation_begin_c1 192
+ │   │       │       ├─ LuauSparkdownExplicitTypeAnnotationOperation_content [192..200]
+ │   │       │       │   ├─ LuauSparkdownExplicitTypeAnnotationOperator [192..194]
+ │   │       │       │   │   ├─ LuauSparkdownExplicitTypeAnnotationOperator_begin [192..194]
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitTypeAnnotationOperator_begin_c1 192
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 192
+ │   │       │       │   │   │   ├─ LuauSparkdownExplicitTypeAnnotationOperator_begin_c2 [192..193]: ":"
+ │   │       │       │   │   │   └─ LuauSparkdownExplicitTypeAnnotationOperator_begin_c3 [193..194]
+ │   │       │       │   │   │       └─ OptionalWhitespace [193..194]: " "
+ │   │       │       │   │   └─ LuauSparkdownExplicitTypeAnnotationOperator_end 194
+ │   │       │       │   └─ LuauSparkdownExplicitTypeLiteral [194..200]
+ │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_begin 194
+ │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_content [194..200]
+ │   │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference [194..200]
+ │   │       │       │       │       ├─ LuauSparkdownExplicitNamedTypeReference_begin [194..200]
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c1 [194..200]
+ │   │       │       │       │       │   │   └─ LuauPrimitiveType [194..200]
+ │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [194..200]: "number"
+ │   │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 200
+ │   │       │       │       │       │   │       └─ LuauPrimitiveType_c3 200
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c2 200
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c3 200
+ │   │       │       │       │       └─ LuauSparkdownExplicitNamedTypeReference_end 200
+ │   │       │       │       └─ LuauSparkdownExplicitTypeLiteral_end 200
+ │   │       │       └─ LuauSparkdownExplicitTypeAnnotationOperation_end 200
+ │   │       └─ LuauSparkdownVariableAssignment_end 200
+ │   └─ LuauSparkdownVariableDefinition_end 200
+ ├─ Newline [200..201]: "\n"
+ ├─ ImplicitAction [201..209]
+ │   ├─ ImplicitAction_begin [201..203]
+ │   │   └─ ImplicitAction_begin_c1 [201..203]
+ │   │       └─ OptionalWhitespace [201..203]: "  "
+ │   ├─ ImplicitAction_content [203..209]
+ │   │   └─ ActionLineEnd [203..209]
+ │   │       ├─ ActionLineEnd_begin 203
+ │   │       │   └─ ActionLineEnd_begin_c1 203
+ │   │       │       └─ OptionalWhitespace 203
+ │   │       ├─ ActionLineEnd_content [203..209]
+ │   │       │   └─ TextChunk [203..209]
+ │   │       │       ├─ TextChunk_begin 203
+ │   │       │       ├─ TextChunk_content [203..209]
+ │   │       │       │   ├─ Word [203..208]: "Hello"
+ │   │       │       │   └─ Punctuation [208..209]: "."
+ │   │       │       └─ TextChunk_end 209
+ │   │       └─ ActionLineEnd_end 209
+ │   └─ ImplicitAction_end 209
+ ├─ Newline [209..210]: "\n"
+ ├─ LuauEndKeyword [210..213]: "end"
+ └─ Newline [213..214]: "\n"

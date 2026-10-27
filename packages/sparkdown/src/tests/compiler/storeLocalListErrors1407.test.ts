@@ -49,13 +49,15 @@ describe("a store's value list and a story local's name list report Luau's error
     test(`${JSON.stringify(line)} with no line break after it`, () => {
       expect(sparkdownErrors(line)).toEqual(expected);
     });
-    test(`${JSON.stringify(line)} in a scene`, () => {
-      expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual(official(line.replace(/^store/, "local"), 1, 2));
+    // Indented in a block the top level opens, where a store may stand.
+    test(`${JSON.stringify(line)} in a top-level block`, () => {
+      expect(sparkdownErrors(`if true then\n  ${line}\n  Hello.\nend\n`)).toEqual(official(line.replace(/^store/, "local"), 1, 2));
     });
   }
 
   // The tree reads the declaration's names and assignment however few
-  // names it holds.
+  // names it holds: a local in a scene, and the same names in a store at
+  // the top level.
   const locals = ["local = 1", "local a, = 1", "local a, b, = 1, 2", "local , = 1", "local a,, = 1", "local a: number, = 1"];
   for (const line of locals) {
     test(`${JSON.stringify(line)} in a scene`, () => {
@@ -63,8 +65,9 @@ describe("a store's value list and a story local's name list report Luau's error
       expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
       expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual(expected);
     });
-    test(`${JSON.stringify(line)} before a scene`, () => {
-      expect(sparkdownErrors(`${line}\n${SCENE}`)).toEqual(official(line));
+    const store = line.replace(/^local/, "store");
+    test(`${JSON.stringify(store)} before a scene`, () => {
+      expect(sparkdownErrors(`${store}\n${SCENE}`)).toEqual(official(line));
     });
   }
 
@@ -82,15 +85,15 @@ describe("a store's value list and a story local's name list report Luau's error
   test.each([
     ["scene start\n  local a,\n  Hello.\nend\n", ["1:9-1:10 Expected identifier when parsing variable name, got <eof>"]],
     [`store a,\n${SCENE}`, ["0:7-0:8 Expected identifier when parsing variable name, got <eof>"]],
-    ["local a,", ["0:7-0:8 Expected identifier when parsing variable name, got <eof>"]],
+    ["store a,", ["0:7-0:8 Expected identifier when parsing variable name, got <eof>"]],
   ])("%j keeps its report", (text, expected) => {
     expect(sparkdownErrors(text)).toEqual(expected);
   });
 
-  // A scene's `end` right after a store on its line closes the scene, and
+  // A block's `end` right after a store on its line closes the block, and
   // the store's reading stops before it (round 1).
-  test.each(["scene start\n  store a = 1 end\n", "scene start\n  store a = 1 end", "scene start\n  store a, b = 1, 2 end\n"])(
-    "%j reports nothing at the scene's end",
+  test.each(["if true then\n  store a = 1 end\n", "if true then\n  store a = 1 end", "if true then\n  store a, b = 1, 2 end\n"])(
+    "%j reports nothing at the block's end",
     (text) => {
       expect(sparkdownErrors(text)).toEqual([]);
     },
@@ -98,10 +101,10 @@ describe("a store's value list and a story local's name list report Luau's error
 
   // After story on the store's line, the tree reads an `end` as story too,
   // and the line reports what Luau reports for it.
-  test.each(["store a = 1 2 end", "store a, b = 1 Hello end"])("%j in a scene reads its end as story", (line) => {
+  test.each(["store a = 1 2 end", "store a, b = 1 Hello end"])("%j in a top-level block reads its end as story", (line) => {
     const expected = official(line.replace(/^store/, "local"), 1, 2);
     expect(expected.some((e) => e.includes("got 'end'")), "the official parser reports the end").toBe(true);
-    expect(sparkdownErrors(`scene start\n  ${line}\n`)).toEqual(expected);
+    expect(sparkdownErrors(`if true then\n  ${line}\nend\n`)).toEqual(expected);
   });
 
   test.each([

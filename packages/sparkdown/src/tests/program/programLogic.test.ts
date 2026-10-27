@@ -1201,10 +1201,10 @@ describe("the constructs a compile builds", () => {
   // error at its statement, and the compile makes no program (#705).
   it("reports an operand wider than its field", () => {
     const args = Array.from({ length: 70_000 }, () => "1").join(", ");
-    const { program } = compileScript(`local n = tonumber(${args})\n`);
+    const { program } = compileScript(`-> start\nscene start\n  local n = tonumber(${args})\nend\n`);
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program)).toContainEqual([
-      0,
+      2,
       unsupportedConstructMessage("an operand of CallStd"),
     ]);
   }, 60_000);

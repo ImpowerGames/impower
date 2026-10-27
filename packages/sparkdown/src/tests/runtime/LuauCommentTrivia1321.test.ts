@@ -31,11 +31,19 @@ function topLevel(source: string): string[] {
   return names;
 }
 
+/** A story that diverts into a scene holding `lines`, each indented two spaces. */
+function inScene(lines: string): string {
+  const body = lines
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
+  return `-> start\nscene start\n${body}\nend\n`;
+}
+
 // I-1305: a block comment between a scope modifier and `function`.
 describe("a comment between a modifier and `function` keeps the function", () => {
   test.each([
     ["local", "local", "local --[[c]]"],
-    ["attribute and local", "@native local", "@native local --[[c]]"],
     ["two comments", "local", "local --[[a]] --[=[b]=]"],
     ["a level-four comment", "local", "local --[====[ helper ]====]"],
     ["a level-four comment holding `]`", "local", "local --[====[a ] b]]c]=]d]====]"],
@@ -46,16 +54,20 @@ describe("a comment between a modifier and `function` keeps the function", () =>
     ["a level-nine comment holding a level-ten close", "local", "local --[=========[a]==========]b]=========]"],
   ])("%s", (_name, plain, commented) => {
     for (const head of [plain, commented]) {
-      const source = `${head} function k(x: number)\n  return x\nend\nValue {k(5)}.\n`;
+      const source = inScene(
+        `${head} function k(x: number)\n  return x\nend\nValue {k(5)}.`,
+      );
       const result = play(source);
       expect(result.lines[0], head).toBe("Value 5.\n");
       expect(result.errors, head).toEqual([]);
     }
   });
 
-  test("inside a function", () => {
-    const source =
-      "function f()\n  local --[[c]] function k(x: number)\n    return x\n  end\n  return k(5)\nend\nValue {f()}.\n";
+  test.each([
+    ["local", "local --[[c]]"],
+    ["attribute and local", "@native local --[[c]]"],
+  ])("inside a function, %s", (_name, head) => {
+    const source = `function f()\n  ${head} function k(x: number)\n    return x\n  end\n  return k(5)\nend\nValue {f()}.\n`;
     const result = play(source);
     expect(result.lines[0]).toBe("Value 5.\n");
     expect(result.errors).toEqual([]);
@@ -69,10 +81,15 @@ describe("a level-nine comment holding a level-ten close", () => {
   // The comment plays nothing: the lines are those of the story without it.
   const control = play(`function k() return 5 end\nValue {k()}.\n`);
   test("before `function`", () => {
-    const result = play(`local ${comment} function k() return 5 end\nValue {k()}.\n`);
+    const localControl = play(
+      inScene("local function k() return 5 end\nValue {k()}."),
+    );
+    const result = play(
+      inScene(`local ${comment} function k() return 5 end\nValue {k()}.`),
+    );
     expect(result.errors).toEqual([]);
     expect(result.lines[0]).toBe("Value 5.\n");
-    expect(result.lines).toEqual(control.lines);
+    expect(result.lines).toEqual(localControl.lines);
   });
   test("after `end`", () => {
     const result = play(`function k() return 5 end ${comment}\nValue {k()}.\n`);
@@ -122,8 +139,15 @@ describe("comments between `=` and a value are not a value", () => {
 
   // At story scope the declaration ended between the comments (#1298); a
   // comment of any level counts, closing at its own level.
+  test("a scene-body `local` declaration", () => {
+    const result = play(
+      inScene("local w = --[[ c ]] --[[ d ]] if true then 1 else 2\nValue {w}."),
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.lines[0]).toBe("Value 1.\n");
+  });
+
   test.each([
-    ["local", "--[[ c ]] --[[ d ]]"],
     ["store", "--[[ c ]] --[[ d ]]"],
     ["store", "--[====[a ] b]====] --[[ d ]]"],
     ["store", "--[====[a]=====]b]====] --[[ d ]]"],
@@ -140,18 +164,19 @@ describe("comments between `=` and a value are not a value", () => {
 
 // I-1299: a comment after a type operator, `:` or a type's `=`, before the
 // type, compiles as the type without it.
-// The same at story scope, where a statement's type ends at its line.
+// The same in story statements, where a statement's type ends at its line: a
+// top-level type alias, then a scene's `local` statement.
 describe("a comment after a type operator in a story statement keeps the type", () => {
   test.each([
-    ["an annotation", "local id: --[[c]] <T>(T) -> T = function(x) return x end", "Value {id(5)}."],
-    ["a return type's arrow", "local id: () -> --[[c]] <T>(T) -> T = function() return function(x) return x end end", "Value {id()(5)}."],
-    ["a foreign close", "local id: --[====[a]=====]b]====] <T>(T) -> T = function(x) return x end", "Value {id(5)}."],
-    ["a union", "local w: number | --[[c]] string = 5", "Value {w}."],
-    ["a plain annotation", "local w: --[[c]] number = 5", "Value {w}."],
-    ["a type alias", "type F = --[[c]] <T>(T) -> T\nlocal id: F = function(x) return x end", "Value {id(5)}."],
-    ["a type alias's arrow", "type F = () -> --[[c]] <T>(T) -> T\nlocal id: F = function() return function(x) return x end end", "Value {id()(5)}."],
-  ])("%s", (_name, declaration, line) => {
-    const result = play(`${declaration}\n${line}\n`);
+    ["an annotation", "", "local id: --[[c]] <T>(T) -> T = function(x) return x end", "Value {id(5)}."],
+    ["a return type's arrow", "", "local id: () -> --[[c]] <T>(T) -> T = function() return function(x) return x end end", "Value {id()(5)}."],
+    ["a foreign close", "", "local id: --[====[a]=====]b]====] <T>(T) -> T = function(x) return x end", "Value {id(5)}."],
+    ["a union", "", "local w: number | --[[c]] string = 5", "Value {w}."],
+    ["a plain annotation", "", "local w: --[[c]] number = 5", "Value {w}."],
+    ["a type alias", "type F = --[[c]] <T>(T) -> T\n", "local id: F = function(x) return x end", "Value {id(5)}."],
+    ["a type alias's arrow", "type F = () -> --[[c]] <T>(T) -> T\n", "local id: F = function() return function(x) return x end end", "Value {id()(5)}."],
+  ])("%s", (_name, alias, declaration, line) => {
+    const result = play(`${alias}${inScene(`${declaration}\n${line}`)}`);
     expect(result.errors).toEqual([]);
     expect(result.lines[0]).toBe("Value 5.\n");
   });
@@ -187,15 +212,15 @@ describe("a comment after a closing `end` at story scope is not story text", () 
       "function m() local function n() return 1 end return n() end",
       "Values {m()}.",
     ],
-    ["an if block", "local x = 0\nif true then x = 1 end", "Values {x}."],
-    ["a do block", "local x = 0\ndo x = 1 end", "Values {x}."],
+    ["an if block", "store x = 0\nif true then x = 1 end", "Values {x}."],
+    ["a do block", "store x = 0\ndo x = 1 end", "Values {x}."],
     [
       "a while block",
-      "local x = 0\nwhile x < 1 do x = x + 1 end",
+      "store x = 0\nwhile x < 1 do x = x + 1 end",
       "Values {x}.",
     ],
-    ["a for block", "local x = 0\nfor i = 1, 1 do x = i end", "Values {x}."],
-    ["an `&` do line", "local x = 0\n& do x = 1 end", "Values {x}."],
+    ["a for block", "store x = 0\nfor i = 1, 1 do x = i end", "Values {x}."],
+    ["an `&` do line", "store x = 0\n& do x = 1 end", "Values {x}."],
     [
       "a multi-line function",
       "function m()\n  return 1\nend",

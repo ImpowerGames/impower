@@ -1,7 +1,10 @@
-local x = 1
-if true then
-  local x = 2
+-> start
+scene start
+  local x = 1
+  if true then
+    local x = 2
+    {x}
+  end
   {x}
+  done
 end
-{x}
-done

@@ -62,8 +62,8 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     });
   }
 
-  test("a store in a scene reports its errors", () => {
-    expect(sparkdownErrors("scene start\n  store t = {1 2}\n  Hello.\nend\n")).toEqual([
+  test("a store in a top-level block reports its errors", () => {
+    expect(sparkdownErrors("if true then\n  store t = {1 2}\nend\nscene start\n  Hello.\nend\n")).toEqual([
       "1:15-1:16 Expected '}' (to close '{' at column 13), got '2'",
     ]);
   });
@@ -141,7 +141,7 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
   test("an operator with no operand ending the file is reported once", () => {
     expect(sparkdownErrors("store x = 1 +")).toEqual(["0:13-0:13 Expected identifier when parsing expression, got <eof>"]);
     expect(sparkdownErrors("store x = 1 +;\n")).toEqual(["0:13-0:14 Expected identifier when parsing expression, got ';'"]);
-    expect(sparkdownErrors("store x = 1 +\nlocal z = 2\n")).toEqual([
+    expect(sparkdownErrors("store x = 1 +\nstore z = 2\n")).toEqual([
       "0:13-1:0 Expected identifier when parsing expression, got <eof>",
     ]);
   });

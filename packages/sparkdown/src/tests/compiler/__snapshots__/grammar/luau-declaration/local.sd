@@ -1,1 +1,3 @@
-local category = plural.category(n)
+scene main
+  local category = plural.category(n)
+end

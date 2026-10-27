@@ -73,7 +73,7 @@ describe("declaration locations after a closed branch", () => {
 describe("declaration locations around a function inside a branch", () => {
   const program = compile(`scene A
   branch x
-    function helper()
+    local function helper()
       return 1
     end
   end

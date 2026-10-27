@@ -1,4 +1,4 @@
-sparkdown [0..86]
+sparkdown [0..65]
  ├─ LuauFunctionDefinition [0..22]
  │   ├─ LuauFunctionDefinition_begin [0..15]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
@@ -34,86 +34,69 @@ sparkdown [0..86]
  │       ├─ LuauFunctionDefinition_end_c3 22
  │       └─ LuauFunctionDefinition_end_c5 22
  ├─ Newline [22..23]: "\n"
- ├─ Scene [23..33]
- │   ├─ Scene_begin [23..29]
- │   │   ├─ Scene_begin_c1 23
+ ├─ LuauSparkdownIfBlock [23..64]
+ │   ├─ LuauSparkdownIfBlock_begin [23..26]
+ │   │   ├─ LuauSparkdownIfBlock_begin_c1 23
  │   │   │   └─ OptionalWhitespace 23
- │   │   ├─ Scene_begin_c2 [23..28]
- │   │   │   └─ SceneKeyword [23..28]: "scene"
- │   │   └─ Scene_begin_c3 [28..29]
- │   │       └─ RequiredWhitespace [28..29]: " "
- │   ├─ Scene_content [29..33]
- │   │   └─ SceneWithoutParametersDeclaration [29..33]
- │   │       ├─ SceneWithoutParametersDeclaration_c1 [29..33]
- │   │       │   └─ SceneDeclarationName [29..33]: "main"
- │   │       └─ SceneWithoutParametersDeclaration_c2 33
- │   └─ Scene_end 33
- ├─ Newline [33..34]: "\n"
- ├─ LuauSparkdownIfBlock [34..81]
- │   ├─ LuauSparkdownIfBlock_begin [34..39]
- │   │   ├─ LuauSparkdownIfBlock_begin_c1 [34..36]
- │   │   │   └─ OptionalWhitespace [34..36]: "  "
- │   │   ├─ LuauSparkdownIfBlock_begin_c2 [36..38]
- │   │   │   └─ LuauIfKeyword [36..38]: "if"
- │   │   └─ LuauSparkdownIfBlock_begin_c3 [38..39]
- │   │       └─ LuauSparkdownIfBlock_begin_c3 [38..39]
- │   │           └─ OptionalWhitespace [38..39]: " "
- │   ├─ LuauSparkdownIfBlock_content [39..76]
- │   │   ├─ LuauSparkdownExplicitIfCondition [39..48]
- │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 39
- │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [39..43]
- │   │   │   │   └─ LuauBoolean [39..43]
- │   │   │   │       ├─ LuauBoolean_c1 [39..43]: "true"
- │   │   │   │       └─ LuauBoolean_c2 43
- │   │   │   └─ LuauSparkdownExplicitIfCondition_end [43..48]
- │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [43..44]
- │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [43..44]
- │   │   │       │       └─ OptionalWhitespace [43..44]: " "
- │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [44..48]
- │   │   │           └─ LuauThenKeyword [44..48]: "then"
- │   │   ├─ Newline [48..49]: "\n"
- │   │   ├─ LuauFunctionDefinition [49..75]
- │   │   │   ├─ LuauFunctionDefinition_begin [49..68]
- │   │   │   │   ├─ LuauFunctionDefinition_begin_c1 [49..53]
- │   │   │   │   │   └─ OptionalWhitespace [49..53]: "    "
- │   │   │   │   ├─ LuauFunctionDefinition_begin_c2 [53..58]
- │   │   │   │   │   └─ LuauScopeModifier [53..58]: "store"
- │   │   │   │   ├─ LuauFunctionDefinition_begin_c3 [58..59]
- │   │   │   │   │   └─ LuauFunctionDefinition_begin_c3 [58..59]
- │   │   │   │   │       └─ OptionalWhitespace [58..59]: " "
- │   │   │   │   ├─ LuauFunctionDefinition_begin_c5 [59..67]
- │   │   │   │   │   └─ LuauFunctionKeyword [59..67]: "function"
- │   │   │   │   └─ LuauFunctionDefinition_begin_c6 [67..68]
- │   │   │   │       └─ LuauFunctionDefinition_begin_c6 [67..68]
- │   │   │   │           └─ OptionalWhitespace [67..68]: " "
- │   │   │   ├─ LuauFunctionDefinition_content [68..71]
- │   │   │   │   ├─ LuauFunctionDeclarationName [68..69]
- │   │   │   │   │   ├─ LuauFunctionDeclarationName_c1 [68..69]
- │   │   │   │   │   │   └─ LuauFunctionName [68..69]: "k"
- │   │   │   │   │   └─ LuauFunctionDeclarationName_c2 69
- │   │   │   │   └─ LuauFunctionParameters [69..71]
- │   │   │   │       ├─ LuauFunctionParameters_begin [69..70]
- │   │   │   │       │   └─ LuauFunctionParameters_begin_c1 [69..70]
- │   │   │   │       │       └─ PunctuationParenOpen [69..70]: "("
- │   │   │   │       └─ LuauFunctionParameters_end [70..71]
- │   │   │   │           └─ LuauFunctionParameters_end_c1 [70..71]
- │   │   │   │               └─ PunctuationParenClose [70..71]: ")"
- │   │   │   └─ LuauFunctionDefinition_end [71..75]
- │   │   │       ├─ LuauFunctionDefinition_end_c1 [71..72]
- │   │   │       │   └─ LuauFunctionDefinition_end_c1 [71..72]
- │   │   │       │       └─ OptionalWhitespace [71..72]: " "
- │   │   │       ├─ LuauFunctionDefinition_end_c2 [72..75]
- │   │   │       │   └─ LuauEndKeyword [72..75]: "end"
- │   │   │       ├─ LuauFunctionDefinition_end_c3 75
- │   │   │       └─ LuauFunctionDefinition_end_c5 75
- │   │   └─ Newline [75..76]: "\n"
- │   └─ LuauSparkdownIfBlock_end [76..81]
- │       ├─ LuauSparkdownIfBlock_end_c1 [76..78]
- │       │   └─ LuauSparkdownIfBlock_end_c1 [76..78]
- │       │       └─ OptionalWhitespace [76..78]: "  "
- │       ├─ LuauSparkdownIfBlock_end_c2 [78..81]
- │       │   └─ LuauEndKeyword [78..81]: "end"
- │       └─ LuauSparkdownIfBlock_end_c3 81
- ├─ Newline [81..82]: "\n"
- ├─ LuauEndKeyword [82..85]: "end"
- └─ Newline [85..86]: "\n"
+ │   │   ├─ LuauSparkdownIfBlock_begin_c2 [23..25]
+ │   │   │   └─ LuauIfKeyword [23..25]: "if"
+ │   │   └─ LuauSparkdownIfBlock_begin_c3 [25..26]
+ │   │       └─ LuauSparkdownIfBlock_begin_c3 [25..26]
+ │   │           └─ OptionalWhitespace [25..26]: " "
+ │   ├─ LuauSparkdownIfBlock_content [26..61]
+ │   │   ├─ LuauSparkdownExplicitIfCondition [26..35]
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 26
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [26..30]
+ │   │   │   │   └─ LuauBoolean [26..30]
+ │   │   │   │       ├─ LuauBoolean_c1 [26..30]: "true"
+ │   │   │   │       └─ LuauBoolean_c2 30
+ │   │   │   └─ LuauSparkdownExplicitIfCondition_end [30..35]
+ │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [30..31]
+ │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [30..31]
+ │   │   │       │       └─ OptionalWhitespace [30..31]: " "
+ │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [31..35]
+ │   │   │           └─ LuauThenKeyword [31..35]: "then"
+ │   │   ├─ Newline [35..36]: "\n"
+ │   │   ├─ LuauFunctionDefinition [36..60]
+ │   │   │   ├─ LuauFunctionDefinition_begin [36..53]
+ │   │   │   │   ├─ LuauFunctionDefinition_begin_c1 [36..38]
+ │   │   │   │   │   └─ OptionalWhitespace [36..38]: "  "
+ │   │   │   │   ├─ LuauFunctionDefinition_begin_c2 [38..43]
+ │   │   │   │   │   └─ LuauScopeModifier [38..43]: "store"
+ │   │   │   │   ├─ LuauFunctionDefinition_begin_c3 [43..44]
+ │   │   │   │   │   └─ LuauFunctionDefinition_begin_c3 [43..44]
+ │   │   │   │   │       └─ OptionalWhitespace [43..44]: " "
+ │   │   │   │   ├─ LuauFunctionDefinition_begin_c5 [44..52]
+ │   │   │   │   │   └─ LuauFunctionKeyword [44..52]: "function"
+ │   │   │   │   └─ LuauFunctionDefinition_begin_c6 [52..53]
+ │   │   │   │       └─ LuauFunctionDefinition_begin_c6 [52..53]
+ │   │   │   │           └─ OptionalWhitespace [52..53]: " "
+ │   │   │   ├─ LuauFunctionDefinition_content [53..56]
+ │   │   │   │   ├─ LuauFunctionDeclarationName [53..54]
+ │   │   │   │   │   ├─ LuauFunctionDeclarationName_c1 [53..54]
+ │   │   │   │   │   │   └─ LuauFunctionName [53..54]: "k"
+ │   │   │   │   │   └─ LuauFunctionDeclarationName_c2 54
+ │   │   │   │   └─ LuauFunctionParameters [54..56]
+ │   │   │   │       ├─ LuauFunctionParameters_begin [54..55]
+ │   │   │   │       │   └─ LuauFunctionParameters_begin_c1 [54..55]
+ │   │   │   │       │       └─ PunctuationParenOpen [54..55]: "("
+ │   │   │   │       └─ LuauFunctionParameters_end [55..56]
+ │   │   │   │           └─ LuauFunctionParameters_end_c1 [55..56]
+ │   │   │   │               └─ PunctuationParenClose [55..56]: ")"
+ │   │   │   └─ LuauFunctionDefinition_end [56..60]
+ │   │   │       ├─ LuauFunctionDefinition_end_c1 [56..57]
+ │   │   │       │   └─ LuauFunctionDefinition_end_c1 [56..57]
+ │   │   │       │       └─ OptionalWhitespace [56..57]: " "
+ │   │   │       ├─ LuauFunctionDefinition_end_c2 [57..60]
+ │   │   │       │   └─ LuauEndKeyword [57..60]: "end"
+ │   │   │       ├─ LuauFunctionDefinition_end_c3 60
+ │   │   │       └─ LuauFunctionDefinition_end_c5 60
+ │   │   └─ Newline [60..61]: "\n"
+ │   └─ LuauSparkdownIfBlock_end [61..64]
+ │       ├─ LuauSparkdownIfBlock_end_c1 61
+ │       │   └─ LuauSparkdownIfBlock_end_c1 61
+ │       │       └─ OptionalWhitespace 61
+ │       ├─ LuauSparkdownIfBlock_end_c2 [61..64]
+ │       │   └─ LuauEndKeyword [61..64]: "end"
+ │       └─ LuauSparkdownIfBlock_end_c3 64
+ └─ Newline [64..65]: "\n"

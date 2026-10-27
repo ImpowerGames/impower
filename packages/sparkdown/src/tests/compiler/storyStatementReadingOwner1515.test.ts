@@ -140,28 +140,27 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
   const DECLARATIONS = ["{1 ? 2}, {3 ? 4}", "{1 ? 2}, {3 ? 4} 5", "{1 ? 2}", "(1 ? 2)", "f(1 ? 2)"];
 
   test("I-1492's reproduction", () => {
-    const text = "local a = {1 ? 2}, {3 ? 4}\n";
+    const text = "scene start\n  local a = {1 ? 2}, {3 ? 4}\n  Hi.\nend\n";
     const errors = sparkdownErrors(text);
-    expect(errors).toContain("0:22-0:23 Expected '=' when parsing assignment, got '?'");
-    expect(errors).toContain("0:22-0:23 Expected '}' (to close '{' at column 20), got '?'");
+    expect(errors).toContain("1:24-1:25 Expected '=' when parsing assignment, got '?'");
+    expect(errors).toContain("1:24-1:25 Expected '}' (to close '{' at column 22), got '?'");
     expect(errors).toEqual(official(text));
   });
 
+  // A `store` at the top level, whose value Luau reads as a `local`'s, and a
+  // `local` in a scene.
   for (const value of DECLARATIONS) {
-    for (const keyword of ["local", "store"]) {
-      test(`a ${keyword} of ${JSON.stringify(value)} at the top level`, () => {
-        const text = `${keyword} a = ${value}\n`;
-        const expected = official(`local a = ${value}\n`);
-        expect(sparkdownErrors(text)).toEqual(expected);
-        expectIncrementalEqualsCold(text);
-      });
-      test(`a ${keyword} of ${JSON.stringify(value)} in a scene`, () => {
-        const text = `scene start\n  ${keyword} a = ${value}\n  Hi.\nend\n`;
-        const expected = official(`scene start\n  local a = ${value}\n  Hi.\nend\n`);
-        expect(sparkdownErrors(text)).toEqual(expected);
-        expectIncrementalEqualsCold(text);
-      });
-    }
+    test(`a store of ${JSON.stringify(value)} at the top level`, () => {
+      const text = `store a = ${value}\n`;
+      const expected = official(`local a = ${value}\n`);
+      expect(sparkdownErrors(text)).toEqual(expected);
+      expectIncrementalEqualsCold(text);
+    });
+    test(`a local of ${JSON.stringify(value)} in a scene`, () => {
+      const text = `scene start\n  local a = ${value}\n  Hi.\nend\n`;
+      expect(sparkdownErrors(text)).toEqual(official(text));
+      expectIncrementalEqualsCold(text);
+    });
   }
 
   // A line that begins with a call is a line of story in a `.sd` script; a
@@ -171,10 +170,9 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
     "& print(function() return 1 x end)\nGo.\n",
     "& print(1, function() return x y z end)\nGo.\n",
     "& f(function() return 1 x y end, 2)\nGo.\n",
-    "local g = print(function() return 1 x y end)\nGo.\n",
-    "local g = print(function()\nreturn 1 x y\nend)\nGo.\n",
     "x = print(function() return 1 x y end)\nGo.\n",
     "scene start\n  local g = print(function() return 1 x y end)\n  Go.\nend\n",
+    "scene start\n  local g = print(function()\n  return 1 x y\n  end)\n  Go.\nend\n",
     "scene start\n  & print(function() return 1 x y end)\n  Go.\nend\n",
   ];
 
@@ -198,7 +196,6 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
     "function f()\nend\nend\nGo.\n",
     "function f()\nend\nend\nend\nGo.\n",
     "function f()\nend\nuntil true\nGo.\n",
-    "local function f()\nend\nend\nGo.\n",
     "function f()\nrepeat\nreturn 1 x y\nend\nuntil true\nend\nGo.\n",
   ];
 

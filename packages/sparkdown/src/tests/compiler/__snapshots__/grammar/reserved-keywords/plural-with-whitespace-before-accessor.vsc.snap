@@ -1,5 +1,5 @@
 text.source.sparkdown [0..37]
- ├─ storage.modifier.scope.luau [0..5]: "local"
+ ├─ storage.modifier.scope.luau [0..5]: "store"
  ├─ punctuation.whitespace.optional.sd [5..6]: " "
  ├─ variable.other.readwrite.luau [6..14]: "category"
  ├─ punctuation.whitespace.optional.sd [14..15]: " "

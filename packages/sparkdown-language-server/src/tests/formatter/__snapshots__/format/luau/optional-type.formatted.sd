@@ -5,6 +5,6 @@ function f(): number?
   local s: string
   return 5
 end
-local w: Foo?
-local x: number? | string = 1
+store w: Foo?
+store x: number? | string = 1
 Hello.

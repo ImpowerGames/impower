@@ -1,6 +1,4 @@
 store function g() end
-scene main
-  if true then
-    store function k() end
-  end
+if true then
+  store function k() end
 end

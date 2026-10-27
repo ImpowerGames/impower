@@ -117,7 +117,9 @@ describe("a local's value list", () => {
   });
 
   test("a local outside a function takes a later name as a value", () => {
-    const ctx = makeRuntimeStoryFromSource("local x = 5\nlocal a, b = 1, x\nValue {b}.\n");
+    const ctx = makeRuntimeStoryFromSource(
+      "-> start\nscene start\n  local x = 5\n  local a, b = 1, x\n  Value {b}.\nend\n",
+    );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });

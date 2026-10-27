@@ -21,6 +21,11 @@ export function functionScreenplay(scenes = 3): string {
     "    return n * 2",
     "  end",
     "end",
+    "if total < 0 then",
+    "  function reset()",
+    "    total = 0",
+    "  end",
+    "end",
     "",
     "Before any scene {describe(1)} {twice(2)}.",
     "",
@@ -38,11 +43,6 @@ export function functionScreenplay(scenes = 3): string {
     L.push("  Guarded {ok} {message}.");
     L.push(`  local make = function(n) return function() return n * ${s + 2} end end`);
     L.push(`  Made {make(${s})()} total {total} twice {twice(${s})}.`);
-    L.push("  if total < 0 then");
-    L.push("    function reset()");
-    L.push("      total = 0");
-    L.push("    end");
-    L.push("  end");
     L.push("  done");
     L.push("end");
     L.push("");

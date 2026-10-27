@@ -86,9 +86,9 @@ describe("an assignment after an if expression's else value (#1205)", () => {
 
   // A story declaration ends at its line (#1907): the else value is missing
   // at the line's end, and the indented line is a reassignment of its own.
-  test("after a `local` declaration's if expression at the top level, the else value is missing at its line's end", () => {
+  test("after a `local` declaration's if expression in a scene, the else value is missing at its line's end", () => {
     const r = run(
-      "local a = false\nlocal y = 0\nlocal x = if a then 1 else\n  y = 6\nValue {x} {y}.\n",
+      "-> start\nscene start\n  local a = false\n  local y = 0\n  local x = if a then 1 else\n    y = 6\n  Value {x} {y}.\nend\n",
     );
     expect(r.errors).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });

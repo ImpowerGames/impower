@@ -469,7 +469,7 @@ describe("the reported layouts", () => {
     ]],
     ["store a, b = 1,\n  2", ["0:14-0:15 Expected identifier when parsing expression, got <eof>"]],
     ["store x = 1 +;", ["0:13-0:14 Expected identifier when parsing expression, got ';'"]],
-    ["store x = 1 +\nlocal z = 2", ["0:13-1:0 Expected identifier when parsing expression, got <eof>"]],
+    ["store x = 1 +\nstore z = 2", ["0:13-1:0Expected identifier when parsing expression, got <eof>"]],
     // Round 2: a `store` declaration's complete value ends its statement.
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
     // Round 3: a line break inside a comment ends the line too.

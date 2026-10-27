@@ -1,1 +1,1 @@
-local first = queue.head
+store first = queue.head
