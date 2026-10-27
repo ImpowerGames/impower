@@ -1,3 +1,4 @@
+import { compiledAncestor } from "@impower/sparkdown/src/compiler/morph/collectMorphDiagnostics";
 import {
   groupHasState,
   morphImageLabels,
@@ -115,13 +116,16 @@ export function getMorphCompletions(
   // Groups the morph inherits: every `as` ancestor's keyframes, read from the
   // compiled program, so a child that only restates policies still completes
   // from the images its inherited keyframes bind to.
+  // An ancestor is a morph block or a `define`, which may be filed under its
+  // own parent's name; `compiledAncestor` finds it as the compiler does.
   const morphs = (context["morph"] ?? {}) as Record<string, any>;
   const seen = new Set<string>();
   let ancestor: string | undefined = morphs[block.name]?.$extends;
   while (typeof ancestor === "string" && !seen.has(ancestor)) {
     seen.add(ancestor);
-    const struct = morphs[ancestor];
-    if (!struct || typeof struct !== "object") break;
+    const found = compiledAncestor(context, ancestor);
+    if (!found) break;
+    const struct = found.struct as Record<string, any>;
     for (const group of morphRequirements(struct).groups.keys()) {
       driven.add(group);
     }
@@ -137,7 +141,7 @@ export function getMorphCompletions(
         }
       }
     }
-    ancestor = struct.$extends;
+    ancestor = found.parent ?? struct["$extends"];
   }
   const candidates = images.filter((image) =>
     [...driven].some((group) => image.vocabulary.groups[group]),

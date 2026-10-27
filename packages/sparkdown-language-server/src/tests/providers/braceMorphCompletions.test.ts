@@ -7,6 +7,7 @@ import {
   insertedText,
   insideBraces,
 } from "./braceCompletionHarness";
+import { compileProject } from "./completionHarness";
 
 // The cases of `morphCompletions.test.ts`, written in brace bodies (#1228):
 // the same items at each depth, with the cursor's path read from the blocks
@@ -409,6 +410,26 @@ end
 end
 `),
     ).toEqual(["rest", "eyes.open", "eyes.half"]);
+    // A `define` ancestor filed under its own parent's name is followed as
+    // the compiler follows it, in a compiled program.
+    const defines = `define base as morph with
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+end
+define middle as base with
+  keyframes = { { offset = 0, arm = { state = "down" } }, { offset = 1, arm = { state = "raised" } } }
+end
+morph child as middle with
+  method = match
+  depth = |
+end
+`;
+    const compiled = compileProject(defines.replace("|", "rest"));
+    expect(compiled.context?.["base"]?.["middle"]).toBeDefined();
+    expect(completeAt(defines, compiled).map((item) => String(item.label))).toEqual([
+      "rest",
+      "arm.down",
+      "arm.raised",
+    ]);
     // Own keyframes that name no state still replace the ancestors' poses.
     expect(
       depthAt(`morph child as middle with

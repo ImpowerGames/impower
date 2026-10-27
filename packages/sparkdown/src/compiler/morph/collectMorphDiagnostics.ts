@@ -68,7 +68,7 @@ export interface MorphLayer {
 // parent. `define base as morph with … end` is filed as `morph.base` and
 // inherits from the type; `define middle as base with … end` is filed under
 // its parent's name, as `base.middle`, and inherits from `base`.
-function compiledAncestor(
+export function compiledAncestor(
   context: Context,
   name: string,
 ): { struct: Record<string, unknown>; parent?: string } | undefined {
