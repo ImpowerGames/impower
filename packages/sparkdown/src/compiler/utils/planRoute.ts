@@ -111,7 +111,17 @@ export interface SearchNode {
    *  the first condition after that beat and its last forced verdict, or -1
    *  before that condition (see {@link BEAT_WORK_CAP}). */
   beatWork: number;
+  /** The route the node continues: a node that takes up a run where it
+   *  stopped (a turn, or a run a bound cut) keeps its route's, and one
+   *  forked to make a choice or a verdict starts a route of its own. A later
+   *  visit to a condition site replaces the verdict an earlier one kept only
+   *  within one route (`Level.notTaken`). */
+  route: number;
 }
+
+/** A fresh route identity ({@link SearchNode.route}). */
+let lastRoute = 0;
+const newRoute = (): number => (lastRoute += 1);
 
 /**
  * The work, in steps (Luau calls' included), a route may follow without a
@@ -724,8 +734,14 @@ type QueueEntry = SearchNode | (() => SearchNode | null);
  *  reach there, built when its level takes it up. */
 interface NotTaken {
   site: ProgramAddress;
+  /** The route whose run forked it ({@link SearchNode.route}). */
+  route: number;
   node: () => SearchNode;
 }
+
+/** What a kept verdict is kept by: the route that made it and its site. */
+const notTakenKey = (notTaken: NotTaken): string =>
+  `${notTaken.route}|${notTaken.site}`;
 
 /** One level of a search: the routes that force a given number of verdicts
  *  (see {@link planRoute}). */
@@ -736,12 +752,14 @@ interface Level {
    *  the bound began; null until it binds (level zero, before its first
    *  condition). */
   bound: { startSteps: number; steps: number; nodes: number } | null;
-  /** The verdict the program does not reach at the latest visit its runs
+  /** The verdict the program does not reach at the latest visit each route
    *  made to each condition site, for the next level, in the order of those
-   *  visits. One per site: forcing a site's verdict on a later visit reaches
-   *  what forcing it on an earlier one would, and holding one per visit
-   *  would hold a state image per pass of every loop. */
-  notTaken: Map<ProgramAddress, NotTaken>;
+   *  visits ({@link notTakenKey}). One per route and site: a route's later
+   *  visit to a site (a later pass of a loop it is in) reaches whatever
+   *  forcing an earlier one would, and holding one per visit would hold a
+   *  state image per pass of every loop. Visits by different routes hold
+   *  different state, and are all kept. */
+  notTaken: Map<string, NotTaken>;
   /** Where the run its bound ran out in stood, as a node the next level
    *  takes up. */
   cutAt: SearchNode | null;
@@ -1042,22 +1060,23 @@ export const planRoute = (
     let head = 0;
     // A child forcing one more verdict than the level running waits for the
     // next; one from a node handed on from an earlier level, forcing no more
-    // than the level running, joins its queue. Either way only the latest
-    // visit to a site is kept (`Level.notTaken`): the queue holds the site,
-    // and an entry a later visit replaced is passed over.
-    const joining = new Map<ProgramAddress, { visit: number; notTaken: NotTaken }>();
+    // than the level running, joins its queue. Either way only a route's
+    // latest visit to a site is kept (`Level.notTaken`): the queue holds the
+    // key, and an entry a later visit by the same route replaced is passed
+    // over.
+    const joining = new Map<string, { visit: number; notTaken: NotTaken }>();
     let visits = 0;
     const defer = (forced: number, notTaken: NotTaken) => {
-      const site = notTaken.site;
+      const key = notTakenKey(notTaken);
       if (forced > level.index) {
-        level.notTaken.delete(site);
-        level.notTaken.set(site, notTaken);
+        level.notTaken.delete(key);
+        level.notTaken.set(key, notTaken);
         return;
       }
       const visit = ++visits;
-      joining.set(site, { visit, notTaken });
+      joining.set(key, { visit, notTaken });
       queue.push(() => {
-        const latest = joining.get(site);
+        const latest = joining.get(key);
         return latest?.visit === visit ? latest.notTaken.node() : null;
       });
     };
@@ -1307,6 +1326,9 @@ const runUntilDecisionOrBranch = (
         node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
       // A forced verdict starts the count of work without a beat again.
       beatWork: add?.kind === "condition" && add.departs ? 0 : at.beatWork,
+      // A node forked to make a choice or a verdict starts a route of its
+      // own; one that takes the run up where it stopped continues it.
+      route: add ? newRoute() : node.route,
     };
   };
   // What the run forces next, which the first step after a fork or a
@@ -1542,6 +1564,7 @@ const runUntilDecisionOrBranch = (
           };
           defer(node.forced + 1, {
             site,
+            route: node.route,
             node: () => nodeAt(fork.state, at, [other], other),
           });
           const ov: ConditionOverride = { kind: "condition", site, value: natural };
@@ -1639,6 +1662,7 @@ const makeStartNode = (
     overrides: [],
     forced: 0,
     beatWork: -1,
+    route: newRoute(),
   };
 };
 
@@ -1667,6 +1691,7 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
     resumeFrom.charge.beatWork < 0
       ? -1
       : Math.max(0, resumeFrom.charge.beatWork - 1),
+  route: newRoute(),
 });
 
 const isRootLevel = (knot: string): boolean =>

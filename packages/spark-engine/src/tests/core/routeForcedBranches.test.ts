@@ -155,3 +155,77 @@ describe("a route that forces a verdict follows the program everywhere else", ()
     expect(route.conditions.at(-1)?.selected).toBe(true);
   }, 120_000);
 });
+
+describe("a verdict kept for a later level belongs to the route that kept it", () => {
+  // Two choices reach the same condition with different state; forcing it
+  // after one of them is the way to the line, after the other it is not.
+  const MENU = [
+    "store total = 0",
+    "-> start",
+    "scene start",
+    "  choose",
+    "  + [Safe]",
+    "    & total = 1",
+    "  + [Unsafe]",
+    "    & total = 2",
+    "  end",
+  ];
+
+  test("a later choice's visit to a condition does not replace an earlier choice's", () => {
+    const src = [
+      ...MENU,
+      "  if false then",
+      "    & assert(total == 1, 'safe only')",
+      "    Target {total}.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    expect(previewedStore(src, 12, "total")).toBe(1);
+  }, 120_000);
+
+  test("the route forcing fewer verdicts is found, whichever choice reached the condition last", () => {
+    const lines = [
+      ...MENU,
+      "  if false then",
+      "    if total == 1 then",
+      "      Target {total}.",
+      "    end",
+      "  end",
+      "end",
+      "",
+    ];
+    expect(previewedStore(lines.join("\n"), 12, "total")).toBe(1);
+    const route = routeTo(lines, "Target");
+    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(1);
+  }, 120_000);
+
+  test("two choices inside a loop reaching the same condition keep their own verdicts", () => {
+    const lines = [
+      "store total = 0",
+      "store path = 0",
+      "-> start",
+      "scene start",
+      "  for i = 1, 3 do",
+      "    choose",
+      "    + [A]",
+      "      & path = 1",
+      "    + [B]",
+      "      & path = 2",
+      "    end",
+      "    if false then",
+      "      & assert(path == 1 and i == 2, 'A on pass 2 only')",
+      "      Target {total} {path}.",
+      "    end",
+      "    total += i",
+      "  end",
+      "end",
+      "",
+    ];
+    const route = routeTo(lines, "Target");
+    expect(route.choices.map((c) => c.selected)).toEqual([
+      expect.any(Number),
+      0,
+    ]);
+  }, 120_000);
+});

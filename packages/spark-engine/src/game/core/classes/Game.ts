@@ -2795,13 +2795,16 @@ export class Game<T extends M = {}> {
     for (let i = valid; i < newRoute.steps.length; i += 1) {
       patchedSteps.push(newRoute.steps[i]!);
     }
-    const patchedRoute = {
+    const patchedRoute: RoutePlan = {
       from: newRoute.from,
       to: newRoute.to,
       steps: patchedSteps,
       decisions: newRoute.decisions,
       conditions: newRoute.conditions,
       choices: newRoute.choices,
+      // A later search resumed on this route is charged level zero's bound
+      // as the search that planned it had it (`routeChargeAt`).
+      ...(newRoute.levelZero ? { levelZero: newRoute.levelZero } : {}),
     };
 
     // Add new checkpoints onto the previous simulation
