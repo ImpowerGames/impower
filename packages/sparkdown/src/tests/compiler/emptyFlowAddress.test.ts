@@ -122,3 +122,28 @@ end
     expect(resolved(text, [1])).toEqual([[3, "start"]]);
   });
 });
+
+describe("whether a scene or branch binds parameters where it is entered", () => {
+  it("answers as the compiled entry binds them", () => {
+    const wide = " ".repeat(100);
+    const program = compile(`scene start(a)
+  branch first
+    First.
+  end
+  branch second(b, c)
+    Second.
+  end
+  branch third()
+    Third.
+  end
+  branch fourth(${wide})
+    Fourth.
+  end
+end
+`);
+    const root = program.chunks;
+    expect(
+      [0, 1, 4, 7, 10].map((header) => root.bindsParameters(URI, header)),
+    ).toEqual([true, false, true, false, false]);
+  });
+});

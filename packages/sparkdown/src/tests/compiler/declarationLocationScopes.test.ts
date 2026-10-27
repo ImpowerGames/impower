@@ -123,8 +123,8 @@ end
 `);
     expect(program.flowEnds).toEqual({
       [URI]: [
-        [0, 3, false],
-        [4, 6, false],
+        [0, 3],
+        [4, 6],
       ],
     });
   });
@@ -133,46 +133,13 @@ end
     const program = compile(CLOSED_BRANCH);
     expect(program.flowEnds).toEqual({
       [URI]: [
-        [7, 14, false],
-        [21, 23, false],
-        [0, 24, false],
+        [7, 14],
+        [21, 23],
+        [0, 24],
       ],
     });
   });
 
-  it("marks the scenes and branches that take parameters", () => {
-    const program = compile(`scene start(a)
-  branch first
-    First.
-  end
-  branch second(b, c)
-    Second.
-  end
-end
-`);
-    expect(program.flowEnds).toEqual({
-      [URI]: [
-        [1, 3, false],
-        [4, 6, true],
-        [0, 7, true],
-      ],
-    });
-  });
-
-  it("does not mark an empty parameter list", () => {
-    const program = compile(`scene start()
-  branch first( )
-    First.
-  end
-end
-`);
-    expect(program.flowEnds).toEqual({
-      [URI]: [
-        [1, 3, false],
-        [0, 4, false],
-      ],
-    });
-  });
 });
 
 describe("declaration locations after a branch left without its end", () => {

@@ -1027,16 +1027,30 @@ export class ProgramRoot {
    *  no statements of its own, such as a scene that enters its first
    *  branch, or no such flow. */
   lastStatementAddress(uri: string, header: number): number | undefined {
-    for (const flow of this.flows(uri)) {
-      if (
+    const chunk = this.flowHeadedAt(uri, header)?.arrays.chunks.at(-1);
+    return chunk ? addressOf(chunkId(chunk), 0) : undefined;
+  }
+
+  /** Whether the scene or branch of a script whose header stands on
+   *  `header` binds parameters where it is entered: its first chunk starts
+   *  with the `SetVar`s of its entry, as `ProgramStory.takesParameters`
+   *  reads it. An empty parameter list binds none. */
+  bindsParameters(uri: string, header: number): boolean {
+    const chunk = this.flowHeadedAt(uri, header)?.arrays.chunks[0];
+    return (
+      chunk !== undefined &&
+      codeWords(chunk) > 0 &&
+      opOf(chunk[HEADER_WORDS]!) === Op.SetVar
+    );
+  }
+
+  /** The scene or branch of a script whose header stands on `header`. */
+  protected flowHeadedAt(uri: string, header: number): SequenceRow | undefined {
+    return this.flows(uri).find(
+      (flow) =>
         (flow.kind === SymbolKind.Scene || flow.kind === SymbolKind.Branch) &&
-        this.firstLineOf(flow) === header + 1
-      ) {
-        const chunk = flow.arrays.chunks.at(-1);
-        return chunk ? addressOf(chunkId(chunk), 0) : undefined;
-      }
-    }
-    return undefined;
+        this.firstLineOf(flow) === header + 1,
+    );
   }
 
   /** The name of the top-level flow an address stands in, as a scene is

@@ -4719,13 +4719,7 @@ export class SparkdownCompiler {
           name: string;
           /** A scene's or branch's header line. */
           line?: number;
-          /** Whether a scene or branch takes parameters: its name is
-           *  followed by a parameter list that is not empty, as
-           *  `FlowBase.hasParameters` counts them. */
-          params?: boolean;
         }[] = [];
-        const takesParameters = (to: number) =>
-          /^[ \t]*\((?![ \t]*\))/.test(doc.read(to, to + 80));
         if (cur) {
           while (cur.value) {
             const name = doc.read(cur.from, cur.to);
@@ -4747,14 +4741,10 @@ export class SparkdownCompiler {
                 (p) => p.kind === "scene" || p.kind === "branch",
               );
               if (closed >= 0) {
-                const { line, params } = scopePathParts[closed]!;
+                const header = scopePathParts[closed]!.line!;
                 scopePathParts.length = closed;
                 program.flowEnds ??= {};
-                (program.flowEnds[uri] ??= []).push([
-                  line!,
-                  range.start.line,
-                  params === true,
-                ]);
+                (program.flowEnds[uri] ??= []).push([header, range.start.line]);
               }
             }
             if (cur.value.type === "scene") {
@@ -4763,7 +4753,6 @@ export class SparkdownCompiler {
                 kind: "scene",
                 name: doc.read(cur.from, cur.to),
                 line: range.start.line,
-                params: takesParameters(cur.to),
               });
               program.sceneLocations ??= {};
               program.sceneLocations[name] = [
@@ -4783,7 +4772,6 @@ export class SparkdownCompiler {
                 kind: "branch",
                 name: doc.read(cur.from, cur.to),
                 line: range.start.line,
-                params: takesParameters(cur.to),
               });
               const name = scopePathParts.map((p) => p.name).join(".");
               program.branchLocations ??= {};

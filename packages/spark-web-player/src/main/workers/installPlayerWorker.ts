@@ -957,7 +957,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const lineAbove = (
       from: number,
       floor: number,
-      skipped: readonly (readonly [number, number, boolean])[],
+      skipped: readonly (readonly [number, number])[],
     ) => {
       for (let line = from; line > floor; line -= 1) {
         if (skipped.some(([header, end]) => header <= line && line <= end)) {
@@ -980,13 +980,16 @@ export function installPlayerWorker(connection: MessageConnection) {
         return own;
       }
       // A scene that runs nothing of its own before its first branch enters
-      // that branch when it takes no parameters (`programFlows`), and ends as
-      // that branch does.
+      // that branch when it binds no parameters (`programFlows`), and ends
+      // as that branch does.
       const first = nested.reduce<(typeof nested)[number] | undefined>(
         (earliest, flow) => (!earliest || flow[0] < earliest[0] ? flow : earliest),
         undefined,
       );
-      const entered = first && !first[2] && lineAbove(first[1], first[0], []);
+      const entered =
+        first &&
+        program.chunks?.bindsParameters(point.file, first[0]) === false &&
+        lineAbove(first[1], first[0], []);
       if (entered) {
         return entered;
       }

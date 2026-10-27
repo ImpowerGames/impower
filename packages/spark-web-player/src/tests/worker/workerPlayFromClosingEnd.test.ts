@@ -93,6 +93,7 @@ const CASES = [
   ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."]],
   ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 10, "First.", ["Unused.", "Other."]],
   ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 10, "First.", ["Unused.", "Other."]],
+  ["the end of a scene whose first branch has a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 10, "First.", ["Unused.", "Other."]],
   // The line above is the divert the branch leaves by, which shows the beat
   // it leads to; the branch below shows "Visit 2 t.".
   ["the end of a branch that diverts out", BRANCHES, 8, "Second 4 b.", ["Visit"]],
