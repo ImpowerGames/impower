@@ -373,6 +373,59 @@ describe("a live morph's aperture masks", () => {
     }
   });
 
+  /** Every aperture (mask or clip path) in an SVG, with its path's attributes, and the wrapper that refers to it. */
+  const masksOf = (svg: string) => {
+    const doc = parse(svg);
+    const all: Element[] = [];
+    const collect = (node: Element) => {
+      all.push(node);
+      elementChildren(node).forEach(collect);
+    };
+    ((Array.isArray(doc) ? doc : [doc]) as Element[]).forEach(collect);
+    return all
+      .filter((node) => (node.tagName === "mask" || node.tagName === "clipPath") && /morph-clip-/.test(node.attributes["id"] ?? ""))
+      .map((aperture) => ({
+        kind: aperture.tagName,
+        path: elementChildren(aperture).find((c) => c.tagName === "path")!.attributes,
+        wrapper: all.find((node) => (node.attributes["mask"] ?? node.attributes["clip-path"]) === `url(#${aperture.attributes["id"]})`),
+      }));
+  };
+
+  test("clip a target under a nearly singular parent in its own space, with no reach", () => {
+    // A browser composes matrices in single precision, so undoing and
+    // redoing a parent that stretches one way millions of times more than
+    // another would move the target. Its aperture is a clip path in the
+    // parent's space, as before there were aperture masks, and the target's
+    // own transforms are untouched.
+    const parent: Affine = [1, 1, 1, 1.000001, 0, 0];
+    const source = underParent(`matrix(${parent.join(" ")})`, `matrix(${invert(parent)!.join(" ")})`);
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
+      const masks = masksOf(svg);
+      const white = masks.filter(({ wrapper }) => (wrapper?.children[0] as Element | undefined)?.attributes["data-name"] === "eyeball-white-left");
+      expect(white).toHaveLength(1);
+      expect(white[0]!.kind).toBe("clipPath");
+      expect(white[0]!.wrapper!.attributes["transform"]).toBeUndefined();
+      expect(white[0]!.path["transform"]).toBeDefined();
+      // The pupil, whose parent is root space, keeps its reach.
+      expect(masks.filter((m) => m !== white[0]).every(({ kind, path }) => kind === "mask" && /stroke-width:2px/.test(path["style"] ?? ""))).toBe(true);
+    }
+  });
+
+  test("keep the reach for an open eye drawn in tiny root units", () => {
+    // Small units are not a closed eye: closure is judged against the widest
+    // the aperture opens.
+    const tiny = SVG.replace('viewBox="0 0 140 100" width="140" height="100">', 'viewBox="0 0 0.007 0.005" width="140" height="100"><g transform="scale(0.00005)">').replace("</svg>", "</g></svg>");
+    const baked = bakeMorphArtifact({ source: tiny, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    const masks = masksOf(baked.rest);
+    expect(masks.length).toBeGreaterThan(0);
+    for (const { path } of masks) expect(path["style"]).toMatch(/stroke-width:2px/);
+  });
+
   test("reach nowhere past a rest outline that encloses no area", () => {
     // A morph that rests closed, on art whose white is drawn outside the eye
     // states and above the closed lash: the closed aperture has no area, so

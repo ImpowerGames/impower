@@ -148,8 +148,8 @@ export function morphPosesAt(artifact: MorphArtifact, offset: number): Record<st
  * What a frame changes in the live parts as written: which leaves show and
  * hide through their inline `display`, the path data that replaces a moving
  * leaf's `d`, the factor a fading leaf's own opacity is multiplied by, and
- * the path data of each aperture mask (by its id before occurrence
- * namespacing). Anything a frame does not mention keeps its markup.
+ * the path data of each aperture (by its id before occurrence namespacing).
+ * Anything a frame does not mention keeps its markup.
  */
 export interface MorphFrameState {
   shown: Set<string>;
@@ -176,7 +176,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
   };
   const writeClip = (clip: number, loops: MorphGeometryRef, p: number) => {
     const d = aperturePathData(artifact.apertures[loops.index]!, loops, p);
-    for (const target of artifact.clipTargets) if (target.clip === clip) state.clips.set(target.mask, d);
+    for (const target of artifact.clipTargets) if (target.clip === clip) state.clips.set(target.aperture, d);
   };
   for (const [group, states] of Object.entries(artifact.visibility)) {
     const pose = own(poses, group);
@@ -321,9 +321,9 @@ export function poseLeaf(element: Element, node: string, state: MorphFrameState)
 }
 
 /**
- * Poses an aperture mask's path, given as it is written in its part (the
- * rest outline, stroked to reach past it), with the path data a frame gives
- * it. Away from the rest outline the aperture has no reach, so the stroke
+ * Poses an aperture's path, given as it is written in its part (the rest
+ * outline, a mask's stroked to reach past it), with the path data a frame
+ * gives it. Away from the rest outline the aperture has no reach, so the stroke
  * goes (see the bake's aperture masks).
  */
 export function poseAperture(element: Element, d: string) {
@@ -352,7 +352,7 @@ function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): stri
       for (const element of walk(svg)) {
         const node = element.attributes["data-morph"];
         if (node !== undefined) poseLeaf(element, node, state);
-        if (element.tagName === "mask") {
+        if (element.tagName === "mask" || element.tagName === "clipPath") {
           const d = clipData.get(element.attributes["id"] ?? "");
           const path = elementsOf(element.children)[0];
           if (d !== undefined && path) poseAperture(path, d);

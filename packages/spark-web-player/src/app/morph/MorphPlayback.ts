@@ -727,9 +727,10 @@ export class MorphLayer {
       });
     }
     const clips: LiveView["clips"] = [];
-    for (const mask of Array.from(outer.getElementsByTagNameNS(NS, "mask"))) {
-      const path = mask.firstElementChild;
-      const id = mask.getAttribute("id");
+    const apertures = [...Array.from(outer.getElementsByTagNameNS(NS, "mask")), ...Array.from(outer.getElementsByTagNameNS(NS, "clipPath"))];
+    for (const aperture of apertures) {
+      const path = aperture.firstElementChild;
+      const id = aperture.getAttribute("id");
       if (!path || !id) continue;
       clips.push({ path, id: id.split(prefix).join(artifact.idPrefix), d: path.getAttribute("d"), style: path.getAttribute("style") });
     }

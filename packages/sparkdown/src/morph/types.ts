@@ -234,8 +234,12 @@ export interface MorphSegment {
 /** A clip target's wrapper in a live part, and the matrix from root space into the space the target is drawn in. */
 export interface MorphClipTarget {
   clip: number;
-  /** The id (before occurrence namespacing) of the wrapper's aperture `mask`. */
-  mask: string;
+  /**
+   * The id (before occurrence namespacing) of the wrapper's aperture: a
+   * `mask`, or a `clipPath` where the bake keeps it in the target's parent
+   * space.
+   */
+  aperture: string;
   /** Root user space to the target's parent's user space, `[a, b, c, d, e, f]`. */
   matrix: number[];
 }
