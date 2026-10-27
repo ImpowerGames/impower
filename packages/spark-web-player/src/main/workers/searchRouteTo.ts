@@ -27,6 +27,10 @@ export interface RouteSearchSettings {
   /** Search from the story's start (`Game.planRouteFromStart`) rather than
    *  from the top of the flow the address stands in. */
   fromStart?: boolean;
+  /** A search from the story's start ran the story out without reaching the
+   *  address, so this one searches the flow the address stands in alone
+   *  (`Game.planRouteInFlow`), and its record says the start was searched. */
+  startSearched?: boolean;
 }
 
 /** Plan a route to the address `to` and replay it, recording what the search
@@ -64,7 +68,30 @@ export const searchRouteFor = (
   log: RouteSearchLog,
   settings: RouteSearchSettings,
 ): StoredCheckpoint | undefined => {
-  const { config, profilerId, remember = true, fromStart = false } = settings;
+  const {
+    config,
+    profilerId,
+    remember = true,
+    fromStart = false,
+    startSearched = false,
+  } = settings;
+  if (!fromStart && !startSearched && game.routesFromStartFirst(to)) {
+    // Inside a scene that takes parameters, the route runs from the story's
+    // start, through the divert that enters the scene with its arguments, and
+    // is planned, resumed and recorded as a route from there. The scene's own
+    // route, which binds nil for each parameter, stands only when that search
+    // ran the story out; one cut short by a ceiling, or stopped by an error,
+    // is the verdict (#1608).
+    const checkpoint = searchRouteFor(game, to, log, {
+      ...settings,
+      fromStart: true,
+    });
+    if (log.outcomeFor(to)?.simulationFailure !== "exhausted") {
+      return checkpoint;
+    }
+    return searchRouteFor(game, to, log, { ...settings, startSearched: true });
+  }
+  const searchedFromStart = fromStart || startSearched;
   const from = fromStart ? "0" : game.routeStartOf(to);
   // Asked before anything replaces the planned route, because every question it
   // answers is about that route. Measured under its own name: it walks the
@@ -89,14 +116,23 @@ export const searchRouteFor = (
           config.simulationOptions,
           budget,
         )
-      : Game.planRoute(
-          game.story,
-          game.program,
-          from,
-          to,
-          config.simulationOptions,
-          budget,
-        );
+      : startSearched
+        ? Game.planRouteInFlow(
+            game.story,
+            game.program,
+            from,
+            to,
+            config.simulationOptions,
+            budget,
+          )
+        : Game.planRoute(
+            game.story,
+            game.program,
+            from,
+            to,
+            config.simulationOptions,
+            budget,
+          );
     profile("end", profilerId + " " + "game/planRoute");
     return route;
   };
@@ -124,7 +160,7 @@ export const searchRouteFor = (
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
-      fromStart,
+      fromStart: searchedFromStart,
     });
     if (checkpoint && remember) {
       // Cache favored conditions and choices
@@ -186,7 +222,7 @@ export const searchRouteFor = (
       simulationFailure: game.describeFailedRouteSearch(to),
       // Nothing was replayed; an error that stopped the search is why.
       errors: game.searchErrors(),
-      fromStart,
+      fromStart: searchedFromStart,
     });
     return undefined;
   }

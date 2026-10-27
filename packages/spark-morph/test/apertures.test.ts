@@ -129,6 +129,35 @@ describe("buildApertures", () => {
     expect(r.apertures.map((a) => a.edgeIds)).toEqual([["closed<>upper", "closed<>lower"]]);
   });
 
+  test("open lashes whose corner tips miss each other pair through the closed lash they share", () => {
+    // The lower lash's inner tip stops 31 units short of the upper's, past
+    // the open pose's tolerance, as drawn on some portraits; both still
+    // close onto one closed lash, whose tips are shared.
+    const lowerShort = "M25,68 C45,80 75,78 100,50 C72,88 40,88 25,68Z";
+    const r = buildApertures([edge("upper", upperOpen, closedLash), edge("lower", lowerShort, closedLash)]);
+    expect(r.diagnostics).toEqual([]);
+    expect(r.apertures.map((a) => a.edgeIds)).toEqual([["upper", "lower"]]);
+    const ap = r.apertures[0]!;
+    expect(ap.area(0)).toBeGreaterThan(1000);
+    expect(ap.area(1)).toBeLessThan(AREA_ZERO);
+    // Boundaries whose samples sit offset along the lash still close
+    // without the loop crossing itself, whichever edge comes first.
+    for (const lower of [lowerShort, "M35,80 C50,92 75,78 100,50 C72,88 50,100 35,80Z", "M25,40 C40,52 75,78 100,50 C72,88 40,60 25,40Z"]) {
+      for (const order of ["upper first", "lower first"]) {
+        const pair = [edge("upper", upperOpen, closedLash), edge("lower", lower, closedLash)];
+        const built = buildApertures(order === "upper first" ? pair : pair.reverse());
+        expect(built.diagnostics).toEqual([]);
+        for (let k = 0; k <= 100; k++) {
+          expect(properlyCrosses(built.apertures[0]!.loop(k / 100)), `${lower}, ${order}, loop at ${k / 100}`).toBe(false);
+        }
+      }
+    }
+    // Authored closed-to-open, the shared lash is at progress 0 instead.
+    const reverse = buildApertures([edge("upper", closedLash, upperOpen), edge("lower", closedLash, lowerShort)]);
+    expect(reverse.diagnostics).toEqual([]);
+    expect(reverse.apertures[0]!.area(1)).toBeCloseTo(ap.area(0), 0);
+  });
+
   test("two eyes yield two separate apertures", () => {
     const r = buildApertures([
       edge("upper-left", upperOpen, closedLash),
@@ -222,7 +251,8 @@ describe("buildApertures", () => {
     ]);
     expect(r.diagnostics).toEqual([]);
     expect(r.apertures).toHaveLength(1);
-    // Inner boundaries 2 * 14.0625 apart at 0.25, 100 wide.
+    // Inner boundaries 2 * 14.0625 apart at 0.25, 100 wide; their ends met
+    // at both rest poses, so the corners close straight.
     expect(r.apertures[0]!.area(0.25)).toBeCloseTo(2812.5, 6);
     expect(r.apertures[0]!.area(0.5)).toBeLessThan(AREA_ZERO);
   });

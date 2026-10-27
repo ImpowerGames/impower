@@ -4081,6 +4081,14 @@ export class ProgramStory implements StoryEngine {
     }
     return undefined;
   }
+
+  /** Whether the scene or branch a qualified name names binds parameters at
+   *  its start: what a divert into it passes, and nil for each when the
+   *  story is moved to it with no arguments (#664). */
+  takesParameters(path: string): boolean {
+    const target = this.placeName(path);
+    return target !== undefined && this.flowEntryTarget(target) !== null;
+  }
 }
 
 /** A protected call's failure for the error `e` it trapped: its message, and
