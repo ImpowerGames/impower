@@ -132,7 +132,7 @@ export function getMorphCompletions(
     // Keyframes replace rather than add to an ancestor's, so the poses are
     // the block's own when it writes keyframes, and otherwise the nearest
     // ancestor's that has keyframes.
-    const keyframes = Array.isArray(struct.keyframes) ? struct.keyframes : [];
+    const keyframes = Array.isArray(struct["keyframes"]) ? struct["keyframes"] : [];
     if (!posesFound && keyframes.length > 0) {
       posesFound = true;
       for (const keyframe of keyframes) {
