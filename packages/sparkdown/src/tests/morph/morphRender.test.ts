@@ -207,9 +207,61 @@ ${TORSO}
         expect(shown(frame).find((e) => e.attributes["data-name"] === "arm-left")!.attributes["d"]).not.toBe(RAISED);
       }
       expect(above(midway(plain, 0), "arm-left", "torso")).toEqual([false]);
+      // At each keyframe the same drawings show; the carrier copy stays hidden.
+      const drawn = (artifact: MorphArtifact, offset: number) =>
+        shown(elements(renderMorphAt(artifact, offset))).map((e) => [e.attributes["data-name"], e.attributes["d"]]);
       for (const offset of [0, 0.25, 0.5, 0.75, 1]) {
-        expect(renderMorphAt(named, offset)).toBe(renderMorphAt(plain, offset));
+        expect(drawn(named, offset)).toEqual(drawn(plain, offset));
       }
+      expect(named.rest).toBe(plain.rest);
+    });
+
+    test("a drawing of the named pose that a segment holds keeps its own place while a copy carries the moving shape", () => {
+      // A second arm-left, drawn in every state but `off`, holds through
+      // `down → half`; the raised pose draws only it.
+      const HELD = "M100,60H120V90H100Z";
+      const held = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100">
+<g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
+<g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>
+${TORSO}
+<g data-name="arm.down.half.raised"><path data-name="arm-left" d="${HELD}"/></g>
+<g data-name="arm.off"><path data-name="other" d="M0,0H5V5H0Z"/></g>
+</svg>`;
+      const named = bake(raise({ depth: "arm.raised" }, ["down", "half", "raised", "off"]), held);
+      expect(named.status).toBe("live");
+      const frame = midway(named, 0);
+      const arms = shown(frame).filter((e) => e.attributes["data-name"] === "arm-left");
+      expect(arms.map((e) => e.attributes["d"])).toContain(HELD);
+      expect(arms).toHaveLength(2);
+      // The moving copy sits where the held drawing does, above the torso.
+      expect(above(frame, "arm-left", "torso")).toEqual([true, true]);
+    });
+
+    test("several drawings of the named pose are told apart by box centres that include their curves", () => {
+      // Both raised drawings run from (0,50) to (100,50); the one bowing up
+      // is drawn behind the torso, the one bowing down, nearer the moving
+      // arm, in front of it.
+      const curved = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+<g data-name="arm.down:default"><path data-name="arm-left" d="M30,60H70V80H30Z"/></g>
+<g data-name="arm.half"><path data-name="arm-left" d="M30,62H70V82H30Z"/></g>
+<g data-name="arm.raised"><path data-name="arm-left" d="M0,50C0,25 100,25 100,50Z"/></g>
+${TORSO}
+<g data-name="arm.raised"><path data-name="arm-left" d="M0,50C0,75 100,75 100,50Z"/></g>
+</svg>`;
+      const named = bake(raise({ depth: "arm.raised" }, ["down", "half", "raised"]), curved);
+      expect(named.status).toBe("live");
+      expect(above(midway(named, 0), "arm-left", "torso")).toEqual([true]);
+    });
+
+    test("a named-pose drawing whose geometry the bake cannot read is not used, and the label warns", () => {
+      const unreadable = arm
+        .replace(`${TORSO}`, `<g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>\n${TORSO}`)
+        .replace(`d="${RAISED}"`, `d="${RAISED}" style="d:path('M10,10h10v10h-10Z')"`);
+      const states = ["down", "half", "raised"];
+      const plain = bake(raise({}, states), unreadable);
+      const named = bake(raise({ depth: "arm.raised" }, states), unreadable);
+      expect(renderMorphFrame(named, { segment: 0, progress: 0.5 })).toBe(renderMorphFrame(plain, { segment: 0, progress: 0.5 }));
+      expect(ignored(named)).toHaveLength(1);
     });
 
     test("the root's `depth` applies to every label, and a label's `depth = rest` undoes it", () => {

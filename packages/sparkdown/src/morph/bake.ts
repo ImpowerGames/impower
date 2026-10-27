@@ -255,6 +255,42 @@ const loopsPathData = (loops: number[][]): string =>
     })
     .join("");
 
+/**
+ * A cubic's ends and the points where it turns in x or y, which together
+ * bound it: its handles can reach past the curve, its ends alone fall short.
+ */
+const cubicExtremes = (c: Subpath["segments"][number]): Point[] => {
+  const at = (t: number): Point => {
+    const u = 1 - t;
+    const [a, b, d, e] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+    return [
+      a * c.p0[0] + b * c.c1[0] + d * c.c2[0] + e * c.p1[0],
+      a * c.p0[1] + b * c.c1[1] + d * c.c2[1] + e * c.p1[1],
+    ];
+  };
+  const points: Point[] = [c.p0, c.p1];
+  for (const axis of [0, 1] as const) {
+    const [p, q, r, s] = [c.p0[axis], c.c1[axis], c.c2[axis], c.p1[axis]];
+    // Where the derivative, a quadratic in t, is zero.
+    const qa = -p + 3 * q - 3 * r + s;
+    const qb = 2 * (p - 2 * q + r);
+    const qc = q - p;
+    const roots =
+      Math.abs(qa) < 1e-12
+        ? Math.abs(qb) < 1e-12
+          ? []
+          : [-qc / qb]
+        : (() => {
+            const disc = qb * qb - 4 * qa * qc;
+            if (disc < 0) return [];
+            const root = Math.sqrt(disc);
+            return [(-qb + root) / (2 * qa), (-qb - root) / (2 * qa)];
+          })();
+    for (const t of roots) if (t > 0 && t < 1) points.push(at(t));
+  }
+  return points;
+};
+
 const isLine = (c: Subpath["segments"][number]) =>
   c.c1[0] === c.p0[0] && c.c1[1] === c.p0[1] && c.c2[0] === c.p1[0] && c.c2[1] === c.p1[1];
 
@@ -576,18 +612,14 @@ export function* bakeSteps(
     if (pose.state === requirements.rest.get(group)) return restVisible;
     return visibleIn.get(group)?.get(pose.state);
   };
-  /**
-   * The drawing of `leaf`'s label that `pose` shows among the drawings of
-   * `group`: where it has several, the one whose box centre is nearest
-   * `leaf`'s, the first in paint order on a tie.
-   */
+  /** The centre of a drawing's box in root space, curves included. */
   const centre = (leaf: Leaf): Point | undefined => {
     const geometry = rootGeometry(leaf);
     if (!geometry) return undefined;
     let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
     for (const subpath of geometry) {
-      for (const { p0, p1 } of subpath.segments) {
-        for (const [x, y] of [p0, p1]) {
+      for (const cubic of subpath.segments) {
+        for (const [x, y] of cubicExtremes(cubic)) {
           minX = Math.min(minX, x);
           minY = Math.min(minY, y);
           maxX = Math.max(maxX, x);
@@ -597,6 +629,12 @@ export function* bakeSteps(
     }
     return minX <= maxX ? [(minX + maxX) / 2, (minY + maxY) / 2] : undefined;
   };
+  /**
+   * The drawing of `leaf`'s label that `pose` shows among the drawings of
+   * `group` whose geometry the bake reads, so a carrier copied from it takes
+   * the moving frames: where it has several, the one whose box centre is
+   * nearest `leaf`'s, the first in paint order on a tie.
+   */
   const drawingIn = (pose: Record<string, boolean>, leaf: Leaf, group: string): Leaf | undefined => {
     const origin = centre(leaf);
     let best: { leaf: Leaf; distance: number } | undefined;
@@ -604,7 +642,8 @@ export function* bakeSteps(
       if (!candidate.live || candidate.group !== group || candidate.label !== leaf.label) continue;
       if (!visibleAt(candidate.element, pose)) continue;
       const at = centre(candidate);
-      const distance = origin && at ? Math.hypot(at[0] - origin[0], at[1] - origin[1]) : Infinity;
+      if (!at) continue;
+      const distance = origin ? Math.hypot(at[0] - origin[0], at[1] - origin[1]) : 0;
       if (!best || distance < best.distance) best = { leaf: candidate, distance };
     }
     return best?.leaf;
@@ -760,7 +799,7 @@ export function* bakeSteps(
       }
       for (const u of pairing.unpaired) (u.side === "from" ? unpairedFrom : unpairedTo).push(byNode.get(u.shape.id)!);
       // Tracks of this segment already drawing on each home drawing.
-      const homed = new Map<Leaf, number>();
+      const homed = new Map<Leaf, { node: boolean; carriers: number }>();
       for (const pair of pairing.pairs) {
         yield;
         const from = byNode.get(pair.from.id)!;
@@ -818,9 +857,17 @@ export function* bakeSteps(
         // same home (two open lashes converging on the closed lash a variant
         // rests on) draws on a carrier copied beside it, at the same depth,
         // and so does every track of a basic shape, whose own markup stays.
-        const count = homed.get(home) ?? 0;
-        homed.set(home, count + 1);
-        const draw = isPath(home) ? (count === 0 ? nodeOf(home) : carrierOf(home, count - 1)) : carrierOf(home, count);
+        // A home in a pose this segment does not reach may be held, fading or
+        // another pair's end, so a track always draws on a carrier there.
+        const slots = homed.get(home) ?? { node: false, carriers: 0 };
+        homed.set(home, slots);
+        let draw: string;
+        if (isPath(home) && !posed && !slots.node) {
+          slots.node = true;
+          draw = nodeOf(home);
+        } else {
+          draw = carrierOf(home, slots.carriers++);
+        }
         const ref = addFrames(cacheKey, morph, space, reversed);
         transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
@@ -866,7 +913,12 @@ export function* bakeSteps(
             const direction = side === "from" ? "shrink" : "grow";
             const morph = morphScale(geometry, direction);
             const ref = addFrames(`${leaf.key}:${direction}`, morph, space, false);
-            transitions.push({ kind: "scale", node: nodeOf(leaf), draw: isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, 0), direction, frames: ref });
+            // A basic shape scales on a carrier, after any a track of this
+            // segment already draws on.
+            const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
+            homed.set(leaf, slots);
+            const draw = isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, slots.carriers++);
+            transitions.push({ kind: "scale", node: nodeOf(leaf), draw, direction, frames: ref });
             return;
           }
           // Geometry the bake could not read was reported where it was read.
