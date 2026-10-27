@@ -4395,6 +4395,17 @@ export class SparkdownCompiler {
         this._statementRecords.get(block) ??
         this._preludeStatementRecords.get(block),
       lineCount,
+      flowEndLine: (() => {
+        const byScript = new Map<string, Map<number, number>>();
+        return (scriptUri: string, header: number) => {
+          let ends = byScript.get(scriptUri);
+          if (!ends) {
+            ends = new Map(this.flowEndsOf(scriptUri));
+            byScript.set(scriptUri, ends);
+          }
+          return ends.get(header);
+        };
+      })(),
     });
     // The store interns into the compiler's persistent table, which
     // `maybeReseedBinaryTable` bounds, and keeps no table of its own.
@@ -4701,6 +4712,37 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateFiles", uri);
   }
 
+  /** The header line and the closing `end`'s line of each scene and branch
+   *  of a script, counting from 0, in the order of those ends: each root-level
+   *  `end` the declarations channel marks closes the innermost open scene or
+   *  branch, a branch closing any branch still open under its scene, and a
+   *  stray `end` closes nothing. */
+  flowEndsOf(uri: string): [headerLine: number, endLine: number][] {
+    const doc = this.documents.get(uri);
+    const cur = doc ? this.documents.annotations(uri).declarations.iter() : undefined;
+    const ends: [number, number][] = [];
+    if (!doc || !cur) {
+      return ends;
+    }
+    let open: { kind: "scene" | "branch"; line: number }[] = [];
+    while (cur.value) {
+      const type = cur.value.type;
+      if (type === "scene") {
+        open = [{ kind: "scene", line: doc.lineAt(cur.from) }];
+      } else if (type === "branch") {
+        open.length = open.findLastIndex((p) => p.kind === "scene") + 1;
+        open.push({ kind: "branch", line: doc.lineAt(cur.from) });
+      } else if (type === "end") {
+        const closed = open.pop();
+        if (closed) {
+          ends.push([closed.line, doc.lineAt(cur.from)]);
+        }
+      }
+      cur.next();
+    }
+    return ends;
+  }
+
   populateDeclarationLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateDeclarationLocations", uri);
@@ -4708,6 +4750,11 @@ export class SparkdownCompiler {
     for (const uri of scripts) {
       const doc = this.documents.get(uri);
       const scriptIndex = scripts.indexOf(uri);
+      const ends = this.flowEndsOf(uri);
+      if (ends.length > 0) {
+        program.flowEnds ??= {};
+        program.flowEnds[uri] = ends;
+      }
       if (doc) {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.declarations.iter();
@@ -4717,8 +4764,6 @@ export class SparkdownCompiler {
         let scopePathParts: {
           kind: "scene" | "branch" | "label";
           name: string;
-          /** A scene's or branch's header line. */
-          line?: number;
         }[] = [];
         if (cur) {
           while (cur.value) {
@@ -4741,10 +4786,7 @@ export class SparkdownCompiler {
                 (p) => p.kind === "scene" || p.kind === "branch",
               );
               if (closed >= 0) {
-                const header = scopePathParts[closed]!.line!;
                 scopePathParts.length = closed;
-                program.flowEnds ??= {};
-                (program.flowEnds[uri] ??= []).push([header, range.start.line]);
               }
             }
             if (cur.value.type === "scene") {
@@ -4752,7 +4794,6 @@ export class SparkdownCompiler {
               scopePathParts.push({
                 kind: "scene",
                 name: doc.read(cur.from, cur.to),
-                line: range.start.line,
               });
               program.sceneLocations ??= {};
               program.sceneLocations[name] = [
@@ -4771,7 +4812,6 @@ export class SparkdownCompiler {
               scopePathParts.push({
                 kind: "branch",
                 name: doc.read(cur.from, cur.to),
-                line: range.start.line,
               });
               const name = scopePathParts.map((p) => p.name).join(".");
               program.branchLocations ??= {};

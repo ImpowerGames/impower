@@ -10,7 +10,7 @@ import {
   readableSymbolLabel,
   type SymbolKindValue,
 } from "./ProgramSymbols";
-import { Op, opOf } from "./ProgramInstructions";
+import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
 import {
   ANCHOR_STATEMENT,
   BLOCK_FUNCTION,
@@ -1021,14 +1021,34 @@ export class ProgramRoot {
     return row;
   }
 
-  /** The address of the last statement of the scene or branch of a script
-   *  whose header stands on `header` (counting from 0), which a run that
-   *  enters the flow and runs to its end runs last; nothing for a flow with
-   *  no statements of its own, such as a scene that enters its first
-   *  branch, or no such flow. */
-  lastStatementAddress(uri: string, header: number): number | undefined {
-    const chunk = this.flowHeadedAt(uri, header)?.arrays.chunks.at(-1);
-    return chunk ? addressOf(chunkId(chunk), 0) : undefined;
+  /** The address of the end of the scene or branch of a script whose header
+   *  stands on `header` (counting from 0): its last chunk, the `Done` the
+   *  compile gives a flow that enters no branch (`programFlows`' `flowEnd`),
+   *  which a run reaches only when it runs off the flow's end. Nothing when
+   *  the statement before it leaves the flow itself (a `done`, a `fin`, a
+   *  divert or a tunnel's return), so that no run reaches it, for a flow
+   *  that enters a branch, and for no such flow. */
+  flowEndAddress(uri: string, header: number): number | undefined {
+    const chunks = this.flowHeadedAt(uri, header)?.arrays.chunks ?? [];
+    const end = chunks.at(-1);
+    if (!end || codeWords(end) !== 2 || opOf(end[HEADER_WORDS]!) !== Op.Done) {
+      return undefined;
+    }
+    const before = chunks.at(-2);
+    if (before && codeWords(before) >= 2) {
+      const last = before[HEADER_WORDS + codeWords(before) - 2]!;
+      const op = opOf(last);
+      if (
+        op === Op.End ||
+        op === Op.JumpSym ||
+        op === Op.JumpVar ||
+        op === Op.TunnelReturn ||
+        (op === Op.Done && (flagsOf(last) & DONE_HOLD) === 0)
+      ) {
+        return undefined;
+      }
+    }
+    return addressOf(chunkId(end), 0);
   }
 
   /** Whether the scene or branch of a script whose header stands on

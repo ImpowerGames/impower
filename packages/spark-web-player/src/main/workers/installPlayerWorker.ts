@@ -921,25 +921,25 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   /**
    * The line and beat a display or PLAY of `point` routes to: the point's own
-   * `beat`. The `end` that closes a scene or branch belongs to that flow
-   * rather than to the line below it that has an address, which another
-   * flow holds (#1618), and a line with no address and none below it in its
-   * script (the blank lines after the script's last `end`) has no flow below
-   * it to belong to. Either is where the story stands once the line above it
-   * that has one has run, so it routes to that line's last beat, whose route
-   * puts the beat on screen there in its checkpoint (#1606). For a closing
-   * `end`, that line is the flow's own: a scene's `end` passes over the
-   * branches written inside the scene, which the scene does not run through,
-   * and an empty scene's or branch's `end` holds the flow's own address. A
-   * scene with no such line of its own enters its first branch when that
-   * branch takes no parameters, so it takes that branch's. One whose first
-   * branch takes parameters enters no branch, and with more script below it
-   * takes the address of its own last statement, which no line resolves to
-   * (`ProgramRoot.lastStatementAddress`). Any other flow with no line of its
-   * own, and such a scene at the end of the script, takes the nearest line
-   * above it that has one. With no such line above, the point
-   * stands, and a run from it starts from where its address leads, or from
-   * the top of the top-level content.
+   * `beat`. The `end` that closes a scene or branch belongs to that flow,
+   * not to the line below it, which another flow holds (#1618). It routes to
+   * where the flow finishes:
+   * - for a flow that runs off its end, the `Done` the compile ends it with
+   *   (`ProgramRoot.flowEndAddress`), which a route reaches only when a run
+   *   finishes the flow, whatever its conditionals decided; the point names
+   *   that address, since the line of a scene's `end` can stand in a
+   *   branch's lines or resolve elsewhere;
+   * - for a flow that ends itself (a `done`, a `fin`, a divert), the last
+   *   beat of its own nearest line above the `end` that has an address,
+   *   passing over the branches written inside a scene, as the story stands
+   *   once that line has run (#1606);
+   * - for a scene that enters its first branch (one that binds no
+   *   parameters), what that branch's `end` routes to.
+   * A line with no address and none below it in its script (the blank lines
+   * after the script's last `end`), or a closing `end` none of these place,
+   * routes to the last beat of the nearest line above it that has one. With
+   * no such line above, the point stands, and a run from it starts from
+   * where its address leads, or from the top of the top-level content.
    */
   const startPoint = (
     program: SparkProgram,
@@ -973,36 +973,23 @@ export function installPlayerWorker(connection: MessageConnection) {
     };
     if (closed) {
       const [header] = closed;
+      const address = program.chunks?.flowEndAddress(point.file, header);
+      if (address !== undefined) {
+        return { point: { ...point, address }, beat: "last" };
+      }
       const nested = ends.filter(([h, e]) => h > header && e < point.line);
-      // An empty flow's own address stands on its `end` (`emptyFlowEnd`).
-      const own = lineAbove(point.line, header, nested);
+      const own = lineAbove(point.line - 1, header, nested);
       if (own) {
         return own;
       }
       // A scene that runs nothing of its own before its first branch enters
-      // that branch when it binds no parameters (`programFlows`), and ends
-      // as that branch does.
+      // that branch when it binds no parameters (`programFlows`).
       const first = nested.reduce<(typeof nested)[number] | undefined>(
         (earliest, flow) => (!earliest || flow[0] < earliest[0] ? flow : earliest),
         undefined,
       );
-      const entered =
-        first &&
-        program.chunks?.bindsParameters(point.file, first[0]) === false &&
-        lineAbove(first[1], first[0], []);
-      if (entered) {
-        return entered;
-      }
-      // A scene whose content is branches it does not enter ends at its own
-      // last statement, the `Done` it runs on its header's line
-      // (`emptyFlowEnd`). At the end of the script, the line above it stands
-      // (#1606).
-      const address =
-        first && locator.addressAt(point.file, point.line) != null
-          ? program.chunks?.lastStatementAddress(point.file, header)
-          : undefined;
-      if (address !== undefined) {
-        return { point: { ...point, address }, beat: "last" };
+      if (first && program.chunks?.bindsParameters(point.file, first[0]) === false) {
+        return startPoint(program, { file: point.file, line: first[1] }, beat);
       }
     }
     return lineAbove(point.line - 1, -1, []) ?? { point, beat };

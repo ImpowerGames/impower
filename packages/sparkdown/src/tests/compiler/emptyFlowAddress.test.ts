@@ -81,7 +81,7 @@ end
     ]);
   });
 
-  it("stands on the first line below the header when only a comment is there", () => {
+  it("stands on the end when only a comment is between, which the header falls through to", () => {
     const text = `scene start
   // nothing yet
 end
@@ -89,14 +89,15 @@ scene other
   Other.
 end
 `;
-    expect(resolved(text, [0, 1])).toEqual([
-      [1, "start"],
-      [1, "start"],
+    expect(resolved(text, [0, 1, 2])).toEqual([
+      [2, "start"],
+      [2, "start"],
+      [2, "start"],
     ]);
   });
 });
 
-describe("the last statement of a scene whose content is branches it does not enter", () => {
+describe("the end of a scene whose content is branches it does not enter", () => {
   const text = `-> start
 scene start
   branch needs(a)
@@ -112,7 +113,7 @@ end
   it("stands on the scene's header, in the scene", () => {
     const program = compile(text);
     const locator = programLocator(program);
-    const address = program.chunks.lastStatementAddress(URI, 1);
+    const address = program.chunks.flowEndAddress(URI, 1);
     expect(address).toBeTypeOf("number");
     expect(locator.locationOf(address)?.startLine).toBe(1);
     expect(locator.sceneAt(address)).toBe("start");
@@ -145,5 +146,33 @@ end
     expect(
       [0, 1, 4, 7, 10].map((header) => root.bindsParameters(URI, header)),
     ).toEqual([true, false, true, false, false]);
+  });
+});
+
+describe("the end of a flow that runs off its end", () => {
+  const text = `scene start
+  First.
+  if false then
+    Skipped.
+  end
+end
+scene other
+  Other.
+  done
+end
+`;
+
+  it("stands on the flow's closing end, which resolves to it", () => {
+    const program = compile(text);
+    const locator = programLocator(program);
+    const address = program.chunks.flowEndAddress(URI, 0);
+    expect(locator.locationOf(address)?.startLine).toBe(5);
+    expect(locator.sceneAt(address)).toBe("start");
+    expect(locator.addressAt(URI, 5)).toBe(address);
+  });
+
+  it("is none for a flow that ends itself", () => {
+    const program = compile(text);
+    expect(program.chunks.flowEndAddress(URI, 6)).toBeUndefined();
   });
 });

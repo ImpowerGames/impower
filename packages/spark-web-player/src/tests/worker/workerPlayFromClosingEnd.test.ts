@@ -303,3 +303,74 @@ describe("the preview after the end of a scene whose branches it does not enter"
     }
   }, 120_000);
 });
+
+// The flow runs off its end past a conditional that shows nothing.
+const AFTER_CONDITIONAL = `-> start
+scene start
+  First.
+  if false then
+    Skipped.
+  end
+end
+scene other
+  Other.
+end
+`;
+
+// The same in a branch, which a divert enters.
+const BRANCH_AFTER_CONDITIONAL = `-> start.inner
+scene start
+  branch inner
+    First.
+    if false then
+      Skipped.
+    end
+  end
+  branch other
+    Other.
+  end
+end
+`;
+
+// The conditional's beat shows, so it is the beat on screen at the end.
+const AFTER_TRUE_CONDITIONAL = `-> start
+scene start
+  First.
+  if true then
+    Shown.
+  end
+end
+scene other
+  Other.
+end
+`;
+
+// The same flow at the end of the script.
+const AFTER_CONDITIONAL_AT_END = `-> start
+scene start
+  First.
+  if false then
+    Skipped.
+  end
+end
+`;
+
+describe("PLAY and the preview at the end of a flow that runs off its end", () => {
+  it.each([
+    ["a scene's end past a conditional that shows nothing", AFTER_CONDITIONAL, 6, "First.", ["Skipped.", "Other."]],
+    ["a branch's end past a conditional that shows nothing", BRANCH_AFTER_CONDITIONAL, 7, "First.", ["Skipped.", "Other."]],
+    ["a scene's end past a conditional that shows its beat", AFTER_TRUE_CONDITIONAL, 6, "Shown.", ["Other."]],
+    ["a scene's end at the end of the script, past a conditional", AFTER_CONDITIONAL_AT_END, 6, "First.", ["Skipped."]],
+  ] as const)("at %s, shows the beat the run left on screen", async (_name, source, line, shown, notShown) => {
+    const outcome = await playFrom(source, line);
+    expect(outcome.started).toBe(true);
+    expect(outcome.state).toBe("running");
+    expect(outcome.text).toContain(shown);
+    const preview = await previewAt(source, line);
+    expect(preview).toContain(shown);
+    for (const text of notShown) {
+      expect(outcome.text).not.toContain(text);
+      expect(preview).not.toContain(text);
+    }
+  }, 120_000);
+});
