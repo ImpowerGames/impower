@@ -495,7 +495,7 @@ describe("a movie on a layer, in play", () => {
     },
   );
 
-  test("a playing loop the browser's own seek to its start left behind the clock is placed where the clock has it on the clock's next frame, and one in step is left alone", async () => {
+  test("a playing loop runs on through the browser's own seek to its start, and the next skip places it where the clock has it", async () => {
     const { h } = await playing();
     const clock = { elapsedTime: 10 };
     appOf(h).clock = clock;
@@ -510,30 +510,66 @@ describe("a movie on a layer, in play", () => {
     // The clock's frames, which update the page with a current reading.
     const frame = () => h.ui.onUpdate(clock as any);
     // At 13.4 the loop has come round, and the browser's seek back to its
-    // start stalled: the element stands at 0.05 where the clock has 0.4. It
-    // is placed on the clock's next frame.
+    // start stalled: the element stands at 0.05 where the clock has 0.4. That
+    // is playback; the page does not seek it.
     clock.elapsedTime = 13.4;
     video.currentTime = 0.05;
     seeked();
+    frame();
     expect(video.currentTime).toBe(0.05);
-    frame();
-    expect(video.currentTime).toBeCloseTo(0.4);
-    // That seek lands where it was asked.
-    seeked();
-    frame();
-    expect(video.currentTime).toBeCloseTo(0.4);
     // With no frames (a hidden page) the clock's reading stays at 13.5 while
     // the movie plays on and comes round again: nothing is placed by it.
     clock.elapsedTime = 13.5;
     video.currentTime = 0.001;
     seeked();
     expect(video.currentTime).toBe(0.001);
-    // Frames come back at 19.48, the element at 0.45 and the clock at 0.48:
-    // in step, so not seeked.
-    clock.elapsedTime = 19.48;
-    video.currentTime = 0.45;
+    // The next skip goes from where the clock has it: 13.6 is 0.6 round.
+    clock.elapsedTime = 13.6;
     frame();
-    expect(video.currentTime).toBe(0.45);
+    h.ui.onSkip(0);
+    expect(video.currentTime).toBeCloseTo(0.6);
+  });
+
+  test("a loop paused at the instant it reaches its end stands on its first frame", async () => {
+    const { h } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    (video as any).__duration = 3;
+    // The browser reports the end of the loop, its last frame, as the game
+    // pauses.
+    clock.elapsedTime = 13;
+    video.currentTime = 3;
+    appOf(h).paused = true;
+    h.ui.onPause();
+    expect(video.currentTime).toBe(0);
+    h.ui.onSkip(0);
+    expect(video.currentTime).toBe(0);
+  });
+
+  test("a duration learned while the game plays is placed with the clock's reading on its next frame, not with a stale one", async () => {
+    const { h } = await playing();
+    const clock = { elapsedTime: 10 };
+    appOf(h).clock = clock;
+    // Started at its first frame at game time 10, with no duration.
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.loop).toBe(true);
+    const frame = () => h.ui.onUpdate(clock as any);
+    // With no frames (a hidden page) the clock's reading stays at 10.5 while
+    // the movie plays on to 2 s, where the browser learns its 3 s duration.
+    clock.elapsedTime = 10.5;
+    (video as any).__duration = 3;
+    video.currentTime = 2;
+    video.dispatchEvent(
+      new (h.overlay.ownerDocument.defaultView as any).Event("durationchange"),
+    );
+    expect(video.currentTime).toBe(2);
+    // Frames come back at 12.02: the clock has it at 2.02, in step.
+    clock.elapsedTime = 12.02;
+    frame();
+    expect(video.currentTime).toBe(2);
   });
 
   test("a paused loop the clock puts at its start stands on its first frame, not on its last", async () => {

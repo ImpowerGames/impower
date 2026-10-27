@@ -1,11 +1,12 @@
 // Where a layer's movie stands in Chromium's own media element, with the
-// production UIManager, Application and Clock: after each settle of a skip,
-// a rewind, playback and a Fast Forward hold, the element must stand where
-// the game clock puts the movie (within 0.02 s while paused, where a loop's
-// last frame is not its first, and within the quarter second UIManager
-// counts as in step while playing), and a movie in step with the clock must
-// not be seeked by the page, including while the clock gets no animation
-// frames, as in a hidden page.
+// production UIManager, Application and Clock. After each settle of a skip,
+// a rewind or a pause, the element and the anchor must stand where the game
+// clock puts the movie, within 0.02 s (a paused loop's last frame is not its
+// first). While the movie plays, its anchor must keep the clock, and the
+// page must not seek a movie in step with it, nor any movie while the clock
+// gets no animation frames, as in a hidden page; between skips the element
+// runs on the browser's own playback, and its drift from the clock is
+// measured and printed, not asserted.
 //
 // Run from the repository root (needs Playwright's Chromium):
 //
@@ -28,7 +29,8 @@ import { build } from "esbuild";
 import { chromium } from "playwright";
 
 type Fixture = "known" | "learned" | "infinite";
-type First = "before" | "inside" | "past" | "twice" | "none" | "unframed";
+type First =
+  "before" | "inside" | "past" | "twice" | "none" | "unframed" | "long";
 interface Case {
   fixture: Fixture;
   loop: boolean;
@@ -68,6 +70,9 @@ cases.push({ fixture: "learned", loop: false, first: "twice" });
 // wraps of the loop, then gets them again.
 cases.push({ fixture: "known", loop: true, first: "unframed" });
 cases.push({ fixture: "infinite", loop: true, first: "unframed" });
+// Playing four times round with no skip, its drift from the clock measured.
+cases.push({ fixture: "known", loop: true, first: "long" });
+cases.push({ fixture: "infinite", loop: true, first: "long" });
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const bundle = await build({
@@ -333,6 +338,30 @@ try {
           detail: `element ${video.currentTime.toFixed(3)} anchor ${row.position.toFixed(3)} clock ${want.toFixed(3)} (duration ${row.duration}, tolerance ${tolerance})`,
         });
       };
+      // Between skips a playing movie runs on the browser's own playback, so
+      // its element can drift from the clock: measured, not asserted. Its
+      // anchor keeps the clock, which is asserted.
+      const measure = (step: string) => {
+        const row = snap(step);
+        const d = span() ?? Infinity;
+        if (!c.loop) {
+          tally = Math.min(tally, d);
+        }
+        const want = Number.isFinite(d) ? expected(d) : tally;
+        const drift = distance(video.currentTime, want, d);
+        const anchor = distance(
+          c.loop && Number.isFinite(d) ? mod(row.position, d) : row.position,
+          want,
+          d,
+        );
+        Object.assign(row, { drift });
+        checks.push({
+          case: name,
+          step: `${step}: the anchor keeps the clock`,
+          ok: anchor <= 0.02,
+          detail: `element ${video.currentTime.toFixed(3)} (drift ${drift.toFixed(3)}) anchor ${row.position.toFixed(3)} clock ${want.toFixed(3)} (duration ${row.duration})`,
+        });
+      };
       const skip = async (seconds: number) => {
         const known = span() !== undefined;
         app.skip(seconds);
@@ -343,27 +372,55 @@ try {
           tally = Math.min(tally, d);
         }
       };
+      // The next pause and skip place a movie that drifted: the pause anchors
+      // it where its element stands, and a skip moves both exactly.
+      const pauseAndSkip = async () => {
+        app.pause();
+        await settle();
+        tally = video.currentTime;
+        const held = video.currentTime;
+        await skip(0);
+        await settle();
+        checks.push({
+          case: name,
+          step: "paused after play, zero skip leaves the frame",
+          ok: Math.abs(video.currentTime - held) <= 0.02 && !video.seeking,
+          detail: `${held.toFixed(3)} -> ${video.currentTime.toFixed(3)}`,
+        });
+        await skip(0.5);
+        await settle();
+        check("paused after play, skip 0.5", 0.02);
+      };
 
-      if (c.first === "unframed") {
+      if (c.first === "unframed" || c.first === "long") {
         await loaded;
         ui.startMovie(video);
         const game = clock.elapsedTime;
         playing = { tally: 0, game };
-        await delay(300);
-        const held = writes.length;
-        unframed = true;
-        await delay(knownSpan * 2200);
-        const resumed = writes.length;
-        reframe();
-        await delay(600);
-        tally = clock.elapsedTime - game;
-        check("playing after frames held back for two wraps", 0.25);
-        checks.push({
-          case: name,
-          step: "no seek by the page while frames were held back",
-          ok: resumed === held,
-          detail: `page seeks: ${JSON.stringify(writes.slice(held, resumed))}`,
-        });
+        if (c.first === "unframed") {
+          await delay(300);
+          const held = writes.length;
+          unframed = true;
+          await delay(knownSpan * 2200);
+          const resumed = writes.length;
+          reframe();
+          await delay(600);
+          tally = clock.elapsedTime - game;
+          measure("playing after frames held back for two wraps");
+          checks.push({
+            case: name,
+            step: "no seek by the page while frames were held back",
+            ok: resumed === held,
+            detail: `page seeks: ${JSON.stringify(writes.slice(held, resumed))}`,
+          });
+        } else {
+          // Twelve seconds, four times round, with no skip.
+          for (let i = 1; i <= 24; i += 1) {
+            await delay(500);
+            tally = clock.elapsedTime - game;
+            measure(`playing ${(i / 2).toFixed(1)} s with no skip`);
+          }
+        }
         checks.push({
           case: name,
           step: "playing in step is not seeked",
@@ -371,6 +428,7 @@ try {
           detail: `page seeks (value, gap to the clock): ${JSON.stringify(writes)}`,
         });
         playing = undefined;
+        await pauseAndSkip();
         snap("done");
         clock.stop();
         return { checks, rows };
@@ -395,6 +453,7 @@ try {
         twice: 2 * knownSpan,
         none: 0,
         unframed: 0,
+        long: 0,
       }[c.first];
       if (c.first !== "none") {
         await skip(first);
@@ -423,7 +482,7 @@ try {
       await delay(c.first === "none" ? 3800 : 1600);
       tally += clock.elapsedTime - game;
       playing = undefined;
-      check("playing", 0.25);
+      measure("playing");
       checks.push({
         case: name,
         step: "playing in step is not seeked",
@@ -442,19 +501,9 @@ try {
         await delay(25);
       }
       tally += clock.elapsedTime - game;
-      check("Fast Forward held while playing", 0.25);
+      measure("Fast Forward held while playing");
 
-      app.pause();
-      await settle();
-      const held = video.currentTime;
-      await skip(0);
-      await settle();
-      checks.push({
-        case: name,
-        step: "paused after play, zero skip leaves the frame",
-        ok: Math.abs(video.currentTime - held) <= 0.02 && !video.seeking,
-        detail: `${held.toFixed(3)} -> ${video.currentTime.toFixed(3)}`,
-      });
+      await pauseAndSkip();
       snap("done");
       clock.stop();
       return { checks, rows };
@@ -479,6 +528,14 @@ for (const [i, check] of outcome.checks.entries()) {
   console.log(
     `${check.ok ? "ok" : "not ok"} ${i + 1} - ${check.case}: ${check.step} (${check.detail})`,
   );
+}
+console.log("Drift of a playing movie's element from the clock (measured):");
+for (const row of outcome.rows) {
+  if (typeof row["drift"] === "number") {
+    console.log(
+      `  ${row["case"]}: ${row["step"]}: ${row["drift"].toFixed(3)} s`,
+    );
+  }
 }
 const retained = outcome.rows.filter(
   (row) => row["duration"] === "Infinity" && !row["seeking"],

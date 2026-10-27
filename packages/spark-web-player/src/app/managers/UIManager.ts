@@ -2462,13 +2462,19 @@ export default class UIManager extends Manager {
   protected _disposed = false;
 
   /** The game paused: so does every movie it plays, each anchored where it
-   *  stands, which a stalled start or decode can leave behind the clock. */
+   *  stands, which a stalled start, a decode or the browser's own playback
+   *  can leave away from the clock, and placed there by the one rule: a loop
+   *  paused at the instant it reaches its end stands on its first frame. */
   protected pauseMovies() {
     for (const video of this.movies()) {
       if (!video.paused) {
         video.pause();
       }
-      this.anchorMovie(video, video.currentTime);
+      const place = this.moviePlace(video, video.currentTime);
+      this.anchorMovie(video, place.anchor);
+      if (Math.abs(video.currentTime - place.element) > MOVIE_AT) {
+        this.seekMovie(video, place.element);
+      }
     }
   }
 
@@ -2554,11 +2560,16 @@ export default class UIManager extends Manager {
       : video.currentTime;
   }
 
-  /** The browser reported where `video` stands or can stand: it loaded its
-   *  metadata, learned its duration, ended, or settled a seek. The browser
-   *  decides where an element can stand, so the movie is placed again by
-   *  the one rule from where the clock has it, with the span the browser now
-   *  reports (`placeMovie`); one that ended is placed at its end.
+  /** The browser reported where `video` can stand: it loaded its metadata,
+   *  learned its duration, ended, or settled a seek the page asked for. The
+   *  browser decides where an element can stand, so the movie is placed
+   *  again by the one rule from where the clock has it, with the span the
+   *  browser now reports (`placeMovie`); one that ended is placed at its end.
+   *
+   *  Between those reports and the clock's own operations (skip, pause,
+   *  resume) a playing movie runs on the browser's own playback: a seek the
+   *  page did not ask for, a loop's return to its start, is playback and
+   *  places nothing.
    *
    *  A seek the page asked for that landed where it asked is that placement
    *  already, and is left as it is: the clock ran on while the seek decoded,
@@ -2589,27 +2600,30 @@ export default class UIManager extends Manager {
       const asked = (video as any).__sdSeek as
         { time: number; span: number | undefined } | undefined;
       delete (video as any).__sdSeek;
-      if (asked) {
-        // A playing movie moves on from where it landed before this runs,
-        // so only a landing short of the request is the browser's refusal.
-        const landed = video.currentTime;
-        if (landed >= asked.time - MOVIE_AT) {
+      if (!asked) {
+        return;
+      }
+      // A playing movie moves on from where it landed before this runs,
+      // so only a landing short of the request is the browser's refusal.
+      const landed = video.currentTime;
+      if (landed >= asked.time - MOVIE_AT) {
+        return;
+      }
+      if (this.movieSpan(video) === asked.span) {
+        if (asked.span === undefined && landed > 0) {
+          (video as any).__sdEnd = landed;
+        } else {
+          this.anchorMovie(video, this.moviePlace(video, landed).anchor);
           return;
-        }
-        if (this.movieSpan(video) === asked.span) {
-          if (asked.span === undefined && landed > 0) {
-            (video as any).__sdEnd = landed;
-          } else {
-            this.anchorMovie(video, this.moviePlace(video, landed).anchor);
-            return;
-          }
         }
       }
     }
-    // The clock's reading is current while the game is paused, when it does
-    // not move. While the game plays it moves on animation frames, which a
-    // hidden page does not get, so the movie is placed on the clock's next
-    // frame (`onUpdate`).
+    // A span can change while the game plays (a skip past an end the browser
+    // had not reported, or a file that learns its duration as it plays
+    // through), and placing reads the clock. Its reading is current while
+    // the game is paused, when it does not move. While the game plays it
+    // moves on animation frames, which a hidden page does not get, so the
+    // movie is placed on the clock's next frame (`onUpdate`).
     if (this.app.paused) {
       this.placeMovie(video);
     } else {
@@ -2617,8 +2631,8 @@ export default class UIManager extends Manager {
     }
   }
 
-  /** Movies the browser reported on while the game played, to be placed on
-   *  the clock's next frame. */
+  /** Movies whose span the browser reported on while the game played, to be
+   *  placed on the clock's next frame. */
   protected _unsettledMovies = new Set<HTMLVideoElement>();
 
   /** Place the movies the browser reported on since the clock's last frame,
