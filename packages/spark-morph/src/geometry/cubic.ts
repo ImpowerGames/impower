@@ -120,6 +120,24 @@ export function tForFraction(s: Cubic, frac: number, steps = 32): number {
   return 1;
 }
 
+/** The fraction of the segment's arc length covered at local `t`: the inverse of `tForFraction`. */
+export function fractionForT(s: Cubic, t: number, steps = 32): number {
+  if (isLine(s)) return Math.max(0, Math.min(1, t));
+  const total = segLength(s, steps);
+  if (!total) return 0;
+  const at = Math.max(0, Math.min(1, t)) * steps;
+  let len = 0,
+    prev = s.p0;
+  for (let i = 1; i <= steps; i++) {
+    const p = evalCubic(s, i / steps);
+    const d = dist(p, prev);
+    if (i >= at) return (len + d * (at - (i - 1))) / total;
+    len += d;
+    prev = p;
+  }
+  return 1;
+}
+
 export const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
 
 /**
@@ -164,6 +182,13 @@ export class ArcLoop {
       s1 = this.starts[si + 1]!;
     const frac = (m - s0) / (s1 - s0 || 1);
     return evalCubic(this.loop[si]!, tForFraction(this.loop[si]!, clamp01(frac)));
+  }
+
+  /** The cyclic fraction at which `pointAt` reaches local `t` of segment `segment`. */
+  fractionAt(segment: number, t: number): number {
+    const s0 = this.starts[segment]!,
+      s1 = this.starts[segment + 1]!;
+    return s0 + fractionForT(this.loop[segment]!, t) * (s1 - s0);
   }
 
   /** Unit direction of travel at fraction `f`, from a small forward step. */

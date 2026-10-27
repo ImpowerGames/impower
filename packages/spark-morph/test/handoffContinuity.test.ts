@@ -1,9 +1,17 @@
 import { describe, expect, test } from "vitest";
-import { ArcLoop, dist } from "../src/geometry/cubic";
-import { nearestFraction } from "../src/methods/bend";
+import { ArcLoop, dist, evalCubic } from "../src/geometry/cubic";
 import { bendTrack } from "../src/index";
 import type { Point } from "../src/index";
-import { closedLash, loop, roundedClosed, roundedOpen, tiltedClosed, tiltedOpen, upperOpen } from "./fixtures";
+import {
+  closedLash,
+  closedLashReversed,
+  loop,
+  roundedClosed,
+  roundedOpen,
+  tiltedClosed,
+  tiltedOpen,
+  upperOpen,
+} from "./fixtures";
 
 // A jump in the handoff frame is a single instant of progress, so a uniform
 // scan at any step steps over it. These tests cover [0, 1] contiguously in
@@ -51,14 +59,15 @@ function worstJump(frameAt: (t: number) => Point[]): { jump: number; at: number 
   return worst;
 }
 
-describe("nearestFraction", () => {
-  test("finds the exact phase of a point on the loop, between the coarse samples", () => {
-    const L = loop(upperOpen);
-    const arc = new ArcLoop(L);
-    for (let k = 0; k < 97; k++) {
-      const f = (k + 0.37) / 97;
-      const p = arc.pointAt(f);
-      expect(dist(arc.pointAt(nearestFraction(L, p)), p), `fraction ${f}`).toBeLessThan(1e-9);
+describe("ArcLoop.fractionAt", () => {
+  test("names the fraction at which pointAt reaches a segment's local parameter", () => {
+    for (const L of [loop(upperOpen), loop(roundedOpen)]) {
+      const arc = new ArcLoop(L);
+      L.forEach((s, k) => {
+        for (const t of [0, 0.13, 0.5, 0.87]) {
+          expect(dist(arc.pointAt(arc.fractionAt(k, t)), evalCubic(s, t)), `segment ${k} at ${t}`).toBeLessThan(1e-9);
+        }
+      });
     }
   });
 });
@@ -67,7 +76,7 @@ describe("bend handoff continuity", () => {
   for (const [name, from, to, tipDistance] of [
     ["upper lash to closed, default tip distance", upperOpen, closedLash, undefined],
     ["upper lash to closed, tip distance 4", upperOpen, closedLash, 4],
-    ["upper lash to closed, tip distance 10", upperOpen, closedLash, 10],
+    ["upper lash to a reversed, re-phased closed lash", upperOpen, closedLashReversed, undefined],
     ["tilted lash to its closed pose", tiltedOpen, tiltedClosed, undefined],
     ["rounded-tip lash to its rounded closed pose", roundedOpen, roundedClosed, undefined],
   ] as const) {
@@ -77,5 +86,20 @@ describe("bend handoff continuity", () => {
       const { jump, at } = worstJump((t) => points(r.track.frame(t)));
       expect(jump, `jump of ${jump} near progress ${at}`).toBeLessThan(JUMP_TOLERANCE);
     }, 60_000);
+  }
+  // Brackets where a nearest-point search over the canonical frame switched
+  // between the two arms of a folded tip: the canonical frame moves by about
+  // 1e-13 across each, and the drawn frame jumped by up to 0.0075.
+  for (const [name, to, tipDistance, lo, hi] of [
+    ["reversed closed lash", closedLashReversed, undefined, 0.4681871348474821, 0.468187134847484],
+    ["tip distance 1", closedLash, 1, 0.4557886117414852, 0.4557886117414871],
+    ["tip distance 2", closedLash, 2, 0.4414178075254574, 0.44141780752545934],
+  ] as const) {
+    test(`upper lash, ${name}: the drawn frame follows the canonical frame across a folded tip`, () => {
+      const r = bendTrack(loop(upperOpen), loop(to), tipDistance === undefined ? {} : { tipDistance });
+      if (!r.ok) throw new Error(r.failure.message);
+      const jump = apart(points(r.track.frame(lo)), points(r.track.frame(hi)));
+      expect(jump, `jump of ${jump}`).toBeLessThan(1e-6);
+    });
   }
 });

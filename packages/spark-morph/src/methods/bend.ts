@@ -651,12 +651,21 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
   };
   const O = o.handoff ? poly(fromArt, tips(0)[0]) : null;
   const C = o.handoff ? poly(toArt, tips(1)[0]) : null;
+  // The canonical frame's tip one is the middle of its segment 0, which is
+  // its last segment once reversed, so its phase is exact. A nearest-point
+  // search would pick between neighbouring samples or between the two arms
+  // of a folded tip, and the frame would jump wherever the pick changes.
+  const canonicalPoly = (fr: Cubic[]): Point[] => {
+    const L = withWinding(fr, 1);
+    const f = new ArcLoop(L).fractionAt(L === fr ? 0 : L.length - 1, 0.5);
+    return loopToPolyline(L, handoffPoints, f);
+  };
   const frame = (tRaw: number): Cubic[] => {
     const t = clamp01(tRaw);
     const fr = canonical(t);
     if (!O || !C) return fr;
     const w = handoffWeight(t);
-    const TP = poly(fr, tips(t)[0]);
+    const TP = canonicalPoly(fr);
     const pts: Point[] = TP.map((p, i) => {
       const ox = O[i]![0] + (C[i]![0] - O[i]![0]) * t,
         oy = O[i]![1] + (C[i]![1] - O[i]![1]) * t;
@@ -729,49 +738,18 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
   };
 }
 
-/**
- * Loop fraction of the point nearest `target`: a shared phase for handoff
- * blends. A coarse scan finds the nearest of 480 samples and a golden-section
- * search refines it within a sample either side, so the phase follows a
- * moving target continuously rather than stepping from one sample to the
- * next, which would shift every handoff pairing by a sample at once.
- */
-export function nearestFraction(loop: Cubic[], target: Point): number {
+/** Loop fraction of the point nearest `target`: a shared phase for handoff blends. */
+function nearestFraction(loop: Cubic[], target: Point): number {
   const arc = new ArcLoop(loop);
-  const samples = 480;
-  const at = (f: number) => dist(arc.pointAt(f), target);
   let lf = 0,
     best = Infinity;
-  for (let k = 0; k < samples; k++) {
-    const f = k / samples,
-      d = at(f);
+  for (let k = 0; k < 480; k++) {
+    const f = k / 480,
+      d = dist(arc.pointAt(f), target);
     if (d < best) {
       best = d;
       lf = f;
     }
   }
-  const g = (Math.sqrt(5) - 1) / 2;
-  let lo = lf - 1 / samples,
-    hi = lf + 1 / samples;
-  let x1 = hi - g * (hi - lo),
-    x2 = lo + g * (hi - lo);
-  let d1 = at(x1),
-    d2 = at(x2);
-  while (hi - lo > 1e-13) {
-    if (d1 <= d2) {
-      hi = x2;
-      x2 = x1;
-      d2 = d1;
-      x1 = hi - g * (hi - lo);
-      d1 = at(x1);
-    } else {
-      lo = x1;
-      x1 = x2;
-      d1 = d2;
-      x2 = lo + g * (hi - lo);
-      d2 = at(x2);
-    }
-  }
-  const f = (lo + hi) / 2;
-  return ((f % 1) + 1) % 1;
+  return lf;
 }
