@@ -109,6 +109,15 @@ describe("a local outside a flow", () => {
     ).toEqual([{ message: LOCAL, text: "local x = 1" }]);
   });
 
+  it("keeps the misplaced line's own syntax errors beside it", () => {
+    expect(diagnose(lines("local a = {1 ? 2}", "Hello."))).toEqual([
+      { message: LOCAL, text: "local a = {1 ? 2}" },
+      { message: "Expected '}' (to close '{' at column 11), got '?'", text: "?" },
+      { message: "Expected identifier when parsing expression, got '2'", text: "2" },
+      { message: "Expected identifier when parsing expression, got '}'", text: "}" },
+    ]);
+  });
+
   it("keeps the outside-scene message for another script's other top-level lines", () => {
     expect(
       diagnose(lines("Hello."), lines("Hello there."), OTHER).map((d) => d.message),
@@ -219,6 +228,14 @@ describe("the placements that stay allowed", () => {
           "    {chosen}",
           "end",
         ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("compiles a local inside a top-level type function's body", () => {
+    expect(
+      placementErrors(
+        lines("type function Identity(t)", "  local same = t", "  return same", "end", "Hello."),
       ),
     ).toEqual([]);
   });

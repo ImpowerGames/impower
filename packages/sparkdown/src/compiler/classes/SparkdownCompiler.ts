@@ -176,6 +176,7 @@ import {
   topLevelStatements,
 } from "../utils/declarationOnly";
 import {
+  isPlacementMessage,
   misplacedDeclarations,
   type AssignmentFixData,
 } from "../utils/declarationPlacement";
@@ -2929,11 +2930,13 @@ export class SparkdownCompiler {
     // A `local` outside a flow and a hoisted declaration inside one are
     // reported where they are written (`misplacedDeclarations`). A top-level
     // `local` of a script other than main reports that alone, and is left
-    // out as the other lines only main runs are.
+    // out as the other lines only main runs are. A `.luau` file is Luau,
+    // whose top-level `local` is its chunk's.
     const misplacedLocals = new Set<number>();
-    const placementTree = this._injectingPrelude
-      ? undefined
-      : this.documents.tree(uri);
+    const placementTree =
+      this._injectingPrelude || hasLuauExtension(uri)
+        ? undefined
+        : this.documents.tree(uri);
     if (placementTree && document) {
       for (const misplaced of misplacedDeclarations(
         placementTree.topNode,
@@ -6192,9 +6195,12 @@ export class SparkdownCompiler {
       const declarations = storeSyntaxErrors(tree, doc.read(0, doc.length));
       if (declarations.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
-      const existing = diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error);
-      const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
+      // A placement error (`misplacedDeclarations`) reports no syntax error.
+      const existing = diagnostics.filter(
+        (d) => d.severity === DiagnosticSeverity.Error && !isPlacementMessage(wordsOf(d)),
+      );
+      const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       for (const { declaration, found, reported } of declarations) {
         // The declaration's span: from its line's indent, where a report of
         // the statement may begin (`reportCompileThrow`), to where the
@@ -6345,7 +6351,7 @@ export class SparkdownCompiler {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error) errors.push(d);
+        if (d.severity === DiagnosticSeverity.Error && !isPlacementMessage(message)) errors.push(d);
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       // A syntax error's range ends with the token the reading found.

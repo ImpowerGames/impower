@@ -31,6 +31,14 @@ export const hoistedInsideFlowMessage = (keyword: string): string =>
     ? `${keyword} must be at the top level`
     : `${keyword} declaration must be at the top level`;
 
+/** Whether `message` is a placement error's, which says where a declaration
+ *  stands and nothing of how it reads: the reporters of syntax errors do
+ *  not take it for a report of the statement's errors. */
+export const isPlacementMessage = (message: string): boolean =>
+  message === LOCAL_OUTSIDE_FLOW_MESSAGE ||
+  message === STORE_INSIDE_FLOW_MESSAGE ||
+  / must be at the top level$/.test(message);
+
 /** The `data` of a `store` diagnostic inside a flow that the language server
  *  offers to change to an assignment: the text that replaces the
  *  diagnostic's range. */
@@ -155,9 +163,13 @@ export function misplacedDeclarations(
       report(node, LOCAL_OUTSIDE_FLOW_MESSAGE, statement);
       return;
     }
+    // A function's body, a `type function`'s included, declares its own
+    // locals, and a definition's body holds members.
     if (
       FUNCTIONS.has(node.name) ||
       DEFINES.has(node.name) ||
+      TYPES.has(node.name) ||
+      EXTERNALS.has(node.name) ||
       VARIABLE_DEFINITION_NAMES.has(node.name)
     ) {
       return;
@@ -241,6 +253,9 @@ export function misplacedDeclarations(
       depth += 1;
     } else if (node.name === "LuauEndKeyword") {
       depth = Math.max(0, depth - 1);
+    } else if (!holdsStatements(node.name)) {
+      // A display line, a choice, a divert: none declares.
+      continue;
     } else if (depth === 0) {
       atTopLevel(node, node.from);
     } else {
