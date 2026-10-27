@@ -70,8 +70,8 @@ describe("morph bake", () => {
     expect(backward.every((r) => r.reversed)).toBe(true);
     expect(opening!.clips[0]!.loops).toEqual({ index: closing!.clips[0]!.loops.index, reversed: true });
     expect(artifact.frames).toHaveLength(2);
-    // Two lashes converge by drawing on themselves; one lash opening into
-    // two draws each track on its own destination.
+    // Every track draws on the open lash the variant rests on: its source
+    // while closing, its destination while opening.
     const draws = (transitions: MorphTransition[]) =>
       transitions.flatMap((t) => (t.kind === "morph" ? [t.draw === t.from ? "from" : "to"] : []));
     expect(draws(closing!.transitions)).toEqual(["from", "from"]);

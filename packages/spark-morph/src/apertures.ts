@@ -331,14 +331,17 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
     const closed = extent <= 0 || olen <= 1e-9 * extent;
     const dir: Point = closed ? [0, 0] : [ox / olen, oy / olen];
     // A crossed rib sits on its midline on both runs, so a closed stretch
-    // is a zero-width slit the clip can ignore; a fully closed aperture is
-    // two points with no area. A rib has crossed when either point lies
-    // past the other edge's boundary, judged against the nearest stretch of
-    // that boundary rather than against the point of the same index: the
-    // two boundaries' samples need not sit level along the lash, as when the
-    // open lashes' corner tips do not meet, and comparing the paired points
-    // would read that offset as an opening or a closure. Both boundaries run
-    // the same way, so the opening lies on opposite sides of them.
+    // is a zero-width slit the clip can ignore, and a fully closed aperture
+    // is its midline traced out and back, with no area. It keeps the open
+    // loop's run of points, so an opening blended towards it closes onto the
+    // lashes' line rather than onto the chord between their tips. A rib has
+    // crossed when either point lies past the other edge's boundary, judged
+    // against the nearest stretch of that boundary rather than against the
+    // point of the same index: the two boundaries' samples need not sit
+    // level along the lash, as when the open lashes' corner tips do not
+    // meet, and comparing the paired points would read that offset as an
+    // opening or a closure. Both boundaries run the same way, so the opening
+    // lies on opposite sides of them.
     const cx = a[points - 1]![0] - a[0]![0],
       cy = a[points - 1]![1] - a[0]![1];
     const facing = Math.sign(cx * dir[1] - cy * dir[0]) || 1;
@@ -361,7 +364,7 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
         bottom.push(q);
       }
     }
-    if (!anyOpen) return [top[0]!, top[top.length - 1]!];
+    if (!anyOpen) return [...top, ...bottom.reverse()];
     const last = points - 1;
     const end = corner(top[last]!, bottom[last]!, facing, extent, endGap);
     const start = corner(bottom[0]!, top[0]!, facing, extent, startGap);
