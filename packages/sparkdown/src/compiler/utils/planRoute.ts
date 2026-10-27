@@ -113,10 +113,6 @@ export interface SearchNode {
   /** How many verdicts the route to here forces against the program: the
    *  level of the search it belongs to (see {@link planRoute}). */
   forced: number;
-  /** The work the route has followed since the latest of its last beat,
-   *  the first condition after that beat and its last forced verdict, or -1
-   *  before that condition (see {@link BEAT_WORK_CAP}). */
-  beatWork: number;
   /** The route the node continues: a node that takes up a run where it
    *  stopped (a turn, or a run a bound cut) keeps its route's, and one
    *  forked to make a choice or a verdict starts a route of its own. A later
@@ -130,27 +126,6 @@ let lastRoute = 0;
 const newRoute = (): number => (lastRoute += 1);
 
 /**
- * The work, in steps (Luau calls' included), a route may follow without a
- * beat (see {@link planRoute}), counted from the latest of its last beat, the
- * first condition after that beat and its last forced verdict. A run past it
- * goes no further, so a long loop with no beat in it is left at the pass
- * where this ran out, by forcing its exit there; forcing a verdict starts the
- * count again, so the forced route can go on to the line.
- *
- * The game takes a checkpoint at each beat, so a stretch with no beat gives
- * a replay nothing to resume from inside it, and a search resumed for a line
- * after it starts no later than the verdict that left it, so it runs the
- * stretch again on every scrub. Sized by preview-bench in the worker: a line
- * in a skipped branch after a loop of 5,000 or 60,000 passes with an `if` in
- * its body previews within about twice origin/main's time at this size, and
- * at 8,192 the search alone took 160 to 190 ms a scrub. Work before the
- * first condition is not counted: a route that forces nothing there runs it
- * as the program does, as a search that cut every loop at its first test
- * would too.
- */
-export const BEAT_WORK_CAP = 2_048;
-
-/**
  * The budget of the search that follows the program (see {@link planRoute}):
  * the nodes it may expand, the steps it may spend from the first condition it
  * meets (work before it, a long Luau call included, is the same work
@@ -159,34 +134,46 @@ export const BEAT_WORK_CAP = 2_048;
  *
  * Steps and nodes are work, not time, and a resumed search is charged what
  * the search from the top recorded, so a resumed and a fresh search run out
- * of them at the same point. Sized by preview-bench: menu loops, where the
- * player's choices double the routes at every pass, and long loops with a
- * branch in them, before a line in a skipped branch, fall back within about
- * twice origin/main's preview time. Tests lower it to pin what a fallback
- * route does on scripts small enough to run.
+ * of them at the same point. Level zero, the program's own way, may spend
+ * every step of it (see {@link LEVEL_SHARE}), so a loop with no beat in it
+ * runs every pass while level zero's whole run, the loop and the rest of the
+ * scene, fits in it, and a scrub after the loop resumes after it; a longer
+ * one falls back and shows origin/main's values, and the scrubs after it
+ * resume as origin/main's do. Sized by preview-bench against the memory a
+ * route's steps hold, which a game keeps for as long as the route: a line in
+ * a skipped branch after a 3,500-pass loop with an `if` in its body (about
+ * 100,000 steps of the loop) is reached by the program's own way with the
+ * worker's peak working set within 100 MB of origin/main's, and 5,500 passes
+ * fall back. The clock is a backstop well above what those steps take on a
+ * loaded machine (about 6 seconds measured), so the steps decide where a
+ * search falls back. Tests lower it to pin what a fallback route does on
+ * scripts small enough to run.
  */
 export const faithfulBudget = {
   nodes: 4_096,
-  steps: 100_000,
-  timeoutMs: 5_000,
+  steps: 150_000,
+  timeoutMs: 20_000,
 };
 
 /**
  * The share of the step and node work remaining that each level of a search
  * may spend (see {@link planRoute}): level zero from the first condition it
- * meets, every later level from when it begins. The share is of work, not of
+ * meets, every later level from when it begins, of what is left of the
+ * search's own budget ({@link faithfulBudget}). The share is of work, not of
  * time, so where it runs out does not depend on how busy the machine is, and
- * a resumed search and a search from the top cut a loop on the same pass.
+ * a resumed search and a search from the top cut a loop on the same pass. A
+ * loop the program never leaves inside a forced branch therefore costs its
+ * level's share, and the next level forces its exit.
  *
- * Level zero follows the program's own verdicts, and a line the program
- * reaches is found there within the work it takes the program to get there:
- * the largest real project's longest scene (8,325 lines) takes about 300,000
- * advances, under a quarter of {@link DEFAULT_MAX_STEPS}. A finite search
- * cannot tell a loop the program leaves after more work than its level's
- * bound from one it never leaves, so the next level takes over where the
- * bound ran out, and a route through a loop that outlasts it leaves the loop
- * at the pass the bound ran out on. The bound is also what a loop the program
- * never leaves costs a preview before the next level starts.
+ * Level zero's steps are the exception: it follows the program's own
+ * verdicts, and may spend every step the search's own budget has
+ * ({@link faithfulBudget}), so that a line the program reaches after a long
+ * loop is found there, with every pass run, and a scrub after the loop can
+ * resume past it. A finite search cannot tell a loop the program leaves
+ * after more work than that from one it never leaves; such a loop ends the
+ * search that follows the program, and the route is origin/main's. Within a
+ * caller's lower step ceiling, level zero has its share of the steps, and
+ * the next level takes over where it ran out.
  */
 export const LEVEL_SHARE = 0.25;
 
@@ -286,14 +273,11 @@ export interface RouteStep {
   checkpoint?: number;
   /** The steps the search had spent when it recorded the step, Luau
    *  callbacks' included, which a search resumed here is charged
-   *  ({@link RouteCharge}). */
+   *  ({@link RouteCharge}); recorded only on a step of level zero (see
+   *  {@link planRoute}), the only level a search resumes in. */
   spentSteps?: number;
   /** The nodes it had expanded then. */
   spentNodes?: number;
-  /** The level of the search it was recorded in (see {@link planRoute}). */
-  level?: number;
-  /** The route's {@link SearchNode.beatWork} when it was recorded. */
-  beatWork?: number;
 }
 
 /** What a search from the top had spent when it recorded the step a resumed
@@ -304,8 +288,6 @@ export interface RouteCharge {
   steps: number;
   /** The nodes expanded ({@link RouteStep.spentNodes}). */
   nodes: number;
-  /** The route's work since its last beat ({@link RouteStep.beatWork}). */
-  beatWork: number;
   /** Level zero's bound, when the search met its first condition before
    *  that step ({@link RoutePlan.levelZero}). */
   levelZero?: LevelZeroBound;
@@ -342,9 +324,9 @@ export interface RouteResumePoint {
 
 /** What a search resumed on `route`'s step `at` (whose story stands on that
  *  step) is charged: what the search that planned the route had spent when it
- *  recorded the step. Nothing when it recorded none there or recorded the
- *  step past level zero, where a resumed search cannot stand where it stood:
- *  a search then starts from the top. */
+ *  recorded the step. Nothing when it recorded none there, as on a step past
+ *  level zero, where a resumed search cannot stand where it stood: a search
+ *  then starts from the top. */
 export const routeChargeAt = (
   route: RoutePlan,
   at: number,
@@ -352,9 +334,7 @@ export const routeChargeAt = (
   const step = route.steps[at];
   if (
     step?.spentSteps == null ||
-    step.spentNodes == null ||
-    step.beatWork == null ||
-    step.level !== 0
+    step.spentNodes == null
   ) {
     return null;
   }
@@ -365,7 +345,6 @@ export const routeChargeAt = (
   return {
     steps: step.spentSteps,
     nodes: step.spentNodes,
-    beatWork: step.beatWork,
     ...(levelZero ? { levelZero } : {}),
   };
 };
@@ -382,7 +361,9 @@ export interface ConditionOverride {
 
 /** How many of `route`'s steps come before its first departing verdict
  *  ({@link ConditionOverride.departs}): all of them when it has none. A step
- *  records the index of the latest decision taken before it. */
+ *  records the index of the latest decision taken before it, which never
+ *  falls along a route, so the first step past that verdict is found by
+ *  halving: a route through a long loop holds hundreds of thousands. */
 export const stepsBeforeDeparture = (route: RoutePlan): number => {
   const first = route.decisions.findIndex(
     (d) => d.kind === "condition" && d.departs,
@@ -390,8 +371,17 @@ export const stepsBeforeDeparture = (route: RoutePlan): number => {
   if (first < 0) {
     return route.steps.length;
   }
-  const at = route.steps.findIndex((step) => step.decision >= first);
-  return at < 0 ? route.steps.length : at;
+  let lo = 0;
+  let hi = route.steps.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (route.steps[mid]!.decision >= first) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return lo;
 };
 
 export interface ChoiceOverride {
@@ -522,7 +512,164 @@ export interface SearchOptions {
    * the tests and the bench compare it with.
    */
   stateImages?: boolean;
+
+  /**
+   * Where a search from the top keeps what its level zero built, and finds
+   * what an earlier search's level zero built (see {@link LevelZeroWork}).
+   * A search that finds work kept under its own search key
+   * ({@link LevelZeroWork.key}), whose level zero read the same favored
+   * verdicts and choices and never ran the chunk the target stands in,
+   * starts where that level zero stopped: its level zero would run as that
+   * one did, so it finds the route a search from the top finds. The caller
+   * answers for the program: it hands back only work whose chunks, and the
+   * moves between them, the program still holds as they were
+   * (`levelZeroHolds`). A resumed search ({@link resumeFrom}) neither keeps
+   * nor finds any.
+   */
+  levelZeroStore?: LevelZeroStore;
 }
+
+/** Where searches keep and find level zero's work ({@link SearchOptions.levelZeroStore}). */
+export interface LevelZeroStore {
+  find(key: string): LevelZeroWork | undefined;
+  keep(work: LevelZeroWork): void;
+}
+
+/**
+ * What a search from the top had built when its level zero stopped without
+ * reaching its target: everything the next level starts from, and what
+ * level zero ran to build it.
+ *
+ * Level zero runs the program's own way from the top of the flow, and what
+ * it does depends on the chunks it runs, the moves the story makes between
+ * them, the state the program starts in, the favored verdicts and choices it
+ * reads, and the search's options; its target only ends it. So a later
+ * search for another line, whose level zero would run the same chunks the
+ * same way and never reach that line, would build exactly this, and starts
+ * from it instead (#1636): a scrub of a line in a skipped branch after a long
+ * loop does not run the loop again. Everything here is a copy the search
+ * that starts from it does not change, so one work serves every later
+ * search it holds for.
+ */
+export interface LevelZeroWork {
+  /** The flow and the options the search ran with ({@link levelZeroKey}). */
+  readonly key: string;
+  /** The flow the search started at the top of. */
+  readonly from: string;
+  /** The chunks level zero's runs stood in. */
+  readonly chunks: ReadonlySet<number>;
+  /** Each move a run made from one chunk to another: from, then to. */
+  readonly moves: ReadonlyMap<number, ReadonlySet<number>>;
+  /** The chunk the search's first step stood in, at the top of the flow;
+   *  null when it took none. */
+  readonly first: number | null;
+  /** What each favored verdict and choice level zero read, by index, made
+   *  it do: the verdict it tried first at an open condition, and the choice
+   *  it forked first at a menu of so many options. */
+  readonly favoredConditions: ReadonlyMap<number, boolean>;
+  readonly favoredChoices: ReadonlyMap<number, { first: number; count: number }>;
+  /** The next level's queue ({@link nextLevelQueue}), empty when the
+   *  budget cut level zero. */
+  readonly queue: readonly (SearchNode | (() => SearchNode | null))[];
+  /** The ceiling that cut level zero, which ends the search there. */
+  readonly cut: SearchCutReason | null;
+  readonly stepsRemaining: number;
+  readonly nodesRemaining: number;
+  /** The steps the search had spent when level zero stopped, on the scale a
+   *  step's {@link RouteStep.spentSteps} is recorded on. */
+  readonly spentSteps: number;
+  readonly faithfulEnd: number | null;
+  /** The wall-clock time the search had left. */
+  readonly msRemaining: number;
+  readonly visited: ReadonlySet<string>;
+  readonly levelZero: LevelZeroBound | null;
+  readonly nodesExpanded: number;
+  readonly forkSitesSkipped: number;
+  readonly errors: readonly SearchError[];
+  readonly nodeErrored: boolean;
+}
+
+/** What level zero ran, recorded as it runs (see {@link LevelZeroWork}). */
+interface LevelZeroTrace {
+  chunks: Set<number>;
+  moves: Map<number, Set<number>>;
+  first: number | null;
+  /** The chunk the run going on last stood in; -1 at a run's start. */
+  last: number;
+  favoredConditions: Map<number, boolean>;
+  favoredChoices: Map<number, { first: number; count: number }>;
+}
+
+/** The search key a work is kept and found by: the flow and every option
+ *  that changes what level zero does. */
+const levelZeroKey = (
+  from: string,
+  options: SearchOptions | undefined,
+  maxSteps: number,
+  maxNodes: number,
+): string =>
+  JSON.stringify([
+    from,
+    options?.stayWithinKnot !== false,
+    options?.functions ?? [],
+    options?.stateImages !== false,
+    maxSteps,
+    maxNodes,
+    faithfulBudget.steps,
+    LEVEL_SHARE,
+  ]);
+
+/** The verdict level zero tries first at an open condition, favoring
+ *  `favored`. */
+const firstVerdict = (favored: boolean | undefined): boolean => favored ?? true;
+
+/** The choice level zero forks first at a menu of `count` options,
+ *  favoring `favored`: the favored one when the menu has it, else the
+ *  first. */
+const firstChoice = (favored: number | undefined, count: number): number =>
+  favored != null && Number.isInteger(favored) && favored >= 0 && favored < count
+    ? favored
+    : 0;
+
+/** Whether level zero, favoring `conditions` and `choices`, would do at
+ *  each favored verdict and choice it read what `work`'s did. */
+export const sameFavoredReads = (
+  work: Pick<LevelZeroWork, "favoredConditions" | "favoredChoices">,
+  conditions: (boolean | undefined)[],
+  choices: (number | undefined)[],
+): boolean => {
+  for (const [i, first] of work.favoredConditions) {
+    if (firstVerdict(conditions[i]) !== first) {
+      return false;
+    }
+  }
+  for (const [i, { first, count }] of work.favoredChoices) {
+    if (firstChoice(choices[i], count) !== first) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/** Records that a level-zero run stood at `address`. */
+const traceStep = (trace: LevelZeroTrace, address: ProgramAddress) => {
+  const chunk = chunkOfAddress(address);
+  if (chunk === trace.last) {
+    return;
+  }
+  if (trace.last >= 0) {
+    let to = trace.moves.get(trace.last);
+    if (!to) {
+      to = new Set();
+      trace.moves.set(trace.last, to);
+    }
+    to.add(chunk);
+  } else {
+    trace.first ??= chunk;
+  }
+  trace.chunks.add(chunk);
+  trace.last = chunk;
+};
 
 /** Where a story stands, as a search reads it: the position each step is
  *  known by, and the flow the story runs in and those it will come back to,
@@ -731,6 +878,9 @@ interface SearchBudget {
    *  ({@link faithfulBudget}), set at level zero's first condition; null
    *  before it. */
   faithfulEnd: number | null;
+  /** What level zero runs, recorded while it runs in a search that keeps
+   *  its work ({@link SearchOptions.levelZeroStore}). */
+  trace?: LevelZeroTrace;
 }
 
 /** Whether the story may be advanced again. The node budget is deliberately not
@@ -814,17 +964,45 @@ const newLevel = (index: number): Level => ({
 });
 
 /** Start `level`'s bound: a {@link LEVEL_SHARE} of the work remaining, and
- *  at least one step and one node. */
+ *  at least one step and one node. Once the search's own budget has begun
+ *  ({@link faithfulBudget}), the steps remaining are what is left of it, as
+ *  the nodes remaining always are. */
 const bindLevel = (level: Level, budget: SearchBudget): void => {
+  const stepsRemaining =
+    budget.faithfulEnd === null
+      ? budget.stepsRemaining
+      : Math.min(
+          budget.stepsRemaining,
+          Math.max(0, budget.faithfulEnd - spentSteps(budget)),
+        );
   level.bound ??= {
     startSteps: spentSteps(budget),
     steps:
       spentSteps(budget) +
-      Math.max(1, Math.floor(budget.stepsRemaining * LEVEL_SHARE)),
+      Math.max(1, Math.floor(stepsRemaining * LEVEL_SHARE)),
     nodes:
       spentNodes(budget) +
       Math.max(1, Math.floor(budget.nodesRemaining * LEVEL_SHARE)),
   };
+};
+
+/** Start level zero's bound, at its first condition: its share of the nodes,
+ *  and every step to the end of the search's own budget, which begins there
+ *  too, or its share of the steps when the caller's step ceiling ends
+ *  first (see {@link LEVEL_SHARE}). */
+const bindLevelZero = (level: Level, budget: SearchBudget): void => {
+  if (level.bound) {
+    return;
+  }
+  if (budget.faithfulEnd == null) {
+    startFaithfulBudget(budget, spentSteps(budget));
+  }
+  bindLevel(level, budget);
+  const bound = level.bound!;
+  const faithfulEnd = budget.faithfulEnd!;
+  if (faithfulEnd <= spentSteps(budget) + budget.stepsRemaining) {
+    bound.steps = Math.max(bound.steps, faithfulEnd);
+  }
 };
 
 /** The next level's queue, taking up where `level` stopped (see
@@ -998,10 +1176,11 @@ const startFaithfulBudget = (budget: SearchBudget, startSteps: number) => {
  *
  * Each level may spend a {@link LEVEL_SHARE} of the work remaining, level zero
  * from the first condition it meets (work before it, a long Luau call
- * included, is not charged against the bound). A level that spends its bound
- * hands on where it stopped, re-running none of its work
- * ({@link nextLevelQueue}): the verdicts it did not take, the nodes it did not
- * expand and the run the bound cut. So a loop whose work, counted from that
+ * included, is not charged against the bound), and level zero every step of
+ * the search's own budget. A level that spends its bound hands on where it
+ * stopped, re-running none of its work ({@link nextLevelQueue}): the
+ * verdicts it did not take, the nodes it did not expand and the run the
+ * bound cut. So a loop inside a forced branch whose work, counted from that
  * point, outruns its level's bound is left at the pass the bound ran out on.
  *
  * One exception: a step a bound stops part way through, a Luau callback,
@@ -1055,9 +1234,32 @@ const planRouteFaithful = (
   const fromKnotName = from.split(".")[0] || "0";
   const positions = storyPositions(story);
 
+  // A search from the top keeps what its level zero builds, or starts where
+  // an earlier one's stopped (`levelZeroStore`).
+  const store =
+    options?.resumeFrom || !isBfs ? undefined : options?.levelZeroStore;
+  const key = store ? levelZeroKey(from, options, maxSteps, maxNodes) : "";
+  const kept = store?.find(key);
+  const reuse =
+    kept &&
+    sameFavoredReads(kept, favoredConditionalValues, favoredChoiceIndices) &&
+    !kept.chunks.has(chunkOfAddress(to))
+      ? kept
+      : undefined;
+  if (store && !reuse) {
+    budget.trace = {
+      chunks: new Set(),
+      moves: new Map(),
+      first: null,
+      last: -1,
+      favoredConditions: new Map(),
+      favoredChoices: new Map(),
+    };
+  }
+
   let routePlan: RoutePlan | null = null;
   /** Set when a node run threw (see the catch in the search loop). */
-  let nodeErrored = false;
+  let nodeErrored = reuse?.nodeErrored ?? false;
   const startingSteps = budget.stepsRemaining;
 
   const port = statePort(story, options?.stateImages !== false);
@@ -1079,11 +1281,15 @@ const planRouteFaithful = (
     // Inside the guarded region, and before the hooks are replaced: the start
     // node is built under the story owner's own hooks, as the rest of the
     // search is not.
-    const start = options?.resumeFrom
-      ? makeResumeNode(options.resumeFrom)
-      : makeStartNode(story, from, port);
+    const start = reuse
+      ? null
+      : options?.resumeFrom
+        ? makeResumeNode(options.resumeFrom)
+        : makeStartNode(story, from, port);
 
-    const raisedErrors = new Set<string>();
+    const raisedErrors = new Set<string>(
+      reuse?.errors.map((e) => `${e.address} ${e.message}`),
+    );
     story.onError = (message, type, _source, raised) => {
       if (type !== ErrorType.Error) {
         return;
@@ -1114,8 +1320,30 @@ const planRouteFaithful = (
       level.bound = { ...charge.levelZero };
     }
     const levelZero = level;
-    let queue: (QueueEntry | undefined)[] = [start];
+    let queue: (QueueEntry | undefined)[] = start ? [start] : [];
     let head = 0;
+    // Whether the search has stopped before it began: the work it starts
+    // from ended level zero with a ceiling, or with nothing for the next
+    // level.
+    let stopped = false;
+    if (reuse) {
+      budget.stepsRemaining = reuse.stepsRemaining;
+      budget.nodesRemaining = reuse.nodesRemaining;
+      budget.faithfulEnd = reuse.faithfulEnd;
+      budget.deadlineTime = now() + reuse.msRemaining;
+      budget.visited = new Set(reuse.visited);
+      budget.cut = reuse.cut;
+      levelZero.bound = reuse.levelZero && { ...reuse.levelZero };
+      lastSearchStats.nodesExpanded = reuse.nodesExpanded;
+      lastSearchStats.forkSitesSkipped = reuse.forkSitesSkipped;
+      lastSearchStats.errors = [...reuse.errors];
+      stopped = reuse.cut !== null || reuse.queue.length === 0;
+      if (!stopped) {
+        level = newLevel(1);
+        bindLevel(level, budget);
+        queue = [...reuse.queue];
+      }
+    }
     // A child forcing one more verdict than the level running waits for the
     // next; one from a node handed on from an earlier level, forcing no more
     // than the level running, joins its queue. Either way only a route's
@@ -1138,7 +1366,7 @@ const planRouteFaithful = (
         return latest?.visit === visit ? latest.notTaken.node() : null;
       });
     };
-    while (true) {
+    while (!stopped) {
       while (head < queue.length) {
         if (searchBudgetExhausted(budget) || levelSpent(level, budget)) {
           break;
@@ -1202,7 +1430,7 @@ const planRouteFaithful = (
           nodeErrored = true;
         }
       }
-      if (routePlan || budget.cut) {
+      if (routePlan) {
         break;
       }
       if (charge && level === levelZero && level.spent) {
@@ -1213,11 +1441,39 @@ const planRouteFaithful = (
       }
       // The level has stopped: it ran out of routes, or of its bound. The
       // next takes up where it stopped.
-      const next = nextLevelQueue(
-        level,
-        queue.slice(head).filter((n): n is QueueEntry => !!n),
-      );
-      if (!next.length) {
+      const next = budget.cut
+        ? []
+        : nextLevelQueue(
+            level,
+            queue.slice(head).filter((n): n is QueueEntry => !!n),
+          );
+      if (store && budget.trace && level === levelZero) {
+        const trace = budget.trace;
+        budget.trace = undefined;
+        store.keep({
+          key,
+          from,
+          chunks: trace.chunks,
+          moves: trace.moves,
+          first: trace.first,
+          favoredConditions: trace.favoredConditions,
+          favoredChoices: trace.favoredChoices,
+          queue: [...next],
+          cut: budget.cut,
+          stepsRemaining: budget.stepsRemaining,
+          nodesRemaining: budget.nodesRemaining,
+          spentSteps: spentSteps(budget),
+          faithfulEnd: budget.faithfulEnd,
+          msRemaining: budget.deadlineTime - now(),
+          visited: new Set(budget.visited),
+          levelZero: levelZero.bound && { ...levelZero.bound },
+          nodesExpanded: lastSearchStats.nodesExpanded,
+          forkSitesSkipped: lastSearchStats.forkSitesSkipped,
+          errors: [...lastSearchStats.errors],
+          nodeErrored,
+        });
+      }
+      if (budget.cut || !next.length) {
         break;
       }
       level = newLevel(level.index + 1);
@@ -1364,13 +1620,8 @@ const runUntilDecisionOrBranch = (
   let seq = node.seq;
   const stepsEncountered: RouteStep[] = [];
 
-  // The work followed since the route's last beat ({@link SearchNode.beatWork}).
-  let beatWork = node.beatWork;
   const charge = (steps: number) => {
     budget.stepsRemaining -= steps;
-    if (beatWork >= 0) {
-      beatWork += steps;
-    }
   };
 
   /** Where the run stands: how much of each of its records it has made. */
@@ -1378,13 +1629,11 @@ const runUntilDecisionOrBranch = (
     steps: number;
     decisions: number;
     conditions: number;
-    beatWork: number;
   };
   const mark = (): Mark => ({
     steps: stepsEncountered.length,
     decisions: runDecisions.length,
     conditions: runConditions.length,
-    beatWork,
   });
 
   /** A node standing where this run stood at `at`, which forces
@@ -1419,8 +1668,6 @@ const runUntilDecisionOrBranch = (
       choices,
       overrides,
       forced: node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
-      // A forced verdict starts the count of work without a beat again.
-      beatWork: add?.kind === "condition" && add.departs ? 0 : at.beatWork,
       // A node forked to make a choice or a verdict starts a route of its
       // own; one that takes the run up where it stopped continues it.
       route: add ? newRoute() : node.route,
@@ -1432,6 +1679,11 @@ const runUntilDecisionOrBranch = (
   // The step a condition the run takes put back, which the run then meets
   // again: it keeps what the search had spent when it first recorded it.
   let putBack: RouteStep | undefined;
+  // A run starts where its node was forked, which level zero's trace
+  // already holds.
+  if (budget.trace) {
+    budget.trace.last = -1;
+  }
   // Where the run's turn ends ({@link RUN_TURN_STEPS}).
   const turnEnd =
     (Math.floor(spentSteps(budget) / RUN_TURN_STEPS) + 1) * RUN_TURN_STEPS;
@@ -1452,12 +1704,6 @@ const runUntilDecisionOrBranch = (
         terminal = true;
         break;
       }
-      if (beatWork >= BEAT_WORK_CAP) {
-        // It has followed as much as a route follows without a beat: it goes
-        // no further, and the verdicts it did not take lead on.
-        terminal = true;
-        break;
-      }
       if (spentSteps(budget) >= turnEnd) {
         // Its turn is over: it goes back to the end of the queue, to go on
         // from here.
@@ -1470,22 +1716,29 @@ const runUntilDecisionOrBranch = (
       const previous = positions.previous();
 
       if (previous !== undefined) {
+        if (budget.trace) {
+          traceStep(budget.trace, previous);
+        }
         if (
           stepsEncountered.length === 0 ||
           previous !== stepsEncountered.at(-1)?.address
         ) {
           seq = extendSeq(seq, previous);
           const again = putBack?.address === previous ? putBack : undefined;
-          stepsEncountered.push({
-            checkpoint: undefined,
-            decision: decisionCount() - 1,
-            address: previous,
-            seq,
-            spentSteps: again?.spentSteps ?? spentSteps(budget),
-            spentNodes: again?.spentNodes ?? spentNodes(budget),
-            level: level.index,
-            beatWork: again?.beatWork ?? beatWork,
-          });
+          // Only a step of level zero carries what a search resumed on it
+          // is charged: the route's steps are held for as long as the
+          // route is, and most of a long route's are level zero's.
+          stepsEncountered.push(
+            level.index === 0
+              ? {
+                  decision: decisionCount() - 1,
+                  address: previous,
+                  seq,
+                  spentSteps: again?.spentSteps ?? spentSteps(budget),
+                  spentNodes: again?.spentNodes ?? spentNodes(budget),
+                }
+              : { decision: decisionCount() - 1, address: previous, seq },
+          );
         }
         putBack = undefined;
       }
@@ -1538,6 +1791,13 @@ const runUntilDecisionOrBranch = (
           };
           const favoredChoiceIndex =
             favoredChoiceIndices[trailLength(node.choices)];
+          budget.trace?.favoredChoices.set(trailLength(node.choices), {
+            first: firstChoice(
+              favoredChoiceIndex,
+              story.currentChoices.length,
+            ),
+            count: story.currentChoices.length,
+          });
           if (
             favoredChoiceIndex != null &&
             story.currentChoices[favoredChoiceIndex]
@@ -1576,8 +1836,7 @@ const runUntilDecisionOrBranch = (
       // One step was charged above. A Luau callback runs all of its steps
       // inside the step that called it, and those count too: the limit stops
       // them where the budget runs out, or the level's bound once it binds,
-      // or the route's work since its last beat, and what they took is
-      // charged after.
+      // and what they took is charged after.
       const stepsBefore = story.stepCount;
       let allowed = level.bound
         ? Math.max(0, level.bound.steps - spentSteps(budget))
@@ -1587,9 +1846,6 @@ const runUntilDecisionOrBranch = (
           allowed,
           Math.max(0, budget.faithfulEnd - spentSteps(budget)),
         );
-      }
-      if (beatWork >= 0) {
-        allowed = Math.min(allowed, BEAT_WORK_CAP - beatWork);
       }
       story.stepLimit = stepsBefore + 1 + allowed;
       let stopped = false;
@@ -1605,12 +1861,10 @@ const runUntilDecisionOrBranch = (
         charge(Math.max(0, story.stepCount - stepsBefore - 1));
       }
       if (stopped) {
-        // The budget, the level's bound or the route's work since its last
-        // beat ran out part way through the step. Only the budget's own end
-        // cuts the search. A level's bound hands the rest to the next level,
-        // from the last fork, since a step stopped part way leaves no state
-        // to take up; a route past its work since its last beat goes no
-        // further.
+        // The budget or the level's bound ran out part way through the
+        // step. Only the budget's own end cuts the search. A level's bound
+        // hands the rest to the next level, from the last fork, since a step
+        // stopped part way leaves no state to take up.
         if (stepBudgetExhausted(budget)) {
           // The budget, or the search's own end (`faithfulBudget`): its cut
           // is recorded there.
@@ -1621,10 +1875,6 @@ const runUntilDecisionOrBranch = (
         break;
       }
       pending = [];
-      if (story.asyncContinueComplete && story.continueShowedSomething) {
-        // A beat, where the game takes a checkpoint a replay resumes from.
-        beatWork = -1;
-      }
 
       if (story.pausedBeforeCondition !== null) {
         const site = story.pausedBeforeCondition;
@@ -1643,10 +1893,6 @@ const runUntilDecisionOrBranch = (
           terminal = true;
           break;
         }
-        // The work a route follows since its last beat counts from here.
-        if (beatWork < 0) {
-          beatWork = 0;
-        }
 
         if (natural !== null) {
           // Take the program's verdict and run on: it is recorded as a
@@ -1655,10 +1901,7 @@ const runUntilDecisionOrBranch = (
           // level that forces one more verdict. Level zero's bound begins at
           // the first condition it meets.
           if (level.index === 0) {
-            bindLevel(level, budget);
-            if (budget.faithfulEnd == null) {
-              startFaithfulBudget(budget, level.bound!.startSteps);
-            }
+            bindLevelZero(level, budget);
           }
           const at = mark();
           const other: ConditionOverride = {
@@ -1688,7 +1931,8 @@ const runUntilDecisionOrBranch = (
         // A condition with no value a decision can test, which the program
         // leaves open: both verdicts, at this level, the favored one first,
         // or else true.
-        const first = favoredConditionalValues[conditionCount()] ?? true;
+        const first = firstVerdict(favoredConditionalValues[conditionCount()]);
+        budget.trace?.favoredConditions.set(conditionCount(), first);
         const at = mark();
         for (const value of [first, !first]) {
           const ov: ConditionOverride = { kind: "condition", site, value };
@@ -1770,7 +2014,6 @@ const makeStartNode = (
     choices: null,
     overrides: [],
     forced: 0,
-    beatWork: -1,
     route: newRoute(),
   };
 };
@@ -1783,12 +2026,9 @@ const makeStartNode = (
  * the story nor moves it.
  *
  * The node forces nothing: every decision of the resume point was taken
- * before the state it stands in. Its work since the last beat is what the
- * search from the top recorded at that step, one step short, as the budget
- * is: its first step charges it again.
+ * before the state it stands in.
  */
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
-  const beatWork = resumeFrom.charge?.beatWork ?? -1;
   return {
     state: resumeFrom.state,
     seq: resumeFrom.steps.at(-1)?.seq ?? "",
@@ -1798,7 +2038,6 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
     choices: extendTrail(null, resumeFrom.choices),
     overrides: [],
     forced: 0,
-    beatWork: beatWork < 0 ? -1 : Math.max(0, beatWork - 1),
     route: newRoute(),
   };
 };

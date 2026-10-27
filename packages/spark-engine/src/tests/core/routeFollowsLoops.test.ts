@@ -168,7 +168,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     expect(previewedStore(src, 12, "total")).toBe(16);
   }, 120_000);
 
-  test("a loop within the work a route follows without a beat runs every pass", () => {
+  test("a short loop runs every pass", () => {
     const src = [
       "store total = 0",
       "",
@@ -568,31 +568,43 @@ describe("a search whose level spends its bound", () => {
     expect(previewedStore(src, 10, "total")).toBe(600);
   }, 120_000);
 
-  test("a loop longer than a route follows without a beat is left at the pass it ran out on", () => {
-    // A finite search cannot tell this loop from one that never ends. The
-    // route forces the loop's exit where its work without a beat ran out
-    // (BEAT_WORK_CAP), so the passes it ran are kept.
-    const lines = [
-      "store total = 0",
-      "-> start",
-      "scene start",
-      "  for i = 1, 40000 do",
-      "    total += 1",
-      "  end",
-      "  Target total {total}.",
-      "end",
-      "",
-    ];
-    const total = previewedStore(lines.join("\n"), 7, "total") as number;
-    expect(total).toBeGreaterThan(0);
-    expect(total).toBeLessThan(40000);
+  // Each pass of this loop is about twenty steps of work with nothing shown.
+  const longLoop = (passes: number) => [
+    "store total = 0",
+    "-> start",
+    "scene start",
+    `  for i = 1, ${passes} do`,
+    "    total += 1",
+    "  end",
+    "  Target total {total}.",
+    "end",
+    "",
+  ];
+
+  test("a long loop with no beat in it runs every pass within the search's budget", () => {
+    // About 80,000 steps, which the program's own way follows to the end
+    // within `faithfulBudget` (#1636).
+    const lines = longLoop(4000);
+    expect(previewedStore(lines.join("\n"), 7, "total")).toBe(4000);
     const route = routeTo(lines, "Target total");
-    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(1);
+    expect(route.fallback).toBeUndefined();
+    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(0);
     expect(route.conditions.filter((c) => !c.selected)).toHaveLength(1);
-    expect(route.conditions).toHaveLength(total + 1);
+    expect(route.conditions).toHaveLength(4001);
   }, 120_000);
 
-  test("a branch the program skips before the loop that spent it is still reached", () => {
+  test("a loop with no beat in it longer than the search's budget shows origin/main's value", () => {
+    // About 500,000 steps: the budget ends the program's own way inside the
+    // loop, and the route is origin/main's, which leaves the loop at its
+    // first test (#1636).
+    const lines = longLoop(25000);
+    expect(previewedStore(lines.join("\n"), 7, "total")).toBe(0);
+    expect(routeTo(lines, "Target total").fallback).toBe(true);
+  }, 120_000);
+
+  test("a branch the program skips before a loop that outlasts the search's budget is still reached", () => {
+    // The program's own way runs the loop until the budget ends it, and the
+    // route is origin/main's, which forces the branch (#1636).
     const lines = [
       "store flag = false",
       "store total = 0",
@@ -610,6 +622,6 @@ describe("a search whose level spends its bound", () => {
     ];
     const route = routeTo(lines, "Inside the branch");
     expect(route.conditions.map((c) => c.selected)).toEqual([true]);
-    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(1);
+    expect(route.fallback).toBe(true);
   }, 120_000);
 });

@@ -12,6 +12,11 @@
 //   --project <dir>     a project directory holding main.sd
 //   --fixture           generate the fixture project (preview-fixture.mjs) into
 //                       a temporary directory and measure its target line
+//   --loop <passes>     with --fixture: a loop that shows nothing runs that
+//                       many passes at the top of the scene, and the target
+//                       sits in a branch the program skips after it
+//                       (buildLoopFixture, #1636); 20000 passes is about
+//                       520,000 steps
 //   --line <N>          the line of main.sd to edit, counting from one
 //   --word <text>       the word on that line a suggestion replaces; the whole
 //                       identifier around it is what gets replaced
@@ -63,7 +68,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundleBench, count, value } from "./benchLauncher.mjs";
-import { writePreviewFixture } from "./preview-fixture.mjs";
+import { buildLoopFixture, writePreviewFixture } from "./preview-fixture.mjs";
 
 const IMAGE_RE = /\.(png|apng|jpeg|jpg|gif|bmp|svg|webp)$/i;
 // What a structural edit inserts by default: a plain dialogue line, which
@@ -81,6 +86,9 @@ export function parseBenchArgs(args) {
         break;
       case "--fixture":
         out.fixture = true;
+        break;
+      case "--loop":
+        out.loop = count(value(args, i++, name), name, 1);
         break;
       case "--line":
         out.line = count(value(args, i++, name), name, 1);
@@ -130,6 +138,7 @@ export function parseBenchArgs(args) {
     }
   }
   if (out.project && out.fixture) throw new Error("--project and --fixture are exclusive");
+  if (out.loop != null && !out.fixture) throw new Error("--loop needs --fixture");
   // A profiled bundle keeps its functions' given names, which the heap
   // snapshot does not report for a class esbuild renamed, so the snapshot
   // and the probe would name the parsed classes differently.
@@ -205,7 +214,7 @@ async function main(args) {
     let { project, line, word } = options;
     if (options.fixture) {
       project = path.join(scratch, "fixture");
-      const target = writePreviewFixture(project);
+      const target = writePreviewFixture(project, options.loop != null ? buildLoopFixture({ passes: options.loop }) : undefined);
       line ??= target.line;
       word ??= target.word;
       console.log(`fixture: ${project}`);
