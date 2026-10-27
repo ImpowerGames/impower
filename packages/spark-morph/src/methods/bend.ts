@@ -4,6 +4,7 @@ import {
   clamp01,
   copyLoop,
   cubicKnots,
+  cubicLoop,
   dist,
   dropZeroSegments,
   evalCubic,
@@ -456,10 +457,12 @@ export const handoffWeight = (t: number): number => Math.cos(Math.PI * t) ** 2;
  * curve: bisection finds the handle scale `s` at which the knot begins, and
  * the handles are scaled by `s` squared, which equals the curve itself when
  * the knot is just forming and leaves more clearance the deeper it was, so a
- * frame never jumps where the knot appears or deepens.
+ * frame never jumps where the knot appears or deepens. The knot is judged
+ * exactly by `cubicLoop`, since a chord test misses a crossing that sits on
+ * a sample and would leave the curve unshortened for that instant.
  */
 export function unknot(c: Cubic): Cubic {
-  if (!cubicKnots(c)) return c;
+  if (!cubicLoop(c)) return c;
   const scaled = (s: number): Cubic => ({
     p0: c.p0,
     c1: [c.p0[0] + (c.c1[0] - c.p0[0]) * s, c.p0[1] + (c.c1[1] - c.p0[1]) * s],
@@ -470,7 +473,7 @@ export function unknot(c: Cubic): Cubic {
     hi = 1;
   for (let i = 0; i < 48; i++) {
     const m = (lo + hi) / 2;
-    if (cubicKnots(scaled(m))) hi = m;
+    if (cubicLoop(scaled(m))) hi = m;
     else lo = m;
   }
   return scaled(lo * lo);

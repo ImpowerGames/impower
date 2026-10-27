@@ -362,6 +362,32 @@ export function cubicKnots(c: Cubic, n = 16): boolean {
   return false;
 }
 
+/**
+ * The parameters `s < t` at which a single curve crosses itself, both within
+ * [0, 1], or null when it does not. Exact rather than judged on chords: with
+ * the curve written as `a t³ + b t² + c t + d`, `B(s) = B(t)` for `s ≠ t`
+ * reduces to `a W + b u + c = 0` in `u = s + t` and `W = u² - s t`, a linear
+ * system, so the answer changes only where the loop really appears.
+ */
+export function cubicLoop(c: Cubic): [number, number] | null {
+  const ax = -c.p0[0] + 3 * c.c1[0] - 3 * c.c2[0] + c.p1[0],
+    ay = -c.p0[1] + 3 * c.c1[1] - 3 * c.c2[1] + c.p1[1];
+  const bx = 3 * (c.p0[0] - 2 * c.c1[0] + c.c2[0]),
+    by = 3 * (c.p0[1] - 2 * c.c1[1] + c.c2[1]);
+  const cx = 3 * (c.c1[0] - c.p0[0]),
+    cy = 3 * (c.c1[1] - c.p0[1]);
+  const det = ax * by - ay * bx;
+  if (Math.abs(det) <= 1e-12 * Math.hypot(ax, ay) * Math.hypot(bx, by)) return null;
+  const w = (bx * cy - by * cx) / det,
+    u = (ay * cx - ax * cy) / det;
+  const disc = 4 * w - 3 * u * u;
+  if (!(disc > 0)) return null;
+  const r = Math.sqrt(disc);
+  const s = (u - r) / 2,
+    t = (u + r) / 2;
+  return s >= 0 && t <= 1 ? [s, t] : null;
+}
+
 /** Whether a closed polyline crosses itself (non-adjacent edges only). */
 export function polygonSelfIntersects(pts: Point[]): boolean {
   const n = pts.length;
