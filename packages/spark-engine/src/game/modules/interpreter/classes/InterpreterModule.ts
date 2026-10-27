@@ -3,6 +3,7 @@ import { ObjectValue } from "@impower/sparkdown/src/runtime/Value";
 import { Module } from "../../../core/classes/Module";
 import type {
 AudioInstruction,
+CutsceneInstruction,
 ImageInstruction,
 LoadInstruction,
 LayoutInstruction,
@@ -121,6 +122,10 @@ export class InterpreterModule extends Module<
   // layout before the story goes on. Every `load` arrow lowers to this
   // directive on its own line.
   LOAD_CONTROL_KEYWORDS = ["load"];
+
+  // `[[play NAME]]`: play the video NAME full screen as a cutscene. Inside
+  // `((…))` the same verb plays audio, so only the `[[…]]` branch reads this.
+  MOVIE_CONTROL_KEYWORDS = ["play"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
 
@@ -306,6 +311,14 @@ export class InterpreterModule extends Module<
         a.load.push(...b.load);
       }
     }
+    if (b.cutscene) {
+      a.cutscene ??= [];
+      if (prefix) {
+        a.cutscene.unshift(...b.cutscene);
+      } else {
+        a.cutscene.push(...b.cutscene);
+      }
+    }
     if (b.end > a.end) {
       a.end = b.end;
     }
@@ -334,6 +347,16 @@ export class InterpreterModule extends Module<
    */
   protected loadBeat(load: LoadInstruction[]): Instructions {
     const beat: Instructions = { load, end: 0 };
+    if (this._state.box) beat.extended = {};
+    return beat;
+  }
+
+  /**
+   * A cutscene beat of its own, which leaves a box waiting to be carried on
+   * in on the page under the cutscene, as a load beat does.
+   */
+  protected cutsceneBeat(cutscene: CutsceneInstruction): Instructions {
+    const beat: Instructions = { cutscene: [cutscene], end: 0 };
     if (this._state.box) beat.extended = {};
     return beat;
   }
@@ -548,17 +571,27 @@ export class InterpreterModule extends Module<
       // A `[[load …]]` is always its own beat: the loading layout must never
       // open over the line before it, and the beat advances by itself once
       // loading is done. Whatever else the line carried is queued first.
+      // A `[[play …]]` cutscene is too: it covers the screen, and the beat
+      // advances by itself once the video has ended or been skipped. Each
+      // cutscene the line names plays in a beat of its own, after its loads.
       const loads = contentInstructions.load;
       delete contentInstructions.load;
+      const cutscenes = contentInstructions.cutscene;
+      delete contentInstructions.cutscene;
       const hasOtherContent =
         contentInstructions.text ||
         contentInstructions.image ||
         contentInstructions.audio ||
         contentInstructions.layout ||
         Number(contentInstructions.end) > 0;
-      if (!loads || hasOtherContent) {
+      if ((!loads && !cutscenes) || hasOtherContent) {
         const lastTextbox = this._state.buffer.at(-1);
-        if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
+        if (
+          lastTextbox &&
+          !lastTextbox?.text &&
+          !lastTextbox?.load &&
+          !lastTextbox?.cutscene
+        ) {
           // If previous textbox did not actually contain any text, fold this result into it.
           // The merged beat is as much a part of the box as this one is.
           this.merge(lastTextbox, contentInstructions);
@@ -574,6 +607,9 @@ export class InterpreterModule extends Module<
       }
       if (loads) {
         this._state.buffer.push(this.loadBeat(loads));
+      }
+      for (const cutscene of cutscenes ?? []) {
+        this._state.buffer.push(this.cutsceneBeat(cutscene));
       }
       if (extend) {
         // The next step carries on in this box: its text shown again at
@@ -780,12 +816,13 @@ export class InterpreterModule extends Module<
     // Or an event takes up time.
     return Boolean(
       this._state.buffer?.[0]?.load ||
+      this._state.buffer?.[0]?.cutscene ||
       this._state.buffer?.[0]?.text ||
       this._state.buffer?.[0]?.layout ||
       Number(this._state.buffer?.[0]?.end) > 0 ||
-      // A load beat anywhere in the queue: the beats before it cannot take
-      // more content, so they display now and the load follows.
-      this._state.buffer?.some((b) => b.load),
+      // A load or cutscene beat anywhere in the queue: the beats before it
+      // cannot take more content, so they display now and it follows.
+      this._state.buffer?.some((b) => b.load || b.cutscene),
     );
   }
 
@@ -1037,6 +1074,24 @@ export class InterpreterModule extends Module<
     return this.createAssetChunk(loadTagContent, "load", "load", "");
   }
 
+  /** `[[play intro loop with fade]]`: the video's name lands in the asset
+   *  `target` slot, as a `load`'s scene does, since a cutscene has no layer;
+   *  the clause parser supplies `loop`, `mute` and `with`. */
+  protected createCutsceneChunk(cutsceneTagContent: string): Chunk {
+    const cutsceneChunk = this.createAssetChunk(
+      cutsceneTagContent,
+      "cutscene",
+      "play",
+      "",
+    );
+    // A name the static scan could not see (built at runtime) enters the
+    // pipeline here, before the beat's gate runs.
+    if (cutsceneChunk.target) {
+      this._game.module?.assets?.notice("image", [cutsceneChunk.target]);
+    }
+    return cutsceneChunk;
+  }
+
   /** Mirror the image chunk's `wait` handling for screen directives: when the
    *  author asks to block story advance until the enter/exit transition
    *  finishes, inflate the chunk duration (which becomes `result.end`, the
@@ -1112,7 +1167,12 @@ export class InterpreterModule extends Module<
     defaultControl: string,
     defaultTarget: string,
   ): Chunk {
-    let parts = assetTagContent.replaceAll("\t", " ").split(" ");
+    // A run of spaces separates two tokens as one space does, as the scene
+    // asset scanner reads it: `[[play  intro]]` still names `intro`.
+    let parts = assetTagContent
+      .replaceAll("\t", " ")
+      .split(" ")
+      .filter((part) => part !== "");
     let control = defaultControl;
     let target = defaultTarget;
     const assets: string[] = [];
@@ -1301,11 +1361,15 @@ export class InterpreterModule extends Module<
                       !!verb && this.LAYOUT_CONTROL_KEYWORDS.includes(verb);
                     const isLoadDirective =
                       !!verb && this.LOAD_CONTROL_KEYWORDS.includes(verb);
+                    const isCutsceneDirective =
+                      !!verb && this.MOVIE_CONTROL_KEYWORDS.includes(verb);
                     const directiveChunk = isLoadDirective
                       ? this.createLoadChunk(imageTagContent)
                       : isScreenDirective
                         ? this.createLayoutChunk(imageTagContent)
-                        : this.createImageChunk(imageTagContent);
+                        : isCutsceneDirective
+                          ? this.createCutsceneChunk(imageTagContent)
+                          : this.createImageChunk(imageTagContent);
                     const phrase = {
                       target: directiveChunk.target,
                       chunks: [directiveChunk],
@@ -1971,6 +2035,22 @@ export class InterpreterModule extends Module<
               result.load ??= [];
               result.load.push(event);
             }
+          }
+          // Cutscene Event ([[play NAME]])
+          if (c.tag === "cutscene" && c.target) {
+            const event: CutsceneInstruction = { name: c.target };
+            if (c.clauses?.loop) {
+              event.loop = true;
+            }
+            if (c.clauses?.mute) {
+              event.mute = true;
+            }
+            const withValue = c.clauses?.with;
+            if (withValue != null) {
+              event.with = withValue;
+            }
+            result.cutscene ??= [];
+            result.cutscene.push(event);
           }
           // Layout Event ([[open LAYOUT]] / [[close LAYOUT]] / [[navigate SCREEN to LAYOUT]])
           if (c.tag === "layout") {

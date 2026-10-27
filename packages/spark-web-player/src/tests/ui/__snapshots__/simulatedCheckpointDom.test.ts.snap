@@ -711,6 +711,21 @@ spark-web-player #game .loading_fill {
   transform-origin: left;
   transition: transform 0.15s linear;
 }
+spark-web-player #game .cutscene {
+  position: absolute;
+  inset: 0px;
+  z-index: 2000;
+  background-color: black;
+  pointer-events: auto;
+}
+spark-web-player #game .cutscene_video {
+  position: absolute;
+  inset: 0px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: auto;
+}
 spark-web-player #game .screen {
   position: absolute;
   inset: 0px;

@@ -3500,8 +3500,10 @@ export class Game<T extends M = {}> {
           if (
             !this._coordinator.shouldContinue() &&
             this._simulation !== "simulating" &&
-            // A load beat is loading, not waiting for the player.
-            (!instructions.load || (instructions.choices?.length ?? 0) > 0)
+            // A load beat is loading and a cutscene beat playing, not waiting
+            // for the player.
+            (!(instructions.load || instructions.cutscene) ||
+              (instructions.choices?.length ?? 0) > 0)
           ) {
             this.notifyAwaitingInteraction();
           }
@@ -4773,7 +4775,8 @@ export class Game<T extends M = {}> {
       this.noteShownChoices(instructions);
       if (
         !this._coordinator.shouldContinue() &&
-        (!instructions.load || (instructions.choices?.length ?? 0) > 0)
+        (!(instructions.load || instructions.cutscene) ||
+          (instructions.choices?.length ?? 0) > 0)
       ) {
         this.notifyAwaitingInteraction();
       }
