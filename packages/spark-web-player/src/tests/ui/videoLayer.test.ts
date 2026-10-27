@@ -14,6 +14,7 @@ import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { blinkScript, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
 import { describe, expect, test, vi } from "vitest";
 import { ConfigureAudioMixerMessage } from "@impower/spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
+import { Application } from "../../app/Application";
 import AssetManager from "../../app/managers/AssetManager";
 import AudioManager from "../../app/managers/AudioManager";
 import { MorphPlayback } from "../../app/morph/MorphPlayback";
@@ -992,6 +993,78 @@ describe("a movie's sound", () => {
     const nextNode = (next as any)._audioMixers.get("movie").volumeNode;
     expect(nextNode).not.toBe((audio as any)._audioMixers.get("movie").volumeNode);
     expect(source.outputs).toEqual([nextNode]);
+  });
+
+  test("a movie playing before the audio context runs goes through its mixer once it does", async () => {
+    const { h } = await playing({ source: SOUND_SOURCE });
+    const app = appOf(h);
+    // The page's application before its audio context runs.
+    const { context, sources } = fakeAudioContext();
+    const audio = new AudioManager(app);
+    Object.assign(app, {
+      audio,
+      _manager: { audio },
+      _clock: { syncToClock() {} },
+      watchAudioContext() {},
+    });
+    Object.defineProperty(app, "audioContext", {
+      configurable: true,
+      get() {
+        return app._audioContext;
+      },
+    });
+    // The game configures its mixers on restore, before there is a graph.
+    for (const [mixer, gain] of [
+      ["main", 0.8],
+      ["movie", 0.25],
+    ] as const) {
+      await audio.onReceiveRequest(
+        ConfigureAudioMixerMessage.type.request({ mixer, gain }),
+      );
+    }
+    await playNext(h);
+    const video = movieOn(h.overlay, "portrait")!;
+    expect(video.paused).toBe(false);
+    expect(sources).toHaveLength(0);
+    // The context starts running while the movie plays on.
+    Application.prototype.setAudioContext.call(app, context);
+    const routed = sources.filter((s) => s.mediaElement === video);
+    expect(routed).toHaveLength(1);
+    const movie = (audio as any)._audioMixers.get("movie");
+    const main = (audio as any)._audioMixers.get("main");
+    expect(routed[0].outputs).toEqual([movie.volumeNode]);
+    // The movie's mixer and `main` each start at their own configured gain:
+    // 0.25 into 0.8, not the movie's gain applied twice.
+    expect(movie.volumeNode.gain.value).toBe(0.25);
+    expect(main.volumeNode.gain.value).toBe(0.8);
+    expect(movie.analyser.outputs).toEqual([main.volumeNode]);
+    expect(main.analyser.outputs).toEqual([context.destination]);
+  });
+
+  test("a mixer a movie creates plays into a `main` at main's own gain", async () => {
+    const { h, audio } = await playingWithSound(SOUND_SOURCE);
+    await playNext(h);
+    const movie = (audio as any)._audioMixers.get("movie");
+    const main = (audio as any)._audioMixers.get("main");
+    expect(movie.volumeNode.gain.value).toBe(0.25);
+    expect(main.volumeNode.gain.value).toBe(1);
+  });
+
+  test("a movie released before the audio context runs is not routed when it does", async () => {
+    const { h } = await playing();
+    const app = appOf(h);
+    const { context, sources } = fakeAudioContext();
+    const audio = new AudioManager(app);
+    app.audio = audio;
+    await playNext(h);
+    await playNext(h);
+    await playNext(h);
+    const rain = movieOn(h.overlay, "backdrop")!;
+    await playNext(h);
+    expect(rain.isConnected).toBe(false);
+    app.audioContext = context;
+    audio.onAudioContextRunning();
+    expect(sources.filter((s) => s.mediaElement === rain)).toHaveLength(0);
   });
 
   test("a hidden movie leaves the mixer", async () => {

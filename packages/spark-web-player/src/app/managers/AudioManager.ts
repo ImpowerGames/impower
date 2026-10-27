@@ -99,6 +99,8 @@ export default class AudioManager extends Manager {
       delete (window as any).__audioProbe;
     }
     this._audioMixers.clear();
+    this._mixerGains.clear();
+    this._waitingMovies.clear();
     this._synthKeys.clear();
     for (const c of this._audioChannels.values()) {
       for (const p of c.values()) {
@@ -187,6 +189,15 @@ export default class AudioManager extends Manager {
     return cache.getAudio(params.key) ?? this.loadAudioBuffer(params);
   }
 
+  /** Each mixer's gain as the game last configured it, kept even when there
+   *  is no audio graph to apply it to yet, so a mixer created later starts
+   *  where the game put it. */
+  protected _mixerGains = new Map<string, number>();
+
+  /** The mixer named `mixer`, created on first need: at the gain the game
+   *  configured for it, or else at `gain`, the gain its first sound brought
+   *  for it. Every mixer but `main` plays into `main`, which starts at its
+   *  own configured gain, never at the gain of the mixer that needed it. */
   protected getAudioMixer(
     mixer: string,
     gain?: number,
@@ -199,10 +210,11 @@ export default class AudioManager extends Manager {
       const destination =
         mixer === "main"
           ? this.app.audioContext.destination
-          : this.getAudioMixer("main", gain)?.volumeNode;
+          : this.getAudioMixer("main")?.volumeNode;
       const audioMixer = new AudioMixer(this.app.audioContext, destination);
-      if (gain != null) {
-        audioMixer.gain = gain;
+      const initialGain = this._mixerGains.get(mixer) ?? gain;
+      if (initialGain != null) {
+        audioMixer.gain = initialGain;
       }
       this._audioMixers.set(mixer, audioMixer);
       // Begin sampling as soon as there is an audio graph at all. Starting it
@@ -325,12 +337,20 @@ export default class AudioManager extends Manager {
     }
   }
 
+  /** Movies asked to play through a mixer while there was no running audio
+   *  context, each with the mixer it plays through: routed when the context
+   *  starts running (`onAudioContextRunning`). */
+  protected _waitingMovies = new Map<
+    HTMLMediaElement,
+    { mixer: string; mixerGain: number }
+  >();
+
   /**
    * Sends a movie element's sound through `mixer`, creating the mixer at
    * `mixerGain` when it is the first to need it, so the mixer's volume is the
    * movie's. `muted` on the element still silences it. Without a running
-   * audio context the element plays its sound directly; a later call, once
-   * the context runs, routes it.
+   * audio context the element plays its sound directly until the context
+   * starts running, which routes it.
    *
    * An element can have one media source for its whole life, and it can
    * outlive this manager (a new run adopts the overlay it was on), so the
@@ -340,8 +360,10 @@ export default class AudioManager extends Manager {
   connectMovie(video: HTMLMediaElement, mixer: string, mixerGain: number) {
     const audioContext = this.app.audioContext;
     if (!audioContext) {
+      this._waitingMovies.set(video, { mixer, mixerGain });
       return;
     }
+    this._waitingMovies.delete(video);
     const audioMixer = this.getAudioMixer(mixer, mixerGain);
     if (!audioMixer) {
       return;
@@ -368,11 +390,25 @@ export default class AudioManager extends Manager {
 
   /** Takes a movie element's sound out of its mixer, as its layer leaves. */
   disconnectMovie(video: HTMLMediaElement) {
+    this._waitingMovies.delete(video);
     ((video as any).__sdAudioSource as AudioNode | undefined)?.disconnect();
     delete (video as any).__sdAudioTarget;
   }
 
+  /** The application's audio context is running: the movies that began
+   *  playing before it was go through their mixers from now on. */
+  onAudioContextRunning() {
+    for (const [video, { mixer, mixerGain }] of this._waitingMovies) {
+      if (video.isConnected) {
+        this.connectMovie(video, mixer, mixerGain);
+      } else {
+        this._waitingMovies.delete(video);
+      }
+    }
+  }
+
   protected async onConfigureAudioMixer(params: ConfigureAudioMixerParams) {
+    this._mixerGains.set(params.mixer, params.gain);
     const mixer = this.getAudioMixer(params.mixer, params.gain);
     if (mixer) {
       mixer.gain = params.gain;
