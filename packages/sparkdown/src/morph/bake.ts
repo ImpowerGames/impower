@@ -8,7 +8,6 @@ import {
   morphScale,
   morphSubpaths,
   pairShapes,
-  pinchCrossings,
   type BendTrack,
   type EdgeTrack,
   type LabelledShape,
@@ -17,6 +16,7 @@ import {
   type Subpath,
   type SubpathMorph,
 } from "@impower/spark-morph/src/index";
+import { pinchCrossings } from "@impower/spark-morph/src/apertures";
 import {
   decodeSVGSource,
   evaluateAttributeVisibility,

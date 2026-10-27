@@ -36,8 +36,6 @@ export {
 } from "./pairing";
 export {
   buildApertures,
-  pinchCrossings,
-  untangle,
   type Aperture,
   type ApertureDiagnostic,
   type ApertureDiagnosticCode,

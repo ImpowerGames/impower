@@ -3,7 +3,8 @@
 // (README.md, "Playing an artifact") in executable form, and lets tests and
 // verification captures look at any pose without a player.
 
-import { untangle, type Point } from "@impower/spark-morph/src/index";
+import { untangle } from "@impower/spark-morph/src/apertures";
+import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
