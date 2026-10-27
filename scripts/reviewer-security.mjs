@@ -129,6 +129,9 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
 function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,reportPosting},secrets) {
   const env=reviewerEnvironment(source);
   env.GIT_OPTIONAL_LOCKS='0';
+  // Every Vitest run the reviewer makes queues in the reviewer pool of the
+  // test reservation (scripts/test-suite-process.mjs, runPool).
+  env.IMPOWER_TEST_POOL='reviewer';
   const codexReview=step.nativeResult==='codex-jsonl'||(step.model?.startsWith('gpt-')&&step.args?.[0]==='exec');
   if(!codexReview)return env;
   if(step.nativeResult==='codex-jsonl'&&codexReviewMode(step)==='full-access') {
