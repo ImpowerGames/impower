@@ -1503,8 +1503,10 @@ await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/"
   let censusCalls = 0, failure, result, priorJournal;
   try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
     identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" },
+    // The first census is the admission's, before the record exists; the
+    // discover unit's gate and the first file's gate follow.
     memory: plenty, census: () => {
-      if (++censusCalls === (afterDiscovery ? 2 : 1)) {
+      if (++censusCalls === (afterDiscovery ? 3 : 2)) {
         atomic(reservationFile, { ...read(reservationFile), token: "peer-before-durable-child" });
         if (afterDiscovery) priorJournal = fs.readFileSync(path.join(resultDirectory, "run.json"), "utf8");
       }

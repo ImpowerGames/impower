@@ -298,8 +298,12 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
 // that died before removing it names that creator and is swept once its pid
 // and start time name no live process. Returns the published file's identity.
 const creatingName = /^creating-(\d+)-(.+)-[0-9a-f]{8}\.tmp$/;
+// This process's own identity never changes, and the lookup is a PowerShell
+// call on Windows, so every guard reuses the first reading.
+let ownIdentityValue;
+const ownIdentity = () => ownIdentityValue ??= processIdentity(process.pid);
 function publishOwned(root, file) {
-  const owner = processIdentity(process.pid);
+  const owner = ownIdentity();
   const temp = path.join(root, `creating-${owner.pid}-${owner.start}-${randomUUID().slice(0, 8)}.tmp`);
   let fd, identity;
   try {
@@ -591,14 +595,23 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     const position = mine ? candidates.findIndex(row => row.token === mine.token) + 1 : candidates.length + 1;
     const poolHolders = name => summaries.filter(holder => holder.pool === name).length;
     // A refused run with a wait holds its place with a row, written on its
-    // first refusal and kept current after; a run admitted at once writes none.
+    // first refusal and kept current after; a run admitted at once writes
+    // none, and a refusal at or past the wait's deadline removes the row here,
+    // in the same transaction, instead of holding another to withdraw it.
     const blocked = (waitable, message) => {
       if (mine) {
         const file = waitingFile(root, mine.token);
-        let current = null;
-        try { current = read(file); } catch (error) { if (error.code !== "ENOENT") throw error; }
-        if (JSON.stringify(current) !== JSON.stringify(mine)) atomic(file, mine, { admissionRoot: root });
-        waiting.published = true;
+        if (Number.isFinite(waiting.deadline) && Date.now() >= waiting.deadline) {
+          if (waiting.published) {
+            try { fs.unlinkSync(file); waiting.published = false; }
+            catch (error) { if (error.code !== "ENOENT") console.error(`Waiting row not removed at the deadline: ${error.message}`); else waiting.published = false; }
+          }
+        } else {
+          let current = null;
+          try { current = read(file); } catch (error) { if (error.code !== "ENOENT") throw error; }
+          if (JSON.stringify(current) !== JSON.stringify(mine)) atomic(file, mine, { admissionRoot: root });
+          waiting.published = true;
+        }
       }
       return Object.assign(new Error(message), { waitable, holders: summaries, holder: summaries[0], freeMb, floorMb, position, queued: candidates.length });
     };
@@ -691,7 +704,7 @@ function expired(error, waitedMs) {
 export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, onWait = () => {}, ...options } = {}) {
   const began = Date.now(), deadline = began + waitMs;
   const transactionMs = options.guardWaitMs ?? guardWaitMs;
-  const waiting = waitMs > 0 ? { token: randomUUID(), arrivedAt: new Date(began).toISOString() } : null;
+  const waiting = waitMs > 0 ? { token: randomUUID(), arrivedAt: new Date(began).toISOString(), deadline } : null;
   for (;;) {
     const admitWaitMs = waitMs > 0 ? Math.min(transactionMs, Math.max(0, deadline - Date.now())) : transactionMs;
     try { return acquire(run, { ...options, admitWaitMs, waiting }); }
