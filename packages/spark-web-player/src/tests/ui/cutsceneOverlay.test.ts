@@ -50,6 +50,11 @@ scene faded
   [[play intro with fade]]
   After the fade.
 end
+
+scene spun
+  [[play intro with spin]]
+  After the spin.
+end
 `;
 
 const lineOf = (text: string) =>
@@ -149,17 +154,74 @@ async function runBeat(h: ReturnType<typeof createDOMHarness>) {
 
 const pointerDown = (target: Element) => {
   const win = target.ownerDocument.defaultView as any;
-  const e = new win.MouseEvent("pointerdown", { bubbles: true, button: 0 });
+  const e = new win.MouseEvent("pointerdown", {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+  });
   target.dispatchEvent(e);
-  return e;
+  return e as Event;
 };
 
 const keyDown = (target: Element, key: string, init: object = {}) => {
   const win = target.ownerDocument.defaultView as any;
-  const e = new win.KeyboardEvent("keydown", { bubbles: true, key, ...init });
+  const e = new win.KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key,
+    ...init,
+  });
   target.dispatchEvent(e);
-  return e;
+  return e as Event;
 };
+
+/** Web animations that run until they are finished or cancelled, as a
+ *  browser's do: the harness's own finish at once. Each records whether its
+ *  styles were kept. */
+function holdAnimations() {
+  const animations: {
+    keyframes: unknown;
+    cancelled: boolean;
+    committed: boolean;
+    finish: () => void;
+  }[] = [];
+  const g = globalThis as any;
+  const previous = g.Animation;
+  g.Animation = class {
+    startTime: number | null = null;
+    finished: Promise<unknown>;
+    record: (typeof animations)[number];
+    constructor(public effect?: any) {
+      let resolve!: (v: unknown) => void;
+      let reject!: (e: unknown) => void;
+      this.finished = new Promise((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      this.record = {
+        keyframes: effect?.keyframes,
+        cancelled: false,
+        committed: false,
+        finish: () => resolve(this),
+      };
+      // A cancelled animation's `finished` rejects.
+      (this as any).abort = () => reject(new Error("AbortError"));
+      animations.push(this.record);
+    }
+    play() {}
+    finish() {
+      this.record.finish();
+    }
+    cancel() {
+      this.record.cancelled = true;
+      (this as any).abort();
+    }
+    commitStyles() {
+      this.record.committed = true;
+    }
+  };
+  return { animations, restore: () => (g.Animation = previous) };
+}
 
 const fire = (el: Element, type: string) => {
   const win = el.ownerDocument.defaultView as any;
@@ -235,7 +297,7 @@ describe("a cutscene on the page, in play", () => {
     const { h, answers, advanced } = await playing("start");
     const { tick, gameEvents } = await runBeat(h);
     const video = videoOf(h.overlay)!;
-    pointerDown(video);
+    expect(pointerDown(video).defaultPrevented).toBe(true);
     // A second click lands during the exit, and a third once it has gone.
     pointerDown(video);
     await tick();
@@ -253,13 +315,19 @@ describe("a cutscene on the page, in play", () => {
     const { tick, gameEvents } = await runBeat(h);
     const body = h.overlay.ownerDocument.body;
     // Another key, a held key and a shortcut are left for the game.
-    keyDown(body, "a");
-    keyDown(body, "Enter", { repeat: true });
-    keyDown(body, "Enter", { ctrlKey: true });
+    const left = [
+      keyDown(body, "a"),
+      keyDown(body, "Enter", { repeat: true }),
+      keyDown(body, "Enter", { ctrlKey: true }),
+    ];
     await tick();
     expect(answers).toHaveLength(0);
     expect(gameEvents).toEqual(["keydown", "keydown", "keydown"]);
-    keyDown(body, "Enter");
+    expect(left.map((e) => e.defaultPrevented)).toEqual([false, false, false]);
+    // The key that skips it does nothing else: a focused control is not
+    // pressed by it, nor the page scrolled.
+    const skip = keyDown(body, "Enter");
+    expect(skip.defaultPrevented).toBe(true);
     await tick();
     expect(answers).toHaveLength(1);
     expect(gameEvents).toHaveLength(3);
@@ -358,6 +426,122 @@ describe("a cutscene on the page, in play", () => {
       expect(cutsceneOf(h.overlay)).toBeNull();
     } finally {
       (globalThis as any).KeyframeEffect = restore;
+    }
+  });
+
+  test("a skip during its enter transition stops it where it reached and plays the exit", async () => {
+    const { h, media, answers } = await playing("faded");
+    const held = holdAnimations();
+    try {
+      const { tick } = await runBeat(h);
+      const [enter] = held.animations;
+      expect(enter?.keyframes).toEqual([{ opacity: "1" }]);
+      const video = videoOf(h.overlay)!;
+      expect(media.of(video, "play")).toBe(0);
+      pointerDown(video);
+      await tick();
+      // The enter stops on the frame it reached, the movie never starts,
+      // and the exit plays from there.
+      expect(enter).toMatchObject({ cancelled: true, committed: true });
+      expect(media.of(video, "play")).toBe(0);
+      const exit = held.animations[1];
+      expect(exit?.keyframes).toEqual([{ opacity: "0" }]);
+      expect(answers).toHaveLength(0);
+      exit!.finish();
+      await tick();
+      expect(answers).toHaveLength(1);
+      expect(cutsceneOf(h.overlay)).toBeNull();
+    } finally {
+      held.restore();
+    }
+  });
+
+  test("a transition that does not fade plays on it as it stands, and one that never ends is cut short by a click", async () => {
+    const { h, answers } = await playing("spun");
+    const held = holdAnimations();
+    try {
+      const { tick } = await runBeat(h);
+      const cutscene = cutsceneOf(h.overlay)!;
+      const [enter] = held.animations;
+      expect(enter?.keyframes).toEqual([{ transform: "rotate(360deg)" }]);
+      // `spin` turns it and never ends: it is not hidden while it turns.
+      expect(cutscene.style.opacity).toBe("");
+      const video = videoOf(h.overlay)!;
+      pointerDown(video);
+      await tick();
+      const exit = held.animations[1];
+      expect(exit?.keyframes).toEqual([{ transform: "rotate(360deg)" }]);
+      expect(answers).toHaveLength(0);
+      // A click during the exit takes it down.
+      expect(pointerDown(video).defaultPrevented).toBe(true);
+      await tick();
+      expect(exit?.cancelled).toBe(true);
+      expect(answers).toHaveLength(1);
+      expect(cutsceneOf(h.overlay)).toBeNull();
+    } finally {
+      held.restore();
+    }
+  });
+
+  test.each([
+    ["its enter transition", false],
+    ["its exit transition", true],
+  ])(
+    "a run that ends during %s takes it down and answers at once",
+    async (_, exiting) => {
+      const { h, answers } = await playing("faded");
+      const held = holdAnimations();
+      try {
+        const { tick } = await runBeat(h);
+        if (exiting) {
+          pointerDown(videoOf(h.overlay)!);
+          await tick();
+        }
+        const transition = held.animations[held.animations.length - 1]!;
+        expect(transition.keyframes).toEqual([
+          { opacity: exiting ? "0" : "1" },
+        ]);
+        h.ui.onDispose();
+        expect(cutsceneOf(h.overlay)).toBeNull();
+        await flushMicrotasks(50);
+        expect(transition.cancelled).toBe(true);
+        expect(answers).toHaveLength(1);
+      } finally {
+        held.restore();
+      }
+    },
+  );
+
+  test("a page built for the next run, or a second cutscene, takes one still entering down and answers it at once", async () => {
+    const { h, answers } = await playing("faded");
+    const held = holdAnimations();
+    try {
+      await runBeat(h);
+      const first = cutsceneOf(h.overlay);
+      // A second cutscene replaces it.
+      const secondDone = (h.ui as any).playCutscene({
+        src: INTRO,
+        loop: true,
+        muted: true,
+        mixer: "movie",
+        mixerGain: 1,
+      });
+      expect(first?.isConnected).toBe(false);
+      await flushMicrotasks(50);
+      expect(answers).toHaveLength(1);
+      // A new page over the same overlay takes the second down.
+      const second = cutsceneOf(h.overlay);
+      expect(second).not.toBeNull();
+      const next = new (h.ui.constructor as any)(appOf(h));
+      await next.onInit();
+      expect(second?.isConnected).toBe(false);
+      const settled = await Promise.race([
+        secondDone.then(() => "settled"),
+        flushMicrotasks(10).then(() => "pending"),
+      ]);
+      expect(settled).toBe("settled");
+    } finally {
+      held.restore();
     }
   });
 

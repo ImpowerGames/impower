@@ -2468,20 +2468,48 @@ export default class UIManager extends Manager {
       mixer: params.mixer,
       mixerGain: params.mixerGain,
     };
+    // The transition playing now, which an end cuts short.
+    let transition: ReturnType<AnimationPlayer["add"]> = [];
+    const playTransition = (animation: Animation) => {
+      const player = new AnimationPlayer();
+      transition = player.add({ element, animations: [animation] });
+      return player.play().finally(() => {
+        transition = [];
+      });
+    };
+    // A transition stopped part way leaves the frame it reached.
+    const stopTransition = () => {
+      for (const animation of transition) {
+        try {
+          animation.commitStyles();
+        } catch {
+          // An element that is not rendered has no styles to keep.
+        }
+        animation.cancel();
+      }
+      transition = [];
+    };
     // Settled once it ends, which happens once.
     let ending: (() => void) | undefined;
     const ended = new Promise<void>((resolve) => {
       ending = resolve;
     });
+    // An end cuts short whatever transition is playing, so a transition that
+    // never ends cannot hold it: one during the enter transition goes on to
+    // the exit from the frame reached, and one during the exit, or an
+    // immediate one, takes it down now.
     const end = (immediate = false) => {
-      // An immediate end also cuts an exit transition short.
+      stopTransition();
       if (immediate) {
         remove();
       }
       ending?.();
       ending = undefined;
     };
+    // The event that ends it does nothing else: the game does not hear it,
+    // and a key does not also press the control that has focus.
     const skip = (e: Event) => {
+      e.preventDefault();
       e.stopPropagation();
       end();
     };
@@ -2521,12 +2549,20 @@ export default class UIManager extends Manager {
     win?.addEventListener("keydown", onKeyDown, true);
     video.addEventListener("ended", onEnded);
     if (params.enter) {
-      // It fades in from hidden, as a layout's enter transition does.
-      element.style.opacity = "0";
-      await new AnimationPlayer([
-        { element, animations: [params.enter] },
-      ]).play();
-      element.style.removeProperty("opacity");
+      // An enter transition that fades it (the builtin `fadein`, a single
+      // `opacity: 1` keyframe) fades it in from hidden; any other plays on
+      // it as it stands.
+      const keyframes = params.enter.keyframes;
+      const fades = (Array.isArray(keyframes) ? keyframes : [keyframes]).some(
+        (keyframe) => keyframe != null && "opacity" in keyframe,
+      );
+      if (fades) {
+        element.style.opacity = "0";
+      }
+      await playTransition(params.enter);
+      if (fades && ending) {
+        element.style.removeProperty("opacity");
+      }
     }
     if (ending) {
       this.startMovie(video);
@@ -2537,9 +2573,7 @@ export default class UIManager extends Manager {
       // away, and leaves the game clock's movies.
       delete (video as any).__sdMovie;
       video.pause();
-      await new AnimationPlayer([
-        { element, animations: [params.exit] },
-      ]).play();
+      await playTransition(params.exit);
     }
     remove();
   }
