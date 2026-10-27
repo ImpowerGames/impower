@@ -167,7 +167,7 @@ describe("morph poses at a keyframe offset", () => {
   });
 
   test("outside its segments an aperture keeps the last pose its segments left it in", () => {
-    const clip = artifact.clipTargets[0]!.clipPath;
+    const clip = artifact.clipTargets[0]!.aperture;
     const closedEnd = morphFrameState(artifact, morphPosesAt(artifact, 0.33333)).clips.get(clip);
     // Halfway through the reopening the aperture follows that segment.
     const reopening = morphFrameState(artifact, morphPosesAt(artifact, 0.66)).clips.get(clip);

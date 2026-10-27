@@ -437,13 +437,15 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }

@@ -1196,6 +1196,9 @@ export const uiBuiltinDefinitions = () => ({
       $name: "waitin",
       keyframes: [
         {
+          opacity: "0",
+        },
+        {
           opacity: "1",
         },
       ],
@@ -1221,6 +1224,9 @@ export const uiBuiltinDefinitions = () => ({
     fadein: default_animation({
       $name: "fadein",
       keyframes: [
+        {
+          opacity: "0",
+        },
         {
           opacity: "1",
         },

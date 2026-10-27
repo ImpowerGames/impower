@@ -24,9 +24,9 @@ import {
   type AttributeSelection,
 } from "../attributes";
 import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
+import { MORPH_DEPTH_REST, parseMorphDepth } from "../compiler/morph/morphSchema";
 import {
   applySubpaths,
-  formatAffine,
   invert,
   isIdentity,
   type Affine,
@@ -73,6 +73,12 @@ import {
 
 /** Frames per segment: the tuning point the geometry package was tested at. */
 export const MORPH_BAKE_SAMPLES = 8;
+/**
+ * How far, in screen pixels, an aperture at rest reaches past its outline:
+ * far enough that the outline's antialiased edge lies under the drawings
+ * around the opening.
+ */
+export const APERTURE_REACH = 1;
 const PRECISION = 1000;
 const round = (n: number) => Math.round(n * PRECISION) / PRECISION || 0;
 
@@ -110,6 +116,20 @@ export interface MorphBakeOptions {
 
 type Rest = typeof REST;
 const REST = Symbol("rest");
+
+/**
+ * A clip target's aperture: its clip entry and id, and the matrices from
+ * root space into the target's parent space and back.
+ */
+interface Wrapper {
+  clip: number;
+  id: string;
+  matrix: Affine;
+  space: Affine;
+}
+
+/** An affine matrix written with every digit, so a pair that should cancel does. */
+const exactAffine = (m: Affine) => `matrix(${m.join(" ")})`;
 
 interface Leaf {
   element: Element;
@@ -189,6 +209,42 @@ const pathData = (subpaths: Subpath[]): string =>
     })
     .join("");
 
+/** The area one aperture loop encloses. */
+function loopArea(flat: number[]): number {
+  let twice = 0;
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const j = (i + 2) % flat.length;
+    twice += flat[i]! * flat[j + 1]! - flat[j]! * flat[i + 1]!;
+  }
+  return Math.abs(twice) / 2;
+}
+
+/**
+ * The ratio of a matrix's largest stretch to its smallest (its linear part's
+ * singular values), Infinity for a collapsed one.
+ */
+function conditionOf(m: Affine): number {
+  const [a, b, c, d] = m;
+  const sum = a * a + b * b + c * c + d * d;
+  const det = Math.abs(a * d - b * c);
+  const root = Math.sqrt(Math.max(0, sum * sum - 4 * det * det));
+  const least = Math.sqrt(Math.max(0, (sum - root) / 2));
+  return least > 0 ? Math.sqrt((sum + root) / 2) / least : Infinity;
+}
+
+/**
+ * A rest aperture loop at most this fraction of the widest loop its entry
+ * opens to is closed: it gets no reach.
+ */
+const CLOSED_FRACTION = 0.01;
+
+/**
+ * The most a target may move, as a fraction of its entry's apertures'
+ * extent, when a browser composes the masked wrapper's matrix and the inner
+ * group's in single precision, for the mask to sit in root space.
+ */
+const ROOTED_ERROR_FRACTION = 1e-4;
+
 const loopsPathData = (loops: number[][]): string =>
   loops
     .map((flat) => {
@@ -198,6 +254,42 @@ const loopsPathData = (loops: number[][]): string =>
       return `${d}Z`;
     })
     .join("");
+
+/**
+ * A cubic's ends and the points where it turns in x or y, which together
+ * bound it: its handles can reach past the curve, its ends alone fall short.
+ */
+const cubicExtremes = (c: Subpath["segments"][number]): Point[] => {
+  const at = (t: number): Point => {
+    const u = 1 - t;
+    const [a, b, d, e] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+    return [
+      a * c.p0[0] + b * c.c1[0] + d * c.c2[0] + e * c.p1[0],
+      a * c.p0[1] + b * c.c1[1] + d * c.c2[1] + e * c.p1[1],
+    ];
+  };
+  const points: Point[] = [c.p0, c.p1];
+  for (const axis of [0, 1] as const) {
+    const [p, q, r, s] = [c.p0[axis], c.c1[axis], c.c2[axis], c.p1[axis]];
+    // Where the derivative, a quadratic in t, is zero.
+    const qa = -p + 3 * q - 3 * r + s;
+    const qb = 2 * (p - 2 * q + r);
+    const qc = q - p;
+    const roots =
+      Math.abs(qa) < 1e-12
+        ? Math.abs(qb) < 1e-12
+          ? []
+          : [-qc / qb]
+        : (() => {
+            const disc = qb * qb - 4 * qa * qc;
+            if (disc < 0) return [];
+            const root = Math.sqrt(disc);
+            return [(-qb + root) / (2 * qa), (-qb - root) / (2 * qa)];
+          })();
+    for (const t of roots) if (t > 0 && t < 1) points.push(at(t));
+  }
+  return points;
+};
 
 const isLine = (c: Subpath["segments"][number]) =>
   c.c1[0] === c.p0[0] && c.c1[1] === c.p0[1] && c.c2[0] === c.p1[0] && c.c2[1] === c.p1[1];
@@ -497,6 +589,67 @@ export function* bakeSteps(
     }
     return recipe[field];
   };
+  // `depth` by the nearest label that sets it, and the label it came from:
+  // the place a pose that draws none of the label's moving shapes is reported.
+  const depthOf = (leaf: Leaf): { depth: string; label?: string } => {
+    for (const entry of ancestry(doc!, leaf.element)) {
+      const label = entry.layer?.parsed.label;
+      const depth = label ? own(recipe.layers, label)?.depth : undefined;
+      if (depth) return { depth, label };
+    }
+    return { depth: recipe.depth ?? MORPH_DEPTH_REST };
+  };
+  /**
+   * What the pose a `depth` names shows, for a drawing that changes with
+   * `group`: the rest pose for `rest` and for the state the morph starts
+   * from, which stands for the variant's own resting choice. Undefined when
+   * the pose is not one of `group`'s, so it says nothing about the drawing.
+   */
+  const depthPose = (depth: string, group: string): Record<string, boolean> | undefined => {
+    const pose = parseMorphDepth(depth);
+    if (!pose || pose === MORPH_DEPTH_REST) return restVisible;
+    if (pose.group !== group) return undefined;
+    if (pose.state === requirements.rest.get(group)) return restVisible;
+    return visibleIn.get(group)?.get(pose.state);
+  };
+  /** The centre of a drawing's box in root space, curves included. */
+  const centre = (leaf: Leaf): Point | undefined => {
+    const geometry = rootGeometry(leaf);
+    if (!geometry) return undefined;
+    let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const subpath of geometry) {
+      for (const cubic of subpath.segments) {
+        for (const [x, y] of cubicExtremes(cubic)) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    return minX <= maxX ? [(minX + maxX) / 2, (minY + maxY) / 2] : undefined;
+  };
+  /**
+   * The drawing of `leaf`'s label that `pose` shows among the drawings of
+   * `group` whose geometry the bake reads, so a carrier copied from it takes
+   * the moving frames: where it has several, the one whose box centre is
+   * nearest `leaf`'s, the first in paint order on a tie.
+   */
+  const drawingIn = (pose: Record<string, boolean>, leaf: Leaf, group: string): Leaf | undefined => {
+    const origin = centre(leaf);
+    let best: { leaf: Leaf; distance: number } | undefined;
+    for (const candidate of leaves) {
+      if (!candidate.live || candidate.group !== group || candidate.label !== leaf.label) continue;
+      if (!visibleAt(candidate.element, pose)) continue;
+      const at = centre(candidate);
+      if (!at) continue;
+      const distance = origin ? Math.hypot(at[0] - origin[0], at[1] - origin[1]) : 0;
+      if (!best || distance < best.distance) best = { leaf: candidate, distance };
+    }
+    return best?.leaf;
+  };
+  /** Per label and named pose, whether any moving shape drew at that pose's place. */
+  const depthUse = new Map<string, { label: string; depth: string; groups: Set<string>; used: boolean }>();
 
   // Geometry in root user space.
   const geometryOf = new Map<Leaf, Subpath[] | null>();
@@ -646,7 +799,7 @@ export function* bakeSteps(
       }
       for (const u of pairing.unpaired) (u.side === "from" ? unpairedFrom : unpairedTo).push(byNode.get(u.shape.id)!);
       // Tracks of this segment already drawing on each home drawing.
-      const homed = new Map<Leaf, number>();
+      const homed = new Map<Leaf, { node: boolean; carriers: number }>();
       for (const pair of pairing.pairs) {
         yield;
         const from = byNode.get(pair.from.id)!;
@@ -669,25 +822,52 @@ export function* bakeSteps(
           continue;
         }
         const { morph, cacheKey, reversed } = morphFor(from, to, method);
-        // A moving drawing paints at the depth its layer has in the
-        // variant's rest pose, the pose the static image shows, in both
-        // directions, so the live layer order always matches the still: it
-        // draws on whichever of its two drawings the rest pose shows, and on
-        // the one it leaves when the rest pose shows neither.
-        const home = visibleAt(to.element, restVisible) && !visibleAt(from.element, restVisible) ? to : from;
+        // A moving drawing paints at the depth its layer has in the pose its
+        // `depth` names, in both directions, so the stacking holds for the
+        // whole morph: it draws on whichever of its two drawings that pose
+        // shows. By default that pose is the variant's rest pose, the pose
+        // the static image shows, so the live layer order matches the still;
+        // where the rest pose shows neither, it draws on the one it leaves.
+        // A named pose that shows neither still holds its stacking through a
+        // segment that does not reach it, on that pose's drawing of the same
+        // label; one that draws no such shape leaves the rest pose to decide.
+        const { depth, label: depthLabel } = depthOf(from);
+        const named = depthPose(depth, group);
+        const shows = (pose: Record<string, boolean>) => visibleAt(from.element, pose) || visibleAt(to.element, pose);
+        const endIn = (pose: Record<string, boolean>) =>
+          visibleAt(to.element, pose) && !visibleAt(from.element, pose) ? to : from;
+        const posed =
+          named && depth !== MORPH_DEPTH_REST && !shows(named) ? drawingIn(named, from, group) : undefined;
+        const placed = !!named && (shows(named) || !!posed);
+        const home = posed ?? endIn(named && shows(named) ? named : restVisible);
         const space = elementSpace(home);
         if (!morph || !space) {
           unpairedFrom.push(from);
           unpairedTo.push(to);
           continue;
         }
+        if (depth !== MORPH_DEPTH_REST) {
+          const where = depthLabel ?? from.label;
+          const use = depthUse.get(`${where}\n${depth}`) ?? { label: where, depth, groups: new Set<string>(), used: false };
+          use.groups.add(group);
+          use.used ||= placed;
+          depthUse.set(`${where}\n${depth}`, use);
+        }
         // One element carries one shape, so a second track drawing on the
         // same home (two open lashes converging on the closed lash a variant
         // rests on) draws on a carrier copied beside it, at the same depth,
         // and so does every track of a basic shape, whose own markup stays.
-        const count = homed.get(home) ?? 0;
-        homed.set(home, count + 1);
-        const draw = isPath(home) ? (count === 0 ? nodeOf(home) : carrierOf(home, count - 1)) : carrierOf(home, count);
+        // A home in a pose this segment does not reach may be held, fading or
+        // another pair's end, so a track always draws on a carrier there.
+        const slots = homed.get(home) ?? { node: false, carriers: 0 };
+        homed.set(home, slots);
+        let draw: string;
+        if (isPath(home) && !posed && !slots.node) {
+          slots.node = true;
+          draw = nodeOf(home);
+        } else {
+          draw = carrierOf(home, slots.carriers++);
+        }
         const ref = addFrames(cacheKey, morph, space, reversed);
         transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
@@ -733,7 +913,12 @@ export function* bakeSteps(
             const direction = side === "from" ? "shrink" : "grow";
             const morph = morphScale(geometry, direction);
             const ref = addFrames(`${leaf.key}:${direction}`, morph, space, false);
-            transitions.push({ kind: "scale", node: nodeOf(leaf), draw: isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, 0), direction, frames: ref });
+            // A basic shape scales on a carrier, after any a track of this
+            // segment already draws on.
+            const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
+            homed.set(leaf, slots);
+            const draw = isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, slots.carriers++);
+            transitions.push({ kind: "scale", node: nodeOf(leaf), draw, direction, frames: ref });
             return;
           }
           // Geometry the bake could not read was reported where it was read.
@@ -816,6 +1001,23 @@ export function* bakeSteps(
       });
     }
   }
+  // A label none of whose moving shapes the named pose draws keeps its
+  // rest-pose stacking. A one-sided shape under it moves on no track, so
+  // art that draws a shape in one pose only is not reported.
+  for (const { label, depth, groups, used } of depthUse.values()) {
+    if (used) continue;
+    const pose = parseMorphDepth(depth);
+    const group = pose && pose !== MORPH_DEPTH_REST ? pose.group : "";
+    const others = [...groups].filter((g) => g !== group);
+    report(
+      "depth-ignored",
+      "warning",
+      others.length === groups.size
+        ? `"${label}" changes with ${others.map((g) => `\`${g}\``).join(" and ")}, not \`${group}\`, so \`depth = ${depth}\` does not apply and it keeps its place in the rest pose.`
+        : `\`depth = ${depth}\` draws none of the moving shapes of "${label}", so they keep their place in the rest pose.`,
+      { layer: label },
+    );
+  }
   for (const [index, clip] of recipe.clips.entries()) {
     if (!clipHasFrames[index]) {
       report("edge-missing", "error", `Clip ${index + 1}'s edges (${clip.between.map((l) => `"${l}"`).join(", ")}) never move in this variant, so there is no aperture to cut.`, { layer: clip.between[0] });
@@ -823,12 +1025,13 @@ export function* bakeSteps(
     }
   }
 
-  // Clip wrappers: each target is wrapped in a group clipped by its entry's
-  // aperture, mapped from root space into the wrapper's space. The target's
-  // own clips and masks stay on it, so the two intersect.
+  // Clip wrappers: each target is wrapped in a group masked by its entry's
+  // aperture, in root space (or clipped by it, in the parent's space; see
+  // below). The target's own clips and masks stay on it, so the two
+  // intersect.
   const prefix = idPrefixFor(input.key);
   const clipTargets: MorphClipTarget[] = [];
-  const wrappers = new Map<Element, { clip: number; id: string; matrix: Affine }[]>();
+  const wrappers = new Map<Element, Wrapper[]>();
   let clipSerial = 0;
   const freshId = (base: string) => {
     let id = base;
@@ -846,29 +1049,120 @@ export function* bakeSteps(
       }
       const id = freshId(`morph-clip-${clipIndex}-${clipSerial++}`);
       const list = wrappers.get(target) ?? [];
-      list.push({ clip: clipIndex, id, matrix });
+      list.push({ clip: clipIndex, id, matrix, space: parentSpace! });
       wrappers.set(target, list);
-      clipTargets.push({ clip: clipIndex, clipPath: `${prefix}${id}`, matrix: [...matrix] });
+      clipTargets.push({ clip: clipIndex, aperture: `${prefix}${id}`, matrix: [...matrix] });
     }
   }
-  const clipPathElement = (id: string, clip: number, matrix: Affine): Element => ({
-    tagName: "clipPath",
-    attributes: { id, clipPathUnits: "userSpaceOnUse" },
-    children: [
-      {
-        tagName: "path",
-        attributes: {
-          ...(isIdentity(matrix) ? {} : { transform: formatAffine(matrix) }),
-          d: loopsPathData(restLoops[clip] ?? []),
-        },
-        children: [],
+  // Every point a clip entry's apertures reach, in root space, and the
+  // largest area they open to.
+  const apertureBounds = recipe.clips.map(() => ({ minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, widest: 0 }));
+  for (const segment of segments) {
+    for (const { clip, loops } of segment.clips) {
+      const box = apertureBounds[clip]!;
+      for (const sample of apertures[loops.index]!) {
+        for (const flat of sample) {
+          box.widest = Math.max(box.widest, loopArea(flat));
+          for (let i = 0; i + 1 < flat.length; i += 2) {
+            box.minX = Math.min(box.minX, flat[i]!);
+            box.maxX = Math.max(box.maxX, flat[i]!);
+            box.minY = Math.min(box.minY, flat[i + 1]!);
+            box.maxY = Math.max(box.maxY, flat[i + 1]!);
+          }
+        }
+      }
+    }
+  }
+  // An aperture is a mask rather than a clip path so that at rest it can
+  // reach past its outline. The outline lies on the edges drawn around the
+  // opening, and a clip edge and a drawn edge that coincide are each
+  // antialiased against what lies beneath them, which leaves a seam of the
+  // layer under the clip targets. A stroke `APERTURE_REACH` screen pixels
+  // wide on each side, whatever size the picture is drawn at, moves the
+  // mask's edge under the drawn edges, which paint over the targets at rest
+  // as the still image draws them. A player drops the stroke whenever the
+  // aperture leaves its rest outline: moving edges taper past the opening's
+  // corners, and a closed state's drawings may paint beneath the targets, so
+  // a reach there would show. A rest outline closed against its entry's
+  // widest (a morph that rests closed) has no stroke at all, for the same
+  // reason.
+  //
+  // A non-scaling stroke in a mask is drawn through the space of the element
+  // the mask is on, so that element's space is root space: the masked group
+  // undoes the transforms around the target and a group inside it redoes
+  // them, both written at full precision, and the mask's path is in root
+  // space as the apertures are. The path's paint is spelled out, since a
+  // mask's content inherits from the mask's ancestors (the artwork root),
+  // not from the masked drawing: an inherited `fill-opacity` would make the
+  // whole aperture translucent. The mask's region is the apertures' bounds
+  // grown by their own size, so it holds the stroke at any size the opening
+  // is drawn large enough to see.
+  //
+  // A browser composes the undoing and redoing matrices in single precision,
+  // which moves the target by about 2^-24 times the parent space's
+  // stretch one way against another (its condition number) times the size
+  // of the coordinates involved, translations included. Where that could
+  // exceed `ROOTED_ERROR_FRACTION` of the apertures' extent, the aperture is
+  // a clip path in the parent's space, the aperture mapped into it, with no
+  // reach.
+  //
+  // Closure is judged loop by loop (one clip entry may hold several eyes):
+  // the open loops are stroked by a second path when some loops are closed.
+  const rooted = ({ clip, matrix, space }: Wrapper): boolean => {
+    if (isIdentity(matrix)) return true;
+    const { minX, minY, maxX, maxY } = apertureBounds[clip]!;
+    const size = Math.max(Math.abs(minX), Math.abs(minY), Math.abs(maxX), Math.abs(maxY), ...[matrix, space].flatMap((m) => [Math.abs(m[4]), Math.abs(m[5])]));
+    return 2 ** -24 * conditionOf(space) * size <= ROOTED_ERROR_FRACTION * Math.max(maxX - minX, maxY - minY);
+  };
+  const apertureElement = (wrapper: Wrapper): Element => {
+    const { id, clip, matrix } = wrapper;
+    const loops = restLoops[clip] ?? [];
+    if (!rooted(wrapper)) {
+      return {
+        tagName: "clipPath",
+        attributes: { id, clipPathUnits: "userSpaceOnUse" },
+        children: [{ tagName: "path", attributes: { transform: exactAffine(matrix), d: loopsPathData(loops) }, children: [] }],
+      };
+    }
+    const { minX, minY, maxX, maxY, widest } = apertureBounds[clip]!;
+    const pad = Math.max(maxX - minX, maxY - minY);
+    const open = loops.filter((flat) => loopArea(flat) > CLOSED_FRACTION * widest);
+    // Inline, so no style sheet the artwork carries outranks it.
+    const path = (d: string, reach: boolean): Element => ({
+      tagName: "path",
+      attributes: {
+        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach ? `stroke:#fff;stroke-opacity:1;stroke-width:${APERTURE_REACH * 2}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
+        d,
       },
-    ],
-  });
+      children: [],
+    });
+    const all = open.length === loops.length;
+    return {
+      tagName: "mask",
+      attributes: {
+        id,
+        maskUnits: "userSpaceOnUse",
+        x: `${minX - pad}`,
+        y: `${minY - pad}`,
+        width: `${maxX - minX + 2 * pad}`,
+        height: `${maxY - minY + 2 * pad}`,
+      },
+      children: [path(loopsPathData(loops), all && open.length > 0), ...(all || !open.length ? [] : [path(loopsPathData(open), true)])],
+    };
+  };
   const wrap = (element: Element) => (clone: Element): Element => {
     let out = clone;
-    for (const { id } of wrappers.get(element) ?? []) {
-      out = { tagName: "g", attributes: { "clip-path": `url(#${id})` }, children: [out] };
+    for (const wrapper of wrappers.get(element) ?? []) {
+      const { id, matrix, space } = wrapper;
+      out = !rooted(wrapper)
+        ? { tagName: "g", attributes: { "clip-path": `url(#${id})` }, children: [out] }
+        : isIdentity(matrix)
+          ? { tagName: "g", attributes: { mask: `url(#${id})` }, children: [out] }
+          : {
+              tagName: "g",
+              attributes: { transform: exactAffine(matrix), mask: `url(#${id})` },
+              children: [{ tagName: "g", attributes: { transform: exactAffine(space) }, children: [out] }],
+            };
     }
     return out;
   };
@@ -891,7 +1185,7 @@ export function* bakeSteps(
     };
     copy(doc.root, root);
     const defs: Element = { tagName: "defs", attributes: {}, children: [] };
-    for (const [, list] of wrappers) for (const w of list) defs.children.push(clipPathElement(w.id, w.clip, w.matrix));
+    for (const [, list] of wrappers) for (const w of list) defs.children.push(apertureElement(w));
     if (defs.children.length) root.children.unshift(defs);
     return serialize(root);
   })();
@@ -956,7 +1250,7 @@ export function* bakeSteps(
   const parts: MorphPart[] = runs.map((run) => {
     const keep = new Set(run.leaves.map((l) => l.element));
     const extra = new Map<Element, (clone: Element) => Element>();
-    const used: { id: string; clip: number; matrix: Affine }[] = [];
+    const used: Wrapper[] = [];
     if (run.live) {
       for (const leaf of run.leaves) {
         extra.set(leaf.element, (clone) => {
@@ -1004,7 +1298,7 @@ export function* bakeSteps(
     }
     const { root, ids } = extractTree(doc!, keep, { extra, missing });
     if (used.length) {
-      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => clipPathElement(w.id, w.clip, w.matrix)) };
+      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => apertureElement(w)) };
       root.children.unshift(defs);
       for (const w of used) ids.add(w.id);
     }

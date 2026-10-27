@@ -102,4 +102,4 @@ While a load runs, the engine keeps the `game.loading` table up to date, and any
 
 ## 9.5 Video
 
-Video files are loaded alongside audio when the story approaches them, so they are ready the moment playback support lands. Playback itself is a separate feature.
+When the game is playing, video files load alongside audio as the story approaches them, and a line that shows a movie or plays a cutscene waits for its file like a line waits for its sound. A movie on screen keeps its file loaded until it leaves. The editor's preview loads no video ahead of time; it reads only the start of a file to show its first frame. [Video](./Video.md) covers playback.

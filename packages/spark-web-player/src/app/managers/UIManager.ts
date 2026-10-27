@@ -2549,9 +2549,9 @@ export default class UIManager extends Manager {
     win?.addEventListener("keydown", onKeyDown, true);
     video.addEventListener("ended", onEnded);
     if (params.enter) {
-      // An enter transition that fades it (the builtin `fadein`, a single
-      // `opacity: 1` keyframe) fades it in from hidden; any other plays on
-      // it as it stands.
+      // An enter transition that animates its opacity (the builtin `fadein`
+      // among them) starts it hidden, so it never shows a frame before its
+      // first keyframe applies; any other plays on it as it stands.
       const keyframes = params.enter.keyframes;
       const fades = (Array.isArray(keyframes) ? keyframes : [keyframes]).some(
         (keyframe) => keyframe != null && "opacity" in keyframe,

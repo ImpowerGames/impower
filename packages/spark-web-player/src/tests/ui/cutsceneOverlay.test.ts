@@ -410,7 +410,11 @@ describe("a cutscene on the page, in play", () => {
       const video = videoOf(h.overlay)!;
       // In from hidden, and then it plays.
       expect(effects).toEqual([
-        { target: cutscene, keyframes: [{ opacity: "1" }], opacity: "0" },
+        {
+          target: cutscene,
+          keyframes: [{ opacity: "0" }, { opacity: "1" }],
+          opacity: "0",
+        },
       ]);
       expect(cutscene.style.opacity).toBe("");
       expect(media.of(video, "play")).toBe(1);
@@ -435,7 +439,7 @@ describe("a cutscene on the page, in play", () => {
     try {
       const { tick } = await runBeat(h);
       const [enter] = held.animations;
-      expect(enter?.keyframes).toEqual([{ opacity: "1" }]);
+      expect(enter?.keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
       const video = videoOf(h.overlay)!;
       expect(media.of(video, "play")).toBe(0);
       pointerDown(video);
@@ -498,9 +502,11 @@ describe("a cutscene on the page, in play", () => {
           await tick();
         }
         const transition = held.animations[held.animations.length - 1]!;
-        expect(transition.keyframes).toEqual([
-          { opacity: exiting ? "0" : "1" },
-        ]);
+        expect(transition.keyframes).toEqual(
+          exiting
+            ? [{ opacity: "0" }]
+            : [{ opacity: "0" }, { opacity: "1" }],
+        );
         h.ui.onDispose();
         expect(cutsceneOf(h.overlay)).toBeNull();
         await flushMicrotasks(50);

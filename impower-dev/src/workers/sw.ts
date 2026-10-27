@@ -6,6 +6,7 @@ import { parseMorphAssetRequest, serveMorphAsset } from "@impower/sparkdown/src/
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { getStaleCacheNames } from "./swCaches";
+import { fileResponse } from "./swRanges";
 
 // Build-time values injected via Vite `define` (see getServiceWorkerDefine).
 // Read through a `typeof` guard so (a) an un-injected build falls back safely
@@ -62,7 +63,8 @@ const cacheThenNetwork = async (url: string) => {
   }
 };
 
-async function handleLocalAssetRequest(url: URL) {
+async function handleLocalAssetRequest(request: Request) {
+  const url = new URL(request.url);
   const path = url.pathname.replace(RESOURCE_PROTOCOL, "");
 
   const root = await navigator.storage.getDirectory();
@@ -76,7 +78,6 @@ async function handleLocalAssetRequest(url: URL) {
 
   const filename = path.split("/").at(-1);
   const contentType = file.type;
-  const contentLength = file.size;
 
   // Image rows can ask for a downscaled thumbnail via `?thumb=<maxWidthPx>`.
   // We decode + resize here in the SW (its own thread) and cache the tiny webp,
@@ -141,7 +142,6 @@ async function handleLocalAssetRequest(url: URL) {
 
   const headers = new Headers({
     "Content-Type": contentType,
-    "Content-Length": String(contentLength),
     "Accept-Ranges": "bytes",
     "Cache-Control": "max-age=31536000, immutable",
     "Content-Disposition": filename
@@ -149,7 +149,7 @@ async function handleLocalAssetRequest(url: URL) {
       : "inline",
   });
 
-  return new Response(file.stream(), { status: 200, headers });
+  return fileResponse(file, request.headers.get("Range"), headers);
 }
 
 /**
@@ -277,7 +277,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", async (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith(RESOURCE_PROTOCOL)) {
-    event.respondWith(handleLocalAssetRequest(url));
+    event.respondWith(handleLocalAssetRequest(event.request));
     return;
   }
   if (SW_NODE_ENV === "production") {

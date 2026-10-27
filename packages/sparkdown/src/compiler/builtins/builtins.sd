@@ -4277,6 +4277,9 @@ animation waitin with
   target = layer.self
   keyframes {
     {
+      opacity = "0"
+    }
+    {
       opacity = "1"
     }
   }
@@ -4310,6 +4313,9 @@ end
 animation fadein with
   target = layer.self
   keyframes {
+    {
+      opacity = "0"
+    }
     {
       opacity = "1"
     }
@@ -4493,6 +4499,7 @@ end
 define morph with
   blend = "morph"
   fallback = "fade"
+  depth = "rest"
   layers = {}
   keyframes = {}
   clips = {}

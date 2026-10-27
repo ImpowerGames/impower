@@ -7,6 +7,7 @@ import {
   insertedText,
   insideBraces,
 } from "./braceCompletionHarness";
+import { compileProject } from "./completionHarness";
 
 // The cases of `morphCompletions.test.ts`, written in brace bodies (#1228):
 // the same items at each depth, with the cursor's path read from the blocks
@@ -83,7 +84,7 @@ end
 `;
     const labels = labelsAt(source);
     expect(labels).toEqual(
-      expect.arrayContaining(["blend", "method", "fallback", "layers", "keyframes", "timing", "clips"]),
+      expect.arrayContaining(["blend", "method", "fallback", "depth", "layers", "keyframes", "timing", "clips"]),
     );
     expect(labels).not.toContain("duration");
     for (const container of ["layers", "keyframes", "timing", "clips"]) {
@@ -164,7 +165,7 @@ end
   }
 end
 `),
-    ).toEqual(["blend", "method", "fallback"]);
+    ).toEqual(["blend", "method", "fallback", "depth"]);
   });
 
   test("a `=` typed without a space gets one before the value", () => {
@@ -356,5 +357,96 @@ end
 `);
     expect(labels).toEqual(expect.arrayContaining(["lids", "lips"]));
     expect(labels).not.toContain("creases");
+  });
+
+  test("`depth` after `=` offers `rest` and each `group.state` the keyframes name", () => {
+    const raise = (layer: string, root = "") => `morph blink with
+  method = bend
+${root}  layers { eyelash-left { ${layer} } }
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = eyes.closed } }
+    to { eyes { state = open } }
+  }
+end
+`;
+    expect(labelsAt(raise("depth = |"))).toEqual(["rest", "eyes.open", "eyes.closed"]);
+    expect(labelsAt(raise("", "  depth = |\n"))).toEqual(["rest", "eyes.open", "eyes.closed"]);
+    // After the group, only its states, replacing the text after the dot.
+    const items = completeAt(raise("depth = eyes.cl|"), program);
+    expect(items.map((i) => i.label)).toEqual(["open", "closed"]);
+    expect(insertedText(items[1]!)).toBe("closed");
+    const item = itemAt(raise("depth = |"), "eyes.closed");
+    expect(item.documentation).toMatchObject({ value: expect.stringContaining("stacking") });
+  });
+
+  test("`depth` values come from the keyframes that apply: the block's own, else the nearest ancestor's", () => {
+    const morph = (name: string, states: string[] | null, parent?: string) => ({
+      $type: "morph",
+      $name: name,
+      ...(parent ? { $extends: parent } : {}),
+      ...(states ? { keyframes: states.map((state) => ({ eyes: { state } })) } : {}),
+    });
+    const chain = {
+      context: {
+        ...program.context,
+        morph: {
+          $default: {},
+          base: morph("base", ["open", "closed"]),
+          middle: morph("middle", ["open", "squint"], "base"),
+          child: morph("child", null, "middle"),
+        },
+      },
+    };
+    const depthAt = (source: string) => completeAt(source, chain).map((item) => String(item.label));
+    // A child's own keyframes replace its ancestors'.
+    expect(
+      depthAt(`morph child as middle with
+  depth = |
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = half } }
+  }
+end
+`),
+    ).toEqual(["rest", "eyes.open", "eyes.half"]);
+    // A `define` ancestor filed under its own parent's name is followed as
+    // the compiler follows it, in a compiled program.
+    const defines = `define base as morph with
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+end
+define middle as base with
+  keyframes = { { offset = 0, arm = { state = "down" } }, { offset = 1, arm = { state = "raised" } } }
+end
+morph child as middle with
+  method = match
+  depth = |
+end
+`;
+    const compiled = compileProject(defines.replace("|", "rest"));
+    expect(compiled.context?.["base"]?.["middle"]).toBeDefined();
+    expect(completeAt(defines, compiled).map((item) => String(item.label))).toEqual([
+      "rest",
+      "arm.down",
+      "arm.raised",
+    ]);
+    // Own keyframes that name no state still replace the ancestors' poses.
+    expect(
+      depthAt(`morph child as middle with
+  depth = |
+  keyframes {
+    from { brow { translate = 0 0 } }
+    to { brow { translate = 0 1 } }
+  }
+end
+`),
+    ).toEqual(["rest"]);
+    // Without its own, the nearest ancestor's, which replaced the base's.
+    expect(
+      depthAt(`morph child as middle with
+  layers { eyelash-left { depth = | } }
+end
+`),
+    ).toEqual(["rest", "eyes.open", "eyes.squint"]);
   });
 });
