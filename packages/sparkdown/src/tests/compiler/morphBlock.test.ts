@@ -1133,3 +1133,123 @@ describe("block-level artwork coverage", () => {
     expect(found.filter((d) => d.message.includes("closed eyes"))).toEqual([]);
   });
 });
+
+describe("transition `depth`", () => {
+  const RAISE = (root: string, layers = "", keyframes = "from { eyes { state = open } }\n    to { eyes { state = closed } }") => `morph m with
+  method = bend
+${root}  layers {
+    eyelash-left { fallback = fade${layers} }
+  }
+  keyframes {
+    ${keyframes}
+  }
+end
+`;
+  const recipeOf = (text: string, name = "m") => JSON.parse(compile(text).morphs!.recipes[name]!);
+  const depthErrors = (text: string) => morphDiagnostics(text).filter((d) => d.message.includes("depth"));
+
+  test("`depth = eyes.closed` stays literal text at the root and under a label", () => {
+    const struct = structOf(RAISE("  depth = eyes.closed\n", "; depth = rest"), "m");
+    expect(struct.depth).toBe("eyes.closed");
+    expect(struct.layers["eyelash-left"].depth).toBe("rest");
+    expect(morphDiagnostics(RAISE("  depth = eyes.closed\n", "; depth = rest"))).toEqual([]);
+  });
+
+  test("`rest` is the builtin default and leaves the recipe as it is without the field", () => {
+    const program = compile(RAISE(""));
+    expect(program.context?.["morph"]?.["m"].depth).toBe("rest");
+    const recipe = recipeOf(RAISE(""));
+    expect(recipe.depth).toBeUndefined();
+    expect(recipe.layers["eyelash-left"]).toEqual({ fallback: "fade" });
+  });
+
+  test("the recipe carries the resolved `depth`, so changing it changes the bake key", () => {
+    expect(recipeOf(RAISE("  depth = eyes.closed\n")).depth).toBe("eyes.closed");
+    expect(recipeOf(RAISE("", "; depth = eyes.closed")).layers["eyelash-left"]).toEqual({ fallback: "fade", depth: "eyes.closed" });
+    const keys = (text: string) => compile(text, [{ name: "bunny", svg: PORTRAIT }]).morphs!.variants;
+    const before = JSON.stringify(keys(RAISE("")));
+    const after = JSON.stringify(keys(RAISE("  depth = eyes.closed\n")));
+    expect(before).not.toBe("{}");
+    expect(after).not.toBe(before);
+  });
+
+  test("a label's and the root's `depth` resolve field by field through `as PARENT`", () => {
+    const text = `${RAISE("  depth = eyes.closed\n")}
+morph child as m with
+  layers {
+    eyelash-left { depth = rest }
+    pupil-left { method = match }
+  }
+end
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+    const recipe = recipeOf(text, "child");
+    expect(recipe.depth).toBe("eyes.closed");
+    expect(recipe.layers["eyelash-left"]).toEqual({ fallback: "fade", depth: "rest" });
+    expect(recipe.layers["pupil-left"]).toEqual({ method: "match" });
+  });
+
+  test.each([
+    ["a value that is neither `rest` nor `group.state`", "2", "`2` is not a `depth`"],
+    ["a bare state", "closed", "Write `depth = eyes.closed`"],
+    ["a group the morph does not drive", "mouth.open", "does not drive `mouth`"],
+    ["a state the keyframes do not name", "eyes.squint", "never shows `eyes.squint`"],
+  ])("%s is reported at the value", (_, value, message) => {
+    for (const text of [RAISE(`  depth = ${value}\n`), RAISE("", `; depth = ${value}`)]) {
+      const found = depthErrors(text);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toMatchObject({ text: value, severity: 1 });
+      expect(found[0]!.message).toContain(message);
+    }
+  });
+
+  test("`depth` in a keyframe container says where it belongs", () => {
+    const inContainer = RAISE("", "", "from { eyes { state = open; depth = eyes.closed } }\n    to { eyes { state = closed } }");
+    expect(depthErrors(inContainer)).toEqual([
+      expect.objectContaining({ text: "depth", message: "`depth` belongs at the morph root or under a label in `layers { … }`." }),
+    ]);
+  });
+
+  test("an inherited `depth` the child's keyframes no longer show is reported on its `as`", () => {
+    const text = `${RAISE("  depth = eyes.closed\n")}
+morph child as m with
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = squint } }
+  }
+end
+`;
+    const found = depthErrors(text).filter((d) => d.line > 10);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "m", severity: 1 });
+    expect(found[0]!.message).toContain("inherited");
+  });
+
+  test("a `depth` a `define` parent supplies with its keyframes is checked against them on the child's `as`", () => {
+    const text = `define base as morph with
+  method = "bend"
+  depth = "eyes.missing"
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+end
+
+morph child as base with
+  fallback = fade
+end
+`;
+    const found = depthErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ line: 6, text: "base", severity: 1 });
+    expect(found[0]!.message).toContain("never shows `eyes.missing`");
+  });
+
+  test("a parent block's own `depth` problem is reported there, not again on a child that keeps it", () => {
+    const text = `${RAISE("  depth = eyes.squint\n")}
+morph child as m with
+  fallback = cut
+end
+`;
+    const found = depthErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "eyes.squint" });
+  });
+});

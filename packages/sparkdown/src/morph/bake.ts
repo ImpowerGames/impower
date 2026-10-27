@@ -24,6 +24,7 @@ import {
   type AttributeSelection,
 } from "../attributes";
 import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
+import { MORPH_DEPTH_REST, parseMorphDepth } from "../compiler/morph/morphSchema";
 import {
   applySubpaths,
   invert,
@@ -253,6 +254,42 @@ const loopsPathData = (loops: number[][]): string =>
       return `${d}Z`;
     })
     .join("");
+
+/**
+ * A cubic's ends and the points where it turns in x or y, which together
+ * bound it: its handles can reach past the curve, its ends alone fall short.
+ */
+const cubicExtremes = (c: Subpath["segments"][number]): Point[] => {
+  const at = (t: number): Point => {
+    const u = 1 - t;
+    const [a, b, d, e] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+    return [
+      a * c.p0[0] + b * c.c1[0] + d * c.c2[0] + e * c.p1[0],
+      a * c.p0[1] + b * c.c1[1] + d * c.c2[1] + e * c.p1[1],
+    ];
+  };
+  const points: Point[] = [c.p0, c.p1];
+  for (const axis of [0, 1] as const) {
+    const [p, q, r, s] = [c.p0[axis], c.c1[axis], c.c2[axis], c.p1[axis]];
+    // Where the derivative, a quadratic in t, is zero.
+    const qa = -p + 3 * q - 3 * r + s;
+    const qb = 2 * (p - 2 * q + r);
+    const qc = q - p;
+    const roots =
+      Math.abs(qa) < 1e-12
+        ? Math.abs(qb) < 1e-12
+          ? []
+          : [-qc / qb]
+        : (() => {
+            const disc = qb * qb - 4 * qa * qc;
+            if (disc < 0) return [];
+            const root = Math.sqrt(disc);
+            return [(-qb + root) / (2 * qa), (-qb - root) / (2 * qa)];
+          })();
+    for (const t of roots) if (t > 0 && t < 1) points.push(at(t));
+  }
+  return points;
+};
 
 const isLine = (c: Subpath["segments"][number]) =>
   c.c1[0] === c.p0[0] && c.c1[1] === c.p0[1] && c.c2[0] === c.p1[0] && c.c2[1] === c.p1[1];
@@ -552,6 +589,67 @@ export function* bakeSteps(
     }
     return recipe[field];
   };
+  // `depth` by the nearest label that sets it, and the label it came from:
+  // the place a pose that draws none of the label's moving shapes is reported.
+  const depthOf = (leaf: Leaf): { depth: string; label?: string } => {
+    for (const entry of ancestry(doc!, leaf.element)) {
+      const label = entry.layer?.parsed.label;
+      const depth = label ? own(recipe.layers, label)?.depth : undefined;
+      if (depth) return { depth, label };
+    }
+    return { depth: recipe.depth ?? MORPH_DEPTH_REST };
+  };
+  /**
+   * What the pose a `depth` names shows, for a drawing that changes with
+   * `group`: the rest pose for `rest` and for the state the morph starts
+   * from, which stands for the variant's own resting choice. Undefined when
+   * the pose is not one of `group`'s, so it says nothing about the drawing.
+   */
+  const depthPose = (depth: string, group: string): Record<string, boolean> | undefined => {
+    const pose = parseMorphDepth(depth);
+    if (!pose || pose === MORPH_DEPTH_REST) return restVisible;
+    if (pose.group !== group) return undefined;
+    if (pose.state === requirements.rest.get(group)) return restVisible;
+    return visibleIn.get(group)?.get(pose.state);
+  };
+  /** The centre of a drawing's box in root space, curves included. */
+  const centre = (leaf: Leaf): Point | undefined => {
+    const geometry = rootGeometry(leaf);
+    if (!geometry) return undefined;
+    let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const subpath of geometry) {
+      for (const cubic of subpath.segments) {
+        for (const [x, y] of cubicExtremes(cubic)) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    return minX <= maxX ? [(minX + maxX) / 2, (minY + maxY) / 2] : undefined;
+  };
+  /**
+   * The drawing of `leaf`'s label that `pose` shows among the drawings of
+   * `group` whose geometry the bake reads, so a carrier copied from it takes
+   * the moving frames: where it has several, the one whose box centre is
+   * nearest `leaf`'s, the first in paint order on a tie.
+   */
+  const drawingIn = (pose: Record<string, boolean>, leaf: Leaf, group: string): Leaf | undefined => {
+    const origin = centre(leaf);
+    let best: { leaf: Leaf; distance: number } | undefined;
+    for (const candidate of leaves) {
+      if (!candidate.live || candidate.group !== group || candidate.label !== leaf.label) continue;
+      if (!visibleAt(candidate.element, pose)) continue;
+      const at = centre(candidate);
+      if (!at) continue;
+      const distance = origin ? Math.hypot(at[0] - origin[0], at[1] - origin[1]) : 0;
+      if (!best || distance < best.distance) best = { leaf: candidate, distance };
+    }
+    return best?.leaf;
+  };
+  /** Per label and named pose, whether any moving shape drew at that pose's place. */
+  const depthUse = new Map<string, { label: string; depth: string; groups: Set<string>; used: boolean }>();
 
   // Geometry in root user space.
   const geometryOf = new Map<Leaf, Subpath[] | null>();
@@ -701,7 +799,7 @@ export function* bakeSteps(
       }
       for (const u of pairing.unpaired) (u.side === "from" ? unpairedFrom : unpairedTo).push(byNode.get(u.shape.id)!);
       // Tracks of this segment already drawing on each home drawing.
-      const homed = new Map<Leaf, number>();
+      const homed = new Map<Leaf, { node: boolean; carriers: number }>();
       for (const pair of pairing.pairs) {
         yield;
         const from = byNode.get(pair.from.id)!;
@@ -724,25 +822,52 @@ export function* bakeSteps(
           continue;
         }
         const { morph, cacheKey, reversed } = morphFor(from, to, method);
-        // A moving drawing paints at the depth its layer has in the
-        // variant's rest pose, the pose the static image shows, in both
-        // directions, so the live layer order always matches the still: it
-        // draws on whichever of its two drawings the rest pose shows, and on
-        // the one it leaves when the rest pose shows neither.
-        const home = visibleAt(to.element, restVisible) && !visibleAt(from.element, restVisible) ? to : from;
+        // A moving drawing paints at the depth its layer has in the pose its
+        // `depth` names, in both directions, so the stacking holds for the
+        // whole morph: it draws on whichever of its two drawings that pose
+        // shows. By default that pose is the variant's rest pose, the pose
+        // the static image shows, so the live layer order matches the still;
+        // where the rest pose shows neither, it draws on the one it leaves.
+        // A named pose that shows neither still holds its stacking through a
+        // segment that does not reach it, on that pose's drawing of the same
+        // label; one that draws no such shape leaves the rest pose to decide.
+        const { depth, label: depthLabel } = depthOf(from);
+        const named = depthPose(depth, group);
+        const shows = (pose: Record<string, boolean>) => visibleAt(from.element, pose) || visibleAt(to.element, pose);
+        const endIn = (pose: Record<string, boolean>) =>
+          visibleAt(to.element, pose) && !visibleAt(from.element, pose) ? to : from;
+        const posed =
+          named && depth !== MORPH_DEPTH_REST && !shows(named) ? drawingIn(named, from, group) : undefined;
+        const placed = !!named && (shows(named) || !!posed);
+        const home = posed ?? endIn(named && shows(named) ? named : restVisible);
         const space = elementSpace(home);
         if (!morph || !space) {
           unpairedFrom.push(from);
           unpairedTo.push(to);
           continue;
         }
+        if (depth !== MORPH_DEPTH_REST) {
+          const where = depthLabel ?? from.label;
+          const use = depthUse.get(`${where}\n${depth}`) ?? { label: where, depth, groups: new Set<string>(), used: false };
+          use.groups.add(group);
+          use.used ||= placed;
+          depthUse.set(`${where}\n${depth}`, use);
+        }
         // One element carries one shape, so a second track drawing on the
         // same home (two open lashes converging on the closed lash a variant
         // rests on) draws on a carrier copied beside it, at the same depth,
         // and so does every track of a basic shape, whose own markup stays.
-        const count = homed.get(home) ?? 0;
-        homed.set(home, count + 1);
-        const draw = isPath(home) ? (count === 0 ? nodeOf(home) : carrierOf(home, count - 1)) : carrierOf(home, count);
+        // A home in a pose this segment does not reach may be held, fading or
+        // another pair's end, so a track always draws on a carrier there.
+        const slots = homed.get(home) ?? { node: false, carriers: 0 };
+        homed.set(home, slots);
+        let draw: string;
+        if (isPath(home) && !posed && !slots.node) {
+          slots.node = true;
+          draw = nodeOf(home);
+        } else {
+          draw = carrierOf(home, slots.carriers++);
+        }
         const ref = addFrames(cacheKey, morph, space, reversed);
         transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
@@ -788,7 +913,12 @@ export function* bakeSteps(
             const direction = side === "from" ? "shrink" : "grow";
             const morph = morphScale(geometry, direction);
             const ref = addFrames(`${leaf.key}:${direction}`, morph, space, false);
-            transitions.push({ kind: "scale", node: nodeOf(leaf), draw: isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, 0), direction, frames: ref });
+            // A basic shape scales on a carrier, after any a track of this
+            // segment already draws on.
+            const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
+            homed.set(leaf, slots);
+            const draw = isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, slots.carriers++);
+            transitions.push({ kind: "scale", node: nodeOf(leaf), draw, direction, frames: ref });
             return;
           }
           // Geometry the bake could not read was reported where it was read.
@@ -870,6 +1000,23 @@ export function* bakeSteps(
         clips,
       });
     }
+  }
+  // A label none of whose moving shapes the named pose draws keeps its
+  // rest-pose stacking. A one-sided shape under it moves on no track, so
+  // art that draws a shape in one pose only is not reported.
+  for (const { label, depth, groups, used } of depthUse.values()) {
+    if (used) continue;
+    const pose = parseMorphDepth(depth);
+    const group = pose && pose !== MORPH_DEPTH_REST ? pose.group : "";
+    const others = [...groups].filter((g) => g !== group);
+    report(
+      "depth-ignored",
+      "warning",
+      others.length === groups.size
+        ? `"${label}" changes with ${others.map((g) => `\`${g}\``).join(" and ")}, not \`${group}\`, so \`depth = ${depth}\` does not apply and it keeps its place in the rest pose.`
+        : `\`depth = ${depth}\` draws none of the moving shapes of "${label}", so they keep their place in the rest pose.`,
+      { layer: label },
+    );
   }
   for (const [index, clip] of recipe.clips.entries()) {
     if (!clipHasFrames[index]) {

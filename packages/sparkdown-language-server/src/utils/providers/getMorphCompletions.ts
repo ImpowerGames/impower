@@ -1,3 +1,4 @@
+import { compiledAncestor } from "@impower/sparkdown/src/compiler/morph/collectMorphDiagnostics";
 import {
   groupHasState,
   morphImageLabels,
@@ -8,6 +9,7 @@ import {
   MORPH_BLENDS,
   MORPH_CLIP_FIELDS,
   MORPH_CONTAINER_FIELDS,
+  MORPH_DEPTH_REST,
   MORPH_DIRECTIONS,
   MORPH_EASING_KEYWORDS,
   MORPH_FALLBACKS,
@@ -54,8 +56,11 @@ export interface MorphBraceContext {
   /** The brace entry being written up to the cursor (`braceEntryAt`), or
    *  null when the cursor is inside a quoted string. */
   entry: string | null;
-  /** The innermost key around each `state` property written in a block. */
-  stateContainers: string[];
+  /** Each `state` property written in a block: the innermost key around it
+   *  and its value as written. */
+  states: { container: string; state: string }[];
+  /** Whether the morph writes its own root `keyframes` block. */
+  keyframes: boolean;
 }
 
 /**
@@ -87,27 +92,56 @@ export function getMorphCompletions(
   const images = morphImages(context);
   // Groups this morph drives: every container with a `state` line, plus the
   // container the cursor is in. Candidates are images with any of them.
+  // `named` holds the states the keyframes name for each group, which are the
+  // poses a `depth` can name.
   const driven = new Set<string>();
-  for (const container of braces?.stateContainers ?? []) {
-    if (container !== "-") driven.add(container);
+  const named = new Map<string, string[]>();
+  const addNamed = (group: string, written: unknown) => {
+    if (typeof written !== "string" || !written) return;
+    const state = written.startsWith(`${group}.`) ? written.slice(group.length + 1) : written;
+    if (state.includes(".")) return;
+    const list = named.get(group) ?? [];
+    if (!list.includes(state)) list.push(state);
+    named.set(group, list);
+  };
+  for (const { container, state } of braces?.states ?? []) {
+    if (container === "-") continue;
+    driven.add(container);
+    addNamed(container, state);
   }
+  let posesFound = !!braces?.keyframes;
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
   const container = inKeyframe ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
   // Groups the morph inherits: every `as` ancestor's keyframes, read from the
   // compiled program, so a child that only restates policies still completes
   // from the images its inherited keyframes bind to.
+  // An ancestor is a morph block or a `define`, which may be filed under its
+  // own parent's name; `compiledAncestor` finds it as the compiler does.
   const morphs = (context["morph"] ?? {}) as Record<string, any>;
   const seen = new Set<string>();
   let ancestor: string | undefined = morphs[block.name]?.$extends;
   while (typeof ancestor === "string" && !seen.has(ancestor)) {
     seen.add(ancestor);
-    const struct = morphs[ancestor];
-    if (!struct || typeof struct !== "object") break;
+    const found = compiledAncestor(context, ancestor);
+    if (!found) break;
+    const struct = found.struct as Record<string, any>;
     for (const group of morphRequirements(struct).groups.keys()) {
       driven.add(group);
     }
-    ancestor = struct.$extends;
+    // Keyframes replace rather than add to an ancestor's, so the poses are
+    // the block's own when it writes keyframes, and otherwise the nearest
+    // ancestor's that has keyframes.
+    const keyframes = Array.isArray(struct["keyframes"]) ? struct["keyframes"] : [];
+    if (!posesFound && keyframes.length > 0) {
+      posesFound = true;
+      for (const keyframe of keyframes) {
+        for (const [group, pose] of Object.entries(keyframe ?? {})) {
+          addNamed(group, (pose as Record<string, unknown> | null)?.["state"]);
+        }
+      }
+    }
+    ancestor = found.parent ?? struct["$extends"];
   }
   const candidates = images.filter((image) =>
     [...driven].some((group) => image.vocabulary.groups[group]),
@@ -183,6 +217,28 @@ export function getMorphCompletions(
               : `${covering.length} of ${candidates.length} images`,
           },
           textEdit: { range: replaceRange(partial.length), newText: state },
+        });
+      }
+      return items;
+    }
+    const policyPlace = path.length === 0 || (path[0] === "layers" && path.length === 2);
+    if (key === "depth" && policyPlace) {
+      // A pose the keyframes name, with its group. After `group.` only that
+      // group's states, replacing the text after the dot, as for `state`.
+      const dot = typed.indexOf(".");
+      const choices =
+        dot >= 0
+          ? (named.get(typed.slice(0, dot)) ?? []).map((state) => ({ label: state, length: typed.length - dot - 1 }))
+          : [MORPH_DEPTH_REST, ...[...named].flatMap(([group, states]) => states.map((s) => `${group}.${s}`))].map(
+              (label) => ({ label, length: typed.length }),
+            );
+      for (const { label, length } of choices) {
+        add({
+          label,
+          kind: CompletionItemKind.EnumMember,
+          detail: "depth",
+          documentation: docs("depth"),
+          textEdit: { range: replaceRange(length), newText: label },
         });
       }
       return items;

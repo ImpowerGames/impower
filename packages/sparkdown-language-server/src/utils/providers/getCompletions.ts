@@ -12,6 +12,8 @@ import {
   braceEntryAt,
   entryInsideValue,
   insideElementValue,
+  structBlockKeyNode,
+  structKeyToken,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import {
@@ -160,29 +162,41 @@ const getDefineContext = (
 
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
 
-/** The innermost block key around each `state = …` written in a brace block
- *  of `declaration`, which names the group a morph drives there. */
-const blockStateContainers = (
+/** Each `state = …` written in a brace block of `declaration`: the innermost
+ *  block key around it, which names the group a morph drives there, and the
+ *  value as written; and whether the declaration writes its own root
+ *  `keyframes` block, which replaces any it inherits. */
+const blockStates = (
   declaration: SyntaxNode,
   tree: Tree,
   read: (from: number, to: number) => string,
-): string[] => {
-  const containers: string[] = [];
+): { states: { container: string; state: string }[]; keyframes: boolean } => {
+  const states: { container: string; state: string }[] = [];
+  let keyframes = false;
   const walk = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
       if (child.name === "LuauStructBlockProperty") {
         const key = getDescendent("DeclarationScalarPropertyKey", child);
         if (key && key.to <= child.to && read(key.from, key.to).trim() === "state") {
           const container = braceBlockPathAt(tree, child.from, read)?.path.at(-1);
-          if (container) containers.push(container);
+          const value = /=\s*"?([^\s";{}]*)/.exec(read(key.to, child.to))?.[1] ?? "";
+          if (container) states.push({ container, state: value });
         }
       } else {
+        if (child.name === "LuauStructBlock" && !keyframes) {
+          const key = structBlockKeyNode(child);
+          const token = key && structKeyToken(key);
+          keyframes =
+            !!token &&
+            read(token.from, token.to).trim() === "keyframes" &&
+            !braceBlockPathAt(tree, child.from, read)?.path.length;
+        }
         walk(child);
       }
     }
   };
   walk(declaration);
-  return containers;
+  return { states, keyframes };
 };
 
 const isWhitespaceNode = (name?: SparkdownNodeName) =>
@@ -1457,7 +1471,7 @@ export const getCompletions = (
           document.offsetAt({ line: position.line, character: 0 }),
           read,
         ),
-        stateContainers: blockStateContainers(morphNode, tree, read),
+        ...blockStates(morphNode, tree, read),
       },
     );
     if (morphCompletions) return morphCompletions;

@@ -19,6 +19,11 @@ export interface MorphPolicy {
   blend?: MorphBlend;
   method?: MorphMethodName;
   fallback?: MorphFallback;
+  /**
+   * The pose whose stacking a moving shape keeps between keyframes: `rest`,
+   * or a group-qualified state such as `eyes.closed`.
+   */
+  depth?: string;
 }
 
 /**
@@ -33,6 +38,8 @@ export interface MorphRecipe {
   blend: MorphBlend;
   method?: MorphMethodName;
   fallback: MorphFallback;
+  /** The root's `depth` (`MorphPolicy.depth`); absent when it is `rest`. */
+  depth?: string;
   /** Per-label overrides, keys sorted. */
   layers: Record<string, MorphPolicy>;
   /**
@@ -119,7 +126,8 @@ export type MorphDiagnosticCode =
   | "unsupported-element"
   | "resource-missing"
   | "source-unreadable"
-  | "inactive-variant";
+  | "inactive-variant"
+  | "depth-ignored";
 
 export interface MorphBakeDiagnostic {
   code: MorphDiagnosticCode;
@@ -194,12 +202,15 @@ export interface MorphGeometryRef {
  * of the artifact's `frames` table, in the node's own user space.
  *
  * - `morph`: between the ends the `draw` node's geometry follows the frames,
- *   then the `to` node takes over. `draw` is whichever of `from` and `to`
- *   the variant's rest pose shows (`from` when it shows neither), so the
- *   moving drawing paints at its rest-pose depth; a second track drawing on
- *   the same node, and every track of a basic shape, draws on a hidden
- *   carrier copied right after it. `shared` marks a drawing several tracks
- *   share; it is drawn once at its end.
+ *   then the `to` node takes over. The moving drawing paints at the depth
+ *   its layer has in the pose its `depth` names (the variant's rest pose by
+ *   default): `draw` is whichever of `from` and `to` that pose shows, or,
+ *   for a named pose that shows neither, a hidden carrier of that pose's
+ *   drawing of the same label; where the pose places neither, the rest pose
+ *   decides, and `draw` is `from` when it shows neither. A second track
+ *   drawing on the same node, and every track of a basic shape, draws on a
+ *   hidden carrier copied right after it. `shared` marks a drawing several
+ *   tracks share; it is drawn once at its end.
  * - `fade`: `from` fades out while `to` fades in; either may be absent.
  * - `cut`: `from` holds until the segment ends, then `to` shows.
  * - `scale`: `node` shrinks to (or grows from) its own fixed centre; the zero
