@@ -37,7 +37,7 @@ The video plays on the `portrait` layer and loops. Everything you can write afte
 | `[[show portrait bunny_idle loop]]` | Loops, which is what a layer movie does anyway. |
 | `[[show backdrop rain mute]]` | Plays it with no sound. |
 | `[[show backdrop rain with fade]]` | Fades it in, as an image would. |
-| `[[animate portrait shake]]` | Animates the layer the movie is on. |
+| `[[animate portrait with shake]]` | Shakes the layer the movie is on, as it would an image. |
 | `[[hide portrait]]` | Stops the movie and clears the layer. |
 
 A movie on a layer does not hold up the story. The next line shows when it would after an image, whether or not the movie has finished.
