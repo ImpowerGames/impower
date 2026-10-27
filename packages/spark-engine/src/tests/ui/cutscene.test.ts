@@ -259,6 +259,76 @@ describe("a cutscene: the UI module", () => {
     expect(musicRestored(restored.messages)).toBe(false);
   });
 
+  test("stops music a restore brought back", async () => {
+    // PLAY from a later line, or a loaded save, restores the music the saved
+    // state names; a cutscene right after it must stop that music too.
+    const h = await withMusic();
+    const restored = createHarness(
+      story("  ((play music theme loop))\n  Music."),
+      0,
+      { assets: ASSETS, loadCheckpoint: h.game.save(), beforeConnect: playing },
+    );
+    await restored.ready;
+    expect(musicRestored(restored.messages)).toBe(true);
+    restored.reset();
+    restored.game.module.ui.runCutscene({ name: "intro" });
+    await flushMicrotasks(10);
+    const updates = musicUpdates(restored.messages).flatMap(
+      (m) => m.params.updates,
+    );
+    expect(updates.some((u: any) => u.control === "stop")).toBe(true);
+    const again = createHarness(story("  ((play music theme loop))\n  Music."), 0, {
+      assets: ASSETS,
+      loadCheckpoint: restored.game.save(),
+      beforeConnect: playing,
+    });
+    await again.ready;
+    expect(musicRestored(again.messages)).toBe(false);
+  });
+
+  test("keeps restored music stopped when a cutscene starts while it still loads", async () => {
+    // PLAY that starts on a cutscene line: the restore asks the page to load
+    // the music, and the cutscene begins before that load has settled.
+    const h = await withMusic();
+    let release!: () => void;
+    const loaded = new Promise<void>((resolve) => (release = resolve));
+    let loadRequested = false;
+    const restored = createHarness(
+      story("  ((play music theme loop))\n  Music."),
+      0,
+      {
+        assets: ASSETS,
+        loadCheckpoint: h.game.save(),
+        beforeConnect: (game: any) => {
+          playing(game);
+          const connection = game.connection;
+          const emit = connection.emit;
+          connection.emit = (msg: any, ...rest: any[]) => {
+            if (msg?.method !== "audio/load") {
+              return emit.call(connection, msg, ...rest);
+            }
+            loadRequested = true;
+            return loaded.then(() => emit.call(connection, msg, ...rest));
+          };
+        },
+      },
+    );
+    for (let i = 0; i < 100 && !loadRequested; i += 1) {
+      await flushMicrotasks();
+    }
+    expect(loadRequested).toBe(true);
+    restored.game.module.ui.runCutscene({ name: "intro" });
+    await flushMicrotasks(10);
+    release();
+    await restored.ready;
+    await flushMicrotasks(10);
+    const updates = musicUpdates(restored.messages).flatMap(
+      (m) => m.params.updates,
+    );
+    expect(updates.some((u: any) => u.control === "stop")).toBe(true);
+    expect(updates.some((u: any) => u.control === "start")).toBe(false);
+  });
+
   test("records the music stop while a route is simulated", async () => {
     const h = await withMusic();
     h.game.context.system.simulating = "start";
