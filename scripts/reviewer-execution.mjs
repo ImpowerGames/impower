@@ -84,9 +84,11 @@ export function executionCommands(operations, root) {
 
 // Do not give repository commands the coordinator's report tokens, CLI account
 // credentials, Node preload options, Git overrides or reviewer service token.
+// A delegated run is made for the reviewer, so it queues in the reviewer pool
+// of the test reservation.
 export function executionEnvironment(source = process.env) {
   const allowed = /^(?:path|pathext|systemroot|windir|comspec|programdata|programfiles|programfiles\(x86\)|temp|tmp|home|userprofile|appdata|localappdata|psmodulepath|lang|lc_all)$/i;
-  return { ...Object.fromEntries(Object.entries(source).filter(([key]) => allowed.test(key))), NODE_OPTIONS: "--max-old-space-size=1024" };
+  return { ...Object.fromEntries(Object.entries(source).filter(([key]) => allowed.test(key))), NODE_OPTIONS: "--max-old-space-size=1024", IMPOWER_TEST_POOL: "reviewer" };
 }
 
 // test-suite.mjs exits 75 and prints this line when it could not take the

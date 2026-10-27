@@ -3,6 +3,7 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
+import { createVideoElement } from "../../../../spark-dom/src/utils/createVideoElement";
 import { resolveAnimationTargets } from "../../../../spark-dom/src/utils/resolveAnimationTargets";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
@@ -95,6 +96,17 @@ const COMMIT_WAIT_LIMIT_MS = 1_000;
 
 /** Counts PLAY sessions, each of which starts every portrait morph at rest. */
 let playSessions = 0;
+
+/** How far, in seconds, a playing movie's element may stand from where the
+ *  game clock puts it and still be in step: playback starts a moment after
+ *  it is asked for, and a seek of a movie in step would hold its picture
+ *  while it decodes. */
+const MOVIE_IN_STEP = 0.25;
+
+/** How far, in seconds, an element may stand from a position it was given
+ *  and still be there: a paused movie is placed exactly, and a seek lands
+ *  where it was asked up to rounding. */
+const MOVIE_AT = 0.01;
 
 /** A beat's ops in order, each batch's ops in its place. */
 function beatOps(params: BeatParams): IMessage[] {
@@ -442,6 +454,7 @@ export default class UIManager extends Manager {
   protected clearImageLayers(el: HTMLElement) {
     for (const tag of ["image", "mask"]) {
       for (const contentEl of this.getContentElements(el, tag)) {
+        this.releaseMovies(contentEl);
         this.morphs?.releaseWithin(contentEl);
         contentEl.replaceChildren();
       }
@@ -478,6 +491,7 @@ export default class UIManager extends Manager {
           this._staleIds.delete(childId);
         }
       });
+      this.releaseMovies(el);
       this.morphs?.releaseWithin(el);
       el.remove();
     }
@@ -512,18 +526,22 @@ export default class UIManager extends Manager {
     if (seen !== undefined && elapsed > seen) {
       this.morphs?.advance(elapsed - seen);
     }
+    this.settleMovies();
   }
 
   override onSkip(seconds: number) {
     this.morphs?.step(seconds);
+    this.skipMovies(seconds);
   }
 
   override onPause() {
     this.morphs?.setPaused(true);
+    this.pauseMovies();
   }
 
   override onUnpause() {
     this.morphs?.setPaused(false);
+    this.resumeMovies();
   }
 
   override onDispose() {
@@ -535,6 +553,16 @@ export default class UIManager extends Manager {
     }
     this._listeners = {};
     this._elements.clear();
+    // The run is over (STOP, or the rebuild a new run makes): its movies stop
+    // where they are. The next display replaces or sweeps their layers.
+    this._disposed = true;
+    this._unsettledMovies.clear();
+    for (const video of this.movies()) {
+      video.pause();
+      delete (video as any).__sdMovie;
+      delete (video as any).__sdManager;
+      delete (video as any).__sdSeek;
+    }
     // The morphs on the screen this leaves go on, on their own frames, until
     // the next display replaces them; a pause was this run's.
     const morphs = this.morphs;
@@ -2112,6 +2140,25 @@ export default class UIManager extends Manager {
             (el as any).__sdImgRev === ((el as any).__sdRev ?? 0),
         ))
     ) {
+      // A movie this write would play that the page holds from the run before
+      // (a new run's restore over the overlay it adopted) is not playing:
+      // it starts again from its first frame.
+      if (
+        instructions.some((i) => i.content?.video && !i.content.video.preview)
+      ) {
+        for (const el of targetEls) {
+          for (const imageEl of this.getContentElements(el, "image")) {
+            for (const video of Array.from(
+              imageEl.querySelectorAll("video.object"),
+            ) as HTMLVideoElement[]) {
+              if (!(video as any).__sdMovie) {
+                video.currentTime = 0;
+                this.startMovie(video);
+              }
+            }
+          }
+        }
+      }
       return;
     }
     for (const el of targetEls) {
@@ -2124,6 +2171,10 @@ export default class UIManager extends Manager {
     const enterEffects: { element: HTMLElement; animations: Animation[] }[] = [];
     const exitEffects: { element: HTMLElement; animations: Animation[] }[] = [];
     const toDestroy: HTMLElement[] = [];
+    /** The movies this write builds that play once their layer shows. */
+    const newMovies: HTMLVideoElement[] = [];
+    /** The movies of the layers this write hides. */
+    const hiddenMovies: HTMLVideoElement[] = [];
 
     const applyStyle = this.applyStyle.bind(this);
 
@@ -2134,6 +2185,7 @@ export default class UIManager extends Manager {
         // Clear path (the engine cleared image + mask content then set
         // display:none on the wrapper, which it still emits via ui/update).
         for (const contentEl of [...imageEls, ...maskEls]) {
+          this.releaseMovies(contentEl);
           this.morphs?.releaseWithin(contentEl);
           contentEl.replaceChildren();
         }
@@ -2160,24 +2212,63 @@ export default class UIManager extends Manager {
         }
         const content = instruction.content;
         if (!content) {
+          // A hidden layer's movies stop and let their media go (I-1380).
+          if (instruction.control === "hide") {
+            for (const imageEl of imageEls) {
+              for (const video of Array.from(imageEl.querySelectorAll("video"))) {
+                if (!hiddenMovies.includes(video)) {
+                  hiddenMovies.push(video);
+                }
+              }
+            }
+          }
           continue;
         }
         for (const { els, property } of contentTargets) {
           for (const contentEl of els) {
             // Capture existing layers BEFORE creating the new one (crossfade).
             const prevSpanEls = Array.from(contentEl.children) as HTMLElement[];
-            const newSpanEl = createImageElement(
-              contentEl,
-              property,
-              content.background,
-              content.imageNames,
-              content.src,
-              applyStyle,
-            );
+            // A movie plays in the image content; a mask cannot be one, so
+            // a mask gets the layer's images only.
+            const video =
+              content.video && property === "background_image"
+                ? content.video
+                : undefined;
+            const newSpanEl = video
+              ? createVideoElement(
+                  contentEl,
+                  property,
+                  content.background,
+                  content.imageNames,
+                  {
+                    src: this.getVideoSrc(video.src),
+                    fileSrc: video.src,
+                    loop: video.loop,
+                    muted: video.muted,
+                    preview: video.preview,
+                  },
+                  applyStyle,
+                )
+              : createImageElement(
+                  contentEl,
+                  property,
+                  content.background,
+                  content.imageNames,
+                  content.src,
+                  applyStyle,
+                );
+            const videoEl = newSpanEl.querySelector("video");
+            if (videoEl && !video?.preview && instruction.control !== "hide") {
+              newMovies.push(videoEl);
+            }
             // What this layer paints stays resident while it is on screen
             // (`AssetManager.derivedPins`). Kept on the node, which outlives
-            // this manager across a re-render.
-            (newSpanEl as any).__sdSrcs = content.srcs;
+            // this manager across a re-render. A mask span paints the images
+            // and not the movie, which goes with its own span.
+            (newSpanEl as any).__sdSrcs =
+              content.video && !video
+                ? content.srcs.filter((src) => src !== content.video?.src)
+                : content.srcs;
             // The morphs on its images: live in an image, the rest render in
             // a mask. A layer built only to fade out holds still.
             if (content.morph && instruction.control !== "hide") {
@@ -2248,6 +2339,10 @@ export default class UIManager extends Manager {
         startTime += player.endTime;
       }
     }
+    // The layer is up: its movies start with its content reveal.
+    for (const video of newMovies) {
+      this.startMovie(video);
+    }
     // 2. enter + exit content animations in parallel
     const playEffects = (
       effects: { element: HTMLElement; animations: Animation[] }[],
@@ -2264,8 +2359,337 @@ export default class UIManager extends Manager {
     await Promise.all([playEffects(enterEffects), playEffects(exitEffects)]);
     // 3. destroy the faded-out previous layers
     for (const el of toDestroy) {
+      this.releaseMovies(el);
       this.morphs?.releaseWithin(el);
       el.remove();
+    }
+    // A hidden movie's layer goes with it, once the hide has played.
+    for (const video of hiddenMovies) {
+      const span = video.closest("span.instance");
+      this.releaseMovies(video);
+      (span ?? video).remove();
+    }
+  }
+
+  /** What a movie loads: the asset cache's object URL for its file when the
+   *  file is resident, the file itself otherwise. */
+  protected getVideoSrc(fileSrc: string): string {
+    const cache = this.app.assets?.cache ?? this.app.assetCache;
+    return cache?.getVideoUrl(fileSrc) ?? fileSrc;
+  }
+
+  /** The movies this page plays, on screen now: a preview's show their
+   *  first frame and are never started. */
+  protected movies(): HTMLVideoElement[] {
+    const overlay = this.app.overlay;
+    if (!overlay) {
+      return [];
+    }
+    return (
+      Array.from(overlay.querySelectorAll("video.object")) as HTMLVideoElement[]
+    ).filter((video) => (video as any).__sdMovie);
+  }
+
+  /** Start a layer's movie in play, or, while the game is paused, once it
+   *  resumes. A movie that does not loop stops on its last frame. */
+  protected startMovie(video: HTMLVideoElement) {
+    // A write still revealing when its run ended (STOP) starts nothing: the
+    // overlay it leaves belongs to the next display.
+    if (this._disposed || !video.isConnected) {
+      return;
+    }
+    (video as any).__sdMovie = true;
+    (video as any).__sdManager = this;
+    // A seek asked for before (by a run that has ended) is not this page's.
+    delete (video as any).__sdSeek;
+    this.anchorMovie(video, video.currentTime);
+    if (!(video as any).__sdSettles) {
+      (video as any).__sdSettles = true;
+      // Each report of where the element stands or can stand settles the
+      // movie, by the page playing it.
+      const settle = (e: Event) =>
+        (video as any).__sdManager?.settleMovie(video, e.type);
+      for (const type of [
+        "loadedmetadata",
+        "durationchange",
+        "seeked",
+        "ended",
+      ]) {
+        video.addEventListener(type, settle);
+      }
+    }
+    // While the game is paused it starts when the game resumes.
+    if (!this.app.paused) {
+      this.playMovie(video);
+    }
+  }
+
+  protected playMovie(video: HTMLVideoElement) {
+    const played = video.play();
+    // Play mode starts on a gesture, so sound is allowed; a browser that
+    // refuses it anyway still shows the movie, without its sound.
+    played?.catch((e: unknown) => {
+      if (
+        (e as Error)?.name === "NotAllowedError" &&
+        !video.muted &&
+        (video as any).__sdMovie
+      ) {
+        video.muted = true;
+        video.play()?.catch(() => {});
+      }
+    });
+  }
+
+  /** Stop every movie under `root` (or `root` itself) and let its media
+   *  go, before its layer leaves the page. */
+  protected releaseMovies(root: Element) {
+    const videos = (
+      root.tagName === "VIDEO"
+        ? [root]
+        : Array.from(root.querySelectorAll("video"))
+    ) as HTMLVideoElement[];
+    for (const video of videos) {
+      delete (video as any).__sdMovie;
+      delete (video as any).__sdManager;
+      delete (video as any).__sdSeek;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    }
+  }
+
+  /** Whether this manager's run is over (`onDispose`). */
+  protected _disposed = false;
+
+  /** The game paused: so does every movie it plays, each anchored where it
+   *  stands, which a stalled start, a decode or the browser's own playback
+   *  can leave away from the clock, and placed there by the one rule: a loop
+   *  paused at the instant it reaches its end stands on its first frame. */
+  protected pauseMovies() {
+    for (const video of this.movies()) {
+      if (!video.paused) {
+        video.pause();
+      }
+      const place = this.moviePlace(video, video.currentTime);
+      this.anchorMovie(video, place.anchor);
+      if (Math.abs(video.currentTime - place.element) > MOVIE_AT) {
+        this.seekMovie(video, place.element);
+      }
+    }
+  }
+
+  /** The game resumed: so does every movie it plays, but one that plays
+   *  once and stands at its end, which holds its last frame; `play()` would
+   *  start it again from the beginning. */
+  protected resumeMovies() {
+    for (const video of this.movies()) {
+      if (!this.heldAtEnd(video)) {
+        this.playMovie(video);
+      }
+    }
+  }
+
+  /** Whether `video` plays once and stands at its end: it ended, or a skip
+   *  sent it there, which its `currentTime` reports at once while `ended`
+   *  waits for the seek. */
+  protected heldAtEnd(video: HTMLVideoElement): boolean {
+    if (video.loop) {
+      return false;
+    }
+    const span = this.movieSpan(video);
+    return video.ended || (span !== undefined && video.currentTime >= span);
+  }
+
+  /** How long `video` is, when that is known: its duration, or for a file
+   *  that reports none, where it ended or where the browser stopped a seek
+   *  past its end (`settleMovie`). */
+  protected movieSpan(video: HTMLVideoElement): number | undefined {
+    const duration = video.duration;
+    if (Number.isFinite(duration) && duration > 0) {
+      return duration;
+    }
+    const end = (video as any).__sdEnd;
+    return typeof end === "number" && end > 0 ? end : undefined;
+  }
+
+  /** Where a movie at `time` (seconds, counted without wrapping a loop)
+   *  stands: the time its anchor keeps and the `currentTime` its element is
+   *  given, decided together so the two cannot disagree. A loop of known
+   *  span keeps its time unwrapped and wraps it into the element; any other
+   *  movie goes no earlier than its start, and one that plays once no later
+   *  than its known end. */
+  protected moviePlace(
+    video: HTMLVideoElement,
+    time: number,
+  ): { anchor: number; element: number } {
+    const span = this.movieSpan(video);
+    if (video.loop && span !== undefined) {
+      return { anchor: time, element: ((time % span) + span) % span };
+    }
+    const end = !video.loop && span !== undefined ? span : Infinity;
+    const at = Math.min(Math.max(0, time), end);
+    return { anchor: at, element: at };
+  }
+
+  /** Record that `video` stands at `time` (seconds into the movie, counted
+   *  without wrapping a loop) at the game clock's current time. */
+  protected anchorMovie(video: HTMLVideoElement, time: number) {
+    const clock = this.app.clock?.elapsedTime;
+    (video as any).__sdAnchor =
+      clock != null ? { time, clock } : undefined;
+  }
+
+  /** Where the game clock puts `video` now: where it was anchored plus the
+   *  game time since, which stops while the game is paused. A seek holds
+   *  the element's own position back while it decodes, so that position
+   *  falls behind the clock on every skip; without a clock it is all
+   *  there is. Kept where the movie can stand (`moviePlace`). */
+  protected moviePosition(video: HTMLVideoElement): number {
+    return this.moviePlace(video, this.clockTime(video)).anchor;
+  }
+
+  /** The anchor plus the game time since, before `moviePlace` keeps it
+   *  where the movie can stand. */
+  protected clockTime(video: HTMLVideoElement): number {
+    const anchor = (video as any).__sdAnchor as
+      | { time: number; clock: number }
+      | undefined;
+    const clock = this.app.clock?.elapsedTime;
+    return anchor && clock != null
+      ? anchor.time + (clock - anchor.clock)
+      : video.currentTime;
+  }
+
+  /** The browser reported where `video` can stand: it loaded its metadata,
+   *  learned its duration, ended, or settled a seek the page asked for. The
+   *  browser decides where an element can stand, so the movie is placed
+   *  again by the one rule from where the clock has it, with the span the
+   *  browser now reports (`placeMovie`); one that ended is placed at its end.
+   *
+   *  Between those reports and the clock's own operations (skip, pause,
+   *  resume) a playing movie runs on the browser's own playback: a seek the
+   *  page did not ask for, a loop's return to its start, is playback and
+   *  places nothing.
+   *
+   *  A seek the page asked for that landed where it asked is that placement
+   *  already, and is left as it is: the clock ran on while the seek decoded,
+   *  and seeking again would only lose that time again. A seek the browser
+   *  stopped short of the request, with no new span to explain it, met the
+   *  browser's bound: with no span known, the landing is where the movie
+   *  ends; otherwise the movie is anchored where the element landed. */
+  protected settleMovie(video: HTMLVideoElement, event: string) {
+    if (!(video as any).__sdMovie) {
+      return;
+    }
+    if (event === "ended") {
+      // It holds its last frame, and where that is becomes its known end,
+      // which a file with no duration tells only by reaching it. Anchored
+      // there: the clock puts a movie that has played through at its end,
+      // and a reading short of it is one the clock has not caught up with
+      // (it moves on animation frames, which a hidden page does not get).
+      (video as any).__sdEnd = video.currentTime;
+      video.pause();
+      this.anchorMovie(video, this.moviePlace(video, video.currentTime).anchor);
+      return;
+    }
+    if (event === "seeked") {
+      if (video.seeking) {
+        // A later seek is on its way; its own `seeked` settles the movie.
+        return;
+      }
+      const asked = (video as any).__sdSeek as
+        { time: number; span: number | undefined } | undefined;
+      delete (video as any).__sdSeek;
+      if (!asked) {
+        return;
+      }
+      // A playing movie moves on from where it landed before this runs,
+      // so only a landing short of the request is the browser's refusal.
+      const landed = video.currentTime;
+      if (landed >= asked.time - MOVIE_AT) {
+        return;
+      }
+      if (this.movieSpan(video) === asked.span) {
+        if (asked.span === undefined && landed > 0) {
+          (video as any).__sdEnd = landed;
+        } else {
+          this.anchorMovie(video, this.moviePlace(video, landed).anchor);
+          return;
+        }
+      }
+    }
+    // A span can change while the game plays (a skip past an end the browser
+    // had not reported, or a file that learns its duration as it plays
+    // through), and placing reads the clock. Its reading is current while
+    // the game is paused, when it does not move. While the game plays it
+    // moves on animation frames, which a hidden page does not get, so the
+    // movie is placed on the clock's next frame (`onUpdate`).
+    if (this.app.paused) {
+      this.placeMovie(video);
+    } else {
+      this._unsettledMovies.add(video);
+    }
+  }
+
+  /** Movies whose span the browser reported on while the game played, to be
+   *  placed on the clock's next frame. */
+  protected _unsettledMovies = new Set<HTMLVideoElement>();
+
+  /** Place the movies the browser reported on since the clock's last frame,
+   *  now that its reading is current. */
+  protected settleMovies() {
+    if (!this._unsettledMovies.size) {
+      return;
+    }
+    const videos = Array.from(this._unsettledMovies);
+    this._unsettledMovies.clear();
+    for (const video of videos) {
+      if ((video as any).__sdMovie && (video as any).__sdManager === this) {
+        this.placeMovie(video);
+      }
+    }
+  }
+
+  /** Place `video`'s anchor and element by the one rule where the clock has
+   *  it now. A paused element is moved to its place exactly: at a loop's end
+   *  it shows the last frame, and at its start the first. A playing one is
+   *  moved only when it is out of step, so playback with the clock is not
+   *  interrupted by a seek. */
+  protected placeMovie(video: HTMLVideoElement) {
+    const place = this.moviePlace(video, this.clockTime(video));
+    this.anchorMovie(video, place.anchor);
+    const outOfPlace = video.paused
+      ? Math.abs(video.currentTime - place.element) > MOVIE_AT
+      : this.movieGap(video, place.element) > MOVIE_IN_STEP;
+    if (outOfPlace) {
+      this.seekMovie(video, place.element);
+    }
+  }
+
+  /** How far a playing `video`'s element stands from `time`: around the
+   *  loop for a loop of known span, which plays on from its end into its
+   *  start. */
+  protected movieGap(video: HTMLVideoElement, time: number): number {
+    const gap = Math.abs(video.currentTime - time);
+    const span = this.movieSpan(video);
+    return video.loop && span !== undefined ? Math.min(gap, span - gap) : gap;
+  }
+
+  /** Move `video`'s element to `time`, remembering what was asked and the
+   *  span known when it was, which its `seeked` is settled against. */
+  protected seekMovie(video: HTMLVideoElement, time: number) {
+    (video as any).__sdSeek = { time, span: this.movieSpan(video) };
+    video.currentTime = time;
+  }
+
+  /** The game clock moved `seconds` (back, when negative): so does every
+   *  movie, from where the clock puts it, its anchor and its element placed
+   *  by the one rule (`moviePlace`). */
+  protected skipMovies(seconds: number) {
+    for (const video of this.movies()) {
+      const place = this.moviePlace(video, this.moviePosition(video) + seconds);
+      this.anchorMovie(video, place.anchor);
+      this.seekMovie(video, place.element);
     }
   }
 

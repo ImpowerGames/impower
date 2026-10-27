@@ -38,7 +38,7 @@ Make the scoped change. Follow repository-wide artifact, generated-source and co
 
 ## 5. Regression test
 
-Invoke `/write-regression-test` now (skill name `write-regression-test`). Use full verification for fixes; for tooling, run the checks that exercise the change. Record the failing assertion and green result. Package suites run in the Test Suite workflow and the unfiltered typecheck in the typecheck workflow once the PR is open, not locally; locally run the test files under work and the typecheck filtered to the projects you touched.
+Invoke `/write-regression-test` now (skill name `write-regression-test`). Use full verification for fixes; for tooling, run the checks that exercise the change. Record the failing assertion and green result; wait at most 600 seconds locally, and on `test-suite: not run` push and read the Test Suite workflow rather than queue again. Package suites and the unfiltered typecheck run in their workflows once the PR is open; locally run the test files under work and the typecheck filtered to the projects you touched.
 
 ## 6. See the change where it runs
 
@@ -50,7 +50,7 @@ For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-v
 
 Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft from its template. Include the closing reference, actual test evidence, limitations and any known performance cost. Read the PR back.
 
-Opening the PR starts the Test Suite workflow on every pull request. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and are otherwise skipped; its `test-suite` gate job is the required check and passes in both cases. Do not wait for it. Read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran or were skipped in Testing and verification, and fix any failure it reports as your own correction, including one that arrives after the PR is ready. Every later push starts a new run.
+Opening the PR starts the Test Suite workflow. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files and are otherwise skipped; its `test-suite` gate job is the required check and passes either way. Do not wait for it: read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran in Testing and verification, and fix any failure it reports as your own correction, even one arriving after the PR is ready. Every later push starts a new run.
 
 ## 8. Adversarial review
 
@@ -62,7 +62,7 @@ Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity 
 
 Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR carries its closing reference and verification; and review has satisfied its gates and marked it ready.
 
-Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), changes after that commit, and whether each CI check on the final head had passed, failed or was still pending. Where the runner wakes the session on check failures, fix a later failure as a correction under the later-round rules; otherwise the pending state in the handoff is the notice. If a gate remains unfinished, keep the PR draft and describe an incomplete draft handoff with the remaining work and next action. Disclosure of blockers does not make the implementation complete or the ticket resolved.
+Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), changes after that commit, and whether each CI check on the final head passed, failed or was pending. Where the runner wakes the session on check failures, fix a later failure as a correction under the later-round rules; otherwise the pending state in the handoff is the notice. If a gate remains unfinished, keep the PR draft and describe the remaining work and next action. Disclosing blockers does not make the implementation complete or the ticket resolved.
 
 After review's last correction is adjudicated, just before marking the PR ready or asking the user to authorize more rounds, read [outstanding work](references/follow-ups.md) once: fix what this PR can carry and ticket only the rest.
 

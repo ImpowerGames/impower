@@ -361,7 +361,7 @@ try {
     } finally {for(const link of [alias,brokenAlias]){try{fs.unlinkSync(link);}catch{fs.rmdirSync(link);}}}
     // Another session's run holding the reservation does not delay the
     // cleanup (#1793): the probe goes and the reservation entry is untouched.
-    const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,census:()=>[]});
+    const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,memory:()=>65536,census:()=>[]});
     const foreignBytes=fs.readFileSync(file,'utf8');
     let result;
     try {result=removeProbeCheckouts(directory);}finally{assert.equal(fs.readFileSync(file,'utf8'),foreignBytes);foreign.release();}
@@ -375,11 +375,11 @@ try {
     // identity and guard mechanics are real.
     const rename=fs.renameSync,remove=fs.unlinkSync;let moving=false,deleting=false;
     fs.renameSync=function(from,...args){
-      if(from===probe){moving=true;assert.throws(()=>acquire('competing admission during the move',{root:cleanupReservationRoot,census:()=>[],guardWaitMs:0,admitWaitMs:0}),/transaction unavailable/);}
+      if(from===probe){moving=true;assert.throws(()=>acquire('competing admission during the move',{root:cleanupReservationRoot,memory:()=>65536,census:()=>[],guardWaitMs:0,admitWaitMs:0}),/transaction unavailable/);}
       return rename(from,...args);
     };
     fs.unlinkSync=function(target,...args){
-      if(path.basename(target)==='tree-proof.json'&&!deleting){deleting=true;const lease=acquire('admission during the deletion',{root:cleanupReservationRoot,census:()=>[],guardWaitMs:0,admitWaitMs:0});lease.release();}
+      if(path.basename(target)==='tree-proof.json'&&!deleting){deleting=true;const lease=acquire('admission during the deletion',{root:cleanupReservationRoot,memory:()=>65536,census:()=>[],guardWaitMs:0,admitWaitMs:0});lease.release();}
       return remove(target,...args);
     };
     try {result=removeProbeCheckouts(directory);}finally{fs.renameSync=rename;fs.unlinkSync=remove;}
@@ -618,7 +618,7 @@ console.error('diagnostic after terminal result');
     // Another session holding the machine test reservation does not delay the
     // cleanup of an exited reviewer (#1793).
     {
-      const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,census:()=>[]});
+      const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,memory:()=>65536,census:()=>[]});
       let outcome;
       try {outcome=await launchCase('foreign-reservation');}
       finally {foreign.release();}
