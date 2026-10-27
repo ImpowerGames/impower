@@ -409,6 +409,17 @@ end
 end
 `),
     ).toEqual(["rest", "eyes.open", "eyes.half"]);
+    // Own keyframes that name no state still replace the ancestors' poses.
+    expect(
+      depthAt(`morph child as middle with
+  depth = |
+  keyframes {
+    from { brow { translate = 0 0 } }
+    to { brow { translate = 0 1 } }
+  }
+end
+`),
+    ).toEqual(["rest"]);
     // Without its own, the nearest ancestor's, which replaced the base's.
     expect(
       depthAt(`morph child as middle with

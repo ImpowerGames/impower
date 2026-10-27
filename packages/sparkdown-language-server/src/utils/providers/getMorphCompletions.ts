@@ -58,6 +58,8 @@ export interface MorphBraceContext {
   /** Each `state` property written in a block: the innermost key around it
    *  and its value as written. */
   states: { container: string; state: string }[];
+  /** Whether the morph writes its own root `keyframes` block. */
+  keyframes: boolean;
 }
 
 /**
@@ -106,7 +108,7 @@ export function getMorphCompletions(
     driven.add(container);
     addNamed(container, state);
   }
-  let posesFound = named.size > 0;
+  let posesFound = !!braces?.keyframes;
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
   const container = inKeyframe ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
@@ -124,7 +126,7 @@ export function getMorphCompletions(
       driven.add(group);
     }
     // Keyframes replace rather than add to an ancestor's, so the poses are
-    // the block's own when it names states, and otherwise the nearest
+    // the block's own when it writes keyframes, and otherwise the nearest
     // ancestor's that has keyframes.
     const keyframes = Array.isArray(struct.keyframes) ? struct.keyframes : [];
     if (!posesFound && keyframes.length > 0) {
