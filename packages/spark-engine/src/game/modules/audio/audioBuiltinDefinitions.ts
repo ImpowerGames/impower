@@ -80,6 +80,9 @@ export const audioBuiltinDefinitions = () => ({
     typewriter: default_mixer({
       $name: "typewriter",
     }),
+    movie: default_mixer({
+      $name: "movie",
+    }),
   } as Record<string, ReturnType<typeof default_mixer>>,
   channel: {
     $default: default_channel(),
@@ -90,7 +93,7 @@ export const audioBuiltinDefinitions = () => ({
       play_behavior: "replace",
     }),
     ambient: default_channel({
-      $name: "sound",
+      $name: "ambient",
       mixer: "sound",
       loop: true,
       play_behavior: "stack",
@@ -112,6 +115,10 @@ export const audioBuiltinDefinitions = () => ({
       mixer: "sound",
       loop: false,
       play_behavior: "replace",
+    }),
+    movie: default_channel({
+      $name: "movie",
+      mixer: "movie",
     }),
   } as Record<string, ReturnType<typeof default_channel>>,
 });

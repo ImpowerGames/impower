@@ -54,6 +54,11 @@ export interface WriteImageInstruction {
       src: string;
       loop: boolean;
       muted: boolean;
+      /** The mixer the `movie` channel plays through, which the page routes
+       *  the movie's sound into, creating it at `mixerGain` when it is the
+       *  first to need it. */
+      mixer: string;
+      mixerGain: number;
       /** Written by a preview, which shows the first frame and never plays. */
       preview?: boolean;
     };

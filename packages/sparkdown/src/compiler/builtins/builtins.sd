@@ -4847,6 +4847,10 @@ define typewriter as mixer with
   gain = 1
 end
 
+define movie as mixer with
+  gain = 1
+end
+
 define channel with
   mixer = mixer.none
   loop = false
@@ -4881,6 +4885,10 @@ define typewriter as channel with
   mixer = "sound"
   loop = false
   play_behavior = "replace"
+end
+
+define movie as channel with
+  mixer = "movie"
 end
 
 define typewriter with

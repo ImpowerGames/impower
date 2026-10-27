@@ -408,6 +408,7 @@ export class Application implements IApplication {
       if (this._audioClockSentAt != null) {
         this.sendAudioClock();
       }
+      this._manager.audio.onAudioContextRunning();
     }
   }
 
