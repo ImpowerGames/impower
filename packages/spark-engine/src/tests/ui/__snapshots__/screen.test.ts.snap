@@ -633,6 +633,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$type": "animation",
                   "keyframes": [
                     {
+                      "opacity": "0",
+                    },
+                    {
                       "opacity": "1",
                     },
                   ],
@@ -1134,6 +1137,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "waitin",
                   "$type": "animation",
                   "keyframes": [
+                    {
+                      "opacity": "0",
+                    },
                     {
                       "opacity": "1",
                     },

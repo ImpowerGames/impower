@@ -437,13 +437,15 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -2739,13 +2741,15 @@ exports[`dom render > image show renders background span + img 1`] = `
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -5007,13 +5011,15 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -7393,13 +7399,15 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -9642,13 +9650,15 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -11875,13 +11885,15 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -14152,13 +14164,15 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -16397,13 +16411,15 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -18642,13 +18658,15 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -20887,13 +20905,15 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
@@ -23132,13 +23152,15 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   to { opacity: 0; }
 }
 @keyframes waitin {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes fadeout {
   to { opacity: 0; }
 }
 @keyframes fadein {
-  to { opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes pulse {
   0% { opacity: 0; }
