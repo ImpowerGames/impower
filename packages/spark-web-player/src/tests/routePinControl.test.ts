@@ -232,6 +232,38 @@ describe("the pin control", () => {
     expect(p.routeList.querySelector(".route-pin-note")).toBeNull();
   });
 
+  test("the pin control stays open when the route the pin makes takes another option there", async () => {
+    const p = player();
+    await p.hostPins([pin(8)]);
+    p.report(pinnedRoute());
+    p.open();
+    await p.expand();
+    p.button("Pin", p.option("Lie."))!.click();
+    p.answer({ pins: [pin(12)] });
+    await settle();
+    // The preview shows the line again by the route the pin makes, which
+    // takes "Lie." at this stop.
+    const [choice, ...rest] = pinnedRoute().decisions;
+    p.report({
+      ...pinnedRoute(),
+      decisions: [
+        {
+          ...choice!,
+          location: at(12),
+          text: "Lie.",
+          options: options(12),
+        },
+        ...rest,
+      ],
+    });
+    await settle();
+    expect(p.routeList.querySelector(".route-pin-control")).not.toBeNull();
+    expect(
+      p.option("Lie.").querySelector(".route-pin-taken")!.textContent,
+    ).toBe("Taken");
+    expect(p.button("Pinned", p.option("Lie."))).toBeDefined();
+  });
+
   test("Unpin and pressing Pinned remove the stop's pin", async () => {
     const p = player();
     await p.hostPins([pin(8)]);

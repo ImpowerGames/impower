@@ -163,7 +163,7 @@ export function RouteList({
   onShowLine,
   onChangePins,
 }: RouteListProps) {
-  // Which entries the author expanded or collapsed, by route position.
+  // Which entries the author expanded or collapsed, by stop.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   if (!state.open) {
     return null;
@@ -175,8 +175,19 @@ export function RouteList({
   const shown = decisions.filter((d) => state.toggles[d.kind]);
   const hidden = decisions.length - shown.length;
   const unresolved = route?.unresolvedPins ?? [];
-  const entryKey = (decision: PreviewRouteDecision) =>
-    `${decisions.indexOf(decision)}:${decision.location.uri}:${decision.location.range.start.line}`;
+  // An entry is known by its stop: the menu it met, by its first option, and
+  // which meeting of that menu it is. A pin that changes the option taken
+  // there leaves it as it was, so the control the author pressed stays open.
+  const keys = new Map<PreviewRouteDecision, string>();
+  const meetings = new Map<string, number>();
+  for (const decision of decisions) {
+    const at = decision.options?.[0]?.location ?? decision.location;
+    const stop = `${decision.options ? "menu" : decision.kind}:${at.uri}:${at.range.start.line}`;
+    const meeting = (meetings.get(stop) ?? 0) + 1;
+    meetings.set(stop, meeting);
+    keys.set(decision, `${stop}:${meeting}`);
+  }
+  const entryKey = (decision: PreviewRouteDecision) => keys.get(decision)!;
   const isExpanded = (decision: PreviewRouteDecision) =>
     expanded[entryKey(decision)] ?? Boolean(decision.notFollowed);
   const lineLink = (location: DocumentLocation) => (
