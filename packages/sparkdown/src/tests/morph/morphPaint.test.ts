@@ -1,0 +1,125 @@
+import { describe, expect, test } from "vitest";
+import { bakeMorphArtifact } from "../../morph/bake";
+import { renderMorphAt } from "../../morph/render";
+import type { MorphArtifact, MorphTransition } from "../../morph/types";
+import { parse } from "../../txml/txml";
+import { paintBlink, paintedPortrait } from "./fixtures";
+
+type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
+const elements = (svg: string): Element[] => {
+  const out: Element[] = [];
+  const walk = (nodes: unknown[]) => {
+    for (const node of nodes) {
+      if (node && typeof node === "object") {
+        out.push(node as Element);
+        walk((node as Element).children);
+      }
+    }
+  };
+  const doc = parse(svg);
+  walk(Array.isArray(doc) ? doc : [doc]);
+  return out;
+};
+
+const shown = (svg: string, name: string) =>
+  elements(svg).filter((e) => e.attributes["data-name"] === name && e.attributes["data-morph"] && !/display:none/.test(e.attributes["style"] ?? ""));
+
+/** One inline style declaration of the single drawing of `name` shown at `offset`, as written. */
+const declared = (artifact: MorphArtifact, offset: number, name: string, property: string): string | undefined => {
+  const drawn = shown(renderMorphAt(artifact, offset), name);
+  expect(drawn, `${name} at ${offset}`).toHaveLength(1);
+  const style = drawn[0]!.attributes["style"] ?? "";
+  return style
+    .split(";")
+    .map((d) => d.split(":"))
+    .findLast(([n]) => n!.trim() === property)?.[1]
+    ?.trim();
+};
+
+const bake = (recipe = paintBlink()) =>
+  bakeMorphArtifact({ source: paintedPortrait(), selection: {}, recipe, key: "painted", variant: "painted" });
+
+const morphs = (artifact: MorphArtifact) =>
+  artifact.segments.flatMap((s) => s.transitions).filter((t): t is Extract<MorphTransition, { kind: "morph" }> => t.kind === "morph");
+
+/** The paint recorded on the closing segment's track of the drawing `name` leaves from. */
+const recorded = (artifact: MorphArtifact, name: string) => {
+  const from = shown(renderMorphAt(artifact, 0), name)[0]!.attributes["data-morph"];
+  return artifact.segments[0]!.transitions.find((t) => t.kind === "morph" && t.from === from) as Extract<MorphTransition, { kind: "morph" }>;
+};
+
+describe("a morphing shape's paint follows it between its two drawings", () => {
+  const artifact = bake();
+
+  test("the portrait bakes live", () => {
+    expect(artifact.status).toBe("live");
+    expect(artifact.diagnostics).toEqual([]);
+    expect(morphs(artifact).length).toBeGreaterThan(0);
+  });
+
+  test("different fills draw their sRGB blend partway and the authored drawings at both ends", () => {
+    // Halfway through the closing segment, black to white.
+    expect(declared(artifact, 0.25, "lash", "fill")).toBe("rgba(128,128,128,1)");
+    expect(declared(artifact, 0.125, "lash", "fill")).toBe("rgba(64,64,64,1)");
+    // At each keyframe the drawing shows as authored, with no paint written.
+    for (const [offset, fill] of [[0, "#000"], [0.5, "#fff"], [1, "#000"]] as const) {
+      const drawn = shown(renderMorphAt(artifact, offset), "lash");
+      expect(drawn).toHaveLength(1);
+      expect(drawn[0]!.attributes["fill"]).toBe(fill);
+      expect(drawn[0]!.attributes["style"] ?? "").not.toMatch(/fill/);
+    }
+    // The reopening segment blends back.
+    expect(declared(artifact, 0.75, "lash", "fill")).toBe("rgba(128,128,128,1)");
+  });
+
+  test("a pair with the same paint records nothing", () => {
+    expect(recorded(artifact, "brow").paint).toBeUndefined();
+    expect(declared(artifact, 0.25, "brow", "fill")).toBeUndefined();
+  });
+
+  test("a stroke present at one end only fades in as its colour at growing alpha", () => {
+    expect(recorded(artifact, "crease").paint).toEqual({ stroke: [[255, 0, 0, 0], [255, 0, 0, 1]] });
+    expect(declared(artifact, 0.25, "crease", "stroke")).toBe("rgba(255,0,0,0.5)");
+    expect(declared(artifact, 0.25, "crease", "fill")).toBeUndefined();
+  });
+
+  test("a fill inherited from an ancestor group and a `currentColor` fill are resolved", () => {
+    expect(recorded(artifact, "cheek").paint).toEqual({ fill: [[0, 0, 255, 1], [255, 0, 0, 1]] });
+    expect(declared(artifact, 0.25, "cheek", "fill")).toBe("rgba(128,0,128,1)");
+  });
+
+  test("an important inline fill is the one blended, and the blend is written important over it", () => {
+    expect(recorded(artifact, "lid").paint).toEqual({ fill: [[0, 0, 0, 1], [255, 255, 255, 1]] });
+    expect(declared(artifact, 0.25, "lid", "fill")).toBe("rgba(128,128,128,1) !important");
+    // At rest the authored declaration stands.
+    expect(declared(artifact, 0, "lid", "fill")).toBe("#000 !important");
+  });
+
+  test("a gradient end leaves the pair unblended", () => {
+    expect(recorded(artifact, "shine").paint).toBeUndefined();
+    const drawn = shown(renderMorphAt(artifact, 0.25), "shine");
+    expect(drawn[0]!.attributes["fill"]).toMatch(/^url\(/);
+    expect(drawn[0]!.attributes["style"] ?? "").not.toMatch(/fill/);
+  });
+
+  test("a track drawing on a carrier copied from a third pose's drawing takes the blend, not its source's paint", () => {
+    const states = ["open", "half", "closed", "half", "open"];
+    const named = bake(paintBlink({ layers: { shadow: { depth: "eyes.closed" } } }, states));
+    expect(named.status).toBe("live");
+    expect(named.diagnostics).toEqual([]);
+    // Open to half-closed draws on a copy of the red closed shadow; the shape
+    // blends black to blue there.
+    const track = named.segments[0]!.transitions.find((t) => t.kind === "morph" && t.paint?.fill?.[1]?.[2] === 255) as Extract<MorphTransition, { kind: "morph" }>;
+    expect(track).toBeDefined();
+    expect(track.draw).not.toBe(track.from);
+    expect(track.draw).not.toBe(track.to);
+    expect(declared(named, 0.125, "shadow", "fill")).toBe("rgba(0,0,128,1)");
+    // Half-closed to closed draws on the closed drawing itself.
+    expect(declared(named, 0.375, "shadow", "fill")).toBe("rgba(128,0,128,1)");
+  });
+
+  test("the rest render and the parts as written carry no blended paint", () => {
+    expect(artifact.rest).not.toMatch(/rgba\(/);
+    for (const part of artifact.parts) expect(part.svg).not.toMatch(/rgba\(/);
+  });
+});

@@ -176,3 +176,56 @@ export function blink(overrides: Record<string, unknown> = {}, right = false): M
     ...overrides,
   });
 }
+
+const box = (x: number, y: number, w: number, h: number) => `M${x},${y}H${x + w}V${y + h}H${x}Z`;
+
+/**
+ * A portrait whose paired drawings differ in paint, one case per label, each
+ * drawn open, half-closed and closed: `lash` black open and white closed;
+ * `brow` the same paint throughout; `crease` stroked only when closed;
+ * `cheek` filled by its open group and by `currentColor` closed; `lid`
+ * filled by an important inline declaration open; `shine` filled by a
+ * gradient open; and `shadow`, black open, blue half-closed and red closed.
+ */
+export function paintedPortrait(): string {
+  const pose = (dy: number) => ({
+    lash: `<path data-name="lash" d="${box(10, 10 + dy, 30, 10)}" fill="#000"/>`,
+    brow: `<path data-name="brow" d="${box(50, 5 + dy, 30, 5)}" fill="#432"/>`,
+    cheek: `<path data-name="cheek" d="${box(10, 50 + dy, 20, 10)}"/>`,
+    crease: `<path data-name="crease" d="${box(50, 50 + dy, 20, 10)}" fill="#c96"/>`,
+    lid: `<path data-name="lid" d="${box(90, 10 + dy, 20, 10)}" fill="#fff"/>`,
+    shine: `<path data-name="shine" d="${box(90, 50 + dy, 20, 10)}" fill="#fff"/>`,
+    shadow: `<path data-name="shadow" d="${box(130, 10 + dy, 20, 10)}" fill="#000"/>`,
+  });
+  const open = pose(0);
+  const half = pose(5);
+  const closed = pose(10);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100">
+<defs><linearGradient id="gleam"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#ccc"/></linearGradient></defs>
+<path data-name="face" d="M0,0H160V100H0Z" fill="#fdb"/>
+<g data-name="eyes.open:default">
+${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
+${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
+${open.shadow}
+</g>
+<g data-name="eyes.half">
+${half.shadow.replace("#000", "#00f")}
+</g>
+<g data-name="eyes.closed" color="#f00">
+${closed.lash.replace("#000", "#fff")}${closed.brow}${closed.cheek.replace("<path", '<path fill="currentColor"')}
+${closed.crease.replace('fill="#c96"', 'fill="#c96" stroke="#f00"')}${closed.lid}${closed.shine}
+${closed.shadow.replace("#000", "#f00")}
+</g>
+</svg>`;
+}
+
+/** Open to closed at the middle and back, every label moving with `match`. */
+export function paintBlink(overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
+  return buildMorphRecipe("blink", {
+    blend: "morph",
+    method: "match",
+    fallback: "fade",
+    keyframes: states.map((state, i) => ({ offset: i / (states.length - 1), eyes: { state } })),
+    ...overrides,
+  });
+}

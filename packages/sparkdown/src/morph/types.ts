@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 7;
+export const MORPH_BAKE_FORMAT = 9;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -202,7 +202,7 @@ export interface MorphGeometryRef {
  * of the artifact's `frames` table, in the node's own user space.
  *
  * - `morph`: between the ends the `draw` node's geometry follows the frames,
- *   then the `to` node takes over. The moving drawing paints at the depth
+ *   and its paint blends `paint`'s two ends, then the `to` node takes over. The moving drawing paints at the depth
  *   its layer has in the pose its `depth` names (the variant's rest pose by
  *   default): `draw` is whichever of `from` and `to` that pose shows, or,
  *   for a named pose that shows neither, a hidden carrier of that pose's
@@ -221,11 +221,32 @@ export interface MorphGeometryRef {
  *   segment, so the moving aperture alone decides what shows.
  */
 export type MorphTransition =
-  | { kind: "morph"; from: string; to: string; draw: string; shared: boolean; frames: MorphGeometryRef }
+  | { kind: "morph"; from: string; to: string; draw: string; shared: boolean; frames: MorphGeometryRef; paint?: MorphPaint }
   | { kind: "fade"; from?: string; to?: string }
   | { kind: "cut"; from?: string; to?: string }
   | { kind: "scale"; node: string; draw: string; direction: "shrink" | "grow"; frames: MorphGeometryRef }
   | { kind: "hold"; node: string };
+
+/** Red, green and blue from 0 to 255 and alpha from 0 to 1, in gamma-encoded sRGB. */
+export type MorphColor = [number, number, number, number];
+
+/**
+ * A moving drawing's solid paint at the segment's start and end, `[from,
+ * to]`, for each property the `draw` node does not already show at both
+ * ends: where `from`, `to` and the drawing `draw` copies disagree. Each value
+ * is the drawing's effective one (its own declaration, else what it
+ * inherits, else the SVG initial value). A `none` fill or stroke is the
+ * other end's colour at zero alpha. A fill or stroke either end paints with
+ * something other than a colour (a paint server) records neither it nor its
+ * opacity.
+ */
+export interface MorphPaint {
+  fill?: [MorphColor, MorphColor];
+  stroke?: [MorphColor, MorphColor];
+  "fill-opacity"?: [number, number];
+  "stroke-opacity"?: [number, number];
+  opacity?: [number, number];
+}
 
 /** One clip entry's aperture through a segment: an `apertures` table entry. */
 export interface MorphClipFrames {

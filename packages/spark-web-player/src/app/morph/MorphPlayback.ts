@@ -810,7 +810,7 @@ export class MorphLayer {
       view.last = signature;
       const frame: MorphFrameState =
         at === "rest"
-          ? { shown: new Set(), hidden: new Set(), geometry: new Map(), opacity: new Map(), clips: new Map() }
+          ? { shown: new Set(), hidden: new Set(), geometry: new Map(), paint: new Map(), opacity: new Map(), clips: new Map() }
           : morphFrameState(view.artifact, morphPosesAt(view.artifact, at));
       applyFrame(view, frame);
     }
