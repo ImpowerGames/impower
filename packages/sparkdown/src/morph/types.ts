@@ -232,11 +232,12 @@ export interface MorphClipFrames {
   clip: number;
   loops: MorphGeometryRef;
   /**
-   * The apertures (`MorphClipTarget.aperture`) whose targets paint beneath
-   * every one of the segment's moving edges, which therefore hide a reach
-   * past the aperture between the segment's ends (`apertureReachPathData`).
+   * Per aperture (`MorphClipTarget.aperture`), the loops whose two moving
+   * edges both paint above the aperture's target in this segment, and so
+   * hide a reach past those loops between the segment's ends
+   * (`apertureReachPathData`). An aperture not listed has no reach.
    */
-  reach?: string[];
+  reach?: { aperture: string; loops: number[] }[];
 }
 
 /** One group moving from one state to the next between two keyframe offsets. */

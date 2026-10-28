@@ -96,11 +96,11 @@ export interface MorphBakeInput {
  * Geometry that depends only on the source: each drawing pair's root-space
  * morph result (failures included), its sampled frames in a given element
  * space, and the aperture samples of a set of edges with the edges' own
- * drawings at each. One cache per source is shared by every variant and
+ * drawings at each and the edges (by pair) around each loop. One cache per source is shared by every variant and
  * recipe baked from it, and a bake served from it reports exactly what a
  * fresh one would.
  */
-export type MorphGeometryEntry = MorphResult | MorphFrames | { samples: number[][][]; edges: number[][][][] };
+export type MorphGeometryEntry = MorphResult | MorphFrames | { samples: number[][][]; edges: number[][][][]; loopKeys: string[][] };
 
 export interface MorphGeometryCache {
   get(key: string): MorphGeometryEntry | undefined;
@@ -725,8 +725,10 @@ export function* bakeSteps(
   const segments: MorphSegment[] = [];
   const apertures: number[][][][] = [];
   const apertureEdges: number[][][][][] = [];
-  /** The drawings each segment's moving edges of a clip entry paint on. */
-  const edgeHomes = new Map<MorphClipFrames, Leaf[]>();
+  /** Per aperture table entry, the pairs (cache keys) of the two edges around each loop. */
+  const apertureLoopKeys: string[][][] = [];
+  /** The drawing each of a segment's moving edges of a clip entry paints on, by pair. */
+  const edgeHomes = new Map<MorphClipFrames, Map<string, Leaf>>();
   const apertureIndex = new Map<string, number>();
   /** Per clip, the loops of its first segment's start pose: its rest aperture. */
   const restLoops: (number[][] | undefined)[] = recipe.clips.map(() => undefined);
@@ -943,13 +945,14 @@ export function* bakeSteps(
         let ref: MorphGeometryRef;
         const canonical = entry.forwardAll || entry.reversedAll;
         const known = canonical
-          ? (geometryCache.get(`aperture:${signature}`) as { samples: number[][][]; edges: number[][][][] } | undefined)
+          ? (geometryCache.get(`aperture:${signature}`) as { samples: number[][][]; edges: number[][][][]; loopKeys: string[][] } | undefined)
           : undefined;
         if (reuse !== undefined && canonical) {
           ref = { index: reuse, reversed: entry.reversedAll && !entry.forwardAll };
         } else if (known) {
           apertures.push(known.samples);
           apertureEdges.push(known.edges);
+          apertureLoopKeys.push(known.loopKeys);
           ref = { index: apertures.length - 1, reversed: entry.reversedAll && !entry.forwardAll };
           apertureIndex.set(signature, apertures.length - 1);
         } else {
@@ -989,17 +992,19 @@ export function* bakeSteps(
             samples.reverse();
             edges.reverse();
           }
+          const loopKeys = built.apertures.map((ap) => ap.edgeIds.map((id) => entry.keys[entry.edges.findIndex((edge) => edge.id === id)]!));
           apertures.push(samples);
           apertureEdges.push(edges);
+          apertureLoopKeys.push(loopKeys);
           ref = { index: apertures.length - 1, reversed };
           if (canonical) {
             apertureIndex.set(signature, apertures.length - 1);
-            geometryCache.set(`aperture:${signature}`, { samples, edges });
+            geometryCache.set(`aperture:${signature}`, { samples, edges, loopKeys });
           }
         }
         const frames: MorphClipFrames = { clip: clipIndex, loops: ref };
         clips.push(frames);
-        edgeHomes.set(frames, entry.homes);
+        edgeHomes.set(frames, new Map(entry.keys.map((key, k) => [key, entry.homes[k]!])));
         clipHasFrames[clipIndex] = true;
         if (!restLoops[clipIndex]) {
           const table = apertures[ref.index]!;
@@ -1070,22 +1075,34 @@ export function* bakeSteps(
       targetOf.set(`${prefix}${id}`, target);
     }
   }
-  // A reach past the aperture between a segment's ends is hidden only under
-  // moving edges that paint above the target. Each moving drawing paints on
-  // its home, or on a carrier written right after it, so a target lies
-  // beneath it when every drawing of the target comes before that home in
-  // paint order. A moving edge placed at a pose that paints it beneath the
-  // targets (a named `depth`, or a variant resting closed on art whose
-  // closed lashes paint beneath the whites) gives its aperture no reach.
+  // A reach past a loop between a segment's ends is hidden only under the
+  // loop's own moving edges, and only where they paint above the target.
+  // Each moving drawing paints on its home, or on a carrier written right
+  // after it, so a target lies beneath it when every drawing of the target
+  // comes before that home in paint order. A loop is judged by its own two
+  // edges, so another eye's lashes in the same clip entry, painted before
+  // this eye's targets, take nothing from it. A moving edge placed at a pose
+  // that paints it beneath the targets (a named `depth`, or a variant
+  // resting closed on art whose closed lashes paint beneath the whites)
+  // gives its loop no reach.
   const paintIndex = new Map(leaves.map((leaf, index) => [leaf.element, index]));
   const lastPainted = (target: Element) =>
     Math.max(-1, ...leaves.filter((leaf) => isAncestorOrSelf(doc!, target, leaf.element)).map((leaf) => paintIndex.get(leaf.element)!));
   for (const segment of segments) {
     for (const frames of segment.clips) {
-      const homes = edgeHomes.get(frames) ?? [];
-      const reach = clipTargets
-        .filter(({ clip, aperture }) => clip === frames.clip && homes.length > 0 && homes.every((home) => paintIndex.get(home.element)! > lastPainted(targetOf.get(aperture)!)))
-        .map(({ aperture }) => aperture);
+      const homes = edgeHomes.get(frames) ?? new Map<string, Leaf>();
+      const loopKeys = apertureLoopKeys[frames.loops.index] ?? [];
+      const reach: { aperture: string; loops: number[] }[] = [];
+      for (const { clip, aperture } of clipTargets) {
+        if (clip !== frames.clip) continue;
+        const last = lastPainted(targetOf.get(aperture)!);
+        const above = (key: string) => {
+          const home = homes.get(key);
+          return !!home && paintIndex.get(home.element)! > last;
+        };
+        const loops = loopKeys.flatMap((keys, j) => (keys.length > 0 && keys.every(above) ? [j] : []));
+        if (loops.length) reach.push({ aperture, loops });
+      }
       if (reach.length) frames.reach = reach;
     }
   }

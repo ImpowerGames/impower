@@ -8,7 +8,7 @@ import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
-import type { MorphArtifact, MorphFrames, MorphGeometryRef } from "./types";
+import type { MorphArtifact, MorphClipFrames, MorphFrames, MorphGeometryRef } from "./types";
 
 type Element = Exclude<Node, string | null>;
 
@@ -151,19 +151,27 @@ function apertureLoops(samples: number[][][], ref: MorphGeometryRef, progress: n
 /**
  * Path data for where an aperture may reach at `progress`, strictly between
  * a segment's ends: every loop of the aperture as `aperturePathData` blends
- * it, and around each loop the drawings of its two edges, blended point by
- * point between samples as the player blends the moving drawings. Clipped to
- * this, the reach stays under the edges: where an edge tapers thinner than
- * the reach, toward its tips, the reach ends at the edge's far side rather
- * than showing the targets past it. Every loop is wound the same way, so the
+ * it, and around each loop in `reaching` the drawings of its two edges,
+ * blended point by point between samples as the player blends the moving
+ * drawings. Clipped to this, the reach stays under the edges: where an edge
+ * tapers thinner than the reach, toward its tips, the reach ends at the
+ * edge's far side rather than showing the targets past it, and a loop not
+ * in `reaching` reaches nowhere. Every loop is wound the same way, so the
  * nonzero rule fills each, overlapping or not.
  */
-export function apertureReachPathData(samples: number[][][], edges: number[][][][], ref: MorphGeometryRef, progress: number): string {
+export function apertureReachPathData(
+  samples: number[][][],
+  edges: number[][][][],
+  ref: MorphGeometryRef,
+  progress: number,
+  reaching: readonly number[],
+): string {
   const loops = apertureLoops(samples, ref, progress);
   const { i, f } = samplePlace(edges.length, ref, progress);
   const rings: number[][] = [];
   loops.forEach((loop, j) => {
     rings.push(loop);
+    if (!reaching.includes(j)) return;
     const next = edges[i + 1]?.[j];
     (edges[i]?.[j] ?? []).forEach((band, k) => {
       const other = next?.[k];
@@ -273,20 +281,25 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     hidden.delete(node);
     shown.add(node);
   };
-  const writeClip = (clip: number, loops: MorphGeometryRef, p: number, reachable: readonly string[] = []) => {
+  const writeClip = (clip: number, loops: MorphGeometryRef, p: number, reachable: MorphClipFrames["reach"] = []) => {
     const samples = artifact.apertures[loops.index]!;
     const edges = artifact.apertureEdges[loops.index];
     const d = aperturePathData(samples, loops, p);
     // The edges' moving drawings are drawn strictly between a segment's
-    // ends, and hide a reach only over targets that paint beneath them (the
-    // segment's `reach`). At either end the poses' own drawings take over,
-    // and a closed state's may paint beneath the targets, so there the
-    // aperture has no reach (a rest outline keeps its markup's).
-    const reach = edges && p > 0 && p < 1 && reachable.length ? apertureReachPathData(samples, edges, loops, p) : undefined;
+    // ends, and hide a reach only past the loops whose edges paint above a
+    // target (the segment's `reach`). At either end the poses' own drawings
+    // take over, and a closed state's may paint beneath the targets, so there
+    // the aperture has no reach (a rest outline keeps its markup's).
+    const moving = !!edges && p > 0 && p < 1;
+    const byLoops = new Map<string, string>();
     for (const target of artifact.clipTargets) {
       if (target.clip !== clip) continue;
       state.clips.set(target.aperture, d);
-      if (reach !== undefined && reachable.includes(target.aperture)) state.reaches.set(target.aperture, reach);
+      const reaching = moving ? reachable.find((entry) => entry.aperture === target.aperture)?.loops : undefined;
+      if (!reaching?.length) continue;
+      const key = reaching.join(",");
+      if (!byLoops.has(key)) byLoops.set(key, apertureReachPathData(samples, edges!, loops, p, reaching));
+      state.reaches.set(target.aperture, byLoops.get(key)!);
     }
   };
   for (const [group, states] of Object.entries(artifact.visibility)) {

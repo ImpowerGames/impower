@@ -6,7 +6,7 @@ import { applyPoint, invert, multiply, parseTransform, IDENTITY, type Affine } f
 import { bakeMorphArtifact } from "../../morph/bake";
 import { renderMorphAt } from "../../morph/render";
 import { parse } from "../../txml/txml";
-import { blink } from "./fixtures";
+import { blink, portrait } from "./fixtures";
 
 // Lashes shaped like drawn ones: the upper lash's inner edge dips and rises
 // again and the lower lash's inner edge swells, so a few-anchor taper fitted
@@ -450,6 +450,33 @@ describe("a live morph's aperture masks", () => {
     ...OFFSETS.map(([when, offset]) => [`moving lashes at the closed pose's depth, beneath the whites, ${when}`, closedBeneath, offset, atClosedDepth] as const),
     ...[0.1, 0.25, 0.4].map((offset) => [`a variant resting closed, its lashes beneath the whites, at ${offset}`, closedFirst, offset, restingClosed] as const),
   ];
+
+  test.each([0.1, 0.2, 0.28])("reach under each eye's own lashes when one clip entry holds both eyes, at %s", (offset) => {
+    // Each eye's white and pupil paint before its own lashes, and the left
+    // eye before the right, so the left lashes paint before the right
+    // targets: they must not take the right eye's reach away.
+    const recipe = blink({
+      clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "pupil-left", "eyeball-white-right", "pupil-right"] }],
+    });
+    const baked = bakeMorphArtifact({ source: portrait({ right: true }), selection: {}, recipe, key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    const svg = renderMorphAt(baked, offset);
+    const outline = apertureOutline(svg);
+    expect(outline.length).toBe(2);
+    for (const scale of [4, 20]) {
+      const frame = paintList(svg, scale);
+      const lashes = frame.filter((item) => item.fill === "#111");
+      const underLash = nearOutline(outline, scale, [0.5]).filter(({ p, outside }) => outside && lashes.some((lash) => inside(lash.shape, p)));
+      for (const [side, shift] of [["left", 0], ["right", 120]] as const) {
+        const white = frame.find((item) => item.fill === "#fff" && item.shape[0]!.some(([x]) => x > 15 + shift && x < 125 + shift))!;
+        const here = underLash.filter(({ p }) => p[0] > 15 + shift && p[0] < 125 + shift && inside(white.shape, p));
+        expect(here.length, side).toBeGreaterThan(50);
+        const cut = here.filter(({ p }) => white.clips.some((clip) => clip(p) < 1));
+        expect(cut.slice(0, 5).map(({ p }) => p), `${cut.length} of ${here.length} points under the ${side} lashes cut at ${scale}px`).toEqual([]);
+      }
+    }
+  });
 
   test.each(BENEATH)("reach no target painted above the moving edges: %s", (_name, source, offset, recipe) => {
     // A reach clipped to the moving lashes is hidden only when they paint
