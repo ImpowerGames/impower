@@ -37,11 +37,11 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
     const island = `& ${body}`;
     const native = parseOfficialTree(`  ${body}`).errors[0]!;
     expect(native.message).toContain("<eof>");
-    const source = `store a, b = 0, 0\n${island}\nThe hero returns.\n`;
+    const source = `store a, b = 0, 0\nscene s\n${island}\nThe hero returns.\nend\n`;
     const published = errors(source);
     expect(published.map(message)).toEqual([native.message]);
     expect(published[0]!.code).toBe(syntaxErrorCode);
-    expect(published[0]!.range.start).toEqual({ line: 1, character: island.length });
+    expect(published[0]!.range.start).toEqual({ line: 2, character: island.length });
     expect(treeScopeStackAt(parseSource(source), source.indexOf("The hero"))).toContain("string.display.text.chunk.sd");
   });
 
@@ -64,19 +64,21 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
   });
 
   test.each(["file", "scene", "branch"])("marked missing operand owns %s EOF with a later valid mark", scope => {
-    const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
+    // A local belongs in a scene or branch, so the file's island assigns a store.
+    const prefix = scope === "file" ? "store n = 0\n" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
     const suffix = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";
-    const island = "& local n = 1,";
+    const island = scope === "file" ? "& n = 1," : "& local n = 1,";
     const published = errors(`${prefix}${island}\n& math.abs(5)\nreturn to the village\n${suffix}`);
     expect(published.map(message)).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(published[0]!.range.start).toEqual({ line: prefix.split("\n").length - 1, character: island.length });
   });
 
+  // The marked local sits in a scene, the place a local belongs.
   test.each([
-    "function f()\n local n = 1,\n 2\n return n\nend\n",
-    "& local f = function()\n local n = 1,\n 2\n return n\nend\n",
-  ])("a genuine function's value list still continues across lines: %s", source => {
-    expect(errors(source)).toEqual([]);
+    ["function f()\n local n = 1,\n 2\n return n\nend\n", ""],
+    ["& local f = function()\n local n = 1,\n 2\n return n\nend\n", "scene a\n"],
+  ])("a genuine function's value list still continues across lines: %s", (code, prefix) => {
+    expect(errors(`${prefix}${code}${prefix ? "end\n" : ""}`)).toEqual([]);
   });
 
   test("bounded lookahead shares one full-document lexical pass across islands", () => {

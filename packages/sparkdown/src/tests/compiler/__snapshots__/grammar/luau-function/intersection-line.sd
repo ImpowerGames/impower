@@ -10,7 +10,7 @@ function f(v: { x: number }
   & print(1)
   return t
 end
-local g = function()
+store g = function()
   type U = number
   & string
 end
@@ -32,10 +32,10 @@ function h()
     & number = a --[[note]] local d = 1
   return w
 end
-local function k(): number
+store function k(): number
   & number return 1
 end
-local function m(): {}
+store function m(): {}
   & {}return {}
 end
 function n(): {}
@@ -47,7 +47,7 @@ type W = {}
 return {}
 end
 store count = 0
-local s: number
+store s: number
 & s = 2
 & count += 1
 The count is {count}.

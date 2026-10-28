@@ -67,7 +67,7 @@ describe("valid return control", () => {
     ["multiple", "local function f() return 5, 6 end"],
   ]) {
     test.each([
-      ["file", `& ${declaration}\nValue {f()}.\ndone\n`],
+      ["function", `Value {g()}.\nfunction g()\n  ${declaration}\n  return f()\nend\n`],
       ["scene", `-> a\nscene a\n  & ${declaration}\n  Value {f()}.\n  done\nend\n`],
       ["branch", `-> a.b\nscene a\nbranch b\n  & ${declaration}\n  Value {f()}.\n  done\nend\nend\n`],
     ])(`a ${name} function in %s is permitted`, (_scope, source) => {

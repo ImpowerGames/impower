@@ -61,15 +61,15 @@ describe("a multiline if expression after a keyword that begins a condition (#14
   // A story header ends at its line (#1907), so there the if expression is
   // missing its value at the line's end; a function reads it on (above).
   test.each([
-    ["a story-level while loop", `local c = true\nwhile if c then\n  false\nelse true do\n  Hello\nend\n`],
-    ["a story-level if statement", `local c = true\nif if c then\n  false\nelse true then\n  Hello\nend\n`],
+    ["a story-level while loop", `store c = true\nwhile if c then\n  false\nelse true do\n  Hello\nend\n`],
+    ["a story-level if statement", `store c = true\nif if c then\n  false\nelse true then\n  Hello\nend\n`],
   ])("a multiline if expression as the condition of %s ends at the header's line", (_, text) => {
     expect(readings(text).errors).toContain("Expected identifier when parsing expression, got <eof>");
   });
 
   test.each([
-    ["a story-level while loop", `local c = true\nwhile if c then false else true do\n  Hello\nend\n`],
-    ["a story-level if statement", `local c = true\nif if c then false else true then\n  Hello\nend\n`],
+    ["a story-level while loop", `store c = true\nwhile if c then false else true do\n  Hello\nend\n`],
+    ["a story-level if statement", `store c = true\nif if c then false else true then\n  Hello\nend\n`],
   ])("control: a one-line if expression as the condition of %s is accepted", (_, text) => {
     expectAccepted(text);
   });

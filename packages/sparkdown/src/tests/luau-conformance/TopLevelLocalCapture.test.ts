@@ -1,5 +1,5 @@
-// A closure captures a plain `local` declared at the top level or in a scene
-// body, reading and writing it as Luau does (I-822). Such a line parses as a
+// A closure captures a plain `local` declared in a scene body, reading and
+// writing it as Luau does (I-822). Such a line parses as a
 // `LuauSparkdownVariableDefinition`, the node `store` and `const` lines parse
 // as, and `collectGlobalNameAt` listed its name among the global callable
 // names `scanFreeVariables` leaves uncaptured, so the closure read and wrote
@@ -30,27 +30,22 @@ const shown = (root: ProgramRoot) => {
 const run = (lines: string[]) =>
   quiet(() => shown(compileScript([...lines, ""].join("\n")).program.chunks!));
 
-const reads = (decl: string) => [decl, "local f = function()", "  return a", "end", "Got {tostring(f())}."];
+// The lines of scene `S`, which the story diverts to.
+const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
 
-describe("a closure and a top-level local", () => {
+const reads = ["local f = function()", "  return a", "end", "Got {tostring(f())}."];
+
+describe("a closure in a scene and a top-level declaration", () => {
   test.each([
-    ["a plain local", "local a = 1"],
-    ["an & local", "& local a = 1"],
     ["a store", "store a = 1"],
     ["a const", "const a = 1"],
   ])("reads %s", (_, decl) => {
-    expect(run(reads(decl))).toEqual({ texts: ["Got 1."], errors: [] });
-  });
-
-  test("writes a plain local", () => {
-    expect(
-      run(["local a = 1", "local f = function() a = 2 end", "& f()", "Got {tostring(a)}."]),
-    ).toEqual({ texts: ["Got 2."], errors: [] });
+    expect(run([decl, ...inScene(reads)])).toEqual({ texts: ["Got 1."], errors: [] });
   });
 
   test("writes a store", () => {
     expect(
-      run(["store a = 1", "local f = function() a = 2 end", "& f()", "Got {tostring(a)}."]),
+      run(["store a = 1", ...inScene(["local f = function() a = 2 end", "& f()", "Got {tostring(a)}."])]),
     ).toEqual({ texts: ["Got 2."], errors: [] });
   });
 
@@ -60,16 +55,20 @@ describe("a closure and a top-level local", () => {
         "function g()",
         "  return 3",
         "end",
-        "local f = function()",
-        "  return g()",
-        "end",
-        "Got {f()}.",
+        ...inScene(["local f = function()", "  return g()", "end", "Got {f()}."]),
       ]),
     ).toEqual({ texts: ["Got 3."], errors: [] });
   });
 });
 
 describe("a closure and a plain local in a scene", () => {
+  test.each([
+    ["a plain local", "local a = 1"],
+    ["an & local", "& local a = 1"],
+  ])("reads %s", (_, decl) => {
+    expect(run(inScene([decl, ...reads]))).toEqual({ texts: ["Got 1."], errors: [] });
+  });
+
   test("reads it", () => {
     expect(
       run([
@@ -99,14 +98,14 @@ describe("a closure and a plain local in a scene", () => {
   });
 });
 
-describe("an incremental compile of a closure over a top-level declaration", () => {
+describe("an incremental compile of a closure over a declaration", () => {
   test.each([
-    ["a store turned into a local", "store a = 1", "local a = 1"],
-    ["a local turned into a store", "local a = 1", "store a = 1"],
-    ["a local added", "store b = 0", "store b = 0\nlocal a = 1"],
-    ["a local removed", "store b = 0\nlocal a = 1", "store b = 0"],
+    ["a store turned into a scene's local", "store a = 1\n-> S\nscene S", "-> S\nscene S\n  local a = 1"],
+    ["a scene's local turned into a store", "-> S\nscene S\n  local a = 1", "store a = 1\n-> S\nscene S"],
+    ["a local added", "store b = 0\n-> S\nscene S", "store b = 0\n-> S\nscene S\n  local a = 1"],
+    ["a local removed", "store b = 0\n-> S\nscene S\n  local a = 1", "store b = 0\n-> S\nscene S"],
   ])("shows what a cold compile shows after %s", (_, before, after) => {
-    const lines = [before, "local f = function()", "  return a", "end", "Got {tostring(f())}.", ""];
+    const lines = [before, "  local f = function()", "    return a", "  end", "  Got {tostring(f())}.", "end", ""];
     const session = programSession(lines.join("\n"));
     const root = session.edit(before, after);
     const cold = run([session.text]);

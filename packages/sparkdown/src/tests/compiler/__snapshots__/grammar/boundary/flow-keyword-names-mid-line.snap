@@ -1,4 +1,4 @@
-sparkdown [0..344]
+sparkdown [0..314]
  ├─ LuauDefine [0..111]
  │   ├─ LuauDefine_begin [0..7]
  │   │   ├─ LuauDefine_begin_c1 0
@@ -652,107 +652,44 @@ sparkdown [0..344]
  │   │       └─ ActionLineEnd_end 271
  │   └─ ImplicitAction_end 271
  ├─ Newline [271..272]: "\n"
- ├─ LuauDefine [272..302]
- │   ├─ LuauDefine_begin [272..281]
- │   │   ├─ LuauDefine_begin_c1 [272..274]
+ ├─ Branch [272..285]
+ │   ├─ Branch_begin [272..281]
+ │   │   ├─ Branch_begin_c1 [272..274]
  │   │   │   └─ OptionalWhitespace [272..274]: "  "
- │   │   ├─ LuauDefine_begin_c2 [274..280]
- │   │   │   └─ LuauDefineKeyword [274..280]: "define"
- │   │   └─ LuauDefine_begin_c3 [280..281]
- │   │       └─ LuauDefine_begin_c3 [280..281]
- │   │           └─ OptionalWhitespace [280..281]: " "
- │   ├─ LuauDefine_content [281..302]
- │   │   ├─ LuauDefineNameAndInheritance [281..291]
- │   │   │   ├─ LuauDefineNameAndInheritance_begin [281..286]
- │   │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [281..286]
- │   │   │   │       └─ LuauDefineName [281..286]: "inner"
- │   │   │   └─ LuauDefineNameAndInheritance_end [286..291]
- │   │   │       ├─ LuauDefineNameAndInheritance_end_c1 [286..287]
- │   │   │       │   └─ LuauDefineNameAndInheritance_end_c1 [286..287]
- │   │   │       │       └─ OptionalWhitespace [286..287]: " "
- │   │   │       └─ LuauDefineNameAndInheritance_end_c2 [287..291]
- │   │   │           └─ LuauWithKeyword [287..291]: "with"
- │   │   ├─ Newline [291..292]: "\n"
- │   │   ├─ LuauPropertyDefinition [292..301]
- │   │   │   ├─ LuauPropertyDefinition_begin [292..296]
- │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [292..296]
- │   │   │   │   │   └─ OptionalWhitespace [292..296]: "    "
- │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 296
- │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 296
- │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 296
- │   │   │   │   │       └─ OptionalWhitespace 296
- │   │   │   │   └─ LuauPropertyDefinition_begin_c4 296
- │   │   │   ├─ LuauPropertyDefinition_content [296..301]
- │   │   │   │   └─ LuauVariableAssignment [296..301]
- │   │   │   │       ├─ LuauVariableAssignment_begin [296..298]
- │   │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [296..297]
- │   │   │   │       │   │   └─ LuauVariableName [296..297]: "b"
- │   │   │   │       │   └─ LuauVariableAssignment_begin_c2 [297..298]
- │   │   │   │       │       └─ OptionalWhitespace [297..298]: " "
- │   │   │   │       ├─ LuauVariableAssignment_content [298..301]
- │   │   │   │       │   └─ LuauAssignmentOperation [298..301]
- │   │   │   │       │       ├─ LuauAssignmentOperation_begin 298
- │   │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 298
- │   │   │   │       │       │       └─ OptionalWhitespace 298
- │   │   │   │       │       ├─ LuauAssignmentOperation_content [298..301]
- │   │   │   │       │       │   ├─ LuauAssignmentOperator [298..300]
- │   │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [298..300]
- │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 298
- │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 298
- │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [298..299]: "="
- │   │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [299..300]
- │   │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [299..300]
- │   │   │   │       │       │   │   │           └─ OptionalWhitespace [299..300]: " "
- │   │   │   │       │       │   │   └─ LuauAssignmentOperator_end 300
- │   │   │   │       │       │   └─ LuauNumericDecimal [300..301]
- │   │   │   │       │       │       ├─ LuauNumericDecimal_c1 [300..301]: "2"
- │   │   │   │       │       │       └─ LuauNumericDecimal_c2 301
- │   │   │   │       │       └─ LuauAssignmentOperation_end 301
- │   │   │   │       └─ LuauVariableAssignment_end 301
- │   │   │   └─ LuauPropertyDefinition_end 301
- │   │   └─ Newline [301..302]: "\n"
- │   └─ LuauDefine_end 302
- │       ├─ LuauDefine_end_c1 302
- │       ├─ LuauDefine_end_c2 302
- │       └─ LuauDefine_end_c3 302
- ├─ Branch [302..315]
- │   ├─ Branch_begin [302..311]
- │   │   ├─ Branch_begin_c1 [302..304]
- │   │   │   └─ OptionalWhitespace [302..304]: "  "
- │   │   ├─ Branch_begin_c2 [304..310]
- │   │   │   └─ BranchKeyword [304..310]: "branch"
- │   │   └─ Branch_begin_c3 [310..311]
- │   │       └─ RequiredWhitespace [310..311]: " "
- │   ├─ Branch_content [311..315]
- │   │   └─ BranchWithoutParametersDeclaration [311..315]
- │   │       ├─ BranchWithoutParametersDeclaration_c1 [311..315]
- │   │       │   └─ BranchDeclarationName [311..315]: "Next"
- │   │       └─ BranchWithoutParametersDeclaration_c2 315
- │   └─ Branch_end 315
- ├─ Newline [315..316]: "\n"
- ├─ ImplicitAction [316..333]
- │   ├─ ImplicitAction_begin [316..320]
- │   │   └─ ImplicitAction_begin_c1 [316..320]
- │   │       └─ OptionalWhitespace [316..320]: "    "
- │   ├─ ImplicitAction_content [320..333]
- │   │   └─ ActionLineEnd [320..333]
- │   │       ├─ ActionLineEnd_begin 320
- │   │       │   └─ ActionLineEnd_begin_c1 320
- │   │       │       └─ OptionalWhitespace 320
- │   │       ├─ ActionLineEnd_content [320..333]
- │   │       │   └─ TextChunk [320..333]
- │   │       │       ├─ TextChunk_begin 320
- │   │       │       ├─ TextChunk_content [320..333]
- │   │       │       │   ├─ Word [320..324]: "More"
- │   │       │       │   ├─ Space [324..325]: " "
- │   │       │       │   ├─ Word [325..332]: "content"
- │   │       │       │   └─ Punctuation [332..333]: "."
- │   │       │       └─ TextChunk_end 333
- │   │       └─ ActionLineEnd_end 333
- │   └─ ImplicitAction_end 333
- ├─ Newline [333..334]: "\n"
- ├─ Whitespace [334..336]: "  "
- ├─ LuauEndKeyword [336..339]: "end"
- ├─ Newline [339..340]: "\n"
- ├─ LuauEndKeyword [340..343]: "end"
- └─ Newline [343..344]: "\n"
+ │   │   ├─ Branch_begin_c2 [274..280]
+ │   │   │   └─ BranchKeyword [274..280]: "branch"
+ │   │   └─ Branch_begin_c3 [280..281]
+ │   │       └─ RequiredWhitespace [280..281]: " "
+ │   ├─ Branch_content [281..285]
+ │   │   └─ BranchWithoutParametersDeclaration [281..285]
+ │   │       ├─ BranchWithoutParametersDeclaration_c1 [281..285]
+ │   │       │   └─ BranchDeclarationName [281..285]: "Next"
+ │   │       └─ BranchWithoutParametersDeclaration_c2 285
+ │   └─ Branch_end 285
+ ├─ Newline [285..286]: "\n"
+ ├─ ImplicitAction [286..303]
+ │   ├─ ImplicitAction_begin [286..290]
+ │   │   └─ ImplicitAction_begin_c1 [286..290]
+ │   │       └─ OptionalWhitespace [286..290]: "    "
+ │   ├─ ImplicitAction_content [290..303]
+ │   │   └─ ActionLineEnd [290..303]
+ │   │       ├─ ActionLineEnd_begin 290
+ │   │       │   └─ ActionLineEnd_begin_c1 290
+ │   │       │       └─ OptionalWhitespace 290
+ │   │       ├─ ActionLineEnd_content [290..303]
+ │   │       │   └─ TextChunk [290..303]
+ │   │       │       ├─ TextChunk_begin 290
+ │   │       │       ├─ TextChunk_content [290..303]
+ │   │       │       │   ├─ Word [290..294]: "More"
+ │   │       │       │   ├─ Space [294..295]: " "
+ │   │       │       │   ├─ Word [295..302]: "content"
+ │   │       │       │   └─ Punctuation [302..303]: "."
+ │   │       │       └─ TextChunk_end 303
+ │   │       └─ ActionLineEnd_end 303
+ │   └─ ImplicitAction_end 303
+ ├─ Newline [303..304]: "\n"
+ ├─ Whitespace [304..306]: "  "
+ ├─ LuauEndKeyword [306..309]: "end"
+ ├─ Newline [309..310]: "\n"
+ ├─ LuauEndKeyword [310..313]: "end"
+ └─ Newline [313..314]: "\n"

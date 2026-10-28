@@ -1,7 +1,8 @@
 // A method of a define written in a function reads the locals of every
-// function around it, and a top-level local, as a Luau closure does
-// (I-1373): each function between the method and the local captures what
-// its defines' methods read, as it captures what its own body reads. A
+// function around it, and a local of the scene the functions are written in,
+// as a Luau closure does (I-1373): each function between the method and the
+// local captures what its defines' methods read, as it captures what its own
+// body reads. A
 // define is no part of the converter's reading of a function's body, so its
 // methods' reads are added to the capture scan of each function around it
 // (`freeVariables`).
@@ -52,19 +53,22 @@ describe("a method of a define written in a function", () => {
     ).toEqual(got("Got 7."));
   });
 
-  test("reads a top-level local the function does not read itself", () => {
+  test("reads a scene's local the function does not read itself", () => {
     expect(
       run([
-        "local b = 5",
-        "function outer()",
-        "  define thing with",
-        "    function get()",
-        "      return b",
+        "-> S",
+        "scene S",
+        "  local b = 5",
+        "  local function outer()",
+        "    define thing with",
+        "      function get()",
+        "        return b",
+        "      end",
         "    end",
+        "    return thing.get()",
         "  end",
-        "  return thing.get()",
+        "  Got {outer()}.",
         "end",
-        "Got {outer()}.",
       ]),
     ).toEqual(got("Got 5."));
   });
@@ -201,22 +205,25 @@ describe("a method of a define written in a function", () => {
     ).toEqual(got("Got 7."));
   });
 
-  test("reads a top-level local through a function further out", () => {
+  test("reads a scene's local through a function further out", () => {
     expect(
       run([
-        "local b = 5",
-        "function outer()",
-        "  local function inner()",
-        "    define thing with",
-        "      function get()",
-        "        return b",
+        "-> S",
+        "scene S",
+        "  local b = 5",
+        "  local function outer()",
+        "    local function inner()",
+        "      define thing with",
+        "        function get()",
+        "          return b",
+        "        end",
         "      end",
+        "      return thing.get()",
         "    end",
-        "    return thing.get()",
+        "    return inner()",
         "  end",
-        "  return inner()",
+        "  Got {outer()}.",
         "end",
-        "Got {outer()}.",
       ]),
     ).toEqual(got("Got 5."));
   });

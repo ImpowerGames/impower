@@ -241,7 +241,7 @@ describe("Luau block without `end`", () => {
     const { diags } = compile(
       [
         "scene main",
-        "  function g()",
+        "  local function g()",
         "    local a = 1",
         "  Hi.",
         "",
@@ -273,7 +273,7 @@ describe("Luau block without `end`", () => {
       "a function holding a line that is not a Luau statement inside a scene",
       [
         "scene main",
-        "  function g()",
+        "  local function g()",
         "    Hi there.",
         "  end",
         "  done",
@@ -379,7 +379,7 @@ describe("Luau block without `end`", () => {
 
   test("a `repeat` whose `until` the grammar reads inside its body is not an error", () => {
     const { diags } = compile(
-      "local ok = (function() repeat local a = 5 until a - 4 < 0 or a - 4 >= 0 end)()\n",
+      "& ok = (function() repeat local a = 5 until a - 4 < 0 or a - 4 >= 0 end)()\n",
     );
     expect(diags.filter((d) => d.severity === 1)).toEqual([]);
   });
@@ -482,12 +482,12 @@ describe("Luau block without `end`", () => {
     ["a `//` comment", "end // note"],
     ["a divert", "end -> DONE"],
     ["an explicit statement", "end & x = 1"],
-    ["a local", "end local b = 2"],
+    ["an assignment", "end b = 2"],
   ])(
     "a root-level block's `end` followed by %s on its line closes it",
     (_label, endLine) => {
       const { diags } = compile(
-        ["store x = 0", "if true then", "  local a = 1", endLine, ""].join(
+        ["store x = 0", "if true then", "  a = 1", endLine, ""].join(
           "\n",
         ),
       );
@@ -511,8 +511,8 @@ describe("Luau block without `end`", () => {
   });
 
   test.each([
-    ["`while` loop", ["while false do", "  local a = 1"]],
-    ["`for` loop", ["for i = 1, 2 do", "  local a = 1"]],
+    ["`while` loop", ["while false do", "  a = 1"]],
+    ["`for` loop", ["for i = 1, 2 do", "  a = 1"]],
     ["`while` loop", ["while false do", "  Hello."]],
   ])(
     "an unclosed top-level %s at the end of the file is an error on its header",
@@ -535,7 +535,7 @@ describe("Luau block without `end`", () => {
     const errs = compile(
       [
         "scene main",
-        "  function g()",
+        "  local function g()",
         "    local a = 1",
         "  Hi there.",
         "end",
@@ -595,7 +595,7 @@ describe("Luau block without `end`", () => {
         "-> main",
         "",
         "scene main",
-        "  function f()",
+        "  local function f()",
         "    repeat",
         "      local a = 1",
         "      Hello there.",
@@ -687,7 +687,7 @@ describe("Luau block without `end`", () => {
     "text after a top-level %s's `end` is a warning, not an error",
     (kind, header) => {
       const { diags } = compile(
-        [header, "  local x = 1", "end of story.", ""].join("\n"),
+        [header, "  x = 1", "end of story.", ""].join("\n"),
       );
       expect(diags.filter((d) => d.severity === 1)).toEqual([]);
       const warnings = proseWarnings(diags);
@@ -748,7 +748,7 @@ describe("Luau block without `end`", () => {
         "  Hi.",
         "",
         "branch one",
-        "  function f()",
+        "  local function f()",
         "    local a = 1",
         "  Text here.",
         "  done",

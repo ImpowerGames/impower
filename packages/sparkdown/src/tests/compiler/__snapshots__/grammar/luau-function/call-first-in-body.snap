@@ -408,7 +408,7 @@ sparkdown [0..464]
  │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 146
  │   │   │   └─ OptionalWhitespace 146
  │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [146..151]
- │   │   │   └─ LuauScopeModifier [146..151]: "local"
+ │   │   │   └─ LuauScopeModifier [146..151]: "store"
  │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [151..152]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [151..152]
  │   │           └─ OptionalWhitespace [151..152]: " "
@@ -880,7 +880,7 @@ sparkdown [0..464]
  │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 319
  │   │   │   └─ OptionalWhitespace 319
  │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [319..324]
- │   │   │   └─ LuauScopeModifier [319..324]: "local"
+ │   │   │   └─ LuauScopeModifier [319..324]: "store"
  │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [324..325]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [324..325]
  │   │           └─ OptionalWhitespace [324..325]: " "

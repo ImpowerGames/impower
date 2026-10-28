@@ -1,15 +1,15 @@
 // The token a missing-value error after a declaration's comma names, and
 // where it is reported (#1275). In a narrative body the declaration ends at
 // its line, so the value is missing at the end of that line, `<eof>` to
-// Luau's reading of the statement (#1907). In Luau code the type checker
-// reports the token itself, `end` or the end of the file.
+// Luau's reading of the statement (#1907). In Luau code, a function body or
+// a `.luau` file, the type checker reports the token itself, `end` or the
+// end of the file.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
-function errors(source: string): string[] {
+function errors(source: string, uri = "inmemory:///main.sd"): string[] {
   const compiler = new SparkdownCompiler();
-  const uri = "inmemory:///main.sd";
   compiler.configure({
     files: [
       {
@@ -68,6 +68,6 @@ describe("Luau code: the type checker reports the token", () => {
   });
 
   test("the end of the file", () => {
-    expect(errors("local a, b = 1,")).toEqual([`0:15-0:15 ${missing("<eof>")}`]);
+    expect(errors("local a, b = 1,", "inmemory:///util.luau")).toEqual([`0:15-0:15 ${missing("<eof>")}`]);
   });
 });

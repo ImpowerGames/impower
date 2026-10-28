@@ -168,10 +168,10 @@ const CASES: Record<string, Case> = {
     luau: "function run()\nlocal f = @[native] function() return 7 end\nreturn f()\nend\n",
   },
   "#1376 a union inside explicit instantiation": {
-    text: "local function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\nValue {f()}.\n",
+    text: "function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\nValue {f()}.\n",
     fn: ["f", 1, 4],
     output: "Value 1.\n",
-    luau: "local function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\n",
+    luau: "function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\n",
   },
   "#1370 a generic alias as an array element": {
     text: "type Box<T> = {value: T}\nfunction f()\n  local x: {Box<number>} = {}\n  return 1\nend\nValue {f()}.\n",

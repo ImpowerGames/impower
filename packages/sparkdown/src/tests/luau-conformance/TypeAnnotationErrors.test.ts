@@ -72,10 +72,11 @@ describe("a value where a type is expected", () => {
     );
   });
 
-  // At the top level, as upstream parses it: in a function, the token after
-  // the `:` would be the function's `end`.
+  // In a scene, where a declaration ends at its line as upstream's chunk ends
+  // after it: in a function, the token after the `:` would be the function's
+  // `end`.
   test("local x:", () => {
-    expect(diagnose("local x:")).toEqual(["Expected type, got <eof>"]);
+    expect(diagnose("-> s\nscene s\n  local x:\nend\n")).toEqual(["Expected type, got <eof>"]);
   });
 });
 

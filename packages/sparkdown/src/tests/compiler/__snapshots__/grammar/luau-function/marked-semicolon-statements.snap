@@ -51,7 +51,7 @@ sparkdown [0..116]
  │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 14
  │   │   │   │   │   └─ OptionalWhitespace 14
  │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [14..19]
- │   │   │   │   │   └─ LuauScopeModifier [14..19]: "local"
+ │   │   │   │   │   └─ LuauScopeModifier [14..19]: "store"
  │   │   │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [19..20]
  │   │   │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [19..20]
  │   │   │   │           └─ OptionalWhitespace [19..20]: " "

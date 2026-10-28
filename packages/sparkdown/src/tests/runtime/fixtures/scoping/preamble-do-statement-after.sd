@@ -1,12 +1,15 @@
 store x = "global"
-choose
-  do
-    local x = "local"
-    * Inner {x}
-      Chose inner {x}.
+-> start
+scene start
+  choose
+    do
+      local x = "local"
+      * Inner {x}
+        Chose inner {x}.
+    end
+    Pre {x}.
+    * Outer {x}
   end
-  Pre {x}.
-  * Outer {x}
+  After {x}.
+  done
 end
-After {x}.
-done

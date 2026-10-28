@@ -31,11 +31,13 @@ function sparkdownErrors(text: string): string[] {
 
 const SUFFIXES = ["return 1 x y", "return 1 (x) y", "return x y z", "return 1 x y z"];
 
-// Each script's Luau is all of its lines but the story line after it.
+// Each script's Luau is all of its lines but the story line after it. A form
+// that declares a local sits in a function `o`, where a `local` may be
+// written.
 const FORMS: [string, (line: string) => string][] = [
   ["a function", (line) => `function f()\n${line}\nend\n`],
-  ["a local function", (line) => `local function f()\n${line}\nend\n`],
-  ["a method", (line) => `local t = {}\nfunction t:m()\n${line}\nend\n`],
+  ["a local function", (line) => `function o()\nlocal function f()\n${line}\nend\nend\n`],
+  ["a method", (line) => `function o()\nlocal t = {}\nfunction t:m()\n${line}\nend\nend\n`],
   ["a nested block", (line) => `function f()\nif true then\n${line}\nend\nend\n`],
   ["a nested loop", (line) => `function f()\nwhile true do\n${line}\nend\nend\n`],
   // Closers Luau reads in a block they are not its own (an `else` in a
@@ -45,9 +47,9 @@ const FORMS: [string, (line: string) => string][] = [
   ["an else branch", (line) => `function f()\nif true then\nreturn 2\nelse\n${line}\nend\nend\n`],
   ["a repeat loop", (line) => `function f()\nrepeat\n${line}\nuntil true\nend\n`],
   ["a block in a loop", (line) => `function f()\nwhile true do\ndo\n${line}\nend\nend\nend\n`],
-  ["a function value", (line) => `local g = function()\n${line}\nend\n`],
+  ["a function value", (line) => `g = function()\n${line}\nend\n`],
   ["a function value in a function", (line) => `function f()\nlocal g = function()\n${line}\nend\nreturn g\nend\n`],
-  ["a function in a table", (line) => `local t = {function()\n${line}\nend}\n`],
+  ["a function in a table", (line) => `t = {function()\n${line}\nend}\n`],
   ["a function on one line", (line) => `function f() ${line} end\n`],
   ["a nested block before a later statement", (line) => `function f()\nif true then\n${line}\nend\nprint(1)\nend\n`],
   // A later return, which Luau reads in the block around the one it ended

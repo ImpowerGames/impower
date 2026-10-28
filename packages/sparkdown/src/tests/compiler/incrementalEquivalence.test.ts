@@ -457,7 +457,7 @@ describe("compiler incremental equivalence", () => {
     // edit elsewhere:
     //  - read-count removal: the target flow is no longer counted;
     //  - rename-then-rename-back: a divert's target vanishes and returns;
-    //  - a global `store` declared INSIDE a scene;
+    //  - a global `store` declared between two scenes, mid-document;
     //  - an anonymous fn added MID-DOCUMENT, ahead of the generated names of
     //    a LATER unchanged flow.
     const SCENARIOS: {
@@ -481,12 +481,11 @@ describe("compiler incremental equivalence", () => {
         ],
       },
       {
-        name: "global store declared inside a scene, then edit elsewhere",
+        name: "global store declared between scenes mid-document, then edit elsewhere",
         steps: [
           {
-            find: "  Action describing room 5 in some detail here.",
-            replace:
-              "  Action describing room 5 in some detail here.\nstore inscene_flag = 7",
+            find: "scene scene_5\n",
+            replace: "store midway_flag = 7\n\nscene scene_5\n",
           },
           { find: "Not yet in scene 10.", replace: "Not yet in scene 10?" },
         ],

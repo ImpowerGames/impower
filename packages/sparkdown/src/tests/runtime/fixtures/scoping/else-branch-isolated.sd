@@ -1,9 +1,12 @@
-local x = 1
-if false then
-  local x = 100
-else
-  local x = 2
+-> start
+scene start
+  local x = 1
+  if false then
+    local x = 100
+  else
+    local x = 2
+    {x}
+  end
   {x}
+  done
 end
-{x}
-done

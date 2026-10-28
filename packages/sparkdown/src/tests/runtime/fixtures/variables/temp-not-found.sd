@@ -1,4 +1,7 @@
-{x}
-& local x = 5
-hello
-done
+-> start
+scene start
+  {x}
+  & local x = 5
+  hello
+  done
+end

@@ -4,9 +4,8 @@ import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 // A parameter, or a local declared inside a flow, shadows a top-level `store`
 // of the same name as it shadows a `const` (#1177): references inside its
-// scope read the local. A local at the story's own top level shares the
-// store's scope, so the two still collide, as do two declarations in one
-// scope.
+// scope read the local. A local at the story's own top level is refused
+// (I-1673), and two declarations in one scope still collide.
 
 const MAIN = "file://proj/main.sd";
 
@@ -99,13 +98,12 @@ describe("a local or parameter that shares a store's name", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 2 5.\n");
   });
 
-  it("still reports a local at the top level next to it", () => {
+  it("refuses a local at the top level next to it, as any top-level local (I-1673)", () => {
     expect(
       errors(["store health = 100", "local health = 10", "Hi."].join("\n")),
-    ).toEqual([
-      "L1:6 Duplicate identifier `health`. A var named `health` already exists",
-      "L0:6 Duplicate identifier `health`. A temp named `health` already exists",
-    ]);
+    ).toContain(
+      "L1:0 local declaration must be inside a scene, branch or function; use store or const at the top level",
+    );
   });
 
   it("still reports a store declared in the same function as the local", () => {

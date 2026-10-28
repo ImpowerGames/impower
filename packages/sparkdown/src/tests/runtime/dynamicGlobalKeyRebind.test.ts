@@ -41,7 +41,23 @@ const outcome = ({ program }: { program: SparkProgram }) => {
   };
 };
 
-const run = (text: string) => outcome(compileScript(text));
+// A script's leading `function` lines stay at the top level, and the story
+// lines after them run in a scene the story diverts to, where a `local` may
+// stand.
+const inScene = (text: string): string => {
+  const lines = text.trimEnd().split("\n");
+  const story = lines.findIndex((line) => !line.startsWith("function "));
+  return [
+    ...lines.slice(0, story),
+    "-> start",
+    "scene start",
+    ...lines.slice(story).map((line) => `  ${line}`),
+    "end",
+    "",
+  ].join("\n");
+};
+
+const run = (text: string) => outcome(compileScript(inScene(text)));
 
 const cases: [string, string, string][] = [
   [
@@ -128,7 +144,8 @@ const callsThroughVariable = (root: ProgramRoot): boolean => {
 // An edit that replaces `before` with `after` in `text`, compiled
 // incrementally after a compile of `text`: the program's surface, which a
 // cold compile of the edited text must equal, and what it runs to.
-const afterEdit = (text: string, before: string, after: string) => {
+const afterEdit = (script: string, before: string, after: string) => {
+  const text = inScene(script);
   const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
   quiet(() => c.compile());
   const at = text.indexOf(before);
@@ -181,14 +198,14 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
     ["a rawset of a literal key spelling the dynamic store's mark", "function f() return 7 end\n& rawset(_G, '_G[]', 1)\nf is {f()}.\n"],
     ["a literal key spelling a whole table's mark", "function f() return 7 end\n& _G['*vars'] = 1\n& _G['*'] = 1\nf is {f()}.\n"],
   ])("%s keeps the direct call", (_name, text) => {
-    const { program } = compileScript(text);
+    const { program } = compileScript(inScene(text));
     expect(outcome({ program })).toEqual({ text: "f is 7.\n", errors: [] });
     expect(callsThroughVariable(program.chunks!)).toBe(false);
   });
 
   it("a dynamic-key store sends every top-level function's call through its global", () => {
     const { program } = compileScript(
-      "function f() return 7 end\nfunction h() return 5 end\n& local k = 'f'\n& _G[k] = function() return 2 end\nf is {f()}, h is {h()}.\n",
+      inScene("function f() return 7 end\nfunction h() return 5 end\n& local k = 'f'\n& _G[k] = function() return 2 end\nf is {f()}, h is {h()}.\n"),
     );
     expect(outcome({ program })).toEqual({ text: "f is 2, h is 5.\n", errors: [] });
     expect(callsThroughVariable(program.chunks!)).toBe(true);
@@ -196,7 +213,7 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
 
   it("a compound store through _G with a dynamic key sends calls through their globals", () => {
     const { program } = compileScript(
-      "function f() return 7 end\n& local k = 'n'\n& n = 1\n& _G[k] += 1\nf is {f()}, n is {n}.\n",
+      inScene("function f() return 7 end\n& local k = 'n'\n& n = 1\n& _G[k] += 1\nf is {f()}, n is {n}.\n"),
     );
     expect(outcome({ program })).toEqual({ text: "f is 7, n is 2.\n", errors: [] });
     expect(callsThroughVariable(program.chunks!)).toBe(true);

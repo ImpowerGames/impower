@@ -283,12 +283,14 @@ frame; reassignment without `local` walks innermost → outermost to find
 the existing binding.
 
 ```sparkdown
-local x = 1
-if true then
-  local x = 2
-  {x}           -- 2
+scene start
+  local x = 1
+  if true then
+    local x = 2
+    {x}           -- 2
+  end
+  {x}             -- 1
 end
-{x}             -- 1
 ```
 
 vs. ink's `temp` would either error on re-declaration or treat both as
@@ -375,9 +377,10 @@ The grammar's `Glue` rule matches only a `..` that ends a line of display text o
 ### `&` prefix for bare statements at the top level
 
 Bare reassignments outside function bodies must be prefixed with `&` because
-without it they'd parse as `ImplicitAction` display text. Declarations
-(`store` / `local` / `const`) work without `&` because they start with a
-recognizable keyword.
+without it they'd parse as `ImplicitAction` display text. Declarations work
+without `&` because they start with a recognizable keyword: `store` and
+`const` at a script's top level, and `local` in a scene, a branch or a
+choice's body.
 
 ### `store` declaration keyword
 
@@ -385,12 +388,22 @@ Sparkdown adds `store` alongside Luau's `local`. `store` declares a
 ink-style global variable (persisted in save state); `local` is a per-scope
 binding (see below). Standard Luau has no `store`.
 
-### `const` outside a function is a published constant; inside one it is Luau's
+A `store` is declared at a script's top level and initialized when the story
+starts. Inside a scene or a branch, at any depth, a declaration is an error,
+``store declaration must be at the top level; assign it here with & name =
+value instead``, and the scene sets the store where it runs with
+`& name = value`. A `local` at a script's top level, or in a block the top
+level opens, is an error too: ``local declaration must be inside a scene,
+branch or function; use store or const at the top level``.
 
-A `const` outside every function (in the story, a scene or a branch) is the
-story's published constant: a global that does not change, declared with the
-story's globals before it starts. It takes one name and one value (``A `const`
-takes one name and one value``), its value must be a constant expression
+### `const` at the top level is a published constant; inside a function it is Luau's
+
+A `const` at a script's top level is the story's published constant: a
+global that does not change, declared with the story's globals before it
+starts. A `const` inside a scene or a branch is an error, ``const declaration
+must be at the top level``. A top-level `const` takes one name and one value
+(``A `const` takes one name and one value``), its value must be a constant
+expression
 (``A const must be initialized to a constant expression``), a second `const`
 of its name with another value is an error (``Cannot redeclare const``), and
 assigning to it, inside a function or out, is ``Cannot re-assign the const``.
@@ -729,7 +742,7 @@ The grammar decides this from the `return`'s own line, and narrative code reache
 In Luau, an if expression reads across line breaks like any expression. Sparkdown reads it across a line break only where the next line begins the clause that comes next or continues the one before it: a condition continues onto a line that begins with its `then`, and a `then` arm onto a line that begins with its `else` or `elseif`, and either continues onto a line that begins with `.name`, `:name`, `[`, `-`, another binary operator or `::`. After the `else` arm's value, a line that continues a value in Luau code (a function or other Luau block, where the same lines continue any value) extends the `else` arm, which runs to the end of the expression as it does in Luau (`else 2` then `+ 1` reads as `else 2 + 1`). In a narrative body, a line after the expression is narrative, as it is after any other value. A `then` or `else` at the end of its line takes its value from the next line, unless that line begins a statement (`end`, `until`, `local`, `return`, `break`, `do`, `while`, `repeat`, `for`, `;` or a named `function`). A value on the line after a `then` must be indented: at the start of a line it reads as the line after the expression, and the `then` arm is reported as having no value. An `if` that begins a line where a value is read, such as a nested if expression on the line after `then`, begins an if expression.
 
 ```sparkdown
-local y = if c
+store y = if c
   then 1
   elseif d
   then 2
