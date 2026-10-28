@@ -524,7 +524,8 @@ end
 `;
     const late = compileProject(omitted("targets { eyelash-left }; state = eyes.closed; fill = red"));
     expect(completeAt(omitted("state = |"), late).map((i) => String(i.label))).toEqual(["mouth.closed", "eyes.closed", "eyes.open"]);
-  });
+    // Two whole compiles, as the language-server workspace tests give theirs.
+  }, 60_000);
 
   test("`when =` offers the states of groups the morph does not drive, from the candidate artwork", () => {
     expect(labels(PAINTED("when = |"))).toEqual(["mask.on", "mask.off", "face.plain", "face.masked"]);
