@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 9;
+export const MORPH_BAKE_FORMAT = 10;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -252,6 +252,13 @@ export interface MorphPaint {
 export interface MorphClipFrames {
   clip: number;
   loops: MorphGeometryRef;
+  /**
+   * Per aperture (`MorphClipTarget.aperture`), the loops whose two moving
+   * edges both paint above the aperture's target in this segment, and so
+   * hide a reach past those loops between the segment's ends
+   * (`apertureReachPathData`). An aperture not listed has no reach.
+   */
+  reach?: { aperture: string; loops: number[] }[];
 }
 
 /** One group moving from one state to the next between two keyframe offsets. */
@@ -320,6 +327,13 @@ export interface MorphArtifact {
    * space as flat x, y arrays.
    */
   apertures: number[][][][];
+  /**
+   * Beside each aperture table entry, per sample and per loop, the drawings
+   * of the two edges that bound that loop, each a closed loop in root user
+   * space as a flat x, y array: where the aperture may reach away from rest
+   * (`apertureReachPathData`).
+   */
+  apertureEdges: number[][][][][];
   clipTargets: MorphClipTarget[];
   diagnostics: MorphBakeDiagnostic[];
 }
