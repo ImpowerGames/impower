@@ -100,8 +100,10 @@ export function aperturePathData(samples: number[][][], ref: MorphGeometryRef, p
   const b = samples[i + 1] ?? a;
   return loopsPathData(
     a.map((loop, j) => {
-      if (f === 0) return loop;
       const other = b[j] ?? loop;
+      // The last sample is reached with `f` at 1, the others with it at 0.
+      if (f === 0) return loop;
+      if (f === 1) return other;
       const points: Point[] = [];
       for (let k = 0; k + 1 < loop.length; k += 2) {
         points.push(snap([loop[k]! + ((other[k] ?? loop[k]!) - loop[k]!) * f, loop[k + 1]! + ((other[k + 1] ?? loop[k + 1]!) - loop[k + 1]!) * f]));

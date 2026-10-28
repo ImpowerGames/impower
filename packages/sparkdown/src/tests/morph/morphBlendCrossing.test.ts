@@ -155,7 +155,7 @@ const measure = (svg: string, right = false) => {
     for (const reversed of [false, true]) {
       for (let k = 0; k <= STEPS; k++) {
         const u = (reversed ? 1 - k / STEPS : k / STEPS) * (table.length - 1);
-        if (Number.isInteger(u) && u < table.length - 1) continue;
+        if (Number.isInteger(u)) continue;
         if (loopsOf(aperturePathData(table, { index, reversed }, k / STEPS)).some(crosses)) blends++;
       }
     }
@@ -199,11 +199,25 @@ describe("a blended aperture", () => {
     expect(aperturePathData(table, { index: 0, reversed: false }, 0.5 / 7)).toBe("M0,1L10,2L20,1L20,1L10,2L0,1Z");
   });
 
-  test("draws a progress that falls on a sample as that sample", () => {
-    const art = bakeMorphArtifact({ source: eye(WHITE_TILTED, LOWER_TILTED, UPPER_TILTED, CLOSED_TILTED), selection: {}, recipe: blink(), key: "k", variant: "v" });
-    const table = art.apertures[0]!;
+  test("draws a progress that falls on a sample as that sample, at either end and in either direction", () => {
     const written = (loop: number[]) => `M${loop[0]},${loop[1]}` + pointsOf(loop).slice(1).map(([x, y]) => `L${x},${y}`).join("") + "Z";
-    expect(aperturePathData(table, { index: 0, reversed: false }, 0)).toBe(table[0]!.map(written).join(""));
-    expect(aperturePathData(table, { index: 0, reversed: true }, 1)).toBe(table[0]!.map(written).join(""));
+    const ends = (table: number[][][]) => {
+      const first = table[0]!.map(written).join(""),
+        last = table[table.length - 1]!.map(written).join("");
+      expect(aperturePathData(table, { index: 0, reversed: false }, 0)).toBe(first);
+      expect(aperturePathData(table, { index: 0, reversed: true }, 1)).toBe(first);
+      expect(aperturePathData(table, { index: 0, reversed: false }, 1)).toBe(last);
+      expect(aperturePathData(table, { index: 0, reversed: true }, 0)).toBe(last);
+    };
+    const art = bakeMorphArtifact({ source: eye(WHITE_TILTED, LOWER_TILTED, UPPER_TILTED, CLOSED_TILTED), selection: {}, recipe: blink(), key: "k", variant: "v" });
+    ends(art.apertures[0]!);
+    // A stored sample that crosses itself, as some do on main, is drawn as
+    // stored at either end: an end may be the rest outline, whose reach
+    // holds only while the frame matches it.
+    const square = [0, 0, 10, 0, 10, 10, 0, 10];
+    const bow = [0, 0, 10, 10, 0, 10, 10, 0];
+    expect(crosses(pointsOf(bow))).toBe(true);
+    ends([[square], ...Array.from({ length: 7 }, () => [bow])]);
+    ends([...Array.from({ length: 7 }, () => [bow]), [square]]);
   });
 });
