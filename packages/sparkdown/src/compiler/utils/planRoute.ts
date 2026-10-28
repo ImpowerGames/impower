@@ -564,10 +564,12 @@ export interface LevelZeroWork {
    *  null when it took none. */
   readonly first: number | null;
   /** What each favored verdict and choice level zero read, by index, made
-   *  it do: the verdict it tried first at an open condition, and the choice
-   *  it forked first at a menu of so many options. */
+   *  it do: the verdict it tried first at an open condition, and, by the
+   *  number of options of each menu met at that index, the choice it forked
+   *  first there. Different routes meet different menus at one index, and
+   *  one favored choice orders each by its own size. */
   readonly favoredConditions: ReadonlyMap<number, boolean>;
-  readonly favoredChoices: ReadonlyMap<number, { first: number; count: number }>;
+  readonly favoredChoices: ReadonlyMap<number, ReadonlyMap<number, number>>;
   /** The next level's queue ({@link nextLevelQueue}), empty when the
    *  budget cut level zero. */
   readonly queue: readonly (SearchNode | (() => SearchNode | null))[];
@@ -597,7 +599,7 @@ interface LevelZeroTrace {
   /** The chunk the run going on last stood in; -1 at a run's start. */
   last: number;
   favoredConditions: Map<number, boolean>;
-  favoredChoices: Map<number, { first: number; count: number }>;
+  favoredChoices: Map<number, Map<number, number>>;
 }
 
 /** The search key a work is kept and found by: the flow and every option
@@ -643,9 +645,11 @@ export const sameFavoredReads = (
       return false;
     }
   }
-  for (const [i, { first, count }] of work.favoredChoices) {
-    if (firstChoice(choices[i], count) !== first) {
-      return false;
+  for (const [i, menus] of work.favoredChoices) {
+    for (const [count, first] of menus) {
+      if (firstChoice(choices[i], count) !== first) {
+        return false;
+      }
     }
   }
   return true;
@@ -1791,13 +1795,16 @@ const runUntilDecisionOrBranch = (
           };
           const favoredChoiceIndex =
             favoredChoiceIndices[trailLength(node.choices)];
-          budget.trace?.favoredChoices.set(trailLength(node.choices), {
-            first: firstChoice(
-              favoredChoiceIndex,
-              story.currentChoices.length,
-            ),
-            count: story.currentChoices.length,
-          });
+          if (budget.trace) {
+            const at = trailLength(node.choices);
+            const count = story.currentChoices.length;
+            let menus = budget.trace.favoredChoices.get(at);
+            if (!menus) {
+              menus = new Map();
+              budget.trace.favoredChoices.set(at, menus);
+            }
+            menus.set(count, firstChoice(favoredChoiceIndex, count));
+          }
           if (
             favoredChoiceIndex != null &&
             story.currentChoices[favoredChoiceIndex]
