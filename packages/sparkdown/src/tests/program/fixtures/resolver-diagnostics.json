@@ -983,8 +983,7 @@
  "function screenplay": {
   "fallback": null,
   "diagnostics": [
-   "inmemory:///main.sd {\"code\":\"FunctionUnused\",\"message\":{\"kind\":\"markdown\",\"value\":\"Function 'reset' is never used; prefix with '_' to silence\"},\"range\":{\"end\":{\"character\":16,\"line\":15},\"start\":{\"character\":11,\"line\":15}},\"severity\":2,\"source\":\"sparkdown\"}",
-   "inmemory:///main.sd {\"code\":\"BuiltinGlobalWrite\",\"message\":{\"kind\":\"markdown\",\"value\":\"Built-in global 'count' is overwritten here; consider using a local or changing the name\"},\"range\":{\"end\":{\"character\":14,\"line\":75},\"start\":{\"character\":9,\"line\":75}},\"severity\":2,\"source\":\"sparkdown\"}"
+   "inmemory:///main.sd {\"code\":\"BuiltinGlobalWrite\",\"message\":{\"kind\":\"markdown\",\"value\":\"Built-in global 'count' is overwritten here; consider using a local or changing the name\"},\"range\":{\"end\":{\"character\":14,\"line\":85},\"start\":{\"character\":9,\"line\":85}},\"severity\":2,\"source\":\"sparkdown\"}"
   ]
  },
  "capture screenplay": {
