@@ -451,6 +451,32 @@ describe("a live morph's aperture masks", () => {
     ...[0.1, 0.25, 0.4].map((offset) => [`a variant resting closed, its lashes beneath the whites, at ${offset}`, closedFirst, offset, restingClosed] as const),
   ];
 
+  test.each([0.1, 0.2, 0.28, 0.5])("leave no gap between the aperture and the moving lashes it is clipped to, at %s", (offset) => {
+    // The reach covers the lashes only, so the aperture's outline must lie
+    // on the drawn lashes' inner edges: a strip between them is cut from the
+    // white and covered by nothing, a seam of the face. Half a pixel past the
+    // outline, away from the corners, the white lies under a lash.
+    const svg = renderMorphAt(artifact, offset);
+    const outline = apertureOutline(svg);
+    expect(outline.length).toBeGreaterThan(0);
+    for (const scale of [4, 20]) {
+      const frame = paintList(svg, scale);
+      const lashes = frame.filter((item) => item.fill === "#111");
+      const white = frame.find((item) => item.fill === "#fff")!;
+      const beside = nearOutline(outline, scale, [0.5]).filter(({ p, outside }) => outside && p[0] > 25 && p[0] < 115 && inside(white.shape, p));
+      expect(beside.length).toBeGreaterThan(200);
+      // How far each such point lies from the nearest lash: the width of the
+      // strip no lash covers there, which must stay under a third of a pixel
+      // (blending the aperture's and the lashes' samples apart leaves a
+      // sliver that thin; an aperture built off the drawn lashes leaves
+      // whole pixels).
+      const gaps = beside
+        .filter(({ p }) => !lashes.some((lash) => inside(lash.shape, p)))
+        .map(({ p }) => Math.min(...lashes.map((lash) => distance(lash.shape, p))));
+      expect(Math.max(0, ...gaps), `${gaps.length} of ${beside.length} points beside the outline under no lash at ${scale}px`).toBeLessThan(0.3 / scale);
+    }
+  });
+
   test.each([0.1, 0.2, 0.28])("reach under each eye's own lashes when one clip entry holds both eyes, at %s", (offset) => {
     // Each eye's white and pupil paint before its own lashes, and the left
     // eye before the right, so the left lashes paint before the right

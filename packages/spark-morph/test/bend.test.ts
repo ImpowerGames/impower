@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { selfIntersects, signedArea } from "../src/geometry/cubic";
 import { canonicalFrame, findTips, selectCandidate } from "../src/methods/bend";
+import type { Point } from "../src/types";
 import { BEND_DEFAULTS, morphSubpaths, parsePathData, bendTrack } from "../src/index";
 import {
   anchors,
@@ -165,6 +166,33 @@ describe("bendTrack", () => {
       const xs = [a[0], b[0]].sort((x, y) => x - y);
       expect(xs[0]).toBeCloseTo(0, 0);
       expect(xs[1]).toBeCloseTo(100, 0);
+    }
+  });
+
+  test("between the rest poses the edges lie on the frame that is drawn", () => {
+    // An aperture built on the edges meets the drawing a player draws only
+    // when they are that drawing's own boundary.
+    const r = bendTrack(loop(upperOpen), loop(closedLash));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const t of [0.2, 0.5, 0.8]) {
+      const drawn = r.track.frame(t).map((segment) => segment.p0);
+      const onDrawn = (p: Point) => {
+        let best = Infinity;
+        for (let i = 0; i < drawn.length; i++) {
+          const a = drawn[i]!,
+            b = drawn[(i + 1) % drawn.length]!;
+          const dx = b[0] - a[0],
+            dy = b[1] - a[1];
+          const f = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+          best = Math.min(best, Math.hypot(a[0] + f * dx - p[0], a[1] + f * dy - p[1]));
+        }
+        return best;
+      };
+      const [e1, e2] = r.track.edges(t, 24);
+      expect(e1).toHaveLength(24);
+      expect(e2).toHaveLength(24);
+      expect(Math.max(...[...e1, ...e2].map(onDrawn)), `at ${t}`).toBeLessThan(1e-9);
     }
   });
 
