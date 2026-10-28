@@ -157,6 +157,14 @@ export class RootLocals {
    */
   answer(name: string, at: number): string {
     if (this.inBlock(at)) return ROOT_IN_BLOCK;
+    return this.answerIgnoringBlocks(name, at);
+  }
+
+  /** The declaration `answer` gives for `name` at `at` as though no block a
+   *  top-level statement opens held `at`: inside such a block, the local of
+   *  the flows around the block that is in scope there, a block's own locals
+   *  aside. */
+  answerIgnoringBlocks(name: string, at: number): string {
     const list = this.declarations.get(name);
     if (!list) return "";
     const around = this.flowsAround(at);

@@ -941,6 +941,7 @@ function lowerDefineMethod(
     [...hoistedDecls, ...body, ...nested],
     finalArgs,
   );
+  fn.isDefineMethod = true;
   closeFunctionBody(ctx, shape, fn, node, hoistedDecls);
   // The method's source span places it where it is written, for the scope
   // check that decides whether a name in its body reads a local (see

@@ -28,9 +28,13 @@ import type { SparkleJoins } from "./utils/sparkleContinuations";
  * document's declarations of its name (`RootLocals.declared`): a `local`
  * written, removed or moved above either changes the code it lowers to. Each
  * names the variable in place of a node, and its value is `name=answer`.
+ * `rootLocalIgnoringBlocks`, read the same way, is the `local` of the flows
+ * around a block a top-level statement opens that is in scope inside it
+ * (`RootLocals.answerIgnoringBlocks`), which decides whether a function
+ * written in the block binds a local of that name (`RootBinding.local`).
  */
 export interface LoweringRead {
-  kind: "routing" | "unreachable" | "rootLocal" | "rootDeclaration";
+  kind: "routing" | "unreachable" | "rootLocal" | "rootDeclaration" | "rootLocalIgnoringBlocks";
   value: string;
   /** The name of the node that read it, or for a `rootLocal` or a
    *  `rootDeclaration`, the variable's. */
@@ -249,7 +253,7 @@ export interface LowerContext {
    * `rootLocalAnswer` asks and records (I-1374, I-1365). Absent for callers
    * that lower no document, where no such local is in scope.
    */
-  rootLocals?: Pick<RootLocals, "answer" | "declared">;
+  rootLocals?: Pick<RootLocals, "answer" | "answerIgnoringBlocks" | "declared">;
   /**
    * Names that are used as a TYPE somewhere in the document — every
    * `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
