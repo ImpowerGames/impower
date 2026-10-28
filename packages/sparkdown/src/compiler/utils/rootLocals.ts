@@ -43,7 +43,7 @@ export const ROOT_NONE = "none";
 const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
 const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 const CHOICES = nodeNameSet(["Choice"]);
-const LOCAL_FUNCTIONS = nodeNameSet(["LuauFunctionDefinition"]);
+const LOCAL_FUNCTIONS = nodeNameSet(["LuauFunctionDefinition", "LuauFunctionAttributes"]);
 
 // The blocks a top-level statement opens a scope of its own with, inside
 // which every name answers `ROOT_IN_BLOCK`. An `&` line's `for` or `while`
@@ -255,7 +255,7 @@ export class RootLocals {
     }
     if (LOCAL_FUNCTIONS.has(node.name)) {
       const nameNode = getDescendent("LuauFunctionName", node);
-      if (nameNode && /^local\b/.test(read(node.from, node.to).trimStart())) {
+      if (nameNode && scopeOf(node, read) === "local") {
         this.add(read(nameNode.from, nameNode.to).trim(), {
           at: nameNode.from,
           visibleFrom: node.to,

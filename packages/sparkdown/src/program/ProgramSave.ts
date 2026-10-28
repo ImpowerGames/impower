@@ -29,6 +29,7 @@ import {
 } from "./ProgramSymbols";
 import {
   blockStackOf,
+  flowScopesOf,
   type PlacedPositional,
   type PlacedThread,
   type PositionCopy,
@@ -572,13 +573,34 @@ const flowRestart = (
   );
 };
 
-/** The names a saved frame's scopes bind, its flows' scopes among them, or
- *  nothing for a frame that holds no temporaries. */
-const savedScopeNames = (frame: Record<string, any> | undefined): Set<string> | undefined => {
+/** The names a saved frame binds in its own scope and the scopes of the
+ *  flows the position `sequence` is in (`flowScopesOf`), where a flow's
+ *  entry binds its parameters, or nothing for a frame that holds no
+ *  temporaries. A block's scope above them binds none of a flow's
+ *  parameters, so a local of a parameter's name there does not count. */
+const savedScopeNames = (
+  root: ProgramRoot,
+  sequence: SequenceRow,
+  frame: Record<string, any> | undefined,
+): Set<string> | undefined => {
   const scopes: unknown[] = Array.isArray(frame?.["temps"]) ? frame["temps"] : [];
-  const held = scopes.filter((scope): scope is object => !!scope && typeof scope === "object");
-  return held.length > 0 ? new Set(held.flatMap((scope) => Object.keys(scope))) : undefined;
+  return flowScopeNames(
+    root,
+    sequence,
+    scopes.filter((scope): scope is object => !!scope && typeof scope === "object").map((scope) => Object.keys(scope)),
+  );
 };
+
+/** The names of `scopes` (each scope's names, outermost first) that the
+ *  frame's own scope and the scopes of the flows `sequence` is in hold. */
+const flowScopeNames = (
+  root: ProgramRoot,
+  sequence: SequenceRow,
+  scopes: readonly (readonly string[])[],
+): Set<string> | undefined =>
+  scopes.length > 0
+    ? new Set(scopes.slice(0, 1 + flowScopesOf(root, sequence)).flat())
+    : undefined;
 
 /** The choices of a chunk whose `Choice` instructions stand one for each
  *  choice part, in order, or nothing. */
@@ -2185,7 +2207,7 @@ class SaveReader {
             this.root,
             level,
             at.position.sequence,
-            savedScopeNames(saved[i]),
+            savedScopeNames(this.root, at.position.sequence, saved[i]),
           );
           if (restart) {
             restarted = true;
@@ -2763,7 +2785,7 @@ export const translatePositional = (
   // The restart of an element whose position was in a scene or a branch of
   // `from` and is in one whose parameters changed
   // (#1728), read from `from` as a save's first level carries it, in a frame
-  // whose scopes, its flows' among them, are `scopes`.
+  // whose scopes are `scopes`, of which its own and its flows' count.
   const restarts = (
     saved: PositionCopy | null,
     at: Placed,
@@ -2775,7 +2797,7 @@ export const translatePositional = (
       root,
       positionBindings(from, was.sequence),
       at.position.sequence,
-      scopes?.length ? new Set(scopes.flatMap((scope) => [...scope.keys()])) : undefined,
+      scopes ? flowScopeNames(root, at.position.sequence, scopes.map((scope) => [...scope.keys()])) : undefined,
     );
   };
   const placeThread = (

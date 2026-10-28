@@ -182,6 +182,19 @@ describe("a closure written in the scene", () => {
     ).toEqual(got("Got 5 5 5."));
   });
 
+  test("calls an attributed local function of the scene named like a stdlib namespace", () => {
+    expect(
+      run([
+        "-> S",
+        "scene S",
+        "  @native local function math() return 7 end",
+        "  local f = function() return math() end",
+        "  Got {f()} {math()}.",
+        "end",
+      ]),
+    ).toEqual(got("Got 7 7."));
+  });
+
   test("keeps the local it captured after the flow diverts away", () => {
     expect(
       run([

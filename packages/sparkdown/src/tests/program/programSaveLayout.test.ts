@@ -929,6 +929,33 @@ describe("a save inside a scene entered by a divert", () => {
     expect(play(loaded)).toEqual(["Second nil."]);
   });
 
+  // Round 1 of the review of #1674 (report 6464271392, finding 1): a block's
+  // local of a parameter's name is no binding of the scene's entry, so a
+  // frame that jumped past the entry loads in place when a parameter is
+  // added.
+  it("at a label a frame jumped to past the entry loads in place, though a block's local takes a parameter's name", () => {
+    const BLOCK = (header: string) =>
+      [
+        "-> s.middle",
+        "",
+        `scene ${header}`,
+        "  Skipped.",
+        "  label middle",
+        "  if true then",
+        "    local a = 7",
+        "    First {a}.",
+        "    Second {a}.",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(BLOCK("s(a)"), "First 7.");
+    const loaded = engine(rootOf(BLOCK("s(a, b)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second 7."]);
+  });
+
   // Round 1 of the review of #1730 (report 6084052356, finding 4): a jump
   // to a label of a scene that bound nothing, which gains a parameter.
   it("at a label a frame jumped to loads in place when the scene, which took no parameters, gains one", () => {
