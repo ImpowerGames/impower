@@ -125,6 +125,16 @@ describe("a scene's local", () => {
   });
 });
 
+describe("a scene a host evaluates", () => {
+  test("keeps its locals out of the scene it diverts to", () => {
+    const story = new ProgramStory(
+      rootOf(["scene A", "  local value = 12", "  -> B", "end", "scene B", "  Other {tostring(value)}.", "end"]),
+    );
+    const result = quiet(() => story.EvaluateFunction("A", [], true)) as { output: string };
+    expect(result.output.trim()).toBe("Other nil.");
+  });
+});
+
 describe("a branch the scene falls into", () => {
   test("reads the scene's parameter, a local of the scene's scope", () => {
     expect(

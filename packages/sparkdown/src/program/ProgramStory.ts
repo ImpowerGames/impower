@@ -3351,6 +3351,15 @@ export class ProgramStory implements StoryEngine {
       offset: target.entry.offset,
     };
     state.blockStack = [];
+    // A scene or a branch a host evaluates runs in the scopes of its flows,
+    // as a jump into it opens them. A function's frame holds none, though a
+    // closure's entry stands in the sequence of the flow it is written in.
+    const kind = this.root.kindOf(target.symbol);
+    if (kind === SymbolKind.Scene || kind === SymbolKind.Branch) {
+      for (let open = flowScopesOf(this.root, target.entry.sequence); open > 0; open -= 1) {
+        state.frame?.PushScope();
+      }
+    }
   }
 
   /** `Return`: leaves the value on top as the function's result, pops the

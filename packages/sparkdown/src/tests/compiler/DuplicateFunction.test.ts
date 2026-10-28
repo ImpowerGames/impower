@@ -106,14 +106,16 @@ describe("DuplicateFunction at a script's top level", () => {
   });
 
   // A local function in a scene is a local of the scene's scope, which a
-  // later one of the name shadows, as in Luau.
-  test("leaves a scene's local functions of one name alone", () => {
+  // later one of the name shadows, as in Luau: Luau's lint warns of the
+  // second, and the compiler reports no duplicate story function.
+  test("lints a scene's second local function of one name as Luau does, with no duplicate identifier", () => {
     const found = diagnoseDetailed(
       "-> S\nscene S\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
     );
-    expect(
-      found.filter((d) => d.code === "DuplicateFunction" || d.message.startsWith("Duplicate identifier")),
-    ).toEqual([]);
+    expect(found.filter((d) => d.message.startsWith("Duplicate identifier"))).toEqual([]);
+    expect(found.filter((d) => d.code === "DuplicateFunction").map((d) => [d.severity, d.range.start.line, d.message])).toEqual([
+      [2, 3, "Duplicate function definition: 'x' also defined on line 3"],
+    ]);
   });
 
   test("compares members, which the compiler does not", () => {
