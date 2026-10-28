@@ -703,7 +703,9 @@ export function* bakeSteps(
     if (!gradient || !from) return undefined;
     if (gradient.units === "objectBoundingBox") return gradient;
     const fine = (n: number) => Math.round(n * 1e9) / 1e9 || 0;
-    return { ...gradient, transform: multiply(multiply(space, from), gradient.transform as Affine).map(fine) };
+    const transform = multiply(multiply(space, from), gradient.transform as Affine).map(fine);
+    // A placement that overflows is one the bake cannot draw with certainty.
+    return transform.every(Number.isFinite) ? { ...gradient, transform } : undefined;
   };
   /**
    * The gradient copies live parts carry, by the node that paints with each,
@@ -716,16 +718,19 @@ export function* bakeSteps(
   const gradientCopies = new Map<string, { id: string; home: Leaf; gradient: MorphGradient }>();
   let gradientSerial = 0;
   /**
-   * What a track's fill and stroke blend as gradients: where both ends paint
-   * with gradients that match and the node the shape draws on would not
-   * already show the same one at both ends.
+   * Which of a track's fill and stroke paint with gradients that match at
+   * both ends (`matched`, whose opacities blend as a colour's do), and of
+   * those, what blends on a copy: each the node the shape draws on would not
+   * already show the same at both ends.
    */
   const gradientBlends = (from: Leaf, to: Leaf, home: Leaf, draw: string, space: Affine) => {
     const out: { fill?: MorphGradientBlend; stroke?: MorphGradientBlend } = {};
+    const matched = { fill: false, stroke: false };
     for (const name of ["fill", "stroke"] as const) {
       const a = gradientIn(from, name, space);
       const b = gradientIn(to, name, space);
       if (!a || !b || !gradientsMatch(a, b)) continue;
+      matched[name] = true;
       const same = (x: MorphGradient | undefined) => JSON.stringify(x) === JSON.stringify(a);
       if (same(b) && same(gradientIn(home, name, space))) continue;
       const key = `${draw}:${name}:${a.kind}:${a.units}:${a.spread}:${a.stops.length}`;
@@ -738,7 +743,7 @@ export function* bakeSteps(
       }
       out[name] = { id: `${prefix}${copy.id}`, ends: [a, b] };
     }
-    return out;
+    return { gradients: out, matched };
   };
 
   const geometryCache: MorphGeometryCache = options.geometry ?? new Map();
@@ -943,8 +948,8 @@ export function* bakeSteps(
         // whichever node draws it, a carrier copied from a third drawing
         // included.
         // A gradient pair blends on a copy of its own (`gradientBlends`).
-        const gradients = gradientBlends(from, to, home, draw, space);
-        const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home), { fill: !!gradients.fill, stroke: !!gradients.stroke });
+        const { gradients, matched } = gradientBlends(from, to, home, draw, space);
+        const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home), matched);
         transitions.push({
           kind: "morph",
           from: nodeOf(from),

@@ -9,21 +9,23 @@
 // the drawing through a bare `url(#id)` and from there through `href` or
 // `xlink:href` of the form `#id`, each to another such gradient; its
 // `gradientUnits` and `spreadMethod` spelled exactly as SVG names them;
-// coordinates as plain numbers or percentages, with nothing around them,
-// a percentage in `userSpaceOnUse` only at zero (any other resolves against
-// a viewport); a `gradientTransform` as a list of the six transform
+// coordinates as plain finite numbers or percentages, with nothing around
+// them, a percentage in `userSpaceOnUse` only at zero (any other resolves
+// against a viewport); a `gradientTransform` as a list of the six transform
 // functions, numbers separated by commas or spaces and functions by a comma
-// or spaces; each stop's `offset` the same way, and its colour as `paint.ts`
-// reads `stop-color` and `stop-opacity`; and no `color-interpolation` on the
-// gradients, their stops or their ancestors. Anything else leaves the pair
+// or spaces, its matrix finite; each stop's `offset` the same way, and its
+// colour as `paint.ts` reads `stop-color` and `stop-opacity`; and nothing
+// that may set `color-interpolation` on the gradients, their stops or their
+// ancestors (the attribute, the property, `all`, or an inline style the
+// paint grammar cannot split). Anything else leaves the pair
 // unblended. Reading less than a browser does is safe; reading something
 // differently is not.
 
 import { IDENTITY, parseTransform, type Affine } from "./affine";
 import { own } from "./own";
-import { stopColor } from "./paint";
+import { inlineDeclarations, stopColor } from "./paint";
 import { gradientAttributes } from "./render";
-import { ancestry, styleDeclarations, type ArtDocument, type Element } from "./svgDocument";
+import { ancestry, type ArtDocument, type Element } from "./svgDocument";
 import type { MorphGradient } from "./types";
 
 const KINDS: Record<string, MorphGradient["kind"]> = { linearGradient: "linear", radialGradient: "radial" };
@@ -45,11 +47,14 @@ const REFERENCE = /^#([A-Za-z0-9_.-]+)$/;
 const elementsOf = (element: Element): Element[] =>
   element.children.filter((c): c is Element => !!c && typeof c === "object");
 
-/** A number, or a percentage as a fraction; undefined otherwise. */
+/** A finite number, or a percentage as a fraction; undefined otherwise. */
 const fraction = (text: string): { value: number; percent: boolean } | undefined => {
   const percent = text.endsWith("%");
   const body = percent ? text.slice(0, -1) : text;
-  return NUMBER.test(body) ? { value: percent ? Number(body) / 100 : Number(body), percent } : undefined;
+  if (!NUMBER.test(body)) return undefined;
+  const value = percent ? Number(body) / 100 : Number(body);
+  // A number too large for a double is one the bake cannot draw with certainty.
+  return Number.isFinite(value) ? { value, percent } : undefined;
 };
 
 /** A `gradientTransform` in the grammar, or undefined. */
@@ -71,14 +76,21 @@ export function readGradientTransform(text: string): Affine | undefined {
     rest = rest.slice(call[0].length);
   }
   // Validated, so the lenient parser reads exactly these numbers.
-  return parseTransform(text) ?? undefined;
+  const matrix = parseTransform(text);
+  return matrix && matrix.every(Number.isFinite) ? matrix : undefined;
 }
 
-/** Whether the element or an ancestor sets `color-interpolation`, which the bake does not read. */
+/**
+ * Whether the element or an ancestor may set `color-interpolation`, which the
+ * bake does not read: as an attribute, in an inline style the paint grammar
+ * cannot split (an escape or a comment can spell the name), or through `all`.
+ */
 const interpolates = (doc: ArtDocument, element: Element) =>
-  [...ancestry(doc, element)].some(
-    ({ element: e }) => e.attributes["color-interpolation"] !== undefined || styleDeclarations(e).some(([name]) => name === "color-interpolation"),
-  );
+  [...ancestry(doc, element)].some(({ element: e }) => {
+    if (e.attributes["color-interpolation"] !== undefined) return true;
+    const inline = inlineDeclarations(e);
+    return inline === null || inline.some((d) => d.name === "color-interpolation" || d.name === "all");
+  });
 
 /**
  * The gradient `id` names, resolved through its `href` chain: each attribute

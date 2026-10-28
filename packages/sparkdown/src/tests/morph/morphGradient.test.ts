@@ -130,6 +130,22 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     expect(fillOf(drawn(artifact, 0.25, "plain"))).toBeUndefined();
   });
 
+  test("a pair sharing one gradient still blends its fill and stroke opacity, with no copy", () => {
+    const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
+<defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient></defs>
+<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#g)" stroke="url(#g)"/></g>
+<g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="url(#g)" stroke="url(#g)" fill-opacity="0" stroke-opacity="0.5"/></g>
+</svg>`;
+    const shared = bake(source);
+    const t = track(shared, "lash");
+    expect(t.gradients).toBeUndefined();
+    expect(t.paint).toEqual({ "fill-opacity": [1, 0], "stroke-opacity": [1, 0.5] });
+    const style = drawn(shared, 0.25, "lash").attributes["style"] ?? "";
+    expect(style).toMatch(/fill-opacity:0\.5/);
+    expect(style).toMatch(/stroke-opacity:0\.75/);
+    expect(style).not.toMatch(/url\(/);
+  });
+
   test("at the poses the authored drawings show with their own gradients, and the copies keep their markup", () => {
     const ids = ["highlight", "liner", "glow", "sheen"].map((name) => track(artifact, name).gradients!.fill!.id);
     const live = artifact.parts.filter((p) => p.kind === "live").map((p) => p.svg).join("");

@@ -61,7 +61,7 @@ const STYLE_OUTSIDE = /[^\x20-\x7e\t\n\r\f]|\/\*|\\|["']/;
 const IMPORTANT = /![ \t\n\r\f]*important$/i;
 
 /** An element's inline style declarations in order, or null for a style outside the grammar. */
-function inlineDeclarations(element: Element): { name: string; value: string; important: boolean }[] | null {
+export function inlineDeclarations(element: Element): { name: string; value: string; important: boolean }[] | null {
   const style = element.attributes["style"];
   if (style === undefined) return [];
   if (STYLE_OUTSIDE.test(style)) return null;
