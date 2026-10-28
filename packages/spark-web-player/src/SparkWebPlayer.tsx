@@ -49,6 +49,8 @@ export default function SparkWebPlayer({
   const sizeLabelRef = useRef<HTMLDivElement>(null);
   const fullscreenButtonRef = useRef<HTMLDivElement>(null);
   const completionStatusRef = useRef<HTMLSpanElement>(null);
+  const routeButtonRef = useRef<HTMLDivElement>(null);
+  const routeListRef = useRef<HTMLDivElement>(null);
 
   const controllerRef = useRef<GamePlayerControllerType | null>(null);
 
@@ -91,6 +93,8 @@ export default function SparkWebPlayer({
         resetButton: null,
         fullscreenButton: fullscreenButtonRef.current,
         completionStatus: completionStatusRef.current,
+        routeButton: routeButtonRef.current,
+        routeList: routeListRef.current,
       });
       controller.setup();
       controllerRef.current = controller;
@@ -134,6 +138,7 @@ export default function SparkWebPlayer({
         <div id="toolbar" ref={toolbarRef}>
           <div id="resize-handle" />
           <div id="left-items" ref={leftItemsRef} hidden>
+            <div id="route-button" ref={routeButtonRef} hidden />
             <div id="location-items" ref={locationItemsRef}>
               <div id="launch-info" ref={launchInfoRef}>
                 <span id="launch-state-icon" ref={launchStateIconRef} />
@@ -167,6 +172,9 @@ export default function SparkWebPlayer({
             ) : null}
           </div>
         </div>
+      ) : null}
+      {flag(toolbar) ? (
+        <div id="route-list" ref={routeListRef} hidden />
       ) : null}
     </div>
   );

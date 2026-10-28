@@ -14,6 +14,7 @@
 
 import { createMorphHost, MorphArtifactSlot, type MorphHost } from "../../../../sparkdown/src/morph/hosts";
 import {
+  APERTURE_REACH_CLIP_STYLE,
   morphFrameState,
   morphPosesAt,
   namespaceMorphMarkup,
@@ -55,7 +56,13 @@ interface LiveView {
   /** Each part's own svg, nested in the box's svg root. */
   parts: Element[];
   leaves: { element: Element; node: string; style: string | null; d: string | null; opacity: string | null }[];
-  clips: { id: string; paths: { element: Element; d: string | null; style: string | null }[] }[];
+  clips: {
+    id: string;
+    element: Element;
+    paths: { element: Element; d: string | null; style: string | null }[];
+    /** The path of the clip path bounding the aperture's reach, once a frame has needed it. */
+    reach?: Element;
+  }[];
   /** The pose last written, so an unchanged frame writes nothing. */
   last?: string;
 }
@@ -68,6 +75,8 @@ interface PlayState {
   /** Its artifact's parts would not parse: it stays with CSS. */
   broken?: boolean;
 }
+
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 const HOST_STYLE = "position:absolute;inset:0;overflow:hidden;pointer-events:none;mix-blend-mode:normal";
 
@@ -695,8 +704,7 @@ export class MorphLayer {
     const prefix = `${artifact.idPrefix.slice(0, -1)}o${++occurrencePrefixes}_`;
     const box = doc.createElement("div");
     box.setAttribute("style", "position:absolute;left:0;top:0;width:100%;height:100%");
-    const NS = "http://www.w3.org/2000/svg";
-    const outer = doc.createElementNS(NS, "svg");
+    const outer = doc.createElementNS(SVG_NS, "svg");
     outer.setAttribute("width", "100%");
     outer.setAttribute("height", "100%");
     outer.setAttribute("style", "position:absolute;inset:0;overflow:visible");
@@ -727,14 +735,14 @@ export class MorphLayer {
       });
     }
     const clips: LiveView["clips"] = [];
-    const apertures = [...Array.from(outer.getElementsByTagNameNS(NS, "mask")), ...Array.from(outer.getElementsByTagNameNS(NS, "clipPath"))];
+    const apertures = [...Array.from(outer.getElementsByTagNameNS(SVG_NS, "mask")), ...Array.from(outer.getElementsByTagNameNS(SVG_NS, "clipPath"))];
     for (const aperture of apertures) {
       const id = aperture.getAttribute("id");
       if (!id) continue;
       const paths = Array.from(aperture.children)
         .filter((child) => child.localName === "path")
         .map((element) => ({ element, d: element.getAttribute("d"), style: element.getAttribute("style") }));
-      clips.push({ id: id.split(prefix).join(artifact.idPrefix), paths });
+      clips.push({ id: id.split(prefix).join(artifact.idPrefix), element: aperture, paths });
     }
     return { box, artifact, prefix, parts, leaves, clips };
   }
@@ -810,7 +818,7 @@ export class MorphLayer {
       view.last = signature;
       const frame: MorphFrameState =
         at === "rest"
-          ? { shown: new Set(), hidden: new Set(), geometry: new Map(), paint: new Map(), opacity: new Map(), clips: new Map() }
+          ? { shown: new Set(), hidden: new Set(), geometry: new Map(), paint: new Map(), opacity: new Map(), clips: new Map(), reaches: new Map() }
           : morphFrameState(view.artifact, morphPosesAt(view.artifact, at));
       applyFrame(view, frame);
     }
@@ -921,11 +929,26 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
       children: [],
     }));
     const d = frame.clips.get(clip.id);
-    if (d !== undefined) poseAperture({ tagName: "mask", attributes: {}, children: paths }, d);
+    const aperture = { tagName: clip.element.localName, attributes: { id: clip.element.getAttribute("id") ?? "" }, children: paths };
+    const bound = d === undefined ? undefined : poseAperture(aperture, d, frame.reaches.get(clip.id));
     clip.paths.forEach((path, index) => {
       write(path.element, "style", paths[index]!.attributes["style"] ?? null);
       write(path.element, "d", paths[index]!.attributes["d"] ?? null);
     });
+    if (!bound) continue;
+    // The clip path bounding the reach is made the first time a frame needs
+    // it, and stays, unreferenced, while the aperture rests.
+    if (!clip.reach) {
+      const doc = clip.element.ownerDocument;
+      const element = doc.createElementNS(SVG_NS, "clipPath");
+      element.setAttribute("id", bound.id);
+      element.setAttribute("clipPathUnits", "userSpaceOnUse");
+      clip.reach = doc.createElementNS(SVG_NS, "path");
+      clip.reach.setAttribute("style", APERTURE_REACH_CLIP_STYLE);
+      element.appendChild(clip.reach);
+      clip.element.appendChild(element);
+    }
+    write(clip.reach, "d", bound.d);
   }
 }
 

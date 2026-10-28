@@ -1,5 +1,6 @@
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
+import type { ScriptSource } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type {
   RoutePlan,
   RouteResumePoint,
@@ -31,6 +32,9 @@ export interface RouteSearchSettings {
    *  address, so this one searches the flow the address stands in alone
    *  (`Game.planRouteInFlow`), and its record says the start was searched. */
   startSearched?: boolean;
+  /** What the route's report reads of the scripts: a line's text and the
+   *  loops (`Game.previewRouteOf`). */
+  source?: ScriptSource;
 }
 
 /** Plan a route to the address `to` and replay it, recording what the search
@@ -74,6 +78,7 @@ export const searchRouteFor = (
     remember = true,
     fromStart = false,
     startSearched = false,
+    source,
   } = settings;
   if (!fromStart && !startSearched && game.routesFromStartFirst(to)) {
     // Inside a scene that takes parameters, the route runs from the story's
@@ -166,6 +171,7 @@ export const searchRouteFor = (
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
+      route: reachedTarget ? game.previewRouteOf(route, source) : undefined,
       fromStart: searchedFromStart,
     });
     if (checkpoint && remember) {

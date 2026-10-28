@@ -90,6 +90,16 @@ import { describeSimulationFailure } from "./utils/describeSimulationFailure";
 import { programIdentity, type IdentifiableProgram } from "./utils/programIdentity";
 import { workerHangMessage } from "./utils/workerHangMessage";
 import { profile } from "./utils/profile";
+import { renderRouteViews } from "./route/renderRouteViews";
+import {
+  DEFAULT_ROUTE_TOGGLES,
+  routeTogglesFrom,
+  type RouteKind,
+  type RouteViewState,
+} from "./route/routeView";
+import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
+import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
+import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 
 const COMMON_ASPECT_RATIOS = [
   [16, 9],
@@ -224,6 +234,12 @@ export interface GamePlayerRefs {
   fullscreenButton: HTMLElement | null;
   /** Where the autocomplete suggestion preview reports its state. */
   completionStatus?: HTMLElement | null;
+  /** Where the route button goes, in place of the location labels while the
+   *  preview shows a line; without it the labels show the route. */
+  routeButton?: HTMLElement | null;
+  /** Where the route list opens: below the toolbar, the game shrinking to
+   *  make room. */
+  routeList?: HTMLElement | null;
 }
 
 export class GamePlayerController {
@@ -262,6 +278,11 @@ export class GamePlayerController {
   private _previewPosition: GameState["position"] = null;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
+  /** What the route button and the route list show. */
+  protected _routeState: RouteViewState = {
+    open: false,
+    toggles: { ...DEFAULT_ROUTE_TOGGLES },
+  };
   /** Counts the preview updates, so one that another overtakes while it
    *  waits can tell (`updatePreview`). */
   _previewUpdates = 0;
@@ -496,6 +517,8 @@ export class GamePlayerController {
     this._mounted = false;
     this._disposed = true;
     this._stops += 1;
+    window.removeEventListener("keydown", this.handleRouteKeyDown, true);
+    renderRouteViews(this.routeViewTargets(), null);
     this._previewPosition = null;
     this._selectionVersion++;
     this._launchState = null;
@@ -610,6 +633,9 @@ export class GamePlayerController {
 
   protected updateExecutionLabels(params?: GameExecutedParams) {
     if (!this.refs.locationItems || !this.refs.leftItems) {
+      return;
+    }
+    if (this.updateRoute(params)) {
       return;
     }
     this.refs.locationItems.classList.toggle(
@@ -729,6 +755,152 @@ export class GamePlayerController {
       this.refs.executionInfo.hidden = true;
     }
   }
+
+  /**
+   * Show the route the preview took on the route button, in place of the
+   * location labels, when the host has a place for it and the report is a
+   * preview's: one a route reached, or one that found no route. Answers
+   * whether it did; otherwise the button and its list go, and the labels
+   * show what runs.
+   */
+  protected updateRoute(params?: GameExecutedParams): boolean {
+    const button = this.refs.routeButton;
+    if (params == null && !this.playing) {
+      // A display being built, which reports its route once it runs: the
+      // list stays as it is until then.
+      return false;
+    }
+    const failed = params?.simulation === "fail";
+    const shows =
+      button != null &&
+      params != null &&
+      !this.playing &&
+      this._workerGame != null &&
+      (params.route != null || failed);
+    if (!shows) {
+      if (button) {
+        button.hidden = true;
+      }
+      this.refs.locationItems!.hidden = false;
+      this._routeState = {
+        ...this._routeState,
+        route: undefined,
+        failure: undefined,
+      };
+      this.setRouteOpen(false);
+      this.renderRoute();
+      return false;
+    }
+    this.refs.leftItems!.hidden = false;
+    this.refs.locationItems!.hidden = true;
+    button.hidden = false;
+    const flow = params.simulateFlow;
+    const target = params.startLocation;
+    this._routeState = {
+      ...this._routeState,
+      route: failed ? undefined : params.route,
+      failure: failed
+        ? {
+            message:
+              describeSimulationFailure(
+                params.simulation,
+                params.simulationFailure,
+              ) ?? "",
+            scene:
+              flow != null && flow !== "0" && params.simulateLocation
+                ? flow
+                : undefined,
+            start:
+              params.simulateLocation ??
+              (target
+                ? {
+                    uri: target.uri,
+                    range: {
+                      start: { line: 0, character: 0 },
+                      end: { line: 0, character: 0 },
+                    },
+                  }
+                : undefined),
+            target,
+          }
+        : undefined,
+    };
+    this.renderRoute();
+    return true;
+  }
+
+  protected routeViewTargets() {
+    return {
+      button: this.refs.routeButton ?? null,
+      list: this.refs.routeList ?? null,
+    };
+  }
+
+  /** Render the route button and the route list from the route's state. */
+  protected renderRoute() {
+    if (this._disposed || !this.refs.routeButton) {
+      return;
+    }
+    const open = this._routeState.open;
+    this.refs.viewport.classList.toggle("route-open", open);
+    if (this.refs.routeList) {
+      this.refs.routeList.hidden = !open;
+    }
+    renderRouteViews(this.routeViewTargets(), {
+      state: this._routeState,
+      nameOf: (uri) => this.getRelativeFilePath(uri) ?? uri,
+      onOpen: () => this.setRouteOpen(true),
+      onClose: () => this.setRouteOpen(false),
+      onToggle: this.handleRouteToggle,
+      onShowLine: this.handleRouteShowLine,
+    });
+  }
+
+  protected setRouteOpen(open: boolean) {
+    if (this._routeState.open === open) {
+      return;
+    }
+    this._routeState = { ...this._routeState, open };
+    if (open) {
+      window.addEventListener("keydown", this.handleRouteKeyDown, true);
+    } else {
+      window.removeEventListener("keydown", this.handleRouteKeyDown, true);
+    }
+    this.renderRoute();
+  }
+
+  protected handleRouteKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && this._routeState.open) {
+      e.stopPropagation();
+      this.setRouteOpen(false);
+    }
+  };
+
+  protected handleRouteToggle = (kind: RouteKind, shown: boolean) => {
+    const toggles = { ...this._routeState.toggles, [kind]: shown };
+    this._routeState = { ...this._routeState, toggles };
+    this.renderRoute();
+    // The host keeps the author's choice, and sends it again to every
+    // player that connects.
+    sendProtocolMessage(
+      DidChangeRouteTogglesMessage.type.notification({ toggles }),
+      this.host,
+    );
+  };
+
+  protected handleRouteShowLine = (location: DocumentLocation) => {
+    sendProtocolMessage(
+      ShowDocumentMessage.type.request({
+        uri: location.uri,
+        selection: {
+          start: location.range.start,
+          end: location.range.start,
+        },
+        takeFocus: true,
+      }),
+      this.host,
+    );
+  };
 
   getAspectRatio(width: number, height: number) {
     for (const [w, h] of COMMON_ASPECT_RATIOS) {
@@ -964,6 +1136,11 @@ export class GamePlayerController {
     p.onRequest(
       SetAnimatePortraitsMessage.type,
       this.handleSetAnimatePortraits,
+      this.host,
+    );
+    p.onRequest(
+      SetRouteTogglesMessage.type,
+      this.handleSetRouteToggles,
       this.host,
     );
     p.onRequest(PauseGameMessage.type, this.handlePauseGame, this.host);
@@ -1680,6 +1857,17 @@ export class GamePlayerController {
   ) => {
     this.morphs?.setEnabled(message.params.enabled);
     return SetAnimatePortraitsMessage.type.response(message.id, {});
+  };
+
+  protected handleSetRouteToggles = async (
+    message: SetRouteTogglesMessage.Request,
+  ) => {
+    this._routeState = {
+      ...this._routeState,
+      toggles: routeTogglesFrom(message.params.toggles),
+    };
+    this.renderRoute();
+    return SetRouteTogglesMessage.type.response(message.id, {});
   };
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {

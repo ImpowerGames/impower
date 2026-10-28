@@ -18,6 +18,7 @@ Read in order:
 12. **[Type Checking](./TypeChecking.md)** — warnings about the types in your Luau, and how strict they are.
 13. **[Joining Lines](./JoiningLines.md)** — `..` at the end and start of a line, and beside a `>` break.
 14. **[Video](./Video.md)** — movies on a layer, full-screen cutscenes, their sound, and video formats.
+15. **[Previewing a Line](./PreviewingALine.md)** — the route the Game Preview takes to your line: the route button, the route list and the four kinds of decision.
 
 > Syntax at a glance: an element is `element[.class …] [ "content" ] [ #prop=value ] [ @event=handler ] [ { children } ]`; each class takes a **`.`**; inline props take a **`#`**; an element's children, a style's nested rules and an animation's keyframes go in **`{ … }`** blocks, whose entries are separated by a new line or **`;`**; declarations are `keyword name with … end`; control flow uses `then` / `do` / `end`.
 

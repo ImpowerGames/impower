@@ -34,6 +34,10 @@ import {
   type RoutePlan,
   type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import {
+  routeDecisions,
+  type ScriptStructure,
+} from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
@@ -56,6 +60,12 @@ import { beatIndexIn } from "../../modules/assets/utils/previewWindow";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
 import type { DocumentLocation } from "../types/DocumentLocation";
+import type {
+  PreviewRoute,
+  PreviewRouteDecision,
+  ScriptSource,
+} from "../types/PreviewRoute";
+import { conditionText } from "../utils/conditionText";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
 import type { GameContext } from "../types/GameContext";
@@ -649,6 +659,17 @@ export class Game<T extends M = {}> {
    *  a reader must not hold it across a replay. */
   get plannedRoute(): RoutePlan | null {
     return this._plannedRoute;
+  }
+
+  protected _previewRoute?: PreviewRoute;
+  /** The route the preview the game displays took (`previewRouteOf`), which
+   *  `game/executed` reports; set by whatever displays the preview, and
+   *  cleared for a preview no route reached. */
+  get previewRoute(): PreviewRoute | undefined {
+    return this._previewRoute;
+  }
+  set previewRoute(value: PreviewRoute | undefined) {
+    this._previewRoute = value;
   }
 
   /** Which compile the planned route was replayed in
@@ -4170,6 +4191,89 @@ export class Game<T extends M = {}> {
       // with a run that succeeded.
       simulationFailure:
         this._simulation === "fail" ? this._simulationFailure : undefined,
+      route: this._previewRoute,
+    };
+  }
+
+  /**
+   * The route `route` as the preview reports it: where it starts, the line it
+   * ends at, and each decision it made (`routeDecisions`), placed in the
+   * scripts. `source` reads the scripts, counting lines from 0: a line's
+   * text, which names a forced verdict, and the loops and function bodies,
+   * which tell a clipped loop from a forced verdict. Without it the text is empty and every
+   * verdict the route forced is reported forced.
+   */
+  previewRouteOf(route: RoutePlan, source?: ScriptSource): PreviewRoute {
+    const lineOf = (address: ProgramAddress) => {
+      const location = this.scriptLocationOf(address);
+      return location ? { script: location[0], line: location[1] } : undefined;
+    };
+    const target =
+      this.documentLocationOf(route.to) ?? this.lineLocation(this._program.uri, 0);
+    const scene = this.flowDocumentLocationOf(route.from);
+    const firstStep = route.steps.find(
+      (step) => this.scriptLocationOf(step.address) !== undefined,
+    );
+    const start = scene
+      ? { scene: route.from, location: scene }
+      : {
+          location:
+            (firstStep && this.documentLocationOf(firstStep.address)) ??
+            this.lineLocation(target.uri, 0),
+        };
+    const structures = new Map<number, ScriptStructure>();
+    const structureOf =
+      source &&
+      ((script: number) => {
+        let found = structures.get(script);
+        if (!found) {
+          found = source.structure(this.scriptUri(script));
+          structures.set(script, found);
+        }
+        return found;
+      });
+    const decisions: PreviewRouteDecision[] = [];
+    for (const decision of routeDecisions(route, lineOf, structureOf)) {
+      // A clipped loop is listed at its own first line.
+      const location = decision.loop
+        ? this.lineLocation(
+            this.scriptUri(decision.loop.script),
+            decision.loop.line,
+          )
+        : this.documentLocationOf(decision.site);
+      if (!location) {
+        continue;
+      }
+      decisions.push({
+        kind: decision.kind,
+        location,
+        text:
+          decision.kind === "auto"
+            ? (decision.option ?? "")
+            : conditionText(
+                source?.lineText(location.uri, location.range.start.line) ??
+                  "",
+              ),
+        ...(decision.meeting !== undefined
+          ? { meeting: decision.meeting }
+          : {}),
+        ...(decision.verdict !== undefined
+          ? { verdict: decision.verdict }
+          : {}),
+        ...(decision.passes !== undefined ? { passes: decision.passes } : {}),
+      });
+    }
+    return { start, target, decisions };
+  }
+
+  /** The start of line `line` of the script `uri`. */
+  protected lineLocation(uri: string, line: number): DocumentLocation {
+    return {
+      uri,
+      range: {
+        start: { line, character: 0 },
+        end: { line, character: 0 },
+      },
     };
   }
 

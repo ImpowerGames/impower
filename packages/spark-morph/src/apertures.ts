@@ -1,4 +1,4 @@
-import { clamp01, dist, polygonArea } from "./geometry/cubic";
+import { clamp01, dist, evalCubic, isLine, polygonArea } from "./geometry/cubic";
 import type { BendTrack } from "./methods/bend";
 import type { Point } from "./types";
 
@@ -20,6 +20,14 @@ export interface Aperture {
    */
   loop(progress: number): Point[];
   area(progress: number): number;
+  /**
+   * The two edges' drawings at `progress`, each the frame its track draws
+   * there as a closed polyline: with the opening they cover everything the
+   * edges draw around it. A frame drawn in straight segments keeps its
+   * points; a curved one is sampled along each segment. The point count is
+   * the same at every progress.
+   */
+  bands(progress: number): [Point[], Point[]];
 }
 
 export type ApertureDiagnosticCode = "unpaired-edge" | "ambiguous" | "degenerate-edge";
@@ -354,6 +362,9 @@ function corner(p: Point, q: Point, facing: number, extent: number, restGap: num
   ];
 }
 
+/** Points sampled along each curved segment of an edge's drawing (`Aperture.bands`). */
+const BAND_STEPS = 8;
+
 /**
  * `flipB` is set when B's tip one sits at A's tip two, at the rest pose where
  * their tips meet; B's boundary, which runs tip one to tip two, is then
@@ -452,9 +463,19 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
     const untangled = untangle([...top, ...end, ...bottom.reverse(), ...start], facing);
     return untangled.length >= 3 ? untangled : [top[0]!, top[last]!];
   };
+  // A frame shares its segments' kinds with the track's start pose, which
+  // decides how many points each segment gives at every progress.
+  const band = (track: BendTrack, t: number): Point[] => {
+    const steps = track.from.map((segment) => (isLine(segment) ? 1 : BAND_STEPS));
+    return track.frame(clamp01(t)).flatMap((segment, k) => {
+      const n = steps[k] ?? BAND_STEPS;
+      return Array.from({ length: n }, (_, i) => evalCubic(segment, i / n));
+    });
+  };
   return {
     edgeIds: [A.id, B.id],
     loop,
     area: (t) => Math.abs(polygonArea(loop(t))),
+    bands: (t) => [band(A.track, t), band(B.track, t)],
   };
 }
