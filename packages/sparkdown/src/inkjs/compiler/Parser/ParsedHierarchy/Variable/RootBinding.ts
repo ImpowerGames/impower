@@ -18,12 +18,15 @@ import { Op, ROOT_ANY_SCOPE, ROOT_SLOT } from "../../../../../program/ProgramIns
 // block a top-level statement opens reads and does not capture binds by name
 // in any scope of the root frame (`anyScope`, `ROOT_ANY_SCOPE`), as every
 // function's did before the slots, so a block's local of the name is reached
-// (I-1468).
+// (I-1468); `local` says whether a local of the block or of a flow around it
+// is in scope where the name is read, which only the compiler's resolution of
+// the name asks (`FlowBase.BindsRootLocal`).
 export class RootBinding extends ParsedObject {
   constructor(
     public readonly variableName: string,
     public readonly slot: string | null = null,
     public readonly anyScope = false,
+    public readonly local = false,
   ) {
     super();
   }

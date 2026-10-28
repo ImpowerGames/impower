@@ -437,6 +437,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     if (!locals) return undefined;
     return {
       answer: takesOffset((name: string, at: number) => locals.answer(name, at)),
+      answerIgnoringBlocks: takesOffset((name: string, at: number) => locals.answerIgnoringBlocks(name, at)),
       declared: takesOffset((name: string, at: number) => locals.declared(name, at)),
     };
   }
@@ -832,12 +833,14 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     }
     // A root local's read names its variable, not a node: the document's
     // answer is its `RootLocals`'.
-    if (kind === "rootLocal" || kind === "rootDeclaration") {
+    if (kind === "rootLocal" || kind === "rootDeclaration" || kind === "rootLocalIgnoringBlocks") {
       const locals = this.rootLocals();
       const answer =
         kind === "rootLocal"
           ? (locals?.answer(name, from) ?? "")
-          : (locals?.declared(name, from) ?? "");
+          : kind === "rootLocalIgnoringBlocks"
+            ? (locals?.answerIgnoringBlocks(name, from) ?? "")
+            : (locals?.declared(name, from) ?? "");
       return `${name}=${answer}`;
     }
     const node = nodeStartingAt(tree, from, name);
