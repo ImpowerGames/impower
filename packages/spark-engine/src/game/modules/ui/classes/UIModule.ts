@@ -723,8 +723,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** What the last connect or redisplay cleared from the clear-on-continue
    *  targets that showed a picture, by target, until the first beat after it
-   *  displays: that beat shows again those it writes to, as play keeps them
-   *  under the beat that writes them (#1662). */
+   *  displays: that beat shows again those play keeps under it
+   *  (`keptTargets`) (#1662). */
   protected _clearedPictures?: Record<string, ImageState[]>;
 
   /** Every message the module has sent the page, or composed for it, and
