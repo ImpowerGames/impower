@@ -159,13 +159,21 @@ export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}
   return { apertures, diagnostics };
 }
 
+/** How close to a segment's end, as a fraction of the segment, counts as at it. */
+const AT_END = 1e-9;
+
 /**
- * The first proper crossing between two non-adjacent segments of a closed
+ * The first crossing between two non-adjacent segments of a closed
  * polyline: segment `i` runs from point `i` to point `i + 1`, `j > i`, and
  * `x` is where they cross. Collinear overlaps, such as a closed stretch's
- * zero-width slit, are not crossings.
+ * zero-width slit, are not crossings. Segments that meet at a point of the
+ * polyline cross only with `throughPoints`, and then only where the loop
+ * passes through there: a point lying on the other segment crosses it when
+ * its neighbours lie on opposite sides of it, and two coinciding points
+ * cross when each one's run separates the other's neighbours. Points that
+ * only touch are not crossings.
  */
-function firstCrossing(pts: Point[]): { i: number; j: number; x: Point } | undefined {
+function firstCrossing(pts: Point[], throughPoints = false): { i: number; j: number; x: Point } | undefined {
   const n = pts.length;
   for (let i = 0; i < n; i++) {
     const p = pts[i]!,
@@ -184,10 +192,76 @@ function firstCrossing(pts: Point[]): { i: number; j: number; x: Point } | undef
         wy = q[1] - p[1];
       const t = (wx * sy - wy * sx) / den,
         u = (wx * ry - wy * rx) / den;
-      if (t > 1e-9 && t < 1 - 1e-9 && u > 1e-9 && u < 1 - 1e-9) return { i, j, x: [p[0] + t * rx, p[1] + t * ry] };
+      if (t < -AT_END || t > 1 + AT_END || u < -AT_END || u > 1 + AT_END) continue;
+      const tEnd = t <= AT_END ? i : t >= 1 - AT_END ? (i + 1) % n : -1,
+        uEnd = u <= AT_END ? j : u >= 1 - AT_END ? (j + 1) % n : -1;
+      if (tEnd < 0 && uEnd < 0) return { i, j, x: [p[0] + t * rx, p[1] + t * ry] };
+      if (!throughPoints) continue;
+      // The split at a point of the polyline keeps that point on both sides,
+      // so it is the crossing point whichever segment's end it is.
+      const crossed = tEnd >= 0 && uEnd >= 0 ? runsInterleave(pts, tEnd, uEnd) : tEnd >= 0 ? passesThrough(pts, tEnd, q, q2) : passesThrough(pts, uEnd, p, p2);
+      if (crossed) return { i, j, x: pts[tEnd >= 0 ? tEnd : uEnd]! };
     }
   }
   return undefined;
+}
+
+/**
+ * The nearest points before and after point `k` that are not at it, or
+ * undefined when every point is.
+ */
+function neighbours(pts: Point[], k: number): [Point, Point] | undefined {
+  const n = pts.length,
+    v = pts[k]!;
+  const away = (step: number) => {
+    for (let s = 1; s < n; s++) {
+      const p = pts[(k + step * s + n * s) % n]!;
+      if (p[0] !== v[0] || p[1] !== v[1]) return p;
+    }
+    return undefined;
+  };
+  const before = away(-1),
+    after = away(1);
+  return before && after ? [before, after] : undefined;
+}
+
+/** Which side of the line through `a` and `b` the point `q` lies on: 1, -1, or 0 when on it. */
+function side(a: Point, b: Point, q: Point): number {
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1],
+    ox = q[0] - a[0],
+    oy = q[1] - a[1];
+  const cross = dx * oy - dy * ox;
+  return Math.abs(cross) <= AT_END * Math.hypot(dx, dy) * Math.hypot(ox, oy) ? 0 : Math.sign(cross);
+}
+
+/** Whether the loop passes through segment `a`–`b` at point `k`, which lies on it. */
+function passesThrough(pts: Point[], k: number, a: Point, b: Point): boolean {
+  const around = neighbours(pts, k);
+  return !!around && side(a, b, around[0]) * side(a, b, around[1]) < 0;
+}
+
+/**
+ * Whether the runs through points `k` and `m`, which coincide, cross there:
+ * the directions to `m`'s neighbours lie strictly in the two different
+ * angles `k`'s neighbours make at the point.
+ */
+function runsInterleave(pts: Point[], k: number, m: number): boolean {
+  const a = neighbours(pts, k),
+    b = neighbours(pts, m);
+  if (!a || !b) return false;
+  const v = pts[k]!;
+  const angle = (p: Point) => Math.atan2(p[1] - v[1], p[0] - v[0]);
+  const turn = (from: number, to: number) => (((to - from) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const start = angle(a[0]!),
+    span = turn(start, angle(a[1]!));
+  const within = (p: Point) => {
+    const at = turn(start, angle(p));
+    return at <= AT_END || Math.abs(at - span) <= AT_END ? undefined : at < span;
+  };
+  const first = within(b[0]!),
+    second = within(b[1]!);
+  return first !== undefined && second !== undefined && first !== second;
 }
 
 /**
@@ -197,11 +271,16 @@ function firstCrossing(pts: Point[]): { i: number; j: number; x: Point } | undef
  * splits in two at the crossing point, and the part winding the way the
  * opening does (`sign` of its area) is kept, or the larger part when both
  * or neither do. Each split removes at least one point, so this ends.
+ * `snap` places each crossing point, so a loop whose points are written at
+ * a fixed precision is untangled as written; `throughPoints` also splits
+ * where the loop passes through one of its own points (see `firstCrossing`).
  */
-function untangle(loop: Point[], sign: number): Point[] {
+export function untangle(loop: Point[], sign: number, options: { snap?: (p: Point) => Point; throughPoints?: boolean } = {}): Point[] {
+  const { snap = (p: Point) => p, throughPoints = false } = options;
   let pts = loop;
-  for (let hit = firstCrossing(pts); hit && pts.length >= 3; hit = firstCrossing(pts)) {
-    const { i, j, x } = hit;
+  for (let hit = firstCrossing(pts, throughPoints); hit && pts.length >= 3; hit = firstCrossing(pts, throughPoints)) {
+    const { i, j } = hit;
+    const x = snap(hit.x);
     const inner = [x, ...pts.slice(i + 1, j + 1)];
     const outer = [...pts.slice(0, i + 1), x, ...pts.slice(j + 1)];
     const ai = polygonArea(inner),
