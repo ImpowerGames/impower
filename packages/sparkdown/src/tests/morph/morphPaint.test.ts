@@ -88,6 +88,11 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
     expect(declared(artifact, 0.25, "cheek", "fill")).toBe("rgba(128,0,128,1)");
   });
 
+  test("`currentColor` under an invalid `color: none` is the inherited colour, not transparent", () => {
+    expect(recorded(artifact, "freckle").paint).toEqual({ fill: [[0, 255, 0, 1], [255, 255, 255, 1]] });
+    expect(declared(artifact, 0.25, "freckle", "fill")).toBe("rgba(128,255,128,1)");
+  });
+
   test("an important inline fill is the one blended, and the blend is written important over it", () => {
     expect(recorded(artifact, "lid").paint).toEqual({ fill: [[0, 0, 0, 1], [255, 255, 255, 1]] });
     expect(declared(artifact, 0.25, "lid", "fill")).toBe("rgba(128,128,128,1) !important");

@@ -37,16 +37,17 @@ export function effectivePaint(doc: ArtDocument, element: Element): EffectivePai
       if (value === undefined) continue;
       const keyword = value.toLowerCase();
       if (keyword === "inherit" || keyword === "unset") continue;
-      // `color: currentColor` is the inherited colour.
-      if (name === "color" && keyword === "currentcolor") continue;
+      // `color: currentColor` is the inherited colour, and `none` is paint,
+      // not a colour: a browser drops `color: none` and inherits.
+      if (name === "color" && (keyword === "currentcolor" || keyword === "none")) continue;
       values[name] = keyword === "initial" ? INHERITED[name] : value;
     }
   }
   const color = readColor(values.color);
   const paint = (value: string): EffectivePaint["fill"] => {
     const read: ReadColor | undefined = readColor(value);
-    const resolved = read?.kind === "current" ? color : read;
-    if (!resolved || resolved.kind === "current") return undefined;
+    const resolved = read?.kind === "current" ? (color?.kind === "color" ? color : undefined) : read;
+    if (!resolved) return undefined;
     return resolved.kind === "none" ? "none" : resolved.color;
   };
   // `opacity` does not inherit unless it says so.

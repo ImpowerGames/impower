@@ -187,7 +187,9 @@ const box = (x: number, y: number, w: number, h: number) => `M${x},${y}H${x + w}
  * filled by an important inline declaration open; `shine` filled by a
  * gradient open; `veil` with its fill, stroke and own opacities lowered
  * when closed; `shadow`, black open, blue half-closed and red closed; and
- * `glint`, black open and half-closed and red closed.
+ * `glint`, black open and half-closed and red closed; and `freckle`, open
+ * in `currentColor` under an invalid `color="none"`, so the root's green,
+ * and white closed.
  */
 export function paintedPortrait(): string {
   const pose = (dy: number) => ({
@@ -200,17 +202,18 @@ export function paintedPortrait(): string {
     shadow: `<path data-name="shadow" d="${box(130, 10 + dy, 20, 10)}" fill="#000"/>`,
     glint: `<path data-name="glint" d="${box(130, 50 + dy, 20, 10)}" fill="#000"/>`,
     veil: `<path data-name="veil" d="${box(50, 80 + dy, 20, 5)}" fill="#000" stroke="#000"/>`,
+    freckle: `<path data-name="freckle" d="${box(90, 80 + dy, 20, 5)}" fill="#fff"/>`,
   });
   const open = pose(0);
   const half = pose(5);
   const closed = pose(10);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100" color="#0f0">
 <defs><linearGradient id="gleam"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#ccc"/></linearGradient></defs>
 <path data-name="face" d="M0,0H160V100H0Z" fill="#fdb"/>
 <g data-name="eyes.open:default">
 ${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
 ${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
-${open.shadow}${open.glint}${open.veil}
+${open.shadow}${open.glint}${open.veil}${open.freckle.replace('fill="#fff"', 'color="none" fill="currentColor"')}
 </g>
 <g data-name="eyes.half">
 ${half.shadow.replace("#000", "#00f")}${half.glint}
@@ -219,7 +222,7 @@ ${half.shadow.replace("#000", "#00f")}${half.glint}
 ${closed.lash.replace("#000", "#fff")}${closed.brow}${closed.cheek.replace("<path", '<path fill="currentColor"')}
 ${closed.crease.replace('fill="#c96"', 'fill="#c96" stroke="#f00"')}${closed.lid}${closed.shine}
 ${closed.shadow.replace("#000", "#f00")}${closed.glint.replace("#000", "#f00")}
-${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0.4"/>')}
+${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0.4"/>')}${closed.freckle}
 </g>
 </svg>`;
 }
