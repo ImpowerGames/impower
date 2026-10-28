@@ -125,10 +125,8 @@ export interface FunctionShape {
    *  writes it. */
   from: number;
   to: number;
-  /** What the function's entry runs after binding its parameters: for a
-   *  function or a define's method written at the top level, a
-   *  `RootBinding` for each name its body reads that no scope of its own
-   *  binds. */
+  /** What the function's entry runs after binding its parameters: the
+   *  locals hoisted to the top of its body. */
   hoisted: ParsedObject[];
   /** Set for a function the lowering hoisted to the story's top level under
    *  a name of its own, which no statement writes: a UI binding's evaluator

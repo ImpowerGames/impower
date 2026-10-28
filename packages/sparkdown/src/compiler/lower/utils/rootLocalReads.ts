@@ -43,7 +43,7 @@ export function rootDeclarationAnswer(name: string, at: number, ctx: LowerContex
 }
 
 /** Whether an answer names a declaration in scope (`RootLocals.answer`), which
- *  a function's entry binds. Inside a block (`ROOT_IN_BLOCK`), none does. */
+ *  a closure captures. Inside a block (`ROOT_IN_BLOCK`), none does. */
 export function answersDeclaration(answer: string): boolean {
   return answer !== "" && answer !== ROOT_NONE && answer !== ROOT_IN_BLOCK;
 }
@@ -53,7 +53,7 @@ export function answersDeclaration(answer: string): boolean {
  * the document declares more than once in that scope (`name$<ordinal>$<tag>`),
  * or null for an answer that needs none: the only declaration of its name,
  * whose binding is the scope's own, or no declaration at all. The slot holds
- * the cell of the declaration's binding (`RootBinding`), so a later
+ * the cell of the declaration's binding, so a later
  * declaration of the name, which replaces the binding, leaves it to the code
  * written between them. No name an author writes holds a `$`, and the
  * document's tag keeps the slots of two scripts' scenes apart.

@@ -303,19 +303,7 @@ describe("a define written in a function", () => {
   });
 });
 
-describe("a save written before top-level methods bound top-level locals", () => {
-  // `top-level-method-value-save-6053522b8.json` is the save the engine at
-  // 6053522b8 wrote of `top-level-method-value.sd` after `First.`: `held`
-  // holds the closure of `thing.get` with the capture it was built with.
-  test("loads, and a method kept in a variable reads the top-level local", () => {
-    const text = readFileSync(join(FIXTURES, "top-level-method-value.sd"), "utf-8");
-    const save = readFileSync(join(FIXTURES, "top-level-method-value-save-6053522b8.json"), "utf-8");
-    const loaded = new ProgramStory(legacyRootOf(text));
-    loaded.loadSave(save);
-    const { beats, errors } = storyBeats(loaded);
-    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 3."));
-  });
-
+describe("a save holding a top-level method value", () => {
   // `nested-define-method-value-save-569cfe902.json`, which the engine at
   // 569cfe902 wrote of `nested-define-method-value.sd` after `First.`, holds
   // the closure of a top-level method that captures nothing, though a define

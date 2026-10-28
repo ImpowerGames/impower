@@ -22,7 +22,6 @@ import {
   ObjectExpressionEntry,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/VariablePointerExpression";
-import { RootBinding } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -91,6 +90,7 @@ import {
   openFunctionBody,
 } from "../utils/statementShape";
 import { recordCaptureRead, scopeDeclaredLocals } from "./bindings";
+import { isBlockLocal } from "../utils/blockLocals";
 
 // The nodes of a function definition's content that are its header, not
 // statements of its body.
@@ -309,8 +309,7 @@ function walk(root: AstNode, enter: (node: AstNode) => boolean): void {
 // A function statement declares a local only as a `local function`. A plain
 // `function NAME` is `NAME = function ... end`, as Luau's is (I-1422): it
 // assigns the local named NAME in scope where it is written (a local of the
-// same function, #415, or of an enclosing one, #1349, or a top-level
-// `local` the function's entry binds, `RootBinding`), and the global NAME
+// same function, #415, or of an enclosing one, #1349), and the global NAME
 // when none is; so the scans read its name as they read an assignment's
 // target. A field (`function a.f`) or method (`function a:m`) declares
 // nothing either.
@@ -457,10 +456,8 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * `rootReads`, when given, collects each name read that no function around
  * the function declares and the converter does not bind to a local, with the
  * `local` of the root frame's own scope that takes it where the function is
- * written (`rootLocalAnswer`), in the order they are first read, whether
- * captured or not: a function's entry binds such a name to that local
- * (`RootBinding`), and a closure built in the root frame captures a captured
- * one through the local's slot when it has one (`rootSlotName`), and at the
+ * written (`rootLocalAnswer`), in the order they are first read: a
+ * closure built in the root frame captures a captured one through the local's slot when it has one (`rootSlotName`), and at the
  * global when the scope declares the name but none of its declarations is in
  * scope there (`ROOT_NONE`). The answer of every such read is
  * recorded, so the function is lowered again when a `local` above it
@@ -542,27 +539,29 @@ export function freeVariables(
       // A read the converter binds to a local of a block around the
       // function reads that local, never a local of the root frame's own
       // scope of its name.
+      let takenByLocal = false;
       if (!readsLocal && !isShadowedLocal(name) && !rootSeen.has(name)) {
         rootSeen.add(name);
         const answer = declared ?? rootLocalAnswer(name, at, ctx);
         // Inside a block a top-level statement opens, a later statement of
-        // the block reads the block's locals as globals, so the read binds
-        // by name, as it did before the index (I-1468): a function's entry
-        // binds it to the root frame's binding of the name in any of its
-        // scopes, where the function does not capture it (a top-level
-        // function, a top-level define's method, a stdlib name), as every
-        // function's entry did. A global callable or `_G` it reads binds
-        // nothing, as before. Such a binding takes a local (`local`) when
-        // the read is of a local of the block or of a flow around it in
-        // scope there (`rootLocalAnswerIgnoringBlocks`).
-        if (answer !== ROOT_IN_BLOCK) {
-          rootReads?.push({ name, answer });
-        } else if (!isGlobalCallable(name) && name !== "_G") {
-          const local = blockLocal || answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx));
-          rootReads?.push(local ? { name, answer, local } : { name, answer });
-        }
+        // the block reads the block's locals as globals (I-1468), so the
+        // read names no declaration to capture.
+        if (answer !== ROOT_IN_BLOCK) rootReads?.push({ name, answer });
+        // There, a local of the block (`isBlockLocal`) or of a flow around
+        // it in scope at the read (`rootLocalAnswerIgnoringBlocks`) takes
+        // the name.
+        takenByLocal =
+          answer === ROOT_IN_BLOCK
+            ? blockLocal ||
+              isBlockLocal(ctx, name) ||
+              answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx))
+            : answersDeclaration(answer);
       }
-      if (!isShadowedLocal(name) && !readsLocal) {
+      // A flow's `local` in scope where the function is written takes the
+      // name from a global callable, a store, a const or a stdlib entry of
+      // it, so the function captures it (`local count = 0` above a closure
+      // that counts, I-1365).
+      if (!isShadowedLocal(name) && !readsLocal && !takenByLocal) {
         if (isGlobalCallable(name)) return;
         if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) return;
       }
@@ -815,7 +814,6 @@ export function buildClosureExpression(
   upvals: string[],
   userArity: number,
   rootCaptures?: ReadonlyMap<string, RootCapture>,
-  roots: readonly { name: string; capture?: RootCapture }[] = [],
 ): Expression {
   const fnDivert = new DivertTarget(
     new Divert([new Identifier(synthName)]),
@@ -830,26 +828,10 @@ export function buildClosureExpression(
   );
   const upvalObject = new ObjectExpression(upvalEntries);
   const arityExpr = new NumberExpression(userArity, "int");
-  // The cells of the root locals the closure's entry binds, captured where
-  // it is built (`closureRootCaptures`).
-  const rootEntries = roots.length
-    ? [
-        new ObjectExpressionEntry(
-          "__closure_roots",
-          new ObjectExpression(
-            roots.map(
-              ({ name, capture }) =>
-                new ObjectExpressionEntry(name, new VariablePointerExpression(name, capture)),
-            ),
-          ),
-        ),
-      ]
-    : [];
   return new ObjectExpression([
     new ObjectExpressionEntry("__closure_fn", fnDivert),
     new ObjectExpressionEntry("__closure_upvals", upvalObject),
     new ObjectExpressionEntry("__closure_user_arity", arityExpr),
-    ...rootEntries,
   ]);
 }
 
@@ -858,56 +840,6 @@ export function buildClosureExpression(
 export interface RootRead {
   name: string;
   answer: string;
-  /** For a name read inside a block a top-level statement opens
-   *  (`ROOT_IN_BLOCK`), whether a local of the block or of a flow around it
-   *  is in scope where it is read. */
-  local?: boolean;
-}
-
-/** The binding at a function's entry of each of `reads` (`RootBinding`):
- *  through the slot of its declaration when it has one (`rootSlotName`),
- *  by name otherwise, and for a name read inside a block a top-level
- *  statement opens (`ROOT_IN_BLOCK`), by name in any scope of the root
- *  frame, as before the index. */
-export function rootBindingsOf(reads: readonly RootRead[], ctx: LowerContext): RootBinding[] {
-  return reads
-    .filter(({ answer }) => answersDeclaration(answer) || answer === ROOT_IN_BLOCK)
-    .map(({ name, answer, local }) =>
-      answer === ROOT_IN_BLOCK
-        ? new RootBinding(name, null, true, local === true)
-        : new RootBinding(name, rootSlotName(name, answer, ctx)),
-    );
-}
-
-/**
- * The bindings a function's entry makes to the `local`s of the root frame's
- * own scope it reads (`freeVariables`' `rootReads`), each the one in scope
- * where the function is written (I-1374), as Luau's upvalue is: every such
- * name for a function built before its line runs (`captured` null: a
- * function or a define's method written at the top level), and for a closure
- * the names it does not capture (`captured`), which a store, a `const`, a
- * top-level function or a stdlib entry of the name would otherwise answer
- * (`local count = 0` above a closure that counts, I-1365). A closure keeps
- * the parameters it captured, which a save of it passes. A name no such
- * `local` takes where the function is written reads the global, or the
- * builtin of a stdlib name. The names the methods of the defines written in
- * the function read count, as `node`, the function's syntax node, gives them
- * (`freeVariables`, I-1373).
- */
-export function rootBindings(
-  params: readonly string[],
-  body: AstStatBlock | null,
-  ctx: LowerContext,
-  captured: readonly string[] | null,
-  node: SyntaxNode,
-): RootBinding[] {
-  const reads: RootRead[] = [];
-  freeVariables(params, body, ctx, { rootReads: reads, node });
-  const capturedNames = new Set(captured ?? []);
-  return rootBindingsOf(
-    reads.filter(({ name }) => !capturedNames.has(name)),
-    ctx,
-  );
 }
 
 /** How a closure built in the root frame captures one of its upvalues in
@@ -922,32 +854,8 @@ export type RootCapture = { slot: string } | "global";
  *  a global that the scope declares where no such declaration is in scope
  *  (`ROOT_NONE`), so that a scene's `local` of the name, which the scope may
  *  bind as the closure is built, is not captured (I-1374). A name the scope
- *  declares nowhere in the document is captured by name, as before. A
- *  closure built in a function captures the
- *  function's own binding of the name, which the function's entry bound
- *  (`rootBindings`). */
-/** The names a closure's entry binds to a `local` of the root frame's own
- *  scope (`rootBindings`, those it does not capture), each with how the
- *  closure captures that local's cell where it is built (`rootCaptureSlots`):
- *  the closure keeps the cells (`__closure_roots`), and its entry binds them
- *  rather than the newest binding of the declaration, so a closure built
- *  before a scene that declares the local runs again keeps the local it was
- *  built over (I-1365). */
-export function closureRootCaptures(
-  reads: readonly RootRead[],
-  upvals: readonly string[],
-  ctx: LowerContext,
-): { name: string; capture?: RootCapture }[] {
-  const captured = new Set(upvals);
-  const nested = !!ctx.functionScopeStack && ctx.functionScopeStack.length > 0;
-  return reads
-    .filter(({ name, answer }) => answersDeclaration(answer) && !captured.has(name))
-    .map(({ name, answer }) => {
-      const slot = nested ? null : rootSlotName(name, answer, ctx);
-      return slot ? { name, capture: { slot } } : { name };
-    });
-}
-
+ *  declares nowhere in the document is captured by name. A closure built in
+ *  a function captures the function's own binding of the name. */
 export function rootCaptureSlots(
   reads: readonly RootRead[],
   upvals: readonly string[],
@@ -971,15 +879,12 @@ export function rootCaptureSlots(
  * it, its own locals on the declared-locals stack, and a frame for its
  * variadic nested functions. Returns the body's objects with the objects
  * its entry runs first (`hoisted`) and the nested functions last, and
- * passes the shape of the body to `close` once the function is built. The
- * entry runs the function's `rootBindings`, for the names it does not
- * capture (`captured`, null for a function that captures none).
+ * passes the shape of the body to `close` once the function is built.
  */
 export function lowerFunctionBody(
   func: AstExprFunction,
   node: SyntaxNode,
   ctx: LowerContext,
-  captured: readonly string[] | null,
   skipNames: ReadonlySet<string> = FUNCTION_BODY_SKIP,
 ): {
   hoisted: ParsedObject[];
@@ -988,8 +893,6 @@ export function lowerFunctionBody(
   close: (flow: ParsedObject) => void;
 } {
   const content = getFunctionBodyContent(node);
-  // Read in the scopes around the function, before its own are pushed.
-  const rootReads = rootBindings(parameterNames(func), func.body, ctx, captured, node);
   const {
     result: { shape, body },
     hoisted,
@@ -1007,7 +910,6 @@ export function lowerFunctionBody(
       return { shape, body };
     },
   );
-  hoisted.unshift(...rootReads);
   return {
     hoisted,
     body,
@@ -1087,7 +989,7 @@ export function buildFunction(
       new Argument(new Identifier(upvalName), false, false, false, true),
   );
   const args = [...upvalArgs, ...leading, ...functionArguments(func)];
-  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx, upvals);
+  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx);
   const fn = new Function(
     new Identifier(name),
     [...hoisted, ...body, ...nested],
@@ -1218,6 +1120,5 @@ export function lowerFunctionExpression(
     upvals,
     userArity,
     rootCaptureSlots(rootReads, upvals, ctx),
-    closureRootCaptures(rootReads, upvals, ctx),
   );
 }

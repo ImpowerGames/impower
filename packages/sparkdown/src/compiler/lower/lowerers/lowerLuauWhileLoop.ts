@@ -18,6 +18,7 @@ import { openBody, recordLoop } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
+import { inBlockLocals } from "../utils/blockLocals";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
 // the loop's source position in the enclosing weave. The tail-jump is
@@ -122,11 +123,8 @@ export function lowerLuauWhileLoop(
     bodyContent?.to ?? doBlock.to,
   );
   ctx.scopeDepth = outerScopeDepth + 1;
-  const bodyStatements = lowerStatements(
-    bodyContent,
-    ctx,
-    WHILE_BODY_SKIP,
-    body,
+  const bodyStatements = inBlockLocals(ctx, [], () =>
+    lowerStatements(bodyContent, ctx, WHILE_BODY_SKIP, body),
   );
   ctx.scopeDepth = outerScopeDepth;
   ctx.loopStack?.pop();

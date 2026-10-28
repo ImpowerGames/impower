@@ -24,6 +24,7 @@ import {
   openBody,
 } from "../utils/statementShape";
 import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
+import { inBlockLocals } from "../utils/blockLocals";
 
 // `repeat BODY until cond` — Luau's "do-while-not".
 //
@@ -115,11 +116,8 @@ export function lowerLuauRepeatLoop(
   );
   // The condition is a sibling node, and a part of this statement.
   extendStatement(ctx, condition?.to ?? untilKeyword.to);
-  const bodyStatements = lowerStatements(
-    bodyContent,
-    ctx,
-    REPEAT_BODY_SKIP,
-    body,
+  const bodyStatements = inBlockLocals(ctx, [], () =>
+    lowerStatements(bodyContent, ctx, REPEAT_BODY_SKIP, body),
   );
   ctx.loopStack?.pop();
   ctx.scopeDepth--;

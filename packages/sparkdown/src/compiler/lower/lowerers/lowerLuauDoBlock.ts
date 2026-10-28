@@ -8,6 +8,7 @@ import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { bodyOfBlock, openBody } from "../utils/statementShape";
 import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
+import { inBlockLocals } from "../utils/blockLocals";
 
 // `do BODY end` — a standalone block-scoping construct (no loop
 // semantics). Body runs once. The `BeginScope` / `EndScope` wrap
@@ -46,7 +47,7 @@ export function lowerLuauDoBlock(
   // `continue` inside the block knows to emit an EndScope for this
   // frame before diverting out of the enclosing loop.
   ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
-  const body = lowerStatements(bodyContent, ctx, DO_BLOCK_SKIP, shape);
+  const body = inBlockLocals(ctx, [], () => lowerStatements(bodyContent, ctx, DO_BLOCK_SKIP, shape));
   ctx.scopeDepth--;
   const scoped = wrapInScope(body);
   if (shape) {

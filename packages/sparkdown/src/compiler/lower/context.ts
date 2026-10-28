@@ -30,8 +30,8 @@ import type { SparkleJoins } from "./utils/sparkleContinuations";
  * names the variable in place of a node, and its value is `name=answer`.
  * `rootLocalIgnoringBlocks`, read the same way, is the `local` of the flows
  * around a block a top-level statement opens that is in scope inside it
- * (`RootLocals.answerIgnoringBlocks`), which decides whether a function
- * written in the block binds a local of that name (`RootBinding.local`).
+ * (`RootLocals.answerIgnoringBlocks`), which decides whether a closure
+ * written in the block captures the name though a global takes it.
  */
 export interface LoweringRead {
   kind: "routing" | "unreachable" | "rootLocal" | "rootDeclaration" | "rootLocalIgnoringBlocks";
@@ -294,6 +294,15 @@ export interface LowerContext {
    * has no way to know a stdlib-shaped name is shadowed.
    */
   declaredLocalsStack?: Set<string>[];
+  /**
+   * The locals of the blocks being lowered (an `if` arm, a `do`, a loop),
+   * innermost last, each with the depth of `functionScopeStack` its block
+   * is written at (`inBlockLocals`). Inside a block a top-level statement
+   * opens, the converter reads a later statement apart from the earlier
+   * ones (I-1468), so a closure there learns from this which of the names
+   * it reads a block's local takes.
+   */
+  blockLocalsStack?: { names: Set<string>; functions: number }[];
   /**
    * Stack of per-enclosing-function-scope sibling-subflow frames. A
    * nested function statement, variadic or not, lowers as a closure
