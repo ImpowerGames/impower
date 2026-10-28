@@ -491,6 +491,24 @@ describe("compiler incremental equivalence", () => {
         ],
       },
       {
+        // A scene's local is a local of the scene's scope (#1674), and a
+        // closure and a local function written after it read it.
+        name: "local inside a scene edited, then a branch added after it",
+        steps: [
+          {
+            find: "  Action describing room 5 in some detail here.",
+            replace:
+              "  Action describing room 5 in some detail here.\n  local seen = 1\n  local function peek() return seen end\n  & local read = function() return seen end\n  Seen {seen} {peek()} {read()}.",
+          },
+          { find: "  local seen = 1", replace: "  local seen = 2" },
+          {
+            find: "-> scene_8\nend\n",
+            replace: "-> scene_8\n  branch aside\n    Aside {tostring(seen)}.\n  end\nend\n",
+          },
+          { find: "Not yet in scene 9.", replace: "Not yet in scene 9!" },
+        ],
+      },
+      {
         name: "anonymous fn added mid-document renumbers later synthetics",
         // Both inserts land MID-document on purpose, so that the scenes after
         // them are carried.

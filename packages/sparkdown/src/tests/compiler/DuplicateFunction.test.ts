@@ -98,12 +98,24 @@ describe("DuplicateFunction at a script's top level", () => {
   // reports a second one of the name as a duplicate identifier.
   test.each([
     ["global functions", "function x() return 1 end\nfunction x() return 2 end\nValue {x()}.\n"],
-    ["local functions", "& local function x() return 1 end\n& local function x() return 2 end\nValue {x()}.\n"],
     ["functions in separate scenes, which the reading lifts to the top level", "& x()\n== A\nfunction x() end\n== B\nfunction x() end\n"],
   ])("leaves plain-named %s to the compiler's duplicate-identifier error", (_label, source) => {
     const found = diagnoseDetailed(source);
     expect(found.filter((d) => d.code === "DuplicateFunction")).toEqual([]);
     expect(found.some((d) => d.message.startsWith("Duplicate identifier `x`. A function named `x` already exists"))).toBe(true);
+  });
+
+  // A local function in a scene is a local of the scene's scope, which a
+  // later one of the name shadows, as in Luau: Luau's lint warns of the
+  // second, and the compiler reports no duplicate story function.
+  test("lints a scene's second local function of one name as Luau does, with no duplicate identifier", () => {
+    const found = diagnoseDetailed(
+      "-> S\nscene S\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
+    );
+    expect(found.filter((d) => d.message.startsWith("Duplicate identifier"))).toEqual([]);
+    expect(found.filter((d) => d.code === "DuplicateFunction").map((d) => [d.severity, d.range?.start.line, d.message])).toEqual([
+      [2, 3, "Duplicate function definition: 'x' also defined on line 3"],
+    ]);
   });
 
   test("compares members, which the compiler does not", () => {

@@ -171,14 +171,15 @@ describe("a flow's parameters on the program engine", () => {
         "",
       ].join("\n"),
     );
-    // The divert binds `how`; the jump to `middle` binds nothing, so the
-    // flow's `how` is the one the divert's pass assigned.
+    // The divert binds `how`; the jump to `middle` from another scene binds
+    // nothing and enters the scene with a fresh scope, so `how` reads the
+    // global there.
     expect(texts(actual)).toEqual([
       "Visit by tunnel.",
       "Forked by thread.",
       "Visit by divert.",
       "Middle kept.",
-      "Middle kept.",
+      "Middle nil.",
     ]);
   });
 

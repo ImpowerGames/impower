@@ -149,6 +149,8 @@ describe("story lines after a function declaration", () => {
     }
   });
 
+  // The divert into the branch opens the scene's scope fresh, so the scene's
+  // local function is nil there.
   test("a branch after a function declared inside a scene belongs to the scene", () => {
     const source = `-> s.world
 scene s
@@ -156,12 +158,12 @@ scene s
     return a < b
   end
   branch world
-    Nested {less(1, 2)}.
+    Nested {tostring(less)}.
     fin
   end
 end
 `;
-    expect(linesFromTop(source)).toEqual(["Nested true.\n"]);
+    expect(linesFromTop(source)).toEqual(["Nested nil.\n"]);
   });
 
   test("a divert after a function declared inside a scene leads on to the next scene", () => {

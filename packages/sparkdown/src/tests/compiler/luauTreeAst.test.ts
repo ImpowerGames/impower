@@ -349,8 +349,12 @@ describe("Sparkdown's own constructs", () => {
         "    ExprConstantNumber 2",
       ].join("\n"),
     );
-    expect(units.flows).toHaveLength(1);
+    // The branch is a unit of its own, whose function takes the scene's
+    // parameter `k` and in which the scene's local `n` reads as a global
+    // (I-1674).
+    expect(units.flows).toHaveLength(2);
     expect(units.flows[0]!.errors).toEqual([]);
+    expect(units.flows[1]!.errors).toEqual([]);
     expect(printAst(units.flows[0]!.root)).toBe(
       [
         "StatBlock",
@@ -382,17 +386,28 @@ describe("Sparkdown's own constructs", () => {
         "                ExprBinary +",
         "                  ExprLocal n#2",
         "                  ExprConstantNumber 1",
+      ].join("\n"),
+    );
+    expect(printAst(units.flows[1]!.root)).toBe(
+      [
+        "StatBlock",
+        "  StatLocalFunction",
+        "    local __flow#0 function=0 loop=0",
+        '    ExprFunction "__flow" depth=1 parens',
+        "      local k#1 function=1 loop=0",
+        "        TypeReference number",
+        "      StatBlock",
         "        StatLocal =",
         "          SparkdownFlowArgument",
         "          SparkdownFlowArgument",
-        "          local m#3 function=1 loop=0",
-        "          local w#4 function=1 loop=0",
+        "          local m#2 function=1 loop=0",
+        "          local w#3 function=1 loop=0",
         "            TypeReference string",
         "        SparkdownExplicit",
         "          StatAssign",
-        "            ExprLocal n#2",
+        "            ExprGlobal n",
         "            =",
-        "            ExprLocal m#3",
+        "            ExprLocal m#2",
       ].join("\n"),
     );
   });
@@ -460,6 +475,8 @@ describe("Sparkdown's own constructs", () => {
     expect(flow.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([
       ["StatLocal", ["LuauSparkdownVariableDefinition"]],
       ["SparkdownChoose", ["LuauSparkdownChooseBlock"]],
+    ]);
+    expect(units.flows[1]!.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([
       ["StatLocal", ["Branch"]],
       ["SparkdownExplicit", ["LuauSparkdownExplicitStatement"]],
     ]);
