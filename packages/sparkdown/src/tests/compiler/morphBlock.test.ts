@@ -1329,6 +1329,23 @@ end
     if (!message.startsWith("Unknown") && !message.includes("belongs")) expect(recipeOf(PAINTED([entry])).paints).toBeUndefined();
   });
 
+  test.each([
+    ["a multiline `paints` entry", PAINTED(["{\n      targets { eyelash-left }\n      state = eyes.closed\n      when = mask.on\n      fill: #c9c9c9\n      span = 40%\n    }"]), "fill: #c9c9c9", "`fill:` does not set a field: write `fill = #c9c9c9`."],
+    ["a one-line `paints` entry", PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill: #c9c9c9 }"]), "fill: #c9c9c9", "`fill:` does not set a field: write `fill = #c9c9c9`."],
+    ["`timing`", PAINTED(null, KEYFRAMES, "  timing {\n    duration: 3\n  }\n"), "duration: 3", "`duration:` does not set a field: write `duration = 3`."],
+    ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }"), "state: open", "`state:` does not set a field: write `state = open`."],
+    ["a clip entry's label list", PAINTED(null, KEYFRAMES, "  clips {\n    {\n      between { eyelash-left }\n      targets: pupil-left\n    }\n  }\n"), "targets: pupil-left", "`targets:` does not set a field: write `targets { pupil-left }`."],
+    ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n"), "fallback: scale", "`fallback:` does not set a field: write `fallback = scale`."],
+  ])("a field set with `:` in %s is reported on its line with its `=` form", (_, text, written, message) => {
+    expect(paintErrors(text)).toEqual([expect.objectContaining({ text: written, message })]);
+  });
+
+  test("a `paints` block missing its closing brace is reported on the brace", () => {
+    const text = PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }"]).replace("\n  }\nend", "\nend");
+    const found = diagnosticsOf(text).filter((d) => d.message.includes("missing its closing"));
+    expect(found).toEqual([expect.objectContaining({ text: "{", line: 7 })]);
+  });
+
   test("`paints` that is not a list is reported", () => {
     const found = paintErrors(PAINTED(null, KEYFRAMES, "  paints = 2\n"));
     expect(found).toEqual([expect.objectContaining({ text: "paints", message: expect.stringContaining("`paints` is a list") })]);
