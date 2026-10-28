@@ -9,7 +9,7 @@ import { serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphArtifact, MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
-import { blink, blinkScript, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
+import { blink, blinkScript, CLOSED, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
 import { backgroundRect, layerValue, svgIntrinsicSize } from "../../app/morph/backgroundFit";
 import { MorphPlayback, type MorphImageContent } from "../../app/morph/MorphPlayback";
 import UIManager from "../../app/managers/UIManager";
@@ -116,6 +116,20 @@ function leafStates(root: ParentNode): Record<string, { shown: boolean; d: strin
 function referenceStates(artifact: MorphArtifact, offset: number) {
   const doc = new DOMParser().parseFromString(renderMorphAt(artifact, offset), "image/svg+xml");
   return leafStates(doc);
+}
+
+/** Each shown leaf's inline style, by node. */
+function paintStates(root: ParentNode): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const el of Array.from(root.querySelectorAll("[data-morph]"))) {
+    const style = el.getAttribute("style") ?? "";
+    if (!/display:\s*none/.test(style)) (out[el.getAttribute("data-morph")!] ??= []).push(style);
+  }
+  return out;
+}
+
+function referencePaint(artifact: MorphArtifact, offset: number) {
+  return paintStates(new DOMParser().parseFromString(renderMorphAt(artifact, offset), "image/svg+xml"));
 }
 
 /** The path data and style of every path each aperture mask draws its aperture with. */
@@ -290,6 +304,34 @@ end
     const ids = Array.from(shadow.querySelectorAll("[id]")).map((e) => e.id);
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.every((id) => !id.startsWith(artifact.idPrefix))).toBe(true);
+  });
+
+  test("a moving lash takes its blended paint on the live leaf and its markup's paint at the poses", async () => {
+    // The closed lash is drawn light grey; the open lashes stay near black.
+    const closed = `d="${CLOSED}" fill="#111"`;
+    expect(ART).toContain(closed);
+    const files = [{ ...FILES[0]!, data: ART.replace(closed, `d="${CLOSED}" fill="#c9c9c9"`) }];
+    const { h, frames, playback } = await previewed(SOURCE, files);
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
+    frames.run(1000);
+    expect(paintStates(shadow)).toEqual(referencePaint(artifact, 0));
+    expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
+    // Partway through the closing both moving lashes are drawn in between.
+    frames.run(1000 + 0.15 * 250);
+    const moving = paintStates(shadow);
+    expect(moving).toEqual(referencePaint(artifact, 0.15));
+    const fills = Object.values(moving).flat().map((style) => /fill:([^;]+)/.exec(style)?.[1]).filter(Boolean);
+    expect(fills).toHaveLength(2);
+    for (const fill of fills) expect(fill).toMatch(/^rgba\((?!17,17,17,)(?!201,201,201,)/);
+    // Reopening, the same, and back at the end of the play the markup's paint.
+    frames.run(1000 + 0.6 * 250);
+    expect(paintStates(shadow)).toEqual(referencePaint(artifact, 0.6));
+    expect(Object.values(paintStates(shadow)).flat().filter((style) => /fill:rgba/.test(style))).toHaveLength(2);
+    frames.run(1000 + 250);
+    expect(paintStates(shadow)).toEqual(referencePaint(artifact, 0));
+    expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
   });
 
   test("an aperture with a closed loop strokes its open loops only at rest, and every path follows the frames away from it", async () => {

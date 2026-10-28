@@ -7,8 +7,9 @@ import { untangle } from "@impower/spark-morph/src/apertures";
 import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
+import { blendColor, formatColor } from "./color";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
-import type { MorphArtifact, MorphFrames, MorphGeometryRef } from "./types";
+import type { MorphArtifact, MorphFrames, MorphGeometryRef, MorphPaint } from "./types";
 
 type Element = Exclude<Node, string | null>;
 
@@ -142,6 +143,21 @@ const multiplyOpacity = (element: Element, factor: number) => {
   setStyleProperty(element, "opacity", inline?.important ? `${value} !important` : value);
 };
 
+/** The CSS values a moving drawing's recorded paint blends to at `progress`. */
+export function paintAt(paint: MorphPaint, progress: number): Record<string, string> {
+  const t = clamp01(progress);
+  const out: Record<string, string> = table();
+  for (const name of ["fill", "stroke"] as const) {
+    const ends = paint[name];
+    if (ends) out[name] = formatColor(blendColor(ends[0], ends[1], t));
+  }
+  for (const name of ["fill-opacity", "stroke-opacity", "opacity"] as const) {
+    const ends = paint[name];
+    if (ends) out[name] = fmt(ends[0] + (ends[1] - ends[0]) * t);
+  }
+  return out;
+}
+
 /**
  * Where one driven group is: holding a state, or partway through one of the
  * artifact's segments. A held group names the last of its segments it has
@@ -186,14 +202,17 @@ export function morphPosesAt(artifact: MorphArtifact, offset: number): Record<st
 /**
  * What a frame changes in the live parts as written: which leaves show and
  * hide through their inline `display`, the path data that replaces a moving
- * leaf's `d`, the factor a fading leaf's own opacity is multiplied by, and
- * the path data of each aperture (by its id before occurrence namespacing).
+ * leaf's `d`, the paint a moving leaf is drawn with, the factor a fading
+ * leaf's own opacity is multiplied by, and the path data of each aperture
+ * (by its id before occurrence namespacing).
  * Anything a frame does not mention keeps its markup.
  */
 export interface MorphFrameState {
   shown: Set<string>;
   hidden: Set<string>;
   geometry: Map<string, string>;
+  /** CSS values by property, written inline over the leaf's own. */
+  paint: Map<string, Record<string, string>>;
   opacity: Map<string, number>;
   clips: Map<string, string>;
 }
@@ -204,6 +223,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     shown: new Set(),
     hidden: new Set(),
     geometry: new Map(),
+    paint: new Map(),
     opacity: new Map(),
     clips: new Map(),
   };
@@ -258,6 +278,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
           show(t.draw);
           const frames = artifact.frames[t.frames.index]!;
           geometry.set(t.draw, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
+          if (t.paint) state.paint.set(t.draw, paintAt(t.paint, p));
           break;
         }
         case "fade":
@@ -355,6 +376,10 @@ export function poseLeaf(element: Element, node: string, state: MorphFrameState)
   else if (state.hidden.has(node)) setStyleProperty(element, "display", "none");
   const d = state.geometry.get(node);
   if (d !== undefined) element.attributes["d"] = d;
+  // Paint is written where it takes effect, as a fade's opacity is.
+  for (const [name, value] of Object.entries(state.paint.get(node) ?? {})) {
+    setStyleProperty(element, name, styleDeclaration(element, name)?.important ? `${value} !important` : value);
+  }
   const o = state.opacity.get(node);
   if (o !== undefined) multiplyOpacity(element, o);
 }

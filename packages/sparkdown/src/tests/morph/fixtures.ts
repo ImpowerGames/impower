@@ -176,3 +176,75 @@ export function blink(overrides: Record<string, unknown> = {}, right = false): M
     ...overrides,
   });
 }
+
+const box = (x: number, y: number, w: number, h: number) => `M${x},${y}H${x + w}V${y + h}H${x}Z`;
+
+/**
+ * A portrait whose paired drawings differ in paint, one case per label, each
+ * drawn open, half-closed and closed: `lash` black open and white closed;
+ * `brow` the same paint throughout; `crease` stroked only when closed;
+ * `cheek` filled by its open group and by `currentColor` closed; `lid`
+ * filled by an important inline declaration open; `shine` filled by a
+ * gradient open; `veil` with its fill, stroke and own opacities lowered
+ * when closed; `shadow`, black open, blue half-closed and red closed;
+ * `glint`, black open and half-closed and red closed. The rest are white
+ * closed and open in paint decided by a declaration outside the paint
+ * grammar, so they stay unblended: `freckle` in `currentColor` under
+ * `color="none"`; `spot` in `currentColor` with a red `color` attribute and
+ * an inline `color:none`; `dot` in `currentColor` with an inline blue
+ * `color` and an important `color:none` after it; `mark` in a red-filled
+ * group with an inline `all:initial`; and `blot` with an `rgb()` fill spaced
+ * by no-break spaces.
+ */
+export function paintedPortrait(): string {
+  const pose = (dy: number) => ({
+    lash: `<path data-name="lash" d="${box(10, 10 + dy, 30, 10)}" fill="#000"/>`,
+    brow: `<path data-name="brow" d="${box(50, 5 + dy, 30, 5)}" fill="#432"/>`,
+    cheek: `<path data-name="cheek" d="${box(10, 50 + dy, 20, 10)}"/>`,
+    crease: `<path data-name="crease" d="${box(50, 50 + dy, 20, 10)}" fill="#c96"/>`,
+    lid: `<path data-name="lid" d="${box(90, 10 + dy, 20, 10)}" fill="#fff"/>`,
+    shine: `<path data-name="shine" d="${box(90, 50 + dy, 20, 10)}" fill="#fff"/>`,
+    shadow: `<path data-name="shadow" d="${box(130, 10 + dy, 20, 10)}" fill="#000"/>`,
+    glint: `<path data-name="glint" d="${box(130, 50 + dy, 20, 10)}" fill="#000"/>`,
+    veil: `<path data-name="veil" d="${box(50, 80 + dy, 20, 5)}" fill="#000" stroke="#000"/>`,
+    freckle: `<path data-name="freckle" d="${box(90, 80 + dy, 20, 5)}" fill="#fff"/>`,
+    spot: `<path data-name="spot" d="${box(10, 80 + dy, 10, 5)}" fill="#fff"/>`,
+    dot: `<path data-name="dot" d="${box(25, 80 + dy, 10, 5)}" fill="#fff"/>`,
+    mark: `<path data-name="mark" d="${box(130, 80 + dy, 10, 5)}" fill="#fff"/>`,
+    blot: `<path data-name="blot" d="${box(145, 80 + dy, 10, 5)}" fill="#fff"/>`,
+  });
+  const open = pose(0);
+  const half = pose(5);
+  const closed = pose(10);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100" color="#0f0">
+<defs><linearGradient id="gleam"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#ccc"/></linearGradient></defs>
+<path data-name="face" d="M0,0H160V100H0Z" fill="#fdb"/>
+<g data-name="eyes.open:default">
+${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
+${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
+${open.shadow}${open.glint}${open.veil}${open.freckle.replace('fill="#fff"', 'color="none" fill="currentColor"')}
+${open.spot.replace('fill="#fff"', 'color="#f00" style="color:none" fill="currentColor"')}${open.dot.replace('fill="#fff"', 'style="color:#00f;color:none !important" fill="currentColor"')}
+<g fill="#f00" style="all:initial">${open.mark.replace(' fill="#fff"', "")}</g>${open.blot.replace('fill="#fff"', 'fill="rgb(100% 0 0)"')}
+</g>
+<g data-name="eyes.half">
+${half.shadow.replace("#000", "#00f")}${half.glint}
+</g>
+<g data-name="eyes.closed" color="#f00">
+${closed.lash.replace("#000", "#fff")}${closed.brow}${closed.cheek.replace("<path", '<path fill="currentColor"')}
+${closed.crease.replace('fill="#c96"', 'fill="#c96" stroke="#f00"')}${closed.lid}${closed.shine}
+${closed.shadow.replace("#000", "#f00")}${closed.glint.replace("#000", "#f00")}
+${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0.4"/>')}${closed.freckle}${closed.spot}${closed.dot}${closed.mark}${closed.blot}
+</g>
+</svg>`;
+}
+
+/** Open to closed at the middle and back, every label moving with `match`. */
+export function paintBlink(overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
+  return buildMorphRecipe("blink", {
+    blend: "morph",
+    method: "match",
+    fallback: "fade",
+    keyframes: states.map((state, i) => ({ offset: i / (states.length - 1), eyes: { state } })),
+    ...overrides,
+  });
+}
