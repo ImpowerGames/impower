@@ -51,6 +51,7 @@ import {
   StringValue,
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
+import type { Instructions } from "../../../core/types/Instructions";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
@@ -859,34 +860,36 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._clearedPictures = undefined;
   }
 
-  /** The targets whose cleared pictures a beat writing `image` shows again
-   *  (#1662): those it writes to without showing a picture of its own, which
-   *  would replace them, as play keeps them under such a beat. */
+  /** The targets whose cleared pictures `beat` shows again (#1662), as play
+   *  keeps them under it: those it writes to, or every one when it carries
+   *  on in the box before it (`extended`), which clears no picture; less
+   *  those it shows a picture of its own on, which replaces them. */
   protected keptTargets(
-    image: Record<string, ImageInstruction[]> | undefined,
+    beat: Pick<Instructions, "image" | "extended">,
   ): string[] {
     const cleared = this._clearedPictures;
-    if (!cleared || !image) {
+    if (!cleared) {
       return [];
     }
+    const image = beat.image ?? {};
     return Object.keys(cleared).filter(
       (target) =>
-        image[target] &&
-        !image[target].some(
+        (beat.extended || image[target]) &&
+        !image[target]?.some(
           (event) => event.control === "show" && event.assets?.length,
         ),
     );
   }
 
-  /** The pictures the first beat after a connect or redisplay shows again,
-   *  for a beat writing `image` (#1662). */
+  /** The pictures the first beat after a connect or redisplay shows again
+   *  (#1662). */
   clearedPictureNames(
-    image: Record<string, ImageInstruction[]> | undefined,
+    beat: Pick<Instructions, "image" | "extended">,
   ): string[] {
     const names: string[] = [];
     const cleared = this._clearedPictures;
     if (cleared) {
-      for (const target of this.keptTargets(image)) {
+      for (const target of this.keptTargets(beat)) {
         for (const event of cleared[target] ?? []) {
           if (event.control !== "hide" && event.assets?.length) {
             names.push(...event.assets);
@@ -5774,21 +5777,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      /** The first beat after a connect or redisplay, which writes `image`:
-       *  of the pictures that clear took off the clear-on-continue targets,
-       *  those on the targets the beat writes without showing a picture of
-       *  its own show again, at once, before the beat's own writes, as play
-       *  keeps them under such a beat (#1662). The rest stay cleared, as
-       *  play clears them or the beat's picture replaces them. A route
-       *  replay presents nothing and leaves them for the beat that does. */
-      async restoreCleared(
-        image: Record<string, ImageInstruction[]> | undefined,
-      ) {
+      /** The first beat after a connect or redisplay: of the pictures that
+       *  clear took off the clear-on-continue targets, those play keeps
+       *  under `beat` (`keptTargets`) show again, at once, before the beat's
+       *  own writes (#1662). The rest stay cleared, as play clears them or
+       *  the beat's picture replaces them. A route replay presents nothing
+       *  and leaves them for the beat that does. */
+      async restoreCleared(beat: Pick<Instructions, "image" | "extended">) {
         const cleared = $._clearedPictures;
         if (!cleared || $.context?.system?.simulating) {
           return;
         }
-        const targets = $.keptTargets(image);
+        const targets = $.keptTargets(beat);
         $._clearedPictures = undefined;
         await Promise.all(
           targets.map(async (target) => {

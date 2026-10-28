@@ -236,9 +236,9 @@ export class Coordinator<G extends Game> {
         );
       }
       // The first beat after a connect shows the pictures that connect
-      // cleared from the layers it writes, as the page would still show
-      // them had the connect not cleared it (#1662).
-      game.module.ui.image.restoreCleared(instructions.image);
+      // cleared from the layers this beat keeps, as the page would still
+      // show them had the connect not cleared it (#1662).
+      game.module.ui.image.restoreCleared(instructions);
 
       game.module.ui.showLayout("main");
       game.module.ui.reveal();

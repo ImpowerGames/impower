@@ -484,10 +484,9 @@ export class AssetModule extends Module<
    */
   protected imageNamesOf(instructions: Instructions): string[] {
     // The first beat after a connect shows again what the connect cleared
-    // from the layers it writes (#1662).
-    const names: string[] = this._game.module.ui.clearedPictureNames(
-      instructions.image,
-    );
+    // from the layers it keeps (#1662).
+    const names: string[] =
+      this._game.module.ui.clearedPictureNames(instructions);
     for (const events of Object.values(instructions.image ?? {})) {
       for (const event of events) {
         if (event.control !== "hide" && event.assets?.length) {
