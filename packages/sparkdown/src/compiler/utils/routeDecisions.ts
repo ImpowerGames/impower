@@ -1,5 +1,5 @@
 import type { ProgramAddress } from "../types/ProgramAddress";
-import type { RoutePlan, RouteStep } from "./planRoute";
+import type { ConditionOverride, RoutePlan, RouteStep } from "./planRoute";
 
 /**
  * What the route did at a decision, as the preview reports it:
@@ -104,7 +104,7 @@ const clippedPasses = (
   lineOf: LineOf,
   endsLoop: EndsLoop | undefined,
 ): number | undefined => {
-  const forced = route.decisions[index]!;
+  const forced = route.decisions[index] as ConditionOverride;
   let passes = 0;
   let lastPass = -1;
   for (let i = index - 1; i >= 0; i -= 1) {
