@@ -81,13 +81,15 @@ const signedArea = (flat: number[]): number => {
 const snap = ([x, y]: Point): Point => [Math.round(x * 1000) / 1000 || 0, Math.round(y * 1000) / 1000 || 0];
 
 /**
- * Blends one aperture table entry's loops at `progress`. Every sample is a
- * simple loop, but blending two of them point by point can cross: the bake
+ * Blends one aperture table entry's loops at `progress`. Blending two
+ * samples point by point can cross even where neither sample does: the bake
  * spaces each sample's points along its own outline, so point k of two
- * samples need not be the same place on the opening. Where the blend
- * crosses itself, the part winding the way the samples' opening does is
- * kept (as the bake untangles its samples), so the drawn aperture is a
- * simple loop at every progress.
+ * samples need not be the same place on the opening. Where the blend, as
+ * written, crosses itself or passes through one of its own points, the part
+ * winding the way the samples' opening does is kept (as the bake untangles
+ * its samples), so every aperture drawn between two samples is a simple
+ * loop. A progress that falls on a sample draws that sample as stored, so
+ * the rest outline keeps the markup's path data and its reach.
  */
 export function aperturePathData(samples: number[][][], ref: MorphGeometryRef, progress: number): string {
   const t = clamp01(ref.reversed ? 1 - progress : progress);
@@ -107,7 +109,7 @@ export function aperturePathData(samples: number[][][], ref: MorphGeometryRef, p
       // The wider sample says which way the opening winds; a closed one has
       // no area to tell.
       const area = Math.abs(signedArea(loop)) >= Math.abs(signedArea(other)) ? signedArea(loop) : signedArea(other);
-      return untangle(points, Math.sign(area), snap).flat();
+      return untangle(points, Math.sign(area), { snap, throughPoints: true }).flat();
     }),
   );
 }

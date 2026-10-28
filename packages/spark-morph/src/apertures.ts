@@ -165,14 +165,15 @@ const AT_END = 1e-9;
 /**
  * The first crossing between two non-adjacent segments of a closed
  * polyline: segment `i` runs from point `i` to point `i + 1`, `j > i`, and
- * `x` is where they cross. Where they meet at a point of the polyline, the
- * loop crosses itself only if it passes through there: a point lying on the
- * other segment crosses it when its neighbours lie on opposite sides of it,
- * and two coinciding points cross when each one's run separates the other's
- * neighbours. Collinear overlaps, such as a closed stretch's zero-width
- * slit, and points that only touch are not crossings.
+ * `x` is where they cross. Collinear overlaps, such as a closed stretch's
+ * zero-width slit, are not crossings. Segments that meet at a point of the
+ * polyline cross only with `throughPoints`, and then only where the loop
+ * passes through there: a point lying on the other segment crosses it when
+ * its neighbours lie on opposite sides of it, and two coinciding points
+ * cross when each one's run separates the other's neighbours. Points that
+ * only touch are not crossings.
  */
-function firstCrossing(pts: Point[]): { i: number; j: number; x: Point } | undefined {
+function firstCrossing(pts: Point[], throughPoints = false): { i: number; j: number; x: Point } | undefined {
   const n = pts.length;
   for (let i = 0; i < n; i++) {
     const p = pts[i]!,
@@ -195,6 +196,7 @@ function firstCrossing(pts: Point[]): { i: number; j: number; x: Point } | undef
       const tEnd = t <= AT_END ? i : t >= 1 - AT_END ? (i + 1) % n : -1,
         uEnd = u <= AT_END ? j : u >= 1 - AT_END ? (j + 1) % n : -1;
       if (tEnd < 0 && uEnd < 0) return { i, j, x: [p[0] + t * rx, p[1] + t * ry] };
+      if (!throughPoints) continue;
       // The split at a point of the polyline keeps that point on both sides,
       // so it is the crossing point whichever segment's end it is.
       const crossed = tEnd >= 0 && uEnd >= 0 ? runsInterleave(pts, tEnd, uEnd) : tEnd >= 0 ? passesThrough(pts, tEnd, q, q2) : passesThrough(pts, uEnd, p, p2);
@@ -270,50 +272,22 @@ function runsInterleave(pts: Point[], k: number, m: number): boolean {
  * opening does (`sign` of its area) is kept, or the larger part when both
  * or neither do. Each split removes at least one point, so this ends.
  * `snap` places each crossing point, so a loop whose points are written at
- * a fixed precision is untangled as written.
+ * a fixed precision is untangled as written; `throughPoints` also splits
+ * where the loop passes through one of its own points (see `firstCrossing`).
  */
-export function untangle(loop: Point[], sign: number, snap: (p: Point) => Point = (p) => p): Point[] {
+export function untangle(loop: Point[], sign: number, options: { snap?: (p: Point) => Point; throughPoints?: boolean } = {}): Point[] {
+  const { snap = (p: Point) => p, throughPoints = false } = options;
   let pts = loop;
-  for (let hit = firstCrossing(pts); hit && pts.length >= 3; hit = firstCrossing(pts)) {
-    const { inner, outer, keepInner } = split(pts, hit.i, hit.j, snap(hit.x), sign);
-    pts = keepInner ? inner : outer;
-  }
-  return pts;
-}
-
-/**
- * A loop split at crossing point `x` of its segments `i` and `j`: the inner
- * part runs from `x` through points `i + 1` to `j`, the outer part through
- * the rest, and the part kept is the one winding the way `sign` says, or
- * the larger when both or neither do.
- */
-function split(pts: Point[], i: number, j: number, x: Point, sign: number) {
-  const inner = [x, ...pts.slice(i + 1, j + 1)];
-  const outer = [...pts.slice(0, i + 1), x, ...pts.slice(j + 1)];
-  const ai = polygonArea(inner),
-    ao = polygonArea(outer);
-  const innerRight = Math.sign(ai) === sign,
-    outerRight = Math.sign(ao) === sign;
-  return { inner, outer, keepInner: innerRight !== outerRight ? innerRight : Math.abs(ai) >= Math.abs(ao) };
-}
-
-/**
- * Removes every self-crossing from a loop as `untangle` does, keeping its
- * number of points: the points of the part not kept all move to the
- * crossing. Samples a player blends point by point stay the same length.
- */
-export function pinchCrossings(loop: Point[], sign: number, snap: (p: Point) => Point = (p) => p): Point[] {
-  const pts = loop.slice();
-  const n = pts.length;
-  // Each pass moves at least one point onto another, but a crossing point
-  // that snapping moves can recreate a crossing, so passes are bounded.
-  for (let pass = 0, hit = firstCrossing(pts); hit && pass < n * n; pass++, hit = firstCrossing(pts)) {
+  for (let hit = firstCrossing(pts, throughPoints); hit && pts.length >= 3; hit = firstCrossing(pts, throughPoints)) {
     const { i, j } = hit;
     const x = snap(hit.x);
-    const { keepInner } = split(pts, i, j, x, sign);
-    for (let k = 0; k < n; k++) {
-      if (k > i && k <= j ? !keepInner : keepInner) pts[k] = x;
-    }
+    const inner = [x, ...pts.slice(i + 1, j + 1)];
+    const outer = [...pts.slice(0, i + 1), x, ...pts.slice(j + 1)];
+    const ai = polygonArea(inner),
+      ao = polygonArea(outer);
+    const innerRight = Math.sign(ai) === sign,
+      outerRight = Math.sign(ao) === sign;
+    pts = innerRight !== outerRight ? (innerRight ? inner : outer) : Math.abs(ai) >= Math.abs(ao) ? inner : outer;
   }
   return pts;
 }

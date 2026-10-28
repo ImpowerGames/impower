@@ -21,7 +21,8 @@ const WHITE_SHAPED = "M20,50 C40,15 95,0 120,45 C95,72 50,75 20,50Z";
 const LOWER_SHORT = "M40,64 C50,64 55,61 65,60 C85,58 100,62 120,45 C100,72 60,78 40,64Z";
 const WHITE_SHORT = "M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,66 18,60 20,50Z";
 
-// A tilted eye whose resampled near-closed sample folds across itself.
+// A tilted eye whose resampled near-closed sample folds across itself, so
+// a blend from it starts crossed.
 const UPPER_TILTED = "M21.939,46.577 C51.902,7.478 100.433,8.137 119.625,56.075 C93.345,38.003 47.202,35.453 21.939,46.577Z";
 const LOWER_TILTED = "M21.939,46.577 C53.935,82.483 95.031,82.652 119.625,56.075 C80.81,71.461 48.642,70.937 21.939,46.577Z";
 const CLOSED_TILTED = "M21.939,46.577 C49.922,49.421 94.197,56.743 119.625,56.075 C93.61,57.865 50.04,53.646 21.939,46.577Z";
@@ -142,23 +143,24 @@ const STEPS = 1000;
 
 /**
  * Bakes the art and draws every aperture at `STEPS + 1` progress values in
- * both directions, counting the drawings that cross themselves, and the
- * stored samples that do.
+ * both directions, counting the drawings between two samples that cross
+ * themselves. A progress that falls on a sample draws it as stored, which
+ * the last test pins.
  */
 const measure = (svg: string, right = false) => {
   const art = bakeMorphArtifact({ source: svg, selection: {}, recipe: blink({}, right), key: "k", variant: "v" });
   expect(art.status, JSON.stringify(art.diagnostics)).toBe("live");
-  let blends = 0,
-    samples = 0;
+  let blends = 0;
   art.apertures.forEach((table, index) => {
-    for (const sample of table) for (const loop of sample) if (crosses(pointsOf(loop))) samples++;
     for (const reversed of [false, true]) {
       for (let k = 0; k <= STEPS; k++) {
+        const u = (reversed ? 1 - k / STEPS : k / STEPS) * (table.length - 1);
+        if (Number.isInteger(u) && u < table.length - 1) continue;
         if (loopsOf(aperturePathData(table, { index, reversed }, k / STEPS)).some(crosses)) blends++;
       }
     }
   });
-  return { blends, samples };
+  return blends;
 };
 
 describe("a blended aperture", () => {
@@ -170,7 +172,7 @@ describe("a blended aperture", () => {
     ["two eyes in one portrait", portrait({ right: true }), true],
     ["a rotated, skewed and scaled portrait", transformed(portrait(), TRANSFORM), false],
   ])("does not cross itself between baked samples: %s", (_, svg, right) => {
-    expect(measure(svg, right)).toEqual({ blends: 0, samples: 0 });
+    expect(measure(svg, right)).toBe(0);
   });
 
   test("does not cross itself where a blend passes through one of its own points", () => {
@@ -195,5 +197,13 @@ describe("a blended aperture", () => {
     const b = [0, 2, 10, 3, 20, 2, 20, 2, 10, 3, 0, 2];
     const table = [[a], [b], [b], [b], [b], [b], [b], [b]];
     expect(aperturePathData(table, { index: 0, reversed: false }, 0.5 / 7)).toBe("M0,1L10,2L20,1L20,1L10,2L0,1Z");
+  });
+
+  test("draws a progress that falls on a sample as that sample", () => {
+    const art = bakeMorphArtifact({ source: eye(WHITE_TILTED, LOWER_TILTED, UPPER_TILTED, CLOSED_TILTED), selection: {}, recipe: blink(), key: "k", variant: "v" });
+    const table = art.apertures[0]!;
+    const written = (loop: number[]) => `M${loop[0]},${loop[1]}` + pointsOf(loop).slice(1).map(([x, y]) => `L${x},${y}`).join("") + "Z";
+    expect(aperturePathData(table, { index: 0, reversed: false }, 0)).toBe(table[0]!.map(written).join(""));
+    expect(aperturePathData(table, { index: 0, reversed: true }, 1)).toBe(table[0]!.map(written).join(""));
   });
 });

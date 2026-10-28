@@ -16,7 +16,6 @@ import {
   type Subpath,
   type SubpathMorph,
 } from "@impower/spark-morph/src/index";
-import { pinchCrossings } from "@impower/spark-morph/src/apertures";
 import {
   decodeSVGSource,
   evaluateAttributeVisibility,
@@ -210,18 +209,15 @@ const pathData = (subpaths: Subpath[]): string =>
     })
     .join("");
 
-/** The area one aperture loop encloses, its sign the way the loop winds. */
-function signedLoopArea(flat: number[]): number {
+/** The area one aperture loop encloses. */
+function loopArea(flat: number[]): number {
   let twice = 0;
   for (let i = 0; i + 1 < flat.length; i += 2) {
     const j = (i + 2) % flat.length;
     twice += flat[i]! * flat[j + 1]! - flat[j]! * flat[i + 1]!;
   }
-  return twice / 2;
+  return Math.abs(twice) / 2;
 }
-
-/** The area one aperture loop encloses. */
-const loopArea = (flat: number[]): number => Math.abs(signedLoopArea(flat));
 
 /**
  * The ratio of a matrix's largest stretch to its smallest (its linear part's
@@ -970,20 +966,11 @@ export function* bakeSteps(
           // Corner caps and untangled crossings vary an aperture's point
           // count from sample to sample; a player blends neighbouring samples
           // point by point, so every sample of one aperture is given the same
-          // number of points. Spacing points evenly cuts the loop's own
-          // points off it and rounding moves them, which can fold a nearly
-          // closed loop across itself; any crossing that leaves is pinched
-          // out, the part winding the way the aperture's widest sample does
-          // kept.
-          const snap = ([x, y]: Point): Point => [round(x), round(y)];
-          const signs = built.apertures.map((_, j) => {
-            const areas = raw.map((loops) => signedLoopArea(loops[j]!.flat()));
-            return Math.sign(areas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), 0));
-          });
+          // number of points.
           const samples: number[][][] = raw.map((loops) =>
             loops.map((loop, j) => {
               const points = Math.max(...raw.map((other) => other[j]!.length));
-              return pinchCrossings(resampleLoop(loop, points).map(snap), signs[j]!, snap).flat();
+              return resampleLoop(loop, points).flatMap(([x, y]) => [round(x), round(y)]);
             }),
           );
           // Stored in the edges' canonical direction, so a later segment that
