@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
-import { renderMorphAt } from "../../morph/render";
+import { morphFrameState, morphPosesAt, poseLeaf, renderMorphAt } from "../../morph/render";
 import type { MorphArtifact, MorphTransition } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { paintBlink, paintedPortrait } from "./fixtures";
@@ -100,6 +100,25 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
     // An inline blue before an important `color:none`.
     expect(recorded(artifact, "dot").paint).toEqual({ fill: [[0, 0, 255, 1], [255, 255, 255, 1]] });
     expect(declared(artifact, 0.25, "dot", "fill")).toBe("rgba(128,128,255,1)");
+  });
+
+  test("an inline `all` declaration takes part in the cascade", () => {
+    // `all:initial` on the open drawing's group resets its red fill to black.
+    expect(recorded(artifact, "mark").paint).toEqual({ fill: [[0, 0, 0, 1], [255, 255, 255, 1]] });
+    expect(declared(artifact, 0.25, "mark", "fill")).toBe("rgba(128,128,128,1)");
+  });
+
+  test("a value spaced by no-break spaces is invalid and leaves the paint unblended", () => {
+    expect(recorded(artifact, "blot").paint).toBeUndefined();
+    expect(declared(artifact, 0.25, "blot", "fill")).toBeUndefined();
+  });
+
+  test("the blend is written important over an important inline `all`", () => {
+    const element = { tagName: "path", attributes: { style: "all:initial !important", d: "M0,0" }, children: [] };
+    const state = morphFrameState(artifact, morphPosesAt(artifact, 0));
+    state.paint.set("leaf", { fill: "rgba(1,2,3,1)" });
+    poseLeaf(element, "leaf", state);
+    expect(element.attributes.style).toBe("all:initial !important;fill:rgba(1,2,3,1) !important");
   });
 
   test("an important inline fill is the one blended, and the blend is written important over it", () => {

@@ -186,13 +186,16 @@ const box = (x: number, y: number, w: number, h: number) => `M${x},${y}H${x + w}
  * `cheek` filled by its open group and by `currentColor` closed; `lid`
  * filled by an important inline declaration open; `shine` filled by a
  * gradient open; `veil` with its fill, stroke and own opacities lowered
- * when closed; `shadow`, black open, blue half-closed and red closed; and
- * `glint`, black open and half-closed and red closed; and `freckle`, open
- * in `currentColor` under an invalid `color="none"`, so the root's green,
- * and white closed; `spot`, open in `currentColor` with a red `color`
- * attribute and an invalid inline `color:none`, so red, and white closed;
- * and `dot`, open in `currentColor` with an inline blue `color` and an
- * invalid important `color:none` after it, so blue, and white closed.
+ * when closed; `shadow`, black open, blue half-closed and red closed;
+ * `glint`, black open and half-closed and red closed. The rest are white
+ * closed and open in a colour a browser works out from declarations it
+ * drops or resets: `freckle` in `currentColor` under an invalid
+ * `color="none"`, so the root's green; `spot` in `currentColor` with a red
+ * `color` attribute and an invalid inline `color:none`, so red; `dot` in
+ * `currentColor` with an inline blue `color` and an invalid important
+ * `color:none` after it, so blue; `mark` in a red-filled group whose inline
+ * `all:initial` resets that fill, so black; and `blot` with an `rgb()` fill
+ * spaced by no-break spaces, which is invalid, so the inherited black.
  */
 export function paintedPortrait(): string {
   const pose = (dy: number) => ({
@@ -208,6 +211,8 @@ export function paintedPortrait(): string {
     freckle: `<path data-name="freckle" d="${box(90, 80 + dy, 20, 5)}" fill="#fff"/>`,
     spot: `<path data-name="spot" d="${box(10, 80 + dy, 10, 5)}" fill="#fff"/>`,
     dot: `<path data-name="dot" d="${box(25, 80 + dy, 10, 5)}" fill="#fff"/>`,
+    mark: `<path data-name="mark" d="${box(130, 80 + dy, 10, 5)}" fill="#fff"/>`,
+    blot: `<path data-name="blot" d="${box(145, 80 + dy, 10, 5)}" fill="#fff"/>`,
   });
   const open = pose(0);
   const half = pose(5);
@@ -220,6 +225,7 @@ ${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
 ${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
 ${open.shadow}${open.glint}${open.veil}${open.freckle.replace('fill="#fff"', 'color="none" fill="currentColor"')}
 ${open.spot.replace('fill="#fff"', 'color="#f00" style="color:none" fill="currentColor"')}${open.dot.replace('fill="#fff"', 'style="color:#00f;color:none !important" fill="currentColor"')}
+<g fill="#f00" style="all:initial">${open.mark.replace(' fill="#fff"', "")}</g>${open.blot.replace('fill="#fff"', 'fill="rgb(100% 0 0)"')}
 </g>
 <g data-name="eyes.half">
 ${half.shadow.replace("#000", "#00f")}${half.glint}
@@ -228,7 +234,7 @@ ${half.shadow.replace("#000", "#00f")}${half.glint}
 ${closed.lash.replace("#000", "#fff")}${closed.brow}${closed.cheek.replace("<path", '<path fill="currentColor"')}
 ${closed.crease.replace('fill="#c96"', 'fill="#c96" stroke="#f00"')}${closed.lid}${closed.shine}
 ${closed.shadow.replace("#000", "#f00")}${closed.glint.replace("#000", "#f00")}
-${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0.4"/>')}${closed.freckle}${closed.spot}${closed.dot}
+${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0.4"/>')}${closed.freckle}${closed.spot}${closed.dot}${closed.mark}${closed.blot}
 </g>
 </svg>`;
 }

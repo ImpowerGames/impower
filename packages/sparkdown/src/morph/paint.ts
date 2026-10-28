@@ -3,8 +3,8 @@
 // transition keeps of the paint its two drawings differ in. Artwork with a
 // style sheet is never baked live, so no sheet rule takes part.
 
-import { readAlpha, readColor, type ReadColor } from "./color";
-import { ancestry, styleDeclarations, type ArtDocument, type Element } from "./svgDocument";
+import { cssTrim, readAlpha, readColor, type ReadColor } from "./color";
+import { ancestry, maskCss, type ArtDocument, type Element } from "./svgDocument";
 import type { MorphColor, MorphPaint } from "./types";
 
 /**
@@ -24,28 +24,55 @@ export interface EffectivePaint {
 const INHERITED = { fill: "black", stroke: "none", "fill-opacity": "1", "stroke-opacity": "1", color: "black" };
 type Inherited = keyof typeof INHERITED;
 
-const IMPORTANT = /!\s*important\s*$/i;
+/** The keywords every property, and the `all` shorthand, accepts. */
+const CSS_WIDE = new Set(["initial", "inherit", "unset", "revert", "revert-layer"]);
+
+const IMPORTANT = /![ \t\n\r\f]*important$/i;
+
+/**
+ * An element's inline style declarations in order: names lowercased, values
+ * with comments blanked and strings masked, and both trimmed of CSS
+ * whitespace only, so a no-break space stays part of the value it makes
+ * invalid.
+ */
+function inlineDeclarations(element: Element): { name: string; value: string; important: boolean }[] {
+  const masked = maskCss(element.attributes["style"] ?? "");
+  const out: { name: string; value: string; important: boolean }[] = [];
+  let start = 0;
+  for (let end = 0; end <= masked.length; end++) {
+    if (end < masked.length && masked[end] !== ";") continue;
+    const colon = masked.indexOf(":", start);
+    if (colon >= 0 && colon < end) {
+      const name = cssTrim(masked.slice(start, colon)).toLowerCase();
+      const value = cssTrim(masked.slice(colon + 1, end));
+      const important = IMPORTANT.test(value);
+      if (name) out.push({ name, value: important ? cssTrim(value.replace(IMPORTANT, "")) : value, important });
+    }
+    start = end + 1;
+  }
+  return out;
+}
 
 /**
  * Whether a browser drops this declaration as invalid, so that the next one
- * in the cascade applies: `none` is paint, not a colour.
+ * in the cascade applies: `none` is paint, not a colour, and `all` takes
+ * nothing but the CSS-wide keywords.
  */
-const dropped = (name: string, value: string) => name === "color" && value.trim().toLowerCase() === "none";
+const dropped = (name: string, value: string) =>
+  name === "all" ? !CSS_WIDE.has(value.toLowerCase()) : name === "color" && value.toLowerCase() === "none";
 
 /**
  * What an element declares for `name`, as the cascade picks it once invalid
  * declarations are dropped: its inline style (the last important declaration,
- * else the last), which outranks the presentation attribute.
+ * else the last, an `all` declaration counting for every property), which
+ * outranks the presentation attribute.
  */
 const declared = (element: Element, name: string): string | undefined => {
-  const inline = styleDeclarations(element)
-    .filter(([n]) => n === name)
-    .map(([, , clean]) => ({ value: clean.replace(IMPORTANT, "").trim(), important: IMPORTANT.test(clean) }))
-    .filter(({ value }) => !dropped(name, value));
+  const inline = inlineDeclarations(element).filter((d) => (d.name === name || d.name === "all") && !dropped(d.name, d.value));
   const chosen = inline.findLast((d) => d.important) ?? inline[inline.length - 1];
   if (chosen) return chosen.value;
-  const attribute = element.attributes[name]?.trim();
-  return attribute === undefined || dropped(name, attribute) ? undefined : attribute;
+  const attribute = element.attributes[name];
+  return attribute === undefined || dropped(name, cssTrim(attribute)) ? undefined : cssTrim(attribute);
 };
 
 /** Resolves `element`'s effective paint, its ancestors' inherited values included. */
@@ -57,6 +84,8 @@ export function effectivePaint(doc: ArtDocument, element: Element): EffectivePai
       if (value === undefined) continue;
       const keyword = value.toLowerCase();
       if (keyword === "inherit" || keyword === "unset") continue;
+      // `revert` and `revert-layer` stay as written, which no reader reads,
+      // so that paint does not blend.
       // `color: currentColor` is the inherited colour.
       if (name === "color" && keyword === "currentcolor") continue;
       values[name] = keyword === "initial" ? INHERITED[name] : value;

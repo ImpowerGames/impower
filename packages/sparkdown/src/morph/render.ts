@@ -376,9 +376,12 @@ export function poseLeaf(element: Element, node: string, state: MorphFrameState)
   else if (state.hidden.has(node)) setStyleProperty(element, "display", "none");
   const d = state.geometry.get(node);
   if (d !== undefined) element.attributes["d"] = d;
-  // Paint is written where it takes effect, as a fade's opacity is.
+  // Paint is written where it takes effect, as a fade's opacity is: after
+  // the markup's declarations, important when the markup's own declaration
+  // of it, or an `all` declaration, is.
   for (const [name, value] of Object.entries(state.paint.get(node) ?? {})) {
-    setStyleProperty(element, name, styleDeclaration(element, name)?.important ? `${value} !important` : value);
+    const important = styleDeclaration(element, name)?.important || styleDeclaration(element, "all")?.important;
+    setStyleProperty(element, name, important ? `${value} !important` : value);
   }
   const o = state.opacity.get(node);
   if (o !== undefined) multiplyOpacity(element, o);

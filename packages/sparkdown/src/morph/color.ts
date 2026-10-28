@@ -162,6 +162,12 @@ const NAMED: Record<string, number> = {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
+/** Removes CSS whitespace (space, tab and line breaks) from both ends; other spaces are text. */
+export const cssTrim = (text: string) => text.replace(/^[ \t\n\r\f]+|[ \t\n\r\f]+$/g, "");
+
+/** Whitespace a script trims but CSS does not, such as a no-break space, which makes a value invalid. */
+const FOREIGN_SPACE = /[^\S \t\n\r\f]/;
+
 /** A CSS number: digits after a decimal point, if it has one. */
 const NUMBER = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[-+]?\d+)?$/i;
 
@@ -176,7 +182,8 @@ const component = (text: string, scale: number): number | undefined => {
 
 /** An alpha value: a number or a percentage, clamped to 0..1. */
 export const readAlpha = (text: string): number | undefined => {
-  const n = component(text.trim(), 1);
+  if (FOREIGN_SPACE.test(text)) return undefined;
+  const n = component(cssTrim(text), 1);
   return n === undefined ? undefined : clamp(n, 0, 1);
 };
 
@@ -193,17 +200,17 @@ const hue = (text: string): number | undefined => {
  * by spaces with an optional `/ alpha` (the modern syntax).
  */
 const argumentsOf = (body: string): { parts: string[]; legacy: boolean } | undefined => {
-  const text = body.trim();
+  const text = cssTrim(body);
   if (text.includes(",")) {
-    const parts = text.split(",").map((p) => p.trim());
+    const parts = text.split(",").map(cssTrim);
     return parts.every(Boolean) && (parts.length === 3 || parts.length === 4) ? { parts, legacy: true } : undefined;
   }
   const [main, alpha, ...rest] = text.split("/");
   if (rest.length) return undefined;
-  const parts = main!.trim().split(/\s+/).filter(Boolean);
+  const parts = cssTrim(main!).split(/[ \t\n\r\f]+/).filter(Boolean);
   if (parts.length !== 3) return undefined;
   if (alpha === undefined) return { parts, legacy: false };
-  return alpha.trim() ? { parts: [...parts, alpha.trim()], legacy: false } : undefined;
+  return cssTrim(alpha) ? { parts: [...parts, cssTrim(alpha)], legacy: false } : undefined;
 };
 
 const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
@@ -222,7 +229,8 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
  * gamut space) is undefined.
  */
 export function readColor(value: string): ReadColor | undefined {
-  const text = value.trim().toLowerCase();
+  if (FOREIGN_SPACE.test(value)) return undefined;
+  const text = cssTrim(value).toLowerCase();
   if (text === "none") return { kind: "none" };
   if (text === "currentcolor") return { kind: "current" };
   if (text === "transparent") return { kind: "color", color: [0, 0, 0, 0] };
