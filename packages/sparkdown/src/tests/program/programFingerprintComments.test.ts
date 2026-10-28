@@ -27,7 +27,8 @@ const rootOf = (text: string): ProgramRoot => {
   return program.chunks!;
 };
 
-/** The fingerprints of the statements of a scene that holds `lines`. */
+/** The fingerprints of the statements of a scene that holds `lines`, its
+ *  end (`flowEnd`) left out. */
 const prints = (lines: string[]): string[] =>
   rootOf(
     ["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join(
@@ -35,7 +36,8 @@ const prints = (lines: string[]): string[] =>
     ),
   )
     .flowNamed("start")!
-    .arrays.chunks.map(fingerprintOf);
+    .arrays.chunks.slice(0, -1)
+    .map(fingerprintOf);
 
 describe("a fingerprint read from the parse", () => {
   it("leaves out a displayed line's comment after its markup", () => {

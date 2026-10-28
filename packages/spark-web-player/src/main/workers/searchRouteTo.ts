@@ -107,7 +107,13 @@ export const searchRouteFor = (
     // `replayPatchedRoute` below loads a checkpoint or jumps to the route's
     // start, so a route found here can be left where the search stopped rather
     // than resetting the story into a state nothing reads.
-    const budget = { callerResetsStory: true, resumeFrom };
+    // A search from the top starts where an earlier one's level zero
+    // stopped, while the program still holds what it ran, and keeps its own.
+    const budget = {
+      callerResetsStory: true,
+      resumeFrom,
+      levelZeroStore: game.levelZeroStore,
+    };
     const route = fromStart
       ? Game.planRouteFromStart(
           game.story,
@@ -196,7 +202,23 @@ export const searchRouteFor = (
 
   let route: RoutePlan | null = null;
   let resumedSearch = false;
-  if (resumption.resumeFrom) {
+  // A search from the top that starts from kept level-zero work finds what
+  // a search from the top finds without running level zero again, so no
+  // search resumed along a route that follows the program is tried first;
+  // nor when the favored verdicts or choices changed since and the resumed
+  // search would run most of level zero again anyway (#1636). A fallback
+  // route is resumed by origin/main's search, as origin/main's preview
+  // resumes it (`planRoute`).
+  if (
+    resumption.resumeFrom &&
+    (plannedRoute?.fallback ||
+      !game.searchesFromLevelZeroWork(
+        from,
+        to,
+        config.simulationOptions?.[from],
+        resumption.resumeFrom,
+      ))
+  ) {
     route = planRouteTo(resumption.resumeFrom);
     resumedSearch = route != null;
   }

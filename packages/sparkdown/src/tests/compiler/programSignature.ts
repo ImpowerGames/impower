@@ -1,5 +1,6 @@
 // What the incremental oracles compare a program by: the statement chunks by
-// content, every `*Locations` map, diagnostics, context and ui, each field
+// content, every `*Locations` map, the lines of the flows' closing `end`s,
+// diagnostics, context and ui, each field
 // separately so that a divergence names the field. Shared by the cumulative
 // oracle (`incrementalCumulativeEquivalence.test.ts`) and the
 // interleaved-preview oracle (`previewCompileRestore.test.ts`), so a field
@@ -12,6 +13,7 @@ export const PROGRAM_FIELDS = [
   "knotLocations",
   "branchLocations",
   "labelLocations",
+  "flowEnds",
   "context",
   "diagnostics",
   "ui",

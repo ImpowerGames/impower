@@ -3,6 +3,8 @@
 // (README.md, "Playing an artifact") in executable form, and lets tests and
 // verification captures look at any pose without a player.
 
+import { untangle } from "@impower/spark-morph/src/apertures";
+import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
@@ -66,7 +68,29 @@ const loopsPathData = (loops: number[][]) =>
     })
     .join("");
 
-/** Blends one aperture table entry's loops at `progress`. */
+const signedArea = (flat: number[]): number => {
+  let twice = 0;
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const j = (i + 2) % flat.length;
+    twice += flat[i]! * flat[j + 1]! - flat[j]! * flat[i + 1]!;
+  }
+  return twice / 2;
+};
+
+/** A point at the precision path data is written with. */
+const snap = ([x, y]: Point): Point => [Math.round(x * 1000) / 1000 || 0, Math.round(y * 1000) / 1000 || 0];
+
+/**
+ * Blends one aperture table entry's loops at `progress`. Blending two
+ * samples point by point can cross even where neither sample does: the bake
+ * spaces each sample's points along its own outline, so point k of two
+ * samples need not be the same place on the opening. Where the blend, as
+ * written, crosses itself or passes through one of its own points, the part
+ * winding the way the samples' opening does is kept (as the bake untangles
+ * its samples), so every aperture drawn between two samples is a simple
+ * loop. A progress that falls on a sample draws that sample as stored, so
+ * the rest outline keeps the markup's path data and its reach.
+ */
 export function aperturePathData(samples: number[][][], ref: MorphGeometryRef, progress: number): string {
   const t = clamp01(ref.reversed ? 1 - progress : progress);
   const u = t * (samples.length - 1);
@@ -74,7 +98,22 @@ export function aperturePathData(samples: number[][][], ref: MorphGeometryRef, p
   const f = u - i;
   const a = samples[i]!;
   const b = samples[i + 1] ?? a;
-  return loopsPathData(a.map((loop, j) => (f === 0 ? loop : loop.map((v, k) => v + ((b[j]?.[k] ?? v) - v) * f))));
+  return loopsPathData(
+    a.map((loop, j) => {
+      const other = b[j] ?? loop;
+      // The last sample is reached with `f` at 1, the others with it at 0.
+      if (f === 0) return loop;
+      if (f === 1) return other;
+      const points: Point[] = [];
+      for (let k = 0; k + 1 < loop.length; k += 2) {
+        points.push(snap([loop[k]! + ((other[k] ?? loop[k]!) - loop[k]!) * f, loop[k + 1]! + ((other[k + 1] ?? loop[k + 1]!) - loop[k + 1]!) * f]));
+      }
+      // The wider sample says which way the opening winds; a closed one has
+      // no area to tell.
+      const area = Math.abs(signedArea(loop)) >= Math.abs(signedArea(other)) ? signedArea(loop) : signedArea(other);
+      return untangle(points, Math.sign(area), { snap, throughPoints: true }).flat();
+    }),
+  );
 }
 
 /**

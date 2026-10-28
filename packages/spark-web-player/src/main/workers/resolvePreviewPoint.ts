@@ -5,14 +5,22 @@ import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLoc
 /** What the game showing the preview remembers of the last one. */
 export interface PreviewingGame {
   state: string;
-  previewFrom: { file: string; line: number } | undefined;
+  previewFrom: PreviewFrom | undefined;
   previewAddress: ProgramAddress | undefined;
   previewedAddress: ProgramAddress | undefined;
 }
 
+/** A point to preview: a line, and the address it stands for when that is
+ *  not the one the line resolves to (`Game.setStartFrom`). */
+export interface PreviewFrom {
+  file: string;
+  line: number;
+  address?: ProgramAddress;
+}
+
 export interface PreviewPoint {
   /** The point to preview: the cursor, or the remembered one. */
-  from: { file: string; line: number };
+  from: PreviewFrom;
   /** The address that point resolves to against this program, which the
    *  mark names; nothing when it resolves to none. */
   address: ProgramAddress | null | undefined;
@@ -26,17 +34,22 @@ export interface PreviewPoint {
 }
 
 /** Where a preview at `from` lands, for a game holding `program`. The point
- *  resolves through the program's accessor (`ProgramLocator.addressAt`). */
+ *  resolves through the program's accessor (`ProgramLocator.addressAt`),
+ *  unless it names its address. A remembered point that named its address
+ *  is found again in a changed program by `relocate`, which answers the
+ *  point that line stands for there; without it, the line stands. */
 export function resolvePreviewPoint(
   program: SparkProgram,
-  from: { file: string; line: number },
+  from: PreviewFrom,
   programChanged: boolean,
   game: PreviewingGame | undefined,
+  relocate?: (from: PreviewFrom) => PreviewFrom,
 ): PreviewPoint {
   const locator = programLocator(program);
   // A line that `>` breaks holds several beats, and a preview shows its last;
   // PLAY from the line starts at its first (#721).
-  const address = locator.addressAt(from.file, from.line, { beat: "last" });
+  const address =
+    from.address ?? locator.addressAt(from.file, from.line, { beat: "last" });
 
   // When the cursor sits on a line that resolves to no address we keep the
   // game's LAST valid preview point rather than resetting (sticky preview).
@@ -48,7 +61,13 @@ export function resolvePreviewPoint(
   // renders invisibly. Fall back to the cursor itself so the engine always
   // gets its preview call and can reveal the UI (Game.preview's no-address
   // branch).
-  const validFrom = (address != null ? from : game?.previewFrom) ?? from;
+  const remembered = (address != null ? from : game?.previewFrom) ?? from;
+  // A remembered point that named its address keeps it while the program
+  // stands; a recompile can have given its position another address.
+  const validFrom =
+    address == null && programChanged && remembered.address != null
+      ? (relocate?.(remembered) ?? { file: remembered.file, line: remembered.line })
+      : remembered;
   // The address `game.preview()` will resolve for that point against THIS
   // program: the cursor's own, or the remembered point's, which is the game's
   // own address for it while the program stands and is resolved again after
@@ -60,7 +79,8 @@ export function resolvePreviewPoint(
     address != null
       ? address
       : programChanged
-        ? locator.addressAt(validFrom.file, validFrom.line, { beat: "last" })
+        ? (validFrom.address ??
+          locator.addressAt(validFrom.file, validFrom.line, { beat: "last" }))
         : game?.previewAddress;
   // A point that no longer resolves keeps its old address for the repeat
   // below, which needs it to tell a repeat from a first preview.

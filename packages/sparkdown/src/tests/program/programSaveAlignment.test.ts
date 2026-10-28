@@ -913,9 +913,11 @@ describe("the stated limits of the alignment", () => {
     expect(play(loaded).beats).toEqual(["B.", "C."]);
   });
 
-  // Section 8: the alignment keeps order, so a save taken at the second of
-  // two identical lines resumes a line early after one was written between
-  // them, and a line late after one was deleted.
+  // Section 8: the alignment keeps order and matches the longest run first,
+  // so a save taken inside a run of identical lines resumes at the ordinal
+  // that run gives. Here the longest runs reach the scene's end
+  // (`flowEnd`), so the save resumes as far from the end of the run as it
+  // was taken, at an ordinal other than the saved one.
   it("resumes inside a run of identical statements, or at the statement after it, at the ordinal the design gives and not the saved one", () => {
     const before = scene(["Intro.", "Same.", "Same.", "Same.", "End."]);
     const story = engine(rootOf(before));
@@ -925,16 +927,16 @@ describe("the stated limits of the alignment", () => {
     expect(savedAt(save)).toEqual({ flow: "start", entry: 2 });
     const inserted = engine(rootOf(scene(["Above.", "Intro.", "Same.", "Same.", "Same.", "Same.", "End."])));
     inserted.loadSave(save);
-    // The block `Intro. Same. Same. Same.` is matched one ordinal down, so
-    // the save stands at the second of four, a line early.
-    expect(placed(inserted)).toEqual({ flow: "start", entry: 3 });
-    expect(play(inserted).beats).toEqual(["Same.", "Same.", "Same.", "End."]);
+    // The block `Same. Same. Same. End.` and the scene's end is matched two
+    // ordinals down, so the save stands at the third of four.
+    expect(placed(inserted)).toEqual({ flow: "start", entry: 4 });
+    expect(play(inserted).beats).toEqual(["Same.", "Same.", "End."]);
     const deleted = engine(rootOf(scene(["Above.", "Intro.", "Same.", "Same.", "End."])));
     deleted.loadSave(save);
-    // The block `Intro. Same. Same.` is matched one ordinal down, so the
-    // save stands at the second of two, a line late.
-    expect(placed(deleted)).toEqual({ flow: "start", entry: 3 });
-    expect(play(deleted).beats).toEqual(["Same.", "End."]);
+    // The block `Same. Same. End.` and the scene's end is matched in place,
+    // so the save stands at the first of two.
+    expect(placed(deleted)).toEqual({ flow: "start", entry: 2 });
+    expect(play(deleted).beats).toEqual(["Same.", "Same.", "End."]);
   });
 });
 

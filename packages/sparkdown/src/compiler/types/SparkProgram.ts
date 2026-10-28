@@ -108,6 +108,12 @@ export interface SparkProgram {
   knotLocations?: {
     [name: string]: ScriptLocation;
   };
+  /** Per script, for the `end` that closes each scene and branch, in the
+   *  order of those ends: the line of the flow's header and the line of its
+   *  `end`, counting from 0. */
+  flowEnds?: {
+    [uri: string]: [headerLine: number, endLine: number][];
+  };
   labelLocations?: {
     [name: string]: ScriptLocation;
   };

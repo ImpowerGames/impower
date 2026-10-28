@@ -3,13 +3,13 @@ import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { resolvePreviewPoint } from "./resolvePreviewPoint";
+import { resolvePreviewPoint, type PreviewFrom } from "./resolvePreviewPoint";
 
 /** The game, as far as a display needs it. Structural so the order of the
  *  steps can be checked against a recording stand-in. */
 export interface DisplayingGame {
   readonly state: string;
-  readonly previewFrom: { file: string; line: number } | undefined;
+  readonly previewFrom: PreviewFrom | undefined;
   readonly previewAddress: ProgramAddress | undefined;
   readonly previewedAddress: ProgramAddress | undefined;
   reportsExecutedLines: boolean;
@@ -36,6 +36,7 @@ export interface DisplayingGame {
     file: string,
     line: number,
     runFrom?: ProgramAddress,
+    address?: ProgramAddress,
   ): Promise<ProgramAddress | null>;
   module: { ui: { forgetDisplayedImages(): void; sweepReconcile(): void } };
 }
@@ -53,6 +54,12 @@ export interface DisplayRequest {
   programChanged: boolean;
   file: string;
   line: number;
+  /** The point's address, when it is not the one its line resolves to
+   *  (`Game.setStartFrom`). */
+  address?: ProgramAddress;
+  /** The point a remembered point's line stands for in a changed program,
+   *  when the remembered point named its address (`resolvePreviewPoint`). */
+  relocate?: (from: PreviewFrom) => PreviewFrom;
   speculative: boolean;
   /** The route to the point: its checkpoint when it was replayed, and why
    *  not when it was not. The worker's route hands the checkpoint over as
@@ -91,9 +98,10 @@ export async function displayPreviewFrom(
   const { program, programChanged, speculative, send, superseded } = request;
   const point = resolvePreviewPoint(
     program,
-    { file: request.file, line: request.line },
+    { file: request.file, line: request.line, address: request.address },
     programChanged,
     game,
+    request.relocate,
   );
   const validPreviewFrom = point.from;
   const resolvedPreviewAddress = point.address;
@@ -102,7 +110,12 @@ export async function displayPreviewFrom(
   if (point.repeat) {
     // A repeat of the preview that ran, whose image gate may still be
     // pending: the engine answers with the same promise.
-    await game.preview(validPreviewFrom.file, validPreviewFrom.line);
+    await game.preview(
+      validPreviewFrom.file,
+      validPreviewFrom.line,
+      undefined,
+      validPreviewFrom.address,
+    );
     if (superseded()) {
       return false;
     }
@@ -158,6 +171,7 @@ export async function displayPreviewFrom(
     validPreviewFrom.file,
     validPreviewFrom.line,
     request.runFrom,
+    validPreviewFrom.address,
   );
   if (superseded()) {
     return false;

@@ -165,6 +165,38 @@ export function buildPreviewFixture({ beforeLines = 1300, thenLines = 1100 } = {
   };
 }
 
+// The fixture with a loop that shows nothing at the top of its scene, `passes`
+// passes of an `if` in its body (about 26 steps of work a pass), and the
+// exchange holding the target wrapped in a branch the program skips, so the
+// route runs every pass and then forces that branch (#1636). The target line
+// and word are the fixture's own.
+export function buildLoopFixture({ passes = 20000 } = {}) {
+  const fixture = buildPreviewFixture();
+  const lines = fixture.files.get("main.sd").split("\n");
+  const loop = [`  for i = 1, ${passes} do`, "    if i % 3 == 0 then", "      tally += 1", "    end", "  end", ""];
+  lines.splice(lines.indexOf("scene MAIN") + 1, 0, ...loop);
+  lines.unshift("store flag = false", "store tally = 0", "");
+  const start = lines.indexOf("    HERO turns to face him.");
+  const end = lines.indexOf("    A CRASH of thunder.");
+  const exchange = lines.slice(start, end).map((l) => (l ? "  " + l : l));
+  lines.splice(start, end - start, "    if flag then", ...exchange, "    end");
+  const files = new Map(fixture.files);
+  files.set("main.sd", lines.join("\n"));
+  const line = lines.indexOf("        [[hero_concerned:gloves]]") + 1;
+  return {
+    files,
+    target: {
+      ...fixture.target,
+      line,
+      lineText: lines[line - 1],
+      // The scene grows by the loop, and its `then` clause by the branch.
+      sceneLines: fixture.target.sceneLines + loop.length + 2,
+      thenLines: fixture.target.thenLines + 2,
+      passes,
+    },
+  };
+}
+
 // The fixture's scene reduced to its beats, with no `choose`: one scene of
 // action and dialogue lines and nothing else, so that a stepping loop covering
 // only the content kinds a beat compiles to can run it from top to bottom

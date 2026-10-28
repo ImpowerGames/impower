@@ -152,13 +152,14 @@ end
       expect(shallow!.steps[i]!.seq).toBe(deepSeqs[i]);
     }
 
-    // The identities the simulated route indexed are the ones the re-plan
-    // produces, so a re-plan can find the work already done.
-    const stepMap: Record<string, number> = (game as any)._plannedRouteStepMap;
-    expect(Object.keys(stepMap).length).toBe(deep!.steps.length);
-    for (const step of shallow!.steps) {
-      expect(stepMap[step.seq]).toBeDefined();
-    }
+    // The simulated route holds the identities the re-plan produces at the
+    // same indexes, which is where a re-plan looks for the work already done
+    // (`stepCheckpoint` reads the step at the index it expects).
+    const planned: { seq: string }[] = (game as any)._plannedRoute.steps;
+    expect(planned.length).toBe(deep!.steps.length);
+    shallow!.steps.forEach((step, i) => {
+      expect(planned[i]!.seq).toBe(step.seq);
+    });
   });
 
   test("a re-plan RESUMES from a checkpoint instead of re-simulating", () => {
