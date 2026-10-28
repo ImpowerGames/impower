@@ -9,7 +9,10 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
-import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
+import type {
+  PreviewRoute,
+  ScriptSource,
+} from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import {
   installGameWorker,
   NoGameError,
@@ -144,10 +147,12 @@ export function installPlayerWorker(connection: MessageConnection) {
     seedBuiltinsIntoStory: true,
   });
 
-  /** A line of a script as the compiler holds it, counting from 0, which a
-   *  route's report names a forced verdict by (`Game.previewRouteOf`). */
-  const lineText = (uri: string, line: number) =>
-    compiler.documents.get(uri)?.getLineText(line);
+  /** The scripts as the compiler holds them, which a route's report reads
+   *  (`Game.previewRouteOf`). */
+  const source: ScriptSource = {
+    lineText: (uri, line) => compiler.documents.get(uri)?.getLineText(line),
+    loops: (uri) => compiler.loopsOf(uri),
+  };
 
   // The record of what the last route search in the real program the game
   // holds established, and the rule for when that is safe to reuse. See
@@ -164,7 +169,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     searchRouteFor(game, to, routeSearches, {
       config: compiler.config,
       profilerId: compiler.profilerId,
-      lineText,
+      source,
     });
 
   // ---- The programs the game can display ----------------------------------
@@ -382,7 +387,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         config: compiler.config,
         profilerId,
         remember: false,
-        lineText,
+        source,
       });
       log.report(params, to);
     }
@@ -600,7 +605,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         profilerId: compiler.profilerId,
         remember: entry.log === routeSearches,
         fromStart,
-        lineText,
+        source,
       });
 
   /**

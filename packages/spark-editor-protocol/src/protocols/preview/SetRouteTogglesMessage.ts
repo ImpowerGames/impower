@@ -1,5 +1,5 @@
-import { RequestMessage } from "../../types/base/RequestMessage";
-import { ResponseMessage } from "../../types/base/ResponseMessage";
+import type { RequestMessage } from "../../types/base/RequestMessage";
+import type { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type SetRouteTogglesMethod = typeof SetRouteTogglesMessage.method;

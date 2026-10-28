@@ -34,7 +34,10 @@ import {
   type RoutePlan,
   type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
-import { routeDecisions } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
+import {
+  routeDecisions,
+  type ScriptLoop,
+} from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
@@ -57,7 +60,11 @@ import { beatIndexIn } from "../../modules/assets/utils/previewWindow";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
 import type { DocumentLocation } from "../types/DocumentLocation";
-import type { PreviewRoute, PreviewRouteDecision } from "../types/PreviewRoute";
+import type {
+  PreviewRoute,
+  PreviewRouteDecision,
+  ScriptSource,
+} from "../types/PreviewRoute";
 import { conditionText } from "../utils/conditionText";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
@@ -4191,15 +4198,12 @@ export class Game<T extends M = {}> {
   /**
    * The route `route` as the preview reports it: where it starts, the line it
    * ends at, and each decision it made (`routeDecisions`), placed in the
-   * scripts. `lineText` reads a line of a script, counting from 0, for the
-   * text of a forced verdict's line and to know a loop's test by its line;
-   * without it, or for a line it cannot read, the text is empty and a loop
-   * the route leaves at its test is known only by the passes it ran.
+   * scripts. `source` reads the scripts, counting lines from 0: a line's
+   * text, which names a forced verdict, and the loops, which tell a clipped
+   * loop from a forced verdict. Without it the text is empty and every
+   * verdict the route forced is reported forced.
    */
-  previewRouteOf(
-    route: RoutePlan,
-    lineText?: (uri: string, line: number) => string | undefined,
-  ): PreviewRoute {
+  previewRouteOf(route: RoutePlan, source?: ScriptSource): PreviewRoute {
     const lineOf = (address: ProgramAddress) => {
       const location = this.scriptLocationOf(address);
       return location ? { script: location[0], line: location[1] } : undefined;
@@ -4217,24 +4221,26 @@ export class Game<T extends M = {}> {
             (firstStep && this.documentLocationOf(firstStep.address)) ??
             this.lineLocation(target.uri, 0),
         };
-    // A loop's test is known by its line: a `while` or `for` header, or a
-    // `repeat` loop's `until`.
-    const endsLoop = (site: ProgramAddress, verdict: boolean) => {
-      const location = this.documentLocationOf(site);
-      const text = location
-        ? lineText?.(location.uri, location.range.start.line)?.trim()
-        : undefined;
-      return text
-        ? /^(?:for|while)\b/.test(text)
-          ? !verdict
-          : /^until\b/.test(text)
-            ? verdict
-            : false
-        : false;
-    };
+    const loops = new Map<number, readonly ScriptLoop[]>();
+    const loopsOf =
+      source &&
+      ((script: number) => {
+        let found = loops.get(script);
+        if (!found) {
+          found = source.loops(this.scriptUri(script));
+          loops.set(script, found);
+        }
+        return found;
+      });
     const decisions: PreviewRouteDecision[] = [];
-    for (const decision of routeDecisions(route, lineOf, endsLoop)) {
-      const location = this.documentLocationOf(decision.site);
+    for (const decision of routeDecisions(route, lineOf, loopsOf)) {
+      // A clipped loop is listed at its own first line.
+      const location = decision.loop
+        ? this.lineLocation(
+            this.scriptUri(decision.loop.script),
+            decision.loop.line,
+          )
+        : this.documentLocationOf(decision.site);
       if (!location) {
         continue;
       }
@@ -4245,7 +4251,8 @@ export class Game<T extends M = {}> {
           decision.kind === "auto"
             ? (decision.option ?? "")
             : conditionText(
-                lineText?.(location.uri, location.range.start.line) ?? "",
+                source?.lineText(location.uri, location.range.start.line) ??
+                  "",
               ),
         ...(decision.meeting !== undefined
           ? { meeting: decision.meeting }

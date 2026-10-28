@@ -75,6 +75,17 @@ const CONNECTED = {
 
 /** A manager whose panel records what it is sent and answers each request
  *  the way `answer` says, with the webview's message handler exposed. */
+/** The extension's context as the panel reads it: where its files are, and
+ *  the state it keeps for the author across windows (the route list's
+ *  toggles), which starts empty. */
+const extensionContext = {
+  extensionUri: "ext",
+  globalState: {
+    get: (_key: string, fallback?: unknown) => fallback,
+    update: () => Promise.resolve(),
+  },
+} as any;
+
 const open = async (
   answer: (request: any) => object = () => ({ result: {} }),
 ) => {
@@ -112,7 +123,7 @@ const open = async (
     },
     onDidDispose: () => ({ dispose: () => {} }),
   };
-  await manager.initializePanel(panel, { extensionUri: "ext" }, undefined);
+  await manager.initializePanel(panel, extensionContext, undefined);
   const initializations = () =>
     posted.filter((m) => m.method === "initialize" && m.id != null);
   return { manager, posted, receive: (m: unknown) => receive(m), initializations };

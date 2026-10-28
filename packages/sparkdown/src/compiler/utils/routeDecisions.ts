@@ -22,8 +22,20 @@ export interface RouteDecision {
   meeting?: number;
   /** The verdict the route forced. */
   verdict?: boolean;
-  /** The passes a clipped loop ran before the route left it. */
+  /** The passes a clipped loop ran: the times its body began, the pass it
+   *  left part way through included. */
   passes?: number;
+  /** The script and first line, counting from 0, of a clipped loop. */
+  loop?: { script: number; line: number };
+}
+
+/** A loop of a script, counting lines from 0: its first line, the line of
+ *  its `end` (or its `until`), and whether it is a `repeat` loop, whose body
+ *  runs before its test (`SparkdownCompiler.loopsOf`). */
+export interface ScriptLoop {
+  header: number;
+  end: number;
+  repeat: boolean;
 }
 
 /** The script and the line, counting from 0, an address stands on. */
@@ -31,14 +43,11 @@ export type LineOf = (
   address: ProgramAddress,
 ) => { script: number; line: number } | undefined;
 
-/** Whether the verdict `verdict` at the decision `site` is a loop's test
- *  ending the loop: a `while` or `for` test found false, a `repeat` loop's
- *  `until` found true. */
-export type EndsLoop = (site: ProgramAddress, verdict: boolean) => boolean;
+/** The loops of the script with index `script`. */
+export type LoopsOf = (script: number) => readonly ScriptLoop[];
 
-/** How many of a pass's steps, from its last, are read to find the lines the
- *  pass ran, and how many steps after a verdict are read to find where the
- *  route went: a pass or a stretch longer than that is read in part. */
+/** How many steps before the route's next decision are read to find where
+ *  it stood. */
 const STEPS_READ = 4096;
 
 /**
@@ -46,19 +55,21 @@ const STEPS_READ = 4096;
  * per verdict it forced against the program (`ConditionOverride.departs`).
  * A verdict the program reaches is the program's, and is not listed.
  *
- * A forced verdict is a clipped loop when the route left a loop with it:
- * either it is a loop's test ending the loop (`endsLoop`), on any pass, the
- * first included; or the route met the same decision on the passes before
- * with the other verdict, and the step it went on to stands outside the
- * lines the last of those passes ran (a forced branch that breaks out). The
- * passes are the meetings with the other verdict since the route last met
- * the decision with this one. A verdict that stays inside the loop (a branch
- * in its body the program skips) is forced.
+ * A forced verdict is a clipped loop when it left the innermost loop around
+ * its line: it is that loop's test found false (every loop's test continues
+ * on true, a `repeat` loop's too, which the compile turns into a test to go
+ * round again), or the route stood outside the loop's lines when it next
+ * decided or reached its target (a forced branch that breaks out). Any other
+ * forced verdict, a branch inside a loop that stays in it included, is
+ * forced. The passes are
+ * the times the loop's test was met true since the route entered the loop,
+ * and one more for a `repeat` loop, whose body ran before its first test.
+ * Without `loopsOf`, every forced verdict is forced.
  */
 export const routeDecisions = (
   route: RoutePlan,
   lineOf: LineOf,
-  endsLoop?: EndsLoop,
+  loopsOf?: LoopsOf,
 ): RouteDecision[] => {
   const decisions: RouteDecision[] = [];
   const offers = new Map<string, number>();
@@ -81,78 +92,102 @@ export const routeDecisions = (
     if (!decision.departs) {
       return;
     }
-    const passes = clippedPasses(route, index, lineOf, endsLoop);
+    const clipped = loopsOf
+      ? clippedLoop(route, index, lineOf, loopsOf)
+      : undefined;
     decisions.push(
-      passes === undefined
+      clipped === undefined
         ? { kind: "forced", site: decision.site, verdict: decision.value }
         : {
             kind: "clipped",
             site: decision.site,
             verdict: decision.value,
-            passes,
+            ...clipped,
           },
     );
   });
   return decisions;
 };
 
-/** The passes of a loop the forced verdict at `index` left, or nothing when
- *  it left none (see {@link routeDecisions}). */
-const clippedPasses = (
+/** The loop the forced verdict at `index` left and the passes it ran, or
+ *  nothing when it left none (see {@link routeDecisions}). */
+const clippedLoop = (
   route: RoutePlan,
   index: number,
   lineOf: LineOf,
-  endsLoop: EndsLoop | undefined,
-): number | undefined => {
+  loopsOf: LoopsOf,
+): { passes: number; loop: { script: number; line: number } } | undefined => {
   const forced = route.decisions[index] as ConditionOverride;
-  let passes = 0;
-  let lastPass = -1;
+  const at = lineOf(forced.site);
+  if (!at) {
+    return undefined;
+  }
+  // The innermost loop whose lines hold the verdict's.
+  let loop: ScriptLoop | undefined;
+  for (const candidate of loopsOf(at.script)) {
+    if (
+      candidate.header <= at.line &&
+      at.line <= candidate.end &&
+      (!loop || candidate.header >= loop.header)
+    ) {
+      loop = candidate;
+    }
+  }
+  if (!loop) {
+    return undefined;
+  }
+  const isTest = (site: ProgramAddress) => {
+    const line = lineOf(site);
+    return line?.script === at.script && line.line === loop!.header;
+  };
+  const leaves =
+    (isTest(forced.site) && !forced.value) ||
+    leftLoop(route.steps, index, at, loop, lineOf);
+  if (!leaves) {
+    return undefined;
+  }
+  // The test met true since the loop was entered: the route meets it false
+  // only when it leaves the loop.
+  let passes = loop.repeat ? 1 : 0;
   for (let i = index - 1; i >= 0; i -= 1) {
     const earlier = route.decisions[i]!;
-    if (earlier.kind !== "condition" || earlier.site !== forced.site) {
+    if (earlier.kind !== "condition" || !isTest(earlier.site)) {
       continue;
     }
-    if (earlier.value === forced.value) {
+    if (!earlier.value) {
       break;
     }
     passes += 1;
-    if (lastPass < 0) {
-      lastPass = i;
-    }
   }
-  if (endsLoop?.(forced.site, forced.value)) {
-    return passes;
-  }
-  if (passes === 0) {
-    return undefined;
-  }
-  const at = lineOf(forced.site);
-  const steps = route.steps;
-  const passStart = firstStepAfter(steps, lastPass);
-  const passEnd = firstStepAfter(steps, index);
-  // Where the route went: the first step past the verdict off its own line.
-  let next: { script: number; line: number } | undefined;
-  for (let i = passEnd; i < steps.length && i < passEnd + STEPS_READ; i += 1) {
+  return { passes, loop: { script: at.script, line: loop.header } };
+};
+
+/** Whether the route, where it stood last before its next decision after
+ *  the verdict at `index` (or at its target, when it made none), stood
+ *  outside `loop`'s lines: the verdict took it out of the loop, through a
+ *  `break` or past the loop's end, rather than on through the loop's body,
+ *  a function it calls on the way included. */
+const leftLoop = (
+  steps: RouteStep[],
+  index: number,
+  at: { script: number; line: number },
+  loop: ScriptLoop,
+  lineOf: LineOf,
+): boolean => {
+  const from = firstStepAfter(steps, index);
+  const end = firstStepAfter(steps, index + 1);
+  for (let i = end - 1; i >= from && i >= end - STEPS_READ; i -= 1) {
     const line = lineOf(steps[i]!.address);
-    if (line && (line.script !== at?.script || line.line !== at.line)) {
-      next = line;
-      break;
+    if (!line) {
+      continue;
     }
+    return (
+      line.script !== at.script ||
+      line.line < loop.header ||
+      line.line > loop.end
+    );
   }
-  if (!next) {
-    return undefined;
-  }
-  // The lines the last pass ran in the script the route went on in.
-  let min = Infinity;
-  let max = -Infinity;
-  for (let i = Math.max(passStart, passEnd - STEPS_READ); i < passEnd; i += 1) {
-    const line = lineOf(steps[i]!.address);
-    if (line && line.script === next.script) {
-      min = Math.min(min, line.line);
-      max = Math.max(max, line.line);
-    }
-  }
-  return next.line < min || next.line > max ? passes : undefined;
+  return false;
 };
 
 /** The index of the first step recorded after decision `decision` was made:

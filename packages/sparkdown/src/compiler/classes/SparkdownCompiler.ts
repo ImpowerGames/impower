@@ -75,6 +75,23 @@ import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
 import { isLoopInternal, loopExitOf } from "../lower/utils/statementShape";
+import { nodeNameSet } from "../utils/nodeNameSet";
+import type { ScriptLoop } from "../utils/routeDecisions";
+
+/** The syntax nodes of a `repeat` loop, and of every other loop
+ *  (`loopsOf`), as the loops' lowerings read them. */
+const REPEAT_LOOP_NODES = nodeNameSet([
+  "LuauRepeatLoop",
+  "LuauSparkdownRepeatLoop",
+  "LuauSparkdownExplicitRepeatLoop",
+]);
+const OTHER_LOOP_NODES = nodeNameSet([
+  "LuauWhileLoop",
+  "LuauSparkdownWhileLoop",
+  "LuauForLoop",
+  "LuauSparkdownForLoop",
+  "LuauSparkdownExplicitLoop",
+]);
 import {
   IDENTIFIER_FIELDS,
   NAME_STRING_FIELDS,
@@ -4786,6 +4803,32 @@ export class SparkdownCompiler {
       cur.next();
     }
     return ends;
+  }
+
+  /** The loops of a script, counting lines from 0: each loop's first line,
+   *  the line of its `end` (or its `until`), and whether it is a `repeat`
+   *  loop, whose body runs before its test. Read from the syntax tree when
+   *  asked, which only a route's report does (`Game.previewRouteOf`). */
+  loopsOf(uri: string): ScriptLoop[] {
+    const doc = this.documents.get(uri);
+    const tree = doc ? this.documents.tree(uri) : undefined;
+    const loops: ScriptLoop[] = [];
+    if (!doc || !tree) {
+      return loops;
+    }
+    tree.iterate({
+      enter: (node) => {
+        const repeat = REPEAT_LOOP_NODES.has(node.name);
+        if (repeat || OTHER_LOOP_NODES.has(node.name)) {
+          loops.push({
+            header: doc.lineAt(node.from),
+            end: doc.lineAt(Math.max(node.from, node.to - 1)),
+            repeat,
+          });
+        }
+      },
+    });
+    return loops;
   }
 
   populateDeclarationLocations(program: SparkProgram) {

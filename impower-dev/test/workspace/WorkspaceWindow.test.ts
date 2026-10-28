@@ -417,10 +417,40 @@ describe("Animate portraits preference", () => {
       );
       sync.received(connected("game"));
       sync.initialized();
-      expect(posted.map((m) => [m.method, m.params.enabled])).toEqual([
+      expect(
+        posted
+          .filter((m) => m.method === "game/setAnimatePortraits")
+          .map((m) => [m.method, m.params.enabled]),
+      ).toEqual([
         ["game/setAnimatePortraits", false],
         ["game/setAnimatePortraits", false],
       ]);
+    });
+
+    it("hears the route list's toggles the author last chose, in every project", () => {
+      const posted: { method: string; params: any }[] = [];
+      const sync = createPlayerPreferenceSync((m) => posted.push(m as any));
+      const toggles = () =>
+        posted
+          .filter((m) => m.method === "preview/setRouteToggles")
+          .map((m) => m.params.toggles);
+      sync.received(connected("game"));
+      expect(toggles()).toEqual([{}]);
+      sync.received({
+        jsonrpc: "2.0",
+        method: "preview/didChangeRouteToggles",
+        params: {
+          toggles: { pinned: true, auto: false, forced: true, clipped: true },
+        },
+      });
+      localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "b");
+      createPlayerPreferenceSync((m) => posted.push(m as any)).initialized();
+      expect(toggles().at(-1)).toEqual({
+        pinned: true,
+        auto: false,
+        forced: true,
+        clipped: true,
+      });
     });
 
     it("is what the game preview sends each player it connects to", async () => {
