@@ -29,8 +29,10 @@ import {
   applySubpaths,
   invert,
   isIdentity,
+  multiply,
   type Affine,
 } from "./affine";
+import { gradientCopy, gradientsMatch, readGradient } from "./gradient";
 import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
@@ -67,6 +69,8 @@ import {
   type MorphFallback,
   type MorphFrames,
   type MorphGeometryRef,
+  type MorphGradient,
+  type MorphGradientBlend,
   type MorphMethodName,
   type MorphPart,
   type MorphRecipe,
@@ -680,6 +684,59 @@ export function* bakeSteps(
     const m = doc!.info.get(leaf.element)?.rootFromElement;
     return m ? invert(m) : null;
   };
+  const prefix = idPrefixFor(input.key);
+  const gradientsRead = new Map<string, MorphGradient | undefined>();
+  const gradientOf = (id: string): MorphGradient | undefined => {
+    if (!gradientsRead.has(id)) gradientsRead.set(id, readGradient(doc!, id));
+    return gradientsRead.get(id);
+  };
+  /**
+   * `leaf`'s gradient for `name`, in the user space `space` maps root space
+   * into: a user-space gradient is placed where `leaf`'s own drawing shows
+   * it, and a bounding-box one keeps its unit coordinates. Undefined when it
+   * paints with no gradient the bake reads.
+   */
+  const gradientIn = (leaf: Leaf, name: "fill" | "stroke", space: Affine): MorphGradient | undefined => {
+    const id = paintOf(leaf).server[name];
+    const gradient = id === undefined ? undefined : gradientOf(id);
+    const from = doc!.info.get(leaf.element)?.rootFromElement;
+    if (!gradient || !from) return undefined;
+    if (gradient.units === "objectBoundingBox") return gradient;
+    const fine = (n: number) => Math.round(n * 1e9) / 1e9 || 0;
+    return { ...gradient, transform: multiply(multiply(space, from), gradient.transform as Affine).map(fine) };
+  };
+  /**
+   * The gradient copies live parts carry, by the node that paints with each
+   * and the property it fills: each node gets its own, so the authored
+   * drawing and other carriers keep theirs.
+   */
+  const gradientCopies = new Map<string, { id: string; home: Leaf; gradient: MorphGradient }>();
+  let gradientSerial = 0;
+  /**
+   * What a track's fill and stroke blend as gradients: where both ends paint
+   * with gradients that match and the node the shape draws on would not
+   * already show the same one at both ends.
+   */
+  const gradientBlends = (from: Leaf, to: Leaf, home: Leaf, draw: string, space: Affine) => {
+    const out: { fill?: MorphGradientBlend; stroke?: MorphGradientBlend } = {};
+    for (const name of ["fill", "stroke"] as const) {
+      const a = gradientIn(from, name, space);
+      const b = gradientIn(to, name, space);
+      if (!a || !b || !gradientsMatch(a, b)) continue;
+      const same = (x: MorphGradient | undefined) => JSON.stringify(x) === JSON.stringify(a);
+      if (same(b) && same(gradientIn(home, name, space))) continue;
+      const key = `${draw}:${name}`;
+      let copy = gradientCopies.get(key);
+      if (!copy) {
+        let id = `morph-gradient-${gradientSerial++}`;
+        while (doc!.byId.has(id)) id = `morph-gradient-${gradientSerial++}`;
+        copy = { id, home, gradient: a };
+        gradientCopies.set(key, copy);
+      }
+      out[name] = { id: `${prefix}${copy.id}`, ends: [a, b] };
+    }
+    return out;
+  };
 
   const geometryCache: MorphGeometryCache = options.geometry ?? new Map();
   const frames: MorphFrames[] = [];
@@ -882,8 +939,19 @@ export function* bakeSteps(
         // The moving shape's paint blends between its two drawings' on
         // whichever node draws it, a carrier copied from a third drawing
         // included.
-        const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home));
-        transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref, ...(paint ? { paint } : {}) });
+        // A gradient pair blends on a copy of its own (`gradientBlends`).
+        const gradients = gradientBlends(from, to, home, draw, space);
+        const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home), { fill: !!gradients.fill, stroke: !!gradients.stroke });
+        transitions.push({
+          kind: "morph",
+          from: nodeOf(from),
+          to: nodeOf(to),
+          draw,
+          shared: pair.shared,
+          frames: ref,
+          ...(paint ? { paint } : {}),
+          ...(gradients.fill || gradients.stroke ? { gradients } : {}),
+        });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
           if (!clip.between.includes(from.label)) continue;
           if (morph.tracks.length !== 1) {
@@ -1059,7 +1127,6 @@ export function* bakeSteps(
   // aperture, in root space (or clipped by it, in the parent's space; see
   // below). The target's own clips and masks stay on it, so the two
   // intersect.
-  const prefix = idPrefixFor(input.key);
   const clipTargets: MorphClipTarget[] = [];
   const targetOf = new Map<string, Element>();
   const wrappers = new Map<Element, Wrapper[]>();
@@ -1363,10 +1430,17 @@ export function* bakeSteps(
       }
     }
     const { root, ids } = extractTree(doc!, keep, { extra, missing });
-    if (used.length) {
-      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => apertureElement(w)) };
+    // The gradient copies of the nodes this part draws, unreferenced at rest.
+    const copies = run.live ? [...gradientCopies.values()].filter((copy) => keep.has(copy.home.element)) : [];
+    if (used.length || copies.length) {
+      const defs: Element = {
+        tagName: "defs",
+        attributes: {},
+        children: [...used.map((w) => apertureElement(w)), ...copies.map((copy) => gradientCopy(copy.id, copy.gradient))],
+      };
       root.children.unshift(defs);
       for (const w of used) ids.add(w.id);
+      for (const copy of copies) ids.add(copy.id);
     }
     namespaceTree(root, prefix, ids);
     return { kind: run.live ? "live" : "static", svg: serialize(root) };

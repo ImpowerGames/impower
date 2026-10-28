@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 10;
+export const MORPH_BAKE_FORMAT = 12;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -202,7 +202,8 @@ export interface MorphGeometryRef {
  * of the artifact's `frames` table, in the node's own user space.
  *
  * - `morph`: between the ends the `draw` node's geometry follows the frames,
- *   and its paint blends `paint`'s two ends, then the `to` node takes over. The moving drawing paints at the depth
+ *   and its paint blends `paint`'s two ends and `gradients`', then the `to`
+ *   node takes over. The moving drawing paints at the depth
  *   its layer has in the pose its `depth` names (the variant's rest pose by
  *   default): `draw` is whichever of `from` and `to` that pose shows, or,
  *   for a named pose that shows neither, a hidden carrier of that pose's
@@ -221,7 +222,16 @@ export interface MorphGeometryRef {
  *   segment, so the moving aperture alone decides what shows.
  */
 export type MorphTransition =
-  | { kind: "morph"; from: string; to: string; draw: string; shared: boolean; frames: MorphGeometryRef; paint?: MorphPaint }
+  | {
+      kind: "morph";
+      from: string;
+      to: string;
+      draw: string;
+      shared: boolean;
+      frames: MorphGeometryRef;
+      paint?: MorphPaint;
+      gradients?: { fill?: MorphGradientBlend; stroke?: MorphGradientBlend };
+    }
   | { kind: "fade"; from?: string; to?: string }
   | { kind: "cut"; from?: string; to?: string }
   | { kind: "scale"; node: string; draw: string; direction: "shrink" | "grow"; frames: MorphGeometryRef }
@@ -238,7 +248,8 @@ export type MorphColor = [number, number, number, number];
  * inherits, else the SVG initial value). A `none` fill or stroke is the
  * other end's colour at zero alpha. A fill or stroke either end paints with
  * something other than a colour (a paint server) records neither it nor its
- * opacity.
+ * opacity, unless both ends' gradients blend (the transition's `gradients`),
+ * which records its opacity.
  */
 export interface MorphPaint {
   fill?: [MorphColor, MorphColor];
@@ -246,6 +257,37 @@ export interface MorphPaint {
   "fill-opacity"?: [number, number];
   "stroke-opacity"?: [number, number];
   opacity?: [number, number];
+}
+
+/**
+ * One end of a gradient a moving drawing's fill or stroke blends, resolved
+ * through its `href` chain, in the user space of the node the shape draws
+ * on: a `userSpaceOnUse` gradient's `transform` maps it there from the end's
+ * own drawing; an `objectBoundingBox` one keeps its unit coordinates and
+ * follows the moving shape's box.
+ */
+export interface MorphGradient {
+  kind: "linear" | "radial";
+  units: "userSpaceOnUse" | "objectBoundingBox";
+  spread: "pad" | "reflect" | "repeat";
+  /** `x1 y1 x2 y2` for a linear gradient, `cx cy r fx fy fr` for a radial one. */
+  geometry: number[];
+  /** The `gradientTransform`, `[a, b, c, d, e, f]`. */
+  transform: number[];
+  /** Each stop's offset and colour, its `stop-opacity` folded into the alpha. */
+  stops: [number, MorphColor][];
+}
+
+/**
+ * A gradient a moving drawing's fill or stroke blends between its two
+ * drawings: `id` is the copy of it in the live part (before occurrence
+ * namespacing) that the `draw` node paints with between the ends, and `ends`
+ * are the two drawings' gradients, of the same kind, units, spread and stop
+ * count.
+ */
+export interface MorphGradientBlend {
+  id: string;
+  ends: [MorphGradient, MorphGradient];
 }
 
 /** One clip entry's aperture through a segment: an `apertures` table entry. */
