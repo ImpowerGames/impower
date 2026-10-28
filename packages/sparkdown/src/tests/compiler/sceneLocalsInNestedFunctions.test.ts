@@ -65,6 +65,10 @@ describe("a function written in a flow reads the flow's locals declared above it
     ],
     ["a branch's own line reading its scene's parameter", "-> main(5)\nscene main(foo)\n  branch b\n    Got {foo}.\n  end\nend\n"],
     [
+      "a local function of the scene, written after a branch, reading the scene's local",
+      "scene main\n  local foo = 5\n  branch b\n    Branch.\n  end\n  local function g()\n    return foo\n  end\n  & g()\nend\n",
+    ],
+    [
       "a local function in a choice body",
       "scene main\n  local foo = 5\n  choose\n    + choice\n      local function g()\n        return foo\n      end\n      & g()\n  end\nend\n",
     ],
@@ -119,6 +123,11 @@ describe("a function written in a flow reads the flow's locals declared above it
       "a function value in a branch reading its scene's local",
       "scene main\n  local foo = 5\n  branch b\n    local f = function() return foo end\n    & f()\n  end\nend\n",
       ["4: Unknown global 'foo'; consider assigning to it first"],
+    ],
+    [
+      "a local function of the scene, written after a branch, reading the branch's local",
+      "scene main\n  branch b\n    local foo = 5\n  end\n  local function g()\n    return foo\n  end\n  & g()\nend\n",
+      ["6: Unknown global 'foo'; consider assigning to it first"],
     ],
     [
       "a branch's own line reading its scene's local",

@@ -310,10 +310,11 @@ end
   local bad: string = 1
 end
 `);
+    // The scene's unit reports before its branch's (I-1674).
     expect(typeWarnings(program)).toEqual([
       "6:24-6:25 Expected this to be 'string', but got 'number'",
-      "8:30-8:31 Expected this to be 'string', but got 'number'",
       "10:22-10:23 Expected this to be 'string', but got 'number'",
+      "8:30-8:31 Expected this to be 'string', but got 'number'",
     ]);
   });
 

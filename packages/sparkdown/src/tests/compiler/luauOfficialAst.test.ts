@@ -41,7 +41,6 @@ const EXEMPTIONS = [
   "AstExprFunction.varargLocation when vararg is false: no source token",
   "The __flow wrapper header: wrapper name and the begins of its containing blocks",
   "The synthesized end of an unclosed __flow wrapper: ends of its containing blocks",
-  "The blocks a scene with branches is read in (its lines, each branch): their own spans, which begin and end at synthesized tokens",
   "Substituted Sparkdown expression ends, including containing spans; begins still compare",
   "Branch initializer values and the containing local's end are written past the header",
   "A function body begin after a synthesized parameter list has no written token",
@@ -369,15 +368,6 @@ describe.skipIf(!officialLuauAvailable)(
               else
                 object["location"] =
                   `${location[0]!.startsWith(`${headerLine},`) ? "<wrapper begin>" : location[0]} - ${flow.syntheticEnd ? "<wrapper end>" : location[1]}`;
-            }
-          }
-          // A scene with branches is read in blocks the wrapper writes, its
-          // lines in one and each branch in one of its own (I-1674); every
-          // node inside them still compares.
-          if (flow.text.includes("end; do")) {
-            for (const value of [left, right]) {
-              const blocks = at(value, [...header, "func", "body", "body"]) as unknown as Json[];
-              for (const block of blocks) (block as Record<string, Json>)["location"] = "<wrapper block>";
             }
           }
         }
