@@ -56,9 +56,9 @@ describe("a repeat loop whose body ends with a local declaration", () => {
     expect(r.output).toBe("Result 1.\n");
   });
 
-  test("the top level shows the line after the loop", () => {
+  test("a scene shows the line after the loop", () => {
     const r = run(
-      "store n = 0\nrepeat n = n + 1 local z = 1 until true\nCount {n}.\n",
+      "store n = 0\n-> start\nscene start\n  repeat n = n + 1 local z = 1 until true\n  Count {n}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Count 1.\n");

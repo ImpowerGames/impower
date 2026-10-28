@@ -121,14 +121,14 @@ describe("an if expression whose then is glued to its condition and ends its lin
   // A then arm with no value reports the same errors whether or not its
   // `then` is glued, and never asks for an `else` it has not reached.
   const missingValue: [string, (opening: string) => string][] = [
-    ["at the end of the script", (opening) => `local c = true\nlocal s = ${opening}`],
-    ["at the end of the script before a final line break", (opening) => `local c = true\nlocal s = ${opening}\n`],
-    ["followed by trailing whitespace at the end of the script", (opening) => `local c = true\nlocal s = ${opening}  \n`],
+    ["at the end of the script", (opening) => `store c = true\nstore s = ${opening}`],
+    ["at the end of the script before a final line break", (opening) => `store c = true\nstore s = ${opening}\n`],
+    ["followed by trailing whitespace at the end of the script", (opening) => `store c = true\nstore s = ${opening}  \n`],
     ["whose next line begins a statement", (opening) => `function f(c)\n  local s = ${opening}\n  return s\nend\n`],
     ["whose next line ends the function", (opening) => `function f(c)\n  local s = ${opening}\nend\n`],
-    ["before a column-0 line", (opening) => `local c = true\nlocal s = ${opening}\nlocal t = 1\n`],
-    ["before a column-0 call", (opening) => `local c = true\nlocal s = ${opening}\nprint(c)\n`],
-    ["in a reassignment before a column-0 call", (opening) => `local c = true\nlocal s = 0\ns = ${opening}\nprint(s)\n`],
+    ["before a column-0 line", (opening) => `store c = true\nstore s = ${opening}\nstore t = 1\n`],
+    ["before a column-0 call", (opening) => `store c = true\nstore s = ${opening}\nprint(c)\n`],
+    ["in a reassignment before a column-0 call", (opening) => `store c = true\nstore s = 0\ns = ${opening}\nprint(s)\n`],
   ];
   describe.each(missingValue)("an arm with no value %s", (_, script) => {
     test.each([

@@ -1,14 +1,17 @@
-choose
-  local i = 0
-  while i < 2 do
-    i = i + 1
-    * While {i}
-      Chose while {i}.
+-> start
+scene start
+  choose
+    local i = 0
+    while i < 2 do
+      i = i + 1
+      * While {i}
+        Chose while {i}.
+    end
+    for j = 1, 2 do
+      * For {j}
+    end
+    * Outer
   end
-  for j = 1, 2 do
-    * For {j}
-  end
-  * Outer
+  After.
+  done
 end
-After.
-done

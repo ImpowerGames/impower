@@ -4,7 +4,7 @@ sparkdown [0..36]
  │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [0..5]
- │   │   │   └─ LuauScopeModifier [0..5]: "local"
+ │   │   │   └─ LuauScopeModifier [0..5]: "store"
  │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "

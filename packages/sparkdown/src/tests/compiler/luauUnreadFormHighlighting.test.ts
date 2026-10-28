@@ -696,7 +696,7 @@ test.each([
 // Attributes before a declaration that is not a function report Luau's
 // error for the missing function.
 test("attributes before a local declaration report the missing function (#1924)", () => {
-  expect(compile("@native\nlocal answer = 42\nThe story continues.\n")).toContain(
+  expect(compile("-> start\nscene start\n  @native\n  local answer = 42\n  The story continues.\nend\n")).toContain(
     "Expected 'function' after local declaration with attribute, but got 'answer' instead",
   );
 });

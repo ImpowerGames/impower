@@ -1,11 +1,9 @@
 // A function statement (`function g() ... end`, no `local`) written inside a
 // function is `g = function() ... end`, as Luau's is (I-1422). Naming a
-// top-level local in scope where the function is written, it assigns that
-// local: the function's entry binds the name to the root frame's local
-// (`RootBinding`, I-823). With no local of the name in scope, it assigns
-// the global. It never declares a local of the function. The
-// enclosing-function case is EnclosingLocalFunctionStatement.test.ts
-// (I-1349).
+// local of the scene in scope where the function is written, it assigns
+// that local. With no local of the name in scope, it assigns the global. It
+// never declares a local of the function. The enclosing-function case is
+// EnclosingLocalFunctionStatement.test.ts (I-1349).
 
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -44,206 +42,236 @@ const run = (lines: string[]) =>
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-describe("a function statement in a top-level function naming a top-level local", () => {
+// The lines of scene `S`, which the story diverts to.
+const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
+
+describe("a function statement in a scene's local function naming the scene's local", () => {
   test("assigns the local", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change()",
-        "  function g() return 3 end",
-        "end",
-        "& change()",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change()",
+          "  function g() return 3 end",
+          "end",
+          "& change()",
+          "Got {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3."));
   });
 
   test("assigns a local holding a value", () => {
     expect(
-      run([
-        "local g = 1",
-        "function change()",
-        "  function g() return 3 end",
-        "end",
-        "& change()",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene([
+          "local g = 1",
+          "local function change()",
+          "  function g() return 3 end",
+          "end",
+          "& change()",
+          "Got {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3."));
   });
 
   test("assigns the local from a block inside the function", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change()",
-        "  do",
-        "    function g() return 3 end",
-        "  end",
-        "end",
-        "& change()",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change()",
+          "  do",
+          "    function g() return 3 end",
+          "  end",
+          "end",
+          "& change()",
+          "Got {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3."));
   });
 
   test("assigns the local from an if inside the function", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change(x)",
-        "  if x then",
-        "    function g() return 3 end",
-        "  end",
-        "end",
-        "& change(false)",
-        "Before {g()}.",
-        "& change(true)",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change(x)",
+          "  if x then",
+          "    function g() return 3 end",
+          "  end",
+          "end",
+          "& change(false)",
+          "Before {g()}.",
+          "& change(true)",
+          "Got {g()}.",
+        ]),
+      ),
     ).toEqual(got("Before 1.", "Got 3."));
   });
 
   test("assigns the local from a local function inside the function", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change()",
-        "  local function inner()",
-        "    function g() return 3 end",
-        "  end",
-        "  inner()",
-        "end",
-        "& change()",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change()",
+          "  local function inner()",
+          "    function g() return 3 end",
+          "  end",
+          "  inner()",
+          "end",
+          "& change()",
+          "Got {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3."));
   });
 
   test("a variadic definition assigns the local", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change()",
-        '  function g(...) return select("#", ...) + 3 end',
-        "end",
-        "& change()",
-        "Got {g()} {g(1, 2)}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change()",
+          '  function g(...) return select("#", ...) + 3 end',
+          "end",
+          "& change()",
+          "Got {g()} {g(1, 2)}.",
+        ]),
+      ),
     ).toEqual(got("Got 3 5."));
   });
 
   test("the defining function, other functions and closures see the new value", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "local f = function() return g() end",
-        "function get()",
-        "  return g()",
-        "end",
-        "function change()",
-        "  function g() return 3 end",
-        "  return g()",
-        "end",
-        "Got {change()} {get()} {f()} {g()}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local f = function() return g() end",
+          "local function get()",
+          "  return g()",
+          "end",
+          "local function change()",
+          "  function g() return 3 end",
+          "  return g()",
+          "end",
+          "Got {change()} {get()} {f()} {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3 3 3 3."));
   });
 
   test("a definition that calls itself reads the local", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change()",
-        "  function g(n) if n > 0 then return g(n - 1) + 1 end return 0 end",
-        "end",
-        "& change()",
-        "Got {g(3)}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change()",
+          "  function g(n) if n > 0 then return g(n - 1) + 1 end return 0 end",
+          "end",
+          "& change()",
+          "Got {g(3)}.",
+        ]),
+      ),
     ).toEqual(got("Got 3."));
   });
 
   test("assigns the declaration in scope of a name declared twice", () => {
     expect(
-      run([
-        "local g = 1",
-        "function first() return g end",
-        "local g = 2",
-        "function change()",
-        "  function g() return 3 end",
-        "end",
-        "& change()",
-        "Got {first()} {g()}.",
-      ]),
+      run(
+        inScene([
+          "local g = 1",
+          "local function first() return g end",
+          "local g = 2",
+          "local function change()",
+          "  function g() return 3 end",
+          "end",
+          "& change()",
+          "Got {first()} {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 1 3."));
   });
 
-  test("a define's method assigns the local", () => {
+  test("a method of a define written in a local function assigns the local", () => {
     expect(
-      run([
-        "local g = 1",
-        "define thing with",
-        "  function m()",
-        "    function g() return 3 end",
-        "  end",
-        "end",
-        "& thing.m()",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene([
+          "local g = 1",
+          "local function install()",
+          "  define thing with",
+          "    function m()",
+          "      function g() return 3 end",
+          "    end",
+          "  end",
+          "end",
+          "& install()",
+          "& thing.m()",
+          "Got {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3."));
   });
 
-  test("a closure written at the top level assigns the local", () => {
+  test("a closure assigns the local", () => {
     expect(
-      run([
-        "local g = 1",
-        "local h = function()",
-        "  function g() return 3 end",
-        "end",
-        "& h()",
-        "Got {g()}.",
-      ]),
+      run(
+        inScene([
+          "local g = 1",
+          "local h = function()",
+          "  function g() return 3 end",
+          "end",
+          "& h()",
+          "Got {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3."));
   });
 
   test("a parameter of the function of that name is assigned instead", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change(g)",
-        "  function g() return 3 end",
-        "  return g()",
-        "end",
-        "Got {change(nil)} {g()}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change(g)",
+          "  function g() return 3 end",
+          "  return g()",
+          "end",
+          "Got {change(nil)} {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3 1."));
   });
 
   test("a local of the function of that name is assigned instead", () => {
     expect(
-      run([
-        "local function g() return 1 end",
-        "function change()",
-        "  local g = nil",
-        "  function g() return 3 end",
-        "  return g()",
-        "end",
-        "Got {change()} {g()}.",
-      ]),
+      run(
+        inScene([
+          "local function g() return 1 end",
+          "local function change()",
+          "  local g = nil",
+          "  function g() return 3 end",
+          "  return g()",
+          "end",
+          "Got {change()} {g()}.",
+        ]),
+      ),
     ).toEqual(got("Got 3 1."));
   });
 });
 
 // With no local of the name in scope, the statement assigns the global, as
-// an assignment of the name does: a top-level `local function` is a
-// function of the story, as a top-level `function` is, and a `store` is a
-// global, in whatever script and form they are declared.
+// an assignment of the name does: a top-level `function` is a function of
+// the story, and a `store` is a global, in whatever script and form they are
+// declared.
 describe("a function statement in a top-level function naming a global", () => {
   test.each([
     ["a top-level function", "function g() return 1 end"],
     ["a store", "store g = 1"],
     ["an & store", "& store g = 1"],
-    ["an & local function", "& local function g() return 1 end"],
-    ["an & local", "& local g = 1"],
   ])("assigns %s", (_, decl) => {
     expect(
       run([decl, "function change()", "  function g() return 3 end", "end", "& change()", "Got {g()}."]),
@@ -259,19 +287,6 @@ describe("a function statement in a top-level function naming a global", () => {
     );
     expect(errorsOf(program)).toEqual([]);
     expect(quiet(() => shown(program.chunks!))).toEqual(got("Got 3."));
-  });
-
-  test("a closure written at the top level assigns a top-level local function", () => {
-    expect(
-      run([
-        "local function g() return 1 end",
-        "local h = function()",
-        "  function g() return 3 end",
-        "end",
-        "& h()",
-        "Got {g()}.",
-      ]),
-    ).toEqual(got("Got 3."));
   });
 
   test("a name the story declares nowhere becomes a global once the function runs", () => {
@@ -398,19 +413,21 @@ describe("a call after a function statement named after a builtin", () => {
     expect(run([...inMethod, "M {thing.m()}."])).toEqual(got("M replacement."));
   });
 
-  test("a recursive call reaches a top-level local the statement assigns", () => {
+  test("a recursive call reaches a scene's local the statement assigns", () => {
     expect(
-      run([
-        "local count = 0",
-        "function change()",
-        "  function count(n)",
-        "    if n == 0 then return 'replacement' end",
-        "    return count(n - 1)",
-        "  end",
-        "end",
-        "& change()",
-        "Got {count(2)}.",
-      ]),
+      run(
+        inScene([
+          "local count = 0",
+          "local function change()",
+          "  function count(n)",
+          "    if n == 0 then return 'replacement' end",
+          "    return count(n - 1)",
+          "  end",
+          "end",
+          "& change()",
+          "Got {count(2)}.",
+        ]),
+      ),
     ).toEqual(got("Got replacement."));
   });
 
@@ -428,13 +445,10 @@ describe("a call after a function statement named after a builtin", () => {
   });
 });
 
-// Which variable the statement assigns depends on the lines above the
-// function (the top-level `local` its entry binds, or the global), so an
-// edit there lowers the function again.
+// The statement's lowering depends on what the lines above the function
+// declare of its name, so an edit there lowers the function again.
 describe("an incremental compile of a function statement naming a top-level name", () => {
   test.each([
-    ["the local added above it", "store b = 0", "store b = 0\nlocal g = 1", "Got 3 3."],
-    ["the local removed", "store b = 0\nlocal g = 1", "store b = 0", "Got 3 3."],
     ["a top-level function added", "store b = 0", "store b = 0\nfunction g() return 1 end", "Got 3 3."],
     ["the top-level function removed", "store b = 0\nfunction g() return 1 end", "store b = 0", "Got 3 3."],
   ])("shows what a cold compile shows after %s", (_, before, after, expected) => {

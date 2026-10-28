@@ -61,7 +61,7 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
   });
   test.each(["", "& "])("a %sfunction expression keeps its multiline code body", (mark) => {
-    const ctx = makeRuntimeStoryFromSource(`${mark}local f = function()\n  do\n    return 5\n  end\nend\nValue {f()}.\ndone\n`);
+    const ctx = makeRuntimeStoryFromSource(`-> start\nscene start\n  ${mark}local f = function()\n    do\n      return 5\n    end\n  end\n  Value {f()}.\n  done\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
@@ -84,7 +84,7 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     ["do x = 5 end", 5],
     ["--[[comment]] x = 5", 5],
   ])("a bounded do preserves code effects: %s", async (body, value) => {
-    const source = `store x = 0\n& do ${body} end\nreturn to the village\nValue {x}.\ndone\n`;
+    const source = `store x = 0\n-> start\nscene start\n  & do ${body} end\n  return to the village\n  Value {x}.\n  done\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(`return to the village\nValue ${value}.\n`);

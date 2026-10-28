@@ -2,8 +2,9 @@
 // literal at story scope is part of the declaration, as Luau reads it
 // (`simpleexp :: type`, I-1364): a `local`, `store` or `const` value, one
 // of several values, a value after an annotation, a function spanning lines
-// and a table field's function. The declaration runs to the line's end in
-// both TextMate engines, the official parser reports nothing, the compiled
+// and a table field's function. A `local` is written in a scene body and a
+// `store` or `const` at the top level, each a story statement. The
+// declaration runs to the line's end in both TextMate engines, the official parser reports nothing, the compiled
 // program reports nothing, the story prints the line after it, and an
 // incremental compile reports what a cold one does.
 import { describe, expect, test } from "vitest";
@@ -17,7 +18,23 @@ import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
+// The story enters the scene that holds a `local` form, or that follows a
+// `store` or `const` form, and prints the form's use of `w` there.
+const SCENE = "-> start\nscene start\n";
 const NEXT = "\nlocal w = 5\n";
+
+/** `form` with each of its lines indented as a scene body's. */
+function inScene(form: string): string {
+  return form.replace(/^/gm, "  ");
+}
+
+/** The story that declares `form` and prints `use` on the line after it. */
+function storyOf(form: string, use: string): { text: string; declaration: string } {
+  const body = `  local w = 5\n  Value {${use}}.\nend\n`;
+  if (/^(?:store|const)\b/.test(form)) return { text: `${form}\n${SCENE}${body}`, declaration: form };
+  const declaration = inScene(form);
+  return { text: `${SCENE}${declaration}\n${body}`, declaration };
+}
 
 /** Every diagnostic, as `start-end message` in 0-based lines and characters, sorted. */
 function diagnosticsOf(compiler: SparkdownCompiler): string[] {
@@ -81,9 +98,10 @@ function holdsCast(node: SyntaxNode): boolean {
   return false;
 }
 
-// [form, the story's use of what it declares]. Each form is one declaration;
-// the Luau the official parser reads is the form with `store` or `const`
-// written as `local`, followed by `NEXT`.
+// [form, the story's use of what it declares]. Each form is one declaration,
+// written in the story as `storyOf` places it; the Luau the official parser
+// reads is the form with `store` or `const` written as `local`, followed by
+// `NEXT`.
 const FORMS: Record<string, [form: string, use: string][]> = {
   "a declaration's value": [
     ["local id = function(x) return x end :: () -> number", "id(w)"],
@@ -121,16 +139,17 @@ describe("a type assertion after an unparenthesized function literal at story sc
   for (const [group, forms] of Object.entries(FORMS)) {
     describe(group, () => {
       for (const [form, use] of forms) {
-        const text = `${form}${NEXT}Value {${use}}.\n`;
+        const { text, declaration: written } = storyOf(form, use);
         const luau = `${form.replace(/^(?:store|const)\b/, "local")}${NEXT}`;
 
         test(`${JSON.stringify(form)}: the declaration holds the line`, () => {
           const tree = stripAnsi(dumpTree(text));
-          const [declaration] = topLevel(text);
+          const from = text.indexOf(written);
+          const declaration = topLevel(text).find((node) => node.from === from);
           expect([declaration?.name, declaration?.from, declaration?.to], tree).toEqual([
             "LuauSparkdownVariableDefinition",
-            0,
-            form.length,
+            from,
+            from + written.length,
           ]);
           if (form.includes("::")) expect(holdsCast(declaration!), tree).toBe(true);
         });

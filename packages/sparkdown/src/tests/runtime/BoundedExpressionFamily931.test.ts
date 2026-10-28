@@ -135,7 +135,7 @@ describe("closed narrative expression family", () => {
     ["local t = {n = 5}; x = t.n", 5], ["local n: number = 5; x = n", 5],
     ["x = if false then 1 else 5", 5], ["x = (5 :: number)", 5],
   ])("same-line %s retains effects and engine parity", async (body, value) => {
-    const source = `store x = 0\n& do ${body} end\nreturn to the village\nValue {x}.\ndone\n`;
+    const source = `store x = 0\n-> a\nscene a\n& do ${body} end\nreturn to the village\nValue {x}.\ndone\nend\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe(`return to the village\nValue ${value}.\n`);
@@ -160,7 +160,7 @@ describe("closed narrative expression family", () => {
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test("a marked anonymous function retains multiline parameters and body", async () => {
-    const source = "store x = 0\n& do local identity = function(\n  value\n)\n  return value\nend; x = identity(5) end\nreturn to the village\nValue {x}.\ndone\n";
+    const source = "store x = 0\n-> a\nscene a\n& do local identity = function(\n  value\n)\n  return value\nend; x = identity(5) end\nreturn to the village\nValue {x}.\ndone\nend\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("return to the village\nValue 5.\n");

@@ -102,7 +102,11 @@ describe("a multiple declaration binds after its values", () => {
   // keep them in step with the store's order. A top-level `const` takes one
   // name (ConstMultiDeclaration.test.ts).
   it.each([
-    ["a top-level local list", "local a, b = 1, a\n\nValue {b}.\n", "Value nil.\n"],
+    [
+      "a scene's local list",
+      "-> start\nscene start\n  local a, b = 1, a\n\n  Value {b}.\nend\n",
+      "Value nil.\n",
+    ],
     [
       "a local list in a function",
       "function f()\n  local a = 0\n  local a, b = 1, a\n  return b\nend\nValue {f()}.\n",

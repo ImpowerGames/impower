@@ -14,8 +14,6 @@ define after with
   a = 1
 scene Start
   Real content.
-  define inner with
-    b = 2
   branch Next
     More content.
   end

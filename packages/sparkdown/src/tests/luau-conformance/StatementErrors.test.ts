@@ -18,10 +18,11 @@ import {
 } from "./diagnosticTestHarness";
 
 // Luau: recovery_error_limit_1
-// `parse("local a = ")` reports exactly one error.
+// `parse("local a = ")` reports exactly one error. The line stands in a scene,
+// where a declaration ends at its line as upstream's chunk ends after it.
 describe("an assignment with no value", () => {
   test("local a = ", () => {
-    const msgs = diagnose("local a = ");
+    const msgs = diagnose("-> s\nscene s\n  local a = \nend\n");
     expect(msgs).toEqual([
       "Expected identifier when parsing expression, got <eof>",
     ]);

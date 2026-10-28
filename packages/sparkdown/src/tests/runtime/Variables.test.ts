@@ -41,8 +41,9 @@ describe("Variables (ported from inkjs)", () => {
     expect(runToEnd(ctx.story)).toBe("5\n");
   });
 
-  test("temporaries at global scope (adjacent `{x}{y}` concatenates)", () => {
-    // Two adjacent interpolations on one line emit "54" — concatenated,
+  test("a store and a scene's local side by side (adjacent `{x}{y}` concatenates)", () => {
+    // A top-level `store x` and a `local y` in the scene the story
+    // diverts to. Two adjacent interpolations on one line emit "54" — concatenated,
     // no newline between them. `lowerLuauInterpolatedStringExpression`
     // peeks at the next textmate-tree sibling; if it's another
     // `LuauInterpolatedStringExpression` with no `Newline` separator,
@@ -164,7 +165,8 @@ describe("Variables (ported from inkjs)", () => {
     //   & local x = 5
     //   hello
     //
-    // Line 1 references `x` before its declaration on line 2. Ink's
+    // The fixture holds these lines in a scene the story diverts to. The
+    // first references `x` before its declaration on the next. Ink's
     // original behaviour was to emit a runtime warning ("Variable not
     // found: 'x'. Using default value of 0") and throw on the next
     // dispatch. Sparkdown follows Luau-superset semantics instead:

@@ -21,6 +21,13 @@ function runSavingEachStep(story: TestStory): string {
   return out;
 }
 
+// Places the lines in a scene the story diverts to, where a local is
+// declared.
+function inScene(body: string): string {
+  const lines = body.replace(/\n$/, "").split("\n");
+  return `-> start\nscene start\n${lines.map((l) => `  ${l}`).join("\n")}\nend\n`;
+}
+
 // The globals a save of the story holds.
 function savedGlobals(story: TestStory): Record<string, unknown> {
   return JSON.parse(story.state.toJson()).variablesState ?? {};
@@ -57,14 +64,14 @@ describe("an unfinished assignment", () => {
 
 describe("an unfinished `local`", () => {
   test("`& local y =` declares the local nil and saves", () => {
-    const src = `& local y =\ny is {y == nil}.\n${TAIL}`;
+    const src = inScene(`& local y =\ny is {y == nil}.\n${TAIL}`);
     const { story, errorMessages } = makeRuntimeStoryFromSource(src);
     expect(errorMessages).toHaveLength(1);
     expect(runSavingEachStep(story)).toBe(`y is true.\n${TAIL}`);
   });
 
   test("a later assignment assigns the local, not a global", () => {
-    const src = `& local y =\n& y = 2\ny is {y}.\n${TAIL}`;
+    const src = inScene(`& local y =\n& y = 2\ny is {y}.\n${TAIL}`);
     const { story, errorMessages } = makeRuntimeStoryFromSource(src);
     expect(errorMessages).toHaveLength(1);
     expect(runSavingEachStep(story)).toBe(`y is 2.\n${TAIL}`);
@@ -72,7 +79,9 @@ describe("an unfinished `local`", () => {
   });
 
   test("`& local p, q =` declares both locals nil and saves", () => {
-    const src = `& local p, q =\n& q = 3\np is {p == nil}, q is {q}.\n${TAIL}`;
+    const src = inScene(
+      `& local p, q =\n& q = 3\np is {p == nil}, q is {q}.\n${TAIL}`,
+    );
     const { story, errorMessages } = makeRuntimeStoryFromSource(src);
     expect(errorMessages).toHaveLength(1);
     expect(runSavingEachStep(story)).toBe(`p is true, q is 3.\n${TAIL}`);

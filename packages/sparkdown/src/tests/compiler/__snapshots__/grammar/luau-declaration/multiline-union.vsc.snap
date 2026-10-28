@@ -1,4 +1,4 @@
-text.source.sparkdown [0..195]
+text.source.sparkdown [0..214]
  ├─ meta.function.luau [0..20]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -97,14 +97,22 @@ text.source.sparkdown [0..195]
  ├─ meta.function.luau [168..171]
  │   └─ keyword.control.end.luau [168..171]: "end"
  ├─ Newline [171..172]: "\n"
- ├─ storage.modifier.scope.luau [172..177]: "local"
- ├─ punctuation.whitespace.optional.sd [177..178]: " "
- ├─ variable.other.readwrite.luau [178..179]: "w"
- ├─ keyword.operator.type.luau [179..180]: ":"
- ├─ punctuation.whitespace.optional.sd [180..181]: " "
- ├─ support.type.primitive.luau [181..187]: "number"
- ├─ Newline [187..188]: "\n"
- ├─ string.display.text.chunk.sd [188..194]
- │   ├─ markup.raw.text.sd [188..193]: "Hello"
- │   └─ markup.raw.punctuation.sd [193..194]: "."
- └─ Newline [194..195]: "\n"
+ ├─ keyword.control.scene.sd [172..177]: "scene"
+ ├─ punctuation.whitespace.required.sd [177..178]: " "
+ ├─ keyword.control.section.sd [178..182]: "main"
+ ├─ Newline [182..183]: "\n"
+ ├─ punctuation.whitespace.optional.sd [183..185]: "  "
+ ├─ storage.modifier.scope.luau [185..190]: "local"
+ ├─ punctuation.whitespace.optional.sd [190..191]: " "
+ ├─ variable.other.readwrite.luau [191..192]: "w"
+ ├─ keyword.operator.type.luau [192..193]: ":"
+ ├─ punctuation.whitespace.optional.sd [193..194]: " "
+ ├─ support.type.primitive.luau [194..200]: "number"
+ ├─ Newline [200..201]: "\n"
+ ├─ punctuation.whitespace.optional.sd [201..203]: "  "
+ ├─ string.display.text.chunk.sd [203..209]
+ │   ├─ markup.raw.text.sd [203..208]: "Hello"
+ │   └─ markup.raw.punctuation.sd [208..209]: "."
+ ├─ Newline [209..210]: "\n"
+ ├─ keyword.control.end.luau [210..213]: "end"
+ └─ Newline [213..214]: "\n"

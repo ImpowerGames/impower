@@ -1,9 +1,12 @@
-A
-& local someTemp = getNumber()
-B
-A
-{getNumber()}
-B
-done
+-> start
+scene start
+  A
+  & local someTemp = getNumber()
+  B
+  A
+  {getNumber()}
+  B
+  done
+end
 
 function getNumber() return 3 end

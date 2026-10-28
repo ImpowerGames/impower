@@ -199,18 +199,19 @@ describe("the reported layouts", () => {
   // Luau's end-of-file range does. A story declaration ends at its line
   // (#1907), so what follows it, a scene's `end` too, is never what its Luau
   // meets. A `store` declaration and a scene's parameters are Sparkdown's own,
-  // and the validator reports them, with the range the checker would give.
+  // and the validator reports them, with the range the checker would give; a
+  // `store` in a scene is also misplaced. A local belongs in a scene, so each
+  // local is written in one.
   test.each([
-    ["local x:", ["0:8-1:0 Expected type, got <eof>"]],
-    ["local x: --[[c]]\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
+    ["scene s\n  local x: --[[c]]\n  Story.\nend", ["1:10-2:0 Expected type, got <eof>"]],
     ["scene s\n  local x:\nend", ["1:10-2:0 Expected type, got <eof>"]],
-    ["local x --[[c]] :: number", ["0:16-0:18 Expected identifier when parsing expression, got '::'", "0:19-0:25 Incomplete statement: expected assignment or a function call"]],
+    ["scene s\n  local x --[[c]] :: number\nend", ["1:18-1:20 Expected identifier when parsing expression, got '::'", "1:21-1:27 Incomplete statement: expected assignment or a function call"]],
     ["store x: = 1", ["0:8-0:10 Expected type, got '='"]],
     ["store x:", ["0:8-1:0 Expected type, got <eof>"]],
     ["store x:\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
     ["store x: -- note\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
-    ["store x:\nlocal y = 1", ["0:8-1:0 Expected type, got <eof>"]],
-    ["scene s\n  store x:\nend", ["1:10-2:0 Expected type, got <eof>"]],
+    ["store x:\nstore y = 1", ["0:8-1:0 Expected type, got <eof>"]],
+    ["scene s\n  store x:\nend", ["1:2-1:10 store declaration must be at the top level; assign it here with & name = value instead", "1:10-2:0 Expected type, got <eof>"]],
     ["scene s(a: )\nend", ["0:10-0:12 Expected type, got ')'"]],
     ["scene s(a: --[[c]] ?)\nend", ["0:10-0:20 Expected type, got '?'"]],
     ["scene s(: number)\nend", ["0:8-0:9 Expected identifier when parsing variable name, got ':'"]],
@@ -218,11 +219,10 @@ describe("the reported layouts", () => {
     ["scene s(a :: number)\nend", ["0:10-0:12 Expected ')' (to close '(' at column 8), got '::'"]],
     ["scene s(a --[[c]] :: number)\nend", ["0:18-0:20 Expected ')' (to close '(' at column 8), got '::'"]],
     // An opener in a string or a line comment before the real comment.
-    ['local marker = "--[["\nlocal x --[[c]] :: number', ["1:16-1:18 Expected identifier when parsing expression, got '::'", "1:19-1:25 Incomplete statement: expected assignment or a function call"]],
-    ["-- --[[\nlocal x --[[real]] :: number", ["1:19-1:21 Expected identifier when parsing expression, got '::'", "1:22-1:28 Incomplete statement: expected assignment or a function call"]],
+    ['scene s\n  local marker = "--[["\n  local x --[[c]] :: number\nend', ["2:18-2:20 Expected identifier when parsing expression, got '::'", "2:21-2:27 Incomplete statement: expected assignment or a function call"]],
+    ["scene s\n  -- --[[\n  local x --[[real]] :: number\nend", ["2:21-2:23 Expected identifier when parsing expression, got '::'", "2:24-2:30 Incomplete statement: expected assignment or a function call"]],
     // A block comment that never closes where the type goes is the one
-    // error there, in a `store` declaration as in a `local` one.
-    ["local x: --[[ unfinished\nlocal y = 1", ["0:9-2:0 Expected identifier when parsing expression, got unfinished comment"]],
+    // error there.
     ["store x: --[[ unfinished\nlocal y = 1", ["0:9-2:0 Expected identifier when parsing expression, got unfinished comment"]],
     // A token Luau reads whole.
     ["scene s(a: 123)\nend", ["0:10-0:14 Expected type, got '123'"]],
@@ -234,7 +234,7 @@ describe("the reported layouts", () => {
   // A block comment of any length before the `::` or the token Luau finds.
   const long = "x".repeat(5000);
   test.each([
-    ["a local target", `local x --[[${long}]] :: number`, ["0:5015-0:5017 Expected identifier when parsing expression, got '::'", "0:5018-0:5024 Incomplete statement: expected assignment or a function call"]],
+    ["a local target", `scene s\n  local x --[[${long}]] :: number\nend`, ["1:5017-1:5019 Expected identifier when parsing expression, got '::'", "1:5020-1:5026 Incomplete statement: expected assignment or a function call"]],
     ["a store declaration", `store x: --[[${long}]] = 1`, ["0:8-0:5017 Expected type, got '='"]],
   ])("in a Sparkdown document, a long comment in %s", (_position, source, messages) => {
     expect(documentErrors(source)).toEqual(messages);

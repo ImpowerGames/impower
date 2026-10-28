@@ -78,12 +78,12 @@ const cases: [string, string, string][] = [
   // the original would give 100 + 6.
   [
     "the function's own recursive call reaches the rebound value",
-    "function f(n)\n  if n <= 0 then\n    return 0\n  end\n  return n + f(n - 1)\nend\n& local old = f\n& f = function(n) return 100 + old(n) end\nf is {f(3)}.\n",
+    "function f(n)\n  if n <= 0 then\n    return 0\n  end\n  return n + f(n - 1)\nend\n-> start\nscene start\n  & local old = f\n  & f = function(n) return 100 + old(n) end\n  f is {f(3)}.\nend\n",
     "f is 406.\n",
   ],
   [
     "a value read before the rebind keeps the original",
-    "function f() return 7 end\n& local g = f\n& f = function() return 2 end\ng is {g()}, f is {f()}.\n",
+    "function f() return 7 end\n-> start\nscene start\n  & local g = f\n  & f = function() return 2 end\n  g is {g()}, f is {f()}.\nend\n",
     "g is 7, f is 2.\n",
   ],
   [
@@ -98,7 +98,7 @@ const cases: [string, string, string][] = [
   ],
   [
     "a local function value rebinds (control)",
-    "local f = function(...) return 7 end\n& f = function(...) return 2 end\nf is {f()}.\n",
+    "-> start\nscene start\n  local f = function(...) return 7 end\n  & f = function(...) return 2 end\n  f is {f()}.\nend\n",
     "f is 2.\n",
   ],
 ];

@@ -63,12 +63,13 @@ describe("the code after a union that goes on to the next line still runs", () =
 });
 
 // A type that ends its line takes the line break in, so each rule around it
-// has to end at the start of the next line, indented or not.
+// has to end at the start of the next line, indented or not. A local belongs
+// in a scene, so the story's locals are written in one.
 describe("a type at the end of a line still ends at the next line's code", () => {
   test.each([
-    ["a local and prose", `local x: number\nHello {f()}.\nfunction f()\n  return 5\nend\n`, "Hello 5.\n"],
-    ["a local, a blank line and prose", `local x: number\n\nHello {f()}.\nfunction f()\n  return 5\nend\n`, "Hello 5.\n"],
-    ["a local and a function", `local x: number\nfunction f()\n  return 5\nend\nHello {f()}.\n`, "Hello 5.\n"],
+    ["a local and prose", `-> start\nscene start\n  local x: number\n  Hello {f()}.\nend\nfunction f()\n  return 5\nend\n`, "Hello 5.\n"],
+    ["a local, a blank line and prose", `-> start\nscene start\n  local x: number\n\n  Hello {f()}.\nend\nfunction f()\n  return 5\nend\n`, "Hello 5.\n"],
+    ["a local and a local function", `-> start\nscene start\n  local x: number\n  local function f()\n    return 5\n  end\n  Hello {f()}.\nend\n`, "Hello 5.\n"],
     ["a type alias and prose", `type T = number\nHello {f()}.\nfunction f()\n  return 5\nend\n`, "Hello 5.\n"],
     ["a return type and an unindented body", `Hello {f()}.\nfunction f(): number\nreturn 5\nend\n`, "Hello 5.\n"],
     ["a return type and a call", `Hello {f()}.\nfunction f(): number\n  print(1)\n  return 5\nend\n`, "Hello 15.\n"],
@@ -97,9 +98,9 @@ describe("every statement of a function runs", () => {
     ["generic parameters after a space, then a call in parentheses", `Value {f(1)}.\nfunction f<T> (a: T) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
     ["a call in parentheses right after the header", `Value {f()}.\nfunction f()(function() print(1) end)() return 5 end\n`, "Value 15.\n"],
     ["a call in parentheses right after generic parameters", `Value {f(1)}.\nfunction f<T>(a: T)(function() print(a) end)() return 5 end\n`, "Value 15.\n"],
-    ["a call in parentheses right after a dotted header", `local t = {}\nfunction t.g()(function() print(1) end)() return 5 end\nValue {t.g()}.\n`, "Value 15.\n"],
-    ["a call in parentheses right after a method header", `local t = {}\nfunction t:m()(function() print(1) end)() return 5 end\nValue {t:m()}.\n`, "Value 15.\n"],
-    ["a call in parentheses right after an anonymous header", `local f = function()(function() print(1) end)() return 5 end\nValue {f()}.\n`, "Value 15.\n"],
+    ["a call in parentheses right after a dotted header", `store t = {}\nfunction t.g()(function() print(1) end)() return 5 end\nValue {t.g()}.\n`, "Value 15.\n"],
+    ["a call in parentheses right after a method header", `store t = {}\nfunction t:m()(function() print(1) end)() return 5 end\nValue {t:m()}.\n`, "Value 15.\n"],
+    ["a call in parentheses right after an anonymous header", `-> start\nscene start\n  local f = function()(function() print(1) end)() return 5 end\n  Value {f()}.\nend\n`, "Value 15.\n"],
     ["statements right after the header", `Value {f()}.\nfunction f()local x = 5 return x end\n`, "Value 5.\n"],
     ["a block comment between the header and a statement", `Value {f()}.\nfunction f() --[[c]] print(1) return 5 end\n`, "Value 15.\n"],
   ])("with %s", (_name, source, output) => {
@@ -225,7 +226,7 @@ describe("a declaration with extra whitespace before a comma or `=`", () => {
 describe("a return type qualified on the next line", () => {
   test.each([
     ["a function", `Value {f()}.\nfunction f(): types\n  .Button\n  return 5\nend\n`],
-    ["a function value", `local f = function(): types\n  .Button\n  return 5\nend\nValue {f()}.\n`],
+    ["a function value", `-> start\nscene start\n  local f = function(): types\n    .Button\n    return 5\n  end\n  Value {f()}.\nend\n`],
   ])("reads as one type in %s", (_name, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);

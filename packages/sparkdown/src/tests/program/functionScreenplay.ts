@@ -39,7 +39,7 @@ export function functionScreenplay(scenes = 3): string {
     L.push(`  local make = function(n) return function() return n * ${s + 2} end end`);
     L.push(`  Made {make(${s})()} total {total} twice {twice(${s})}.`);
     L.push("  if total < 0 then");
-    L.push("    function reset()");
+    L.push("    local function reset()");
     L.push("      total = 0");
     L.push("    end");
     L.push("  end");

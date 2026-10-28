@@ -19,5 +19,5 @@ function f(c, ...)
   return a
 end
 
-local s = if (c)then
-local t = 1
+store s = if (c)then
+store t = 1

@@ -67,13 +67,13 @@ describe("written island syntax diagnostics own authored tokens", () => {
   test.each(["do local x = (2 end", "do local x = math.abs(2 end", "do local x = {2 end", "do local x = t[2 end", "do if true then print(1) else else end end", "do if true then print(1) else elseif true then end end"])("semicolon follower owns its unexpected written closer: %s", body => {
     const authored = `local n = 1; ${body}`;
     const native = parseOfficialTree(`  ${authored}`).errors[0]!;
-    const errors = syntaxErrors(`& ${authored}\nThe village waits.\n`);
+    const errors = syntaxErrors(`scene a\n& ${authored}\nThe village waits.\nend\n`);
     expect(errors.map(message)).toContain(native.message);
-    expect(errors.find(d => message(d) === native.message)!.range.start).toEqual({ line: native.location.begin.line, character: native.location.begin.column });
+    expect(errors.find(d => message(d) === native.message)!.range.start).toEqual({ line: native.location.begin.line + 1, character: native.location.begin.column });
   });
 
   test("closed semicolon expression and genuine following function execute", () => {
-    const ctx = makeRuntimeStoryFromSource("store x = 0\n& local n = 1; x = math.abs(2)\nThe village waits.\nValue {x} and {f()}.\ndone\nfunction f()\n return 5\nend\n");
+    const ctx = makeRuntimeStoryFromSource("store x = 0\n-> a\nscene a\n& local n = 1; x = math.abs(2)\nThe village waits.\nValue {x} and {f()}.\ndone\nend\nfunction f()\n return 5\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("The village waits.\nValue 2 and 5.\n");
   });
@@ -131,7 +131,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
   });
 
   test("semicolon-separated marked statements preserve their effects and following prose", async () => {
-    const source = "store x = 0\n& local voice = { say = function(self) return 5 end }; x = voice:say()\nThe village waits.\nValue {x}.\ndone\n";
+    const source = "store x = 0\n-> a\nscene a\n& local voice = { say = function(self) return 5 end }; x = voice:say()\nThe village waits.\nValue {x}.\ndone\nend\n";
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("The village waits.\nValue 5.\n");
@@ -149,13 +149,13 @@ describe("written island syntax diagnostics own authored tokens", () => {
   ])("missing punctuation closer in %s has the native written-token diagnostic", body => {
     const native = parseOfficialTree(`  ${body}`).errors[0]!;
     expect(native.message).toMatch(/^Expected ['"].*[)\]}]/);
-    const source = `& ${body}\nThe village waits.\n& math.abs(5)\n`;
+    const source = `scene a\n& ${body}\nThe village waits.\n& math.abs(5)\nend\n`;
     const published = syntaxErrors(source);
     expect(published.map(message)).toContain(native.message);
     const diagnostic = published.find(d => message(d) === native.message)!;
-    expect(diagnostic.range.start).toEqual({ line: native.location.begin.line, character: native.location.begin.column });
-    expect(diagnostic.range.end).toEqual({ line: native.location.end.line, character: native.location.end.column });
-    expect(published.every(d => d.range.start.line === 0)).toBe(true);
+    expect(diagnostic.range.start).toEqual({ line: native.location.begin.line + 1, character: native.location.begin.column });
+    expect(diagnostic.range.end).toEqual({ line: native.location.end.line + 1, character: native.location.end.column });
+    expect(published.every(d => d.range.start.line === 1)).toBe(true);
     expect(treeScopeStackAt(parseSource(source), source.indexOf("The village"))).toContain("string.display.text.chunk.sd");
   });
 
@@ -166,7 +166,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
     "do local n = {1} end",
   ])("complete punctuation control %s has zero syntax diagnostics", body => {
     expect(parseOfficialTree(`  ${body}`).errors).toEqual([]);
-    expect(publishedErrors(`store t = {1}\n& ${body}\nThe village waits.\n`)).toEqual([]);
+    expect(publishedErrors(`store t = {1}\nscene a\n& ${body}\nThe village waits.\nend\n`)).toEqual([]);
   });
 
   test.each([
@@ -194,13 +194,14 @@ describe("written island syntax diagnostics own authored tokens", () => {
     expect(ctx.story.ContinueMaximally()).toBe(`The village waits.\nValue ${value}.\n`);
   });
 
+  // The marked local sits in a scene, the place a local belongs.
   test.each([
-    "function f(t)\n return t:\n method()\nend\n",
-    "& local f = function(t)\n return t:\n method()\nend\n",
-  ])("genuine function retains multiline method-name ownership: %s", source => {
-    const native = source.startsWith("&") ? ` ${source.slice(1)}` : source;
+    ["function f(t)\n return t:\n method()\nend\n", ""],
+    ["& local f = function(t)\n return t:\n method()\nend\n", "scene a\n"],
+  ])("genuine function retains multiline method-name ownership: %s", (code, prefix) => {
+    const native = code.startsWith("&") ? ` ${code.slice(1)}` : code;
     expect(parseOfficialTree(native).errors).toEqual([]);
-    expect(publishedErrors(source)).toEqual([]);
+    expect(publishedErrors(`${prefix}${code}${prefix ? "end\n" : ""}`)).toEqual([]);
   });
 
   test.each([

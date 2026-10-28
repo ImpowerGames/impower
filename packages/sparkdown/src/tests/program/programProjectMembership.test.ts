@@ -17,6 +17,8 @@ const DEFS = `${ROOT}scripts/defs.sd`;
 
 const OUTSIDE_SCENE =
   "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
+const LOCAL_AT_TOP =
+  "local declaration must be inside a scene, branch or function; use store or const at the top level";
 const INCLUDE_LINE =
   "Scripts in the project folder are part of the story. Delete this line.";
 
@@ -139,7 +141,7 @@ describe("a project folder", () => {
 describe("a script other than main", () => {
   const LIB = `${ROOT}lib.sd`;
 
-  it("reports a display line, a top-level local and a run at their lines, and drops them", () => {
+  it("reports a display line and a run at their lines, and a top-level local as a misplaced local, and drops them", () => {
     const program = compileProject({
       [MAIN]: lines("Main.", "-> intro"),
       [LIB]: lines(
@@ -154,11 +156,11 @@ describe("a script other than main", () => {
     });
     expect(reported(program, OUTSIDE_SCENE)).toEqual([
       [LIB, 0],
-      [LIB, 1],
       [LIB, 2],
     ]);
+    expect(reported(program, LOCAL_AT_TOP)).toEqual([[LIB, 1]]);
     expect(errorsOf(program).map(([, message]) => message)).toEqual([
-      OUTSIDE_SCENE,
+      LOCAL_AT_TOP,
       OUTSIDE_SCENE,
       OUTSIDE_SCENE,
     ]);
@@ -197,7 +199,7 @@ describe("a script other than main", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["The intro 6 4.\n", "More.\n"]);
   });
 
-  it("declares with a store, const or function marked with &, and reports a & statement that runs", () => {
+  it("declares with a store, const or function marked with &, and reports a & statement that runs or declares a local", () => {
     const program = compileProject({
       [MAIN]: lines("Gold {gold} {twice(LIMIT)}."),
       [LIB]: lines(
@@ -212,8 +214,8 @@ describe("a script other than main", () => {
     expect(reported(program, OUTSIDE_SCENE)).toEqual([
       [LIB, 3],
       [LIB, 4],
-      [LIB, 5],
     ]);
+    expect(reported(program, LOCAL_AT_TOP)).toEqual([[LIB, 5]]);
     const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Gold 4 6.\n"]);
   });
@@ -295,10 +297,11 @@ describe("a script other than main", () => {
         "end",
       ),
     });
-    expect(reported(program, OUTSIDE_SCENE)).toEqual([
+    expect(reported(program, LOCAL_AT_TOP)).toEqual([
       [LIB, 0],
       [LIB, 1],
     ]);
+    expect(reported(program, OUTSIDE_SCENE)).toEqual([]);
     const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Main 4.\n"]);
   });
