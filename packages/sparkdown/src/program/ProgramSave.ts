@@ -470,7 +470,8 @@ const sceneOfBranch = (root: ProgramRoot, symbol: number): number => {
 /** The bindings a position in `sequence` carries on its first level: its
  *  scene's or branch's entry, and for a branch, its scene's entry, whose
  *  parameters the frame holds too when the scene's entry went on to the
- *  branch or the scene's body diverted to it (#1728). */
+ *  branch, falling through; a divert into the branch opens the scene's
+ *  scope fresh, with none of them (#1728). */
 const positionBindings = (
   root: ProgramRoot,
   sequence: SequenceRow,
